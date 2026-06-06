@@ -62572,8 +62572,11 @@ a.md-goal-nav-action:hover,
 .md-shell--board-detail:not(.md-shell--board-detail-edit) #speak.md-board-detail-sentence-row--hide-bar {
   position: absolute;
   top: 8px;
+  /* Span the full width so Home sits LEFT-aligned and the options/sidebar
+     cluster stays RIGHT (split via justify-content:space-between), rather than
+     all three bunched at the top-right. */
+  left: 8px;
   right: 8px;
-  left: auto;
   width: auto;
   min-height: 0 !important;
   margin: 0;
@@ -62581,10 +62584,11 @@ a.md-goal-nav-action:hover,
   background: transparent;
   border: none;
   box-shadow: none;
-  /* Compact horizontal row of icon buttons — home + options + sidebar. */
-  display: inline-flex;
+  /* Home (nav stack) on the left edge, options + sidebar cluster on the right. */
+  display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   z-index: 50;
 }
@@ -62991,88 +62995,122 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    and the inline sidebar (a flex item inside .md-board-detail-grid-sidebar-wrap,
    which is a flex row). Hidden on larger screens — the inline in-bar group is
    used there instead. */
+/* Vertical prediction rail. `display:none` by default; the VISIBILITY rules
+   further down show it (display:flex) depending on the user's
+   word_suggestion_position preference + viewport. The LAYOUT here applies
+   unconditionally — it's inert while the rail is display:none, so the rail is
+   fully styled whether it's shown responsively (auto, <=1024px) OR pinned via
+   the side_rail preference at ANY width. */
 .md-board-detail-prediction-rail {
   display: none;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-self: stretch;
+  align-items: stretch;
+  /* Width, inter-tile gap, and top inset all track the live board grid
+     (measured by _sync_prediction_tile_size in controllers/user/
+     board-detail.js): the gap matches the board's row pitch and the top
+     padding aligns the first tile with the first board row, so the rail
+     shares the board's vertical rhythm. Fixed fallbacks keep a sensible
+     column if measurement hasn't run yet. */
+  width: var(--prediction-tile-w, 84px);
+  gap: var(--prediction-tile-gap, 8px);
+  /* No left/right padding — tiles fill the rail edge-to-edge so a tile matches
+     the board cell width exactly. Keep the measured top inset (aligns the first
+     tile with the first board row) and the 4px bottom. */
+  padding: var(--prediction-rail-pad-top, 4px) 0 4px;
+  margin-left: 6px;
+  max-height: 100%;
+  overflow-y: auto;
 }
+/* Tiles match the board button box (measured vars, fixed fallbacks). */
+.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
+  width: 100%;
+  /* Override the base tile's `min-width: 44px`. The rail width tracks one board
+     cell (--prediction-tile-w), so on many-column boards the cell — and thus
+     the rail — is narrower than 44px. With the 44px floor the tile stays wider
+     than the rail's content box and the rail's overflow-y:auto (which makes
+     overflow-x compute to auto) clips the tile's RIGHT edge — visible even for
+     short words like "you"/"they". Letting the tile shrink to the rail width
+     removes the overflow, so nothing is clipped. The image scales with the tile
+     (see the rail __prediction-img rule below), so a sub-44px tile stays legible. */
+  min-width: 0;
+  height: var(--prediction-tile-h, 78px);
+  /* Give the label breathing room from the image (the base gap:1px read as
+     cramped). */
+  gap: 4px;
+  /* Establish a cqw container so the label below tracks the tile width.
+     The tile is sized to the board cell (--prediction-tile-w), so cqw here
+     == cqw on the board's symbol-card → words match the board labels. */
+  container-type: inline-size;
+}
+/* Scale the symbol with the tile (board symbols are sized as a % of the
+   card) so it doesn't float small inside a larger matched tile. */
+.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img {
+  width: auto;
+  height: 52%;
+  max-width: 80%;
+}
+/* Predicted-word font must EXACTLY match the board button label.
+   --prediction-label-font is the board label's RENDERED font-size, copied in
+   JS (_sync_prediction_tile_size). A cqw match can't work here: cqw resolves
+   against the container's CONTENT box, and the rail tile's larger horizontal
+   padding (10px vs the card's 4px) gives it a narrower content box, so equal
+   outer widths still produce different cqw px. The fallback clamp only applies
+   before the first measurement lands. */
+.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label {
+  font-size: var(--prediction-label-font, clamp(10px, 14cqw, var(--bd-button-text-size, 15px)));
+}
+/* Match the board buttons' text POSITION (the rail carries the board's text-pos
+   class). DOM order is image-then-label, so flip flex-direction: top → label
+   above (column-reverse), bottom → label below (column); none hides the label,
+   text_only hides the image. */
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-top .md-board-detail-sentence-bar__prediction {
+  flex-direction: column-reverse;
+}
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-bottom .md-board-detail-sentence-bar__prediction {
+  flex-direction: column;
+}
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label {
+  display: none;
+}
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img {
+  display: none;
+}
+
+/* ── Word-prediction placement (user pref: word_suggestion_position) ──────────
+   'auto' (default, no shell class): responsive — in-bar on wide screens, rail
+   on <=1024px. 'speak_bar' / 'side_rail' pin it at all widths. Toggling visibility
+   only; the rail's layout (above) and the in-bar group's layout are unchanged. */
 @media (max-width: 1024px) {
-  /* At <=1024px the in-bar predictions crowd the speak bar, so hide them and
-     show the vertical rail to the right of the grid instead. */
-  .md-board-detail-sentence-bar__prediction-group {
+  /* Auto OR pinned side_rail (i.e. anything except a pinned speak_bar): hide
+     the in-bar predictions (they crowd the bar) and show the rail. */
+  .md-shell--board-detail:not(.md-shell--wordpred-speak-bar) .md-board-detail-sentence-bar__prediction-group {
     display: none;
   }
-  /* Let the board grid yield width so the rail + sidebar + gaps fit inside
-     main (which is overflow-x:hidden). Without this the grid keeps its full
-     content width and the rightmost element (sidebar) gets clipped off. */
+  .md-shell--board-detail:not(.md-shell--wordpred-speak-bar) .md-board-detail-prediction-rail {
+    display: flex;
+  }
+  /* Let the grid yield width so the rail + sidebar + gaps fit inside main
+     (overflow-x:hidden). Unconditional at <=1024 — the sidebar needs it even
+     when predictions are pinned to the speak bar (no rail). */
   .md-board-detail-grid-fade {
     min-width: 0;
   }
-  .md-board-detail-prediction-rail {
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    align-self: stretch;
-    align-items: stretch;
-    /* Width, inter-tile gap, and top inset all track the live board grid
-       (measured by _sync_prediction_tile_size in controllers/user/
-       board-detail.js): the gap matches the board's row pitch and the top
-       padding aligns the first tile with the first board row, so the rail
-       shares the board's vertical rhythm. Fixed fallbacks keep a sensible
-       column if measurement hasn't run yet. */
-    width: var(--prediction-tile-w, 84px);
-    gap: var(--prediction-tile-gap, 8px);
-    padding: var(--prediction-rail-pad-top, 4px) 6px 4px;
-    margin-left: 6px;
-    max-height: 100%;
-    overflow-y: auto;
-  }
-  /* Tiles match the board button box (measured vars, fixed fallbacks). */
-  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
-    width: 100%;
-    height: var(--prediction-tile-h, 78px);
-    /* Establish a cqw container so the label below tracks the tile width.
-       The tile is sized to the board cell (--prediction-tile-w), so cqw here
-       == cqw on the board's symbol-card → words match the board labels. */
-    container-type: inline-size;
-  }
-  /* Scale the symbol with the tile (board symbols are sized as a % of the
-     card) so it doesn't float small inside a larger matched tile. */
-  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img {
-    width: auto;
-    height: 52%;
-    max-width: 80%;
-  }
-  /* Predicted-word font must EXACTLY match the board button label.
-     --prediction-label-font is the board label's RENDERED font-size, copied in
-     JS (_sync_prediction_tile_size). A cqw match can't work here: cqw resolves
-     against the container's CONTENT box, and the rail tile's larger horizontal
-     padding (10px vs the card's 4px) gives it a narrower content box, so equal
-     outer widths still produce different cqw px. The fallback clamp only applies
-     before the first measurement lands. */
-  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label {
-    font-size: var(--prediction-label-font, clamp(10px, 14cqw, var(--bd-button-text-size, 15px)));
-  }
-  /* Match the board buttons' text POSITION (the rail carries the board's
-     text-pos class) and give the label breathing room from the image (the base
-     gap:1px read as cramped). DOM order is image-then-label, so flip
-     flex-direction to place the label like the board: top → label above
-     (column-reverse), bottom → label below (column); none hides the label,
-     text_only hides the image. */
-  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
-    gap: 4px;
-  }
-  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-top .md-board-detail-sentence-bar__prediction {
-    flex-direction: column-reverse;
-  }
-  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-bottom .md-board-detail-sentence-bar__prediction {
-    flex-direction: column;
-  }
-  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label {
-    display: none;
-  }
-  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img {
-    display: none;
-  }
 }
+/* Pinned SIDE RAIL — show the rail and hide the in-bar group at ALL widths. */
+.md-shell--wordpred-side-rail .md-board-detail-prediction-rail {
+  display: flex;
+}
+.md-shell--wordpred-side-rail .md-board-detail-sentence-bar__prediction-group {
+  display: none;
+}
+.md-shell--wordpred-side-rail .md-board-detail-grid-fade {
+  min-width: 0;
+}
+/* Pinned SPEAK BAR needs no rule of its own — it's the default in-bar layout
+   kept at every width: the <=1024 rail rules above are excluded for it via
+   :not(.md-shell--wordpred-speak-bar), so the in-bar group simply stays shown. */
 .md-board-detail-sentence-bar__prediction {
   display: inline-flex;
   flex-direction: column;
@@ -83808,7 +83846,22 @@ blockquote small {
   top: 100%;
 }
 .beta-feedback-drawer-tab--speak {
-  top: 0;
+  /* Speak mode: the drawer lives at the BOTTOM of the page, so the tab hangs
+     UP from the bottom edge — rounded top corners, top border restored,
+     bottom border/rounding dropped. */
+  top: auto;
+  bottom: 0;
+  border-radius: 14px 14px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-bottom: none;
+}
+/* Caret points UP when closed (drawer opens upward), flips DOWN when open —
+   the reverse of the top-drawer default. */
+.beta-feedback-drawer-tab--speak .beta-feedback-drawer-tab__caret {
+  transform: rotate(180deg);
+}
+.beta-feedback-drawer-tab--speak.beta-feedback-drawer-tab--open .beta-feedback-drawer-tab__caret {
+  transform: rotate(0deg);
 }
 .beta-feedback-drawer-tab:hover {
   color: #fff;
@@ -83844,6 +83897,19 @@ blockquote small {
 }
 .beta-feedback-drawer--speak {
   --beta-feedback-drawer-offset: 0px;
+  /* Anchor to the BOTTOM in speak mode — the panel slides UP from below. */
+  top: auto;
+  bottom: 0;
+}
+.beta-feedback-drawer--speak .beta-feedback-drawer__panel {
+  /* Rounded TOP corners (it rises from the bottom); bottom padding clears the
+     tab pill that now sits at the bottom edge. */
+  border-radius: 20px 20px 0 0;
+  padding: 1.5rem 1.5rem 5.5rem;
+}
+.beta-feedback-drawer--speak.beta-feedback-drawer--hidden {
+  /* Tuck below the viewport instead of above. */
+  transform: translateY(calc(100% + 18px));
 }
 .beta-feedback-drawer__panel {
   width: min(780px, calc(100vw - 36px));
@@ -84791,13 +84857,21 @@ blockquote small {
   .beta-feedback-drawer-tab--navbar {
     top: 100%;
   }
+  /* Speak mode keeps the bottom placement at narrow widths too (was top: 0,
+     which overrode the bottom anchor). */
   .beta-feedback-drawer-tab--speak {
-    top: 0;
+    top: auto;
+    bottom: 0;
   }
   .beta-feedback-drawer__panel {
     width: calc(100vw - 16px);
     max-height: calc(100vh - 78px);
     padding: 1rem;
+  }
+  /* Re-assert the bottom-drawer panel padding (tab clearance) in speak mode —
+     the generic <=720 panel rule above resets padding to 1rem. */
+  .beta-feedback-drawer--speak .beta-feedback-drawer__panel {
+    padding: 1rem 1rem 5rem;
   }
   .la-wrapper--support .la-beta-feedback__reaction-options,
   .beta-feedback-drawer .la-beta-feedback__reaction-options {

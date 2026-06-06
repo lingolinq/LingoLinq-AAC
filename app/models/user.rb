@@ -619,6 +619,14 @@ class User < ApplicationRecord
         'blank_status' => false,
         'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
+        # Word prediction on/off (global, governs BOTH classic board-alt and
+        # modern board-detail speak modes). Default OFF — the user opts in via
+        # Preferences or the board-detail edit panel.
+        'word_suggestions' => false,
+        # Where word prediction renders in board-detail speak mode: 'auto'
+        # (responsive — inline in the speak bar on wide screens, vertical side
+        # rail on narrow), or pinned to 'speak_bar' / 'side_rail'.
+        'word_suggestion_position' => 'auto',
         'hidden_buttons' => 'grid',
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
@@ -1078,7 +1086,7 @@ class User < ApplicationRecord
       'board_background', 'vocalization_height', 'role', 'auto_open_speak_mode',
       'canvas_render', 'blank_status', 'share_notifications', 'notification_frequency',
       'skip_supervisee_sync', 'sync_refresh_interval', 'multi_touch_modeling',
-      'goal_notifications', 'word_suggestion_images', 'hidden_buttons',
+      'goal_notifications', 'word_suggestion_images', 'word_suggestions', 'word_suggestion_position', 'hidden_buttons',
       'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
       'new_index', 'debounce', 'cookies', 'telemetry_opt_in', 'comms_log_opt_in', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',

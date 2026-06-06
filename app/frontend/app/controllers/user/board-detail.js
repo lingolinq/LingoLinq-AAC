@@ -1910,8 +1910,48 @@ export default Controller.extend(prefClasses, {
 
   // Word suggestions
   suggestions: null,
-  show_word_suggestions: computed('edit_mode', function() {
-    return !this.get('edit_mode');
+  show_word_suggestions: computed('edit_mode', 'app_state.referenced_user.preferences.word_suggestions', function() {
+    // Global user preference gates word prediction in speak mode. Default is
+    // OFF: only an explicit `true` shows it (undefined/null/false = off). Never
+    // shown in edit mode.
+    if(this.get('edit_mode')) { return false; }
+    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
+  }),
+  // On/off state of word prediction (default OFF — only explicit true is on),
+  // used by the BOARD SETTINGS → Word Prediction toggle — independent of
+  // edit_mode, unlike show_word_suggestions which is always false while editing.
+  word_suggestions_enabled: computed('app_state.referenced_user.preferences.word_suggestions', function() {
+    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
+  }),
+  // Where word prediction renders in speak mode (user pref). 'speak_bar' /
+  // 'side_rail' pin a layout at all widths via a shell class; 'auto' (default,
+  // empty class) keeps the responsive in-bar/rail switch. See app.scss
+  // ".md-shell--wordpred-*" rules.
+  word_suggestion_position_class: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
+    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position');
+    if(pos === 'speak_bar') { return 'md-shell--wordpred-speak-bar'; }
+    if(pos === 'side_rail') { return 'md-shell--wordpred-side-rail'; }
+    return '';
+  }),
+  // ── Word-prediction position selector (edit-mode BOARD SETTINGS section) ──
+  // The current placement value (default 'auto'), the dropdown's open state,
+  // its options, and the label for the active option. Mirrors the Sentence Bar
+  // size dropdown's bindings in the same panel.
+  word_prediction_position_dropdown_open: false,
+  word_suggestion_position_value: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
+    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'auto';
+  }),
+  word_prediction_position_options: computed(function() {
+    return [
+      { id: 'auto', label: i18n.t('word_prediction_pos_auto', "Best fit for the screen") },
+      { id: 'speak_bar', label: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar") },
+      { id: 'side_rail', label: i18n.t('word_prediction_pos_side_rail', "To the right of the board") }
+    ];
+  }),
+  word_prediction_position_label: computed('word_suggestion_position_value', function() {
+    var val = this.get('word_suggestion_position_value');
+    var match = (this.get('word_prediction_position_options') || []).find(function(o) { return o.id === val; });
+    return match ? match.label : i18n.t('word_prediction_pos_auto', "Best fit for the screen");
   }),
 
   _suggestion_lookup_context: function() {
@@ -2054,6 +2094,7 @@ export default Controller.extend(prefClasses, {
 
   updateSuggestions: observer(
     'edit_mode',
+    'app_state.referenced_user.preferences.word_suggestions',
     'app_state.button_list',
     'app_state.button_list.[]',
     'app_state.button_list.@each.in_progress',
@@ -2066,7 +2107,9 @@ export default Controller.extend(prefClasses, {
     'sentence_parts.@each.in_progress',
     'model.locale',
     function() {
-      if(this.get('edit_mode')) {
+      // Skip the lookup entirely when in edit mode or word prediction is off
+      // (default OFF — only an explicit `true` enables it).
+      if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
         this.set('suggestions', null);
         return;
       }
@@ -5569,6 +5612,41 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // Word prediction on/off — the SAME global user preference exposed on the
+    // Preferences page, mirrored in the edit-mode BOARD SETTINGS → Word
+    // Prediction section. Reads/writes referenced_user (the board's user,
+    // matching the speak-mode display gate). Dirty-bits preferences.device.updated
+    // so the raw preferences blob ships (Ember Data won't mark a nested set dirty
+    // on its own — same trick as go_to_classic / set_display_pref).
+    toggle_word_suggestions: function() {
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      var currentlyOn = prefUser.get('preferences.word_suggestions') !== false;
+      prefUser.set('preferences.word_suggestions', !currentlyOn);
+      if(prefUser.save) {
+        prefUser.set('preferences.device.updated', true);
+        prefUser.save();
+      }
+    },
+    toggle_word_prediction_position_dropdown: function() {
+      this.toggleProperty('word_prediction_position_dropdown_open');
+    },
+    close_word_prediction_position_dropdown: function() {
+      this.set('word_prediction_position_dropdown_open', false);
+    },
+    // Set word-prediction placement (auto / speak_bar / side_rail) + persist it,
+    // same way as toggle_word_suggestions.
+    pick_word_suggestion_position: function(id) {
+      this.set('word_prediction_position_dropdown_open', false);
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      prefUser.set('preferences.word_suggestion_position', id);
+      if(prefUser.save) {
+        prefUser.set('preferences.device.updated', true);
+        prefUser.save();
+      }
+    },
+
     make_a_copy: function() {
       this.set('share_dropdown_open', false);
       var _this = this;
@@ -6360,23 +6438,26 @@ export default Controller.extend(prefClasses, {
       });
     },
 
+    // Expand / collapse the inline sidebar. This button now owns BOTH the
+    // visibility AND the persistent state (the separate pin control has been
+    // removed): it flips the shared `quick_sidebar` preference via the
+    // application controller's `stickSidebar` primitive (which persists to the
+    // DB), then reflects the new state locally. So expanding pins it open and
+    // collapsing turns the persistent state OFF. `stickSidebar` sets
+    // quick_sidebar synchronously before its save, so reading it right after
+    // gives the new value. lock_quick_sidebar still prevents closing.
     toggleInlineSidebar: function() {
       var prefs = this.get('app_state.currentUser.preferences') || {};
       if(this.get('inlineSidebarOpen') && prefs.quick_sidebar && prefs.lock_quick_sidebar) {
         return;
       }
-      this.toggleProperty('inlineSidebarOpen');
-    },
-    // Pin / unpin the inline sidebar open. Delegates to the application
-    // controller's existing `stickSidebar` primitive so the pinned state
-    // lives in ONE place — the persistent `quick_sidebar` preference shared
-    // with the app-level sidebar (board-alt / main board route). When
-    // quick_sidebar flips on, syncInlineSidebarOnPrefChange re-opens this
-    // sidebar and _maybeCloseInlineSidebarAfterAction keeps it open after jumps.
-    pinInlineSidebar: function() {
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
         appController.send('stickSidebar');
+        this.set('inlineSidebarOpen', !!this.get('app_state.currentUser.preferences.quick_sidebar'));
+      } else {
+        // Fallback if the app controller isn't reachable — at least flip locally.
+        this.toggleProperty('inlineSidebarOpen');
       }
     },
     sidebar_jump: function(key, board) {

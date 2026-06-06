@@ -3054,3 +3054,39 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Use semantic tokens for real user details (`name`, `email`, `tel`, `url`), `current-password` only for credentials that authenticate an existing account, and `new-password` for credential creation/reset/update. For username lookup, start-code, free-form bio, and profile location fields, prefer `autocomplete="off"` plus autocapitalize/autocorrect/spellcheck off where typing exact identifiers matters, so browsers do not inject saved usernames/password-adjacent values into unrelated profile fields.
 
 **Evidence:** `app/frontend/app/templates/user/edit.hbs`; task log `2026-06-03-profile-autocomplete-field-types.md`.
+
+---
+
+## Pattern: speak-mode display prefs read from `app_state.referenced_user`, not `currentUser`
+
+**Surface:** any feature whose on/off or appearance should follow the AAC user being spoken AS (board-detail and classic board-alt speak pages), e.g. word prediction, skin, preferred symbols, button text position.
+
+**Root cause pattern:** in speak mode the logged-in account (`currentUser`) is often a supervisor, not the communicator. Reading prefs off `currentUser` shows the wrong person's settings. The established app-state property is `referenced_user` — board/index.js already gates skin/symbols/button_text off `appState.referenced_user.preferences.*`, and board-detail uses `app_state.referenced_user.preferences.*`. It is only meaningful in speak mode (pair the read with `&& speak_mode`, or an `!speak_mode` early-return).
+
+**Fix recipe:** to make a setting global across both speak pages, key it on `referenced_user.preferences.<key>`, add that exact path to the computed/observer dependency keys, and default-OFF defensively with `=== true` (not `!== false`) so a null/absent pref is treated as off. Seed the same default into the preferences-page `setup()` pending+original so the form doesn't render dirty. Retire the old per-record attr by simply not reading it — leave the model attr/JSON-API field in place (removing it is a gated DB/contract change) rather than migrating data.
+
+**Evidence:** `app/frontend/app/controllers/board/index.js` (`updateSuggestions`, `computeHeight`), `app/frontend/app/controllers/user/board-detail.js`, `app/frontend/app/controllers/user/preferences.js`, `app/models/user.rb` (`preference_defaults`); task log `2026-06-06-word-prediction-global-pref-redesign.md`.
+
+---
+
+## Pattern: consolidate multiple creation entry points onto one route
+
+**Surface:** a feature reachable from several buttons/modals (board creation: dashboard "new board" actions, legacy `/create-board` standalone page, modal opens) that should funnel into a single canonical flow.
+
+**Fix recipe:** replace every `modal.open('<legacy>')` with `router.transitionTo('<canonical-route>')`, and turn the legacy route into a redirect via `beforeModel() { this.router.transitionTo('<canonical-route>'); }`. Grep `modal.open('<legacy>')` across `app/frontend/app/` afterward to prove zero remaining opens. Watch `this` in promise callbacks — capture `var _this = this;` and route through `_this.get('router')` (the `lingolinq/no-this-in-promise-executor` rule + plain-callback `this` gotcha). Preserve purchase-gate semantics: only navigate in the resolve handler if the original did, so you don't bypass `check_for_needing_purchase`.
+
+**Evidence:** `app/frontend/app/components/dashboard/authenticated-view.js`, `app/frontend/app/routes/create-board.js`; task log `2026-06-06-word-prediction-global-pref-redesign.md`.
+
+---
+
+## Gotcha: `overflow-y: auto` silently clips horizontal overflow too
+
+**Surface:** any scroll container (e.g. the word-prediction side rail `.md-board-detail-prediction-rail`) that sets only `overflow-y: auto`/`scroll` and assumes the X axis stays `visible`.
+
+**Root cause pattern:** per CSS spec, when one overflow axis is set to a non-`visible` value, a computed `visible` on the other axis becomes `auto`. So `overflow-y: auto` with no `overflow-x` declared → `overflow-x` computes to `auto`, which **clips** (and may scroll) horizontal overflow. Content wider than the box gets cut on the right with no visible scrollbar if it's only slightly over.
+
+**The trigger is usually a fixed `min-width` floor, not text.** A flex/`width:100%` child that inherits a base `min-width: 44px` (touch-target floor) from a shared class CANNOT shrink below it. When the scroll container is dynamically sized smaller than that floor (e.g. the rail width tracks a board cell, and many-column boards make cells <44px), the child overflows its container by `floor − containerContent`, and the `overflow-y:auto`→`overflow-x:auto` clips its right edge. This clips EVEN SHORT content ("you", "i") — a key tell that it's the *box* overflowing, not the *label text*. If you only see it with long words you'll wrongly chase text wrapping; if you see it with short words too, suspect the min-width floor.
+
+**Fix recipe:** first identify whether short content also clips (box overflow) vs only long content (text overflow). For box overflow, override the inherited floor on the dynamically-narrowed element: `min-width: 0`, scoped so siblings sharing the base class keep their touch-target floor. Ensure inner fixed-size children (images) scale with the box (`max-width`/`%`) so the shrunk tile stays legible. Only ALSO add text wrap/clamp (`width:100%; word-break; -webkit-line-clamp; text-overflow:ellipsis`, matching the analogous element's treatment) if long labels still overflow after the box is fixed — verify before adding, don't stack speculatively.
+
+**Evidence:** `app/frontend/app/styles/app.scss` (`.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction` `min-width:0` override of the base tile's `min-width:44px`); rail width from `controllers/user/board-detail.js#_sync_prediction_tile_size`; task log `2026-06-06-word-prediction-global-pref-redesign.md`.

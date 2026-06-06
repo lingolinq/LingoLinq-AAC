@@ -1072,6 +1072,7 @@ export default Component.extend({
       this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
     },
     extraAction: function(name) {
+      var _this = this;
       var appState = this.appState;
       var user = appState.get('currentUser');
       var userName = user && user.get('user_name');
@@ -1079,10 +1080,11 @@ export default Component.extend({
       if (name === 'intro') {
         this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
       } else if (name === 'newBoard') {
+        var go = function() { _this.get('router').transitionTo('create-board-new'); };
         if (this.appState.check_for_needing_purchase) {
-          this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+          this.appState.check_for_needing_purchase().then(go, go);
         } else {
-          modal.open('new-board');
+          go();
         }
       } else if (name === 'searchBoards') {
         this.get('router').transitionTo('search', 'any', encodeURIComponent('_'));
@@ -1138,8 +1140,9 @@ export default Component.extend({
       this.get('router').transitionTo('search', 'any', encodeURIComponent('_'));
     },
     newBoard: function() {
+      var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        modal.open('new-board');
+        _this.get('router').transitionTo('create-board-new');
       });
     },
     quick_assessment: function(user) {
