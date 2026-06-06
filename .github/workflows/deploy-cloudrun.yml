@@ -1,0 +1,136 @@
+name: Deploy to Cloud Run
+
+# GATED / INERT scaffold for the Render -> GCP Cloud Run migration (Phase 2 groundwork).
+#
+# This workflow does NOTHING until migration Phase 1 provisions the GCP project and sets
+# the repository variables below. It is workflow_dispatch-only (never runs on push/PR) and
+# the `guard` job no-ops the whole run when vars.GCP_PROJECT_ID is empty. Authentication is
+# keyless via Workload Identity Federation -- no long-lived JSON service-account key is ever
+# stored in GitHub.
+#
+# Pipeline (when enabled): build image -> push to Artifact Registry -> run DB migration as a
+# dedicated Cloud Run Job (gen2 + Cloud SQL) -> deploy web service -> deploy worker pool.
+#
+# ---------------------------------------------------------------------------------------
+# REPOSITORY VARIABLES Phase 1 must create (Settings > Secrets and variables > Actions > Variables):
+#   GCP_PROJECT_ID         -- target GCP project id (empty = workflow stays inert)
+#   GCP_REGION             -- e.g. us-central1
+#   GCP_WIF_PROVIDER       -- full WIF provider resource name
+#                             (projects/NNN/locations/global/workloadIdentityPools/POOL/providers/PROVIDER)
+#   GCP_DEPLOY_SA          -- deploy service account email (cloud-run-deployer@PROJECT.iam.gserviceaccount.com)
+#   GCP_CLOUDSQL_INSTANCE  -- Cloud SQL connection name (PROJECT:REGION:INSTANCE)
+#   GCP_VPC_NETWORK        -- VPC network for Direct VPC egress (Memorystore Redis reachability)
+#   GCP_VPC_SUBNET         -- VPC subnet for Direct VPC egress
+#
+# GCP SECRET MANAGER secrets Phase 2 step 4 must seed (referenced by name via --set-secrets,
+# NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DATABASE_URL,
+#   REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY, DEFAULT_HOST.
+#
+# MANUAL TRIGGER (only meaningful after Phase 1):
+#   gh workflow run deploy-cloudrun.yml
+# ---------------------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Check migration readiness
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "${{ vars.GCP_PROJECT_ID }}" ]; then
+            echo "::notice::GCP_PROJECT_ID is not set. This workflow is inert until migration Phase 1 provisions GCP. No-op."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "GCP project configured; proceeding with deploy."
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Build and deploy
+    needs: guard
+    if: needs.guard.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/lingolinq/web:${{ github.sha }}
+      WEB_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest,COOKIE_KEY=COOKIE_KEY:latest,DEFAULT_HOST=DEFAULT_HOST:latest
+      WORKER_SECRETS: DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest
+      MIGRATE_SECRETS: DATABASE_URL=DATABASE_URL:latest,SECRET_KEY_BASE=SECRET_KEY_BASE:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build and push image
+        run: |
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Run database migration (Cloud Run Job)
+        run: |
+          gcloud run jobs deploy lingolinq-migrate \
+            --image "$IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --execution-environment gen2 \
+            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
+            --command bundle \
+            --args "exec,rake,db:prepare" \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
+            --set-secrets "$MIGRATE_SECRETS"
+          gcloud run jobs execute lingolinq-migrate \
+            --region "${{ vars.GCP_REGION }}" \
+            --wait
+
+      - name: Deploy web service
+        run: |
+          gcloud run deploy lingolinq-web \
+            --image "$IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --execution-environment gen2 \
+            --min-instances 1 \
+            --memory 2Gi \
+            --port 8080 \
+            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
+            --network "${{ vars.GCP_VPC_NETWORK }}" \
+            --subnet "${{ vars.GCP_VPC_SUBNET }}" \
+            --vpc-egress private-ranges-only \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
+            --set-secrets "$WEB_SECRETS" \
+            --allow-unauthenticated
+
+      - name: Deploy worker pool
+        run: |
+          gcloud run worker-pools deploy lingolinq-worker \
+            --image "$IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --instance-count 1 \
+            --command bin/docker-worker-entrypoint \
+            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
+            --network "${{ vars.GCP_VPC_NETWORK }}" \
+            --subnet "${{ vars.GCP_VPC_SUBNET }}" \
+            --vpc-egress private-ranges-only \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
+            --set-secrets "$WORKER_SECRETS"

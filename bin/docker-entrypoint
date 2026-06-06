@@ -1,8 +1,16 @@
 #!/bin/bash
 set -e
 
-# If running the rails server then create or migrate existing database
-if [ "$1" = "bundle" ] && [ "$2" = "exec" ] && [ "$3" = "puma" ]; then
+# Prepare the database ONLY for the web (puma) process and ONLY when explicitly opted in
+# via RUN_DB_PREPARE. Cloud Run must never migrate on boot: cold starts can spin up many
+# web instances at once, racing the same schema change -- migrations run there as a
+# dedicated Cloud Run Job before the web deploy. Local docker-compose sets RUN_DB_PREPARE=true.
+case "${RUN_DB_PREPARE:-}" in
+  1|true|TRUE|yes|YES|on|ON) run_db_prepare=1 ;;
+  *) run_db_prepare='' ;;
+esac
+
+if [ "$1" = "bundle" ] && [ "$2" = "exec" ] && [ "$3" = "puma" ] && [ -n "$run_db_prepare" ]; then
   bundle exec rake db:prepare
 fi
 
