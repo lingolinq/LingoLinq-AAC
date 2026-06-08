@@ -16,7 +16,9 @@ export default Route.extend({
 
   model: function(params) {
     var boardKey = params.board_key || params.board;
-    if(boardKey) {
+    // "Try a Demo" always loads the manifest root (Project Core 36). Only the
+    // offline-board picker passes ?board=...&source=offline_boards.
+    if(boardKey && params.source === 'offline_boards') {
       return demoBoardLoader.load_obf_board(boardKey).then(function(board) {
         return {
           board: board,
