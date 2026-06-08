@@ -35,6 +35,9 @@ services:
       - REDIS_URL=redis://redis:6379/1
       - RAILS_ENV=development
       - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+      # Local dev opts the web service into db:prepare on boot. Cloud Run leaves this
+      # unset and migrates via a dedicated Job instead (see bin/docker-entrypoint).
+      - RUN_DB_PREPARE=true
     depends_on:
       db:
         condition: service_healthy
@@ -45,7 +48,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: bundle exec rake resque:work QUEUES=priority,default,slow
+    # Same image and entrypoint as Cloud Run's worker pool keeps local and cloud identical.
+    command: bin/docker-worker-entrypoint
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/postgres
       - REDIS_URL=redis://redis:6379/1

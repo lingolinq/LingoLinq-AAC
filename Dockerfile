@@ -68,6 +68,11 @@ RUN export SECRET_KEY_BASE=dummy_key_at_least_30_characters_long_for_build && \
 COPY bin/docker-entrypoint /usr/bin/
 RUN chmod +x /usr/bin/docker-entrypoint
 
+# Ensure the Resque worker entrypoint (copied in via the COPY . . above) is executable,
+# regardless of how the host filesystem reported its mode bits. The web and worker
+# processes share this image; the worker is launched via this script.
+RUN chmod +x bin/docker-worker-entrypoint
+
 # Non-root runtime user (least privilege)
 RUN groupadd --gid 1000 app && \
     useradd --uid 1000 --gid app --home-dir /app --no-create-home --shell /usr/sbin/nologin app && \
@@ -76,5 +81,8 @@ USER app
 
 ENTRYPOINT ["docker-entrypoint"]
 
+# EXPOSE documents the local docker-compose port. Cloud Run ignores it and injects PORT
+# (8080) at runtime; config/puma.rb already binds ENV['PORT'], so no change is needed there.
+# The Cloud Run web service uses a startup probe against GET /api/v1/health before taking traffic.
 EXPOSE 3000
 CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]

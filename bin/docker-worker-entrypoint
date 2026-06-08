@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e
+
+# Resque worker entrypoint for the Cloud Run worker pool (and local docker-compose).
+# This NEVER prepares or migrates the database -- only the web service may touch the
+# schema, and even there it is gated behind RUN_DB_PREPARE. In Cloud Run, migrations run
+# as a dedicated Job before any service deploys, so workers always boot against a ready DB.
+
+: "${QUEUES:=priority,default,slow}"
+: "${INTERVAL:=0.1}"
+: "${TERM_CHILD:=1}"
+export QUEUES INTERVAL TERM_CHILD
+
+exec bundle exec rake environment resque:work
