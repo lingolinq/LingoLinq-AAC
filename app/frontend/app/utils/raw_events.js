@@ -111,7 +111,6 @@ $(document).on('mousedown touchstart', function(event) {
     buttonTracker.lastTouchStartAny = now;
   }
   if(buttonTracker.dwell_elem && isFinite(event.clientX) && isFinite(event.clientY)) {
-    console.log("linger cleared because touch event");
     buttonTracker.clear_dwell();
     event.target = document.elementFromPoint(event.clientX, event.clientY);
   }
@@ -148,7 +147,6 @@ $(document).on('mousedown touchstart', function(event) {
   }
   buttonTracker.lastTouchRelease = (new Date()).getTime();
   if((event.type == 'mouseup' || event.type == 'touchend' || event.type == 'touchcancel') && buttonTracker.dwell_elem) {
-    console.log("linger cleared because touch release event");
     buttonTracker.clear_dwell();
   }
   if(!event.fake_event) {
@@ -1788,17 +1786,17 @@ var buttonTracker = EmberObject.extend({
   },
   dwell_linger: function(event) {
     // debounce, waiting for clearance
-    if(buttonTracker.dwell_wait) { console.log("linger waiting for dwell timeout"); return; }
+    if(buttonTracker.dwell_wait) { return; }
     // touch events get blocked because mousemove gets triggered by 
     // finger taps and would create a dwell element directly under 
     // the finger, essentially eating all touches
-    if(buttonTracker.triggerEvent && buttonTracker.triggerEvent.type == 'touchstart') { console.log("linger ignored for touch event"); return; }
+    if(buttonTracker.triggerEvent && buttonTracker.triggerEvent.type == 'touchstart') { return; }
 
     var dwell_selection = buttonTracker.dwell_selection != 'button' && buttonTracker.dwell_selection != 'expression';
     // cursor-based trackers can throw the cursor up against the edges of the screen causing
-    // inaccurate lingers for the buttons along the edges
-    if(event.type == 'mousemove' && (event.clientX === 0 || event.clientY === 0 || event.clientX >= (window.innerWidth - 1) || event.clientY >= (window.innerHeight - 1))) {
-      console.log("linger waiting because on a screen edge", event.clientX, event.clientY);
+    // inaccurate lingers for the buttons along the edges. Real mouse pointers can legitimately
+    // sit on viewport-edge buttons, so only apply this guard to non-mouse dwell types.
+    if(event.type == 'mousemove' && buttonTracker.check('dwell_type') != 'mouse_dwell' && (event.clientX === 0 || event.clientY === 0 || event.clientX >= (window.innerWidth - 1) || event.clientY >= (window.innerHeight - 1))) {
       return;
     }
     if(buttonTracker.last_triggering_dwell_event && dwell_selection) {
@@ -1808,7 +1806,6 @@ var buttonTracker = EmberObject.extend({
       var diffX = Math.abs(event.clientX - last.clientX);
       var diffY = Math.abs(event.clientY - last.clientY);
       if(diffX < needed_distance && diffY < needed_distance) {
-        console.log("linger waiting because selected recently");
         return;
       }
     } else if(buttonTracker.debounce) {
@@ -1816,7 +1813,6 @@ var buttonTracker = EmberObject.extend({
       if(buttonTracker.last_selection && buttonTracker.last_selection.ts) {
         var now = (new Date()).getTime();
         if(now - buttonTracker.last_selection.ts < buttonTracker.debounce) {
-          console.log("linger waiting because of debounce after selection");
           return;
         }
       }
@@ -1831,7 +1827,6 @@ var buttonTracker = EmberObject.extend({
     var elem_wrap = buttonTracker.find_selectable_under_event(event, true, false);
     if(elem_wrap && buttonTracker.dwell_ignore == elem_wrap.dom) {
       buttonTracker.dwell_ignore = null;
-      console.log("linger waiting because on an ignored elem");
       return;
     }
     var arrow_or_head_cursor = buttonTracker.check('dwell_type') == 'arrow_dwell' || buttonTracker.check('dwell_type') == 'head';
@@ -1933,7 +1928,6 @@ var buttonTracker = EmberObject.extend({
     buttonTracker.linger_clear_later = runLater(function() {
       // clear the dwell icon if not dwell activity for a period of time
       if(!buttonTracker.dwell_no_cutoff && dwell_selection) {
-        console.log("linger cleared because linger timed out");
         buttonTracker.clear_dwell(elem_wrap && elem_wrap.dom);  
       }
     }, allowed_delay_between_events);
@@ -1958,17 +1952,14 @@ var buttonTracker = EmberObject.extend({
       // if so clear the object, also check for repeat robot events
       if(now - buttonTracker.last_dwell_linger.started > buttonTracker.dwell_timeout + 1000 - duration) {
         // if it's been too long since starting to track the dwell, start over
-        console.log("linger cleared because linger took too long");
         buttonTracker.last_dwell_linger = null;
       } else if(!buttonTracker.dwell_no_cutoff && now - buttonTracker.last_dwell_linger.updated > allowed_delay_between_events - duration) {
         // if it's been too long since the last dwell event, start over
-        console.log("linger cleared because too long a gap");
         buttonTracker.last_dwell_linger = null;
       } else if(!buttonTracker.dwell_no_cutoff && event.type == 'mousemove' && last_event && event.clientX == last_event.clientX && event.clientY == last_event.clientY && (now - buttonTracker.last_dwell_linger.updated) > allowed_delay_between_identical_events) {
         // if it's on the exact same location as the last mouse event
         // and it's been more than 300ms, this sounds suspiciously like
         // an artifical event, which should restart the dwell timer
-        console.log("linger timer reset because exact same location");
         buttonTracker.last_dwell_linger.events = [];
         buttonTracker.last_dwell_linger.started = null;
         buttonTracker.last_dwell_linger.updated = null;
@@ -1977,11 +1968,10 @@ var buttonTracker = EmberObject.extend({
         var bounds = buttonTracker.last_dwell_linger.loose_bounds();
         if(event.clientX < bounds.left || event.clientX > bounds.left + bounds.width ||
               event.clientY < bounds.top || event.clientY > bounds.top + bounds.height) {
-          console.log("linger cleared because out of bounds", event.clientX, event.clientY);
           buttonTracker.last_dwell_linger = null;
         }
       }
-    } else if(event.type == 'mousemove' && buttonTracker.last_dwell_event && event.clientX == buttonTracker.last_dwell_event.clientX && event.clientY == buttonTracker.last_dwell_event.clientY && (now - buttonTracker.last_dwell_event.ts) > allowed_delay_between_identical_events) {
+    } else if(!buttonTracker.dwell_no_cutoff && event.type == 'mousemove' && buttonTracker.last_dwell_event && event.clientX == buttonTracker.last_dwell_event.clientX && event.clientY == buttonTracker.last_dwell_event.clientY && (now - buttonTracker.last_dwell_event.ts) > allowed_delay_between_identical_events) {
       // if the linger has timed out and the next mouse event is exactly
       // the same location as the last event, this sounds like
       // an artificial event, which should be ignored
@@ -2013,11 +2003,9 @@ var buttonTracker = EmberObject.extend({
       var old_dist = (Math.abs(old_bounds.left + (old_bounds.width / 2) - avg_x) + Math.abs(old_bounds.top + (old_bounds.height / 2) - avg_y)) / 2;
       var new_dist = (Math.abs(new_bounds.left + (new_bounds.width / 2) - avg_x) + Math.abs(new_bounds.top + (new_bounds.height / 2) - avg_y)) / 2;
       if(new_dist < old_dist) {
-        console.log("linger switched to new target", event.clientX, event.clientY, elem_wrap.dom);
         buttonTracker.last_dwell_linger = elem_wrap;
       }
     } else if(elem_wrap) {
-      console.log("linger started for new target", event.clientX, event.clientY, elem_wrap.dom);
       buttonTracker.last_dwell_linger = elem_wrap;
     }
 
@@ -2062,17 +2050,20 @@ var buttonTracker = EmberObject.extend({
           // if we're getting close to the dwell timeout, schedule a listener to trigger
           // it in case we don't get a follow-on event in time
           var will_trigger_at = buttonTracker.last_dwell_linger.started + buttonTracker.dwell_timeout;
-          var ms_since_start = now - buttonTracker.last_dwell_linger.started;
           var ms_until_trigger = will_trigger_at - now;
-          if((event.type == 'mousemove' && buttonTracker.dwell_no_cutoff && ms_since_start > minimum_interaction_window) || (ms_until_trigger < allowed_delay_between_events * 3 / 4)) {
+          var schedule_dwell_trigger = false;
+          var trigger_delay = Math.max(0, ms_until_trigger - 50);
+          if(buttonTracker.dwell_no_cutoff && dwell_selection && (event.type == 'mousemove' || event.type == 'gazelinger')) {
+            // Cursor/gaze may stop moving before dwell completes; always schedule the timeout.
+            schedule_dwell_trigger = true;
+            trigger_delay = Math.max(0, ms_until_trigger);
+          } else if(ms_until_trigger < allowed_delay_between_events * 3 / 4) {
+            schedule_dwell_trigger = true;
+          }
+          if(schedule_dwell_trigger) {
             buttonTracker.linger_close_enough_later = runLater(function() {
               buttonTracker.dwell_linger(event);
-            }, ms_until_trigger - 50);
-          } else if(event.type == 'gazelinger' && buttonTracker.dwell_no_cutoff) {
-            buttonTracker.linger_close_enough_later = runLater(function() {
-              console.log("FORCE SELECT");
-              buttonTracker.dwell_linger(event);
-            }, ms_until_trigger - 50);
+            }, trigger_delay);
           }
         }
       } else {
@@ -2187,7 +2178,24 @@ var buttonTracker = EmberObject.extend({
         return buttonTracker.element_wrap(region);
       }
     }
+    // board-detail deliberately omits .advanced_selection (see board-detail-grid.hbs);
+    // route dwell/scanning hits through button_from_point instead of Ember click synthesis.
+    if(!region && buttonTracker.appState && buttonTracker.appState.get('speak_mode')) {
+      if($target.closest('.md-board-detail-grid').length > 0) {
+        return buttonTracker.button_from_point(event.clientX, event.clientY);
+      }
+      if($target.closest('#speak.md-board-detail-sentence-row').length > 0) {
+        return buttonTracker.speak_bar_element_from_event($target);
+      }
+    }
     return null;
+  },
+  speak_bar_element_from_event: function($target) {
+    var $row = $target.closest('#speak.md-board-detail-sentence-row');
+    if($row.length === 0 || $row.hasClass('md-board-detail-sentence-row--preview')) { return null; }
+    var elem = $target.closest('button, a, [role="button"], .md-board-detail-sentence-bar__text')[0];
+    if(!elem || elem.disabled) { return null; }
+    return buttonTracker.element_wrap(elem);
   },
   button_from_point: function(x, y) {
     // TODO: support virtual board dom

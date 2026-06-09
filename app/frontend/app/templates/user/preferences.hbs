@@ -1585,6 +1585,11 @@
         {{#if this.eyegaze_type}}
           <div class="form-group">
             <div class="col-sm-5 col-sm-offset-3">
+              <p class="form-control-static" style="margin-bottom: 8px;"><em>{{t "The camera starts when you enter Speak Mode or use Test Dwell Tracking below. Run Calibrate first for the best accuracy." key="eyegaze_camera_setup_help"}}</em></p>
+              <p class="form-control-static" style="margin-top: 0; margin-bottom: 8px;"><em>{{this.weblinger_status_message}}</em></p>
+              {{#if this.weblinger_unavailable_for_eyegaze}}
+                <p class="form-control-static" style="margin-top: 0; margin-bottom: 8px;"><em>{{t "Webcam eye tracking cannot start until the tracker library loads successfully." key="eyegaze_weblinger_required"}}</em></p>
+              {{/if}}
               {{#if this.ios_app}}
                 {{#if this.native_eyegaze_capable}}
                   <p class="form-control-static"><em>{{t "The built-in features of Apple Face ID support limited eye gaze control. This eye gaze is not as accurate as dedicated eye-tracking hardware, but combined with limited head movement it may be sufficient for some communicators." key='ios_eye_tracking'}}</em></p>
@@ -1603,7 +1608,7 @@
               {{/if}}
             </div>
           </div>
-        {{else if head_tracking_type}}
+        {{else if this.head_tracking_type}}
           <div class="form-group">
             <div class="col-sm-5 col-sm-offset-3">
               {{#if this.ios_app}}
@@ -1824,7 +1829,7 @@
             {{/if}}
           </div>
         </div>
-      {{else if kindle_without_voice}}
+      {{else if this.kindle_without_voice}}
         <div class="form-group">
           <label for="voice_pitch" class="col-sm-3 col-xs-12 control-label">{{t "Voice" key='voiceURI'}}</label>
           <div class="col-sm-3 col-xs-7">
