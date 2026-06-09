@@ -1,0 +1,50 @@
+# SecureCoder ignore file
+# Exclude files from security scanning using glob patterns, one per line.
+# Patterns are matched against the full absolute file path.
+# Lines starting with # are comments. Blank lines are ignored.
+
+# --- Version Control & IDE Metadata ---
+**/.git/**
+**/.svn/**
+**/.idea/**
+**/.vscode/**
+**/.claude/**
+**/.cursor/**
+**/.playwright-mcp/**
+
+# --- Dependency & Package Directories ---
+# Scanning third-party dependencies is slow and produces duplicate security alerts.
+# These should be managed via package managers/audit tools instead.
+**/node_modules/**
+**/bower_components/**
+**/vendor/**
+**/bin/**
+
+# --- Temporary, Cache & Log Files ---
+**/tmp/**
+**/temp/**
+**/log/**
+**/*.log
+**/*.sqlite3
+**/*.db
+**/coverage/**
+**/test-results/**
+**/playwright-report/**
+
+# --- Build & Output Artifacts ---
+**/dist/**
+**/public/assets/**
+**/public/packs/**
+**/build/**
+**/*.generated.*
+**/*.pb.go
+
+# --- Test files ---
+# Test files often use mock/dummy secrets or testing helpers that trigger false positives.
+*test.*
+*_test.*
+**/*_test.*
+**/test/**
+**/tests/**
+**/spec/**
+**/*_spec.rb
