@@ -1,0 +1,345 @@
+#!/usr/bin/env bash
+#
+# phase1-setup.sh - LingoLinq Render -> GCP Cloud Run migration, Phase 1 (Foundation).
+#
+# Stands up the lingolinq-prod GCP foundation so the inert PR #349 deploy workflow
+# (.github/workflows/deploy-cloudrun.yml) can be activated in a later phase:
+#   - the GCP project
+#   - billing link            (MONEY GATE - opt-in)
+#   - required APIs           (first billable-ish step - opt-in)
+#   - least-privilege IAM (runtime SA, deploy SA, human team access)
+#   - Workload Identity Federation (keyless GitHub Actions deploy, repo-locked)
+#   - Artifact Registry repo `lingolinq`
+#   - 9 named (EMPTY) Secret Manager secrets the app needs to boot
+#   - GitHub repo variables the workflow reads (GCP_PROJECT_ID deliberately deferred)
+#
+# It does NOT provision Cloud SQL, Memorystore, a VPC connector, or any Cloud Run
+# service/job. Those are Phase 3+ (see the "PHASE 1 -> 3 HANDOFF" block at the end).
+#
+# Design rules:
+#   - Idempotent: every create is guarded by a describe check, so re-runs are safe.
+#   - Fail-closed gates: money/API/team-IAM steps run ONLY when their CONFIRM_* env
+#     flag is set to 1. A bare run creates the (free) project and then stops at billing.
+#   - Auditable: every command is commented with what it does and why (HIPAA evidence).
+#
+# Usage:
+#   ./scripts/gcp/phase1-setup.sh                       # create project, stop at billing gate
+#   CONFIRM_BILLING=1 ./scripts/gcp/phase1-setup.sh     # + link billing, stop at API gate
+#   CONFIRM_BILLING=1 CONFIRM_APIS=1 ./scripts/gcp/phase1-setup.sh   # + APIs, IAM, WIF, AR, secrets
+#   CONFIRM_TEAM_IAM=1 MELISSA_EMAIL=... DOMINIC_EMAIL=... ...       # + human team grants
+#   SET_GH_VARS=1 ...                                   # + write GitHub repo variables (needs gh CLI)
+#
+set -euo pipefail
+
+# ---------------------------------------------------------------------------------------
+# CONFIG (override via env)
+# ---------------------------------------------------------------------------------------
+PROJECT_ID="${PROJECT_ID:-lingolinq-prod}"
+PROJECT_NAME="${PROJECT_NAME:-LingoLinq Prod}"
+REGION="${REGION:-us-central1}"
+ORG_ID="${ORG_ID:-307791011610}"                       # lingolinq.com organization
+BILLING_ACCOUNT="${BILLING_ACCOUNT:-0187AA-5B344F-C7E442}"  # the only account on this org
+
+GH_REPO="${GH_REPO:-lingolinq/LingoLinq-AAC}"          # WIF is locked to THIS repo only
+AR_REPO="${AR_REPO:-lingolinq}"                        # MUST match deploy-cloudrun.yml image path
+
+WIF_POOL="${WIF_POOL:-github-pool}"
+WIF_PROVIDER="${WIF_PROVIDER:-github-provider}"
+
+RUNTIME_SA_ID="lingolinq-run"                          # identity Cloud Run services/jobs run as
+DEPLOY_SA_ID="cloud-run-deployer"                      # identity GitHub Actions impersonates (per PR #349)
+RUNTIME_SA="${RUNTIME_SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
+DEPLOY_SA="${DEPLOY_SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+# Gate flags (default 0 = do not run that gated step)
+CONFIRM_BILLING="${CONFIRM_BILLING:-0}"
+CONFIRM_APIS="${CONFIRM_APIS:-0}"
+CONFIRM_TEAM_IAM="${CONFIRM_TEAM_IAM:-0}"
+SET_GH_VARS="${SET_GH_VARS:-0}"
+
+# Human team identities (required only when CONFIRM_TEAM_IAM=1)
+MELISSA_EMAIL="${MELISSA_EMAIL:-}"
+DOMINIC_EMAIL="${DOMINIC_EMAIL:-}"
+
+# The 9 boot secrets the web service, worker pool, AND migration Job all need (PR #349).
+# Created here as EMPTY containers; values are seeded by hand from 1Password in Phase 2/3.
+BOOT_SECRETS=(
+  SECRET_KEY_BASE
+  COOKIE_KEY
+  SECURE_ENCRYPTION_KEY
+  SECURE_NONCE_KEY
+  DATABASE_URL
+  REDIS_URL
+  DEFAULT_HOST
+  DEFAULT_EMAIL_FROM
+  SYSTEM_ERROR_EMAIL
+)
+
+log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
+skip() { printf '    \033[1;33m(skip)\033[0m %s\n' "$*"; }
+gate() { printf '\n\033[1;31m[GATE]\033[0m %s\n' "$*"; }
+
+# ---------------------------------------------------------------------------------------
+# 0. PREFLIGHT - verify we are the right operator before touching anything
+# ---------------------------------------------------------------------------------------
+log "Preflight: verifying gcloud auth and org visibility"
+ACTIVE_ACCT="$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null || true)"
+if [ -z "$ACTIVE_ACCT" ]; then
+  echo "ERROR: no active gcloud account. Run: gcloud auth login && gcloud auth application-default login" >&2
+  exit 1
+fi
+echo "    Active account: $ACTIVE_ACCT"
+# Confirm the org is reachable (catches a stale/wrong login early).
+gcloud organizations describe "$ORG_ID" --format='value(displayName)' >/dev/null \
+  || { echo "ERROR: cannot see org $ORG_ID as $ACTIVE_ACCT" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------------------
+# 1. [FREE] Create the project under the lingolinq.com org. Project creation costs $0.
+# ---------------------------------------------------------------------------------------
+log "Step 1: project $PROJECT_ID (under org $ORG_ID)"
+if gcloud projects describe "$PROJECT_ID" >/dev/null 2>&1; then
+  skip "project $PROJECT_ID already exists"
+else
+  gcloud projects create "$PROJECT_ID" \
+    --name="$PROJECT_NAME" \
+    --organization="$ORG_ID"
+fi
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+echo "    Project number: $PROJECT_NUMBER"
+
+# ---------------------------------------------------------------------------------------
+# 2. [MONEY GATE] Link the billing account. Nothing billable can be enabled without this.
+# ---------------------------------------------------------------------------------------
+if [ "$CONFIRM_BILLING" != "1" ]; then
+  gate "Step 2 SKIPPED. Linking billing account $BILLING_ACCOUNT is the MONEY GATE."
+  gate "Re-run with CONFIRM_BILLING=1 once Scot approves. Stopping here."
+  exit 0
+fi
+log "Step 2: link billing account $BILLING_ACCOUNT to $PROJECT_ID"
+CURRENT_BILLING="$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingAccountName)' 2>/dev/null || true)"
+if [ -n "$CURRENT_BILLING" ]; then
+  skip "billing already linked ($CURRENT_BILLING)"
+else
+  gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT"
+fi
+
+# ---------------------------------------------------------------------------------------
+# 3. [API GATE] Enable the APIs Phase 1-3 need. Enabling is the first billable-ish action.
+#    iam/iamcredentials/sts are required for WIF; serviceusage/resourcemanager for the rest.
+#    compute.googleapis.com (VPC for Memorystore reachability) is deferred to Phase 3.
+# ---------------------------------------------------------------------------------------
+if [ "$CONFIRM_APIS" != "1" ]; then
+  gate "Step 3 SKIPPED. Enabling APIs is the first billable-ish step."
+  gate "Re-run with CONFIRM_BILLING=1 CONFIRM_APIS=1 once Scot approves. Stopping here."
+  exit 0
+fi
+log "Step 3: enable required APIs"
+gcloud services enable \
+  run.googleapis.com \
+  sqladmin.googleapis.com \
+  redis.googleapis.com \
+  artifactregistry.googleapis.com \
+  secretmanager.googleapis.com \
+  cloudbuild.googleapis.com \
+  iam.googleapis.com \
+  iamcredentials.googleapis.com \
+  sts.googleapis.com \
+  serviceusage.googleapis.com \
+  cloudresourcemanager.googleapis.com \
+  --project="$PROJECT_ID"
+
+# ---------------------------------------------------------------------------------------
+# 4. [FREE] Service accounts. Two least-privilege identities, no keys ever downloaded.
+#    - runtime SA: what Cloud Run services/jobs execute as
+#    - deploy  SA: what GitHub Actions impersonates via WIF (PR #349 expects this exact email)
+# ---------------------------------------------------------------------------------------
+log "Step 4: service accounts (runtime + deploy)"
+for pair in "$RUNTIME_SA_ID:LingoLinq Cloud Run runtime" "$DEPLOY_SA_ID:GitHub Actions Cloud Run deployer"; do
+  sa_id="${pair%%:*}"; sa_desc="${pair#*:}"
+  if gcloud iam service-accounts describe "${sa_id}@${PROJECT_ID}.iam.gserviceaccount.com" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    skip "service account ${sa_id} already exists"
+  else
+    gcloud iam service-accounts create "$sa_id" \
+      --project="$PROJECT_ID" \
+      --display-name="$sa_desc"
+  fi
+done
+
+# ---------------------------------------------------------------------------------------
+# 5. [FREE] IAM bindings - least privilege. NO Owner/Editor grants to anyone.
+# ---------------------------------------------------------------------------------------
+log "Step 5: IAM bindings (machine identities)"
+# Deploy SA: deploy Cloud Run + push images. project-level.
+for role in roles/run.admin roles/artifactregistry.writer; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${DEPLOY_SA}" --role="$role" --condition=None --quiet >/dev/null
+done
+# Deploy SA must actAs the runtime SA to deploy services/jobs that RUN as the runtime SA.
+# Scoped to the runtime SA resource only (not project-wide serviceAccountUser).
+gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
+  --project="$PROJECT_ID" \
+  --member="serviceAccount:${DEPLOY_SA}" \
+  --role="roles/iam.serviceAccountUser" --quiet >/dev/null
+echo "    deploy SA -> run.admin, artifactregistry.writer, serviceAccountUser(on runtime SA)"
+# NOTE (Phase 3): grant the RUNTIME SA roles/cloudsql.client once the Cloud SQL instance
+# exists. Intentionally NOT granted here - see the handoff block. Redis needs no IAM (VPC).
+
+# Human team access (gated: needs real identities + Scot's approval of the role map).
+if [ "$CONFIRM_TEAM_IAM" = "1" ]; then
+  log "Step 5b: human team IAM (least privilege)"
+  if [ -n "$MELISSA_EMAIL" ]; then
+    # Melissa - Rails/containerization/DB. Can deploy, run DB work, push images, read
+    # logs and secret METADATA (not values). No secretAccessor (cannot read prod values).
+    for role in roles/run.developer roles/cloudsql.admin roles/artifactregistry.writer \
+                roles/logging.viewer roles/monitoring.viewer roles/secretmanager.viewer; do
+      gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="user:${MELISSA_EMAIL}" --role="$role" --condition=None --quiet >/dev/null
+    done
+    echo "    Melissa ($MELISSA_EMAIL) -> run.developer, cloudsql.admin, artifactregistry.writer, logging/monitoring/secretmanager viewer"
+  else
+    skip "MELISSA_EMAIL unset - skipped Melissa grants"
+  fi
+  if [ -n "$DOMINIC_EMAIL" ]; then
+    # Dominic - ops/DNS. DNS lives at the registrar, not GCP, so read-only observability only.
+    for role in roles/logging.viewer roles/monitoring.viewer; do
+      gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="user:${DOMINIC_EMAIL}" --role="$role" --condition=None --quiet >/dev/null
+    done
+    echo "    Dominic ($DOMINIC_EMAIL) -> logging.viewer, monitoring.viewer"
+  else
+    skip "DOMINIC_EMAIL unset - skipped Dominic grants"
+  fi
+else
+  skip "Step 5b human team IAM skipped (set CONFIRM_TEAM_IAM=1 MELISSA_EMAIL=.. DOMINIC_EMAIL=..)"
+fi
+
+# ---------------------------------------------------------------------------------------
+# 6. [FREE] Workload Identity Federation - keyless GitHub Actions deploy, LOCKED to one repo.
+#    Security-critical: the provider's attribute-condition restricts token exchange to
+#    GH_REPO, AND the deploy SA's workloadIdentityUser is bound only to that repo's
+#    principalSet. Two independent locks - without them any GitHub repo could mint tokens.
+# ---------------------------------------------------------------------------------------
+log "Step 6: Workload Identity Federation (locked to $GH_REPO)"
+if gcloud iam workload-identity-pools describe "$WIF_POOL" \
+     --project="$PROJECT_ID" --location=global >/dev/null 2>&1; then
+  skip "WIF pool $WIF_POOL already exists"
+else
+  gcloud iam workload-identity-pools create "$WIF_POOL" \
+    --project="$PROJECT_ID" --location=global \
+    --display-name="GitHub Actions"
+fi
+if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
+     --project="$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" >/dev/null 2>&1; then
+  skip "WIF provider $WIF_PROVIDER already exists"
+else
+  # issuer = GitHub's OIDC endpoint; attribute-condition is the repo lock.
+  gcloud iam workload-identity-pools providers create-oidc "$WIF_PROVIDER" \
+    --project="$PROJECT_ID" --location=global \
+    --workload-identity-pool="$WIF_POOL" \
+    --display-name="GitHub OIDC" \
+    --issuer-uri="https://token.actions.githubusercontent.com" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+    --attribute-condition="assertion.repository == '${GH_REPO}'"
+fi
+# Bind the deploy SA's impersonation to ONLY this repo's principalSet.
+gcloud iam service-accounts add-iam-policy-binding "$DEPLOY_SA" \
+  --project="$PROJECT_ID" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/attribute.repository/${GH_REPO}" \
+  --quiet >/dev/null
+WIF_PROVIDER_RESOURCE="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/providers/${WIF_PROVIDER}"
+echo "    WIF provider: $WIF_PROVIDER_RESOURCE"
+echo "    impersonation locked to principalSet .../attribute.repository/${GH_REPO}"
+
+# ---------------------------------------------------------------------------------------
+# 7. [BILLABLE] Artifact Registry repo - name MUST be `lingolinq` (deploy-cloudrun.yml).
+# ---------------------------------------------------------------------------------------
+log "Step 7: Artifact Registry repo $AR_REPO ($REGION, docker)"
+if gcloud artifacts repositories describe "$AR_REPO" \
+     --project="$PROJECT_ID" --location="$REGION" >/dev/null 2>&1; then
+  skip "Artifact Registry repo $AR_REPO already exists"
+else
+  gcloud artifacts repositories create "$AR_REPO" \
+    --project="$PROJECT_ID" --location="$REGION" \
+    --repository-format=docker \
+    --description="LingoLinq Cloud Run container images"
+fi
+# Deploy SA pushes images; runtime SA pulls them.
+gcloud artifacts repositories add-iam-policy-binding "$AR_REPO" \
+  --project="$PROJECT_ID" --location="$REGION" \
+  --member="serviceAccount:${DEPLOY_SA}" --role="roles/artifactregistry.writer" --quiet >/dev/null
+gcloud artifacts repositories add-iam-policy-binding "$AR_REPO" \
+  --project="$PROJECT_ID" --location="$REGION" \
+  --member="serviceAccount:${RUNTIME_SA}" --role="roles/artifactregistry.reader" --quiet >/dev/null
+
+# ---------------------------------------------------------------------------------------
+# 8. [FREE] Secret Manager - create the 9 boot secrets as EMPTY containers (names only).
+#    No values here. Seeding from the 1Password Prod vault is Phase 2.8 / Phase 3.
+#    Secrets are pinned to us-central1 (user-managed replication) for in-region auditability.
+#    They hold API keys / connection strings only - NEVER PHI.
+# ---------------------------------------------------------------------------------------
+log "Step 8: Secret Manager - 9 named empty secrets + runtime SA accessor"
+for secret in "${BOOT_SECRETS[@]}"; do
+  if gcloud secrets describe "$secret" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    skip "secret $secret already exists"
+  else
+    gcloud secrets create "$secret" \
+      --project="$PROJECT_ID" \
+      --replication-policy="user-managed" \
+      --locations="$REGION"
+  fi
+  # Runtime SA may READ values (least privilege: accessor only, scoped per-secret).
+  gcloud secrets add-iam-policy-binding "$secret" \
+    --project="$PROJECT_ID" \
+    --member="serviceAccount:${RUNTIME_SA}" \
+    --role="roles/secretmanager.secretAccessor" --quiet >/dev/null
+done
+echo "    Created/verified ${#BOOT_SECRETS[@]} empty secrets (no versions yet)."
+
+# ---------------------------------------------------------------------------------------
+# 9. [FREE] GitHub repo variables the workflow reads. GCP_PROJECT_ID is DELIBERATELY
+#    omitted - setting it is the switch that un-inerts deploy-cloudrun.yml, which belongs
+#    to Phase 2/3 readiness, not Phase 1. The Phase 3 vars (CLOUDSQL/VPC) are unknown yet.
+# ---------------------------------------------------------------------------------------
+if [ "$SET_GH_VARS" = "1" ]; then
+  log "Step 9: set GitHub repo variables (gh CLI) - GCP_PROJECT_ID intentionally deferred"
+  command -v gh >/dev/null || { echo "ERROR: gh CLI not found" >&2; exit 1; }
+  gh variable set GCP_REGION       --repo "$GH_REPO" --body "$REGION"
+  gh variable set GCP_WIF_PROVIDER --repo "$GH_REPO" --body "$WIF_PROVIDER_RESOURCE"
+  gh variable set GCP_DEPLOY_SA    --repo "$GH_REPO" --body "$DEPLOY_SA"
+  echo "    Set GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOY_SA. Did NOT set GCP_PROJECT_ID."
+else
+  skip "Step 9 GitHub repo vars skipped (set SET_GH_VARS=1 to write them via gh CLI)"
+fi
+
+# ---------------------------------------------------------------------------------------
+# DONE - summary + PHASE 1 -> 3 HANDOFF (prerequisites flagged, NOT built here)
+# ---------------------------------------------------------------------------------------
+cat <<EOF
+
+============================================================================
+PHASE 1 FOUNDATION COMPLETE for ${PROJECT_ID} (project #${PROJECT_NUMBER})
+============================================================================
+Region:            ${REGION}
+Runtime SA:        ${RUNTIME_SA}
+Deploy SA:         ${DEPLOY_SA}
+WIF provider:      ${WIF_PROVIDER_RESOURCE:-<not created - rerun past the API gate>}
+Artifact Registry: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}
+Secrets (empty):   ${BOOT_SECRETS[*]}
+
+GitHub repo vars to set (GCP_PROJECT_ID deferred until deploy-enable):
+  GCP_REGION=${REGION}
+  GCP_WIF_PROVIDER=${WIF_PROVIDER_RESOURCE:-<rerun>}
+  GCP_DEPLOY_SA=${DEPLOY_SA}
+
+PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
+  - VPC + Serverless VPC connector / Direct VPC egress (Memorystore Redis reachability;
+    Render Redis is NOT reachable from GCP). Enable compute.googleapis.com then.
+  - Cloud SQL Postgres instance (zonal at launch) -> sets GCP_CLOUDSQL_INSTANCE
+    (PROJECT:REGION:INSTANCE) for --set-cloudsql-instances.
+  - Grant roles/cloudsql.client to ${RUNTIME_SA} once the instance exists.
+  - DB-auth choice: password-over-socket vs IAM DB auth (drives DATABASE_URL secret value).
+  - VPC network/subnet -> GCP_VPC_NETWORK / GCP_VPC_SUBNET repo vars.
+  - Worker pool has no autoscaling: --instances is a manual scaling control (ops runbook).
+  - Secret Manager: seed the 9 empty secrets from the 1Password Prod vault (Phase 2.8).
+EOF
