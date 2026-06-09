@@ -41,6 +41,8 @@ ORG_ID="${ORG_ID:-307791011610}"                       # lingolinq.com organizat
 BILLING_ACCOUNT="${BILLING_ACCOUNT:-0187AA-5B344F-C7E442}"  # the only account on this org
 
 GH_REPO="${GH_REPO:-lingolinq/LingoLinq-AAC}"          # WIF is locked to THIS repo only
+GH_OWNER_ID="${GH_OWNER_ID:-249911097}"                # immutable numeric id of the `lingolinq` org
+GH_REPO_ID="${GH_REPO_ID:-1024104500}"                 # immutable numeric id of LingoLinq-AAC (survives rename)
 AR_REPO="${AR_REPO:-lingolinq}"                        # MUST match deploy-cloudrun.yml image path
 
 WIF_POOL="${WIF_POOL:-github-pool}"
@@ -116,9 +118,18 @@ if [ "$CONFIRM_BILLING" != "1" ]; then
   exit 0
 fi
 log "Step 2: link billing account $BILLING_ACCOUNT to $PROJECT_ID"
-CURRENT_BILLING="$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingAccountName)' 2>/dev/null || true)"
-if [ -n "$CURRENT_BILLING" ]; then
-  skip "billing already linked ($CURRENT_BILLING)"
+# Distinguish "not linked" (proceed) from a describe ERROR (abort) - do NOT blindly link
+# on any non-zero exit, which would mask an auth/permission failure during the money step.
+set +e
+BILLING_ENABLED="$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingEnabled)' 2>/dev/null)"
+BILLING_RC=$?
+set -e
+if [ "$BILLING_RC" -ne 0 ]; then
+  echo "ERROR: could not read billing status for $PROJECT_ID (auth/permission?). Not linking." >&2
+  exit 1
+fi
+if [ "$BILLING_ENABLED" = "True" ]; then
+  skip "billing already enabled on $PROJECT_ID"
 else
   gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT"
 fi
@@ -179,7 +190,7 @@ done
 gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
   --project="$PROJECT_ID" \
   --member="serviceAccount:${DEPLOY_SA}" \
-  --role="roles/iam.serviceAccountUser" --quiet >/dev/null
+  --role="roles/iam.serviceAccountUser" --condition=None --quiet >/dev/null
 echo "    deploy SA -> run.admin, artifactregistry.writer, serviceAccountUser(on runtime SA)"
 # NOTE (Phase 3): grant the RUNTIME SA roles/cloudsql.client once the Cloud SQL instance
 # exists. Intentionally NOT granted here - see the handoff block. Redis needs no IAM (VPC).
@@ -188,14 +199,17 @@ echo "    deploy SA -> run.admin, artifactregistry.writer, serviceAccountUser(on
 if [ "$CONFIRM_TEAM_IAM" = "1" ]; then
   log "Step 5b: human team IAM (least privilege)"
   if [ -n "$MELISSA_EMAIL" ]; then
-    # Melissa - Rails/containerization/DB. Can deploy, run DB work, push images, read
-    # logs and secret METADATA (not values). No secretAccessor (cannot read prod values).
-    for role in roles/run.developer roles/cloudsql.admin roles/artifactregistry.writer \
+    # Melissa - Rails/containerization/DB. Can deploy, push images, read logs and secret
+    # METADATA (not values). No secretAccessor (cannot read prod values).
+    # NOTE: Cloud SQL access is DEFERRED to Phase 3 and scoped to roles/cloudsql.client
+    # (connect only) - NOT cloudsql.admin, which could delete the prod patient/student DB.
+    # No Cloud SQL exists yet in Phase 1, so granting it now would be premature + over-broad.
+    for role in roles/run.developer roles/artifactregistry.writer \
                 roles/logging.viewer roles/monitoring.viewer roles/secretmanager.viewer; do
       gcloud projects add-iam-policy-binding "$PROJECT_ID" \
         --member="user:${MELISSA_EMAIL}" --role="$role" --condition=None --quiet >/dev/null
     done
-    echo "    Melissa ($MELISSA_EMAIL) -> run.developer, cloudsql.admin, artifactregistry.writer, logging/monitoring/secretmanager viewer"
+    echo "    Melissa ($MELISSA_EMAIL) -> run.developer, artifactregistry.writer, logging/monitoring/secretmanager viewer (cloudsql.client deferred to Phase 3)"
   else
     skip "MELISSA_EMAIL unset - skipped Melissa grants"
   fi
@@ -215,9 +229,18 @@ fi
 
 # ---------------------------------------------------------------------------------------
 # 6. [FREE] Workload Identity Federation - keyless GitHub Actions deploy, LOCKED to one repo.
-#    Security-critical: the provider's attribute-condition restricts token exchange to
-#    GH_REPO, AND the deploy SA's workloadIdentityUser is bound only to that repo's
-#    principalSet. Two independent locks - without them any GitHub repo could mint tokens.
+#    Security-critical, defense in depth:
+#      (a) provider attribute-condition gates on the IMMUTABLE numeric repository_id AND
+#          repository_owner_id (survive an org/repo rename or GitHub slug reuse - a slug-only
+#          lock can be defeated if the org handle is ever released and re-registered), plus
+#          the human-readable repository slug for auditability.
+#      (b) the deploy SA's workloadIdentityUser is bound only to this repo's principalSet.
+#    Without (a)+(b) an arbitrary GitHub repo could mint tokens that impersonate the deploy SA.
+#    HARDENING DEFERRED to workflow-activation (Phase 2/3): also scope to a protected
+#    deploy environment - add `environment: production` to the deploy job in
+#    deploy-cloudrun.yml and bind the principalSet to attribute.environment/production
+#    (with required reviewers). Not done here to avoid front-running the inert workflow's
+#    design; tracked in the handoff block.
 # ---------------------------------------------------------------------------------------
 log "Step 6: Workload Identity Federation (locked to $GH_REPO)"
 if gcloud iam workload-identity-pools describe "$WIF_POOL" \
@@ -232,14 +255,14 @@ if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
      --project="$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" >/dev/null 2>&1; then
   skip "WIF provider $WIF_PROVIDER already exists"
 else
-  # issuer = GitHub's OIDC endpoint; attribute-condition is the repo lock.
+  # issuer = GitHub's OIDC endpoint; attribute-condition is the repo lock (immutable IDs).
   gcloud iam workload-identity-pools providers create-oidc "$WIF_PROVIDER" \
     --project="$PROJECT_ID" --location=global \
     --workload-identity-pool="$WIF_POOL" \
     --display-name="GitHub OIDC" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
-    --attribute-condition="assertion.repository == '${GH_REPO}'"
+    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id" \
+    --attribute-condition="assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}'"
 fi
 # Bind the deploy SA's impersonation to ONLY this repo's principalSet.
 gcloud iam service-accounts add-iam-policy-binding "$DEPLOY_SA" \
@@ -342,4 +365,15 @@ PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
   - VPC network/subnet -> GCP_VPC_NETWORK / GCP_VPC_SUBNET repo vars.
   - Worker pool has no autoscaling: --instances is a manual scaling control (ops runbook).
   - Secret Manager: seed the 9 empty secrets from the 1Password Prod vault (Phase 2.8).
+
+SECURITY HARDENING TO APPLY WHEN THE DEPLOY WORKFLOW IS ACTIVATED (Phase 2/3):
+  - Scope the WIF deploy identity to a protected GitHub environment: add
+    'environment: production' (required reviewers) to the deploy job in
+    deploy-cloudrun.yml, map attribute.environment, and bind the principalSet to
+    .../attribute.environment/production instead of repo-wide. (adversary High #2)
+  - Enable Data Access audit logs on Secret Manager + Cloud SQL for HIPAA evidence.
+  - Set org policies: constraints/iam.disableServiceAccountKeyCreation (enforce the
+    "no downloaded SA keys" convention) and constraints/iam.allowedPolicyMemberDomains
+    (block grants to non-lingolinq.com identities). Deliberate org-level decision, not
+    auto-applied here.
 EOF
