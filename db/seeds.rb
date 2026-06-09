@@ -9,6 +9,9 @@
 #   SEED_ADMIN_PASSWORD     - lingolinq_admin (default in dev: 'admin2025!')
 #   SEED_DEMO_PASSWORD      - demo user(s) (default in dev: 'password')
 #   SEED_LINGOLINQ_PASSWORD - lingolinq system boards user (default in dev: 'password')
+#   SEED_ACCESSIBILITY_USERS  - set to 1 to seed lingolinq-eyegaze and lingolinq-switchuser
+#   SEED_EYE_GAZE_PASSWORD    - lingolinq-eyegaze (default in dev: 'password')
+#   SEED_SWITCH_USER_PASSWORD - lingolinq-switchuser (default in dev: 'password')
 
 def seed_password(env_key, dev_default)
   if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && ENV[env_key].blank?
@@ -19,6 +22,12 @@ end
 load Rails.root.join('lib', 'beta_seed.rb')
 
 BetaSeed.ensure_baseline!
+load Rails.root.join('lib', 'accessibility_seed.rb')
+if ENV['SEED_ACCESSIBILITY_USERS'].to_s =~ BetaSeed::TRUTHY_PATTERN
+  AccessibilitySeed.ensure_all!
+else
+  puts 'Skipping accessibility users (set SEED_ACCESSIBILITY_USERS=1)'
+end
 SEED_DEMO_DATA = BetaSeed.demo_data_enabled?
 #
 # Examples:

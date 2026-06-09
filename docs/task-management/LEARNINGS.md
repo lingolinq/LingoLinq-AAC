@@ -2664,6 +2664,16 @@ Default seeds should create beta-critical public/system data (`lingolinq`, `ling
 
 ---
 
+## Pattern: accessibility QA accounts are opt-in, separate from demo district
+
+**Surface:** eye-gaze and switch-scanning test accounts for manual QA.
+
+Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibility_users` to create `lingolinq-eyegaze` and `lingolinq-switchuser` with pre-set device prefs and public action-heavy boards. These are **not** part of `BetaSeed.verify_beta_seed` or `SEED_DEMO_DATA`. Passwords: `SEED_EYE_GAZE_PASSWORD`, `SEED_SWITCH_USER_PASSWORD` (required in production/staging).
+
+**Evidence:** `lib/accessibility_seed.rb`, `db/seeds.rb`, `lib/tasks/lingolinq.rake`; task log `2026-06-08-accessibility-user-seeds.md`.
+
+---
+
 ## Pattern: Beta program access on registration — server defaults + org opt-out
 
 **Surface:** self-service signup, org start codes, beta welcome routes.
