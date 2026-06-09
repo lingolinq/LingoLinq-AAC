@@ -202,6 +202,8 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 `demo.speak` uses controller property `board` for the rendered board object. If a shareable URL needs `?board=...`, declare an aliased query param such as `{ board_key: 'board' }` and use `board_key` internally. Reusing `board` for both the query param and model state will clobber the loaded board object.
 
+**Sticky QP gotcha:** `board` is sticky by default. Topbar "Try a Demo" links must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md).
+
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
 **Surface:** session navigation cache (`board_detail_cache.js`) and offline IndexedDB sync (`sync_boards`).
@@ -3414,3 +3416,17 @@ fixed children placed near the top. Fix: `z-index: 1001` (above the header) and
 position below it via `top: calc(var(--topbar-height, 16px) + Nrem)`. The
 disappearance was NOT a transform/containing-block trap — no ancestor of the
 dashboard content has transform/filter/contain; it was pure stacking.
+
+---
+
+## Pattern: webcam eye gaze is lazy — preference toggle does not start the camera
+
+**Surface:** User Preferences dwell/eye-tracking, Speak Mode, Test Dwell.
+
+**Gotcha:** `preferences.device.dwell` only saves a setting. The camera/weblinger stack starts when entering Speak Mode (`app-state.js` `check_scanning`) or clicking Test Dwell (`dwell-tracker` → `capabilities.eye_gaze.listen()`). `calibratable`/`calibrate` were no-op stubs in the open web build; weblinger loads async from CDN (or `/weblinger/weblinger.js` fallback). If `window.weblinger` is missing, `listen()` used to no-op silently.
+
+**Fix recipe:** Wire `calibratable`/`calibrate` to `window.weblinger.calibrate()`; surface `fail` via `weblinger-tracking-fail` events; show setup guidance in Preferences; vendor weblinger locally with CDN fallback.
+
+**Evidence:** `app/frontend/app/utils/capabilities.js`, `app/views/layouts/application.html.erb`; task log `2026-06-08-webcam-eye-gaze-ux.md`.
+
+**Gotcha:** `app.covidspeak.org` CDN for WebGazer/Jeeliz deps is unreachable (`ERR_NAME_NOT_RESOLVED`). Web builds must use self-hosted `/weblinger/lib/` (vendored from open-aac/weblinger.js), not `weblinger_asset_prefix` → covidspeak.

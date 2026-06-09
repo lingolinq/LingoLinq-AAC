@@ -98,7 +98,31 @@
     </div>
   </div>
 <% end %>
-<script src='https://app.covidspeak.org/weblinger.js/weblinger.js' async='true'></script>
+<script type='text/javascript'>
+  window.weblinger_load_status = 'loading';
+  window.weblingerScriptLoaded = function() {
+    if(window.weblinger) {
+      window.weblinger_load_status = 'ready';
+      window.dispatchEvent(new CustomEvent('weblinger-script-load'));
+    }
+  };
+  window.weblingerScriptFailed = function() {
+    if(!window.weblinger) {
+      window.weblinger_load_failed = true;
+      window.weblinger_load_status = 'failed';
+      window.dispatchEvent(new CustomEvent('weblinger-script-load-failed'));
+    }
+  };
+  window.weblingerLoadFallback = function() {
+    var script = document.createElement('script');
+    script.src = 'https://app.covidspeak.org/weblinger.js/weblinger.js';
+    script.async = true;
+    script.onload = window.weblingerScriptLoaded;
+    script.onerror = window.weblingerScriptFailed;
+    document.head.appendChild(script);
+  };
+</script>
+<script src='/weblinger/weblinger.js' async='true' onload='weblingerScriptLoaded()' onerror='weblingerLoadFallback()'></script>
 <script src='/mespeak/mespeak.js' async='true'></script>
 <script type='text/javascript'>
   <% if ENV['SYMBOL_PROXY_KEY'] %>
