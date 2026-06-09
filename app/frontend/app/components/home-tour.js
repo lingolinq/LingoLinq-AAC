@@ -49,6 +49,29 @@ function _onTourStepShow() {
     document.body.classList.toggle('md-tour--centered-step', !!centered);
   } catch (e) { /* class toggle is decorative — never block the step */ }
   try { _renderTourProgress(step); } catch (e) { /* progress is decorative */ }
+  // Match the spotlight cutout's corner radius to the highlighted
+  // element's OWN border-radius so the opening reads as the same shape as
+  // the element (a pill nav as a pill, a card as a rounded rectangle)
+  // instead of a fixed 14px rounded rect. The radius is clamped to half the
+  // element's shorter side so a large/pill radius resolves to a true pill.
+  // Shepherd captures the radius inside its rAF positioning loop, so we set
+  // it then re-run setupForStep (which cancels the old loop and restarts
+  // with the matched radius — no flicker, no leak).
+  try {
+    var attachTo = step.options && step.options.attachTo;
+    var target = step.target;
+    if (!target && attachTo && typeof attachTo.element === 'string') {
+      target = document.querySelector(attachTo.element);
+    }
+    var modal = step.tour && step.tour.modal;
+    if (target && modal && typeof modal.setupForStep === 'function') {
+      var rect = target.getBoundingClientRect();
+      var declaredRadius = parseFloat(window.getComputedStyle(target).borderTopLeftRadius) || 0;
+      var matchedRadius = Math.max(0, Math.min(declaredRadius, rect.width / 2, rect.height / 2));
+      step.options.modalOverlayOpeningRadius = matchedRadius;
+      modal.setupForStep(step);
+    }
+  } catch (e) { /* shape match is decorative — never block the step */ }
 }
 
 function _clearTourCenteredClass() {
@@ -205,22 +228,29 @@ export default Component.extend({
     var narrowTour = (typeof window !== 'undefined') && window.innerWidth <= 1024;
     var side = function(wide) { return narrowTour ? 'bottom' : wide; };
 
-    // The caseload + speak cards now render a SINGLE markup at every
-    // width (the card-as-button variant), so the base class matches the
-    // visible element directly — no variant selection needed. (Single-
-    // markup cards boards/extras/orgs never needed it either.)
+    // The caseload + speak cards render DUAL markup: a `<base>-wide-only` and
+    // a `<base>-narrow-only` element BOTH carry the base class. The CSS now
+    // ALWAYS shows the -narrow-only (card-as-button) variant at every width
+    // and hides -wide-only everywhere, so always target -narrow-only. A bare
+    // base selector would grab the FIRST in DOM order (the hidden -wide-only),
+    // detaching the popover/spotlight to a corner. (LEARNINGS: "dual
+    // wide-only/narrow-only markups share a base class — querySelector(base)
+    // grabs the hidden one".) boards/extras/orgs are single-markup and
+    // targeted by their base class directly below.
     var cardSel = function(base) {
-      return base;
+      return base + '-narrow-only';
     };
 
-    // Per-step responsive config the resize handler (_onTourResize) uses
-    // to recompute the placement side live when the viewport crosses
-    // 1024px. `wide` is the >1024px side (narrow always uses 'bottom').
-    // The nav + per-pill steps stay 'bottom' at every width, so they are
+    // Per-step responsive config the resize handler (_onTourResize) uses to
+    // recompute the placement side AND (for the dual-markup cards) the
+    // visible-variant target selector live when the viewport crosses 1024px.
+    // `wide` is the >1024px side (narrow always uses 'bottom'); `cardBase`
+    // marks the dual-markup cards whose target selector must also flip. The
+    // nav + per-pill steps stay 'bottom' at every width, so they are
     // intentionally NOT listed.
     this._tourStepCfg = {
-      home_tour_caseload: { wide: 'right' },
-      home_tour_speak:    { wide: 'right' },
+      home_tour_caseload: { wide: 'right', cardBase: '.md-card--caseload' },
+      home_tour_speak:    { wide: 'right', cardBase: '.md-card--speak' },
       home_tour_boards:   { wide: 'left' },
       home_tour_extras:   { wide: 'left' },
       home_tour_orgs:     { wide: 'left' }
@@ -412,7 +442,11 @@ export default Component.extend({
       // An instant scroll centers the target in one frame, so flip()
       // computes once at the final position and the flash is gone.
       scrollTo: { behavior: 'auto', block: 'center' },
-      modalOverlayOpeningPadding: 8,
+      // 0 padding: the dark overlay hugs the highlighted component exactly,
+      // so no light page background shows as a distracting "outer container"
+      // around it — the user sees the component as it really is. The glow
+      // (`.shepherd-target` in app.scss) supplies the emphasis instead.
+      modalOverlayOpeningPadding: 0,
       modalOverlayOpeningRadius: 14,
       // Per-step show hook: paints the progress dots and flags the
       // centered intro/outro steps so the backdrop blur scopes to
@@ -482,8 +516,13 @@ export default Component.extend({
       var opts = step.options || {};
       var c = cfg[id];
       if (opts.attachTo && c) {
-        // Single markup per card now — only the placement side flips.
         opts.attachTo.on = narrow ? 'bottom' : c.wide;
+        // Dual-markup cards (caseload/speak) always show the -narrow-only
+        // as-button variant now (the -wide-only is no longer displayed at any
+        // width), so always target it — only the placement side flips.
+        if (c.cardBase) {
+          opts.attachTo.element = c.cardBase + '-narrow-only';
+        }
       }
     });
     // Re-show the active step so the new placement takes effect. Guarded

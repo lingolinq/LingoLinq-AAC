@@ -42,7 +42,7 @@
 <div class="md-board-collection__body">
   {{!-- My Boards (owned + shared, root tiles only) --}}
   <section class="md-board-collection__section">
-    <h3 class="md-board-collection__section-label">{{t "My Boards" key="my_boards"}}</h3>
+    <h3 class="md-board-collection__section-label"><span>{{t "My Boards" key="my_boards"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
     {{#if (is_equal this.my_boards_state.state "loaded")}}
       {{#if this.my_boards_state.boards.length}}
         <ul class="md-board-collection__list">
@@ -112,7 +112,7 @@
           error so the user can tell the section is in flight. --}}
     {{#unless (and (is_equal brand.state "loaded") (is_equal brand.boards.length 0))}}
       <section class="md-board-collection__section">
-        <h3 class="md-board-collection__section-label">{{t brand.default_label key=brand.label_key}}</h3>
+        <h3 class="md-board-collection__section-label"><span>{{t brand.default_label key=brand.label_key}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
         {{#if (is_equal brand.state "loaded")}}
           <ul class="md-board-collection__list">
             {{#each brand.boards as |board|}}

@@ -15,6 +15,7 @@ import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
+import { availableHomeSections, sectionHidden, gridLayoutState } from '../../utils/dashboard_sections';
 
 export default Component.extend({
   tagName: '',
@@ -26,6 +27,53 @@ export default Component.extend({
   stashes: service('stashes'),
   modal: service('modal'),
   app_state: alias('appState'),
+
+  // Home dashboard arrangement modifier, driven by the user's saved
+  // `dashboard_layout` preference (chosen in the Getting Started flow).
+  // Always resolves to a known variant so the grid has a stable hook class;
+  // 'dynamic' is today's default grid — the focused/balanced CSS variants
+  // hang off md-grid--layout-focused / md-grid--layout-balanced.
+  dashboardLayoutClass: computed('appState.currentUser.preferences.dashboard_layout', function() {
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
+    if (['dynamic', 'focused', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
+    return 'md-grid--layout-' + layout;
+  }),
+
+  // Visibility map for the home dashboard cards, keyed by section key
+  // (boards/speak/extras/caseload/org). A key is present+true only when the
+  // section is BOTH available to this user type AND not hidden by their saved
+  // `dashboard_sections` preference (set in the Getting Started flow). The
+  // template gates each card — and the caseload/org grid modifiers — on this,
+  // so hiding a section also reflows the grid as if that section didn't exist.
+  sectionVisibility: computed(
+    'appState.currentUser.preferences.dashboard_sections',
+    'appState.currentUser.supporter_role',
+    'appState.currentUser.organizations',
+    function() {
+      var user = this.get('appState.currentUser');
+      var vis = {};
+      availableHomeSections(user).forEach(function(s) {
+        vis[s.key] = !sectionHidden(user, s.key);
+      });
+      return vis;
+    }
+  ),
+
+  // Dashboard grid state derived from visibility — the card-styling classes plus
+  // the computed grid-template-areas/rows. The layout is applied as an inline
+  // style (gridStyle) from the shared layout matrix, so the home grid and the
+  // Getting Started preview reflow identically with no CSS-specificity juggling.
+  dashboardGrid: computed('sectionVisibility', function() {
+    return gridLayoutState(this.get('sectionVisibility'));
+  }),
+  gridClassString: computed('dashboardGrid', function() {
+    return (this.get('dashboardGrid.classes') || []).join(' ');
+  }),
+  gridStyle: computed('dashboardGrid', function() {
+    var s = this.get('dashboardGrid');
+    // Inline !important so it wins over the base .md-grid !important rules.
+    return htmlSafe('grid-template-areas: ' + s.areasValue + ' !important; grid-template-rows: ' + s.rows + ' !important;');
+  }),
 
   activeTab: 'home',
   /** When set (e.g. on user.extras), open this tab on load */
@@ -823,35 +871,6 @@ export default Component.extend({
     if (!boards || !boards.forEach) { return 0; }
     return filterRootBoards(boards, userId).length;
   }),
-  _animateBoardCount: observer('boardCount', function() {
-    var _this = this;
-    var target = _this.get('boardCount') || 0;
-    var current = _this.get('_displayBoardCount') || 0;
-    if (current === target) { return; }
-    if (_this._boardCountFrame) { cancelAnimationFrame(_this._boardCountFrame); }
-    var start = current;
-    var diff = target - start;
-    var duration = Math.min(400, Math.max(150, Math.abs(diff) * 15));
-    var startTime = null;
-    function step(timestamp) {
-      if (_this.isDestroying || _this.isDestroyed) { return; }
-      if (!startTime) { startTime = timestamp; }
-      var elapsed = timestamp - startTime;
-      var progress = Math.min(elapsed / duration, 1);
-      // ease-out cubic
-      var eased = 1 - Math.pow(1 - progress, 3);
-      _this.set('_displayBoardCount', Math.round(start + diff * eased));
-      if (progress < 1) {
-        _this._boardCountFrame = requestAnimationFrame(step);
-      }
-    }
-    _this._boardCountFrame = requestAnimationFrame(step);
-  }),
-  displayBoardCount: computed('_displayBoardCount', 'boardCount', function() {
-    var display = this.get('_displayBoardCount');
-    if (display !== undefined && display !== null) { return display; }
-    return this.get('boardCount') || 0;
-  }),
   extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
     var user = appState.get('currentUser');
@@ -861,13 +880,13 @@ export default Component.extend({
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
     return [
-      { title_key: 'learn_and_setup_card', title_default: 'Learn and Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started with %app_name%', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
+      { title_key: 'learn_and_setup_card', title_default: 'Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
       { title_key: 'sync', title_default: 'Sync', subtitle_key: 'sync_subtitle', subtitle_default: 'Sync your data', image: 'images/pastel-logging.png', action: 'sync_details', btn_key: 'sync', btn_default: 'Sync', show: !externalDevice },
       { title_key: 'goals', title_default: 'Goals', subtitle_key: 'goals_subtitle', subtitle_default: 'Track progress', image: 'images/pastel-reports2.png', action: 'goals', btn_key: 'view', btn_default: 'View', show: !!perms },
       { title_key: 'new_note', title_default: 'New Note', subtitle_key: 'new_note_subtitle', subtitle_default: 'Add a progress note', image: 'images/pastel-chat.svg', action: 'record_note', btn_key: 'add', btn_default: 'Add', show: !modelingOnly },
       { title_key: 'run_eval', title_default: 'Run Evaluation', subtitle_key: 'run_eval_subtitle', subtitle_default: 'Assessment tools', image: 'images/pastel-lightbulb.png', action: 'run_eval', btn_key: 'run_action', btn_default: 'Run', show: !modelingOnly },
       { title_key: 'my_account', title_default: 'My Account', subtitle_key: 'profile_and_settings', subtitle_default: 'Profile and settings', image: 'images/pastel-extras.png', action: 'account', btn_key: 'open', btn_default: 'Open', show: !!perms },
-      { title_key: 'supervisors', title_default: 'Supervisors', subtitle_key: 'manage_supervisors_sub', subtitle_default: 'Add or manage who can support you', image: 'images/pastel-chat.svg', action: 'supervisors', btn_key: 'view', btn_default: 'View', show: true },
+      { title_key: 'supervisors', title_default: 'Supervisors', subtitle_key: 'manage_supervisors_sub', subtitle_default: 'Who supports you', image: 'images/pastel-chat.svg', action: 'supervisors', btn_key: 'view', btn_default: 'View', show: true },
       { title_key: 'trainings', title_default: 'Trainings', subtitle_key: 'trainings_subtitle', subtitle_default: 'Continuing education', image: 'images/pastel-modeling.png', action: 'lessons', btn_key: 'start', btn_default: 'Start', show: !!lessons },
       { title_key: 'critical_access', title_default: 'Basic Access', subtitle_key: 'offline_boards_subtitle', subtitle_default: 'Offline boards', image: 'images/pastel-house.png', action: 'offline_boards', btn_key: 'access', btn_default: 'Access', show: !!emergencyBoards }
     ];
@@ -878,6 +897,16 @@ export default Component.extend({
       var user_name = this.appState.get('currentUser.user_name');
       if(user_name) {
         this.get('router').transitionTo('user.subscription', user_name);
+      }
+    },
+    // Single action for the My Organizations card-as-button: open the
+    // organizations list when the user has any, otherwise fall through to the
+    // add-organization flow (mirrors the prior two-button behavior).
+    goOrganizations: function() {
+      if ((this.get('all_orgs.length') || 0) > 0) {
+        this.get('router').transitionTo('organizations');
+      } else {
+        this.send('addOrganization');
       }
     },
     goToBoard: function(boardKey) {
@@ -1108,6 +1137,10 @@ export default Component.extend({
         if (userId) { this.get('router').transitionTo('user.lessons', userId); }
       } else if (name === 'offline_boards') {
         this.get('router').transitionTo('offline_boards');
+      } else if (name === 'supervisors') {
+        // The whole Supervisors card is now the action (no separate button),
+        // so route its action through here too.
+        this.send('openSupervisorsModal');
       }
     },
     recordNoteFor: function(supervisee) {

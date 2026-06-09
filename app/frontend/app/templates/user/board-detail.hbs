@@ -1378,6 +1378,17 @@
                      privacy pill + license icon both park at the right
                      end of the title row so the title and its
                      attribution state read as one unit. --}}
+                {{!-- Editing pill — rendered OUTSIDE the edit card, centered
+                     in the row ABOVE it, so it reads as a top-center page
+                     badge on all screen sizes (was an absolutely-centered
+                     column inside the title row, which overlapped the
+                     title). --}}
+                <div class="md-board-detail-header__editing-float">
+                  <span class="md-board-detail-header__sub-badge" role="status" aria-label={{t "Editing" key="editing"}}>{{t "Editing" key="editing"}}</span>
+                  {{#if this.is_copy_on_save}}
+                    <span class="md-board-detail-header__sub-badge md-board-detail-header__sub-badge--copying">{{t "Creating a Copy of This Board" key="board_detail_creating_copy_badge"}}</span>
+                  {{/if}}
+                </div>
                 <div class="md-board-detail-header__edit-card" role="region" aria-label={{t "Board details" key="board_detail_info_panel"}}>
                   {{!-- Title row uses a 3-column grid (1fr | auto | 1fr)
                        so the centered Editing pill anchors to the page
@@ -1465,19 +1476,6 @@
                           {{/unless}}
                         </div>
                       </div>
-                    </div>
-                    <div class="md-board-detail-header__title-row-center md-board-detail-header__edit-actions">
-                      {{!-- Center column holds the Editing pill (and the
-                           optional "Creating a Copy" badge), centered on
-                           the page. The Discard / Save tile pair lives
-                           in the right column so it right-aligns to the
-                           title row's trailing edge. --}}
-                      <span class="md-board-detail-header__sub-badge" role="status" aria-label={{t "Editing" key="editing"}}>
-                        {{t "Editing" key="editing"}}
-                      </span>
-                      {{#if this.is_copy_on_save}}
-                        <span class="md-board-detail-header__sub-badge md-board-detail-header__sub-badge--copying">{{t "Creating a Copy of This Board" key="board_detail_creating_copy_badge"}}</span>
-                      {{/if}}
                     </div>
                     <div class="md-board-detail-header__title-row-right">
                       {{#unless (is-equal this.user.user_name this.app_state.currentUser.user_name)}}

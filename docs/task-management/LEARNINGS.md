@@ -105,6 +105,78 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 - [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
+- [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
+- [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
+- [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
+
+## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
+
+Adding any scalar `User` preference end-to-end always touches the same three
+places — miss one and it silently fails:
+
+1. **Whitelist** — add the key to `User::PREFERENCE_PARAMS` (app/models/user.rb ~1076).
+   `process_params` only copies keys in this array; an un-whitelisted key is
+   dropped with no error, so the value never persists.
+2. **Default** — add to `User.preference_defaults['any_user']` (or
+   `['authenticated_user']`). `generate_defaults` (before_save) backfills it only
+   when the stored value is `nil`, so existing users get it on their next save.
+3. **Frontend save** — read via `appState.currentUser.preferences.<key>`; to save:
+   `user.set('preferences.<key>', v); user.set('preferences.device.updated', true); user.save();`
+   The `device.updated` dirty bit is REQUIRED: `preferences` is `DS.attr('raw')`, and
+   mutating a nested key does not reliably mark the attr dirty, so without it
+   ember-data may not send the change. Canonical example: `set_board_view_style`
+   in controllers/board/index.js.
+
+For UI driven off the value, default in JS too (`|| 'dynamic'` + validate against a
+known set) so nil/unknown never breaks render before the backend backfills. Applied
+in 2026-06-08 dashboard_layout preference (md-grid--layout-* hook class).
+
+**A preference value can be a hash, not just a scalar.** `process_params` stores a
+whitelisted key's value verbatim (the `'true'`/`'false'` coercion only touches scalar
+strings), and nested hashes under `preferences` already round-trip (`device`,
+`substitutions`). So `dashboard_sections => {boards: true, extras: false}` works with
+the same 3 touches. Treat **missing/`true` as the default-on state and only `=== false`
+as "off"**, so sections/keys added later default visible for existing users.
+
+**When two surfaces must agree on the same set (e.g. a settings modal that toggles
+what a page renders), put the registry in ONE shared util, not in each component.**
+2026-06-08 `utils/dashboard_sections.js` exports `HOME_SECTIONS` (key, cardClass,
+labelKey, `available(user)`) consumed by both the dashboard render (`sectionVisibility`
+computed) and the Getting Started modal (checkbox list + live-preview toggling) — so
+availability rules and keys can't drift. Bonus: drive grid-layout modifier classes off
+the *visibility* (available && !hidden), not raw availability, so hiding a section also
+collapses its reserved grid area instead of leaving a gap.
+
+**Gotcha — hiding a dashboard card via JS needs inline `!important`.** The Speak and
+Caseload cards render two siblings (`--wide-only` / `--narrow-only`) switched by
+`@media` rules that use `display: ... !important` (app.scss ~42246, ~47106). A plain
+inline `el.style.display = 'none'` is beaten by that stylesheet `!important` and the
+card stays visible. Use `el.style.setProperty('display','none','important')` to hide
+(inline-important outranks stylesheet-important) and `el.style.removeProperty('display')`
+to restore — the latter hands control back to the media rules so the correct variant
+shows per viewport. Applied in the Getting Started live preview toggles.
+
+**Gotcha — a clone of `.md-grid--dashboard` keeps the live grid modifier classes.** To
+make a cloned-DOM preview reflow like the real page when a section is toggled, also
+`classList.toggle('md-grid--with-caseload' / '--with-org-mgmt')` on the clone — hiding
+the card alone leaves the reserved grid area empty.
+
+**Pattern — when a `grid-template-areas` matrix grows combinatorial, make it a data map,
+not CSS modifier classes.** The dashboard reflow (which cards show, where) started as one
+CSS rule per visibility combination, selected by modifier classes with hand-tuned
+specificity (`.md-grid--hide-speak.md-grid--with-caseload:not(.md-grid--with-org-mgmt)`,
+source-order tiebreaks). That doesn't scale — every new rule has to out-rank the others,
+and named areas don't auto-collapse when empty. Converted (2026-06-08) to a pure function
+`utils/dashboard_sections.js#dashboardLayout(vis)` → `{areas[], rows}`, first-match-wins
+branches, applied as an **inline `grid-template-areas` style** on `.md-grid--dashboard`
+(htmlSafe computed on the real page; `style.setProperty(...,'important')` on the preview
+clone). Inline-`!important` beats the base `.md-grid` stylesheet `!important`, so no
+specificity management at all; adding a layout = adding one branch (the `areas` array IS
+the doc). Keep the old modifier classes ONLY if they also drive non-layout styling
+(`md-grid--with-caseload` restyles the Speak card). This is the standard dashboard-engine
+approach (Grafana/react-grid-layout): layout is data, not per-combination CSS. Caveat:
+inline styles can't carry media queries — fine here because the dashboard's areas are
+viewport-independent (responsiveness is via the card wide/narrow variants, not the grid).
 
 ## Pattern: blank username suggestions must be discarded before `clean_path`
 
@@ -3155,3 +3227,190 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Keep `allowed?(goal, 'view')` when filtering badges by `goal_id`, and cover public-profile-only access with a controller spec.
 
 **Evidence:** `app/controllers/api/badges_controller.rb`, `app/models/user_goal.rb`, `spec/controllers/api/badges_controller_spec.rb`; task log `2026-06-04-proxy-cache-and-badge-auth-review.md`.
+
+---
+
+## Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user
+
+The `user.board-detail` route nests under `user`, so `this.modelFor('user')`
+resolves to the **board OWNER** (the `:user_id` in the URL), which is NOT the
+logged-in user when you open a board you don't own (anything outside "My
+Boards"). Every personal viewing preference toggle in
+`controllers/user/board-detail.js` (`set_folder_style`,
+`toggle_folder_colored_face`, `toggle_shrink_labels_to_fit`,
+`toggle_soft_borders`, `toggle_hide_speak_bar`, `set_speak_menu_item_hidden`)
+**saves** to `app_state.currentUser.preferences.*`. The route's `setupController`
+was **reading** them back from `modelFor('user')` — so on another user's board
+they silently reverted to defaults (the owner has no such pref saved).
+
+**Fix recipe:** read personal viewing/display prefs from
+`this.appState.get('currentUser')` so the read mirrors the write. Keep the
+board-owner `user` var for ownership logic. Note `symbol_background`/`voice` in
+the same block still read from the owner — leave intentionally owner/communicator-
+scoped prefs alone unless their save side also targets `currentUser`.
+
+**Smell test:** when a setting "resets to default" only on records you don't own,
+check whether the read source (`modelFor`) matches the write source (`currentUser`).
+
+**Evidence:** `app/routes/user/board-detail.js` `setupController` (~line 266);
+save handlers `app/controllers/user/board-detail.js:7093-7202`; task log
+`2026-06-08-folder-prefs-revert-on-others-boards.md`.
+
+---
+
+## Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped
+
+The speak-mode "My Board Collection" panel's CSS (`app.scss` ~66916–67340) is
+authored as a **light base** (`.md-board-collection__*`) with the dark speak-mode
+look layered as `.md-board-detail--dark .md-board-collection__*` overrides. So the
+exact same panel markup (header + search pill + sectioned `__item` rows) can be
+dropped onto a **light** page (e.g. the Find Boards / `search` page) and it renders
+as a light-themed twin automatically — no re-theming needed. Reuse the classes;
+only add a thin shell (trigger + floating-panel positioning) around them. `__body`
+already does `overflow-y:auto; flex:1; min-height:0`, so a shell with a `max-height`
++ `display:flex; column` gives you a scrolling dropdown for free.
+
+**Combobox-over-existing-search:** on the Find Boards page the "Filter Boards"
+field was the page's live SERVER search (the `_autoSearch` observer re-queries on
+`searchString` change). To turn it into a board-jump dropdown without losing search,
+make the dropdown's top input the search field: `@onQueryChange={{action (mut
+this.searchString)}}` flows typing back to the controller, the existing observer
+fires, and the section lists are just the live results — no client-side filter layer
+and no need to touch the speak-mode component.
+
+**Gotchas:** (1) `{{#each sections as |section|}}` shadows the `<section>` tag —
+ember-template-lint `no-shadowed-elements`; name the block param `group`. (2) Floating
+panel z-index must be `< $aac-z-topbar` (use 150). (3) mixed-unit `min(60vh, 460px)`
+compiles fine here (dart-sass; precedent at app.scss:24301) — only arithmetic
+(`px + vw`) inside `clamp()` needs `calc()`.
+
+**Evidence:** `components/search-board-jump.{js,hbs}`, `controllers/search.js`
+`jump_sections`/`select_jump_board`, `app.scss` `.ub-search-jump*`; task log
+`2026-06-08-find-boards-jump-dropdown.md`.
+
+---
+
+## Pattern: board cards are governed by the `board-card-modern` mixin (its `!important` makes surface font/spacing overrides DEAD)
+
+Board cards (`board-icon` component, root `.simple_board_icon`) get their modern
+look from the `@mixin board-card-modern` (app.scss:~61), `@include`d on 4 surfaces:
+home-boards picker (~5135), the `.ub-search-page` responsive `.btn.simple_board_icon`
+(~39134), dashboard user-summary available-boards (~45087), and the boards+search
+grid `.ub-boards-page__board-grid` (~60760). The mixin's typography/layout rules are
+`!important`, so per-surface declarations like `.name { font-size:1.69rem }` or
+`.author { font-size:17px; margin:0 0 16px }` are **overridden and dead** — the card
+actually renders the mixin's values (title `max(11px,1.2rem)`=12px, author
+`max(11px,0.9rem)`=11px, author margin 0). To change card typography/spacing
+*everywhere*, edit the MIXIN, not the surface block. Font floors use `max(<px>, <rem>)`
+so text never drops below the px floor when the 10px root scales rem down.
+
+**Decorative top accent:** the mixin's `&::before` (`inset:0 0 auto 0`, 2px gradient)
+is the top border. It only looks right when the card keeps the mixin's
+`overflow:hidden` (clips the bar to the 28px radius). The boards/search card had flipped
+it to `overflow:visible`, so the bar bled past the rounded corners as a full-width line.
+Fix = restore `overflow:hidden` (heart/home-badge/trash are siblings in the *holder*,
+not children of the card, so they aren't clipped).
+
+**Equal-height across rows:** the boards/search grid is `display:flex; flex-wrap;
+align-items:stretch` → cards equalize within a row only. For uniform height across ALL
+rows, set a `min-height` floor on the card; content is bounded (title `-webkit-line-clamp:2`
++ fixed 104px image), so a floor above the tallest content (≈300px) makes every card match.
+The home-boards picker / user-summary cards use `height:auto` and are NOT under the
+boards-grid selector, so a boards-grid min-height does not touch them (scope deliberately).
+
+**Evidence:** `app/styles/app.scss` mixin ~61, base `.simple_board_icon` ~9619,
+boards/search grid ~60711; task log `2026-06-08-board-card-refinements.md`.
+
+---
+
+## Pattern: home-tour `cardSel` MUST target the visible wide/narrow variant — don't "simplify" it to the base class
+
+The dashboard caseload + speak cards render **dual markup**: `<base>-wide-only`
+AND `<base>-narrow-only` elements that BOTH carry the base class
+(`.md-card--speak`, `.md-card--caseload`), with CSS hiding one per breakpoint
+(`<=1024px` shows `-narrow-only`, `>=1025px` shows `-wide-only`). The home tour
+(`components/home-tour.js`) must anchor steps to the **visible** variant via
+`cardSel(base) => base + (narrowTour ? '-narrow-only' : '-wide-only')`. A bare
+`querySelector('.md-card--speak')` grabs the FIRST (DOM-order) element — the
+HIDDEN, zero-size variant at the current width — so the popover AND the spotlight
+detach to a corner and nothing is highlighted (breaks "after the main nav" on
+small screens). `_onTourResize` must also flip `attachTo.element` to the visible
+variant when crossing 1024px, not just the placement side.
+
+**This has regressed twice.** Both times a "Modernize…" refactor replaced
+`cardSel` with `return base` under a comment claiming the cards became
+single-markup — they did NOT. boards/extras/orgs ARE single-markup (target base
+directly); caseload/speak are NOT. Before simplifying `cardSel`, grep the
+template for `-wide-only`/`-narrow-only` on that card first.
+
+**Evidence:** `app/templates/components/dashboard/authenticated-view.hbs`
+(speak/caseload wide-only + narrow-only), `app/components/home-tour.js`
+`cardSel` + `_onTourResize`; app.scss ~46369 / ~41673 (the 1024/1025 hide rules).
+Related: [[the dual wide-only/narrow-only markup gotcha already in this doc]].
+
+## Card box-shadow / glow "cut off on the right" is a GUTTER problem, not an overflow problem
+
+**Symptom:** a dashboard card's soft drop-shadow / showcase glow is sharply
+clipped on the right, and only at narrower widths. Tempting (wrong) fix:
+`overflow: visible` / `overflow-x: visible` on an ancestor.
+
+**Why overflow is the wrong lever:** the dashboard scroll chain (`#content`,
+`.md-shell`, `.md-workspace`, `.md-main`) is a deliberate multi-layer
+horizontal-scroll guard — `overflow-x: hidden !important` on ALL of them inside
+`@media (max-width: 1024px)` (app.scss ~54151-54161). Un-clipping one layer just
+moves the clip up the chain; `#content` still clips at the viewport. And on
+narrow screens the card sits only ~14-26px from the viewport edge, so a 38-52px
+shadow is physically off-screen — no overflow trick conjures space that isn't there.
+
+**Root cause (verified):** the shadow needs a GUTTER ≥ its blur reach between the
+card edge and the clip edge. Desktop `.md-workspace` has `padding: 40px 40px …`
+(~40323) — that 40px gutter is exactly why the shadow shows on desktop. The
+`@media (max-width: 820px)` block (~40388) drops it to `margin: 0; padding-left/
+right: 14px` — 14px < the 38px (rest) / 52px (hover) glow reach → hard clip.
+
+**Fix pattern:** restore the gutter for the affected surface only, scoped by
+content — `.md-workspace:has(.md-grid--dashboard) { padding-left/right: 40px
+!important }` inside the ≤1024 block. `:has()` is already used here (~15708,
+~29219) so it's safe. Keep the scroll guard intact. Size the gutter against the
+WIDEST box-shadow layer's blur (`grep -A6 'md-card--…' | grep box-shadow`).
+A decorative glow fades to ~0 before its full blur radius, so matching the
+resting reach (not the hover peak) is usually enough; hover overshoot landing
+off-screen reads as a natural fade, not a clip.
+
+**Evidence:** app.scss ~40323 (desktop 40px gutter), ~40388-40415 (≤820px 14px
+reduction), ~54151-54161 (multi-layer scroll guard), ~46275-46313 (Speak card
+0 0 38px / 52px glow).
+
+## Two independent Shepherd tours can safely share the ember-shepherd `tour` service
+
+Building a second tour-style modal (`getting-started-tour`) alongside the
+existing `home-tour`? Both can inject `service('tour')` and call
+`tour.addSteps(theirSteps)` without contaminating each other. ember-shepherd's
+`addSteps` runs `_initialize()`, which **creates a brand-new `Shepherd.Tour`
+every call** (no "already initialized" guard — `node_modules/ember-shepherd/
+dist/services/tour.js` `_initialize`, ~l.446-478). So each start gets a fresh
+tour with only the steps from that addSteps call — no need to reset
+`tour.steps`. Just set `defaultStepOptions`/`modal`/`confirmCancel` BEFORE
+addSteps each time (they're read at instantiation), which both components do.
+
+Reuse the home-tour CSS for a matching look: `md-tour__step`,
+`md-tour__step--intro` (centered modal), `md-tour__btn--ghost/--primary`,
+`md-tour__eyebrow`/`__heading` (decorated title via innerHTML), and toggle
+`body.md-tour--centered-step` in a `when.show` hook for the backdrop blur.
+
+Naming gotcha: a `getting-started` component (+ `getting-started-icon`) ALREADY
+exists — a checklist modal driven by the `modal` service (NOT Shepherd). The
+new progressive tour-style modal is `getting-started-tour` to avoid clobbering
+it. Two distinct "Getting Started" surfaces; don't conflate them.
+
+## Fixed-positioned dashboard chrome must clear z-index:1000 (the inner-header)
+
+A `position: fixed` element placed on the dashboard (e.g. the "Take a tour"
+button, the Getting Started badge) **vanished** until given `z-index > 1000`.
+The app header (`#within_ember > header`, app.scss ~l.442) is
+`position: fixed; z-index: 1000; height: var(--topbar-height)`, and the
+app-navbar inside it overflows downward (padding-top: 2rem), so it paints over
+fixed children placed near the top. Fix: `z-index: 1001` (above the header) and
+position below it via `top: calc(var(--topbar-height, 16px) + Nrem)`. The
+disappearance was NOT a transform/containing-block trap — no ancestor of the
+dashboard content has transform/filter/contain; it was pure stacking.

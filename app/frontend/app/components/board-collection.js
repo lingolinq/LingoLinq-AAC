@@ -3,80 +3,12 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
-
-/* Brand families surfaced in the speak-mode "My Board Collection"
-   panel. Each family is shown as its own alphabetized section under
-   the user's "My Boards" list.
-
-   `query` is the server-side `q=` term used to fetch a candidate set.
-   `test(board)` is the client-side guard: server search may match
-   tangentially-related boards by description/keyword, so we drop
-   anything whose key OR name doesn't actually contain the brand
-   marker.
-   `root_re` is the ROOTS-ONLY guard: the brand sections are public
-   boards (not the user's own), so we show only each set's TOP board
-   and hide its sub-boards. There is no server/data flag that cleanly
-   separates a set root from its sub-boards on original public boards
-   (`root: true` keeps original sub-boards too), so we key off the
-   board KEY, which follows a stable convention: roots are
-   `<brand>-<size>` (e.g. `vocal-flair-84`, optionally `-w-keyboard`),
-   while sub-boards carry a descriptive suffix
-   (`vocal-flair-84-categories-food`). CommuniKate has no sizes — its
-   root is `communikate-home` (or bare / `-<size>`). `(^|\/)` anchors
-   after the `<owner>/` key prefix; `$` rejects any descriptive tail.
-   Mirrors the same root-key approach used by the setup board-picker
-   (`components/board-picker.js` _loadBrandGroups). Order of this array
-   drives the section order in the rendered panel. */
-const BRAND_FAMILIES = [
-  {
-    id: 'communikate',
-    label_key: 'communikate',
-    default_label: 'CommuniKate',
-    query: 'CommuniKate',
-    root_re: /(^|\/)communikate(-home|-\d+)?$/i,
-    test: function(board) {
-      var key = (board && board.get && board.get('key')) || '';
-      var name = (board && board.get && board.get('name')) || '';
-      return /(?:^|\/|-)communikate\b/i.test(key) || /\bcommunikate\b/i.test(name);
-    }
-  },
-  {
-    id: 'quick_core',
-    label_key: 'quick_core',
-    default_label: 'Quick Core',
-    query: 'Quick Core',
-    root_re: /(^|\/)quick-core-\d+(-w(?:ith)?-keyboard)?$/i,
-    test: function(board) {
-      var key = (board && board.get && board.get('key')) || '';
-      var name = (board && board.get && board.get('name')) || '';
-      return /(?:^|\/|-)quick-core\b/i.test(key) || /\bquick[\s-]?core\b/i.test(name);
-    }
-  },
-  {
-    id: 'sequoia',
-    label_key: 'sequoia',
-    default_label: 'Sequoia',
-    query: 'Sequoia',
-    root_re: /(^|\/)sequoia-\d+(-w(?:ith)?-keyboard)?$/i,
-    test: function(board) {
-      var key = (board && board.get && board.get('key')) || '';
-      var name = (board && board.get && board.get('name')) || '';
-      return /(?:^|\/|-)sequoia\b/i.test(key) || /\bsequoia\b/i.test(name);
-    }
-  },
-  {
-    id: 'vocal_flair',
-    label_key: 'vocal_flair',
-    default_label: 'Vocal Flair',
-    query: 'Vocal Flair',
-    root_re: /(^|\/)vocal-flair-\d+(-w(?:ith)?-keyboard)?$/i,
-    test: function(board) {
-      var key = (board && board.get && board.get('key')) || '';
-      var name = (board && board.get && board.get('name')) || '';
-      return /(?:^|\/|-)vocal-flair\b/i.test(key) || /\bvocal[\s-]?flair\b/i.test(name);
-    }
-  }
-];
+import { dedupeByName } from '../utils/board-roots';
+/* Brand families (CommuniKate / Quick Core / Sequoia / Vocal Flair) — the
+   `query`/`root_re`/`test` metadata now lives in the shared util so the
+   Find Boards grid grouping and this panel classify brands identically.
+   Array order drives the rendered section order. */
+import { BRAND_FAMILIES } from '../utils/board-brands';
 
 /* Static i18n declarations — the section headers render via dynamic
    `{{t section.default_label key=section.label_key}}` in the template,
@@ -136,28 +68,6 @@ function _filterByName(boards, query) {
     var name = ((b.get && b.get('name')) || '').toLowerCase();
     var key = ((b.get && b.get('key')) || '').toLowerCase();
     if (name.indexOf(q) !== -1 || key.indexOf(q) !== -1) { out.push(b); }
-  });
-  return out;
-}
-
-/* Drop boards whose `name` is an exact duplicate of an earlier entry
-   in the input. Order of `boards` is preserved — the FIRST entry for
-   each name wins. Empty / missing names are not deduped (each gets
-   through) since a board with no name is unusual and there's no safe
-   way to assert two such records are "the same". Used by the brand
-   sections to collapse the common case where multiple owners ship
-   identically-named copies (e.g. several "Quick Core 60" boards). */
-function _dedupByName(boards) {
-  if (!boards || !boards.length) { return []; }
-  var seen = Object.create(null);
-  var out = [];
-  boards.forEach(function(b) {
-    if (!b) { return; }
-    var name = (b.get && b.get('name')) || '';
-    if (!name) { out.push(b); return; }
-    if (seen[name]) { return; }
-    seen[name] = true;
-    out.push(b);
   });
   return out;
 }
@@ -346,7 +256,7 @@ export default Component.extend({
            AFTER dedup so the final order is name-A→Z but the chosen
            representative is the popular one. Empty / missing names
            pass through unchanged (each gets its own row). */
-        _this._setBrandResult(family.id, { state: 'loaded', boards: _alphaByName(_dedupByName(matched)) });
+        _this._setBrandResult(family.id, { state: 'loaded', boards: _alphaByName(dedupeByName(matched)) });
       }).catch(function() {
         _this._setBrandResult(family.id, { state: 'error' });
       });

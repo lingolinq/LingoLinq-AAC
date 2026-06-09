@@ -638,7 +638,16 @@ class User < ApplicationRecord
         # full-device grid (board-alt). Both render the same board
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
-        'board_view_style' => 'modern'
+        'board_view_style' => 'modern',
+        # Home-page dashboard arrangement: 'dynamic' (default), 'focused', or
+        # 'balanced'. Chosen during the Getting Started flow; drives the
+        # md-grid--layout-* modifier on the dashboard grid.
+        'dashboard_layout' => 'dynamic',
+        # Per-section visibility for the home dashboard cards, e.g.
+        # {'boards' => true, 'extras' => false}. Chosen during the Getting
+        # Started flow. A missing key (or true) means visible, so sections
+        # default to shown; only keys explicitly set to false are hidden.
+        'dashboard_sections' => {}
       },
       'authenticated_user' => {
         'long_press_edit' => false,
@@ -1099,7 +1108,8 @@ class User < ApplicationRecord
       'prevent_button_interruptions', 'utterance_interruptions', 'prevent_utterance_repeat',
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
-      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access'
+      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access',
+      'dashboard_layout', 'dashboard_sections'
     ]
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports', 
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']

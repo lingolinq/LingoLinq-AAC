@@ -1,5 +1,19 @@
 <div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
   <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
+  {{#if (is-equal this.activeTab "home")}}
+    {{!-- Take a Tour + Getting Started — above the pill-nav, just below the inner
+         header. They stay fixed on large screens (their own CSS); at ≤950px the
+         .md-home-actions row lays them out in normal flow (tour left, badge
+         right) so they no longer float over the stacked content. --}}
+    <div class="md-home-actions">
+      {{#if this.appState.feature_flags.home_tour}}
+        {{home-tour}}
+      {{/if}}
+      <div class="md-home-steps">
+        {{getting-started-tour}}
+      </div>
+    </div>
+  {{/if}}
   {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
@@ -48,14 +62,9 @@
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting_no_name"}}{{/if}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
       {{/if}}
-      {{#if this.appState.feature_flags.home_tour}}
-        {{#if (is-equal this.activeTab "home")}}
-          {{home-tour}}
-        {{/if}}
-      {{/if}}
     </header>
 
-<section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}} {{if this.appState.currentUser.supporter_role "md-grid--with-caseload"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+<section class="md-grid md-grid--dashboard {{this.dashboardLayoutClass}} {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{this.gridClassString}}" style={{this.gridStyle}} aria-label={{t "Dashboard" key="dashboard"}}>
       {{!-- Getting Started onboarding card DISABLED — we're evaluating
            whether to bring it back in a later iteration. The matching
            showGettingStarted computed in dashboard/authenticated-view.js
@@ -91,7 +100,7 @@
       <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
       --}}
-      {{#if this.appState.currentUser.supporter_role}}
+      {{#if this.sectionVisibility.caseload}}
       {{!-- My Caseload renders two sibling variants; the CSS @media rules in
            app.scss show exactly one per viewport. >1024px: the wide card with
            a separate "Manage" button (--caseload-wide-only). ≤1024px: the whole
@@ -106,7 +115,7 @@
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
-            <div class="md-card__sub">{{t "View and manage your communicators" key="view_manage_communicators"}}</div>
+            <div class="md-card__sub">{{t "Manage your communicators" key="view_manage_communicators"}}</div>
           </div>
         </div>
         <LinkTo @route="caseload" class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
@@ -118,11 +127,12 @@
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
-            <div class="md-card__sub">{{t "View and manage your communicators" key="view_manage_communicators"}}</div>
+            <div class="md-card__sub">{{t "Manage your communicators" key="view_manage_communicators"}}</div>
           </div>
         </div>
       </LinkTo>
       {{/if}}
+      {{#if this.sectionVisibility.speak}}
       {{!-- Speak Mode mirrors My Caseload: two sibling variants, CSS @media
            rules show exactly one per viewport. >1024px: the wide card with a
            separate "Continue Speaking" button (--speak-wide-only). ≤1024px: the
@@ -151,13 +161,25 @@
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</h3>
-            <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
+            {{!-- Single supporting accent (no interactive UI): a calm
+                 "ready" status line that makes the card feel active. --}}
+            <span class="md-card__status">
+              <span class="md-card__status-dot" aria-hidden="true"></span>
+              {{t "Ready to communicate" key="ready_to_communicate"}}
+            </span>
           </div>
         </div>
         <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
       </button>
+      {{/if}}
 
-      <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
+      {{#if this.sectionVisibility.extras}}
+      {{!-- Extras card is itself the action (like the Speak Mode
+           card-as-button): the whole card is a single tappable button that
+           opens the Extras tab — the separate "Explore Extras" button is
+           gone. `md-card--as-button` layers the glassy actionable treatment
+           (shared with the speak/caseload as-button variants). --}}
+      <button type="button" class="md-card md-card--extras md-card--as-button" aria-label={{t "Extras" key="extras"}} {{action "goTab" "extras"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--extras" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
@@ -167,16 +189,17 @@
             <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
           </div>
         </div>
-        <div class="md-extrasRow">
-          <button type="button" class="md-btn md-btn--primary" {{action "goTab" "extras"}}>
-            {{t "Explore Extras" key="explore_extras"}}
-          </button>
-        </div>
         <div class="md-card__extras-wave" aria-hidden="true"></div>
-      </article>
+      </button>
+      {{/if}}
 
-      {{#if this.has_management_responsibility}}
-      <article class="md-card md-card--org-management" aria-label={{t "My Organizations" key="my_organizations"}}>
+      {{#if this.sectionVisibility.org}}
+      {{!-- My Organizations is itself the action (like the Extras / Speak
+           card-as-buttons): the whole card is a single button that opens the
+           organizations list (or the add-organization flow when there are
+           none). `md-card--as-button` layers the shared glassy treatment;
+           the icon + wording are unchanged. --}}
+      <button type="button" class="md-card md-card--org-management md-card--as-button" aria-label={{t "My Organizations" key="my_organizations"}} {{action "goOrganizations"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--org" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
@@ -186,16 +209,10 @@
             <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
           </div>
         </div>
-        {{#if this.all_orgs.length}}
-          <LinkTo @route="organizations" class="md-btn md-btn--primary">{{t "View Organizations" key="view_organizations"}}</LinkTo>
-        {{else}}
-          <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
-            {{t "Add Organization" key="add_organization"}}
-          </button>
-        {{/if}}
-      </article>
+      </button>
       {{/if}}
 
+      {{#if this.sectionVisibility.boards}}
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
         <div class="md-card__head md-card__head--between">
           <div class="md-card__left">
@@ -203,13 +220,6 @@
             <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
           </div>
           <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
-          <div class="md-stat">
-            <div class="md-stat__num">{{this.displayBoardCount}}</div>
-            <div class="md-stat__meta">
-              <div>{{t "Total" key="total"}}</div>
-              <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
-            </div>
-          </div>
         </div>
         {{#if this.boardsLoading}}
         <div class="md-card__loading">
@@ -283,6 +293,7 @@
         </div>
         {{/if}}
       </article>
+      {{/if}}
 
       {{#if (is-equal this.activeTab "supervisors")}}
       <section class="md-supervisors-page" aria-label={{t "Supervisors" key="supervisors"}}>
@@ -373,10 +384,13 @@
 
       {{#if (is-equal this.activeTab "extras")}}
       <section class="md-extras-page" aria-label={{t "Extras" key="extras"}}>
-        <div class="md-extras-page__grid" role="list">
+        <div class="md-extras-page__grid">
           {{#each this.extrasItems as |item|}}
             {{#if item.show}}
-              <article class="md-extras-card" role="listitem">
+              {{!-- Whole card is the action (no separate button) — styled like
+                   the My Organizations card-as-button. extraAction routes every
+                   action (incl. supervisors → openSupervisorsModal). --}}
+              <button type="button" class="md-extras-card" {{action "extraAction" item.action}}>
                 <div class="md-extras-card__head">
                   <div class="md-extras-card__icon-wrap md-extras-card__icon-wrap--{{item.action}}">
                     {{#if (is-equal item.action "intro")}}
@@ -406,18 +420,7 @@
                     <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
                   </div>
                 </div>
-                <div class="md-extras-card__btn-wrap">
-                {{#if (is-equal item.action "supervisors")}}
-                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "openSupervisorsModal"}}>
-                    {{t "View" key="view"}} →
-                  </button>
-                {{else}}
-                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "extraAction" item.action}}>
-                    {{t item.btn_default key=item.btn_key}} →
-                  </button>
-                {{/if}}
-                </div>
-              </article>
+              </button>
             {{/if}}
           {{/each}}
         </div>

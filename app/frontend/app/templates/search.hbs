@@ -3,20 +3,16 @@
   <div class="la-section-header ub-boards-page__page-header ub-search-page__header">
     <span class="la-section-eyebrow-badge">{{t "Find Boards" key="find_board"}}</span>
     <div class="la-hero-title-wrap">
-      <h1 class="la-hero-title">{{t "Search for " key="search_for_boards_prefix"}}<span class="ub-search-page__title-boards">{{t "Boards" key="boards"}}</span></h1>
+      <h1 class="la-hero-title">{{t "Search for " key="search_for_boards_prefix"}}<span class="ub-search-page__title-boards">{{t "Boards" key="boards"}}</span><span class="ub-search-page__title-boards ub-search-page__title-boards--note">{{t "(Page-Sets & Vocabularies)" key="page_sets_and_vocabularies"}}</span></h1>
     </div>
-    <hr class="la-about-hero-separator" aria-hidden="true">
     <div class="ub-search-page__form-wrap">
       <form class="ub-search-page__form" {{action "searchBoards" on="submit"}}>
         <div class="ub-search-page__form-row">
-          <label for="search-page-query" class="ub-search-page__label">{{t "Filter Boards" key="filter_boards"}}</label>
-          <Input
-            id="search-page-query"
-            @type="search"
-            @value={{this.searchString}}
-            class="ub-search-page__input form-control"
-            placeholder={{t "Filter boards..." key="filter_boards_placeholder"}}
-          />
+          <SearchBoardJump
+            @query={{this.searchString}}
+            @onQueryChange={{action (mut this.searchString)}}
+            @sections={{this.jump_sections}}
+            @onSelect={{action "select_jump_board"}} />
           <div class="ub-search-page__locale-wrap">
             {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(action (mut this.locale)) ariaLabel=(t "Language" key="locale")}}
           </div>
@@ -33,24 +29,33 @@
   </div>
 
   <div class="ub-boards-page__content">
-    {{!-- Online Results section (same card/grid as boards page) ── --}}
+    {{!-- Boards (Page-Sets & Vocabularies) — online search results,
+         same card/grid as boards page ──────────────────────────── --}}
     <section class="ub-boards-page__boards-section" aria-labelledby="search-online-heading">
       <div class="ub-boards-page__boards-header">
-        <h2 id="search-online-heading" class="ub-boards-page__boards-title">{{t "Online Results" key="online_results"}}</h2>
+        <h2 id="search-online-heading" class="ub-boards-page__boards-title">{{t "Boards" key="boards"}} <span class="ub-search-page__boards-title-note">{{t "(Page-Sets & Vocabularies)" key="page_sets_and_vocabularies"}}</span></h2>
       </div>
       {{#if this.online_results}}
         {{#if this.online_results.loading}}
           <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
         {{else if this.online_results.results}}
-          <div class="ub-boards-page__board-grid ub-search-page__board-grid">
-            {{#each this.online_results.results as |board|}}
-              {{#if board.key}}
-                <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                  {{board-icon board=board}}
-                </div>
-              {{/if}}
-            {{/each}}
-          </div>
+          {{!-- Results grouped by brand family (CommuniKate, Quick Core,
+               Sequoia, Vocal Flair, then Other Boards) so the grid is
+               separated by type. --}}
+          {{#each this.online_groups as |group|}}
+            <div class="ub-search-page__board-group">
+              <h3 class="ub-search-page__board-group-title">{{t group.default_label key=group.label_key}}</h3>
+              <div class="ub-boards-page__board-grid ub-search-page__board-grid">
+                {{#each group.boards as |board|}}
+                  {{#if board.key}}
+                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
+                      {{board-icon board=board}}
+                    </div>
+                  {{/if}}
+                {{/each}}
+              </div>
+            </div>
+          {{/each}}
         {{else}}
           {{#if (persistence-online)}}
             <p class="ub-search-page__none-found">{{t "None found" key="none_found"}}</p>
@@ -87,59 +92,7 @@
             {{/if}}
           {{/if}}
         </section>
-      {{else}}
-        {{!-- Local Results (when logged in but offline) ────────── --}}
-        {{#unless this.local_results.impossible}}
-          <section class="ub-boards-page__boards-section" aria-labelledby="search-local-heading">
-            <div class="ub-boards-page__boards-header">
-              <h2 id="search-local-heading" class="ub-boards-page__boards-title">{{t "Local Results" key="local_results"}}</h2>
-            </div>
-            {{#if this.local_results}}
-              {{#if this.local_results.loading}}
-                <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
-              {{else if this.local_results.results}}
-                <div class="ub-boards-page__board-grid ub-search-page__board-grid">
-                {{#each this.local_results.results as |board|}}
-                  {{#if board.key}}
-                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                      {{board-icon board=board}}
-                    </div>
-                  {{/if}}
-                {{/each}}
-              </div>
-            {{else}}
-              <p class="ub-search-page__none-found">{{t "None found" key="none_found"}}</p>
-            {{/if}}
-          {{/if}}
-        </section>
-        {{/unless}}
       {{/if}}
-    {{else}}
-      {{!-- Local Results (when not logged in) ─────────────────── --}}
-      {{#unless this.local_results.impossible}}
-        <section class="ub-boards-page__boards-section" aria-labelledby="search-local-heading">
-          <div class="ub-boards-page__boards-header">
-            <h2 id="search-local-heading" class="ub-boards-page__boards-title">{{t "Local Results" key="local_results"}}</h2>
-          </div>
-          {{#if this.local_results}}
-            {{#if this.local_results.loading}}
-              <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
-            {{else if this.local_results.results}}
-              <div class="ub-boards-page__board-grid ub-search-page__board-grid">
-                {{#each this.local_results.results as |board|}}
-                  {{#if board.key}}
-                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                      {{board-icon board=board}}
-                    </div>
-                  {{/if}}
-                {{/each}}
-              </div>
-            {{else}}
-              <p class="ub-search-page__none-found">{{t "None found" key="none_found"}}</p>
-            {{/if}}
-          {{/if}}
-        </section>
-      {{/unless}}
     {{/if}}
   </div>
 </div>

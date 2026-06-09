@@ -264,30 +264,41 @@ export default Route.extend({
     controller.set('_saved_recolor', null);
     controller.set('borders_matched', false);
     controller.set('_saved_border_colors', null);
-    controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
+    // These are personal VIEWING preferences of whoever is using the app
+    // right now, not properties of the board's author. Every toggle that
+    // writes them (set_folder_style, toggle_folder_colored_face,
+    // toggle_shrink_labels_to_fit, toggle_soft_borders, toggle_hide_speak_bar,
+    // set_speak_menu_item_hidden) saves to `app_state.currentUser`, so the
+    // read here must mirror that source. Reading from `user`
+    // (modelFor('user') === the URL/board-owner) made these revert to their
+    // defaults whenever the current user opened a board they don't own
+    // (anything outside "My Boards"), because the board owner has no such
+    // preference saved.
+    var pref_user = this.appState.get('currentUser');
+    controller.set('folder_display_style', (pref_user && pref_user.get && pref_user.get('preferences.folder_display_style')) || 'default');
     // Folder colored face defaults to ON for every user. Only the
     // explicit saved value of `false` turns it off; an undefined /
     // unset preference (new users, existing users who never touched
     // the toggle) inherits the colored look.
-    var folder_colored_face_saved = user && user.get && user.get('preferences.folder_colored_face');
+    var folder_colored_face_saved = pref_user && pref_user.get && pref_user.get('preferences.folder_colored_face');
     controller.set('folder_colored_face', folder_colored_face_saved == null ? true : !!folder_colored_face_saved);
     controller.set('folder_dropdown_open', false);
-    controller.set('shrink_labels_to_fit', !!(user && user.get && user.get('preferences.shrink_labels_to_fit')));
+    controller.set('shrink_labels_to_fit', !!(pref_user && pref_user.get && pref_user.get('preferences.shrink_labels_to_fit')));
     // Soft borders default to ON for every user. Only the explicit
     // saved value of `false` turns them off; an undefined / unset
     // preference (new users, existing users who never touched the
     // toggle) inherits the soft style.
-    var soft_borders_saved = user && user.get && user.get('preferences.soft_borders');
+    var soft_borders_saved = pref_user && pref_user.get && pref_user.get('preferences.soft_borders');
     controller.set('soft_borders', soft_borders_saved == null ? true : !!soft_borders_saved);
     // Hide speak bar — default OFF. Only flips on if the user
     // explicitly toggles it via the right-panel "Hide speak bar"
     // control in the Speak Bar section.
-    controller.set('hide_speak_bar', !!(user && user.get && user.get('preferences.hide_speak_bar')));
+    controller.set('hide_speak_bar', !!(pref_user && pref_user.get && pref_user.get('preferences.hide_speak_bar')));
     // Customize Menu — array of speak-mode options-menu item ids
     // the user has hidden. Default empty (everything visible).
     // Saved on user.preferences.speak_mode_hidden_menu_items via
     // the `toggle_speak_menu_item` action in the right panel.
-    var saved_hidden_menu = user && user.get && user.get('preferences.speak_mode_hidden_menu_items');
+    var saved_hidden_menu = pref_user && pref_user.get && pref_user.get('preferences.speak_mode_hidden_menu_items');
     controller.set('speak_menu_hidden_items', Array.isArray(saved_hidden_menu) ? saved_hidden_menu.slice() : []);
 
     // Re-apply the user's symbol_background scope on every board-detail
