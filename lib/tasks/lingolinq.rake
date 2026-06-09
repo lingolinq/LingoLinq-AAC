@@ -7,6 +7,12 @@ namespace :lingolinq do
     puts 'Done.'
   end
 
+  desc 'Seed lingolinq-eyegaze and lingolinq-switchuser accounts and boards'
+  task seed_accessibility_users: :environment do
+    load Rails.root.join('lib', 'accessibility_seed.rb')
+    AccessibilitySeed.ensure_all!
+  end
+
   desc 'Verify that beta-critical seed records and public source boards exist'
   task verify_beta_seed: :environment do
     require_library_boards = ENV['REQUIRE_LIBRARY_BOARDS'].to_s !~ /^(0|false|no)$/i
