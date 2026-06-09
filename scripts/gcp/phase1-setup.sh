@@ -204,6 +204,10 @@ echo "    deploy SA -> run.admin, artifactregistry.writer, serviceAccountUser(on
 if [ "$CONFIRM_TEAM_IAM" = "1" ]; then
   log "Step 5b: human team IAM (least privilege)"
   if [ -n "$MELISSA_EMAIL" ]; then
+    # Guard: only grant to @lingolinq.com identities. A valid-but-wrong address (personal
+    # Gmail, typo) would otherwise get standing grants on a HIPAA/FERPA project with no
+    # deprovisioning. (PR #353 adversary review; complements the deferred allowedPolicyMemberDomains.)
+    case "$MELISSA_EMAIL" in *@lingolinq.com) ;; *) echo "ERROR: MELISSA_EMAIL ($MELISSA_EMAIL) is not an @lingolinq.com identity; refusing to grant." >&2; exit 1;; esac
     # Melissa - Rails/containerization/DB. Can deploy, push images, read logs and secret
     # METADATA (not values). No secretAccessor (cannot read prod values).
     # NOTE: Cloud SQL access is DEFERRED to Phase 3 and scoped to roles/cloudsql.client
@@ -219,6 +223,7 @@ if [ "$CONFIRM_TEAM_IAM" = "1" ]; then
     skip "MELISSA_EMAIL unset - skipped Melissa grants"
   fi
   if [ -n "$DOMINIC_EMAIL" ]; then
+    case "$DOMINIC_EMAIL" in *@lingolinq.com) ;; *) echo "ERROR: DOMINIC_EMAIL ($DOMINIC_EMAIL) is not an @lingolinq.com identity; refusing to grant." >&2; exit 1;; esac
     # Dominic - ops/DNS. DNS lives at the registrar, not GCP, so read-only observability only.
     for role in roles/logging.viewer roles/monitoring.viewer; do
       gcloud projects add-iam-policy-binding "$PROJECT_ID" \
@@ -248,6 +253,28 @@ fi
 #    design; tracked in the handoff block.
 # ---------------------------------------------------------------------------------------
 log "Step 6: Workload Identity Federation (locked to $GH_REPO)"
+# Self-verify the hardcoded immutable ids actually match THIS repo before they become the
+# WIF lock. If GH_REPO_ID/GH_OWNER_ID are wrong, the attribute-condition would admit the
+# wrong repo and the slug-keyed principalSet becomes the only barrier - exactly the
+# slug-reuse attack the immutable ids exist to defeat. (PR #353 adversary review.)
+if command -v gh >/dev/null; then
+  LIVE_REPO_ID="$(gh api "repos/${GH_REPO}" --jq '.id' 2>/dev/null || true)"
+  LIVE_OWNER_ID="$(gh api "repos/${GH_REPO}" --jq '.owner.id' 2>/dev/null || true)"
+  if [ -n "$LIVE_REPO_ID" ] && [ -n "$LIVE_OWNER_ID" ]; then
+    if [ "$LIVE_REPO_ID" != "$GH_REPO_ID" ] || [ "$LIVE_OWNER_ID" != "$GH_OWNER_ID" ]; then
+      echo "ERROR: WIF immutable-id mismatch for ${GH_REPO}." >&2
+      echo "  configured: repo_id=$GH_REPO_ID owner_id=$GH_OWNER_ID" >&2
+      echo "  live:       repo_id=$LIVE_REPO_ID owner_id=$LIVE_OWNER_ID" >&2
+      echo "  Refusing to build a WIF lock on wrong ids. Fix GH_REPO_ID/GH_OWNER_ID." >&2
+      exit 1
+    fi
+    echo "    Verified immutable ids match ${GH_REPO} (repo_id=$GH_REPO_ID owner_id=$GH_OWNER_ID)"
+  else
+    skip "could not reach gh api to verify repo ids - proceeding with configured constants"
+  fi
+else
+  skip "gh CLI not found - cannot verify WIF immutable ids against the live repo"
+fi
 if gcloud iam workload-identity-pools describe "$WIF_POOL" \
      --project="$PROJECT_ID" --location=global >/dev/null 2>&1; then
   skip "WIF pool $WIF_POOL already exists"
@@ -256,18 +283,29 @@ else
     --project="$PROJECT_ID" --location=global \
     --display-name="GitHub Actions"
 fi
+# issuer = GitHub's OIDC endpoint; attribute-condition is the repo lock (immutable IDs).
+# The describe-guard is create-only, but the attribute-condition is SECURITY-CRITICAL, so on
+# re-run we RECONCILE it (update-oidc) rather than skip - otherwise a corrected condition
+# would never reach an already-created provider and a stale/wrong lock would persist silently.
+# (PR #353 adversary review - the "re-runs are safe" claim was overstated for this resource.)
+WIF_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id"
+WIF_CONDITION="assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}'"
 if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
      --project="$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" >/dev/null 2>&1; then
-  skip "WIF provider $WIF_PROVIDER already exists"
+  echo "    reconciling existing WIF provider attribute-mapping + condition"
+  gcloud iam workload-identity-pools providers update-oidc "$WIF_PROVIDER" \
+    --project="$PROJECT_ID" --location=global \
+    --workload-identity-pool="$WIF_POOL" \
+    --attribute-mapping="$WIF_MAPPING" \
+    --attribute-condition="$WIF_CONDITION"
 else
-  # issuer = GitHub's OIDC endpoint; attribute-condition is the repo lock (immutable IDs).
   gcloud iam workload-identity-pools providers create-oidc "$WIF_PROVIDER" \
     --project="$PROJECT_ID" --location=global \
     --workload-identity-pool="$WIF_POOL" \
     --display-name="GitHub OIDC" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id" \
-    --attribute-condition="assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}'"
+    --attribute-mapping="$WIF_MAPPING" \
+    --attribute-condition="$WIF_CONDITION"
 fi
 # Bind the deploy SA's impersonation to ONLY this repo's principalSet.
 gcloud iam service-accounts add-iam-policy-binding "$DEPLOY_SA" \
@@ -332,6 +370,14 @@ echo "    Created/verified ${#BOOT_SECRETS[@]} empty secrets (no versions yet)."
 if [ "$SET_GH_VARS" = "1" ]; then
   log "Step 9: set GitHub repo variables (gh CLI) - GCP_PROJECT_ID intentionally deferred"
   command -v gh >/dev/null || { echo "ERROR: gh CLI not found" >&2; exit 1; }
+  # Guard: these vars retarget the LIVE repo's deploy workflow. Refuse to write them while
+  # pointed at a non-prod project (e.g. PROJECT_ID overridden for a test run), which would
+  # silently repoint prod CI at the wrong WIF provider/SA. (PR #353 adversary review.)
+  if [ "$PROJECT_ID" != "lingolinq-prod" ] && [ "${ALLOW_NONPROD_GH_VARS:-0}" != "1" ]; then
+    echo "ERROR: refusing to write GitHub repo vars while PROJECT_ID=$PROJECT_ID (not lingolinq-prod)." >&2
+    echo "  Set ALLOW_NONPROD_GH_VARS=1 to override intentionally." >&2
+    exit 1
+  fi
   gh variable set GCP_REGION       --repo "$GH_REPO" --body "$REGION"
   gh variable set GCP_WIF_PROVIDER --repo "$GH_REPO" --body "$WIF_PROVIDER_RESOURCE"
   gh variable set GCP_DEPLOY_SA    --repo "$GH_REPO" --body "$DEPLOY_SA"
