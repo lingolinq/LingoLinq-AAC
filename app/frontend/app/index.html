@@ -228,6 +228,33 @@
     <!-- Load globals (MAPS_KEY, etc.) from Rails; proxied in dev when using foreman -->
     <script src="/assets/globals.js"></script>
 
+    <!-- Webcam eye/head tracking (weblinger). Also in application.html.erb for Rails-served pages. -->
+    <script>
+      window.weblinger_load_status = 'loading';
+      window.weblingerScriptLoaded = function() {
+        if(window.weblinger) {
+          window.weblinger_load_status = 'ready';
+          window.dispatchEvent(new CustomEvent('weblinger-script-load'));
+        }
+      };
+      window.weblingerScriptFailed = function() {
+        if(!window.weblinger) {
+          window.weblinger_load_failed = true;
+          window.weblinger_load_status = 'failed';
+          window.dispatchEvent(new CustomEvent('weblinger-script-load-failed'));
+        }
+      };
+      window.weblingerLoadFallback = function() {
+        var script = document.createElement('script');
+        script.src = 'https://app.covidspeak.org/weblinger.js/weblinger.js';
+        script.async = true;
+        script.onload = window.weblingerScriptLoaded;
+        script.onerror = window.weblingerScriptFailed;
+        document.head.appendChild(script);
+      };
+    </script>
+    <script src="/weblinger/weblinger.js" async onload="weblingerScriptLoaded()" onerror="weblingerLoadFallback()"></script>
+
     <link rel="stylesheet" href="{{rootURL}}assets/vendor.css">
     <link rel="stylesheet" href="{{rootURL}}assets/frontend.css">
 

@@ -2995,3 +2995,17 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Keep `allowed?(goal, 'view')` when filtering badges by `goal_id`, and cover public-profile-only access with a controller spec.
 
 **Evidence:** `app/controllers/api/badges_controller.rb`, `app/models/user_goal.rb`, `spec/controllers/api/badges_controller_spec.rb`; task log `2026-06-04-proxy-cache-and-badge-auth-review.md`.
+
+---
+
+## Pattern: webcam eye gaze is lazy — preference toggle does not start the camera
+
+**Surface:** User Preferences dwell/eye-tracking, Speak Mode, Test Dwell.
+
+**Gotcha:** `preferences.device.dwell` only saves a setting. The camera/weblinger stack starts when entering Speak Mode (`app-state.js` `check_scanning`) or clicking Test Dwell (`dwell-tracker` → `capabilities.eye_gaze.listen()`). `calibratable`/`calibrate` were no-op stubs in the open web build; weblinger loads async from CDN (or `/weblinger/weblinger.js` fallback). If `window.weblinger` is missing, `listen()` used to no-op silently.
+
+**Fix recipe:** Wire `calibratable`/`calibrate` to `window.weblinger.calibrate()`; surface `fail` via `weblinger-tracking-fail` events; show setup guidance in Preferences; vendor weblinger locally with CDN fallback.
+
+**Evidence:** `app/frontend/app/utils/capabilities.js`, `app/views/layouts/application.html.erb`; task log `2026-06-08-webcam-eye-gaze-ux.md`.
+
+**Gotcha:** `app.covidspeak.org` CDN for WebGazer/Jeeliz deps is unreachable (`ERR_NAME_NOT_RESOLVED`). Web builds must use self-hosted `/weblinger/lib/` (vendored from open-aac/weblinger.js), not `weblinger_asset_prefix` → covidspeak.

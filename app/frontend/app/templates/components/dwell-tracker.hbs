@@ -1,7 +1,9 @@
 <div style='margin-top: 10px;'>
   <div style='float: left; width: 60%;'>
     <strong>{{t "Dwell Status" key="dwell_status"}}</strong><br>
-    {{#if this.pending}}
+    {{#if this.tracking_error_message}}
+      <span style="color: #a94442;">{{this.tracking_error_message}}</span>
+    {{else if this.pending}}
       {{t "waiting for data..." key="waiting_for_data"}}
     {{else if this.current_dwell}}
       {{#if this.hardware}}
@@ -37,6 +39,8 @@
         {{t "arrow keys" key="keyboard_arrow_keys"}}
       {{else if this.source.head}}
         {{t "head-tracking" key="head_tracking_lower"}}
+      {{else if this.webcam_source}}
+        {{t "Webcam eye tracking" key="webcam_eye_tracking"}}
       {{else if this.source.eyegaze}}
         {{t "eye-gaze-tracking" key="eye_gaze_tracking_lower"}}
       {{else if this.source.cursor}}

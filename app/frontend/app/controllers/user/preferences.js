@@ -151,11 +151,40 @@ export default Controller.extend({
     this.set('advanced', true);
     this.set('skip_save_on_transition', false);
     var _this = this;
-    setTimeout(function() {
-      if(window.weblinger) {
-        _this.set('weblinger_enabled', true);
-      }
-    }, 1000);
+    _this.set('weblinger_enabled', !!window.weblinger);
+    _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+    _this._weblinger_load_listener = function() {
+      _this.set('weblinger_enabled', !!window.weblinger);
+      _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+      _this.check_calibration();
+    };
+    _this._weblinger_fail_listener = function() {
+      _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+    };
+    document.addEventListener('weblinger-script-load', _this._weblinger_load_listener);
+    document.addEventListener('weblinger-script-load-failed', _this._weblinger_fail_listener);
+    document.addEventListener('weblinger-tracking-fail', _this._weblinger_fail_listener);
+    if(!window.weblinger && !window.weblinger_load_failed) {
+      _this._weblinger_load_poll = setInterval(function() {
+        if(window.weblinger || window.weblinger_load_failed) {
+          clearInterval(_this._weblinger_load_poll);
+          _this._weblinger_load_poll = null;
+          _this.set('weblinger_enabled', !!window.weblinger);
+          _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+          if(window.weblinger) {
+            _this.check_calibration();
+          }
+        }
+      }, 250);
+      runLater(function() {
+        if(_this._weblinger_load_poll && !window.weblinger && !window.weblinger_load_failed) {
+          clearInterval(_this._weblinger_load_poll);
+          _this._weblinger_load_poll = null;
+          window.weblinger_load_status = 'unavailable';
+          _this.set('weblinger_load_state', 'unavailable');
+        }
+      }, 15000);
+    }
 
     // If arriving from the Voice & Output modal's "More options" link,
     // auto-expand the Voice Settings section and scroll to it.
@@ -561,6 +590,21 @@ export default Controller.extend({
       this.set('pending_preferences.device.auto_sync', this.get('model.auto_sync'));
     }
   }),
+  teardownWeblingerListeners: function() {
+    if(this._weblinger_load_poll) {
+      clearInterval(this._weblinger_load_poll);
+      this._weblinger_load_poll = null;
+    }
+    if(this._weblinger_load_listener) {
+      document.removeEventListener('weblinger-script-load', this._weblinger_load_listener);
+      this._weblinger_load_listener = null;
+    }
+    if(this._weblinger_fail_listener) {
+      document.removeEventListener('weblinger-script-load-failed', this._weblinger_fail_listener);
+      document.removeEventListener('weblinger-tracking-fail', this._weblinger_fail_listener);
+      this._weblinger_fail_listener = null;
+    }
+  },
   check_calibration: function() {
     var _this = this;
     capabilities.eye_gaze.calibratable(function(res) {
@@ -693,6 +737,33 @@ export default Controller.extend({
   fullscreen_capable: computed(function() {
     return capabilities.fullscreen_capable();
   }),
+  weblinger_load_state: 'loading',
+  weblinger_status_message: computed('weblinger_load_state', 'weblinger_enabled', function() {
+    var state = this.get('weblinger_load_state');
+    if(state == 'ready' || this.get('weblinger_enabled')) {
+      return i18n.t('weblinger_ready', "Webcam eye tracker is available.");
+    }
+    if(state == 'failed') {
+      return i18n.t('weblinger_load_failed', "The webcam eye tracker library failed to load. Try refreshing the page or check your network connection.");
+    }
+    if(state == 'unavailable') {
+      return i18n.t('weblinger_unavailable', "The webcam eye tracker library is not available in this browser.");
+    }
+    return i18n.t('weblinger_loading', "Loading webcam eye tracker...");
+  }),
+  weblinger_unavailable_for_eyegaze: computed(
+    'weblinger_load_state',
+    'weblinger_enabled',
+    'pending_preferences.device.dwell',
+    'pending_preferences.device.dwell_type',
+    function() {
+      return this.get('pending_preferences.device.dwell') &&
+        (this.get('pending_preferences.device.dwell_type') == 'eyegaze') &&
+        !this.get('weblinger_enabled') &&
+        !capabilities.eye_gaze.available &&
+        (this.get('weblinger_load_state') == 'failed' || this.get('weblinger_load_state') == 'unavailable');
+    }
+  ),
   eyegaze_capable: computed('weblinger_enabled', function() {
     return capabilities.eye_gaze.available || window.weblinger;
   }),
@@ -898,6 +969,9 @@ export default Controller.extend({
   }),
   actions: {
     plus_minus: function(direction, attribute) {
+      if(attribute && attribute.indexOf('this.') === 0) {
+        attribute = attribute.replace(/^this\./, '');
+      }
       var default_value = 1.0;
       var step = 0.1;
       var max = 10;
@@ -1179,9 +1253,11 @@ export default Controller.extend({
       this.set('pending_preferences.requested_phrase_changes', list);
     },
     calibrate: function() {
+      var _this = this;
       capabilities.eye_gaze.calibratable(function(res) {
         if(res) {
           capabilities.eye_gaze.calibrate();
+          _this.set('testing_dwell', true);
         } else {
           modal.error(i18n.t('cannot_calibrate', "Eye gaze cannot be calibrated at this time"));
         }
