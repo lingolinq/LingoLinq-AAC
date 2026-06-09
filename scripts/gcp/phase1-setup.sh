@@ -107,6 +107,9 @@ else
     --organization="$ORG_ID"
 fi
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+# Defensive: PROJECT_NUMBER feeds the security-sensitive WIF principalSet string below.
+# Never let an empty value flow into an IAM member binding.
+[ -n "$PROJECT_NUMBER" ] || { echo "ERROR: could not resolve project number for $PROJECT_ID" >&2; exit 1; }
 echo "    Project number: $PROJECT_NUMBER"
 
 # ---------------------------------------------------------------------------------------
@@ -138,6 +141,9 @@ fi
 # 3. [API GATE] Enable the APIs Phase 1-3 need. Enabling is the first billable-ish action.
 #    iam/iamcredentials/sts are required for WIF; serviceusage/resourcemanager for the rest.
 #    compute.googleapis.com (VPC for Memorystore reachability) is deferred to Phase 3.
+#    cloudbuild.googleapis.com is intentionally NOT enabled: the deploy workflow builds and
+#    pushes images with `docker build`/`docker push` on the GitHub runner, not Cloud Build.
+#    Enabling it would spin up an unused, broadly-privileged Cloud Build SA (least-privilege).
 # ---------------------------------------------------------------------------------------
 if [ "$CONFIRM_APIS" != "1" ]; then
   gate "Step 3 SKIPPED. Enabling APIs is the first billable-ish step."
@@ -151,7 +157,6 @@ gcloud services enable \
   redis.googleapis.com \
   artifactregistry.googleapis.com \
   secretmanager.googleapis.com \
-  cloudbuild.googleapis.com \
   iam.googleapis.com \
   iamcredentials.googleapis.com \
   sts.googleapis.com \
@@ -355,6 +360,15 @@ GitHub repo vars to set (GCP_PROJECT_ID deferred until deploy-enable):
   GCP_WIF_PROVIDER=${WIF_PROVIDER_RESOURCE:-<rerun>}
   GCP_DEPLOY_SA=${DEPLOY_SA}
 
+*** BLOCKING PREREQUISITE before the deploy workflow is activated (review #353 H1) ***
+  - deploy-cloudrun.yml MUST pass --service-account=${RUNTIME_SA} on ALL THREE deploy
+    commands (gcloud run jobs deploy, run deploy lingolinq-web, run worker-pools deploy).
+    Without it, Cloud Run runs as the DEFAULT COMPUTE SA (Editor), which (a) makes this
+    script's runtime SA + all 9 per-secret accessor grants + the AR reader grant INERT,
+    and (b) BREAKS BOOT - the default compute SA has no secretAccessor, so the app cannot
+    read SECRET_KEY_BASE/DATABASE_URL/etc. This is the runtime-identity contract for the
+    whole least-privilege design; fix it in the workflow before any deploy.
+
 PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
   - VPC + Serverless VPC connector / Direct VPC egress (Memorystore Redis reachability;
     Render Redis is NOT reachable from GCP). Enable compute.googleapis.com then.
@@ -376,4 +390,13 @@ SECURITY HARDENING TO APPLY WHEN THE DEPLOY WORKFLOW IS ACTIVATED (Phase 2/3):
     "no downloaded SA keys" convention) and constraints/iam.allowedPolicyMemberDomains
     (block grants to non-lingolinq.com identities). Deliberate org-level decision, not
     auto-applied here.
+  - Default compute SA carries roles/editor on every new project (review #353 H2). Once
+    the workflow uses ${RUNTIME_SA} (see BLOCKING prereq above), strip the default compute
+    SA's Editor grant and/or set constraints/iam.automaticIamGrantsForDefaultServiceAccounts.
+    Do it AFTER the --service-account fix, or the app (still running as compute SA) loses
+    all permissions.
+
+NOTE: this script only ADDS IAM grants (human + machine). Deprovisioning - revoking a
+former teammate or rotating an SA - is a manual step; re-running with a changed
+MELISSA_EMAIL/DOMINIC_EMAIL grants the new identity but does NOT revoke the old one.
 EOF
