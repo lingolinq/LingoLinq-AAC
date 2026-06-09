@@ -89,6 +89,7 @@
               </label>
             </div>
           {{/if}}
+          <div class="register-privacy-ack">{{t "I also acknowledge LingoLinq's " key="register_consent_privacy_ack_prefix"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t "." key="register_consent_privacy_ack_suffix"}}</div>
         </div>
         <div class="register-btn-wrap">
           <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
@@ -266,6 +267,7 @@
             </label>
           </div>
         {{/if}}
+        <div class="register-privacy-ack">{{t "I also acknowledge LingoLinq's " key="register_consent_privacy_ack_prefix"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t "." key="register_consent_privacy_ack_suffix"}}</div>
         {{#if this.ageAttestationRequired}}
           <span class='text-danger register-checkboxes__error'>{{t "You must confirm your age and agree to the Terms of Use to create an account." key="combined_consent_required_message"}}</span>
         {{/if}}
