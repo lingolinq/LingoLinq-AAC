@@ -125,6 +125,8 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Sticky QP gotcha:** `board` is sticky by default. Topbar "Try a Demo" links must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md).
 
+**Exit target:** Demo speak exit should always `LinkTo offline_boards` — do not branch on `source`; "Try a Demo" used to fall through to `index`.
+
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
 **Surface:** session navigation cache (`board_detail_cache.js`) and offline IndexedDB sync (`sync_boards`).
