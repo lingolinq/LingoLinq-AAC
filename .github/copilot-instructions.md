@@ -24,7 +24,7 @@ Key characteristics:
 
 ## Architecture
 
-### Backend (Rails 7.23)
+### Backend (Rails 7.2)
 - **ID System**: Custom `global_id` format (`#shardnum#_#dbid#`). Use `find_by_global_id`.
 - **JSON API**: Responses generated in `lib/json_api/`.
 - **Background Jobs**: Resque (`lib/worker.rb`).
@@ -49,6 +49,7 @@ New user-facing features MUST be behind a feature flag in `lib/feature_flags.rb`
 - Avoid OWASP Top 10 vulnerabilities.
 - Use `secure_serialize` for sensitive fields.
 - Console access must be audited via `bin/audit_console`.
+- **PII & compliance**: Never generate code that logs, displays, or sends student/patient PII (names, birthdates, contact info) to third parties. Honor FERPA, HIPAA, GDPR, and COPPA, and preserve data isolation between district accounts. Route any AI or external-service calls through the PII scrubber (`lib/pii_scrubber.rb`) so identifiable data is never sent off-platform.
 
 ## Testing
 - **Backend**: RSpec (`bundle exec rspec`).
