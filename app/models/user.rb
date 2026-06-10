@@ -1484,13 +1484,13 @@ class User < ApplicationRecord
               if timestamp > 0 && Time.at(timestamp) <= 6.hours.ago
                 Rails.logger.debug("Expired supervisee_code skipped for user #{self.global_id}")
               else
-                Rails.logger.warn("Supervisee link failed for user #{self.global_id} with code: #{params['supervisee_code']} (user may not exist or lack premium)")
+                Rails.logger.warn("Supervisee link failed for user #{self.global_id} (code invalid, or target user may not exist or lack premium)")
               end
             rescue => e
-              Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+              Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}")
             end
           else
-            Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+            Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}")
           end
           # Don't fail the update - just skip the supervisee linking
         end
@@ -1510,7 +1510,7 @@ class User < ApplicationRecord
         unless self.process_supervisor_key(params['supervisor_key'])
           # Processing failed - log but don't block the update
           # This is likely a stale key from a previous session or deleted user
-          Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} with key: #{params['supervisor_key']}")
+          Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} (key invalid, or references a deleted/ineligible user)")
           # Don't fail the update - just skip the supervisor key processing
         end
       rescue => e

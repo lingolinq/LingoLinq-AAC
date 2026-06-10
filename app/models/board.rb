@@ -1167,7 +1167,7 @@ class Board < ApplicationRecord
     existing_buttonset = self.board_downstream_button_set
     is_new_board = was_brand_new || @brand_new || (!existing_buttonset && content_changed)
     
-    Rails.logger.info("[Board#post_process] Checking buttonset creation - content_changed: #{content_changed}, id: #{self.id}, @brand_new: #{@brand_new.inspect}, existing_buttonset: #{existing_buttonset ? existing_buttonset.global_id : 'none'}, is_new_board: #{is_new_board}")
+    Rails.logger.debug("[Board#post_process] Checking buttonset creation - content_changed: #{content_changed}, id: #{self.id}, @brand_new: #{@brand_new.inspect}, existing_buttonset: #{existing_buttonset ? existing_buttonset.global_id : 'none'}, is_new_board: #{is_new_board}")
     
     if self.id
       # When a BoardSetCopier bulk copy is in progress, route buttonset creation to the
@@ -1192,18 +1192,18 @@ class Board < ApplicationRecord
       if !existing_buttonset
         if async_during_bulk_copy || async_new_copy
           defer_reason = async_during_bulk_copy ? 'bulk copy in progress' : 'new copied board (avoiding inline rebuild timeout)'
-          Rails.logger.info("[Board#post_process] Deferring buttonset creation to :slow queue for board #{self.global_id} (#{defer_reason})")
+          Rails.logger.debug("[Board#post_process] Deferring buttonset creation to :slow queue for board #{self.global_id} (#{defer_reason})")
           BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, true)
         else
           # No buttonset exists - create it immediately (whether new board or not)
-          Rails.logger.info("[Board#post_process] Creating buttonset for board #{self.global_id} (no buttonset exists)")
+          Rails.logger.debug("[Board#post_process] Creating buttonset for board #{self.global_id} (no buttonset exists)")
           begin
             BoardDownstreamButtonSet.update_for(self.global_id, true)
             # Reload to get the newly created buttonset
             self.reload
             buttonset = self.board_downstream_button_set
             if buttonset
-              Rails.logger.info("[Board#post_process] Buttonset created successfully: #{buttonset.global_id}, persisted: #{buttonset.persisted?}, saved?: #{buttonset.persisted? && buttonset.id.present?}")
+              Rails.logger.debug("[Board#post_process] Buttonset created successfully: #{buttonset.global_id}, persisted: #{buttonset.persisted?}, saved?: #{buttonset.persisted? && buttonset.id.present?}")
               # Ensure it's actually saved
               if buttonset.persisted? && buttonset.changed?
                 buttonset.save!
@@ -1221,7 +1221,7 @@ class Board < ApplicationRecord
         end
       elsif content_changed && (@buttons_changed || @button_links_changed || is_new_board)
         # Buttonset exists but content changed - update it
-        Rails.logger.info("[Board#post_process] Scheduling buttonset update for board #{self.global_id} (content changed)")
+        Rails.logger.debug("[Board#post_process] Scheduling buttonset update for board #{self.global_id} (content changed)")
         BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, false)
       else
         Rails.logger.info("[Board#post_process] Buttonset exists and no content changes - skipping update")

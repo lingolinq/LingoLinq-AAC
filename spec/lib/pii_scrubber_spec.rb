@@ -664,4 +664,64 @@ describe PiiScrubber do
       expect(findings_after.any? { |f| f[:type] == :blocklist_name }).to eq(false)
     end
   end
+
+  describe "scrub_log_line" do
+    it "should redact email addresses" do
+      line = 'I, [2026-06-10] INFO -- : ExternalTracker sync failed body=contact parent@example.com bounced'
+      result = PiiScrubber.scrub_log_line(line)
+      expect(result).not_to include('parent@example.com')
+      expect(result).to include('[REDACTED_EMAIL]')
+    end
+
+    it "should redact multiple emails in one line" do
+      result = PiiScrubber.scrub_log_line('to=a@b.com cc=c@d.org')
+      expect(result).to eq('to=[REDACTED_EMAIL] cc=[REDACTED_EMAIL]')
+    end
+
+    it "should redact SSNs" do
+      result = PiiScrubber.scrub_log_line('record ssn=123-45-6789 saved')
+      expect(result).not_to include('123-45-6789')
+      expect(result).to include('[REDACTED_SSN]')
+    end
+
+    it "should NOT redact global_ids (intentionally retained for diagnostics)" do
+      line = 'Token issued for user 1_2345: keys=user,id'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+
+    it "should NOT redact 10-digit epoch timestamps as phone numbers" do
+      line = 'job scheduled at 1718000000 duration_ms=4200000000'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+
+    it "should leave clean lines untouched" do
+      line = 'I, [2026-06-10] INFO -- : [Board#post_process] Creating buttonset for board 9_8765'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+
+    it "should return non-string input unchanged" do
+      expect(PiiScrubber.scrub_log_line(nil)).to be_nil
+      expect(PiiScrubber.scrub_log_line(42)).to eq(42)
+    end
+
+    # Documented, accepted tradeoffs (see PiiScrubber.scrub_log_line comment).
+    # These assert the KNOWN over/under-matching so it is intentional, not a surprise.
+
+    it "OVER-matches any 3-2-4 dashed numeric as an SSN (accepted false positive)" do
+      # A non-SSN 3-2-4 token (e.g. some order/part ids) is redacted. Accepted: in a
+      # HIPAA-scoped log sink, catching a free-text SSN outweighs this low-harm masking.
+      expect(PiiScrubber.scrub_log_line('order 123-45-6789 shipped')).to include('[REDACTED_SSN]')
+    end
+
+    it "does NOT match TLD-less or quoted-local-part emails (accepted gap)" do
+      # Real school/parent emails always have a dotted TLD; these forms are not scrubbed
+      # by the backstop and remain a per-call-site concern.
+      expect(PiiScrubber.scrub_log_line('login from user@localhost ok')).to eq('login from user@localhost ok')
+    end
+
+    it "does NOT scrub names or utterances (the app's real PHI - call-site responsibility)" do
+      line = 'speak event for child Jamie: utterance="I want juice"'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+  end
 end

@@ -232,6 +232,40 @@ module PiiScrubber
       findings.sort_by { |f| f[:position] }
     end
 
+    # Defense-in-depth scrub for a single formatted log line. BACKSTOP ONLY --
+    # per-call-site log hygiene (log global_id not user_name, never log raw user
+    # content) is the primary control. This catches only two pattern classes:
+    #
+    #   - EMAIL (EMAIL_PATTERN): standard dotted-TLD addresses. Note it does NOT
+    #     match TLD-less (user@localhost) or RFC-5322 quoted-local-part addresses;
+    #     school/parent emails effectively always have a dotted TLD, so this is an
+    #     accepted gap, not full email coverage.
+    #   - SSN (SSN_PATTERN): any \d{3}-\d{2}-\d{4} token. This OVER-matches -- any
+    #     3-2-4 dashed numeric (some order/part ids) is redacted to [REDACTED_SSN].
+    #     Accepted on purpose: in a HIPAA-scoped log sink, redacting a free-text SSN
+    #     (e.g. typed into a note by a clinical/hospital user) outweighs the rare,
+    #     low-harm false positive of masking a 3-2-4 id in a log line.
+    #
+    # Deliberately does NOT touch names/usernames/utterances/board-labels (no
+    # reliable regex; this is the app's real PHI and stays a call-site concern),
+    # phone numbers (PHONE_PATTERN false-matches 10-digit epoch timestamps / ids),
+    # global_id (opaque, intentionally retained in some diagnostic warns), or IP
+    # (already anonymized upstream in rack_logger). Wrapped in a rescue so a scrub
+    # failure fails open (returns the line) and can never break logging.
+    #
+    # @param text [String] a fully-formatted log line
+    # @return [String] the line with email/SSN redacted
+    def scrub_log_line(text)
+      return text unless text.is_a?(String)
+
+      result = text
+      result = result.gsub(EMAIL_PATTERN, '[REDACTED_EMAIL]') if result.include?('@')
+      result = result.gsub(SSN_PATTERN, '[REDACTED_SSN]') if result.match?(SSN_PATTERN)
+      result
+    rescue StandardError
+      text
+    end
+
     # Configure a blocklist of names that should always be redacted.
     # Typically loaded from the app's user records or environment config.
     # Uses Thread.current storage for thread safety under Puma concurrency.
