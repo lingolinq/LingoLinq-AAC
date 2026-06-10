@@ -41,8 +41,6 @@
 
 # --- Test files ---
 # Test files often use mock/dummy secrets or testing helpers that trigger false positives.
-*test.*
-*_test.*
 **/*_test.*
 **/test/**
 **/tests/**
