@@ -283,6 +283,8 @@ class UserMailer < ActionMailer::Base
 
     esc_tok = CGI.escape(c['parent_consent_token'].to_s)
     @consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    # COPPA direct-notice: surface our privacy practices to the parent before they consent.
+    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
     @child_name = @user.settings['name']
     @parent_email = c['parent_email']
     from = JsonApi::Json.current_domain['settings']['admin_email']
