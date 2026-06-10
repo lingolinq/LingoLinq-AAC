@@ -554,6 +554,38 @@ describe User, :type => :model do
       expect(u.settings['privacy_consent']['agreed_at']).to match(/^\d{4}-\d{2}-\d{2}T/)
     end
 
+    it "should not record consent when terms_agree is the string 'false'" do
+      # In Ruby the string 'false' is truthy; the gate must use process_boolean
+      # so an API request that explicitly declines does not record consent.
+      u = User.new
+      u.process_params({'terms_agree' => 'false'}, {})
+      expect(u.settings['terms_agreed']).to eq(nil)
+      expect(u.settings['privacy_consent']).to eq(nil)
+    end
+
+    it "should defer a minor's privacy-consent to the parental grant (COPPA)" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_privacy',
+        'email' => 'kidpriv@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentpriv@example.com'
+      }, {})
+      # The child's signup tick must NOT record privacy consent...
+      expect(u.settings['coppa']['pending_parent_consent']).to eq(true)
+      expect(u.settings['privacy_consent']).to eq(nil)
+
+      # ...the parent records it by completing the email token flow.
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(token)).to eq(true)
+      expect(u.settings['privacy_consent']).to_not eq(nil)
+      expect(u.settings['privacy_consent']['consented_by']).to eq('parent')
+      expect(u.settings['privacy_consent']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}
