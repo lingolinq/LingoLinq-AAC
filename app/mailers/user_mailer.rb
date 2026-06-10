@@ -1,5 +1,6 @@
 class UserMailer < ActionMailer::Base
   include General
+  include SystemEmailOverride
   helper MailerHelper
   default from: ENV['DEFAULT_EMAIL_FROM']
   layout 'email'
@@ -272,7 +273,7 @@ class UserMailer < ActionMailer::Base
   def parental_consent_request(user_id)
     @user = User.find_by_global_id(user_id)
     c = (@user && @user.settings) ? @user.settings['coppa'] : nil
-    subject = I18n.t('parental_consent_mailer.subject', app_name: app_name)
+    subject = SystemEmailI18n.resolve('user_mailer/parental_consent_request', 'parental_consent_mailer.subject', 'app_name' => app_name)
 
     unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_token'].present?
       Rails.logger.warn("Skipping parental_consent_request for user #{user_id}: missing COPPA parent_email or parent_consent_token")

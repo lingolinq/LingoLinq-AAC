@@ -3031,3 +3031,13 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
 
 **Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; task log `2026-06-09-board-detail-speak-bar-double-add.md`.
+
+---
+
+## Pattern: admin-editable feature flags layer on top of AVAILABLE / ENABLED constants
+
+**Surface:** System Settings → Features; runtime `FeatureFlags.frontend_flags_for`.
+
+**Approach:** Keep `AVAILABLE_FRONTEND_FEATURES` as the code-defined catalog (new flags still need a developer add). Store site-wide enabled list in `Setting` key `default_enabled_features` (seeded from `ENABLED_FRONTEND_FEATURES`). Per-org overrides live in `organizations.settings['enabled_features']`; `nil` means inherit site default. Site-wide group pools: `canary_enabled_features` (default: all AVAILABLE minus `DISABLED_CANARY_FEATURES`) and `beta_opt_in_features` (default: all AVAILABLE). Resolution: org/site baseline → per-user `feature_flags[feature]` if in beta pool → canary if in canary pool. Features tab scope dropdown uses `group:canary` / `group:beta` pseudo-ids; Emails tab hides groups. ENV-locked flags (e.g. `SIGNUP_DEFAULT_LIBRARY_BOARDS`) stay read-only in the UI.
+
+**Evidence:** `lib/system_feature_settings.rb`, `lib/feature_flags.rb`, `Api::SystemFeaturesController`; task log `2026-06-09-system-settings.md`.

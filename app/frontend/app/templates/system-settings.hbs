@@ -1,0 +1,43 @@
+<div class="la-wrapper la-wrapper--pricing la-wrapper--support la-system-settings">
+  <div class="app-shell">
+    <main class="la-main" role="main">
+      <div class="md-workspace md-workspace--support">
+        <section class="la-section la-system-settings__section" aria-labelledby="system-settings-heading">
+          <div class="la-section-header la-system-settings__header">
+            <h1 id="system-settings-heading" class="la-hero-title">{{t "System Settings" key="system_settings_title"}}</h1>
+            <p class="la-pricing-hero-subtitle">{{t "Manage system emails and feature flags for your organization." key="system_settings_intro"}}</p>
+          </div>
+
+          <div class="la-support-content-wrapper">
+            <article class="la-about-glass-card la-support-page-card la-system-settings__card">
+              <div class="la-support-page-card__body md-support-content la-system-settings__body">
+                <div class="la-system-settings__org-row">
+                  <label class="la-system-settings__org-label">
+                    <span class="la-system-settings__label-text">{{t "Organization" key="system_settings_org_label"}}</span>
+                    <select class="form-control la-system-settings__org-select" onchange={{action "setOrgId" value="target.value"}}>
+                      {{#each this.scopeOptionGroups as |group|}}
+                        <optgroup label={{group.label}}>
+                          {{#each group.options as |opt|}}
+                            <option value={{opt.id}} selected={{is-equal opt.id this.org_id}}>{{opt.name}}</option>
+                          {{/each}}
+                        </optgroup>
+                      {{/each}}
+                    </select>
+                  </label>
+                </div>
+
+                <nav class="md-pillnav md-pillnav--dashboard la-system-settings__tabs" aria-label={{t "System settings sections" key="system_settings_tabs_label"}}>
+                  <LinkTo @route="system-settings.emails" class="md-pillnav__pill">{{t "Emails" key="system_settings_tab_emails"}}</LinkTo>
+                  <LinkTo @route="system-settings.app-defaults" class="md-pillnav__pill">{{t "App defaults" key="system_settings_tab_app_defaults"}}</LinkTo>
+                  <LinkTo @route="system-settings.features" class="md-pillnav__pill">{{t "Features" key="system_settings_tab_features"}}</LinkTo>
+                </nav>
+
+                {{outlet}}
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
