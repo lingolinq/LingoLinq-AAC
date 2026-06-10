@@ -1312,6 +1312,21 @@ var buttonTracker = EmberObject.extend({
             // Synthetic native click so Ember actions (e.g. toggleSidebar) run
             event.preventDefault();
             dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+          } else if(event_source === 'click' && event.type === 'mouseup' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view')) {
+            // Board-detail chrome (options menu, sentence-bar tools, sidebar
+            // toggle, etc.) on a MOUSE release: the browser's native click fires
+            // regardless of preventDefault, AND the `.board-detail-view` carve-out
+            // in eat_events keeps it alive — so synthesizing another click here
+            // would fire the Ember {{action}} TWICE (options menu opens then
+            // instantly closes). Do nothing; let the single native mouse click
+            // drive it.
+            //   IMPORTANT — only skip for `mouseup`. On TOUCH (touchend) the
+            // preventDefault above CANCELS the browser's synthesized click, so the
+            // synthetic dispatchPassThroughClick below is the ONLY click; touch
+            // (real tablets AND devtools device-emulation) MUST fall through and
+            // synthesize, or board-detail chrome stops responding to taps.
+            // Dwell / eye-gaze / scanning use a different event_source and also
+            // fall through (no native click of any kind).
           } else {
             event.preventDefault();
             // Speak menu links (Un-Flip, Cancel, etc.) and other non-button targets

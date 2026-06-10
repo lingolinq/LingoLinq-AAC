@@ -210,6 +210,15 @@ export default Controller.extend(prefClasses, {
   right_panel_collapsed: false,
   left_panel_collapsed: false,
   right_panel_open_section: null,
+  // When the settings panel COLLAPSES, clear any open section so the collapsed rail
+  // doesn't keep an item selected/highlighted. Covers every collapse path (manual
+  // toggle, auto-collapse at ≤1200px, resize) in one place. Only acts on collapse →
+  // expanding via a rail-icon click (which sets collapsed=false first) is unaffected.
+  _clear_open_section_on_collapse: observer('right_panel_collapsed', function() {
+    if(this.get('right_panel_collapsed') && this.get('right_panel_open_section')) {
+      this.set('right_panel_open_section', null);
+    }
+  }),
   /* True when the currently-open right-panel section was opened
      while the panel was in COLLAPSED rail mode — i.e. the user
      was looking at the icon rail, clicked a section icon, the
@@ -376,7 +385,7 @@ export default Controller.extend(prefClasses, {
     // column == the rail:  S = (N+1)*W + (N-1)*colGap + railMargin  →
     //   W = (S - (N-1)*colGap - railMargin) / (N+1).
     // One measurement at ANY current rail width yields the right W. Falls back
-    // to the plain card width when the rail is hidden (>1024px in-bar layout).
+    // to the plain card width when the rail is hidden (>1200px in-bar layout).
     var tileW = Math.round(cardRect.width);
     var rail = document.querySelector('.md-board-detail-prediction-rail');
     var gridFade = document.querySelector('.md-board-detail-grid-fade');
@@ -478,18 +487,18 @@ export default Controller.extend(prefClasses, {
     };
     document.addEventListener('click', _this._closeDropdownsHandler, true);
 
-    // Auto-collapse both side panels at ≤1024px. matchMedia fires
+    // Auto-collapse both side panels at ≤1200px. matchMedia fires
     // when the breakpoint is CROSSED (resize transition); the
     // companion edit_mode observer below covers the other entry
     // points (direct page load in edit mode at narrow viewport,
     // refresh while in edit mode at narrow viewport) — without it,
-    // a user who LOADS edit mode at ≤1024px would never see the
+    // a user who LOADS edit mode at ≤1200px would never see the
     // auto-collapse because the viewport never crossed the threshold
     // while observable. The resize handler ONLY auto-collapses on
     // wide→narrow transitions (e.matches === true), so manually
     // expanding while already narrow isn't fought.
     if(typeof window !== 'undefined' && window.matchMedia) {
-      this._narrowViewportMql = window.matchMedia('(max-width: 1024px)');
+      this._narrowViewportMql = window.matchMedia('(max-width: 1200px)');
       this._narrowViewportHandler = function(e) {
         if(e.matches && _this.get('edit_mode')) {
           _this.set('left_panel_collapsed', true);
@@ -609,7 +618,7 @@ export default Controller.extend(prefClasses, {
 
   // Auto-collapse panels whenever edit_mode flips on at a narrow
   // viewport (e.g. user clicks "Edit Board" while viewport is
-  // already ≤1024px — matchMedia doesn't fire since the viewport
+  // already ≤1200px — matchMedia doesn't fire since the viewport
   // didn't change). The enterEditNow action handles this for the
   // in-app click path, but this observer is the catch-all for any
   // other path that sets edit_mode true. Gated on the narrow
@@ -617,7 +626,7 @@ export default Controller.extend(prefClasses, {
   _auto_collapse_panels_on_edit_at_narrow: observer('edit_mode', function() {
     if(!this.get('edit_mode')) { return; }
     if(typeof window === 'undefined' || !window.matchMedia) { return; }
-    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1024px)');
+    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1200px)');
     if(mql.matches) {
       this.set('left_panel_collapsed', true);
       this.set('right_panel_collapsed', true);
@@ -2750,6 +2759,21 @@ export default Controller.extend(prefClasses, {
     return this.get('folder_display_style') === 'colored_corner';
   }),
 
+  // While the My Board Collection drawer is PREVIEWING (open) and the board on
+  // display is a dense 60 / 84 / 112-cell grid, force the COLORED-CORNER folder
+  // style regardless of the user's saved folder preference — those large grids
+  // render the tab-label / colored-face styles too cramped to read at preview
+  // density. Only the args passed to <BoardDetailGrid> are overridden (see
+  // board-detail.hbs); the saved preference is left untouched. Recomputes as the
+  // user taps board-to-board (model.grid changes on each transition).
+  _collection_preview_force_corner: computed('board_collection_open', 'model.grid.rows', 'model.grid.columns', function() {
+    if(!this.get('board_collection_open')) { return false; }
+    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+    var total = rows * cols;
+    return total === 60 || total === 84 || total === 112;
+  }),
+
   // Map of speak-menu item id → true for items the user has hidden.
   // Built from the `speak_menu_hidden_items` array (kept in sync with
   // user.preferences.speak_mode_hidden_menu_items). Templates use
@@ -2821,7 +2845,15 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.copy || !s.download || !s.print || !s.share;
   }),
-  speak_section_visible_session: computed('speak_menu_hidden_set', function() {
+  speak_section_visible_session: computed('speak_menu_hidden_set', 'app_state.currentUser.supporter_role', 'app_state.modeling', function() {
+    // Session holds supervisor-oriented tools (button levels, sticky board, pause
+    // logging, modeling, switch communicators). Hide the whole section on a plain
+    // COMMUNICATOR account (preferences.role != 'supporter'); show it for supporter
+    // / other roles, AND keep it visible on the communicator's own account while a
+    // supervisor is actively modeling for them (app_state.modeling).
+    var is_supporter = !!this.get('app_state.currentUser.supporter_role');
+    var modeling = !!this.get('app_state.modeling');
+    if(!is_supporter && !modeling) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
   }),
@@ -4724,7 +4756,7 @@ export default Controller.extend(prefClasses, {
         // the room there. Set on entry only (matches how the rest of
         // the collapse state is purely user-toggled; no resize hook).
         var vw = (typeof window !== 'undefined' && window.innerWidth) || 0;
-        var collapse_sides = vw > 0 && vw <= 1024;
+        var collapse_sides = vw > 0 && vw <= 1200;
         _this.set('left_panel_collapsed', collapse_sides);
         _this.set('right_panel_collapsed', collapse_sides);
         _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
@@ -5762,6 +5794,11 @@ export default Controller.extend(prefClasses, {
        submenu since we're taking over its surface anyway. */
     open_board_collection: function() {
       this.set('board_submenu_open', false);
+      // Close the options dropdown — the collection now PINS as a standalone
+      // right-side drawer (decoupled from show_options_menu) so it can persist
+      // while the user taps board-to-board and the selected board renders in the
+      // grid on the left.
+      this.set('show_options_menu', false);
       this.set('board_collection_open', true);
     },
 
@@ -5787,7 +5824,12 @@ export default Controller.extend(prefClasses, {
     select_board_from_collection: function(board) {
       if(!board) { return; }
       var key = (board.get && board.get('key')) || board.key;
-      this.set('board_collection_open', false);
+      // Keep the collection PINNED (do NOT clear board_collection_open) so the
+      // drawer stays open while the chosen board loads in the grid on the left.
+      // board-detail's controller is a singleton across board-detail routes, so
+      // the pinned state survives the transition. "Back to Speak Mode" (the
+      // drawer's back button → close_board_collection) unpins onto whatever board
+      // is showing — i.e. the last one selected.
       this.set('show_options_menu', false);
       if(key && this.router) {
         var parts = key.split('/');

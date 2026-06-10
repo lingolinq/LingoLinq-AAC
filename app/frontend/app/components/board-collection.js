@@ -18,7 +18,7 @@ import { BRAND_FAMILIES } from '../utils/board-brands';
 // eslint-disable-next-line no-unused-vars
 function _board_collection_i18n_extractor_no_op() {
   i18n.t('my_board_collection', "My Board Collection");
-  i18n.t('back_to_options', "Back to Options");
+  i18n.t('back_to_speak_mode', "Back to Speak Mode");
   i18n.t('my_boards', "My Boards");
   i18n.t('communikate', "CommuniKate");
   i18n.t('quick_core', "Quick Core");

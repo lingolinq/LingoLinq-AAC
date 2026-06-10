@@ -178,6 +178,27 @@ approach (Grafana/react-grid-layout): layout is data, not per-combination CSS. C
 inline styles can't carry media queries — fine here because the dashboard's areas are
 viewport-independent (responsiveness is via the card wide/narrow variants, not the grid).
 
+**Adding a new dashboard DISPLAY STYLE (dynamic/focused/balanced) is a 4-touch change,
+and the cleanest form is a TRANSFORM over the canonical matrix — not a fork.** 2026-06-09
+"Balanced" (Speak = full-width hero, Extras hidden) was added by: (1) a thin
+`balancedLayout(vis)` in `utils/dashboard_sections.js` that strips the special cards from
+`vis`, runs the SAME `dashboardLayout()` for the remainder, then stacks the hero row on
+top — so any future card added to the matrix benefits the new style for free; (2)
+`gridLayoutState(vis, positions, boards, layout)` gained an optional `layout` arg routing
+to it; (3) every CALLER that should honor the style threads the layout through —
+`authenticated-view#dashboardGrid` (real page) and `getting-started-tour#syncState`
+(preview); (4) visual-only deltas (the hero's doubled height) go on the existing
+`md-grid--layout-<style>` hook class — it's there for exactly this, and a fresh selector
+means zero cascade management (verify it has no rules yet with `grep`). Two cross-cutting
+gotchas: **(a)** a card the style EXCLUDES must be force-hidden in BOTH places that read
+visibility (`sectionVisibility` forces `extras=false` for the real grid's `cardHideStyle`
+AND the matrix; `syncState` forces `vis.extras=false` for the preview) or the excluded
+card overflows the grid as an orphan; **(b)** the preview clone inherits the live grid's
+`md-grid--layout-*` class frozen at modal-open, so `syncState` must RE-STAMP the layout
+class on the clone when the user switches styles, else the layout-scoped CSS won't apply
+to the preview. Don't mutate the user's per-section prefs to express the exclusion — let
+the layout override it so switching back to Dynamic restores their Extras choice.
+
 ## Pattern: blank username suggestions must be discarded before `clean_path`
 
 `Processable#generate_user_name` treats an explicit suggestion as authoritative unless it is blanked out first. Passing `''` from signup/default-generation paths reaches `clean_path('')`, which pads to `___` instead of falling back to email or `"person"`. Normalize blank suggestions to `nil` before choosing the fallback source, and keep a regression spec in `spec/models/concerns/processable_spec.rb`.
@@ -3430,3 +3451,209 @@ dashboard content has transform/filter/contain; it was pure stacking.
 **Evidence:** `app/frontend/app/utils/capabilities.js`, `app/views/layouts/application.html.erb`; task log `2026-06-08-webcam-eye-gaze-ux.md`.
 
 **Gotcha:** `app.covidspeak.org` CDN for WebGazer/Jeeliz deps is unreachable (`ERR_NAME_NOT_RESOLVED`). Web builds must use self-hosted `/weblinger/lib/` (vendored from open-aac/weblinger.js), not `weblinger_asset_prefix` → covidspeak.
+
+---
+
+## Pattern: a DOM-snapshot live preview can't show elements the source page `{{#if}}`-removed — render-all + hide
+
+The Getting Started "choose what appears" modal builds its live preview by
+`cloneNode(true)`-ing the real `.md-grid--dashboard` (getting-started-tour.js
+`_onDisplayShow`). When the real dashboard hid a section by **removing** its card
+from the DOM (`{{#if this.sectionVisibility.X}}`), that card was absent from the
+snapshot — so re-checking the box reapplied the grid area (space) but `setCardDisplay`
+found no element to show → **phantom empty grid cell, no card**. Hiding worked
+because the card was still in the snapshot when toggled off; the asymmetry is the tell.
+
+**Fix recipe:** keep every *available* card in the DOM always and toggle the
+hidden state with an inline `display: none !important` binding (a `cardHideStyle`
+computed off the visibility map) instead of `{{#if}}`-removing it. Keep a separate
+*availability-only* gate (`sectionAvailable`) so type-restricted cards (caseload/org)
+still never render for users who lack them. Then the clone is full-fidelity and the
+modal's existing show/hide (`removeProperty('display')` / `setProperty(...,'important')`)
+works in both directions. Inline `!important` wins over the wide/narrow variant
+`display:...!important` @media rules with zero SCSS specificity work.
+
+**Rule of thumb:** any "faithful preview" built from a DOM clone must clone a source
+that contains *all* toggleable elements (visibility via CSS, not conditional render),
+or it can only ever preview removals, never re-additions.
+
+**Evidence:** `app/frontend/app/components/dashboard/authenticated-view.js`
+(`sectionAvailable`, `cardHideStyle`), `.../templates/components/dashboard/authenticated-view.hbs`,
+`.../components/getting-started-tour.js`; task log `2026-06-09-getting-started-preview-readd-phantom-space.md`.
+
+---
+
+## Pattern: dashboard card "positions" preference — permute grid-area names, don't rewrite the matrix
+
+To let users rearrange the home dashboard cards (drag-to-swap in the Getting Started
+preview, behind `dashboard_drag_layout`), the position is stored per-section exactly
+like `dashboard_sections` visibility: `preferences.dashboard_positions` maps a section
+key → the section key whose home-slot it occupies (default identity; a swap is the pair
+`{A:B, B:A}`). Backend wiring mirrors `dashboard_sections` line-for-line (PREFERENCE_PARAMS
++ preference_defaults). Frontend save uses the same `device.updated` dirty-bit + `user.save()`.
+
+**Key move:** apply positions by *substituting the area-name tokens in the
+grid-template-areas string* (`applyPositions` in `dashboard_sections.js`), NOT by
+emitting per-card inline `grid-area`. This rides the existing inline `gridStyle`
+(single source of truth, shared by home + preview) and naturally no-ops on the narrow
+`order`-based layout, so no responsive conflict. Only relabel a **closed permutation**
+over currently-visible non-boards cards (every target is also a source, targets
+distinct); any partial/inconsistent map (e.g. a saved swap referencing a now-hidden
+card) falls back to the untouched layout — emitting a non-rectangular template would
+silently drop a card. Boards is excluded from swapping (spanning hero = different cell
+shape). Default/empty positions produce a byte-identical layout (verify in node).
+
+**Drag in the preview clone:** the clone is `pointer-events:none !important`, and the
+cards are nested buttons/links, so native HTML5 DnD is out. Use pointer events +
+`setPointerCapture`. IMPORTANT: do NOT re-enable `pointer-events` on the card itself —
+that also re-activates its `:hover` lift/glow inside the preview (unwanted, and the hover
+rules are scattered/duplicated so overriding them is a cascade fight). Instead lay a
+transparent **overlay** (`md-gst-drag-overlay`, `position:absolute; inset:0`, z-indexed)
+over each swappable card: the overlay carries `pointer-events:auto !important` + the grab
+cursor + `touch-action:none`, while the card stays inert and never enters :hover.
+elementFromPoint lands on the overlay; its parent is the host card. The `md-gst-draggable`
+class's *presence is the flag gate* (JS adds it only when the flag is on). No visual ghost —
+source dims, hovered target highlights, release commits — sidesteps elementFromPoint
+self-hit math. Cross the show-hook ↔ persist boundary via a `data-gst-positions` attribute
+stamped on `.md-gst-preview__live` (same DOM-channel the checkboxes use). Boards is excluded
+(spanning hero — different cell shape).
+
+**Evidence:** `app/frontend/app/utils/dashboard_sections.js` (applyPositions,
+gridLayoutState(vis, positions)), `.../components/getting-started-tour.js`
+(_swapPositions, _wirePreviewDrag, _persistDisplaySelection),
+`.../components/dashboard/authenticated-view.js` (sectionPositions, flag-gated),
+`app/models/user.rb`, `lib/feature_flags.rb`; task log
+`2026-06-09-getting-started-drag-swap-layout.md`.
+
+**Boards (the spanning hero) move:** unlike the equal small cards (token-permutation),
+moving Boards is STRUCTURAL — it changes which cells it spans AND the column widths.
+Model it as a separate `{side, raised}` descriptor applied by `applyBoardsPlacement` as
+post-processing on the base areas (raise = rotate the 2-row block up one cell in its
+column; side:right = swap the two tokens in each Boards row → mirror). The wider column
+must follow Boards, so swap 55/45→45/55 — but do it with a `md-grid--boards-right` CLASS
+scoped to `@media (min-width: 951px)`, NEVER inline: inline `!important` columns would
+beat the ≤950px mobile `@media` rules and force 2 columns on phones. Keep it 100% opt-in +
+default-preserving: `gridLayoutState(vis, positions, boards)` with `boards` null/absent
+returns byte-identical output (node-verify this). Only transform a clean 2-row
+single-column Boards block; full-width/1-row/absent → untouched (no invalid templates).
+
+**Inline `gridStyle` leaks across dashboard tabs:** the home dashboard's `.md-grid--dashboard`
+is shared by all tabs (home/boards/reports/extras/supervisors), switched by `activeTab`. The
+home layout's inline `style={{this.gridStyle}}` (grid-template-areas/rows, `!important`) and
+`{{this.gridClassString}}` (with-caseload / with-org-mgmt / boards-right) are applied to that
+ONE element — and inline `!important` beats the per-tab `.md-shell--*-view .md-grid {
+grid-template-areas: "extras-page"/"boards"/"reports"/"sup" }` rules, so non-home tab content
+(grid-area: extras-page, etc.) loses its cell and auto-places at the bottom. Fix: gate the
+home grid styling to `{{if (is-equal this.activeTab "home") ...}}` (same pattern already used
+for `md-grid--with-getting-started`). Rule of thumb: any inline grid-template-* on a
+multi-tab shared grid MUST be tab-gated, or it overrides every other tab's layout.
+
+**Re-saving a `raw` (POJO) preference silently no-ops — first save works, second doesn't
+PERSIST (VERIFIED):** `preferences` is `DS.attr('raw')` mutated in place via
+`user.set('preferences.x.y', v)`. Console-verified: after such a nested set,
+`user.get('hasDirtyAttributes') === false` and `user.changedAttributes()` is EMPTY — i.e.
+ember-data does NOT register the in-place nested mutation as a change. So on a re-save the
+record looks clean and `save()` serializes/sends the STALE value; the new value never
+reaches the server (and dependent computeds don't re-render). The first save can sneak
+through, later ones don't. The `device.updated=true` "dirty bit" is ITSELF a nested set, so
+it does NOT actually dirty the record — it doesn't fix this. This is a documented Ember
+Data limitation (ember-data only detects REFERENCE changes on object/`raw` attrs, not
+in-place mutations — see discuss.emberjs.com "hasDirtyAttributes … nested attributes").
+**Fix (community-standard "replace the entire object"):** NEVER mutate the model's object
+in place. Copy it, edit the COPY, set the whole attribute ONCE:
+```js
+var prefs = Object.assign({}, user.get('preferences') || {});
+prefs.dashboard_positions = positions;            // edit the COPY
+prefs.device = Object.assign({}, prefs.device, {updated: true});
+user.set('preferences', prefs);                   // fresh ref → dirty + notify
+```
+CRITICAL: a `set('preferences.x', …)` BEFORE the reassign defeats it — it mutates the
+canonical in place, so the later copy has the same content and ember-data sees no change.
+Build the copy first, never touch the model's nested keys. Verify with
+`u.get('hasDirtyAttributes')` (→ true) + `Object.keys(u.changedAttributes())` (→ ['preferences']).
+
+**A cloned DOM preview must be made INERT, or a drag's trailing click navigates/closes the
+modal:** `cloneNode(true)` keeps the source's real `<a href>` + Ember `data-ember-action*`
+attributes, so the `click` browsers synthesize at the end of a pointer-drag bubbles into the
+cloned button/link and fires its action / href navigation — tearing down the surrounding
+modal (looked like "drag-drop reloads the page"). Fix at clone-build: strip `href` from
+anchors and every `data-ember-action*` attr from descendants, AND have the drag overlay
+swallow clicks (`preventDefault()` + `stopPropagation()`). A preview should never be able to act.
+
+**Drag-to-swap must exchange the cards' CURRENT cells, not the cells NAMED after them:** with
+a positions map `{cardKey → slotKey}`, swapping `positions[A]`/`positions[B]` targets the
+base-cells literally named A/B — but once cards have been rearranged, A and B no longer sit
+in their own base-cells, so the op cascades into a 3-cycle that displaces a THIRD card (and
+the drop-target cue lights up two cards instead of one). Fix: find the cell each card
+CURRENTLY occupies (the key X where `positions[X] === card`, default `card`) and swap those
+two cells' owners — so only A and B move. (getting-started-tour.js `_swapPositions`.)
+
+**A 1px divider/hairline that computes to `height: 0` is being CRUSHED by flexbox, not
+overridden:** if DevTools shows `height: 0px` while the `height: 1px` rule is present (not
+struck through), the element is a direct child of a `display:flex; flex-direction:column`
+container that is height-capped + scrolling (`overflow-y:auto`), and the default
+`flex-shrink:1` squeezes the 1px line to nothing when content overflows. Fix: `flex-shrink:0`
+on the divider. Tell: a `--collapsed`/sibling variant of the same element already pins
+`flex-shrink:0` — the expanded variant just never got the same guard. This was the real cause
+of the "missing" left Action-Panel divider (`.md-board-edit-panel__divider`), even though
+selector/color/height all looked correct in source. Don't chase margin/color first — check
+the computed `height` and the flex parent.
+
+**Apply a dropped image DIRECTLY to a board button (no settings modal):** both the
+classic board (`controllers/board/index.js` buttonSelect) and board-detail open the
+`button-settings` modal on an image drop (`content_dropped` → `file_dropped` →
+`buttonSelect(id,'picture')`), which is the wrong UX for a drag-drop (flash-then-revert,
+extra clicks). To commit straight to the button: upload with
+`pictureGrabber.save_image_preview({url, content_type, protected:false})` (returns the
+saved image record — same call the modal's `set_as_button_image` uses), then
+`editManager.change_button(id, { image: image, image_id: image.get('id'),
+_picked_display_url: image.get('url') })`. `change_button` derives `image_url` (the field
+board-detail-grid actually renders — NOT `local_image_url`), syncs `board.buttons`,
+clears `fast_html`/`last_cb` to re-render, and calls `save_state` (undo + dirty). Scope
+the direct path to board-detail via `appStateService.get('current_route')` containing
+`board-detail` so the classic board keeps its modal flow. Helper added:
+`contentGrabbers.apply_dropped_image_to_button` (services/content-grabbers.js). The image
+record uploads immediately; the button's reference persists with the board edit on Done
+Editing.
+
+**A speak-mode tap on board-detail CHROME fires the Ember action TWICE (synthetic +
+native click) — a toggle opens-then-closes and looks "dead":** in speak mode
+`raw_events.js` `element_release` synthesizes a `dispatchPassThroughClick` for
+non-`/button/` targets (its final `else`), but board-detail also keeps the BROWSER's
+native click alive (the `.board-detail-view` carve-out in `eat_events`, raw_events.js:79).
+`preventDefault()` on touchend/mouseup does NOT cancel the native click, so chrome
+buttons (options ⋮ menu, sentence-bar tools) get TWO clicks → a toggle nets closed.
+Tell-tale: works with devtools open (timing drops one click), broken closed; survives
+hard refresh (so NOT live-reload). Fix: in `element_release`'s final `else`, when
+`event_source === 'click'` (real pointer → native click coming) AND target is within
+`.board-detail-view`, do nothing and let the native click drive the action; dwell/
+eye-gaze/scanning use other `event_source`s (no native click) and must still synthesize.
+**CRITICAL refinement — scope the skip to `event.type === 'mouseup'` (MOUSE only).** The
+double only happens on mouse, where the native click fires regardless of preventDefault.
+On TOUCH, `element_release`'s `preventDefault()` CANCELS the browser's synthesized click,
+so the synthetic `dispatchPassThroughClick` is the ONLY click — skipping it there makes
+board-detail chrome unresponsive to taps on real tablets (the main AAC platform) AND in
+devtools device-emulation. Symptom of getting this wrong: works with devtools closed
+(mouse), breaks with devtools open (touch emulation) — the exact inverse of the original
+mouse-only double-click. So: skip synthetic only for `mouseup`; let `touchend` fall
+through and synthesize.
+Diagnosis technique that nailed it: a capture-phase recorder logging every pointer/click
+(target, `elementFromPoint`, `aria-expanded`, innerWidth) to **localStorage** so a
+devtools-closed Heisenbug can be read back after reopening devtools. See
+[2026-06-09-board-detail-speak-options-menu-double-click.md](2026-06-09-board-detail-speak-options-menu-double-click.md).
+
+**Safe, verifiable way to dedup byte-identical rule-blocks in a giant SCSS file
+(app.scss had ~5.2k duplicated lines from bad merges):** (1) parse into depth-0
+brace-balanced blocks with a scanner that IGNORES braces inside strings, `/* */`, and `//`
+comments — a naive `{`/`}` counter mis-splits on `[attr="…}…"]` and corrupts the file;
+(2) group by exact block text, remove all but the LAST copy (keep-last preserves the cascade
+— the later identical copy already wins over anything between it and the earlier copy);
+(3) GUARD with cascade-equivalence, not a raw byte-diff: removing a duplicate legitimately
+shrinks the raw CSS, so compile both versions `--style=compressed` (pipe candidate via
+`sass --stdin`, no temp files), then canonicalize each compiled output by collapsing
+byte-identical compiled rules keep-last, and compare. Identical canonical forms ⇒ every
+selector/property resolves to the same winning declaration ⇒ behavior-neutral. Only write the
+file if the guard passes AND the candidate compiles. Variants are auto-excluded because full
+block bodies differ (here: 141 selectors like `:root`, `@font-face`, `@media (max-width:640px)`
+×28 distinct bodies were correctly preserved). The compile gate caught a parser bug on the
+first run and left the file untouched.

@@ -92,6 +92,12 @@ function dashboardLayout(vis) {
   if (!bd && !sp && !og && ex && cl) { return L(['caseload extras', '. sup'], 'auto 0'); }
   if (!bd && !sp && !ex && og && cl) { return L(['caseload org_mgmt', '. sup'], 'auto 0'); }
   if (!bd && !ex && !cl && sp && og) { return L(['speak org_mgmt', '. sup'], 'auto 0'); }
+  // Boards gone + three cards left WITHOUT the extras+org pair (that pair has its
+  // own row via the branch above). Caseload + Speak take the top row; the remaining
+  // single card spans BOTH columns instead of sitting orphaned in one — no lone
+  // half-row. (The {cl,ex,og} / {sp,ex,og} threes are already full-width-top above.)
+  if (!bd && cl && sp && ex && !og) { return L(['caseload speak', 'extras extras', '. sup'], 'auto auto 0'); }
+  if (!bd && cl && sp && !ex && og) { return L(['caseload speak', 'org_mgmt org_mgmt', '. sup'], 'auto auto 0'); }
   // Boards visible with AT MOST two other cards → Boards spans both columns; the
   // other card(s) sit above it — one card full-width, two side-by-side (left→
   // right priority: caseload, speak, extras, org).
@@ -125,19 +131,181 @@ function dashboardLayout(vis) {
   return L(['boards speak', 'boards extras', '. sup'], 'auto auto 0');
 }
 
+// Apply the user's saved card POSITIONS (drag-to-swap, chosen in the Getting
+// Started preview) to a layout's grid-template-areas. `positions` maps a section
+// key to the section key whose home-slot it should occupy (default identity); a
+// swap is the pair {A: B, B: A}. We relabel the area-name tokens in place rather
+// than touching per-card `grid-area`, so this rides the existing inline grid style
+// and naturally no-ops on the narrow (order-based) layout.
+//
+// Robustness: we only relabel a CLOSED PERMUTATION over currently-visible,
+// non-boards cards. If the saved map is partial/inconsistent (e.g. it references a
+// now-hidden card's slot), we fall back to the untouched layout — never emitting a
+// non-rectangular (invalid) template that would drop a card. Boards is excluded
+// (it's the spanning hero, a different cell shape).
+function applyPositions(areas, vis, positions) {
+  if (!positions) { return areas; }
+  var tokenMap = {}; // source area-name → target area-name
+  Object.keys(positions).forEach(function(k) {
+    var target = positions[k];
+    if (k === 'boards' || target === 'boards') { return; }
+    if (!vis[k] || !vis[target]) { return; }
+    if (!AREA[k] || !AREA[target]) { return; }
+    tokenMap[AREA[k]] = AREA[target];
+  });
+  var sources = Object.keys(tokenMap);
+  if (sources.length === 0) { return areas; }
+  // Must be a bijection over the SAME token set (closed permutation): every
+  // target is also a source, and targets are distinct. Otherwise → identity.
+  var seenTarget = {};
+  var closed = sources.every(function(src) {
+    var dst = tokenMap[src];
+    if (seenTarget[dst] || !tokenMap.hasOwnProperty(dst)) { return false; }
+    seenTarget[dst] = true;
+    return true;
+  });
+  if (!closed) { return areas; }
+  return areas.map(function(row) {
+    return row.split(' ').map(function(tok) { return tokenMap[tok] || tok; }).join(' ');
+  });
+}
+
+// ── Boards placement (drag-to-MOVE the hero card) ───────────────────────────
+// Boards is the tall 2-row hero; unlike the equal 1×1 small cards it can't just
+// trade area-name tokens. Its placement is a separate descriptor:
+//   { side: 'left'|'right', raised: boolean }
+// applied as STRUCTURAL transforms on the (already small-card-permuted) areas:
+//   raised → swap Boards' 2-row block with the single card directly above it in
+//            its column (vertical swap); columns unchanged.
+//   side   → mirror: move Boards to the other column (swap the two tokens in each
+//            of Boards' rows) and report `boardsRight` so the caller can swap the
+//            column widths — the WIDER column follows Boards (the 55/45 'anchor').
+// Default ({}/left/not-raised) is a NO-OP → byte-identical to today. Only a clean
+// 2-row single-column Boards block is transformable; anything else (Boards full-
+// width, 1-row, or absent) returns the layout untouched (safe fallback), so this
+// can never produce an invalid template or drop a card.
+
+// Locate Boards in an areas array: which column (0/1), the row indices it spans,
+// and whether it is full-width (spans both columns in a row).
+function boardsCells(areas) {
+  var col = -1, rows = [], fullWidth = false;
+  areas.forEach(function(row, i) {
+    var t = row.split(' ');
+    if (t[0] === 'boards' && t[1] === 'boards') { fullWidth = true; col = 0; rows.push(i); }
+    else if (t[0] === 'boards') { col = 0; rows.push(i); }
+    else if (t[1] === 'boards') { col = 1; rows.push(i); }
+  });
+  return { col: col, rows: rows, fullWidth: fullWidth };
+}
+
+function setCol(rowStr, c, tok) {
+  var t = rowStr.split(' ');
+  t[c] = tok;
+  return t.join(' ');
+}
+
+// Boards is a clean, transformable 2-row single-column block.
+function boardsMovable(bc) {
+  return bc.col >= 0 && bc.rows.length === 2 && !bc.fullWidth && bc.rows[1] === bc.rows[0] + 1;
+}
+
+function applyBoardsPlacement(areas, boards) {
+  if (!boards || (boards.side !== 'right' && !boards.raised)) {
+    return { areas: areas, boardsRight: false };
+  }
+  var bc = boardsCells(areas);
+  if (!boardsMovable(bc)) { return { areas: areas, boardsRight: false }; }
+  var out = areas.slice();
+
+  // 1) raised: swap the Boards block with the single card directly above it in the
+  //    same column — only when that cell is a real single card (not '.', not Boards,
+  //    not a full-width or multi-row span). Boards shifts up; the card drops to the
+  //    block's old bottom cell.
+  if (boards.raised) {
+    var c = bc.col, top = bc.rows[0];
+    if (top > 0) {
+      var aboveRow = out[top - 1].split(' ');
+      var aboveTok = aboveRow[c];
+      var aboveSingle = aboveTok && aboveTok !== '.' && aboveTok !== 'boards' && aboveRow[0] !== aboveRow[1];
+      var aboveSpans = out.filter(function(r) { return r.split(' ')[c] === aboveTok; }).length > 1;
+      if (aboveSingle && !aboveSpans) {
+        out[top - 1] = setCol(out[top - 1], c, 'boards');
+        out[top + 1] = setCol(out[top + 1], c, aboveTok);
+      }
+    }
+  }
+
+  // 2) side right: mirror Boards into the other column by swapping the two tokens in
+  //    each of its (possibly raised) rows. The wider column follows Boards.
+  var boardsRight = false;
+  if (boards.side === 'right') {
+    var bc2 = boardsCells(out);
+    if (boardsMovable(bc2)) {
+      bc2.rows.forEach(function(i) {
+        var t = out[i].split(' ');
+        var tmp = t[0]; t[0] = t[1]; t[1] = tmp;
+        out[i] = t.join(' ');
+      });
+      boardsRight = boardsCells(out).col === 1;
+    }
+  }
+  return { areas: out, boardsRight: boardsRight };
+}
+
+// The Balanced display style: Speak is a full-width hero spanning both columns
+// (and is given ~2× its Dynamic height by the `.md-grid--layout-balanced
+// .md-card--speak` CSS rule), and the Extras card never shows. Everything else
+// (Boards + optional Caseload/Org) reuses the canonical matrix with Speak and
+// Extras removed, then we stack the full-width `speak speak` hero on top. This
+// keeps Balanced a thin transform over the shared layout — adding a card type
+// to the matrix benefits Balanced for free. `positions`/`boards` (drag-to-swap,
+// flag-gated) apply to the non-hero remainder; the hero row is fixed.
+function balancedLayout(vis, positions, boards) {
+  var rest = Object.assign({}, vis, { speak: false, extras: false });
+  var base = dashboardLayout(rest);
+  var areas = applyPositions(base.areas, rest, positions);
+  var bp = applyBoardsPlacement(areas, boards);
+  areas = bp.areas;
+  if (vis.speak) {
+    areas = ['speak speak'].concat(areas);
+  }
+  var rows = vis.speak ? ('auto ' + base.rows) : base.rows;
+  return { areas: areas, rows: rows, boardsRight: bp.boardsRight };
+}
+
 // Derive the dashboard grid state from the visibility map: the card-STYLING
 // classes still needed (with-caseload / with-org-mgmt restyle the Speak/Caseload
 // cards — they no longer drive layout) plus the computed grid-template areas/rows
-// and a ready-to-apply inline `grid-template-areas` value.
-function gridLayoutState(vis) {
+// and a ready-to-apply inline `grid-template-areas` value. `positions` (optional)
+// applies the small-card drag-to-swap arrangement; `boards` (optional) applies the
+// Boards move. `layout` (optional) selects the display style: 'balanced' routes
+// through balancedLayout (Speak hero + no Extras); anything else (default
+// 'dynamic') uses the canonical matrix. Omitting all yields the canonical layout
+// unchanged. When Boards is mirrored to the right, `md-grid--boards-right` is added
+// so the (media-scoped) CSS can swap the column widths — never inline, so the
+// mobile breakpoints are untouched.
+function gridLayoutState(vis, positions, boards, layout) {
   vis = vis || {};
   var classes = [];
   if (vis.caseload) { classes.push('md-grid--with-caseload'); }
   if (vis.org) { classes.push('md-grid--with-org-mgmt'); }
-  var layout = dashboardLayout(vis);
-  var areasValue = layout.areas.map(function(row) { return '"' + row + '"'; }).join(' ');
-  return { classes: classes, areas: layout.areas, rows: layout.rows, areasValue: areasValue };
+  var areas, rows, boardsRight;
+  if (layout === 'balanced') {
+    var bl = balancedLayout(vis, positions, boards);
+    areas = bl.areas; rows = bl.rows; boardsRight = bl.boardsRight;
+  } else {
+    var canonical = dashboardLayout(vis);
+    areas = applyPositions(canonical.areas, vis, positions);
+    var bp = applyBoardsPlacement(areas, boards);
+    areas = bp.areas; rows = canonical.rows; boardsRight = bp.boardsRight;
+  }
+  if (boardsRight) { classes.push('md-grid--boards-right'); }
+  // Flag when Boards spans BOTH columns (a full-width 'boards boards' row) so the
+  // CSS can let the board strip shrink to fit instead of horizontally scrolling.
+  if (areas.some(function(row) { return row === 'boards boards'; })) { classes.push('md-grid--boards-full'); }
+  var areasValue = areas.map(function(row) { return '"' + row + '"'; }).join(' ');
+  return { classes: classes, areas: areas, rows: rows, areasValue: areasValue };
 }
 
-export { HOME_SECTIONS, RIGHT_SECTIONS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState };
-export default { HOME_SECTIONS, RIGHT_SECTIONS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState };
+export { HOME_SECTIONS, RIGHT_SECTIONS, AREA, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, applyBoardsPlacement, boardsCells };
+export default { HOME_SECTIONS, RIGHT_SECTIONS, AREA, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, applyBoardsPlacement, boardsCells };

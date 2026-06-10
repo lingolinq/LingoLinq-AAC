@@ -25,6 +25,18 @@ export default Service.extend({
       }
       window.LingoLinq.session = this;
     }
+    // Capture, once per boot, whether we just landed here from an INTENTIONAL
+    // logout (the flag is set by invalidate() right before its reload). Stashing
+    // it on the instance — rather than re-reading localStorage in restore() —
+    // means it survives BOTH restore() calls the application route fires per boot.
+    // restore() uses it to skip the "session lost" recovery, which would otherwise
+    // fire a SECOND full reload on a clean sign-out. One-shot: cleared immediately.
+    try {
+      if (typeof window !== 'undefined' && window.localStorage && window.localStorage.getItem('lingolinq_just_logged_out')) {
+        window.localStorage.removeItem('lingolinq_just_logged_out');
+        this._logout_landing = true;
+      }
+    } catch (e) { /* localStorage unavailable */ }
   },
 
   persist: function(data) {
@@ -468,12 +480,18 @@ export default Service.extend({
         window.ga('send', 'event', 'authentication', 'user-id available');
       }
       this.set('as_user_id', store_data.as_user_id);
-    } else if(!store_data.access_token) {
+    } else if(!store_data.access_token && !this._logout_landing) {
+      // (Skipped on a clean logout landing — see `_logout_landing` set in init().
+      //  Re-running this "session lost" recovery there would force_logout/invalidate
+      //  again → a SECOND full reload, and show a bogus "session data has been lost"
+      //  error after an INTENTIONAL sign-out. A voluntary logout should land on the
+      //  login page in one navigation with no message; this branch is only for a
+      //  genuine mid-session token loss.)
       // This should not run until stashes.db_connect has completed, so stashes has its
       // best chance to be populated.
       var _this = this;
       var any_proof_of_existing_login = Object.keys(store_data).length > 0;
-      any_proof_of_existing_login = any_proof_of_existing_login || this.stashes.fs_user_name || (window.kvstash && window.kvstash.values && window.kvstash.user_name); 
+      any_proof_of_existing_login = any_proof_of_existing_login || this.stashes.fs_user_name || (window.kvstash && window.kvstash.values && window.kvstash.user_name);
       var do_it = function() {
         if(any_proof_of_existing_login) {
           _this.force_logout(i18n.t('session_lost', "Session data has been lost, please log back in"));
@@ -485,7 +503,7 @@ export default Service.extend({
          do_it();
       } else {
         this.stashes.get_db_id(capabilities).then(function(obj) {
-          any_proof_of_existing_login = any_proof_of_existing_login || obj.db_id; 
+          any_proof_of_existing_login = any_proof_of_existing_login || obj.db_id;
           do_it();
         });
       }
@@ -591,6 +609,11 @@ export default Service.extend({
       try {
         if(typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.setItem('lingolinq_auth_intent', 'logging_out');
+          // One-shot signal read by session.init() on the next boot so restore()
+          // skips its "session lost" recovery (which would re-invalidate → a SECOND
+          // reload). Separate from `lingolinq_auth_intent` because the bootstrap
+          // clears that one before restore() runs.
+          window.localStorage.setItem('lingolinq_just_logged_out', '1');
         }
       } catch(e) { /* localStorage unavailable; skeleton falls back to default copy */ }
     }

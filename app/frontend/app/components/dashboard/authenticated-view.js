@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
@@ -28,16 +28,111 @@ export default Component.extend({
   modal: service('modal'),
   app_state: alias('appState'),
 
-  // Home dashboard arrangement modifier, driven by the user's saved
-  // `dashboard_layout` preference (chosen in the Getting Started flow).
+  // The layout actually RENDERED. Normally the saved `dashboard_layout` pref, but
+  // when a focused communicator's grown-up presses-and-holds the lock to reveal the
+  // full dashboard (caregiverUnlocked), the parent/caregiver view is the BALANCED
+  // layout — NOT the default dynamic — so 'focused' resolves to 'balanced' while
+  // unlocked. Everything that drives the grid (class, grid state, section
+  // visibility, the shell modifier) reads THIS, so the parent view is fully balanced.
+  effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', 'caregiverUnlocked', function() {
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
+    if (['dynamic', 'focused', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
+    if (this.get('caregiverUnlocked') && layout === 'focused') { return 'balanced'; }
+    return layout;
+  }),
+
+  // Home dashboard arrangement modifier, driven by the EFFECTIVE layout (above).
   // Always resolves to a known variant so the grid has a stable hook class;
   // 'dynamic' is today's default grid — the focused/balanced CSS variants
   // hang off md-grid--layout-focused / md-grid--layout-balanced.
-  dashboardLayoutClass: computed('appState.currentUser.preferences.dashboard_layout', function() {
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
-    if (['dynamic', 'focused', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
-    return 'md-grid--layout-' + layout;
+  dashboardLayoutClass: computed('effectiveLayout', function() {
+    return 'md-grid--layout-' + this.get('effectiveLayout');
   }),
+
+  // Whether "Reports" appears in the primary pill-nav. It stays there only for
+  // SUPPORTERS on a non-Balanced layout. Communicators get Reports moved to an
+  // Extras card link instead (so it's out of their nav); Balanced hides it for
+  // everyone (Focused has no pill-nav). The Extras "Reports" card shows precisely
+  // when this is false (see extrasItems).
+  showReportsPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
+    if (!this.get('appState.currentUser.supporter_role')) { return false; }
+    return this.get('effectiveLayout') !== 'balanced';
+  }),
+
+  // Communicators get a far-right "Account" pill in the nav — but NOT on Balanced
+  // (its nav is the minimal centered bar). Supporters never get it (they use the
+  // identity dropdown).
+  showAccountPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
+    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'balanced';
+  }),
+
+  // Transient "the grown-up unlocked the full dashboard" flag. Set by a press-and-
+  // hold on the Grown-Ups lock; NOT persisted — it resets on reload / re-entry, so
+  // the kid-facing focused view is always the default for a focused communicator.
+  caregiverUnlocked: false,
+
+  // The Focused home view renders when ALL hold: we're on the Home tab, the user is a
+  // COMMUNICATOR (not a supporter), they picked the 'focused' display in Getting
+  // Started, and a grown-up hasn't pressed-and-held to reveal the full dashboard.
+  // Preference-only gating — no feature flag (chosen display == their display).
+  focusedHomeLayout: computed(
+    'activeTab',
+    'appState.currentUser.preferences.dashboard_layout',
+    'appState.currentUser.supporter_role',
+    'appState.gettingStartedActive',
+    'caregiverUnlocked',
+    function() {
+      if (this.get('caregiverUnlocked')) { return false; }
+      // Don't flip the home behind the open Getting Started modal — the modal's
+      // preview clones the dashboard grid, which the focused view removes. Block only
+      // when the modal is ACTUALLY open: the flag drives reactivity, but we confirm
+      // against body.md-gst-active (the real "modal open" signal) so a stale flag can
+      // never trap the user on the default layout once the modal has closed.
+      if (this.get('appState.gettingStartedActive') &&
+          typeof document !== 'undefined' &&
+          document.body.classList.contains('md-gst-active')) {
+        return false;
+      }
+      if (this.get('activeTab') !== 'home') { return false; }
+      if (this.get('appState.currentUser.supporter_role')) { return false; }
+      return this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
+    }
+  ),
+
+  // After a grown-up presses-and-holds the lock to leave focused mode, the full
+  // dashboard shows but this communicator's SAVED display is still 'focused' — so
+  // surface a "Back to Kiddo's View" affordance to return. True only while unlocked
+  // AND the user is a focused communicator.
+  showBackToFocused: computed(
+    'caregiverUnlocked',
+    'appState.currentUser.preferences.dashboard_layout',
+    'appState.currentUser.supporter_role',
+    function() {
+      return !!this.get('caregiverUnlocked') &&
+        !this.get('appState.currentUser.supporter_role') &&
+        this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
+    }
+  ),
+
+  // Short, friendly first name for the focused greeting ("Hi Johnny"). Prefer the
+  // display name's first word; fall back to the username.
+  greetingFirstName: computed('appState.currentUser.name', 'appState.currentUser.user_name', function() {
+    var raw = this.get('appState.currentUser.name') || this.get('appState.currentUser.user_name') || '';
+    return (raw || '').toString().trim().split(/\s+/)[0] || '';
+  }),
+
+  // Hide the inner-header chrome (Upgrade / Settings / identity dropdown) while the
+  // focused view is active by toggling a body class — the SAME mechanism the Getting
+  // Started tour uses (body.md-gst-active). CSS scopes the hiding so the focused view
+  // never has to reach into the separate header component.
+  _syncFocusedBodyClass: function() {
+    try {
+      if (this.isDestroying || this.isDestroyed) { document.body.classList.remove('md-home-focused'); return; }
+      if (this.get('focusedHomeLayout')) { document.body.classList.add('md-home-focused'); }
+      else { document.body.classList.remove('md-home-focused'); }
+    } catch (e) { /* body class is presentational — never block render */ }
+  },
+  _focusedBodyClassObserver: observer('focusedHomeLayout', function() { this._syncFocusedBodyClass(); }),
 
   // Visibility map for the home dashboard cards, keyed by section key
   // (boards/speak/extras/caseload/org). A key is present+true only when the
@@ -47,6 +142,7 @@ export default Component.extend({
   // so hiding a section also reflows the grid as if that section didn't exist.
   sectionVisibility: computed(
     'appState.currentUser.preferences.dashboard_sections',
+    'effectiveLayout',
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
     function() {
@@ -55,6 +151,12 @@ export default Component.extend({
       availableHomeSections(user).forEach(function(s) {
         vis[s.key] = !sectionHidden(user, s.key);
       });
+      // The Balanced layout never shows the Extras card — Speak takes the focal
+      // full-width hero slot instead. Force it hidden so the grid matrix and the
+      // per-card cardHideStyle agree (no orphaned Extras card overflowing the grid).
+      if (this.get('effectiveLayout') === 'balanced') {
+        vis.extras = false;
+      }
       return vis;
     }
   ),
@@ -63,9 +165,38 @@ export default Component.extend({
   // the computed grid-template-areas/rows. The layout is applied as an inline
   // style (gridStyle) from the shared layout matrix, so the home grid and the
   // Getting Started preview reflow identically with no CSS-specificity juggling.
-  dashboardGrid: computed('sectionVisibility', function() {
-    return gridLayoutState(this.get('sectionVisibility'));
+  dashboardGrid: computed('sectionVisibility', 'sectionPositions', 'sectionBoards', 'effectiveLayout', function() {
+    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionPositions'), this.get('sectionBoards'), this.get('effectiveLayout'));
   }),
+
+  // The user's saved Boards placement ({side, raised}; drag-to-move the hero).
+  // Read like the other dashboard prefs and fully gated behind the
+  // `dashboard_drag_layout` flag. Returns null when unset → canonical layout.
+  sectionBoards: computed(
+    'appState.currentUser.preferences.dashboard_boards',
+    'appState.feature_flags.dashboard_drag_layout',
+    function() {
+      if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
+      var b = this.get('appState.currentUser.preferences.dashboard_boards');
+      return (b && typeof b === 'object') ? b : null;
+    }
+  ),
+
+  // The user's saved drag-to-swap arrangement (section key → the section key
+  // whose home-slot it occupies; default identity). Read from preferences the
+  // same way as `dashboard_sections`, so a saved arrangement reflows the home
+  // grid on render. Fully gated behind the `dashboard_drag_layout` flag (the
+  // only way to SET a position is the flagged drag UI), and returns null when
+  // unset → the canonical layout.
+  sectionPositions: computed(
+    'appState.currentUser.preferences.dashboard_positions',
+    'appState.feature_flags.dashboard_drag_layout',
+    function() {
+      if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
+      var map = this.get('appState.currentUser.preferences.dashboard_positions');
+      return (map && typeof map === 'object') ? map : null;
+    }
+  ),
   gridClassString: computed('dashboardGrid', function() {
     return (this.get('dashboardGrid.classes') || []).join(' ');
   }),
@@ -73,6 +204,42 @@ export default Component.extend({
     var s = this.get('dashboardGrid');
     // Inline !important so it wins over the base .md-grid !important rules.
     return htmlSafe('grid-template-areas: ' + s.areasValue + ' !important; grid-template-rows: ' + s.rows + ' !important;');
+  }),
+
+  // Availability-only map (does this section EXIST for this user type, ignoring
+  // the hidden preference). The template gates caseload/org on this so they
+  // never render for users who don't have them — while every available card is
+  // ALWAYS rendered (hidden ones via cardHideStyle), so the Getting Started
+  // preview clone is full-fidelity and a re-checked section actually reappears.
+  sectionAvailable: computed(
+    'appState.currentUser',
+    'appState.currentUser.supporter_role',
+    'appState.currentUser.organizations',
+    function() {
+      var user = this.get('appState.currentUser');
+      var map = {};
+      availableHomeSections(user).forEach(function(s) { map[s.key] = true; });
+      return map;
+    }
+  ),
+
+  // Per-card inline style that HIDES a section when it's turned off — `display:
+  // none !important` so it beats every stylesheet rule (incl. the wide/narrow
+  // variant `display:...!important` @media rules) regardless of specificity,
+  // with no cascade juggling. Visible sections get an empty style so their
+  // normal (wide/narrow) display rules govern. Because hidden cards stay in the
+  // DOM (just display:none), the dashboard clone the Getting Started modal makes
+  // contains every available card — toggling one back on shows it instead of
+  // leaving phantom grid space.
+  cardHideStyle: computed('sectionVisibility', function() {
+    var vis = this.get('sectionVisibility') || {};
+    var HIDDEN = htmlSafe('display: none !important;');
+    var SHOWN = htmlSafe('');
+    var map = {};
+    ['boards', 'speak', 'extras', 'caseload', 'org'].forEach(function(k) {
+      map[k] = vis[k] ? SHOWN : HIDDEN;
+    });
+    return map;
   }),
 
   activeTab: 'home',
@@ -105,6 +272,30 @@ export default Component.extend({
   didInsertElement() {
     this._super(...arguments);
     this._loadPreviewBoards();
+    this._syncFocusedBodyClass();
+  },
+
+  willDestroyElement() {
+    this._super(...arguments);
+    if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
+    try { document.body.classList.remove('md-home-focused'); } catch (e) { /* noop */ }
+  },
+
+  didRender() {
+    this._super(...arguments);
+    // Self-heal the Getting Started "modal open" flag. body.md-gst-active is the
+    // real signal that the GS modal is showing; the gettingStartedActive flag only
+    // mirrors it (for reactive gating of focusedHomeLayout). If the flag is still
+    // true but the modal is gone (a missed _clearCentered on close), clear it so the
+    // focused layout can apply — otherwise a stale flag traps the user on the default
+    // layout. Idempotent: once cleared the condition is false, so no render loop.
+    try {
+      if (this.get('appState.gettingStartedActive') &&
+          typeof document !== 'undefined' &&
+          !document.body.classList.contains('md-gst-active')) {
+        this.set('appState.gettingStartedActive', false);
+      }
+    } catch (e) { /* defensive — never block render */ }
   },
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
@@ -695,6 +886,8 @@ export default Component.extend({
   }),
   previewBoards: computed(
     '_fetchedPreviewBoards.[]',
+    // The appended 6th tile is the system Crisis Vocabulary board from the sidebar.
+    'appState.sidebar_boards',
     // Re-sort the preview when a board's liked status flips or its
     // display name changes, since the new ordering rule
     // (home → liked-alpha → others-alpha) reads both per-board.
@@ -803,7 +996,31 @@ export default Component.extend({
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
 
-      return ordered.slice(0, 5).map(function(item, idx) {
+      var top = ordered.slice(0, 5);
+      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as a
+      // 6th tile at the END of the list — same key/name/image the sidebar uses.
+      try {
+        var sidebars = this.appState.get('sidebar_boards') || [];
+        var crisis = null;
+        for (var ci = 0; ci < sidebars.length; ci++) {
+          var ck = emberGet(sidebars[ci], 'key');
+          if (ck && ck.split('/').pop() === 'crisis-vocabulary') { crisis = sidebars[ci]; break; }
+        }
+        if (crisis) {
+          var crisisKey = emberGet(crisis, 'key');
+          if (!top.some(function(it) { return it.key === crisisKey; })) {
+            top = top.concat([{
+              board: null,
+              name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
+              imageUrl: emberGet(crisis, 'image') || '',
+              key: crisisKey,
+              languageLabel: null,
+              isHome: false
+            }]);
+          }
+        }
+      } catch (e) { /* crisis tile is a best-effort append — never block the strip */ }
+      return top.map(function(item, idx) {
         item.thumbClass = thumbClasses[idx % thumbClasses.length];
         return item;
       });
@@ -871,20 +1088,27 @@ export default Component.extend({
     if (!boards || !boards.forEach) { return 0; }
     return filterRootBoards(boards, userId).length;
   }),
-  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
+  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.currentUser.supporter_role', 'showReportsPill', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
     var user = appState.get('currentUser');
     var perms = user && user.get('permissions.delete');
     var modelingOnly = user && user.get('modeling_only');
     var externalDevice = user && user.get('external_device');
+    var supporterRole = user && user.get('supporter_role');
+    // Reports moves into Extras exactly when it's NOT in the pill-nav (communicators
+    // on any layout; everyone on Balanced) — see showReportsPill.
+    var showReports = !this.get('showReportsPill');
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
     return [
       { title_key: 'learn_and_setup_card', title_default: 'Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
       { title_key: 'sync', title_default: 'Sync', subtitle_key: 'sync_subtitle', subtitle_default: 'Sync your data', image: 'images/pastel-logging.png', action: 'sync_details', btn_key: 'sync', btn_default: 'Sync', show: !externalDevice },
       { title_key: 'goals', title_default: 'Goals', subtitle_key: 'goals_subtitle', subtitle_default: 'Track progress', image: 'images/pastel-reports2.png', action: 'goals', btn_key: 'view', btn_default: 'View', show: !!perms },
+      // Reports — surfaced here for users who don't have it in the pill-nav.
+      { title_key: 'reports', title_default: 'Reports', subtitle_key: 'reports_extras_subtitle', subtitle_default: 'Usage & progress', image: 'images/pastel-reports2.png', action: 'reports', btn_key: 'view', btn_default: 'View', show: showReports },
       { title_key: 'new_note', title_default: 'New Note', subtitle_key: 'new_note_subtitle', subtitle_default: 'Add a progress note', image: 'images/pastel-chat.svg', action: 'record_note', btn_key: 'add', btn_default: 'Add', show: !modelingOnly },
-      { title_key: 'run_eval', title_default: 'Run Evaluation', subtitle_key: 'run_eval_subtitle', subtitle_default: 'Assessment tools', image: 'images/pastel-lightbulb.png', action: 'run_eval', btn_key: 'run_action', btn_default: 'Run', show: !modelingOnly },
+      // Run Evaluation is an SLP/supporter assessment tool — hidden on a communicator's own account.
+      { title_key: 'run_eval', title_default: 'Run Evaluation', subtitle_key: 'run_eval_subtitle', subtitle_default: 'Assessment tools', image: 'images/pastel-lightbulb.png', action: 'run_eval', btn_key: 'run_action', btn_default: 'Run', show: !modelingOnly && !!supporterRole },
       { title_key: 'my_account', title_default: 'My Account', subtitle_key: 'profile_and_settings', subtitle_default: 'Profile and settings', image: 'images/pastel-extras.png', action: 'account', btn_key: 'open', btn_default: 'Open', show: !!perms },
       { title_key: 'supervisors', title_default: 'Supervisors', subtitle_key: 'manage_supervisors_sub', subtitle_default: 'Who supports you', image: 'images/pastel-chat.svg', action: 'supervisors', btn_key: 'view', btn_default: 'View', show: true },
       { title_key: 'trainings', title_default: 'Trainings', subtitle_key: 'trainings_subtitle', subtitle_default: 'Continuing education', image: 'images/pastel-modeling.png', action: 'lessons', btn_key: 'start', btn_default: 'Start', show: !!lessons },
@@ -893,6 +1117,34 @@ export default Component.extend({
   }),
 
   actions: {
+    // Grown-Ups lock (focused view): press-and-HOLD to exit. pointerdown starts a
+    // ~700ms timer that, if not cancelled by release/leave, drops focused mode and
+    // reveals the full caregiver dashboard. A deliberate hold (not a tap) keeps a
+    // communicator from leaving their view by accident.
+    lockHoldStart: function() {
+      var _this = this;
+      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); }
+      this.set('lockHolding', true);
+      this._lockHoldTimer = runLater(this, function() {
+        _this._lockHoldTimer = null;
+        _this.set('lockHolding', false);
+        _this.send('exitFocusedLayout');
+      }, 700);
+    },
+    lockHoldEnd: function() {
+      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
+      this.set('lockHolding', false);
+    },
+    // Transient unlock — reveal the normal dashboard for the grown-up WITHOUT changing
+    // the saved display preference. focusedHomeLayout flips false → the full chrome
+    // (pill-nav + header) returns; the body class is removed by its observer.
+    exitFocusedLayout: function() {
+      this.set('caregiverUnlocked', true);
+    },
+    // Re-enter the focused (kid-facing) view from the "Back to Kiddo's View" button.
+    backToFocused: function() {
+      this.set('caregiverUnlocked', false);
+    },
     addOrganization: function() {
       var user_name = this.appState.get('currentUser.user_name');
       if(user_name) {
@@ -1123,6 +1375,8 @@ export default Component.extend({
         modal.open('sync-details', { details: list });
       } else if (name === 'goals') {
         if (userName) { this.get('router').transitionTo('user.goals', userName); }
+      } else if (name === 'reports') {
+        if (userName) { this.get('router').transitionTo('user.stats', userName); }
       } else if (name === 'record_note') {
         if (this.appState.check_for_needing_purchase) {
           this.appState.check_for_needing_purchase().then(function() { modal.open('record-note', { note_type: 'text', user: user }); }, function() { modal.open('record-note', { note_type: 'text', user: user }); });
