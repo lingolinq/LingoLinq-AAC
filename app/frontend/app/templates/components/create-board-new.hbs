@@ -1155,7 +1155,6 @@
                 <li class="nb-advanced-toggle__hint-item">{{t "Board key" key="advanced_hint_board_key"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Language" key="advanced_hint_language"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Home-board categories" key="advanced_hint_home_categories"}}</li>
-                <li class="nb-advanced-toggle__hint-item">{{t "Word suggestions" key="advanced_hint_word_suggestions"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Icon" key="advanced_hint_icon"}}</li>
               </ul>
             </span>
@@ -1218,13 +1217,6 @@
                   {{/each}}
                 </div>
               {{/if}}
-              <div class="nb-field nb-field--checkbox new-board-checkbox-row new-board-checkbox-row--suggestions">
-                <label for="word_suggestions" class="nb-checkbox">
-                  <Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
-                  <span>{{t "Show word completion suggestions" key="show_word_suggestions"}}</span>
-                </label>
-                <p class="nb-field__hint">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</p>
-              </div>
               <div class="nb-field new-board-field--icon nb-icon-disclosure {{if this.icon_picker_open 'nb-icon-disclosure--open'}}">
                 <button
                   type="button"

@@ -439,6 +439,10 @@ var contentGrabbers = Service.extend({
   },
   content_dropped: function(button_id, dataTransfer) {
     if(!appStateService.get('edit_mode') || !dataTransfer) { return; }
+    // board-detail applies a dropped image DIRECTLY to the button (upload +
+    // change_button, no settings modal) — see apply_dropped_image_to_button.
+    // The classic board keeps the file_dropped → button-settings flow.
+    var on_board_detail = (('' + (appStateService.get('current_route') || '')).indexOf('board-detail') >= 0);
     if(dataTransfer.files && dataTransfer.files.length > 0) {
       var files = dataTransfer.files;
       var image = null, sound = null;
@@ -450,7 +454,8 @@ var contentGrabbers = Service.extend({
         }
       }
       if(image) {
-        window.cg.file_dropped(button_id, 'image', image);
+        if(on_board_detail) { window.cg.apply_dropped_image_to_button(button_id, image); }
+        else { window.cg.file_dropped(button_id, 'image', image); }
       } else if(sound) {
         window.cg.file_dropped(button_id, 'sound', sound);
       } else {
@@ -489,7 +494,8 @@ var contentGrabbers = Service.extend({
           }
         }
         if(results.url) {
-          window.cg.file_dropped(button_id, 'image', {url: results.url});
+          if(on_board_detail) { window.cg.apply_dropped_image_to_button(button_id, {url: results.url}); }
+          else { window.cg.file_dropped(button_id, 'image', {url: results.url}); }
         }
       });
       if(!found) {
@@ -498,6 +504,37 @@ var contentGrabbers = Service.extend({
     } else {
       alert(i18n.t('unrecognized_drop_type', "Unrecognized drop type"));
     }
+  },
+  apply_dropped_image_to_button: function(button_id, image_or_url) {
+    // Direct image apply for board-detail edit mode: upload the dropped image,
+    // then set it on the button via editManager.change_button — which updates
+    // image_url for the grid, marks the board edited, and re-renders — with NO
+    // button-settings modal. Mirrors the modal's set_as_button_image upload
+    // (pictureGrabber.save_image_preview) but commits straight to the button so
+    // the dropped image shows + persists immediately. image_or_url is either a
+    // File (dropped image file) or {url} (image dragged from another page/tab).
+    if(!button_id || !image_or_url) { return RSVP.reject(); }
+    var url_promise;
+    if(image_or_url.url) {
+      url_promise = RSVP.resolve(image_or_url.url);
+    } else {
+      url_promise = window.cg.read_file(image_or_url).then(function(data) {
+        return data.target.result; // data URL
+      });
+    }
+    return url_promise.then(function(url) {
+      var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
+      var preview = { url: url, content_type: content_type, protected: false };
+      return pictureGrabber.save_image_preview(preview).then(function(image) {
+        if(image && image.set) { image.set('source_url', url); }
+        editManager.change_button(button_id, {
+          image: image,
+          image_id: image.get('id'),
+          _picked_display_url: (image.get('url') || url)
+        });
+        return image;
+      });
+    });
   },
   read_file: function(file, type) {
     return new RSVP.Promise(function(resolve, reject) {
