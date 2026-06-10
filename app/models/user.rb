@@ -22,6 +22,12 @@ class User < ApplicationRecord
   has_many :licenses
   has_one :user_extra
 
+  # Version stamp recorded with a user's captured privacy-consent at signup.
+  # Keep in sync with the "Last Updated" date in the Privacy Policy
+  # (app/frontend/app/templates/privacy.hbs). Bump when a material change
+  # requires users to re-consent.
+  PRIVACY_POLICY_VERSION = '2026-06-09'
+
   def current_sponsor
     Organization.find_by(id: self.managing_organization_id)
   end
@@ -1116,6 +1122,13 @@ class User < ApplicationRecord
     end
     if params['terms_agree']
       self.settings['terms_agreed'] = Time.now.to_i
+      # The signup consent checkbox covers BOTH the Terms of Use and the
+      # Privacy Policy (see register.hbs), so capture an explicit, versioned
+      # privacy-consent record alongside the terms timestamp.
+      self.settings['privacy_consent'] = {
+        'agreed_at' => Time.now.utc.iso8601,
+        'policy_version' => PRIVACY_POLICY_VERSION
+      }
     end
     if params['avatar_url'] && (params['avatar_url'].match(/^http/) || params['avatar_url'] == 'fallback')
       if self.settings['avatar_url'] && self.settings['avatar_url'] != 'fallback'

@@ -541,6 +541,19 @@ describe User, :type => :model do
       expect(u.settings['public']).to eq(true)
     end
 
+    it "should record a versioned privacy-consent alongside terms agreement" do
+      u = User.new
+      u.process_params({}, {})
+      expect(u.settings['terms_agreed']).to eq(nil)
+      expect(u.settings['privacy_consent']).to eq(nil)
+
+      u.process_params({'terms_agree' => true}, {})
+      expect(u.settings['terms_agreed']).to_not eq(nil)
+      expect(u.settings['privacy_consent']).to_not eq(nil)
+      expect(u.settings['privacy_consent']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(u.settings['privacy_consent']['agreed_at']).to match(/^\d{4}-\d{2}-\d{2}T/)
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}

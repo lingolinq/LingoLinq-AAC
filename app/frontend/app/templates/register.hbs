@@ -78,18 +78,17 @@
             <div class="checkbox big_checkbox">
               <label>
                 <Input @type="checkbox" @checked={{this.googleSignupTerms}} />
-                {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+                {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
               </label>
             </div>
           {{else}}
             <div class="checkbox big_checkbox">
               <label>
                 <Input @type="checkbox" @checked={{this.combined_google_consent}} />
-                {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
+                {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
               </label>
             </div>
           {{/if}}
-          <div class="register-privacy-ack">{{t "By creating an account, you acknowledge LingoLinq's " key="register_consent_privacy_ack_prefix"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t "." key="register_consent_privacy_ack_suffix"}}</div>
         </div>
         <div class="register-btn-wrap">
           <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
@@ -256,20 +255,19 @@
           <div class="checkbox big_checkbox">
             <label>
               <Input @type="checkbox" @checked={{this.model.terms_agree}} />
-              {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+              {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
             </label>
           </div>
         {{else}}
           <div class="checkbox big_checkbox">
             <label>
               <Input @type="checkbox" @checked={{this.combined_consent}} />
-              {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
+              {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
             </label>
           </div>
         {{/if}}
-        <div class="register-privacy-ack">{{t "By creating an account, you acknowledge LingoLinq's " key="register_consent_privacy_ack_prefix"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t "." key="register_consent_privacy_ack_suffix"}}</div>
         {{#if this.ageAttestationRequired}}
-          <span class='text-danger register-checkboxes__error'>{{t "You must confirm your age and agree to the Terms of Use to create an account." key="combined_consent_required_message"}}</span>
+          <span class='text-danger register-checkboxes__error'>{{t "You must confirm your age and agree to the Terms of Use and Privacy Policy to create an account." key="combined_consent_required_message"}}</span>
         {{/if}}
       </div>
       <div class="register-btn-wrap">
