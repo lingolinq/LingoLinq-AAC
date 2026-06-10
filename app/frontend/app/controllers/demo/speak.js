@@ -111,10 +111,6 @@ export default Controller.extend({
     this.set('edit_mode', false);
   },
 
-  from_offline_boards: computed('source', function() {
-    return this.get('source') === 'offline_boards';
-  }),
-
   _set_board: function(board) {
     this.set('board', board);
     this.set('ordered_buttons', board ? board.ordered_buttons : []);

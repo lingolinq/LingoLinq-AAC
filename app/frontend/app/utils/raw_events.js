@@ -2350,6 +2350,34 @@ var buttonTracker = EmberObject.extend({
     }
     return res;
   },
+  // board-detail grid omits .advanced_selection so Ember {{action "select_button"}}
+  // handles pointer clicks. Symbol cards still carry .button, so raw_events also
+  // routes speak-mode releases through buttonSelect — duplicating utterance adds
+  // on mouse (mouseup + synthesized click). Touch suppresses click via
+  // preventDefault on touchend, so raw_events must remain the sole path there.
+  // Dwell, scanning, keyboard, and long-press use non-'click' sources and must
+  // still route through buttonSelect because Ember actions never fire for them.
+  board_detail_grid_target: function(elem) {
+    if(!elem) { return false; }
+    var dom = elem.dom || elem;
+    if(dom && dom.nodeType === 1) {
+      return $(dom).closest('.md-board-detail-grid').length > 0;
+    }
+    if(elem.virtual_button && $('.md-board-detail-grid').length > 0) {
+      return true;
+    }
+    return false;
+  },
+  defer_board_detail_click_to_ember: function(elem, source) {
+    if(source !== 'click') { return false; }
+    if(!buttonTracker.appState || !buttonTracker.appState.get('speak_mode')) { return false; }
+    if(!buttonTracker.board_detail_grid_target(elem)) { return false; }
+    var releaseType = buttonTracker.lastReleaseEvent && buttonTracker.lastReleaseEvent.type;
+    if(releaseType && releaseType.match(/touch/)) {
+      return false;
+    }
+    return true;
+  },
   button_select: function(elem, args, source) {
     var dom = elem.dom || elem;
     // INFLECTIONS OVERLAY: Overlay buttons have select_callback set by editManager.overlay_grid.
@@ -2368,6 +2396,9 @@ var buttonTracker = EmberObject.extend({
           return;
         }
         if(buttonTracker.appState.get('speak_mode')) {
+          if(buttonTracker.defer_board_detail_click_to_ember(elem, source)) {
+            return;
+          }
           editManager.controller.send('buttonSelect', id, args || null);
           return;
         }

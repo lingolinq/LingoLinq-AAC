@@ -225,6 +225,8 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Sticky QP gotcha:** `board` is sticky by default. Topbar "Try a Demo" links must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md).
 
+**Exit target:** Demo speak exit should always `LinkTo offline_boards` — do not branch on `source`; "Try a Demo" used to fall through to `index`.
+
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
 **Surface:** session navigation cache (`board_detail_cache.js`) and offline IndexedDB sync (`sync_boards`).
@@ -2764,6 +2766,16 @@ Default seeds should create beta-critical public/system data (`lingolinq`, `ling
 
 ---
 
+## Pattern: accessibility QA accounts are opt-in, separate from demo district
+
+**Surface:** eye-gaze and switch-scanning test accounts for manual QA.
+
+Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibility_users` to create `lingolinq-eyegaze` and `lingolinq-switchuser` with pre-set device prefs and public action-heavy boards. These are **not** part of `BetaSeed.verify_beta_seed` or `SEED_DEMO_DATA`. Passwords: `SEED_EYE_GAZE_PASSWORD`, `SEED_SWITCH_USER_PASSWORD` (required in production/staging).
+
+**Evidence:** `lib/accessibility_seed.rb`, `db/seeds.rb`, `lib/tasks/lingolinq.rake`; task log `2026-06-08-accessibility-user-seeds.md`.
+
+---
+
 ## Pattern: Beta program access on registration — server defaults + org opt-out
 
 **Surface:** self-service signup, org start codes, beta welcome routes.
@@ -3657,3 +3669,15 @@ file if the guard passes AND the candidate compiles. Variants are auto-excluded 
 block bodies differ (here: 141 selectors like `:root`, `@font-face`, `@media (max-width:640px)`
 ×28 distinct bodies were correctly preserved). The compile gate caught a parser bug on the
 first run and left the file untouched.
+
+---
+
+## Pattern: board-detail grid + `.button` class = double speak-bar add on mouse
+
+**Surface:** board-detail speak mode, symbol grid taps.
+
+**Root cause:** Classic boards wrap the grid in `.advanced_selection`, which blocks native clicks and routes selection only through `raw_events`. board-detail omits that wrapper so Ember `{{action "select_button"}}` works, but symbol cards still carry class `.button`. On **mouse**, `raw_events` `touch_release` → `buttonSelect` runs on `mouseup`, then the native `click` fires the same Ember action — two `utterance.add_button` calls (often one capitalized, one not). On **touch**, `preventDefault` on `touchend` suppresses the synthesized click, so `raw_events` must remain the sole path.
+
+**Fix recipe:** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; task log `2026-06-09-board-detail-speak-bar-double-add.md`.
