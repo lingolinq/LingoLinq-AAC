@@ -2,9 +2,9 @@ require 'spec_helper'
 
 # Lightweight guards for the signup privacy-consent contract. These are not
 # behavioral tests of the running app; they pin two invariants that, if broken
-# silently, would make the recorded `privacy_consent` artifact dishonest:
+# silently, would make the recorded `privacy_policy_acknowledged` artifact dishonest:
 #   D) the consent checkbox must actually present the Privacy Policy, because
-#      the backend records privacy_consent purely off `terms_agree`.
+#      the backend records privacy_policy_acknowledged purely off `terms_agree`.
 #   E) PRIVACY_POLICY_VERSION must match the published policy's "Last Updated"
 #      date, or new signups stamp consent against a version that no longer
 #      matches the policy text.

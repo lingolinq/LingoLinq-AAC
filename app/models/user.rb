@@ -407,12 +407,13 @@ class User < ApplicationRecord
     c.delete('parent_consent_expires_at')
     c.delete('pending_parent_consent')
     self.settings['coppa'] = c
-    # Record the privacy-policy acknowledgment at the moment the *parent*
-    # actually consents (deferred from the child's signup; see process_params).
-    self.settings['privacy_consent'] = {
-      'agreed_at' => Time.now.utc.iso8601,
+    # Record the parent's Privacy Policy acknowledgment (on the child's behalf)
+    # at the moment they complete the token flow; deferred from the child's
+    # signup (see process_params).
+    self.settings['privacy_policy_acknowledged'] = {
+      'acknowledged_at' => Time.now.utc.iso8601,
       'policy_version' => PRIVACY_POLICY_VERSION,
-      'consented_by' => 'parent'
+      'acknowledged_by' => 'parent'
     }
     res = self.save
     if res
@@ -1135,11 +1136,12 @@ class User < ApplicationRecord
       self.settings['terms_agreed'] = Time.now.to_i
       # The signup consent checkbox covers BOTH the Terms of Use and the
       # Privacy Policy (see register.hbs), so capture an explicit, versioned
-      # privacy-consent record alongside the terms timestamp. For under-13
-      # signups this record is removed in the COPPA block below and re-stamped
-      # by the *parent* in grant_parental_consent!, since a child cannot consent.
-      self.settings['privacy_consent'] = {
-        'agreed_at' => Time.now.utc.iso8601,
+      # record that the user acknowledged the Privacy Policy, alongside the
+      # terms timestamp. For under-13 signups this record is removed in the
+      # COPPA block below and re-stamped by the *parent* in
+      # grant_parental_consent!, since a child cannot acknowledge on its own.
+      self.settings['privacy_policy_acknowledged'] = {
+        'acknowledged_at' => Time.now.utc.iso8601,
         'policy_version' => PRIVACY_POLICY_VERSION
       }
     end
@@ -1200,10 +1202,10 @@ class User < ApplicationRecord
           'parent_consent_token' => GoSecure.nonce('parent_consent'),
           'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
         }
-        # COPPA: a child cannot grant privacy consent. Drop any signup-time
-        # privacy_consent stamped above; it is recorded by the parent in
-        # grant_parental_consent! once they complete the email token flow.
-        self.settings.delete('privacy_consent')
+        # COPPA: a child cannot acknowledge the Privacy Policy on its own. Drop
+        # any signup-time acknowledgment stamped above; it is recorded by the
+        # parent in grant_parental_consent! once they complete the token flow.
+        self.settings.delete('privacy_policy_acknowledged')
       end
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']

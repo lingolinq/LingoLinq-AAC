@@ -541,29 +541,30 @@ describe User, :type => :model do
       expect(u.settings['public']).to eq(true)
     end
 
-    it "should record a versioned privacy-consent alongside terms agreement" do
+    it "should record a versioned privacy-policy acknowledgment alongside terms agreement" do
       u = User.new
       u.process_params({}, {})
       expect(u.settings['terms_agreed']).to eq(nil)
-      expect(u.settings['privacy_consent']).to eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']).to eq(nil)
 
       u.process_params({'terms_agree' => true}, {})
       expect(u.settings['terms_agreed']).to_not eq(nil)
-      expect(u.settings['privacy_consent']).to_not eq(nil)
-      expect(u.settings['privacy_consent']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
-      expect(u.settings['privacy_consent']['agreed_at']).to match(/^\d{4}-\d{2}-\d{2}T/)
+      expect(u.settings['privacy_policy_acknowledged']).to_not eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(u.settings['privacy_policy_acknowledged']['acknowledged_at']).to match(/^\d{4}-\d{2}-\d{2}T/)
     end
 
-    it "should not record consent when terms_agree is the string 'false'" do
+    it "should not record acknowledgment when terms_agree is the string 'false'" do
       # In Ruby the string 'false' is truthy; the gate must use process_boolean
-      # so an API request that explicitly declines does not record consent.
+      # so an API request that explicitly declines records neither terms
+      # agreement nor the Privacy Policy acknowledgment.
       u = User.new
       u.process_params({'terms_agree' => 'false'}, {})
       expect(u.settings['terms_agreed']).to eq(nil)
-      expect(u.settings['privacy_consent']).to eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']).to eq(nil)
     end
 
-    it "should defer a minor's privacy-consent to the parental grant (COPPA)" do
+    it "should defer a minor's privacy-policy acknowledgment to the parental grant (COPPA)" do
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       u = User.new
       u.process_params({
@@ -573,17 +574,17 @@ describe User, :type => :model do
         'coppa_under_13' => true,
         'parent_consent_email' => 'parentpriv@example.com'
       }, {})
-      # The child's signup tick must NOT record privacy consent...
+      # The child's signup tick must NOT record the Privacy Policy acknowledgment...
       expect(u.settings['coppa']['pending_parent_consent']).to eq(true)
-      expect(u.settings['privacy_consent']).to eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']).to eq(nil)
 
       # ...the parent records it by completing the email token flow.
       u.save!
       token = u.settings['coppa']['parent_consent_token']
       expect(u.grant_parental_consent!(token)).to eq(true)
-      expect(u.settings['privacy_consent']).to_not eq(nil)
-      expect(u.settings['privacy_consent']['consented_by']).to eq('parent')
-      expect(u.settings['privacy_consent']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(u.settings['privacy_policy_acknowledged']).to_not eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']['acknowledged_by']).to eq('parent')
+      expect(u.settings['privacy_policy_acknowledged']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
     end
 
     it "should coerce preferences cookies to boolean" do
