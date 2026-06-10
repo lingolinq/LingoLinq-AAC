@@ -75,18 +75,24 @@
                intact. Drops the age clause when the COPPA radio
                flow above already gates age. --}}
           {{#if this.showCoppaConsent}}
+            {{!-- Checkbox + consent text are siblings (not wrapped in a
+                  <label>) so the inline Terms + Privacy links don't trip
+                  ember-template-lint's no-nested-interactive rule, which
+                  forbids more than one interactive element inside a single
+                  <label>. The checkbox's accessible name comes from the
+                  span via aria-labelledby. --}}
             <div class="checkbox big_checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.googleSignupTerms}} />
+              <Input @type="checkbox" @checked={{this.googleSignupTerms}} id="register_google_terms_consent" aria-labelledby="register_google_terms_consent_text" />
+              <span id="register_google_terms_consent_text" class="big_checkbox__consent">
                 {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
-              </label>
+              </span>
             </div>
           {{else}}
             <div class="checkbox big_checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.combined_google_consent}} />
+              <Input @type="checkbox" @checked={{this.combined_google_consent}} id="register_google_combined_consent" aria-labelledby="register_google_combined_consent_text" />
+              <span id="register_google_combined_consent_text" class="big_checkbox__consent">
                 {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
-              </label>
+              </span>
             </div>
           {{/if}}
         </div>
@@ -253,17 +259,17 @@
              age. --}}
         {{#if this.showCoppaConsent}}
           <div class="checkbox big_checkbox">
-            <label>
-              <Input @type="checkbox" @checked={{this.model.terms_agree}} />
+            <Input @type="checkbox" @checked={{this.model.terms_agree}} id="register_terms_consent" aria-labelledby="register_terms_consent_text" />
+            <span id="register_terms_consent_text" class="big_checkbox__consent">
               {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
-            </label>
+            </span>
           </div>
         {{else}}
           <div class="checkbox big_checkbox">
-            <label>
-              <Input @type="checkbox" @checked={{this.combined_consent}} />
+            <Input @type="checkbox" @checked={{this.combined_consent}} id="register_combined_consent" aria-labelledby="register_combined_consent_text" />
+            <span id="register_combined_consent_text" class="big_checkbox__consent">
               {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
-            </label>
+            </span>
           </div>
         {{/if}}
         {{#if this.ageAttestationRequired}}
