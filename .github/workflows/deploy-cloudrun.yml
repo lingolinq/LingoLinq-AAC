@@ -22,6 +22,20 @@ name: Deploy to Cloud Run
 #   GCP_VPC_NETWORK        -- VPC network for Direct VPC egress (Memorystore Redis reachability)
 #   GCP_VPC_SUBNET         -- VPC subnet for Direct VPC egress
 #
+# RUNTIME IDENTITY: the web service, worker pool, and migration Job all RUN AS the runtime
+# service account lingolinq-run@${GCP_PROJECT_ID}.iam.gserviceaccount.com (derived inline
+# from GCP_PROJECT_ID, created by scripts/gcp/phase1-setup.sh). This is NOT GCP_DEPLOY_SA
+# (that SA only authenticates GitHub Actions via WIF). It is REQUIRED: without
+# --service-account, Cloud Run defaults to the project's Editor-roled compute SA, which has
+# no secretAccessor and therefore cannot read the boot secrets -- the app would fail to boot,
+# and the least-privilege runtime SA + its per-secret grants would be inert. (PR #353 review.)
+# ASSUMES the runtime SA is co-located with GCP_PROJECT_ID (single-project prod). Cross-project
+# use would require disabling the iam.disableCrossProjectServiceAccountUsage org policy.
+# PHASE 3 PREREQ: grant roles/cloudsql.client to this runtime SA before enabling -- the
+# migration Job, web service, and worker pool all connect to Cloud SQL (--set-cloudsql-instances)
+# and will fail to authenticate at DB connect without it. (PR #353/#354 adversary review.)
+# NOTE: worker pools are on the `gcloud beta` surface (not GA on SDK 564), hence `beta` below.
+#
 # GCP SECRET MANAGER secrets Phase 2 step 4 must seed (referenced by name via --set-secrets,
 # NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DATABASE_URL,
 #   REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY, DEFAULT_HOST.
@@ -105,6 +119,7 @@ jobs:
           gcloud run jobs deploy lingolinq-migrate \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
+            --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --execution-environment gen2 \
             --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
             --command bundle \
@@ -120,6 +135,7 @@ jobs:
           gcloud run deploy lingolinq-web \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
+            --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --execution-environment gen2 \
             --min-instances 1 \
             --memory 2Gi \
@@ -134,9 +150,10 @@ jobs:
 
       - name: Deploy worker pool
         run: |
-          gcloud run worker-pools deploy lingolinq-worker \
+          gcloud beta run worker-pools deploy lingolinq-worker \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
+            --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --instances 1 \
             --command bin/docker-worker-entrypoint \
             --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \

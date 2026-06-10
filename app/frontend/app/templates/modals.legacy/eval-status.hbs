@@ -17,11 +17,11 @@
           <div class="la-eval-status-form">
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label">{{t "Current User Name" key="current_user_name"}}</label>
-              <Input type="text" @value={{this.reset_user_name}} class="la-eval-status-field__input" />
+              <Input type="text" @value={{this.reset_user_name}} class="la-eval-status-field__input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
             </div>
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label">{{t "New Email Address" key="new_email"}}</label>
-              <Input type="text" @value={{this.reset_email}} class="la-eval-status-field__input" />
+              <Input type="email" @value={{this.reset_email}} class="la-eval-status-field__input" autocomplete="email" inputmode="email" />
               {{#if this.status.reset_email_used}}
                 <p class="la-eval-status-error">{{t "Must be a different email address than last time" key="must_be_different_email"}}</p>
               {{/if}}
@@ -44,7 +44,7 @@
             </div>
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label">{{t "New Password" key="new_password"}}</label>
-              <Input type="password" placeholder="(optional)" @value={{this.reset_password}} class="la-eval-status-field__input" />
+              <Input type="password" placeholder="(optional)" @value={{this.reset_password}} class="la-eval-status-field__input" autocomplete="new-password" />
             </div>
           </div>
         {{else}}
@@ -57,14 +57,14 @@
         <div class="la-eval-status-form">
           <div class="la-eval-status-field">
             <label class="la-eval-status-field__label">{{t "New User Name" key="new_user_name"}}</label>
-            <Input type="text" @value={{this.transfer_user_name}} class="la-eval-status-field__input" />
+            <Input type="text" @value={{this.transfer_user_name}} class="la-eval-status-field__input" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" />
             {{#if this.status.transfer_bad_credentials}}
               <p class="la-eval-status-error">{{t "No account found with that user name and password" key="no_account_found"}}</p>
             {{/if}}
           </div>
           <div class="la-eval-status-field">
             <label class="la-eval-status-field__label">{{t "New Password" key="new_password"}}</label>
-            <Input type="password" @value={{this.transfer_password}} class="la-eval-status-field__input" />
+            <Input type="password" @value={{this.transfer_password}} class="la-eval-status-field__input" autocomplete="current-password" />
           </div>
         </div>
       {{else if this.choice.extend}}

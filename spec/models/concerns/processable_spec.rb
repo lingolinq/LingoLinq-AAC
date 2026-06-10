@@ -104,6 +104,11 @@ describe Processable, :type => :model do
       u = User.new(:settings => {'name' => 'Bob Jones'})
       expect(u.generate_user_name).to eq('bob-jones')
     end
+
+    it "should ignore blank name suggestions and fall back to email" do
+      u = User.new(:settings => {'name' => '', 'email' => 'blank_name@example.com'})
+      expect(u.generate_user_name('')).to eq('blank_name')
+    end
     
     it "should not generate an existing user name" do
       User.create(:user_name => "franklin")

@@ -633,6 +633,14 @@ class User < ApplicationRecord
         'blank_status' => false,
         'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
+        # Word prediction on/off (global, governs BOTH classic board-alt and
+        # modern board-detail speak modes). Default OFF — the user opts in via
+        # Preferences or the board-detail edit panel.
+        'word_suggestions' => false,
+        # Where word prediction renders in board-detail speak mode: 'auto'
+        # (responsive — inline in the speak bar on wide screens, vertical side
+        # rail on narrow), or pinned to 'speak_bar' / 'side_rail'.
+        'word_suggestion_position' => 'auto',
         'hidden_buttons' => 'grid',
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
@@ -644,7 +652,26 @@ class User < ApplicationRecord
         # full-device grid (board-alt). Both render the same board
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
-        'board_view_style' => 'modern'
+        'board_view_style' => 'modern',
+        # Home-page dashboard arrangement: 'dynamic' (default), 'focused', or
+        # 'balanced'. Chosen during the Getting Started flow; drives the
+        # md-grid--layout-* modifier on the dashboard grid.
+        'dashboard_layout' => 'dynamic',
+        # Per-section visibility for the home dashboard cards, e.g.
+        # {'boards' => true, 'extras' => false}. Chosen during the Getting
+        # Started flow. A missing key (or true) means visible, so sections
+        # default to shown; only keys explicitly set to false are hidden.
+        'dashboard_sections' => {},
+        # Per-section grid POSITION for the home dashboard cards, e.g.
+        # {'speak' => 'org', 'org' => 'speak'} — each card maps to the home-slot
+        # it occupies (default identity). Chosen by dragging-to-swap in the
+        # Getting Started preview. A missing key means the card sits in its own
+        # slot, so arrangements default to the canonical layout.
+        'dashboard_positions' => {},
+        # Boards hero placement (drag-to-move it), e.g. {'side' => 'right'} or
+        # {'raised' => true}. Empty/absent => Boards in its default left, lower
+        # position. Drives a structural mirror / vertical-shift of the home grid.
+        'dashboard_boards' => {}
       },
       'authenticated_user' => {
         'long_press_edit' => false,
@@ -1092,10 +1119,10 @@ class User < ApplicationRecord
       'board_background', 'vocalization_height', 'role', 'auto_open_speak_mode',
       'canvas_render', 'blank_status', 'share_notifications', 'notification_frequency',
       'skip_supervisee_sync', 'sync_refresh_interval', 'multi_touch_modeling',
-      'goal_notifications', 'word_suggestion_images', 'hidden_buttons',
+      'goal_notifications', 'word_suggestion_images', 'word_suggestions', 'word_suggestion_position', 'hidden_buttons',
       'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
-      'new_index', 'debounce', 'cookies', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
+      'new_index', 'debounce', 'cookies', 'telemetry_opt_in', 'comms_log_opt_in', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
       'highlighted_buttons', 'never_delete', 'dim_header', 'inflections_overlay',
       'highlight_popup_text', 'phrase_categories', 'high_contrast', 'swipe_pages',
       'hide_pin_hint', 'battery_sounds', 'auto_inflections', 'private_logging',
@@ -1105,7 +1132,8 @@ class User < ApplicationRecord
       'prevent_button_interruptions', 'utterance_interruptions', 'prevent_utterance_repeat',
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
-      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access'
+      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access',
+      'dashboard_layout', 'dashboard_sections', 'dashboard_positions', 'dashboard_boards'
     ]
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports', 
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']

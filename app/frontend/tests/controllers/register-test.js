@@ -9,11 +9,124 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import EmberObject from '@ember/object';
 
 describe('RegisterController', 'controller:register', function() {
+  var testOwner;
+
+  beforeEach(function() {
+    testOwner = this.owner;
+  });
+
   it("should exist", function() {
     expect(this).not.toEqual(null);
     expect(this).not.toEqual(window);
+  });
+
+  it("moves communicators through the birthdate step before account details", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'communicator');
+
+    expect(controller.get('registrationStep')).toEqual('communicator_age');
+    expect(controller.get('model.preferences.registration_type')).toEqual('communicator');
+
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 20).toString());
+    controller.send('continue_communicator_age');
+
+    expect(controller.get('coppa_age_group')).toEqual('over_13');
+    expect(controller.get('registrationStep')).toEqual('account');
+  });
+
+  it("routes under-13 communicators to the parent approval step", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'communicator');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', (new Date()).getFullYear().toString());
+    controller.send('continue_communicator_age');
+
+    expect(controller.get('coppa_age_group')).toEqual('under_13');
+    expect(controller.get('registrationStep')).toEqual('under_13');
+    controller.set('triedToSave', true);
+    expect(controller.get('coppaParentEmailMissing')).toEqual(true);
+  });
+
+  it("stores supporter subtypes without persisting the supporter grouping", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'supporter');
+
+    expect(controller.get('registrationStep')).toEqual('supporter_type');
+    expect(controller.get('model.preferences.registration_type')).toEqual(null);
+
+    controller.send('select_supporter_type', 'teacher');
+    expect(controller.get('registrationStep')).toEqual('account');
+    expect(controller.get('registration_role')).toEqual('supporter');
+    expect(controller.get('model.preferences.registration_type')).toEqual('teacher');
+  });
+
+  it("shows role-specific signup heading copy", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: { registration_type: 'parent' } }));
+    expect(controller.get('selectedRoleSignupHeading')).toEqual("Sign up as a parent today!");
+
+    controller.set('model.preferences.registration_type', 'teacher');
+    expect(controller.get('selectedRoleSignupHeading')).toEqual("Sign up as a teacher today!");
+
+    controller.set('model.preferences.registration_type', 'other');
+    expect(controller.get('selectedRoleSignupHeading')).toEqual("Sign up as another supporter today!");
+
+    controller.set('model.preferences.registration_type', 'communicator');
+    expect(controller.get('selectedRoleSignupHeading')).toEqual("Sign up as a communicator today!");
+  });
+
+  it("maps the optional product improvement checkbox to existing preferences", function() {
+    var prefs = {};
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: prefs }));
+    controller.set('user', EmberObject.create({ preferences: prefs }));
+
+    controller.send('toggle_product_improvement', true);
+    expect(controller.get('model.preferences.cookies')).toEqual(true);
+    expect(controller.get('model.preferences.telemetry_opt_in')).toEqual(true);
+    expect(controller.get('model.preferences.comms_log_opt_in')).toEqual(true);
+
+    controller.send('toggle_product_improvement', false);
+    expect(controller.get('model.preferences.cookies')).toEqual(false);
+    expect(controller.get('model.preferences.telemetry_opt_in')).toEqual(false);
+    expect(controller.get('model.preferences.comms_log_opt_in')).toEqual(false);
+  });
+
+  it("requires username before Google completion can submit", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('googleSignupBusy', false);
+    controller.set('googleSignupTerms', true);
+    controller.set('googleSignupUserName', '');
+
+    expect(controller.get('googleSignupSubmitDisabled')).toEqual(true);
+
+    controller.set('googleSignupUserName', 'chosen-name');
+    expect(controller.get('googleSignupSubmitDisabled')).toEqual(false);
+
+    controller.set('googleSignupUserName', 'chosen name');
+    expect(controller.get('googleSignupSubmitDisabled')).toEqual(true);
+  });
+
+  it("requires username on staged email signup steps", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {}, terms_agree: true, user_name: '' }));
+    controller.set('user', EmberObject.create({ user_name_check: { exists: false } }));
+    controller.set('registrationStep', 'account');
+    controller.set('triedToSave', true);
+
+    expect(controller.get('userNameMissing')).toEqual(true);
+    expect(controller.get('accountStepEmailSignupDisabled')).toEqual(true);
+
+    controller.set('model.user_name', 'chosen-name');
+    expect(controller.get('userNameMissing')).toEqual(false);
+    expect(controller.get('accountStepEmailSignupDisabled')).toEqual(false);
   });
 });
 // import Ember from 'ember';

@@ -249,6 +249,21 @@
       </div>
     </div>
     <div class="form-group">
+      <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.pending_preferences.word_suggestions}} id="word_suggestions" />
+            {{t "Show word prediction in Speak Mode" key='show_word_prediction_pref'}}
+          </label>
+        </div>
+        {{#if this.pending_preferences.word_suggestions}}
+          <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position'}}</label>
+          {{bound-select select_class="form-control" select_id="word_suggestion_position" content=this.wordPredictionPositionList selection=this.pending_preferences.word_suggestion_position action=(action (mut this.pending_preferences.word_suggestion_position)) }}
+        {{/if}}
+      </div>
+    </div>
+    <div class="form-group">
       <label for="word_suggestion_images" class="col-sm-3 control-label">{{t "Keyboard Suggestions" key='keyboard_suggestions'}}</label>
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">

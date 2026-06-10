@@ -147,6 +147,20 @@ export default Controller.extend({
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));
     this.set('original_preferences', JSON.parse(str));
+    // Word prediction prefs predate these keys for existing users (the API
+    // returns null), so seed the default OFF / auto-position values into BOTH
+    // pending and original. That makes the toggle/selector render in their
+    // default state without falsely marking the form dirty (the speak pages
+    // treat null as off/auto anyway, so leaving them null in the DB stays
+    // correct).
+    if(this.get('pending_preferences.word_suggestions') == null) {
+      this.set('pending_preferences.word_suggestions', false);
+      this.set('original_preferences.word_suggestions', false);
+    }
+    if(!this.get('pending_preferences.word_suggestion_position')) {
+      this.set('pending_preferences.word_suggestion_position', 'auto');
+      this.set('original_preferences.word_suggestion_position', 'auto');
+    }
     this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
     this.set('advanced', true);
     this.set('skip_save_on_transition', false);
@@ -232,6 +246,12 @@ export default Controller.extend({
     {name: i18n.t('show_grid', "Show Grid Lines"), id: "grid"},
     {name: i18n.t('show_dim', "Show as Dimmed Out"), id: "hint"},
     {name: i18n.t('hide_complete', "Hide Completely"), id: "hide"}
+  ],
+  // Where word prediction renders in board-detail speak mode.
+  wordPredictionPositionList: [
+    {name: i18n.t('word_prediction_pos_auto', "Best fit for the screen"), id: "auto"},
+    {name: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar"), id: "speak_bar"},
+    {name: i18n.t('word_prediction_pos_side_rail', "To the right of the board"), id: "side_rail"}
   ],
   dimLevelList: [
     {name: i18n.t('default_dimmed', "Default Dimmed"), id: "default_dim"},

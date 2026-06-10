@@ -325,6 +325,21 @@ LingoLinq.registrationTypes = [
   {name: i18n.t('registration_type_teacher', "Teacher / Educator"), id: 'teacher'},
   {name: i18n.t('registration_type_other', "Other Supporter"), id: 'other'}
 ];
+// Two-tier registration role: a simple top-level choice (Communicator vs
+// Supporter), then a supporter sub-type. The STORED registration_type stays one
+// of communicator/therapist/parent/teacher/other (see user.rb role mapping) —
+// 'supporter' is only the UI grouping, never persisted as the registration_type.
+LingoLinq.roleCategories = [
+  {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
+  {name: i18n.t('registration_type_communicator', "Communicator (AAC user)"), id: 'communicator'},
+  {name: i18n.t('registration_role_supporter', "Supporter"), id: 'supporter'}
+];
+LingoLinq.supporterTypes = [
+  {name: i18n.t('supporter_type_therapist', "Therapist"), id: 'therapist'},
+  {name: i18n.t('supporter_type_parent', "Parent"), id: 'parent'},
+  {name: i18n.t('supporter_type_teacher', "Teacher"), id: 'teacher'},
+  {name: i18n.t('supporter_type_other', "Other"), id: 'other'}
+];
 LingoLinq.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},
   {id: 'hourglass', label: i18n.t('waiting_for_evaluation', "Waiting for Evaluation"), on: true},
