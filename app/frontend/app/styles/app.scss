@@ -27149,6 +27149,28 @@ header.header--unauthenticated ~ #content .la-topbar {
   padding: 1.5rem;
 }
 
+/* Beta Program Notice callout on the Privacy Policy page (temporary, expires at launch) */
+.la-privacy-beta-notice {
+  margin: $aac-spacing-24 0;
+  padding: $aac-spacing-24;
+  border-left: 4px solid $indigo;
+  border-radius: 12px;
+  background: rgba($indigo, 0.05);
+
+  h3 {
+    margin: 0 0 $aac-spacing-12;
+    font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+    font-weight: $aac-font-weight-black;
+    color: $indigo;
+  }
+
+  p {
+    margin: 0;
+    color: $brand-charcoal-dark;
+    line-height: 1.6;
+  }
+}
+
 .la-privacy-content-header {
   display: flex;
   flex-direction: column;
@@ -39366,7 +39388,12 @@ a.la-footer-bottom-a11y-wcag {
     padding-left: 28px;
     padding-top: 0;
 
-    label {
+    /* `.big_checkbox__consent` is the non-<label> consent text span used by
+       the signup Terms+Privacy checkboxes (see register.hbs); it shares the
+       label typography so the markup change to satisfy no-nested-interactive
+       is visually identical. */
+    label,
+    .big_checkbox__consent {
       display: block;
       font-weight: normal;
       font-size: 14px;

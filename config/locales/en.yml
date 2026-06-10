@@ -26,6 +26,7 @@ en:
     greeting: "Hello,"
     intro: "A new %{app_name} account was created for a user who indicated they are under 13. U.S. regulations require verifiable parental consent before the account can be fully activated."
     action_prompt: "If you are the parent or legal guardian, please open the link below to provide consent:"
+    privacy_notice: "Before giving consent, please review how we collect, use, and protect your child's information in our Privacy Policy:"
     footer: "If you did not expect this message, you can ignore this email. The account will remain restricted until consent is given or the request expires."
   parental_consent:
     oauth_login_blocked: "This account is waiting for a parent or guardian to approve it before you can sign in here."
