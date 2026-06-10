@@ -639,9 +639,9 @@ class User < ApplicationRecord
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
         'board_view_style' => 'modern',
-        # Home-page dashboard arrangement: 'dynamic' (default), 'focused', or
-        # 'balanced'. Chosen during the Getting Started flow; drives the
-        # md-grid--layout-* modifier on the dashboard grid.
+        # Home-page dashboard arrangement: 'dynamic' (default) or 'balanced'.
+        # Chosen during the Dashboard Design flow; drives the md-grid--layout-*
+        # modifier on the dashboard grid.
         'dashboard_layout' => 'dynamic',
         # Per-section visibility for the home dashboard cards, e.g.
         # {'boards' => true, 'extras' => false}. Chosen during the Getting

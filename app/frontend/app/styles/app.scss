@@ -857,16 +857,6 @@ body:has(#within_ember.bento-page-with-footer) {
   height: 0;
   overflow: hidden;
 }
-/* Focused kid view has NO footer, so the footer-scoped collapse above misses the
-   empty route-placeholder ember-view (the opening-observer ghost). Unchecked it
-   keeps flex:1 and grabs vertical space, pushing the focused content down — a gap
-   that's worst on tall/portrait viewports. Collapse it here so the content fills up. */
-body.md-home-focused #content > .ember-view:empty {
-  flex: 0 0 0 !important;
-  min-height: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
-}
 /* General fallback: any non-empty ember-view outlet sizes to its content so #content can scroll.
    Specific page rules below can override if needed. */
 #within_ember.bento-page-with-footer #content > .ember-view:not(:empty),
@@ -30064,290 +30054,6 @@ body.md-gst-active .app-navbar__beta-feedback-link {
   display: none !important;
 }
 
-/* ── Focused Layout (communicators): body.md-home-focused hides the inner-header
-   identity chrome — Upgrade pill, Settings gear, and the avatar dropdown — while
-   KEEPING the logo, search, and help (?) (the focused screen's only top-right
-   control). Mirrors the md-gst-active chrome-hide. The pill-nav isn't hidden via
-   CSS — it simply isn't rendered in focused mode (see the template branch). ── */
-body.md-home-focused #identity .md-pillnav__upgrade-nav,
-body.md-home-focused #identity .ll-header-settings-btn,
-body.md-home-focused #identity > .dropdown,
-/* The inner-header Take-a-Tour / Getting-Started circle buttons stay MOUNTED (the
-   navbar is global, so a mid-modal layout flip never tears down the modal) but are
-   hidden in the focused KID view — the unlocked parent view (md-home-focused
-   removed) shows them again. (.md-home-actions retained for any legacy markup.) */
-body.md-home-focused .app-navbar__home-actions,
-body.md-home-focused .md-home-actions {
-  display: none !important;
-}
-/* Focused view sits flush to the top — drop the workspace's 40px top margin (base
-   rule uses !important, so the override must too). */
-body.md-home-focused .md-workspace {
-  margin-top: 0 !important;
-}
-/* Focused — the help (?) button is the only identity control left; nudge it 48px
-   to the right. */
-body.md-home-focused .ll-bento-help-btn--support {
-  transform: translateX(48px) !important;
-}
-
-/* Hidden clone-source for the Getting Started Focused preview — Dashboard::FocusedHome
-   rendered off-screen so its LIVE markup can be cloned (the real focused view isn't
-   rendered while the modal is open). Off-screen rather than display:none so it renders
-   fully (board thumbs etc.) for an accurate clone. */
-.md-gst-focused-source {
-  position: absolute;
-  left: -99999px;
-  top: 0;
-  width: 1120px;
-  pointer-events: none;
-}
-/* Focused home shell — centered column with room at the bottom for the lock. */
-.md-main--focused {
-  position: relative;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 8px 24px 110px;
-  box-sizing: border-box;
-}
-/* Greeting — short and STATIC (no animation): wave glyph + first name. Left-aligned. */
-.md-focused-greeting {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 6px 0 22px;
-}
-.md-focused-greeting__wave {
-  font-size: 34px;
-  line-height: 1;
-  /* Nudge the wave up so it sits above the greeting baseline. */
-  transform: translateY(-1rem);
-}
-.md-focused-greeting__title {
-  margin: 0;
-  font-size: 38px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: $indigo;
-}
-/* Talk hero — full-width, dark navy, white content: the fastest communicate path. */
-.md-focused-talk {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  border: none;
-  cursor: pointer;
-  padding: 42px 24px;
-  border-radius: 28px;
-  color: #ffffff;
-  background: linear-gradient(160deg, #25325a 0%, $indigo 62%);
-  box-shadow: 0 18px 40px rgba($indigo, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
-}
-.md-focused-talk:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 24px 52px rgba($indigo, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.10);
-}
-.md-focused-talk:active { transform: translateY(0); }
-.md-focused-talk__icon { color: #ffffff; margin-bottom: 8px; }
-.md-focused-talk__title { font-size: 46px; font-weight: 800; letter-spacing: -0.01em; }
-.md-focused-talk__sub { font-size: 17px; font-weight: 500; color: rgba(255, 255, 255, 0.78); }
-
-/* Boards — wrapping preview grid (no New Board / View All buttons). */
-.md-focused-boards { margin-top: 52px; }
-.md-focused-boards__title {
-  margin: 0 0 14px;
-  font-size: 20px;
-  font-weight: 700;
-  color: rgba($la-navy, 0.7);
-  text-align: center;
-}
-/* One centered row on larger screens (the tiles share the row and grow to fill);
-   wraps to multiple rows on smaller screens. Flexbox (not grid) so the wrap is
-   automatic — see `.md-focused-board { flex }` for the per-tile basis. */
-.md-focused-boards__grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16px;
-}
-.md-focused-board {
-  position: relative;
-  /* Share the row + grow to fill on larger screens; the 130px basis is the wrap
-     threshold so the tiles drop to more rows on smaller screens. */
-  flex: 1 1 130px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 24px 14px 18px;
-  border-radius: 20px;
-  border: 1px solid rgba($la-navy, 0.08);
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba($la-navy, 0.06);
-  cursor: pointer;
-  transition: transform 140ms ease-out, box-shadow 140ms ease-out, border-color 140ms ease-out;
-}
-.md-focused-board:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 30px rgba($la-navy, 0.12);
-  border-color: rgba($brand-dusty-denim, 0.40);
-}
-.md-focused-board .md-thumb { width: 78px; height: 78px; }
-.md-focused-board__label {
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1.25;
-  text-align: center;
-  color: $indigo;
-  /* Reserve two lines so 1-line and 2-line board names produce the SAME card
-     height (the flex row also stretches tiles to equal height per row). */
-  min-height: 2.5em;
-}
-/* Home board gets the verdigris edge + a home glyph (top-right). */
-.md-focused-board--home { border-color: rgba($brand-stormy-teal, 0.55); }
-/* Home-board marker — a small home glyph pinned to the card's top-right corner
-   (replaces the old centered "Home Board" text badge). */
-.md-focused-board__home-icon {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  color: $brand-stormy-teal;
-  background: rgba($brand-stormy-teal, 0.12);
-  border: 1px solid rgba($brand-stormy-teal, 0.30);
-  z-index: 1;
-}
-.md-focused-board__badge {
-  position: absolute;
-  top: -9px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 3px 12px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #ffffff;
-  white-space: nowrap;
-  background: $brand-stormy-teal;
-  box-shadow: 0 4px 10px rgba($brand-stormy-teal, 0.35);
-}
-
-/* Grown-Ups lock — fixed bottom-right; PRESS-AND-HOLD fills the bar then exits. */
-.md-focused-lock {
-  position: fixed;
-  right: 22px;
-  /* Top-right, below the navbar (was bottom-right). */
-  top: calc(var(--topbar-height, 68px) + 68px);
-  bottom: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba($la-navy, 0.12);
-  box-shadow: 0 6px 18px rgba($la-navy, 0.10);
-  color: rgba($la-navy, 0.72);
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-  overflow: hidden;
-  z-index: 50;
-}
-.md-focused-lock__icon { display: inline-flex; color: rgba($la-navy, 0.62); }
-.md-focused-lock__label { font-size: 14px; font-weight: 700; }
-.md-focused-lock__icon,
-.md-focused-lock__label { position: relative; z-index: 1; }
-/* Hold-progress fill: grows to full over the same 700ms as the hold timer; snaps
-   back instantly (no transition) on release when .is-holding is removed. */
-.md-focused-lock__hold {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  background: rgba($brand-stormy-teal, 0.20);
-  pointer-events: none;
-}
-.md-focused-lock.is-holding .md-focused-lock__hold {
-  width: 100%;
-  transition: width 700ms linear;
-}
-
-/* Focused layout rendered INSIDE the Getting Started preview (read-only). Same
-   md-focused-* markup as the live view, minus the fixed lock — so trim the bottom
-   padding reserved for it, drop the centering max-width (the preview page wrapper
-   handles width), and make the whole thing inert (it's a visual preview). */
-.md-main--focused-preview {
-  max-width: none;
-  padding: 18px 24px 22px;
-  pointer-events: none;
-}
-.md-main--focused-preview,
-.md-main--focused-preview * {
-  pointer-events: none !important;
-  cursor: default !important;
-}
-
-/* "Back to Kiddo's View" — shown to a focused communicator after a grown-up unlocks
-   the full dashboard. Fixed, centred just below the inner header (anchored to
-   --topbar-height so it tracks the header across breakpoints). A prominent brand pill
-   so the way back to the kid-facing view is always obvious. */
-.md-back-to-focused-bar {
-  position: fixed;
-  /* Top-right, below the navbar — same spot the Grown-Ups lock uses in the kid
-     view (this only shows in the unlocked parent/balanced view). */
-  top: calc(var(--topbar-height, 68px) + 68px);
-  right: 24px;
-  left: auto;
-  bottom: auto;
-  display: flex;
-  justify-content: flex-end;
-  pointer-events: none;
-  z-index: 1200;
-}
-.md-back-to-focused {
-  pointer-events: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: #ffffff;
-  background: linear-gradient(135deg, $brand-stormy-teal 0%, $indigo 100%);
-  box-shadow: 0 8px 22px rgba($indigo, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
-}
-.md-back-to-focused:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba($indigo, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
-.md-back-to-focused:active { transform: translateY(0); }
-.md-back-to-focused__icon { color: #ffffff; }
-/* ≤950px — collapse the label to just "Back" (icon + short word) so the button
-   stays compact in the cramped top-right of the parent view. */
-.md-back-to-focused__short { display: none; }
-@media (max-width: 950px) {
-  .md-back-to-focused__full { display: none; }
-  .md-back-to-focused__short { display: inline; }
-}
 /* Responsive — stack the three options on narrow viewports (this display
    step's modal caps to the viewport width, so the row gets cramped). */
 @media (max-width: 640px) {
@@ -89931,6 +89637,26 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
      safe (overriding `transform` in CSS would clobber Popper's
      positioning). Adjust this single value to tune. */
   margin-top: -20rem;
+}
+/* Welcome (first) page only — lift it well above dead-center so the opening
+   step lands at eye level rather than mid-screen (the outro reuses --intro and
+   keeps the safe -20rem above). The compound selector (0,3,0 specificity)
+   overrides the base intro rule for the welcome alone.
+   NOTE on the magnitude: this app's root font is 10px, so 1rem = 10px. A
+   literal -50rem (-500px) would push the card's TOP off the top of the
+   viewport (Shepherd vertically centers it), clipping the welcome — worst on
+   tablets, the primary AAC device. So the larger lift is gated by viewport
+   HEIGHT: only screens with room get it; shorter/tablet viewports inherit the
+   proven -20rem and never clip. Tune the values per tier below. */
+@media (min-height: 980px) {
+  .shepherd-element.md-tour__step--intro.md-tour__step--welcome {
+    margin-top: -32rem;
+  }
+}
+@media (min-height: 1160px) {
+  .shepherd-element.md-tour__step--intro.md-tour__step--welcome {
+    margin-top: -40rem;
+  }
 }
 /* Orbital accent — one abstract, premium onboarding visual (no
    mascot): a soft cluster of glowing brand-coloured orbs fading into

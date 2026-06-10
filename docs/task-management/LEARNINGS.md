@@ -3681,3 +3681,80 @@ first run and left the file untouched.
 **Fix recipe:** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
 
 **Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; task log `2026-06-09-board-detail-speak-bar-double-add.md`.
+
+---
+
+## Pattern: triaging PR-review "security findings" — read the real guard, not the flagged line
+
+Automated/LLM PR reviewers flag plausible-but-already-mitigated issues, hedged with
+"may / could / potentially / if the template uses X incorrectly". Each hedge is a tell:
+resolve it against the ACTUAL code path before changing anything (RULE #0 — diagnose with
+evidence; don't apply theatrical fixes that add dead code and risk regressions). In one
+sweep, 5/5 dashboard findings were false positives (`2026-06-10-pr-security-findings-triage.md`):
+
+- **"XSS via interpolated user string"** → the custom i18n `t` helper already HTML-escapes
+  EVERY interpolated value (`escapeHtmlForInterpolation`, `i18n.js:18-22,73,84`), the source
+  computed returns a plain string (not `htmlSafe`), and `{{t}}` auto-escapes. Check the
+  helper's escaping before assuming a raw-input sink.
+- **"Client accepts arbitrary `for_user_id` / no permission check"** → board-creation auth
+  is SERVER-side: `boards_controller.rb:600-606` validates the target exists (400) AND
+  `allowed?(user,'edit')`. The client sentinel (`'self'`) isn't the boundary; the API is.
+  FERPA/data-isolation checks live in Rails, never the Ember form.
+- **"Missing permission lets user bypass restricted view"** → the flagged flag
+  (`caregiverUnlocked`) was a transient, non-persisted DISPLAY toggle (focused↔balanced
+  layout), not an access gate; the "unlocked" view shows the same-or-fewer sections
+  (`sectionVisibility` still runs `availableHomeSections` + forces Extras hidden). A layout
+  toggle on a user's OWN dashboard is not a security boundary.
+- **"Cross-account leak from shared collection"** → `appState.sidebar_boards` is the current
+  user's OWN sidebar state; appending a system board from it touches no other account.
+- **"Race condition in runLater timer"** → already guarded: cancel-existing-before-start in
+  the start handler, cancel+null in the end handler, and `runCancel` in `willDestroyElement`.
+
+**Rule of thumb:** for a flagged finding, locate (a) the escaping/sanitization layer, (b) the
+server-side authorization, and (c) the resource lifecycle (timer/teardown) — the mitigation
+is usually already there. Reply to the PR with file:line evidence instead of patching.
+**Evidence:** task log `2026-06-10-pr-security-findings-triage.md`.
+
+---
+
+## Pattern: removing a dashboard display-layout variant is a coordinated multi-touch change + graceful pref coercion
+
+Removing one `dashboard_layout` variant (e.g. 'focused', 2026-06-10) touches a fixed set of
+layers — miss one and you leave dead code or a broken state:
+
+1. **Layout engine** — `utils/dashboard_sections.js` (`gridLayoutState`, the per-variant
+   transform like `balancedLayout`/`focusedLayout`, any `FOCUSED_*` maps).
+2. **Real render** — `components/dashboard/authenticated-view.js` (the `effectiveLayout`/
+   `*HomeLayout` computeds, body-class observers, lock/exit actions, lifecycle calls) AND
+   its `.hbs` (`{{#if thatLayout}}…{{else}}…{{/if}}` — keep the else as unconditional).
+3. **The "Dashboard Design" modal** — `components/getting-started-tour.js` (the style option
+   card + renumber the survivors, the preview builder branch, validation arrays
+   `['dynamic','focused','balanced']` → `['dynamic','balanced']`, label maps).
+4. **Any dedicated component** — delete `dashboard/focused-home.{js,hbs}` once unreferenced.
+5. **SCSS** — delete the whole `Focused Layout` section + the stray `body.md-home-focused`
+   rule (grep every `md-focused`/`md-home-focused`/`md-main--focused`/`md-back-to-focused`/
+   `md-gst-focused`/`layout-focused` selector).
+6. **Backend** — update the `User.preference_defaults` comment; do NOT migrate the column.
+
+**Graceful coercion is the load-bearing safety net.** Existing users may have the removed
+value stored. Make `effectiveLayout` (real render) AND the modal's `['dynamic','balanced']`
+validation **coerce an unknown/legacy value to the default ('dynamic')** so those users
+silently fall back instead of hitting a now-missing branch. No DB migration required.
+
+**Watch for shared symbols misattributed to the removed variant.** `greetingFirstName` and
+the `focused_talk` i18n key looked focused-only but are used by the BALANCED hero —
+keep them. Always grep each candidate symbol's *callers* before deleting.
+
+**First seen in:** [2026-06-10-dashboard-design-rename-and-focused-removal.md](./2026-06-10-dashboard-design-rename-and-focused-removal.md)
+
+## Gotcha: `grep … | head -N` can hide later usages — verify import/symbol safety with an UNtruncated grep
+
+While removing dead code, a `grep -n "runLater\|runCancel" file.js | head -40` showed only the
+focused-code usage, so the `@ember/runloop` import was removed as "unused" — but `runLater`
+was still used at lines 1295/1372, **past the 40-line truncation**. The broken import was
+caught only by the post-edit residue grep (run without `head`). **Before deleting any import
+or shared symbol, grep for ALL its usages with no `head`/pager truncation** (or `grep -c`),
+then confirm zero remain. Truncated search output is a silent source of "removed something
+still in use" regressions.
+
+**First seen in:** [2026-06-10-dashboard-design-rename-and-focused-removal.md](./2026-06-10-dashboard-design-rename-and-focused-removal.md)

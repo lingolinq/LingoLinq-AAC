@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { later as runLater, cancel as runCancel } from '@ember/runloop';
+import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
@@ -28,23 +28,20 @@ export default Component.extend({
   modal: service('modal'),
   app_state: alias('appState'),
 
-  // The layout actually RENDERED. Normally the saved `dashboard_layout` pref, but
-  // when a focused communicator's grown-up presses-and-holds the lock to reveal the
-  // full dashboard (caregiverUnlocked), the parent/caregiver view is the BALANCED
-  // layout — NOT the default dynamic — so 'focused' resolves to 'balanced' while
-  // unlocked. Everything that drives the grid (class, grid state, section
-  // visibility, the shell modifier) reads THIS, so the parent view is fully balanced.
-  effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', 'caregiverUnlocked', function() {
+  // The layout actually RENDERED — the saved `dashboard_layout` pref, validated to a
+  // known variant. Everything that drives the grid (class, grid state, section
+  // visibility, the shell modifier) reads THIS. A legacy 'focused' value (the Focused
+  // layout was removed) falls back to the default 'dynamic'.
+  effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', function() {
     var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
-    if (['dynamic', 'focused', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
-    if (this.get('caregiverUnlocked') && layout === 'focused') { return 'balanced'; }
+    if (['dynamic', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
     return layout;
   }),
 
   // Home dashboard arrangement modifier, driven by the EFFECTIVE layout (above).
   // Always resolves to a known variant so the grid has a stable hook class;
-  // 'dynamic' is today's default grid — the focused/balanced CSS variants
-  // hang off md-grid--layout-focused / md-grid--layout-balanced.
+  // 'dynamic' is today's default grid — the Balanced CSS variant hangs off
+  // md-grid--layout-balanced.
   dashboardLayoutClass: computed('effectiveLayout', function() {
     return 'md-grid--layout-' + this.get('effectiveLayout');
   }),
@@ -52,8 +49,8 @@ export default Component.extend({
   // Whether "Reports" appears in the primary pill-nav. It stays there only for
   // SUPPORTERS on a non-Balanced layout. Communicators get Reports moved to an
   // Extras card link instead (so it's out of their nav); Balanced hides it for
-  // everyone (Focused has no pill-nav). The Extras "Reports" card shows precisely
-  // when this is false (see extrasItems).
+  // everyone. The Extras "Reports" card shows precisely when this is false (see
+  // extrasItems).
   showReportsPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
     if (!this.get('appState.currentUser.supporter_role')) { return false; }
     return this.get('effectiveLayout') !== 'balanced';
@@ -66,73 +63,12 @@ export default Component.extend({
     return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'balanced';
   }),
 
-  // Transient "the grown-up unlocked the full dashboard" flag. Set by a press-and-
-  // hold on the Grown-Ups lock; NOT persisted — it resets on reload / re-entry, so
-  // the kid-facing focused view is always the default for a focused communicator.
-  caregiverUnlocked: false,
-
-  // The Focused home view renders when ALL hold: we're on the Home tab, the user is a
-  // COMMUNICATOR (not a supporter), they picked the 'focused' display in Getting
-  // Started, and a grown-up hasn't pressed-and-held to reveal the full dashboard.
-  // Preference-only gating — no feature flag (chosen display == their display).
-  focusedHomeLayout: computed(
-    'activeTab',
-    'appState.currentUser.preferences.dashboard_layout',
-    'appState.currentUser.supporter_role',
-    'appState.gettingStartedActive',
-    'caregiverUnlocked',
-    function() {
-      if (this.get('caregiverUnlocked')) { return false; }
-      // Don't flip the home behind the open Getting Started modal — the modal's
-      // preview clones the dashboard grid, which the focused view removes. Block only
-      // when the modal is ACTUALLY open: the flag drives reactivity, but we confirm
-      // against body.md-gst-active (the real "modal open" signal) so a stale flag can
-      // never trap the user on the default layout once the modal has closed.
-      if (this.get('appState.gettingStartedActive') &&
-          typeof document !== 'undefined' &&
-          document.body.classList.contains('md-gst-active')) {
-        return false;
-      }
-      if (this.get('activeTab') !== 'home') { return false; }
-      if (this.get('appState.currentUser.supporter_role')) { return false; }
-      return this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
-    }
-  ),
-
-  // After a grown-up presses-and-holds the lock to leave focused mode, the full
-  // dashboard shows but this communicator's SAVED display is still 'focused' — so
-  // surface a "Back to Kiddo's View" affordance to return. True only while unlocked
-  // AND the user is a focused communicator.
-  showBackToFocused: computed(
-    'caregiverUnlocked',
-    'appState.currentUser.preferences.dashboard_layout',
-    'appState.currentUser.supporter_role',
-    function() {
-      return !!this.get('caregiverUnlocked') &&
-        !this.get('appState.currentUser.supporter_role') &&
-        this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
-    }
-  ),
-
-  // Short, friendly first name for the focused greeting ("Hi Johnny"). Prefer the
+  // Short, friendly first name for the Balanced greeting ("Hey Johnny"). Prefer the
   // display name's first word; fall back to the username.
   greetingFirstName: computed('appState.currentUser.name', 'appState.currentUser.user_name', function() {
     var raw = this.get('appState.currentUser.name') || this.get('appState.currentUser.user_name') || '';
     return (raw || '').toString().trim().split(/\s+/)[0] || '';
   }),
-
-  // Hide the inner-header chrome (Upgrade / Settings / identity dropdown) while the
-  // focused view is active by toggling a body class — the SAME mechanism the Getting
-  // Started tour uses (body.md-gst-active). CSS scopes the hiding so the focused view
-  // never has to reach into the separate header component.
-  _syncFocusedBodyClass: function() {
-    try {
-      if (this.isDestroying || this.isDestroyed) { document.body.classList.remove('md-home-focused'); return; }
-      if (this.get('focusedHomeLayout')) { document.body.classList.add('md-home-focused'); }
-      else { document.body.classList.remove('md-home-focused'); }
-    } catch (e) { /* body class is presentational — never block render */ }
-  },
-  _focusedBodyClassObserver: observer('focusedHomeLayout', function() { this._syncFocusedBodyClass(); }),
 
   // Visibility map for the home dashboard cards, keyed by section key
   // (boards/speak/extras/caseload/org). A key is present+true only when the
@@ -272,30 +208,10 @@ export default Component.extend({
   didInsertElement() {
     this._super(...arguments);
     this._loadPreviewBoards();
-    this._syncFocusedBodyClass();
   },
 
   willDestroyElement() {
     this._super(...arguments);
-    if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
-    try { document.body.classList.remove('md-home-focused'); } catch (e) { /* noop */ }
-  },
-
-  didRender() {
-    this._super(...arguments);
-    // Self-heal the Getting Started "modal open" flag. body.md-gst-active is the
-    // real signal that the GS modal is showing; the gettingStartedActive flag only
-    // mirrors it (for reactive gating of focusedHomeLayout). If the flag is still
-    // true but the modal is gone (a missed _clearCentered on close), clear it so the
-    // focused layout can apply — otherwise a stale flag traps the user on the default
-    // layout. Idempotent: once cleared the condition is false, so no render loop.
-    try {
-      if (this.get('appState.gettingStartedActive') &&
-          typeof document !== 'undefined' &&
-          !document.body.classList.contains('md-gst-active')) {
-        this.set('appState.gettingStartedActive', false);
-      }
-    } catch (e) { /* defensive — never block render */ }
   },
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
@@ -1117,34 +1033,6 @@ export default Component.extend({
   }),
 
   actions: {
-    // Grown-Ups lock (focused view): press-and-HOLD to exit. pointerdown starts a
-    // ~700ms timer that, if not cancelled by release/leave, drops focused mode and
-    // reveals the full caregiver dashboard. A deliberate hold (not a tap) keeps a
-    // communicator from leaving their view by accident.
-    lockHoldStart: function() {
-      var _this = this;
-      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); }
-      this.set('lockHolding', true);
-      this._lockHoldTimer = runLater(this, function() {
-        _this._lockHoldTimer = null;
-        _this.set('lockHolding', false);
-        _this.send('exitFocusedLayout');
-      }, 700);
-    },
-    lockHoldEnd: function() {
-      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
-      this.set('lockHolding', false);
-    },
-    // Transient unlock — reveal the normal dashboard for the grown-up WITHOUT changing
-    // the saved display preference. focusedHomeLayout flips false → the full chrome
-    // (pill-nav + header) returns; the body class is removed by its observer.
-    exitFocusedLayout: function() {
-      this.set('caregiverUnlocked', true);
-    },
-    // Re-enter the focused (kid-facing) view from the "Back to Kiddo's View" button.
-    backToFocused: function() {
-      this.set('caregiverUnlocked', false);
-    },
     addOrganization: function() {
       var user_name = this.appState.get('currentUser.user_name');
       if(user_name) {

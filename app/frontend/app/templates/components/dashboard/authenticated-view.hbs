@@ -1,74 +1,10 @@
 <div class="md-shell {{if (is-equal this.activeTab "home") "md-shell--home"}} {{if (is-equal this.effectiveLayout "balanced") "md-shell--layout-balanced"}} {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
   <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
-  {{!-- "Back to Kiddo's View" — shown after a grown-up presses-and-holds the lock to
-       leave focused mode. Fixed under the inner header, top-centre; returns this
-       focused communicator to their kid-facing view. --}}
-  {{#if this.showBackToFocused}}
-    <div class="md-back-to-focused-bar">
-      <button type="button" class="md-back-to-focused" {{action "backToFocused"}}>
-        <svg class="md-back-to-focused__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
-        {{!-- Full label on wider screens; collapses to just "Back" at ≤950px. --}}
-        <span class="md-back-to-focused__full">{{t "Back to Kiddo's View" key="focused_back_to_kiddos"}}</span>
-        <span class="md-back-to-focused__short">{{t "Back" key="back"}}</span>
-      </button>
-    </div>
-  {{/if}}
   {{!-- The "Take a tour" + "Get Started" triggers live in the inner header
        (app-navbar-authenticated-inner → .app-navbar__home-actions) as circle icon
        buttons for EVERY dashboard layout. That navbar is global, so the
        getting-started-tour component stays mounted across a mid-modal layout flip
-       (no fixed-corner copy needed). The focused KID view hides them via
-       body.md-home-focused; the unlocked parent view shows them. --}}
-  {{!-- Hidden clone-source for the Getting Started Focused preview. While the modal
-       is open the real focused view ISN'T rendered (focusedHomeLayout is blocked so
-       the grid the Dynamic/Balanced previews clone stays put), so render the SAME
-       Dashboard::FocusedHome off-screen here — the preview clones this live markup,
-       which keeps it permanently in sync with the real focused view. --}}
-  {{#if this.appState.gettingStartedActive}}
-  <div class="md-gst-focused-source" aria-hidden="true">
-    <Dashboard::FocusedHome
-      @greetingName={{this.greetingFirstName}}
-      @previewBoards={{this.previewBoards}}
-      @hideSpeak={{this.cardHideStyle.speak}}
-      @hideBoards={{this.cardHideStyle.boards}}
-      @onTalk={{action "go" "speak"}}
-      @onBoard={{action "goToBoard"}}
-    />
-  </div>
-  {{/if}}
-  {{#if this.focusedHomeLayout}}
-    {{!-- FOCUSED LAYOUT (communicators) — a stripped, kid-facing home: short
-         greeting, a full-width Talk hero, board previews, and a press-and-hold
-         Grown-Ups lock. The pill-nav + inner-header chrome are hidden (the latter
-         via body.md-home-focused). Reuses existing colors/elements; the grown-up
-         presses-and-holds the lock to drop back to the full dashboard. --}}
-    {{!-- Focused-home content via the shared Dashboard::FocusedHome component, so the
-         real view and the Getting Started Focused preview render identical markup. --}}
-    <Dashboard::FocusedHome
-      @greetingName={{this.greetingFirstName}}
-      @previewBoards={{this.previewBoards}}
-      @hideSpeak={{this.cardHideStyle.speak}}
-      @hideBoards={{this.cardHideStyle.boards}}
-      @onTalk={{action "go" "speak"}}
-      @onBoard={{action "goToBoard"}}
-    />
-
-    {{!-- Grown-Ups lock, fixed top-right. PRESS-AND-HOLD (~700ms) exits focused mode
-         and reveals the full caregiver dashboard (transient — not a pref change).
-         Interactive, so it lives in the real view (not the shared component). --}}
-    <div class="md-focused-lock {{if this.lockHolding "is-holding"}}" role="button" tabindex="0"
-         aria-label={{t "For grown-ups — press and hold to unlock" key="focused_grownups_unlock"}}
-         {{on "pointerdown" (action "lockHoldStart")}}
-         {{on "pointerup" (action "lockHoldEnd")}}
-         {{on "pointerleave" (action "lockHoldEnd")}}
-         {{on "pointercancel" (action "lockHoldEnd")}}>
-      <span class="md-focused-lock__icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-      </span>
-      <span class="md-focused-lock__label">{{t "Grown-Ups" key="focused_grownups"}}</span>
-      <span class="md-focused-lock__hold" aria-hidden="true"></span>
-    </div>
-  {{else}}
+       (no fixed-corner copy needed). --}}
   {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
@@ -520,8 +456,6 @@
     </section>
   </main>
   {{/if}}
-
-  {{/if}}{{!-- /focusedHomeLayout --}}
   </div>{{!-- .md-workspace --}}
 
   {{#if this.isSearchOpen}}

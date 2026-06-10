@@ -31,8 +31,7 @@
          field. They sit INSIDE .app-navbar__nav-header (not the quick-actions
          cluster) so the nav-header's `flex: 1` growth doesn't push them right. Gated
          on the SAME dashboard context as the search (empty_header) so they don't
-         appear on board pages; the focused KID view hides them via
-         body.md-home-focused (the unlocked parent view shows them). --}}
+         appear on board pages. --}}
     {{#if this.appState.empty_header}}
       <span class="app-navbar__home-actions">
         {{#if this.appState.feature_flags.home_tour}}{{home-tour}}{{/if}}

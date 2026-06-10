@@ -48,9 +48,6 @@ function _clearCentered() {
   // The Getting Started series cleared the page chrome via `md-gst-active` —
   // restore it when the series ends (Finish / Skip / Esc / close).
   try { document.body.classList.remove('md-gst-active'); } catch (e) { /* noop */ }
-  // Clear the modal-open flag so the dashboard can now apply the Focused layout if
-  // the user selected it (module fn → reach appState via the global).
-  try { if (window.LingoLinq && window.LingoLinq.appState) { window.LingoLinq.appState.set('gettingStartedActive', false); } } catch (e) { /* noop */ }
 }
 
 // Show hook for the welcome (first) page: run the shared centered-step setup, then
@@ -313,11 +310,9 @@ function _wirePreviewDrag(liveEl, ctx) {
 }
 
 // ── Layout-aware preview content ────────────────────────────────────────────
-// The read-only preview shows what the SELECTED layout looks like. Dynamic/Balanced
-// clone the user's real dashboard; Focused builds the focused-home structure (the
-// SAME md-focused-* markup/CSS the live focused view uses) so the preview visibly
-// matches the layout the user picks. Both live inside `.md-gst-preview__live` as a
-// single `.md-gst-preview__page`, swapped wholesale when the layout changes.
+// The read-only preview shows what the SELECTED layout looks like by cloning the
+// user's real dashboard grid into a single `.md-gst-preview__page`, swapped
+// wholesale when the layout changes (Dynamic vs Balanced).
 function _buildDynamicClone(live) {
   var src = document.querySelector('.md-grid--dashboard:not(.md-gst-preview__clone)');
   if (!src) { return; }
@@ -341,46 +336,14 @@ function _buildDynamicClone(live) {
   live.appendChild(page);
 }
 
-// Build the Focused-home preview: greeting + full-width Talk hero + boards grid. The
-// board tiles are cloned from the user's REAL dashboard board strip (present behind
-// the modal), rebuilt as md-focused-board tiles so the preview matches the live view.
-function _buildFocusedPreview(live) {
-  // Clone the LIVE focused-home markup that Dashboard::FocusedHome renders off-screen
-  // (.md-gst-focused-source) — the SAME component the real focused view uses — so the
-  // preview can never drift from the real view (any future markup change shows here
-  // automatically). The real focused view isn't rendered while the modal is open, so
-  // this hidden source is the clone target; bail gracefully if it isn't mounted.
-  var src = document.querySelector('.md-gst-focused-source .md-main--focused');
-  if (!src) { return; }
-  var page = document.createElement('div');
-  page.className = 'md-gst-preview__page';
-  page.setAttribute('aria-hidden', 'true');
-  var clone = src.cloneNode(true);
-  clone.classList.add('md-main--focused-preview');
-  // Make the clone INERT (strip ids, tabindex, hrefs, Ember action attrs) so a stray
-  // click can't navigate / tear down the modal — mirrors _buildDynamicClone.
-  clone.removeAttribute('id');
-  Array.prototype.forEach.call(clone.querySelectorAll('[id]'), function(n) { n.removeAttribute('id'); });
-  Array.prototype.forEach.call(clone.querySelectorAll('a, button, input, [tabindex]'), function(n) { n.setAttribute('tabindex', '-1'); });
-  Array.prototype.forEach.call(clone.querySelectorAll('a[href]'), function(n) { n.removeAttribute('href'); });
-  Array.prototype.forEach.call(clone.querySelectorAll('[data-ember-action]'), function(n) {
-    Array.prototype.slice.call(n.attributes).forEach(function(attr) {
-      if (attr.name.indexOf('data-ember-action') === 0) { n.removeAttribute(attr.name); }
-    });
-  });
-  page.appendChild(clone);
-  live.appendChild(page);
-}
-
-// Swap the preview content to match `layout`. Removes the existing page first so
-// switching layouts (re-clicking a style card) re-renders cleanly.
-function _buildPreviewContent(live, layout) {
+// Swap the preview content. Removes the existing page first so switching styles
+// (re-clicking a style card) re-renders cleanly.
+function _buildPreviewContent(live) {
   if (!live) { return; }
   try {
     var existing = live.querySelector('.md-gst-preview__page');
     if (existing && existing.parentNode) { existing.parentNode.removeChild(existing); }
-    if (layout === 'focused') { _buildFocusedPreview(live); }
-    else { _buildDynamicClone(live); }
+    _buildDynamicClone(live);
   } catch (e) { /* preview is decorative — never block the step */ }
 }
 
@@ -413,19 +376,13 @@ function _onDisplayShow(component) {
     saveTimer = setTimeout(function() { saveTimer = null; persist(); }, 180);
   };
 
-  // Build the preview content for the user's SELECTED layout — Dynamic/Balanced clone
-  // the real dashboard, Focused builds the focused-home structure (see
-  // _buildPreviewContent). Uses the saved layout at show time; the layout-card click
-  // handler rebuilds it when the choice changes so the preview always matches.
+  // Build the preview content — a clone of the user's real dashboard (see
+  // _buildPreviewContent). The layout-card click handler rebuilds it when the choice
+  // changes so the preview always matches.
   try {
     var live = el.querySelector('.md-gst-preview__live');
     if (live && !live.querySelector('.md-gst-preview__page')) {
-      var initialLayout = 'dynamic';
-      try {
-        var _as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
-        initialLayout = (_as && _as.get('currentUser.preferences.dashboard_layout')) || 'dynamic';
-      } catch (e) { initialLayout = 'dynamic'; }
-      _buildPreviewContent(live, initialLayout);
+      _buildPreviewContent(live);
     }
   } catch (e) { /* preview is decorative — never block the step */ }
 
@@ -443,7 +400,6 @@ function _onDisplayShow(component) {
     // function with no component `this`). Updated on show (re-seed) and on each
     // style-card click so "Preview — X Layout" always names the current choice.
     var previewLabelFor = function(layout) {
-      if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused Layout"); }
       if (layout === 'balanced') { return i18n.t('getting_started_tour_preview_label_balanced', "Preview — Balanced Layout"); }
       return i18n.t('getting_started_tour_preview_label', "Preview — Dynamic Layout");
     };
@@ -463,7 +419,7 @@ function _onDisplayShow(component) {
       var _seedUser = _appState && _appState.get('currentUser');
       if (_seedUser && liveEl) {
         var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'dynamic';
-        if (['dynamic', 'focused', 'balanced'].indexOf(_savedLayout) === -1) { _savedLayout = 'dynamic'; }
+        if (['dynamic', 'balanced'].indexOf(_savedLayout) === -1) { _savedLayout = 'dynamic'; }
         Array.prototype.forEach.call(el.querySelectorAll('.md-gst-option'), function(opt) {
           var on = opt.getAttribute('data-gst-layout') === _savedLayout;
           opt.classList.toggle('is-selected', on);
@@ -561,15 +517,6 @@ function _onDisplayShow(component) {
         else { card.style.setProperty('display', 'none', 'important'); }
       });
     };
-    // ── Focused-layout customization ─────────────────────────────────────────
-    // The Focused layout renders ONLY the Talk hero + "My boards" (no Extras /
-    // Caseload / Org cards). So in focused mode the section checklist should offer
-    // just those two toggles, and the Speak chip reads "Talk" to match the hero.
-    // For Dynamic / Balanced the full checklist + labels are restored.
-    var FOCUSED_TOGGLE_KEYS = { boards: true, speak: true };
-    // Map a focused-preview section → its element in the (clone-less) focused
-    // structure: Boards = the "My boards" grid, Speak = the Talk hero.
-    var FOCUSED_SECTION_EL = { boards: '.md-focused-boards', speak: '.md-focused-talk' };
     var currentLayout = function() {
       var sel = el.querySelector('.md-gst-option.is-selected');
       if (sel) { return sel.getAttribute('data-gst-layout') || 'dynamic'; }
@@ -579,28 +526,19 @@ function _onDisplayShow(component) {
       } catch (e) { return 'dynamic'; }
     };
     var applyLayoutSections = function(layout) {
-      var focused = (layout === 'focused');
       var balanced = (layout === 'balanced');
       Array.prototype.forEach.call(boxes, function(box) {
         var key = box.getAttribute('data-gst-section');
         var row = box.closest('.md-gst-section');
         if (!row) { return; }
-        // Focused offers only Boards + Talk; Balanced offers everything EXCEPT
-        // Extras (Speak becomes the full-width hero, Extras never shows); Dynamic
-        // offers the full checklist.
-        var show = true;
-        if (focused) { show = !!FOCUSED_TOGGLE_KEYS[key]; }
-        else if (balanced) { show = (key !== 'extras'); }
-        row.style.display = show ? '' : 'none';
-        if (key === 'speak') {
-          var lbl = row.querySelector('.md-gst-section__label');
-          if (lbl) { lbl.textContent = focused ? i18n.t('focused_talk', "Talk") : i18n.t('speak_mode', "Speak Mode"); }
-        }
+        // Balanced offers everything EXCEPT Extras (Speak becomes the full-width
+        // hero, Extras never shows); Dynamic offers the full checklist.
+        row.style.display = (balanced && key === 'extras') ? 'none' : '';
       });
     };
     var syncState = function() {
       // Re-query the clone each call — the preview content is rebuilt when the layout
-      // changes (focused has NO clone), so a captured reference would go stale.
+      // changes, so a captured reference would go stale.
       gridEl = liveEl && liveEl.querySelector('.md-gst-preview__clone');
       var layout = currentLayout();
       var vis = readVis();
@@ -612,7 +550,7 @@ function _onDisplayShow(component) {
         // (e.g. the Balanced full-width Speak hero's doubled height) applies to
         // the preview too — the clone inherits the live grid's layout class, so
         // it must be re-stamped when the user switches styles.
-        ['dynamic', 'focused', 'balanced'].forEach(function(name) {
+        ['dynamic', 'balanced'].forEach(function(name) {
           gridEl.classList.toggle('md-grid--layout-' + name, layout === name);
         });
         HOME_SECTIONS.forEach(function(s) {
@@ -628,16 +566,6 @@ function _onDisplayShow(component) {
         // Stamp the live arrangement back so the persist step can read it.
         liveEl.setAttribute('data-gst-positions', JSON.stringify(positions));
         liveEl.setAttribute('data-gst-boards', JSON.stringify(boards));
-      } else if (liveEl) {
-        // Focused layout (no clone): drive the focused structure's sections from the
-        // Boards / Talk toggles, mirroring how the clone-based previews respond.
-        Object.keys(FOCUSED_SECTION_EL).forEach(function(key) {
-          if (vis[key] === undefined) { return; }
-          Array.prototype.forEach.call(liveEl.querySelectorAll(FOCUSED_SECTION_EL[key]), function(node) {
-            if (vis[key]) { node.style.removeProperty('display'); }
-            else { node.style.setProperty('display', 'none', 'important'); }
-          });
-        });
       }
       refreshGate();
     };
@@ -663,10 +591,10 @@ function _onDisplayShow(component) {
         opt.setAttribute('aria-pressed', 'true');
         var chosen = opt.getAttribute('data-gst-layout');
         // Reflect the chosen style in the preview: update the legend label AND rebuild
-        // the preview content to match (Focused → focused-home structure; Dynamic/
-        // Balanced → dashboard clone), then re-apply the arrangement via syncState.
+        // the preview content (the dashboard clone), then re-apply the arrangement
+        // via syncState.
         setPreviewLabel(chosen);
-        _buildPreviewContent(liveEl, chosen);
+        _buildPreviewContent(liveEl);
         applyLayoutSections(chosen);
         syncState();
         refreshGate();
@@ -873,7 +801,7 @@ export default Component.extend({
   // renders `title` via innerHTML, so an HTML string is the supported approach;
   // every piece comes from i18n, never user input.
   _decoratedTitle: function(headingKey, headingDefault) {
-    var eyebrow = i18n.t('getting_started_tour_eyebrow', "Getting Started");
+    var eyebrow = i18n.t('getting_started_tour_eyebrow', "Dashboard Design");
     var heading = i18n.t(headingKey, headingDefault);
     var spark = '<svg class="md-tour__eyebrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.1 5.1 1.7-5.1 1.7L12 16.1l-1.7-5.1L5.2 9.3l5.1-1.7z"/><path d="M19 13.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" opacity="0.7"/></svg>';
     return '<span class="md-tour__eyebrow">' + spark +
@@ -892,7 +820,7 @@ export default Component.extend({
     // Pre-select the user's SAVED layout (default dynamic) so re-opening the
     // modal reflects what's stored, not a fixed default.
     var saved = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
-    if (['dynamic', 'focused', 'balanced'].indexOf(saved) === -1) { saved = 'dynamic'; }
+    if (['dynamic', 'balanced'].indexOf(saved) === -1) { saved = 'dynamic'; }
     var option = function(key, num, label, desc) {
       var sel = key === saved;
       return '<button type="button" class="md-gst-option' + (sel ? ' is-selected' : '') + '" data-gst-layout="' + key + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
@@ -906,8 +834,7 @@ export default Component.extend({
     return '' +
       '<div class="md-gst-options">' +
         option('dynamic', '1', i18n.t('getting_started_tour_layout_dynamic', "Dynamic Layout"), i18n.t('getting_started_tour_layout_dynamic_desc', "Flexible multi-card organization")) +
-        option('focused', '2', i18n.t('getting_started_tour_layout_focused', "Focused Layout"), i18n.t('getting_started_tour_layout_focused_desc', "Simplified top-down experience")) +
-        option('balanced', '3', i18n.t('getting_started_tour_layout_balanced', "Balanced Layout"), i18n.t('getting_started_tour_layout_balanced_desc', "Blend of structure and focus")) +
+        option('balanced', '2', i18n.t('getting_started_tour_layout_balanced', "Balanced Layout"), i18n.t('getting_started_tour_layout_balanced_desc', "Blend of structure and focus")) +
       '</div>';
   },
 
@@ -953,11 +880,10 @@ export default Component.extend({
   // Caseload + Speak on top, Boards (tall) on the left, Extras + Org stacked
   // on the right.
   // Preview legend tag, labeled with the user's selected layout so the preview
-  // reads as "this is the [Dynamic/Focused/Balanced] layout you picked". Three
+  // reads as "this is the [Dynamic/Balanced] layout you picked". Three
   // static i18n.t calls (generator-friendly); _onDisplayShow updates the tag live
   // when the layout selection changes.
   _previewLabel: function(layout) {
-    if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused Layout"); }
     if (layout === 'balanced') { return i18n.t('getting_started_tour_preview_label_balanced', "Preview — Balanced Layout"); }
     return i18n.t('getting_started_tour_preview_label', "Preview — Dynamic Layout");
   },
@@ -1163,12 +1089,6 @@ export default Component.extend({
     });
     // Clear the page down to brand + identity + dimmed bg while the series runs.
     try { document.body.classList.add('md-gst-active'); } catch (e) { /* noop */ }
-    // Reactive signal that the Getting Started modal is OPEN. The dashboard gates the
-    // Focused home layout on this so a communicator picking 'focused' mid-modal
-    // doesn't flip the home behind the modal (which would unmount the dashboard grid
-    // the modal's preview clones). The home flips only once the modal closes
-    // (_clearCentered clears the flag on complete/cancel).
-    try { this.set('appState.gettingStartedActive', true); } catch (e) { /* noop */ }
     tour.addSteps(this._buildSteps()).then(function() {
       if (tour.tourObject) {
         tour.tourObject.on('complete', _clearCentered);
