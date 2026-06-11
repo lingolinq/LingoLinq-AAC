@@ -251,6 +251,11 @@
         <Input @value={{this.model.host_settings.admin_email}} class="md-org-settings-input" id="admin_email" placeholder="for alerts and messages" />
       </div>
       <div class="md-org-settings-field">
+        <label for="email_signature" class="md-org-settings-field__label">{{t "Email signature" key="system_settings_email_signature"}}</label>
+        <Input @value={{this.model.host_settings.email_signature}} class="md-org-settings-input" id="email_signature" placeholder={{t "The LingoLinq Team" key="system_settings_email_signature_placeholder"}} />
+        <span class="md-org-settings-field__hint">{{t "Overrides the site-wide email signature for this organization's domain." key="system_settings_org_email_signature_hint"}}</span>
+      </div>
+      <div class="md-org-settings-field">
         <label for="logo_url" class="md-org-settings-field__label">{{t "Logo Image URL" key="logo_image_url"}}</label>
         <Input @value={{this.model.host_settings.logo_url}} class="md-org-settings-input" id="logo_url" placeholder="100px x 100px" />
       </div>

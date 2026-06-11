@@ -1169,8 +1169,11 @@ class Organization < ApplicationRecord
       Organization.where(custom_domain: true).order('id ASC').each do |org|
         (org.settings['hosts'] || []).each do |host|
           if !domains[host]
-            domains[host] = org.settings['host_settings'] || {}
+            domains[host] = (org.settings['host_settings'] || {}).dup
             domains[host]['org_id'] = org.global_id
+            if org.settings['email_templates'].is_a?(Hash)
+              domains[host]['email_templates'] = org.settings['email_templates']
+            end
           end
         end
       end
@@ -1602,7 +1605,7 @@ class Organization < ApplicationRecord
       self.settings['host_settings']['company_name'] = params[:host_settings]['company_name'].blank? ? "LingoLinq" : params[:host_settings]['company_name']
       ['ios_store_url', 'play_store_url', 'kindle_store_url', 'windows_32_bit_url', 'windows_64_bit_url',
                 'blog_url', 'twitter_url', 'twitter_handle', 'facebook_url', 'youtube_url',
-                'support_url', 'logo_url', 'css_url', 'admin_email', 'board_user_name'].each do |str|
+                'support_url', 'logo_url', 'css_url', 'admin_email', 'board_user_name', 'email_signature'].each do |str|
                 
         if params[:host_settings][str] != nil
           val = process_string(params[:host_settings][str])

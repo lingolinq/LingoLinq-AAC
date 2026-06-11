@@ -70,6 +70,8 @@ export default Controller.extend({
   /** Same visibility as View Beta Feedback / schema tools (admin or admin_support_actions). */
   showDatabaseExplorerLink: alias('showBetaFeedbackAdminLink'),
 
+  showSystemSettingsLink: alias('showBetaFeedbackAdminLink'),
+
   landingNavOpen: false,
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
   betaFeedbackDrawerOpen: false,
@@ -2119,6 +2121,7 @@ export default Controller.extend({
       (route === 'caseload' && cu) ||
       route === 'support' ||
       route === 'database' ||
+      (route && route.indexOf('system-settings') === 0) ||
       route === 'faq' ||
       route === 'beta-feedback' ||
       (route && route.indexOf('beta-feedback-admin') === 0) ||
