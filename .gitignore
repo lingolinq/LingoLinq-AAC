@@ -59,6 +59,9 @@ __pycache__/
 # antigravity-mcp is a separate git repository
 /antigravity-mcp
 
+# Antigravity CLI per-project config (machine-specific symlink into ~/.gemini)
+/.antigravitycli
+
 # Ignore node modules
 /node_modules
 
