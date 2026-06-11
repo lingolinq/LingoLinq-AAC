@@ -27,7 +27,8 @@ module FeatureFlags
               'home_tour', 'paste_html_import', 'catalog_board_prefetch',
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
-              'english_first_board_generation', 'signup_spanish_library_boards']
+              'english_first_board_generation', 'signup_spanish_library_boards',
+              'dashboard_drag_layout']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -42,7 +43,8 @@ module FeatureFlags
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
               'portrait_orientation_overlay', # TEMPORARY (2026-05-29): ON for everyone so Traci can view the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
               'background_board_prefetch',
-              'signup_default_library_boards', 'english_first_board_generation']
+              'signup_default_library_boards', 'english_first_board_generation',
+              'dashboard_drag_layout'] # TEMPORARY (2026-06-09): ON for everyone pre-production so the Getting Started drag-to-swap home layout can be validated. REMOVE from this list before production — canonical state is AVAILABLE-only (beta opt-in per user).
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

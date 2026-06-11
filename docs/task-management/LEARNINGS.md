@@ -103,7 +103,107 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
 - [Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu](#pattern-a-child-pinned-by-parent---z-index-1--traps-all-its-descendants-below-higher-z-siblings--raise-the-row-not-the-menu)
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
+- [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
+- [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
+- [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
+- [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
+
+## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
+
+Adding any scalar `User` preference end-to-end always touches the same three
+places — miss one and it silently fails:
+
+1. **Whitelist** — add the key to `User::PREFERENCE_PARAMS` (app/models/user.rb ~1076).
+   `process_params` only copies keys in this array; an un-whitelisted key is
+   dropped with no error, so the value never persists.
+2. **Default** — add to `User.preference_defaults['any_user']` (or
+   `['authenticated_user']`). `generate_defaults` (before_save) backfills it only
+   when the stored value is `nil`, so existing users get it on their next save.
+3. **Frontend save** — read via `appState.currentUser.preferences.<key>`; to save:
+   `user.set('preferences.<key>', v); user.set('preferences.device.updated', true); user.save();`
+   The `device.updated` dirty bit is REQUIRED: `preferences` is `DS.attr('raw')`, and
+   mutating a nested key does not reliably mark the attr dirty, so without it
+   ember-data may not send the change. Canonical example: `set_board_view_style`
+   in controllers/board/index.js.
+
+For UI driven off the value, default in JS too (`|| 'dynamic'` + validate against a
+known set) so nil/unknown never breaks render before the backend backfills. Applied
+in 2026-06-08 dashboard_layout preference (md-grid--layout-* hook class).
+
+**A preference value can be a hash, not just a scalar.** `process_params` stores a
+whitelisted key's value verbatim (the `'true'`/`'false'` coercion only touches scalar
+strings), and nested hashes under `preferences` already round-trip (`device`,
+`substitutions`). So `dashboard_sections => {boards: true, extras: false}` works with
+the same 3 touches. Treat **missing/`true` as the default-on state and only `=== false`
+as "off"**, so sections/keys added later default visible for existing users.
+
+**When two surfaces must agree on the same set (e.g. a settings modal that toggles
+what a page renders), put the registry in ONE shared util, not in each component.**
+2026-06-08 `utils/dashboard_sections.js` exports `HOME_SECTIONS` (key, cardClass,
+labelKey, `available(user)`) consumed by both the dashboard render (`sectionVisibility`
+computed) and the Getting Started modal (checkbox list + live-preview toggling) — so
+availability rules and keys can't drift. Bonus: drive grid-layout modifier classes off
+the *visibility* (available && !hidden), not raw availability, so hiding a section also
+collapses its reserved grid area instead of leaving a gap.
+
+**Gotcha — hiding a dashboard card via JS needs inline `!important`.** The Speak and
+Caseload cards render two siblings (`--wide-only` / `--narrow-only`) switched by
+`@media` rules that use `display: ... !important` (app.scss ~42246, ~47106). A plain
+inline `el.style.display = 'none'` is beaten by that stylesheet `!important` and the
+card stays visible. Use `el.style.setProperty('display','none','important')` to hide
+(inline-important outranks stylesheet-important) and `el.style.removeProperty('display')`
+to restore — the latter hands control back to the media rules so the correct variant
+shows per viewport. Applied in the Getting Started live preview toggles.
+
+**Gotcha — a clone of `.md-grid--dashboard` keeps the live grid modifier classes.** To
+make a cloned-DOM preview reflow like the real page when a section is toggled, also
+`classList.toggle('md-grid--with-caseload' / '--with-org-mgmt')` on the clone — hiding
+the card alone leaves the reserved grid area empty.
+
+**Pattern — when a `grid-template-areas` matrix grows combinatorial, make it a data map,
+not CSS modifier classes.** The dashboard reflow (which cards show, where) started as one
+CSS rule per visibility combination, selected by modifier classes with hand-tuned
+specificity (`.md-grid--hide-speak.md-grid--with-caseload:not(.md-grid--with-org-mgmt)`,
+source-order tiebreaks). That doesn't scale — every new rule has to out-rank the others,
+and named areas don't auto-collapse when empty. Converted (2026-06-08) to a pure function
+`utils/dashboard_sections.js#dashboardLayout(vis)` → `{areas[], rows}`, first-match-wins
+branches, applied as an **inline `grid-template-areas` style** on `.md-grid--dashboard`
+(htmlSafe computed on the real page; `style.setProperty(...,'important')` on the preview
+clone). Inline-`!important` beats the base `.md-grid` stylesheet `!important`, so no
+specificity management at all; adding a layout = adding one branch (the `areas` array IS
+the doc). Keep the old modifier classes ONLY if they also drive non-layout styling
+(`md-grid--with-caseload` restyles the Speak card). This is the standard dashboard-engine
+approach (Grafana/react-grid-layout): layout is data, not per-combination CSS. Caveat:
+inline styles can't carry media queries — fine here because the dashboard's areas are
+viewport-independent (responsiveness is via the card wide/narrow variants, not the grid).
+
+**Adding a new dashboard DISPLAY STYLE (dynamic/focused/balanced) is a 4-touch change,
+and the cleanest form is a TRANSFORM over the canonical matrix — not a fork.** 2026-06-09
+"Balanced" (Speak = full-width hero, Extras hidden) was added by: (1) a thin
+`balancedLayout(vis)` in `utils/dashboard_sections.js` that strips the special cards from
+`vis`, runs the SAME `dashboardLayout()` for the remainder, then stacks the hero row on
+top — so any future card added to the matrix benefits the new style for free; (2)
+`gridLayoutState(vis, positions, boards, layout)` gained an optional `layout` arg routing
+to it; (3) every CALLER that should honor the style threads the layout through —
+`authenticated-view#dashboardGrid` (real page) and `getting-started-tour#syncState`
+(preview); (4) visual-only deltas (the hero's doubled height) go on the existing
+`md-grid--layout-<style>` hook class — it's there for exactly this, and a fresh selector
+means zero cascade management (verify it has no rules yet with `grep`). Two cross-cutting
+gotchas: **(a)** a card the style EXCLUDES must be force-hidden in BOTH places that read
+visibility (`sectionVisibility` forces `extras=false` for the real grid's `cardHideStyle`
+AND the matrix; `syncState` forces `vis.extras=false` for the preview) or the excluded
+card overflows the grid as an orphan; **(b)** the preview clone inherits the live grid's
+`md-grid--layout-*` class frozen at modal-open, so `syncState` must RE-STAMP the layout
+class on the clone when the user switches styles, else the layout-scoped CSS won't apply
+to the preview. Don't mutate the user's per-section prefs to express the exclusion — let
+the layout override it so switching back to Dynamic restores their Extras choice.
+
+## Pattern: blank username suggestions must be discarded before `clean_path`
+
+`Processable#generate_user_name` treats an explicit suggestion as authoritative unless it is blanked out first. Passing `''` from signup/default-generation paths reaches `clean_path('')`, which pads to `___` instead of falling back to email or `"person"`. Normalize blank suggestions to `nil` before choosing the fallback source, and keep a regression spec in `spec/models/concerns/processable_spec.rb`.
+
+**First seen in:** [2026-06-03-staged-registration-flow.md](./2026-06-03-staged-registration-flow.md)
 
 ## Pattern: keyboard control vocalizations must survive translation overlay
 
@@ -124,6 +224,8 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 `demo.speak` uses controller property `board` for the rendered board object. If a shareable URL needs `?board=...`, declare an aliased query param such as `{ board_key: 'board' }` and use `board_key` internally. Reusing `board` for both the query param and model state will clobber the loaded board object.
 
 **Sticky QP gotcha:** `board` is sticky by default. Topbar "Try a Demo" links must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md).
+
+**Exit target:** Demo speak exit should always `LinkTo offline_boards` — do not branch on `source`; "Try a Demo" used to fall through to `index`.
 
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
@@ -2918,6 +3020,115 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 
 ---
 
+## Pattern: `store.peekAll('buttonset')` iteration crashes on empty/unmaterialized records — guard every callsite
+
+**Surface:** speak-mode board grid renders empty ("No symbols found") with console `TypeError: Cannot read properties of undefined (reading 'get')` thrown from `LingoLinq.Buttonset.load_button_set` (buttonset.js ~1200), via either `application.js#update_level_buttons → board#load_button_set` or `word_suggestions#load_vocabulary_button_sets → updateSuggestions` (word prediction).
+
+**Root cause:** `peekAll('buttonset')` can surface empty/unmaterialized records, so a bare `button_sets.find(bs => bs.get('key')...)` / `.forEach(bs => bs.get(...))` throws when an entry is undefined. The static `Buttonset.load_button_set` was the ONE iteration site missing the guard that the others already had: `board.js#load_button_set` (`.map(i=>i).forEach`, `if(bs && ...)`, since Nov 2025) and `word_suggestions#button_sets_for_board_ids` (`if(bs && ...)`, added by Melissa #280, 2026-05-22).
+
+**Not a refactor regression — a latent bug newly exercised.** The crash line predates everything (Nov 2025 rename). The trigger is Melissa's word-prediction/caching warming path (`load_vocabulary_button_sets`), which calls the unguarded static method frequently and in new contexts. She guarded her own new `peekAll` site but the shared static method was missed. Traci's board-detail styling refactor added zero buttonset-store code and is unrelated.
+
+**Fix:** guard each entry in `Buttonset.load_button_set` — `button_sets.find(bs => bs && bs.get && bs.get('key') == id)` and `if(!bs || !bs.get) return;` at the top of the `.forEach`. With the crash gone, the method falls through to its normal `generate(id)` path and the board populates.
+
+**Diagnostic technique:** when a `peekAll(...).find/forEach` callback throws "undefined reading 'get'", grep ALL `peekAll('<type>')` sites — the guarded ones reveal the known hazard and the missing guard is the bug. `git log -L <lines>:<file>` on the crash line tells you it's pre-existing, not the current refactor.
+
+**Evidence:** `app/frontend/app/models/buttonset.js:1199-1209`, `board.js:1275`, `word_suggestions.js:1200,1246`.
+
+---
+
+## Pattern: sentence-bar chips push the right-side menus off-page — flex `min-width:0` + restore vertical wrap-scroll (not horizontal nowrap)
+
+**Surface:** board-detail speak mode. As the user taps enough symbols, the sentence-bar chip strip overflows and shoves the right-side controls (options menu, sidebar toggle) off the page; the board chrome scrolls out of view.
+
+**Root cause (two parts):**
+1. **Missing `min-width: 0`.** `.md-board-detail-sentence-bar` is `flex: 1` (= `flex:1 1 0%`) inside `.md-board-detail-sentence-row`, but a flex item defaults to `min-width: auto` — it refuses to shrink below its content's intrinsic width. With a long chip list the bar balloons and pushes its siblings (the menu stacks) off the row. Fix: `min-width: 0` on the bar **and** on the scrolling `__text` child so overflow can engage instead of widening the row.
+2. **A higher-specificity override replaced the vertical scroll with a horizontal one.** Two competing `--with-symbols` rules existed: the base `.md-board-detail-sentence-bar__text--with-symbols` (`flex-wrap: wrap; overflow-y: auto; align-content: flex-start` — the intended vertical wrap-scroll) and a later, `.md-board-detail-sentence-row`-scoped override (`flex-wrap: nowrap; overflow-x: auto`) added to make chips fill the bar height. The scoped one wins on specificity and forced a single non-wrapping row — which, without `min-width:0`, can't scroll and so expands the page. This is a Rule #0.7 stacked-override that silently changed behavior.
+
+**Fix:** rewrite the winning (`.md-board-detail-sentence-row …`) override to do vertical wrap-scroll — `flex-wrap: wrap; overflow-y: auto; overflow-x: hidden; align-content: flex-start; min-width: 0; max-height: var(--nb-sb-h)` (size-aware so the scroll viewport scales with the sentence-bar size class). Pair with a JS observer (`_scroll_sentence_to_newest`, `observer('sentence_parts.[]')` → `next()` → `el.scrollTop = el.scrollHeight`) so the newest chips stay visible and older rows scroll up out of view — the chat-log pattern (`align-content: flex-start` keeps every row reachable; `flex-end`/`center` push rows to a negative offset scrollTop can't reach).
+
+**Provenance note:** the nowrap override dates to 2026-05-17/19 sentence-bar polish — NOT a recent board-detail refactor. A long-latent flex bug only trips once content is wide enough; "it broke yesterday" often means "I only just populated enough to hit it."
+
+**Evidence:** `app.scss` `.md-board-detail-sentence-bar` (~62190) + `.md-board-detail-sentence-row .md-board-detail-sentence-bar__text--with-symbols` (~62405); `controllers/user/board-detail.js#_scroll_sentence_to_newest`.
+
+## Pattern: a template-bound `style={{…}}` attribute WIPES imperative `el.style.setProperty()` on the same element
+
+**Surface:** board-detail speak mode — entering edit mode and returning, the word-prediction rail tiles revert to their fallback size (84×78) and placeholder images, as if the per-cell measurement never ran ("going through their screen size check").
+
+**Root cause:** `_sync_prediction_tile_size` sets `--prediction-tile-w/h/gap/rail-pad-top` IMPERATIVELY via `main.style.setProperty(...)` on `.md-board-detail-main`. A change had ALSO added a template binding `style={{safe-style (concat "--bd-button-text-size:" …)}}` to that same `<main>`. Ember owns a template-bound `style` attribute: on the next re-render it rewrites the whole attribute to its tracked value (just `--bd-button-text-size`), erasing the imperatively-set tile vars → fallback sizing. The edit→speak transition is one such re-render.
+
+**Fix:** never put a template-bound `style` on an element that also receives imperative `style.setProperty`. Move the bound custom property to a DIFFERENT element. Here `--bd-button-text-size` moved off `<main>` onto the two prediction containers (`.md-board-detail-sentence-bar__prediction-group` and `.md-board-detail-prediction-rail`), which are ancestors of their own labels and receive no imperative styles. Imperative-only `<main>` keeps its tile vars intact.
+
+**Rule of thumb:** imperative DOM style writes and Ember attribute bindings must not share an element. Pick one owner per element's `style`.
+
+**Evidence:** `controllers/user/board-detail.js#_sync_prediction_tile_size` (`main.style.setProperty`); `templates/user/board-detail.hbs` `<main>` (no bound style) + the two prediction containers (carry `--bd-button-text-size`).
+
+---
+
+## Pattern: `root: true` / `search_string ILIKE '%root%'` does NOT mean "set root" — it means "copy-set head or original"; use the anchored brand-key regex for set roots
+
+**Surface:** "My Board Collection" brand sections (CommuniKate, Quick Core, Sequoia, Vocal Flair) listed sub-boards as separate rows (e.g. "Vocal Flair 84 - A Prefix" alongside "Vocal Flair 84"). Goal: show only each set's TOP board.
+
+**Root cause / gotcha:** the obvious fix — add `root: true` to the public brand query (the same param the My Boards section uses) — is WRONG for public originals. `boards_controller#index` implements `root` as `search_string ILIKE '%root%'`, and `board.rb:899` only appends `" root"` when `!settings['copy_id'] || copy_id == global_id`. So EVERY original (never-copied) board gets the marker — including an original published sub-board. `root: true` works for My Boards only because a user's OWN boards are copy-sets (head marked root, sub-board copies are not). There is no clean data flag separating set-root from set-sub-board on original public boards (`parent_board_id` is copy lineage; `immediately_upstream_boards` is unreliable for popular roots).
+
+**Fix:** key off the board KEY convention (same approach as `components/board-picker.js` _loadBrandGroups). Roots are `<brand>-<size>` (`vocal-flair-84`, `quick-core-60`, `sequoia-15`, optionally `-w-keyboard`); sub-boards carry a descriptive suffix (`vocal-flair-84-categories-food`). CommuniKate has no sizes → root is `communikate-home` / bare / `-<size>`. Per-family `root_re = /(^|\/)<slug>-\d+(-w(?:ith)?-keyboard)?$/i` (`(^|\/)` skips the `<owner>/` prefix, `$` rejects descriptive tails). Note the real key suffix is `-w-keyboard`, not board-picker's older `-with-keyboard` — match both with `-w(?:ith)?-keyboard`.
+
+**Evidence:** `app/controllers/api/boards_controller.rb:299-301`; `app/models/board.rb:899`; `app/frontend/app/components/board-collection.js` (BRAND_FAMILIES `root_re` + `_loadAllBrands` filter).
+
+---
+
+## Pattern: to match prediction-word font to board-button labels, use the board's `cqw` clamp inside a tile-as-container — NOT `vw`
+
+**Surface:** board-detail — predicted-word font didn't match the board button labels (rail words rendered LARGER than board labels on narrow/short screens).
+
+**Root cause:** board button labels are CELL-relative — `.md-board-detail-symbol-card__label` uses `clamp(.., 14cqw, var(--bd-button-text-size))` resolved against the `symbol-card` container (`container-type: size`). The prediction label was viewport-relative (`1.5vw`, capped at `--bd-button-text-size`). `vw` ≠ `cqw`, so they diverge whenever cells aren't viewport-proportional (landscape phones: wide-short cells keep `cqw` large while `vw` shrinks, or vice-versa).
+
+**Fix:** the prediction rail tiles are already sized to the board cell (`--prediction-tile-w` measured by `_sync_prediction_tile_size`). Make each tile a `cqw` container (`container-type: inline-size`) and give the label the board's exact clamps — `clamp(10px,14cqw,var(--bd-button-text-size,15px))` at ≤1024px, `clamp(9px,13cqw,…)` at ≤820px. `14cqw` of the tile == `14cqw` of the cell (equal widths) → words match board labels. The in-bar tiles (>1024px) keep the base `1.5vw` clamp, which matches the board's own base `vw` formula on wide screens. `--bd-button-text-size` must be inherited by the prediction containers (set it on them, not on `<main>` — see the bound-style-vs-imperative pattern above).
+
+**Evidence:** `app.scss` `.md-board-detail-symbol-card__label` (cqw) + `.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction(-label)` (container + cqw clamps) + base `.md-board-detail-sentence-bar__prediction-label`.
+
+---
+
+## Pattern: never `transform: scale()` a `object-fit:contain` image to "enlarge" it — it crops inside `overflow:hidden`
+
+**Surface:** board-detail speak mode on short/landscape screens (e.g. iPhone 390px tall) — board button symbol images showed cut off.
+
+**Root cause:** short-viewport rules scaled the symbol `img` up (`scale(1.25 → 2.1)` at ≤500/420/350/280px height) to keep it "roughly constant" as cells shrank, trusting `overflow:hidden` to clip "minor edge overshoot." But the image is already `object-fit:contain` (filling its short dimension), so ANY `scale > 1` overflows and the holder crops it — `scale(1.5)` cut ~⅓ off. A cropped AAC symbol is unrecognizable (worse than a smaller intact one).
+
+**Fix:** remove the scale steps; let `object-fit:contain` size the image to the cell at every height (smaller but fully visible). To make symbols read larger on short screens, give the image more vertical room (trim label/cell padding) — never scale past the container.
+
+**Evidence:** `app.scss` near the former `@media (max-height: 500/420/350/280px) … .md-board-detail-symbol-card__image img { transform: scale() }` block (removed).
+
+## Pattern: sizing a fixed-width sibling to a FLEXIBLE element's measured size is circular — solve the convergent width in closed form
+
+**Surface:** board-detail speak mode — the word-prediction rail tiles (right column) didn't match the board button width/height; the rail rendered NARROWER than the buttons.
+
+**Root cause:** `_sync_prediction_tile_size` set the rail width to the *measured board card width* (`--prediction-tile-w`). But the rail is a fixed-width `flex-shrink:0` sibling of the FLEXIBLE board grid (`grid-fade` is `flex:1`). Setting the rail to the measured card width is circular: the rail then steals that width back from the grid, the cards reflow to a different width, and — with no re-measure-to-convergence — the rail stays permanently one step out of sync. (It also only measured at init+300ms / on resize / on board change, so it was stale when the rail first appeared as suggestions loaded.)
+
+**Fix:** compute the convergent width directly. The grid + rail share a horizontal budget `S = gridFadeWidth + railMargin + railWidth` that is INVARIANT to how it's split (the `flex:1` grid absorbs whatever the rail takes; the sidebar is a separate fixed sibling). At the width `W` where one board column == the rail: `S = (N+1)·W + (N-1)·colGap + railMargin` → `W = (S − (N-1)·colGap − railMargin) / (N+1)`, with `N = current_grid.columns`. One measurement at ANY current rail width yields the right `W` (since `S` is invariant) — no iteration. Guard on the rail being visible (else fall back to plain card width for the >1024px in-bar layout). Also added `suggestions.list.[]` to the re-measure observer so it recomputes when the rail appears.
+
+**Rule of thumb:** never measure a flex-distributed dimension to set a sibling that feeds back into that same distribution. Identify the split-invariant total and solve for the fixed point.
+
+**Evidence:** `controllers/user/board-detail.js#_sync_prediction_tile_size` (+ its `_on_change` observer); `app.scss` `.md-board-detail-prediction-rail { width: var(--prediction-tile-w) }`.
+
+## Pattern: board-detail at <=500px height — SPEAK fills the viewport, EDIT must SCROLL (don't force-fill it); confirm the desired behavior before engineering a fill
+
+**Surface:** board-detail at <=500px height. Speak: the board grid left a gap because the fixed `calc(100dvh - Npx)` couldn't reclaim the space the shrunk sentence bar freed. Fixed with a CSS flex-fill (stretch grid-fade → grid `flex:1 1 0` fills the flexed wrap). Then the same gap was reported in EDIT — and several "make edit fill too" attempts each failed or were rejected.
+
+**The real lesson (behavioral, not just technical):** EDIT and SPEAK want DIFFERENT behavior. Speak should fill to a consistent viewport height (no scroll). EDIT should keep comfortable, consistent button heights and SCROLL (`<main>` is `overflow-y:auto`) when they don't fit — NOT squish/stretch to fit. Chasing a "fill" for edit was the wrong goal the whole time. When a fix "doesn't work" repeatedly, re-confirm the *desired behavior*, don't just iterate the mechanism.
+
+**Failed fill attempts for edit (all reverted — don't repeat):**
+- CSS flex-fill (un-scope speak's rules to edit): collapsed the `minmax(0,1fr)` rows to thin strips — edit's chain (inside the `1fr` edit layout, `grid-template-columns:1fr` @ ~71420) hands the grid no definite height to stretch into.
+- Per-size-class `:has()` calc (reduce `-180` by the bar's shrink): still gapped — a fixed `calc(100dvh-X)` can't adapt to whether the global top bar is present (absent in responsive devtools fullscreen → over-subtracts).
+- JS measure-and-set the grid height to main's content bottom: *did* fill, but the user didn't want a fill at all — edit should scroll.
+
+**What edit actually needs:** at `@media (max-height:500px)`, drop the edit grid's fixed calc to `height:auto !important` (so it sizes to content, not compressed) and floor each cell (`.md-shell--board-detail-edit .md-board-detail-grid__cell { min-height: 96px }`) so buttons stay usable; content then grows past the viewport and `<main>` scrolls. Speak keeps its flex-fill; >500px edit keeps `calc(100dvh-180px)`.
+
+**Debugging note that paid off:** Chrome's purple diagonal-hatch (with grid overlay on) = grid free-space/gap not covered by tracks; the box-overlay shows which element OWNS an empty band — here `<main>` owned it (it was full height; the `grid-sidebar-wrap` inside wasn't growing). Always identify the element that owns the empty space before sizing anything.
+
+**Evidence:** `app.scss` `@media (max-height: 500px)` block — speak `:not(.md-shell--board-detail-edit) … grid-fade` flex-fill + edit `.md-shell--board-detail-edit … .md-board-detail-grid { height:auto !important }` and `… .md-board-detail-grid__cell { min-height: 96px }`; edit grid base `calc(100dvh-180px)!important`; layout `.md-shell--board-detail-edit .md-board-detail-layout { grid-template-columns: 1fr !important }`.
+
+---
+
 ## Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`
 
 **Surface:** API actions that are publicly routed or intentionally exempt from `require_api_token`, but still need a clear authentication challenge before action-specific validation or feature checks.
@@ -2972,6 +3183,52 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 
 ---
 
+## Pattern: autocomplete tokens should follow credential intent, not nearby labels
+
+**Surface:** profile/preferences and account-management forms with mixed profile fields, username lookups, password resets, and delegated account creation.
+
+**Fix recipe:** Use semantic tokens for real user details (`name`, `email`, `tel`, `url`), `current-password` only for credentials that authenticate an existing account, and `new-password` for credential creation/reset/update. For username lookup, start-code, free-form bio, and profile location fields, prefer `autocomplete="off"` plus autocapitalize/autocorrect/spellcheck off where typing exact identifiers matters, so browsers do not inject saved usernames/password-adjacent values into unrelated profile fields.
+
+**Evidence:** `app/frontend/app/templates/user/edit.hbs`; task log `2026-06-03-profile-autocomplete-field-types.md`.
+
+---
+
+## Pattern: speak-mode display prefs read from `app_state.referenced_user`, not `currentUser`
+
+**Surface:** any feature whose on/off or appearance should follow the AAC user being spoken AS (board-detail and classic board-alt speak pages), e.g. word prediction, skin, preferred symbols, button text position.
+
+**Root cause pattern:** in speak mode the logged-in account (`currentUser`) is often a supervisor, not the communicator. Reading prefs off `currentUser` shows the wrong person's settings. The established app-state property is `referenced_user` — board/index.js already gates skin/symbols/button_text off `appState.referenced_user.preferences.*`, and board-detail uses `app_state.referenced_user.preferences.*`. It is only meaningful in speak mode (pair the read with `&& speak_mode`, or an `!speak_mode` early-return).
+
+**Fix recipe:** to make a setting global across both speak pages, key it on `referenced_user.preferences.<key>`, add that exact path to the computed/observer dependency keys, and default-OFF defensively with `=== true` (not `!== false`) so a null/absent pref is treated as off. Seed the same default into the preferences-page `setup()` pending+original so the form doesn't render dirty. Retire the old per-record attr by simply not reading it — leave the model attr/JSON-API field in place (removing it is a gated DB/contract change) rather than migrating data.
+
+**Evidence:** `app/frontend/app/controllers/board/index.js` (`updateSuggestions`, `computeHeight`), `app/frontend/app/controllers/user/board-detail.js`, `app/frontend/app/controllers/user/preferences.js`, `app/models/user.rb` (`preference_defaults`); task log `2026-06-06-word-prediction-global-pref-redesign.md`.
+
+---
+
+## Pattern: consolidate multiple creation entry points onto one route
+
+**Surface:** a feature reachable from several buttons/modals (board creation: dashboard "new board" actions, legacy `/create-board` standalone page, modal opens) that should funnel into a single canonical flow.
+
+**Fix recipe:** replace every `modal.open('<legacy>')` with `router.transitionTo('<canonical-route>')`, and turn the legacy route into a redirect via `beforeModel() { this.router.transitionTo('<canonical-route>'); }`. Grep `modal.open('<legacy>')` across `app/frontend/app/` afterward to prove zero remaining opens. Watch `this` in promise callbacks — capture `var _this = this;` and route through `_this.get('router')` (the `lingolinq/no-this-in-promise-executor` rule + plain-callback `this` gotcha). Preserve purchase-gate semantics: only navigate in the resolve handler if the original did, so you don't bypass `check_for_needing_purchase`.
+
+**Evidence:** `app/frontend/app/components/dashboard/authenticated-view.js`, `app/frontend/app/routes/create-board.js`; task log `2026-06-06-word-prediction-global-pref-redesign.md`.
+
+---
+
+## Gotcha: `overflow-y: auto` silently clips horizontal overflow too
+
+**Surface:** any scroll container (e.g. the word-prediction side rail `.md-board-detail-prediction-rail`) that sets only `overflow-y: auto`/`scroll` and assumes the X axis stays `visible`.
+
+**Root cause pattern:** per CSS spec, when one overflow axis is set to a non-`visible` value, a computed `visible` on the other axis becomes `auto`. So `overflow-y: auto` with no `overflow-x` declared → `overflow-x` computes to `auto`, which **clips** (and may scroll) horizontal overflow. Content wider than the box gets cut on the right with no visible scrollbar if it's only slightly over.
+
+**The trigger is usually a fixed `min-width` floor, not text.** A flex/`width:100%` child that inherits a base `min-width: 44px` (touch-target floor) from a shared class CANNOT shrink below it. When the scroll container is dynamically sized smaller than that floor (e.g. the rail width tracks a board cell, and many-column boards make cells <44px), the child overflows its container by `floor − containerContent`, and the `overflow-y:auto`→`overflow-x:auto` clips its right edge. This clips EVEN SHORT content ("you", "i") — a key tell that it's the *box* overflowing, not the *label text*. If you only see it with long words you'll wrongly chase text wrapping; if you see it with short words too, suspect the min-width floor.
+
+**Fix recipe:** first identify whether short content also clips (box overflow) vs only long content (text overflow). For box overflow, override the inherited floor on the dynamically-narrowed element: `min-width: 0`, scoped so siblings sharing the base class keep their touch-target floor. Ensure inner fixed-size children (images) scale with the box (`max-width`/`%`) so the shrunk tile stays legible. Only ALSO add text wrap/clamp (`width:100%; word-break; -webkit-line-clamp; text-overflow:ellipsis`, matching the analogous element's treatment) if long labels still overflow after the box is fixed — verify before adding, don't stack speculatively.
+
+**Evidence:** `app/frontend/app/styles/app.scss` (`.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction` `min-width:0` override of the base tile's `min-width:44px`); rail width from `controllers/user/board-detail.js#_sync_prediction_tile_size`; task log `2026-06-06-word-prediction-global-pref-redesign.md`.
+
+---
+
 ## Pattern: split global admin telemetry from feature-flagged org telemetry
 
 **Surface:** `Api::TelemetryController#index` and organization telemetry endpoints.
@@ -3008,6 +3265,193 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 
 ---
 
+## Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user
+
+The `user.board-detail` route nests under `user`, so `this.modelFor('user')`
+resolves to the **board OWNER** (the `:user_id` in the URL), which is NOT the
+logged-in user when you open a board you don't own (anything outside "My
+Boards"). Every personal viewing preference toggle in
+`controllers/user/board-detail.js` (`set_folder_style`,
+`toggle_folder_colored_face`, `toggle_shrink_labels_to_fit`,
+`toggle_soft_borders`, `toggle_hide_speak_bar`, `set_speak_menu_item_hidden`)
+**saves** to `app_state.currentUser.preferences.*`. The route's `setupController`
+was **reading** them back from `modelFor('user')` — so on another user's board
+they silently reverted to defaults (the owner has no such pref saved).
+
+**Fix recipe:** read personal viewing/display prefs from
+`this.appState.get('currentUser')` so the read mirrors the write. Keep the
+board-owner `user` var for ownership logic. Note `symbol_background`/`voice` in
+the same block still read from the owner — leave intentionally owner/communicator-
+scoped prefs alone unless their save side also targets `currentUser`.
+
+**Smell test:** when a setting "resets to default" only on records you don't own,
+check whether the read source (`modelFor`) matches the write source (`currentUser`).
+
+**Evidence:** `app/routes/user/board-detail.js` `setupController` (~line 266);
+save handlers `app/controllers/user/board-detail.js:7093-7202`; task log
+`2026-06-08-folder-prefs-revert-on-others-boards.md`.
+
+---
+
+## Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped
+
+The speak-mode "My Board Collection" panel's CSS (`app.scss` ~66916–67340) is
+authored as a **light base** (`.md-board-collection__*`) with the dark speak-mode
+look layered as `.md-board-detail--dark .md-board-collection__*` overrides. So the
+exact same panel markup (header + search pill + sectioned `__item` rows) can be
+dropped onto a **light** page (e.g. the Find Boards / `search` page) and it renders
+as a light-themed twin automatically — no re-theming needed. Reuse the classes;
+only add a thin shell (trigger + floating-panel positioning) around them. `__body`
+already does `overflow-y:auto; flex:1; min-height:0`, so a shell with a `max-height`
++ `display:flex; column` gives you a scrolling dropdown for free.
+
+**Combobox-over-existing-search:** on the Find Boards page the "Filter Boards"
+field was the page's live SERVER search (the `_autoSearch` observer re-queries on
+`searchString` change). To turn it into a board-jump dropdown without losing search,
+make the dropdown's top input the search field: `@onQueryChange={{action (mut
+this.searchString)}}` flows typing back to the controller, the existing observer
+fires, and the section lists are just the live results — no client-side filter layer
+and no need to touch the speak-mode component.
+
+**Gotchas:** (1) `{{#each sections as |section|}}` shadows the `<section>` tag —
+ember-template-lint `no-shadowed-elements`; name the block param `group`. (2) Floating
+panel z-index must be `< $aac-z-topbar` (use 150). (3) mixed-unit `min(60vh, 460px)`
+compiles fine here (dart-sass; precedent at app.scss:24301) — only arithmetic
+(`px + vw`) inside `clamp()` needs `calc()`.
+
+**Evidence:** `components/search-board-jump.{js,hbs}`, `controllers/search.js`
+`jump_sections`/`select_jump_board`, `app.scss` `.ub-search-jump*`; task log
+`2026-06-08-find-boards-jump-dropdown.md`.
+
+---
+
+## Pattern: board cards are governed by the `board-card-modern` mixin (its `!important` makes surface font/spacing overrides DEAD)
+
+Board cards (`board-icon` component, root `.simple_board_icon`) get their modern
+look from the `@mixin board-card-modern` (app.scss:~61), `@include`d on 4 surfaces:
+home-boards picker (~5135), the `.ub-search-page` responsive `.btn.simple_board_icon`
+(~39134), dashboard user-summary available-boards (~45087), and the boards+search
+grid `.ub-boards-page__board-grid` (~60760). The mixin's typography/layout rules are
+`!important`, so per-surface declarations like `.name { font-size:1.69rem }` or
+`.author { font-size:17px; margin:0 0 16px }` are **overridden and dead** — the card
+actually renders the mixin's values (title `max(11px,1.2rem)`=12px, author
+`max(11px,0.9rem)`=11px, author margin 0). To change card typography/spacing
+*everywhere*, edit the MIXIN, not the surface block. Font floors use `max(<px>, <rem>)`
+so text never drops below the px floor when the 10px root scales rem down.
+
+**Decorative top accent:** the mixin's `&::before` (`inset:0 0 auto 0`, 2px gradient)
+is the top border. It only looks right when the card keeps the mixin's
+`overflow:hidden` (clips the bar to the 28px radius). The boards/search card had flipped
+it to `overflow:visible`, so the bar bled past the rounded corners as a full-width line.
+Fix = restore `overflow:hidden` (heart/home-badge/trash are siblings in the *holder*,
+not children of the card, so they aren't clipped).
+
+**Equal-height across rows:** the boards/search grid is `display:flex; flex-wrap;
+align-items:stretch` → cards equalize within a row only. For uniform height across ALL
+rows, set a `min-height` floor on the card; content is bounded (title `-webkit-line-clamp:2`
++ fixed 104px image), so a floor above the tallest content (≈300px) makes every card match.
+The home-boards picker / user-summary cards use `height:auto` and are NOT under the
+boards-grid selector, so a boards-grid min-height does not touch them (scope deliberately).
+
+**Evidence:** `app/styles/app.scss` mixin ~61, base `.simple_board_icon` ~9619,
+boards/search grid ~60711; task log `2026-06-08-board-card-refinements.md`.
+
+---
+
+## Pattern: home-tour `cardSel` MUST target the visible wide/narrow variant — don't "simplify" it to the base class
+
+The dashboard caseload + speak cards render **dual markup**: `<base>-wide-only`
+AND `<base>-narrow-only` elements that BOTH carry the base class
+(`.md-card--speak`, `.md-card--caseload`), with CSS hiding one per breakpoint
+(`<=1024px` shows `-narrow-only`, `>=1025px` shows `-wide-only`). The home tour
+(`components/home-tour.js`) must anchor steps to the **visible** variant via
+`cardSel(base) => base + (narrowTour ? '-narrow-only' : '-wide-only')`. A bare
+`querySelector('.md-card--speak')` grabs the FIRST (DOM-order) element — the
+HIDDEN, zero-size variant at the current width — so the popover AND the spotlight
+detach to a corner and nothing is highlighted (breaks "after the main nav" on
+small screens). `_onTourResize` must also flip `attachTo.element` to the visible
+variant when crossing 1024px, not just the placement side.
+
+**This has regressed twice.** Both times a "Modernize…" refactor replaced
+`cardSel` with `return base` under a comment claiming the cards became
+single-markup — they did NOT. boards/extras/orgs ARE single-markup (target base
+directly); caseload/speak are NOT. Before simplifying `cardSel`, grep the
+template for `-wide-only`/`-narrow-only` on that card first.
+
+**Evidence:** `app/templates/components/dashboard/authenticated-view.hbs`
+(speak/caseload wide-only + narrow-only), `app/components/home-tour.js`
+`cardSel` + `_onTourResize`; app.scss ~46369 / ~41673 (the 1024/1025 hide rules).
+Related: [[the dual wide-only/narrow-only markup gotcha already in this doc]].
+
+## Card box-shadow / glow "cut off on the right" is a GUTTER problem, not an overflow problem
+
+**Symptom:** a dashboard card's soft drop-shadow / showcase glow is sharply
+clipped on the right, and only at narrower widths. Tempting (wrong) fix:
+`overflow: visible` / `overflow-x: visible` on an ancestor.
+
+**Why overflow is the wrong lever:** the dashboard scroll chain (`#content`,
+`.md-shell`, `.md-workspace`, `.md-main`) is a deliberate multi-layer
+horizontal-scroll guard — `overflow-x: hidden !important` on ALL of them inside
+`@media (max-width: 1024px)` (app.scss ~54151-54161). Un-clipping one layer just
+moves the clip up the chain; `#content` still clips at the viewport. And on
+narrow screens the card sits only ~14-26px from the viewport edge, so a 38-52px
+shadow is physically off-screen — no overflow trick conjures space that isn't there.
+
+**Root cause (verified):** the shadow needs a GUTTER ≥ its blur reach between the
+card edge and the clip edge. Desktop `.md-workspace` has `padding: 40px 40px …`
+(~40323) — that 40px gutter is exactly why the shadow shows on desktop. The
+`@media (max-width: 820px)` block (~40388) drops it to `margin: 0; padding-left/
+right: 14px` — 14px < the 38px (rest) / 52px (hover) glow reach → hard clip.
+
+**Fix pattern:** restore the gutter for the affected surface only, scoped by
+content — `.md-workspace:has(.md-grid--dashboard) { padding-left/right: 40px
+!important }` inside the ≤1024 block. `:has()` is already used here (~15708,
+~29219) so it's safe. Keep the scroll guard intact. Size the gutter against the
+WIDEST box-shadow layer's blur (`grep -A6 'md-card--…' | grep box-shadow`).
+A decorative glow fades to ~0 before its full blur radius, so matching the
+resting reach (not the hover peak) is usually enough; hover overshoot landing
+off-screen reads as a natural fade, not a clip.
+
+**Evidence:** app.scss ~40323 (desktop 40px gutter), ~40388-40415 (≤820px 14px
+reduction), ~54151-54161 (multi-layer scroll guard), ~46275-46313 (Speak card
+0 0 38px / 52px glow).
+
+## Two independent Shepherd tours can safely share the ember-shepherd `tour` service
+
+Building a second tour-style modal (`getting-started-tour`) alongside the
+existing `home-tour`? Both can inject `service('tour')` and call
+`tour.addSteps(theirSteps)` without contaminating each other. ember-shepherd's
+`addSteps` runs `_initialize()`, which **creates a brand-new `Shepherd.Tour`
+every call** (no "already initialized" guard — `node_modules/ember-shepherd/
+dist/services/tour.js` `_initialize`, ~l.446-478). So each start gets a fresh
+tour with only the steps from that addSteps call — no need to reset
+`tour.steps`. Just set `defaultStepOptions`/`modal`/`confirmCancel` BEFORE
+addSteps each time (they're read at instantiation), which both components do.
+
+Reuse the home-tour CSS for a matching look: `md-tour__step`,
+`md-tour__step--intro` (centered modal), `md-tour__btn--ghost/--primary`,
+`md-tour__eyebrow`/`__heading` (decorated title via innerHTML), and toggle
+`body.md-tour--centered-step` in a `when.show` hook for the backdrop blur.
+
+Naming gotcha: a `getting-started` component (+ `getting-started-icon`) ALREADY
+exists — a checklist modal driven by the `modal` service (NOT Shepherd). The
+new progressive tour-style modal is `getting-started-tour` to avoid clobbering
+it. Two distinct "Getting Started" surfaces; don't conflate them.
+
+## Fixed-positioned dashboard chrome must clear z-index:1000 (the inner-header)
+
+A `position: fixed` element placed on the dashboard (e.g. the "Take a tour"
+button, the Getting Started badge) **vanished** until given `z-index > 1000`.
+The app header (`#within_ember > header`, app.scss ~l.442) is
+`position: fixed; z-index: 1000; height: var(--topbar-height)`, and the
+app-navbar inside it overflows downward (padding-top: 2rem), so it paints over
+fixed children placed near the top. Fix: `z-index: 1001` (above the header) and
+position below it via `top: calc(var(--topbar-height, 16px) + Nrem)`. The
+disappearance was NOT a transform/containing-block trap — no ancestor of the
+dashboard content has transform/filter/contain; it was pure stacking.
+
+---
+
 ## Pattern: webcam eye gaze is lazy — preference toggle does not start the camera
 
 **Surface:** User Preferences dwell/eye-tracking, Speak Mode, Test Dwell.
@@ -3019,6 +3463,212 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Evidence:** `app/frontend/app/utils/capabilities.js`, `app/views/layouts/application.html.erb`; task log `2026-06-08-webcam-eye-gaze-ux.md`.
 
 **Gotcha:** `app.covidspeak.org` CDN for WebGazer/Jeeliz deps is unreachable (`ERR_NAME_NOT_RESOLVED`). Web builds must use self-hosted `/weblinger/lib/` (vendored from open-aac/weblinger.js), not `weblinger_asset_prefix` → covidspeak.
+
+---
+
+## Pattern: a DOM-snapshot live preview can't show elements the source page `{{#if}}`-removed — render-all + hide
+
+The Getting Started "choose what appears" modal builds its live preview by
+`cloneNode(true)`-ing the real `.md-grid--dashboard` (getting-started-tour.js
+`_onDisplayShow`). When the real dashboard hid a section by **removing** its card
+from the DOM (`{{#if this.sectionVisibility.X}}`), that card was absent from the
+snapshot — so re-checking the box reapplied the grid area (space) but `setCardDisplay`
+found no element to show → **phantom empty grid cell, no card**. Hiding worked
+because the card was still in the snapshot when toggled off; the asymmetry is the tell.
+
+**Fix recipe:** keep every *available* card in the DOM always and toggle the
+hidden state with an inline `display: none !important` binding (a `cardHideStyle`
+computed off the visibility map) instead of `{{#if}}`-removing it. Keep a separate
+*availability-only* gate (`sectionAvailable`) so type-restricted cards (caseload/org)
+still never render for users who lack them. Then the clone is full-fidelity and the
+modal's existing show/hide (`removeProperty('display')` / `setProperty(...,'important')`)
+works in both directions. Inline `!important` wins over the wide/narrow variant
+`display:...!important` @media rules with zero SCSS specificity work.
+
+**Rule of thumb:** any "faithful preview" built from a DOM clone must clone a source
+that contains *all* toggleable elements (visibility via CSS, not conditional render),
+or it can only ever preview removals, never re-additions.
+
+**Evidence:** `app/frontend/app/components/dashboard/authenticated-view.js`
+(`sectionAvailable`, `cardHideStyle`), `.../templates/components/dashboard/authenticated-view.hbs`,
+`.../components/getting-started-tour.js`; task log `2026-06-09-getting-started-preview-readd-phantom-space.md`.
+
+---
+
+## Pattern: dashboard card "positions" preference — permute grid-area names, don't rewrite the matrix
+
+To let users rearrange the home dashboard cards (drag-to-swap in the Getting Started
+preview, behind `dashboard_drag_layout`), the position is stored per-section exactly
+like `dashboard_sections` visibility: `preferences.dashboard_positions` maps a section
+key → the section key whose home-slot it occupies (default identity; a swap is the pair
+`{A:B, B:A}`). Backend wiring mirrors `dashboard_sections` line-for-line (PREFERENCE_PARAMS
++ preference_defaults). Frontend save uses the same `device.updated` dirty-bit + `user.save()`.
+
+**Key move:** apply positions by *substituting the area-name tokens in the
+grid-template-areas string* (`applyPositions` in `dashboard_sections.js`), NOT by
+emitting per-card inline `grid-area`. This rides the existing inline `gridStyle`
+(single source of truth, shared by home + preview) and naturally no-ops on the narrow
+`order`-based layout, so no responsive conflict. Only relabel a **closed permutation**
+over currently-visible non-boards cards (every target is also a source, targets
+distinct); any partial/inconsistent map (e.g. a saved swap referencing a now-hidden
+card) falls back to the untouched layout — emitting a non-rectangular template would
+silently drop a card. Boards is excluded from swapping (spanning hero = different cell
+shape). Default/empty positions produce a byte-identical layout (verify in node).
+
+**Drag in the preview clone:** the clone is `pointer-events:none !important`, and the
+cards are nested buttons/links, so native HTML5 DnD is out. Use pointer events +
+`setPointerCapture`. IMPORTANT: do NOT re-enable `pointer-events` on the card itself —
+that also re-activates its `:hover` lift/glow inside the preview (unwanted, and the hover
+rules are scattered/duplicated so overriding them is a cascade fight). Instead lay a
+transparent **overlay** (`md-gst-drag-overlay`, `position:absolute; inset:0`, z-indexed)
+over each swappable card: the overlay carries `pointer-events:auto !important` + the grab
+cursor + `touch-action:none`, while the card stays inert and never enters :hover.
+elementFromPoint lands on the overlay; its parent is the host card. The `md-gst-draggable`
+class's *presence is the flag gate* (JS adds it only when the flag is on). No visual ghost —
+source dims, hovered target highlights, release commits — sidesteps elementFromPoint
+self-hit math. Cross the show-hook ↔ persist boundary via a `data-gst-positions` attribute
+stamped on `.md-gst-preview__live` (same DOM-channel the checkboxes use). Boards is excluded
+(spanning hero — different cell shape).
+
+**Evidence:** `app/frontend/app/utils/dashboard_sections.js` (applyPositions,
+gridLayoutState(vis, positions)), `.../components/getting-started-tour.js`
+(_swapPositions, _wirePreviewDrag, _persistDisplaySelection),
+`.../components/dashboard/authenticated-view.js` (sectionPositions, flag-gated),
+`app/models/user.rb`, `lib/feature_flags.rb`; task log
+`2026-06-09-getting-started-drag-swap-layout.md`.
+
+**Boards (the spanning hero) move:** unlike the equal small cards (token-permutation),
+moving Boards is STRUCTURAL — it changes which cells it spans AND the column widths.
+Model it as a separate `{side, raised}` descriptor applied by `applyBoardsPlacement` as
+post-processing on the base areas (raise = rotate the 2-row block up one cell in its
+column; side:right = swap the two tokens in each Boards row → mirror). The wider column
+must follow Boards, so swap 55/45→45/55 — but do it with a `md-grid--boards-right` CLASS
+scoped to `@media (min-width: 951px)`, NEVER inline: inline `!important` columns would
+beat the ≤950px mobile `@media` rules and force 2 columns on phones. Keep it 100% opt-in +
+default-preserving: `gridLayoutState(vis, positions, boards)` with `boards` null/absent
+returns byte-identical output (node-verify this). Only transform a clean 2-row
+single-column Boards block; full-width/1-row/absent → untouched (no invalid templates).
+
+**Inline `gridStyle` leaks across dashboard tabs:** the home dashboard's `.md-grid--dashboard`
+is shared by all tabs (home/boards/reports/extras/supervisors), switched by `activeTab`. The
+home layout's inline `style={{this.gridStyle}}` (grid-template-areas/rows, `!important`) and
+`{{this.gridClassString}}` (with-caseload / with-org-mgmt / boards-right) are applied to that
+ONE element — and inline `!important` beats the per-tab `.md-shell--*-view .md-grid {
+grid-template-areas: "extras-page"/"boards"/"reports"/"sup" }` rules, so non-home tab content
+(grid-area: extras-page, etc.) loses its cell and auto-places at the bottom. Fix: gate the
+home grid styling to `{{if (is-equal this.activeTab "home") ...}}` (same pattern already used
+for `md-grid--with-getting-started`). Rule of thumb: any inline grid-template-* on a
+multi-tab shared grid MUST be tab-gated, or it overrides every other tab's layout.
+
+**Re-saving a `raw` (POJO) preference silently no-ops — first save works, second doesn't
+PERSIST (VERIFIED):** `preferences` is `DS.attr('raw')` mutated in place via
+`user.set('preferences.x.y', v)`. Console-verified: after such a nested set,
+`user.get('hasDirtyAttributes') === false` and `user.changedAttributes()` is EMPTY — i.e.
+ember-data does NOT register the in-place nested mutation as a change. So on a re-save the
+record looks clean and `save()` serializes/sends the STALE value; the new value never
+reaches the server (and dependent computeds don't re-render). The first save can sneak
+through, later ones don't. The `device.updated=true` "dirty bit" is ITSELF a nested set, so
+it does NOT actually dirty the record — it doesn't fix this. This is a documented Ember
+Data limitation (ember-data only detects REFERENCE changes on object/`raw` attrs, not
+in-place mutations — see discuss.emberjs.com "hasDirtyAttributes … nested attributes").
+**Fix (community-standard "replace the entire object"):** NEVER mutate the model's object
+in place. Copy it, edit the COPY, set the whole attribute ONCE:
+```js
+var prefs = Object.assign({}, user.get('preferences') || {});
+prefs.dashboard_positions = positions;            // edit the COPY
+prefs.device = Object.assign({}, prefs.device, {updated: true});
+user.set('preferences', prefs);                   // fresh ref → dirty + notify
+```
+CRITICAL: a `set('preferences.x', …)` BEFORE the reassign defeats it — it mutates the
+canonical in place, so the later copy has the same content and ember-data sees no change.
+Build the copy first, never touch the model's nested keys. Verify with
+`u.get('hasDirtyAttributes')` (→ true) + `Object.keys(u.changedAttributes())` (→ ['preferences']).
+
+**A cloned DOM preview must be made INERT, or a drag's trailing click navigates/closes the
+modal:** `cloneNode(true)` keeps the source's real `<a href>` + Ember `data-ember-action*`
+attributes, so the `click` browsers synthesize at the end of a pointer-drag bubbles into the
+cloned button/link and fires its action / href navigation — tearing down the surrounding
+modal (looked like "drag-drop reloads the page"). Fix at clone-build: strip `href` from
+anchors and every `data-ember-action*` attr from descendants, AND have the drag overlay
+swallow clicks (`preventDefault()` + `stopPropagation()`). A preview should never be able to act.
+
+**Drag-to-swap must exchange the cards' CURRENT cells, not the cells NAMED after them:** with
+a positions map `{cardKey → slotKey}`, swapping `positions[A]`/`positions[B]` targets the
+base-cells literally named A/B — but once cards have been rearranged, A and B no longer sit
+in their own base-cells, so the op cascades into a 3-cycle that displaces a THIRD card (and
+the drop-target cue lights up two cards instead of one). Fix: find the cell each card
+CURRENTLY occupies (the key X where `positions[X] === card`, default `card`) and swap those
+two cells' owners — so only A and B move. (getting-started-tour.js `_swapPositions`.)
+
+**A 1px divider/hairline that computes to `height: 0` is being CRUSHED by flexbox, not
+overridden:** if DevTools shows `height: 0px` while the `height: 1px` rule is present (not
+struck through), the element is a direct child of a `display:flex; flex-direction:column`
+container that is height-capped + scrolling (`overflow-y:auto`), and the default
+`flex-shrink:1` squeezes the 1px line to nothing when content overflows. Fix: `flex-shrink:0`
+on the divider. Tell: a `--collapsed`/sibling variant of the same element already pins
+`flex-shrink:0` — the expanded variant just never got the same guard. This was the real cause
+of the "missing" left Action-Panel divider (`.md-board-edit-panel__divider`), even though
+selector/color/height all looked correct in source. Don't chase margin/color first — check
+the computed `height` and the flex parent.
+
+**Apply a dropped image DIRECTLY to a board button (no settings modal):** both the
+classic board (`controllers/board/index.js` buttonSelect) and board-detail open the
+`button-settings` modal on an image drop (`content_dropped` → `file_dropped` →
+`buttonSelect(id,'picture')`), which is the wrong UX for a drag-drop (flash-then-revert,
+extra clicks). To commit straight to the button: upload with
+`pictureGrabber.save_image_preview({url, content_type, protected:false})` (returns the
+saved image record — same call the modal's `set_as_button_image` uses), then
+`editManager.change_button(id, { image: image, image_id: image.get('id'),
+_picked_display_url: image.get('url') })`. `change_button` derives `image_url` (the field
+board-detail-grid actually renders — NOT `local_image_url`), syncs `board.buttons`,
+clears `fast_html`/`last_cb` to re-render, and calls `save_state` (undo + dirty). Scope
+the direct path to board-detail via `appStateService.get('current_route')` containing
+`board-detail` so the classic board keeps its modal flow. Helper added:
+`contentGrabbers.apply_dropped_image_to_button` (services/content-grabbers.js). The image
+record uploads immediately; the button's reference persists with the board edit on Done
+Editing.
+
+**A speak-mode tap on board-detail CHROME fires the Ember action TWICE (synthetic +
+native click) — a toggle opens-then-closes and looks "dead":** in speak mode
+`raw_events.js` `element_release` synthesizes a `dispatchPassThroughClick` for
+non-`/button/` targets (its final `else`), but board-detail also keeps the BROWSER's
+native click alive (the `.board-detail-view` carve-out in `eat_events`, raw_events.js:79).
+`preventDefault()` on touchend/mouseup does NOT cancel the native click, so chrome
+buttons (options ⋮ menu, sentence-bar tools) get TWO clicks → a toggle nets closed.
+Tell-tale: works with devtools open (timing drops one click), broken closed; survives
+hard refresh (so NOT live-reload). Fix: in `element_release`'s final `else`, when
+`event_source === 'click'` (real pointer → native click coming) AND target is within
+`.board-detail-view`, do nothing and let the native click drive the action; dwell/
+eye-gaze/scanning use other `event_source`s (no native click) and must still synthesize.
+**CRITICAL refinement — scope the skip to `event.type === 'mouseup'` (MOUSE only).** The
+double only happens on mouse, where the native click fires regardless of preventDefault.
+On TOUCH, `element_release`'s `preventDefault()` CANCELS the browser's synthesized click,
+so the synthetic `dispatchPassThroughClick` is the ONLY click — skipping it there makes
+board-detail chrome unresponsive to taps on real tablets (the main AAC platform) AND in
+devtools device-emulation. Symptom of getting this wrong: works with devtools closed
+(mouse), breaks with devtools open (touch emulation) — the exact inverse of the original
+mouse-only double-click. So: skip synthetic only for `mouseup`; let `touchend` fall
+through and synthesize.
+Diagnosis technique that nailed it: a capture-phase recorder logging every pointer/click
+(target, `elementFromPoint`, `aria-expanded`, innerWidth) to **localStorage** so a
+devtools-closed Heisenbug can be read back after reopening devtools. See
+[2026-06-09-board-detail-speak-options-menu-double-click.md](2026-06-09-board-detail-speak-options-menu-double-click.md).
+
+**Safe, verifiable way to dedup byte-identical rule-blocks in a giant SCSS file
+(app.scss had ~5.2k duplicated lines from bad merges):** (1) parse into depth-0
+brace-balanced blocks with a scanner that IGNORES braces inside strings, `/* */`, and `//`
+comments — a naive `{`/`}` counter mis-splits on `[attr="…}…"]` and corrupts the file;
+(2) group by exact block text, remove all but the LAST copy (keep-last preserves the cascade
+— the later identical copy already wins over anything between it and the earlier copy);
+(3) GUARD with cascade-equivalence, not a raw byte-diff: removing a duplicate legitimately
+shrinks the raw CSS, so compile both versions `--style=compressed` (pipe candidate via
+`sass --stdin`, no temp files), then canonicalize each compiled output by collapsing
+byte-identical compiled rules keep-last, and compare. Identical canonical forms ⇒ every
+selector/property resolves to the same winning declaration ⇒ behavior-neutral. Only write the
+file if the guard passes AND the candidate compiles. Variants are auto-excluded because full
+block bodies differ (here: 141 selectors like `:root`, `@font-face`, `@media (max-width:640px)`
+×28 distinct bodies were correctly preserved). The compile gate caught a parser bug on the
+first run and left the file untouched.
 
 ---
 

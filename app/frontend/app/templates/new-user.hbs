@@ -8,13 +8,13 @@
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Full Name" key="full_name"}}</label>
         <div class="col-sm-6">
-          <Input @value={{this.model.user.name}} class="form-control" id="name" placeholder="Full name" />
+          <Input @value={{this.model.user.name}} class="form-control" id="name" placeholder="Full name" autocomplete="name" />
         </div>
       </div>
       <div class="form-group">
         <label for="user_name" class="col-sm-4 control-label">{{t "User Name" key="uesr_name"}}</label>
         <div class="col-sm-6">
-          <Input @value={{this.model.user.user_name}} class="form-control" placeholder="User name" />
+          <Input @value={{this.model.user.user_name}} class="form-control" placeholder="User name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
           {{#if this.model.user.user_name_check.checking}}
           {{else if this.model.user.user_name_check.exists}}
             <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.model.user.user_name}}</span>
@@ -24,13 +24,13 @@
       <div class="form-group">
         <label for="email" class="col-sm-4 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-6">
-          <Input @value={{this.model.user.email}} class="form-control" placeholder="Email address" />
+          <Input @type="email" @value={{this.model.user.email}} class="form-control" placeholder="Email address" autocomplete="email" inputmode="email" />
         </div>
       </div>
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-6">
-          <Input @type="password" @value={{this.model.user.password}} class="form-control" placeholder="Password" />
+          <Input @type="password" @value={{this.model.user.password}} class="form-control" placeholder="Password" autocomplete="new-password" />
         </div>
       </div>
       <div class="form-group">

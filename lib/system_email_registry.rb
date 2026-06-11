@@ -6,11 +6,13 @@ module SystemEmailRegistry
     { key: 'parental_consent_mailer.greeting', label: 'Greeting' },
     { key: 'parental_consent_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
     { key: 'parental_consent_mailer.action_prompt', label: 'Action prompt' },
+    { key: 'parental_consent_mailer.privacy_notice', label: 'Privacy notice' },
     { key: 'parental_consent_mailer.footer', label: 'Footer' }
   ].freeze
 
   PARENTAL_CONSENT_DYNAMIC_VARS = [
     { name: '@consent_url', description: 'One-time parental consent approval link sent to the parent.' },
+    { name: '@privacy_url', description: 'Link to the Privacy Policy for COPPA direct notice.' },
     { name: '@user', description: 'The child user account awaiting consent.' },
     { name: '@child_name', description: 'Display name of the child user, if provided at signup.' },
     { name: '@parent_email', description: 'Parent or guardian email address the message is sent to.' }
@@ -30,7 +32,7 @@ module SystemEmailRegistry
       category: 'Account',
       recipient_type: 'parent',
       default_subject: 'Parental Consent',
-      variables: COMMON_VARS + ['@consent_url', '@user', '@child_name', '@parent_email'],
+      variables: COMMON_VARS + ['@consent_url', '@privacy_url', '@user', '@child_name', '@parent_email'],
       i18n_blocks: PARENTAL_CONSENT_I18N_BLOCKS,
       dynamic_variables: PARENTAL_CONSENT_DYNAMIC_VARS,
       uses_i18n_subject: true

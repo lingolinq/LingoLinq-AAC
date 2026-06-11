@@ -11,19 +11,19 @@
     <div class="form-group">
       <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
+        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" autocomplete="name" />
       </div>
     </div>
     <div class="form-group">
       <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
+        <Input @type="email" @value={{this.model.email}} class="form-control" id="email" placeholder="" autocomplete="email" inputmode="email" />
       </div>
     </div>
     <div class="form-group">
       <label for="cell_phone" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" />
+        <Input @type="tel" @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" autocomplete="tel" inputmode="tel" />
       </div>
     </div>
   {{/preference-box}}
@@ -79,7 +79,7 @@
             {{qr-code text=this.status_2fa.uri size=300}}
             </div>
             <span style='display: inline-block; width: 200px;'>
-              <Input type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" />
+              <Input type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" autocomplete="one-time-code" />
             </span>
             {{#if this.status_2fa.error}}
               <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
@@ -118,19 +118,19 @@
     <div class="form-group">
       <label for="description" class="col-sm-3 control-label">{{t "Short Bio" key="one_liner"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.description}} class="form-control" id="description" placeholder="a short bio" />
+        <Input @value={{this.model.description}} class="form-control" id="description" placeholder="a short bio" autocomplete="off" />
       </div>
     </div>
     <div class="form-group">
       <label for="url" class="col-sm-3 control-label">{{t "URL" key="url"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.details_url}} class="form-control" id="url" placeholder="https://" />
+        <Input @type="url" @value={{this.model.details_url}} class="form-control" id="url" placeholder="https://" autocomplete="url" inputmode="url" />
       </div>
     </div>
     <div class="form-group">
       <label for="location" class="col-sm-3 control-label">{{t "Location" key="location"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.location}} class="form-control" id="location" placeholder="City, State, Whatever" />
+        <Input @value={{this.model.location}} class="form-control" id="location" placeholder="City, State, Whatever" autocomplete="off" />
       </div>
     </div>
     <div class="form-group">
@@ -328,9 +328,9 @@
           <label class="col-sm-3 control-label" for='valet_password'>{{t "Classroom Password" key="classroom_password"}}</label>
           <div class="col-sm-3">
             {{#if this.model.valet_password_set}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" />
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" autocomplete="new-password" />
             {{else}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" />
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" autocomplete="new-password" />
             {{/if}}
           </div>
           <div class="col-sm-2">
@@ -382,9 +382,9 @@
           <label class="col-sm-3 control-label" for='valet_password'>{{t "Valet Password" key="valet_password"}}</label>
           <div class="col-sm-3">
             {{#if this.model.valet_password_set}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" />
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" autocomplete="new-password" />
             {{else}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" />
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" autocomplete="new-password" />
             {{/if}}
           </div>
           <div class="col-sm-2">

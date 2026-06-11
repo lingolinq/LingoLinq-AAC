@@ -122,19 +122,27 @@ export default Component.extend({
     if (!list) { return; }
     const search = list.querySelector('.bound-select__search-input');
     if (search && typeof search.focus === 'function') {
-      search.focus();
+      this._focusWithoutScrolling(search);
       return;
     }
     const selected = list.querySelector('.bound-select__option--selected');
     const target = selected || list.querySelector('.bound-select__option');
-    if (target && typeof target.focus === 'function') { target.focus(); }
+    if (target && typeof target.focus === 'function') { this._focusWithoutScrolling(target); }
   },
 
   /** Return focus to the trigger so Tab nav resumes from the dropdown. */
   _focusTrigger() {
     if (!this.element) { return; }
     const trigger = this.element.querySelector('.bound-select__trigger');
-    if (trigger && typeof trigger.focus === 'function') { trigger.focus(); }
+    if (trigger && typeof trigger.focus === 'function') { this._focusWithoutScrolling(trigger); }
+  },
+
+  _focusWithoutScrolling(element) {
+    try {
+      element.focus({ preventScroll: true });
+    } catch (e) {
+      element.focus();
+    }
   },
 
   actions: {
