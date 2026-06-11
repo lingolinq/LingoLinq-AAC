@@ -3684,6 +3684,20 @@ first run and left the file untouched.
 
 ---
 
+## PHI/PII in logs: PiiScrubber and filter_parameters do NOT cover explicit logger calls (2026-06-10)
+
+**Surface:** Cloud Run migration log hygiene (Phase 2.7); any `Rails.logger.*` / `puts` that interpolates user data.
+
+**Gotcha:** Two existing log-safety mechanisms have a coverage gap that becomes a compliance problem under Cloud Run. (1) `lib/pii_scrubber.rb` only runs on the AI-egress path (`ai_board_generator`, `ai_word_predictor`); it is never wired into the Rails/Resque logger. (2) `config.filter_parameters` (`config/initializers/filter_parameter_logging.rb`) only masks Rails' auto-generated request/`Parameters:` lines. **Neither touches explicit `Rails.logger.info("...#{user.user_name}...")` string-interpolation calls.** Anything interpolated into a log string reaches stdout raw. On Render that was ephemeral; on Cloud Run every stdout line is auto-ingested into GCP Cloud Logging (persistent, indexed, HIPAA-scoped) because `RAILS_LOG_TO_STDOUT` is set on web+worker and `log_level` is `:info`.
+
+**Fix recipe (applied):** (a) replace human-readable identifiers/credentials with the opaque `global_id`, or drop them (`user_name`, SAML `name_id`, `supervisee_code`/`supervisor_key` values, raw AI response text, HubSpot response body); (b) demote high-volume INFO lines that emit a `global_id` to `:debug` (suppressed at prod `:info`); (c) it is acceptable to KEEP an opaque `global_id` in a rare failure warn/error where it has real diagnostic value (board-not-found-after-retries, consent-email-skipped). The project's own scrubber classifies `global_id`/`user_id` as identity (pii_scrubber.rb:19), so keep even those out of routine high-volume logs.
+
+**Defense-in-depth (added):** `PiiScrubbingFormatter` (lib/pii_scrubbing_formatter.rb) subclasses `::Logger::Formatter`, scrubs each fully-formatted line via `PiiScrubber.scrub_log_line`, and is wired in production.rb as `config.log_formatter`. It composes with `ActiveSupport::TaggedLogging` (which clones the formatter and extends the clone) via the `super` chain, so request-id tags are preserved. CRUCIAL SCOPE CAVEAT: the formatter redacts email (including TLD-less/quoted-local-part via `LOG_EMAIL_PATTERN`), phone (`LOG_PHONE_PATTERN` — requires separators so bare epoch timestamps are skipped), SSN (3-2-4 with SSA-invalid filter; still over-matches some order ids), and IPv4. It does NOT scrub names, usernames, utterances, board labels, linking codes, or global_ids -- the highest-value PHI in an AAC app (a child's name/utterance) is not regex-detectable, so call-site hygiene stays the PRIMARY control and the formatter is only a thin net. Do not let the formatter's existence justify skipping a call-site audit. Coverage is limited to Rails/Resque stdout through `config.log_formatter`; third-party gems that bypass the formatter (e.g. boy_band internal failure logs) are out of scope. `log_line_needs_scrub?` provides a cheap pre-check before regex passes. Not chosen: raising prod `config.log_level` to `:warn` (production.rb:65) would kill INFO leaks wholesale but also lose all INFO observability.
+
+**Evidence:** audit `docs/task-management/2026-06-10-cloudrun-phi-logging-audit.md`; fixes on branch `scot/compliance/phi-logging-scrub` across `passwords.rb`, `session_controller.rb`, `user.rb`, `ai_board_generator.rb`, `external_tracker.rb`, `logs_controller.rb`, `cluster_location.rb`, `board.rb`, `users_controller.rb`.
+
+---
+
 ## Pattern: admin-editable feature flags layer on top of AVAILABLE / ENABLED constants
 
 **Surface:** System Settings → Features; runtime `FeatureFlags.frontend_flags_for`.

@@ -146,7 +146,7 @@ module AiBoardGenerator
 
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         wc = last_payload[:words].length
-        Rails.logger.warn "AiBoardGenerator parse/shortfall (wc=#{wc}, cells=#{cell_count}). Raw (first 500): #{last_raw.to_s.truncate(500).inspect}"
+        Rails.logger.warn "AiBoardGenerator parse/shortfall (wc=#{wc}, cells=#{cell_count}, raw_len=#{last_raw.to_s.length})"
         log_params = {
           provider: provider.to_s,
           model: model,
@@ -349,7 +349,7 @@ module AiBoardGenerator
 
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         wc = last_payload[:words].length
-        Rails.logger.warn "AiBoardGenerator focus parse/shortfall (wc=#{wc}, requested=#{missing_count}). Raw (first 500): #{last_raw.to_s.truncate(500).inspect}"
+        Rails.logger.warn "AiBoardGenerator focus parse/shortfall (wc=#{wc}, requested=#{missing_count}, raw_len=#{last_raw.to_s.length})"
         log_params = {
           provider: provider.to_s,
           model: model,
