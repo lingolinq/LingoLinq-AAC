@@ -4191,6 +4191,24 @@ describe User, :type => :model do
         )
       }.not_to raise_error
     end
+
+    it 'raises ArgumentError when granted_by is nil and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: nil, source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_granted_by')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by is blank and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: '   ', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_granted_by')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
   end
 
   describe '#revoke_ai_consent!' do

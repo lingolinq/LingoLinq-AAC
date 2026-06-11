@@ -476,6 +476,9 @@ class User < ApplicationRecord
   # bare ids are normalized to global_id form before the self-grant check.
   def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
     raise ArgumentError, 'invalid_source' unless AI_CONSENT_SOURCES.include?(source)
+    # A parent-consent record without a grantor identity is not auditable. Reject
+    # blank granted_by before granted_at is written. Machine token; Phase 3 owns copy.
+    raise ArgumentError, 'invalid_granted_by' if granted_by.blank?
     if granted_by_user_id.present?
       granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
       raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
