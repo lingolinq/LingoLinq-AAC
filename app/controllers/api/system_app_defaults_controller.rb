@@ -3,6 +3,7 @@ class Api::SystemAppDefaultsController < ApplicationController
 
   before_action :require_api_token
   before_action :require_system_settings_access
+  before_action :require_site_admin!, only: [:update]
 
   # GET /api/v1/system_app_defaults
   def show
@@ -33,5 +34,7 @@ class Api::SystemAppDefaultsController < ApplicationController
       settings: effective.slice(*SystemAppDefaults::EDITABLE_FIELDS),
       updated_at: saved['updated_at']
     }.to_json
+  rescue ArgumentError => e
+    api_error 400, {error: e.message}
   end
 end

@@ -13,6 +13,24 @@ describe SystemAppDefaults do
       expect(stored['app_name']).to eq('SiteApp')
       expect(stored['company_name']).to eq('Site Co')
     end
+
+    it 'rejects invalid admin_email' do
+      expect {
+        SystemAppDefaults.set!(admin_email: 'not-an-email')
+      }.to raise_error(ArgumentError, /valid email/)
+    end
+
+    it 'rejects invalid support_url' do
+      expect {
+        SystemAppDefaults.set!(support_url: 'not-a-url')
+      }.to raise_error(ArgumentError, /valid http/)
+    end
+
+    it 'rejects values that exceed max length' do
+      expect {
+        SystemAppDefaults.set!(app_name: 'x' * 101)
+      }.to raise_error(ArgumentError, /too long/)
+    end
   end
 
   describe '.effective_settings' do

@@ -19,11 +19,11 @@
 
   <div class="la-system-settings__tabs" role="tablist">
     {{#if this.hasI18nBlocks}}
-      <button type="button" role="tab" class="la-system-settings__tab {{if (is-equal this.activeFormat "message") "la-system-settings__tab--active"}}" {{action "setFormat" "message"}}>{{t "Message content" key="system_settings_email_message"}}</button>
+      <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "message") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "message") "la-system-settings__tab--active"}}" {{action "setFormat" "message"}}>{{t "Message content" key="system_settings_email_message"}}</button>
     {{/if}}
-    <button type="button" role="tab" class="la-system-settings__tab {{if (is-equal this.activeFormat "html") "la-system-settings__tab--active"}}" {{action "setFormat" "html"}}>{{t "HTML body" key="system_settings_email_html"}}</button>
-    <button type="button" role="tab" class="la-system-settings__tab {{if (is-equal this.activeFormat "text") "la-system-settings__tab--active"}}" {{action "setFormat" "text"}}>{{t "Plain text body" key="system_settings_email_text"}}</button>
-    <button type="button" role="tab" class="la-system-settings__tab {{if (is-equal this.activeFormat "vars") "la-system-settings__tab--active"}}" {{action "setFormat" "vars"}}>{{t "Variables" key="system_settings_email_variables"}}</button>
+    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "html") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "html") "la-system-settings__tab--active"}}" {{action "setFormat" "html"}}>{{t "HTML body" key="system_settings_email_html"}}</button>
+    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "text") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "text") "la-system-settings__tab--active"}}" {{action "setFormat" "text"}}>{{t "Plain text body" key="system_settings_email_text"}}</button>
+    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "vars") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "vars") "la-system-settings__tab--active"}}" {{action "setFormat" "vars"}}>{{t "Variables" key="system_settings_email_variables"}}</button>
   </div>
 
   {{#if (is-equal this.activeFormat "message")}}
@@ -31,8 +31,8 @@
     {{#each this.i18nBlocks as |block|}}
       <div class="la-system-settings__field">
         <label class="la-system-settings__label-text" for="system-email-i18n-{{block.key}}">{{block.label}}</label>
-        {{#if block.placeholders}}
-          <p class="la-system-settings__hint">{{t "Placeholders:" key="system_settings_email_placeholders"}} {{#each block.placeholders as |ph|}}<code>%{ {{ph}} }</code> {{/each}}</p>
+        {{#if block.placeholders.length}}
+          <p class="la-system-settings__hint">{{t "Placeholders:" key="system_settings_email_placeholders"}} {{#each block.placeholders as |ph|}}<code>{{concat "%{" ph "}"}}</code> {{/each}}</p>
         {{/if}}
         {{#if (is-equal block.key "parental_consent_mailer.footer")}}
           <Textarea @value={{block.value}} class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" oninput={{action "updateI18nBlock" block value="target.value"}} />
@@ -82,7 +82,7 @@
           <li><code>{{var}}</code></li>
         {{/each}}
       </ul>
-      <p class="la-system-settings__hint">{{t "Templates use ERB syntax. Use variables like @user, app_name, and support_url in your template body." key="system_settings_email_vars_hint"}}</p>
+      <p class="la-system-settings__hint">{{t "Templates use <%= ... %> output tags only (no Ruby code blocks). Use variables like @user, app_name, and support_url in your template body." key="system_settings_email_vars_hint"}}</p>
     {{/if}}
   {{/if}}
 

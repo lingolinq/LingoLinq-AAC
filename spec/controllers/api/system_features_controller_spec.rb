@@ -1,6 +1,19 @@
 require 'spec_helper'
 
 describe Api::SystemFeaturesController, type: :controller do
+  def make_site_admin
+    token_user
+    @user.settings['admin'] = true
+    @user.save
+  end
+
+  def make_support_manager
+    admin_org = Organization.admin || Organization.create!(admin: true, settings: {'name' => 'Admin Org'})
+    token_user
+    admin_org.add_manager(@user.user_name, true)
+    @user.reload
+  end
+
   after do
     [SystemFeatureSettings::DEFAULT_KEY,
      SystemFeatureSettings::CANARY_KEY,
@@ -17,9 +30,7 @@ describe Api::SystemFeaturesController, type: :controller do
     end
 
     it 'returns feature catalog for admin' do
-      token_user
-      @user.settings['admin'] = true
-      @user.save
+      make_site_admin
       get :index, params: {org_id: 'default'}
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
@@ -28,9 +39,7 @@ describe Api::SystemFeaturesController, type: :controller do
     end
 
     it 'returns canary group scope' do
-      token_user
-      @user.settings['admin'] = true
-      @user.save
+      make_site_admin
       SystemFeatureSettings.set_canary_enabled_features!(['goals'])
       get :index, params: {org_id: 'group:canary'}
       expect(response).to have_http_status(:ok)
@@ -42,9 +51,7 @@ describe Api::SystemFeaturesController, type: :controller do
     end
 
     it 'returns beta group scope' do
-      token_user
-      @user.settings['admin'] = true
-      @user.save
+      make_site_admin
       get :index, params: {org_id: 'group:beta'}
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
@@ -58,42 +65,57 @@ describe Api::SystemFeaturesController, type: :controller do
       get :index, params: {org_id: 'default'}
       assert_error('Not authorized', 403)
     end
+
+    it 'allows support managers to read org-scoped features' do
+      org = Organization.create
+      make_support_manager
+      get :index, params: {org_id: org.global_id}
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json['scope_type']).to eq('org')
+    end
   end
 
   describe 'PUT update' do
     it 'persists default enabled features' do
-      token_user
-      @user.settings['admin'] = true
-      @user.save
+      make_site_admin
       put :update, params: {org_id: 'default', enabled_features: ['goals', 'lessons']}
       expect(response).to have_http_status(:ok)
       expect(SystemFeatureSettings.default_enabled_features).to eq(['goals', 'lessons'])
     end
 
     it 'persists canary group features' do
-      token_user
-      @user.settings['admin'] = true
-      @user.save
+      make_site_admin
       put :update, params: {org_id: 'group:canary', enabled_features: ['goals']}
       expect(response).to have_http_status(:ok)
       expect(SystemFeatureSettings.canary_enabled_features).to eq(['goals'])
     end
 
     it 'persists beta group features' do
-      token_user
-      @user.settings['admin'] = true
-      @user.save
+      make_site_admin
       put :update, params: {org_id: 'group:beta', enabled_features: ['profiles']}
       expect(response).to have_http_status(:ok)
       expect(SystemFeatureSettings.beta_opt_in_features).to eq(['profiles'])
+    end
+
+    it 'rejects support managers updating site-wide defaults' do
+      make_support_manager
+      put :update, params: {org_id: 'default', enabled_features: ['goals']}
+      assert_error('Site admin required', 403)
+    end
+
+    it 'allows support managers to update org-scoped features' do
+      org = Organization.create
+      make_support_manager
+      put :update, params: {org_id: org.global_id, enabled_features: ['goals']}
+      expect(response).to have_http_status(:ok)
+      expect(SystemFeatureSettings.org_enabled_features(org.reload)).to eq(['goals'])
     end
   end
 
   describe 'DELETE destroy' do
     it 'clears canary group override' do
-      token_user
-      @user.settings['admin'] = true
-      @user.save
+      make_site_admin
       SystemFeatureSettings.set_canary_enabled_features!(['goals'])
       delete :destroy, params: {org_id: 'group:canary'}
       expect(response).to have_http_status(:ok)

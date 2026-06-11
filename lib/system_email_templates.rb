@@ -20,7 +20,7 @@ module SystemEmailTemplates
     entry = SystemEmailRegistry.find(key)
     raise ArgumentError, 'Unknown template' unless entry
 
-    attrs = attrs.with_indifferent_access
+    attrs = normalize_attrs(attrs)
     data = (lookup_stored_entry(org, key) || {}).dup
     data['updated_at'] = Time.now.iso8601
 
@@ -29,6 +29,7 @@ module SystemEmailTemplates
 
       val = attrs[field].to_s.strip.presence
       if val && !default_field_value?(key, entry, field, val, org)
+        SystemEmailTemplateSecurity.validate!(val) if %w[html_body text_body].include?(field)
         data[field] = val
       else
         data.delete(field)
@@ -154,6 +155,11 @@ module SystemEmailTemplates
   end
 
   def self.normalize_i18n_overrides(raw, entry = nil)
+    if raw.respond_to?(:to_unsafe_h)
+      raw = raw.to_unsafe_h
+    elsif raw.respond_to?(:to_h) && !raw.is_a?(Hash)
+      raw = raw.to_h
+    end
     return {} unless raw.is_a?(Hash)
 
     raw.each_with_object({}) do |(key, value), memo|
@@ -167,9 +173,16 @@ module SystemEmailTemplates
     end
   end
 
-  def self.render_string(template_string, mailer_binding)
+  def self.render_string(template_string, mailer_binding, validate: true)
     return '' if template_string.blank?
 
+    SystemEmailTemplateSecurity.validate!(template_string) if validate
     ERB.new(template_string).result(mailer_binding)
   end
+
+  def self.normalize_attrs(attrs)
+    hash = attrs.respond_to?(:to_unsafe_h) ? attrs.to_unsafe_h : attrs.to_h
+    hash.with_indifferent_access
+  end
+  private_class_method :normalize_attrs
 end

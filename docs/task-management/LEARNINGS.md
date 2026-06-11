@@ -3691,3 +3691,23 @@ first run and left the file untouched.
 **Approach:** Keep `AVAILABLE_FRONTEND_FEATURES` as the code-defined catalog (new flags still need a developer add). Store site-wide enabled list in `Setting` key `default_enabled_features` (seeded from `ENABLED_FRONTEND_FEATURES`). Per-org overrides live in `organizations.settings['enabled_features']`; `nil` means inherit site default. Site-wide group pools: `canary_enabled_features` (default: all AVAILABLE minus `DISABLED_CANARY_FEATURES`) and `beta_opt_in_features` (default: all AVAILABLE). Resolution: org/site baseline → per-user `feature_flags[feature]` if in beta pool → canary if in canary pool. Features tab scope dropdown uses `group:canary` / `group:beta` pseudo-ids; Emails tab hides groups. ENV-locked flags (e.g. `SIGNUP_DEFAULT_LIBRARY_BOARDS`) stay read-only in the UI.
 
 **Evidence:** `lib/system_feature_settings.rb`, `lib/feature_flags.rb`, `Api::SystemFeaturesController`; task log `2026-06-09-system-settings.md`.
+
+---
+
+## Pattern: System Settings authorization — split site admin vs support manager
+
+**Surface:** `Api::SystemSettingsAccess`, System Settings UI.
+
+**Approach:** `User#admin?` is true for both `settings['admin']` (site admin) and Admin-org full managers, so do not use it alone to gate site-wide mutations. Site-wide writes (`default`, `group:*`, app defaults) require `settings['admin'] == true`. Org-scoped reads/writes allow site admin, `admin_support_actions` (Admin-org manager), or `org.manager?` / `upstream_manager?`. UI mirrors this: hide Default/canary/beta scopes and App defaults tab unless `user.settings.admin`.
+
+**Evidence:** `app/controllers/concerns/api/system_settings_access.rb`, `app/frontend/app/controllers/system-settings.js`; task log `2026-06-09-system-settings.md`.
+
+---
+
+## Pattern: persisted email template overrides — output-only ERB + layout wrapper
+
+**Surface:** `SystemEmailOverride`, `SystemEmailTemplates`, System Settings email editor.
+
+**Approach:** Repo file templates may keep `<% if %>` (trusted, rendered via normal mailer views). **Stored** `html_body`/`text_body` overrides must pass `SystemEmailTemplateSecurity.validate!` (only `<%= %>` tags; block dangerous expressions). Deliver overrides with `render_string(binding)` then `render html:, layout: 'email'` — not `render html:` alone (drops layout). `normalize_i18n_overrides` must accept `ActionController::Parameters` via `to_unsafe_h` or preview/save drops nested `i18n_overrides`.
+
+**Evidence:** `lib/system_email_template_security.rb`, `app/mailers/concerns/system_email_override.rb`; task log `2026-06-09-system-settings.md`.

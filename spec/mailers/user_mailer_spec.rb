@@ -126,6 +126,26 @@ describe UserMailer, :type => :mailer do
       html = message_body(m, :html)
       expect(html).to include('Custom greeting,')
     end
+
+    it 'applies the email layout when an html_body override is stored' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+        html_body: '<p>Custom layout test body</p>'
+      })
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid3',
+        'email' => 'kid_m3@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_m3@example.com'
+      }, {:pending => true})
+      m = UserMailer.parental_consent_request(u.global_id)
+      html = message_body(m, :html)
+      expect(html).to include('Custom layout test body')
+      expect(html).to include('background-color: #eee')
+    end
   end
   
   describe "forgot_password" do

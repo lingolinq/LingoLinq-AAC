@@ -3,6 +3,8 @@ class Api::SystemFeaturesController < ApplicationController
 
   before_action :require_api_token
   before_action :require_system_settings_access
+  before_action :require_system_settings_read_scope!, only: [:index]
+  before_action :require_features_write_scope!, only: [:update, :destroy]
 
   # GET /api/v1/system_features?org_id=default|group:canary|group:beta|#global_id#
   def index
@@ -67,6 +69,11 @@ class Api::SystemFeaturesController < ApplicationController
   end
 
   private
+
+  def require_features_write_scope!
+    org_id = params[:org_id] || params.dig(:system_features, :org_id) || 'default'
+    require_system_settings_write_scope!(org_id)
+  end
 
   def scope_type_for(type)
     type.to_s

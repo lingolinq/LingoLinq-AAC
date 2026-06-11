@@ -32,6 +32,14 @@ describe SystemEmailTemplates do
       expect(org.reload.settings['email_templates']['user_mailer/confirm_registration']['subject']).to eq('Org welcome')
     end
 
+    it 'rejects html_body with Ruby code blocks' do
+      expect {
+        SystemEmailTemplates.set_template!(nil, 'user_mailer/confirm_registration', {
+          html_body: '<% User.delete_all %>'
+        })
+      }.to raise_error(ArgumentError, /output tags/)
+    end
+
     it 'stores i18n overrides without persisting unchanged default bodies' do
       default_html = SystemEmailTemplates.default_body('user_mailer/parental_consent_request', 'html')
       SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {

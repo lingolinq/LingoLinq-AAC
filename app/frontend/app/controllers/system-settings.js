@@ -19,6 +19,13 @@ export default Controller.extend({
     this.loadOrganizations();
   },
 
+  /** Site-wide settings (default org, feature groups, app defaults) require settings.admin on the server. */
+  canEditSiteWide: computed('app_state.sessionUser', 'app_state.sessionUser.settings', 'app_state.currentUser', 'app_state.currentUser.settings', function() {
+    var u = this.get('app_state.sessionUser') || this.get('app_state.currentUser');
+    var settings = u && u.get('settings');
+    return !!(settings && settings.admin === true);
+  }),
+
   loadOrganizations: function() {
     var _this = this;
     var user = this.get('app_state.currentUser');
@@ -45,9 +52,9 @@ export default Controller.extend({
     return route.indexOf('system-settings.features') === 0;
   }),
 
-  scopeOptionGroups: computed('orgRecords.[]', 'showFeatureGroups', function() {
+  scopeOptionGroups: computed('orgRecords.[]', 'showFeatureGroups', 'canEditSiteWide', function() {
     var groups = [];
-    if (this.get('showFeatureGroups')) {
+    if (this.get('showFeatureGroups') && this.get('canEditSiteWide')) {
       groups.push({
         label: i18n.t('system_settings_scope_site_groups', 'Site & feature groups'),
         options: [
@@ -56,7 +63,7 @@ export default Controller.extend({
           {id: 'group:beta', name: i18n.t('system_settings_group_beta', 'Beta opt-in')}
         ]
       });
-    } else {
+    } else if (this.get('canEditSiteWide')) {
       groups.push({
         label: i18n.t('system_settings_org_label', 'Organization'),
         options: [
@@ -100,6 +107,21 @@ export default Controller.extend({
 
   onOrgIdChanged: observer('org_id', function() {
     this.reloadActiveChild();
+  }),
+
+  ensureWritableOrgScope: observer('orgRecords.[]', 'canEditSiteWide', 'org_id', function() {
+    if (this.get('canEditSiteWide')) {
+      return;
+    }
+    var orgId = this.get('org_id') || 'default';
+    if (orgId === 'default' || orgId.indexOf('group:') === 0) {
+      var records = this.get('orgRecords') || [];
+      var first = records[0];
+      var id = first && (first.get ? first.get('id') : first.id);
+      if (id) {
+        this.set('org_id', id);
+      }
+    }
   }),
 
   onRouteChanged: observer('router.currentRouteName', function() {

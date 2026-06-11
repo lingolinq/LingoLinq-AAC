@@ -28,7 +28,9 @@
 
                 <nav class="md-pillnav md-pillnav--dashboard la-system-settings__tabs" aria-label={{t "System settings sections" key="system_settings_tabs_label"}}>
                   <LinkTo @route="system-settings.emails" class="md-pillnav__pill">{{t "Emails" key="system_settings_tab_emails"}}</LinkTo>
-                  <LinkTo @route="system-settings.app-defaults" class="md-pillnav__pill">{{t "App defaults" key="system_settings_tab_app_defaults"}}</LinkTo>
+                  {{#if this.canEditSiteWide}}
+                    <LinkTo @route="system-settings.app-defaults" class="md-pillnav__pill">{{t "App defaults" key="system_settings_tab_app_defaults"}}</LinkTo>
+                  {{/if}}
                   <LinkTo @route="system-settings.features" class="md-pillnav__pill">{{t "Features" key="system_settings_tab_features"}}</LinkTo>
                 </nav>
 

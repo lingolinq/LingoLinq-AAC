@@ -3,6 +3,8 @@ class Api::SystemEmailTemplatesController < ApplicationController
 
   before_action :require_api_token
   before_action :require_system_settings_access
+  before_action :require_system_settings_read_scope!, only: [:index, :show, :preview]
+  before_action :require_system_settings_write_scope!, only: [:update, :destroy]
   before_action :load_template_entry, only: [:show, :update, :destroy, :preview]
 
   # GET /api/v1/system_email_templates?org_id=default|#global_id#
@@ -72,8 +74,7 @@ class Api::SystemEmailTemplatesController < ApplicationController
     if attrs.respond_to?(:permit)
       attrs = attrs.permit(:subject, :html_body, :text_body, i18n_overrides: {})
     end
-    user = User.order('id ASC').first
-    return api_error 422, {error: 'No sample user available'} unless user
+    user = SystemEmailPreview.sample_user
 
     if org && org.settings['hosts']&.first
       JsonApi::Json.load_domain(org.settings['hosts'].first)
@@ -94,19 +95,21 @@ class Api::SystemEmailTemplatesController < ApplicationController
     subject ||= @entry[:default_subject]
     subject = "#{app_name} - #{subject}" unless @entry[:uses_i18n_subject]
 
-    html_template = attrs[:html_body].presence || SystemEmailTemplates.default_body(@entry[:key], 'html') || ''
-    text_template = attrs[:text_body].presence || SystemEmailTemplates.default_body(@entry[:key], 'text') || ''
+    html_custom = attrs[:html_body].presence
+    text_custom = attrs[:text_body].presence
+    html_template = html_custom || SystemEmailTemplates.default_body(@entry[:key], 'html') || ''
+    text_template = text_custom || SystemEmailTemplates.default_body(@entry[:key], 'text') || ''
     sample_consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{user.global_id}&token=sample-token"
 
     preview_binding = preview_binding_for(user, branding, preview_i18n, sample_consent_url)
-    html = SystemEmailTemplates.render_string(html_template, preview_binding)
-    text = SystemEmailTemplates.render_string(text_template, preview_binding)
+    html = SystemEmailTemplates.render_string(html_template, preview_binding, validate: !!html_custom)
+    text = SystemEmailTemplates.render_string(text_template, preview_binding, validate: !!text_custom)
 
     render json: {
       subject: subject,
       html_body: html,
       text_body: text,
-      note: 'Preview uses sample user data for variables like @consent_url.'
+      note: 'Preview uses synthetic sample data for variables like @consent_url.'
     }.to_json
   end
 
@@ -158,7 +161,12 @@ class Api::SystemEmailTemplatesController < ApplicationController
     end
     helper.define_singleton_method(:domain_settings) { branding }
     helper.define_singleton_method(:mailer_t) do |key, interpolations = {}|
-      preview_i18n[key].presence || SystemEmailI18n.resolve(template_key, key, interpolations)
+      if preview_i18n[key].present?
+        text = preview_i18n[key]
+        interpolations.present? ? I18n.interpolate(text, interpolations.symbolize_keys) : text
+      else
+        SystemEmailI18n.resolve(template_key, key, interpolations)
+      end
     end
     helper.instance_variable_set(:@user, user)
     helper.instance_variable_set(:@consent_url, sample_consent_url)

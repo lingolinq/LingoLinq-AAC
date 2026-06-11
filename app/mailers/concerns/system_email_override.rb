@@ -21,12 +21,16 @@ module SystemEmailOverride
     if html_override || text_override
       super(headers) do |format|
         if html_override
-          format.html { render html: SystemEmailTemplates.render_string(override['html_body'], binding).html_safe }
+          SystemEmailTemplateSecurity.validate!(override['html_body'])
+          body = SystemEmailTemplates.render_string(override['html_body'], binding, validate: false)
+          format.html { render html: body.html_safe, layout: 'email' }
         else
           format.html { render "#{mailer_name}/#{action_name}" }
         end
         if text_override
-          format.text { render plain: SystemEmailTemplates.render_string(override['text_body'], binding) }
+          SystemEmailTemplateSecurity.validate!(override['text_body'])
+          body = SystemEmailTemplates.render_string(override['text_body'], binding, validate: false)
+          format.text { render plain: body }
         else
           format.text { render "#{mailer_name}/#{action_name}" }
         end
