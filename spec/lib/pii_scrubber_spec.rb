@@ -684,17 +684,29 @@ describe PiiScrubber do
       expect(result).to include('[REDACTED_SSN]')
     end
 
+    it "should redact phone numbers with explicit separators" do
+      result = PiiScrubber.scrub_log_line('callback to 555-123-4567 failed')
+      expect(result).not_to include('555-123-4567')
+      expect(result).to include('[REDACTED_PHONE]')
+    end
+
+    it "should redact IP addresses" do
+      result = PiiScrubber.scrub_log_line('session from 192.168.1.100 expired')
+      expect(result).not_to include('192.168.1.100')
+      expect(result).to include('[REDACTED_IP]')
+    end
+
     it "should NOT redact global_ids (intentionally retained for diagnostics)" do
       line = 'Token issued for user 1_2345: keys=user,id'
       expect(PiiScrubber.scrub_log_line(line)).to eq(line)
     end
 
-    it "should NOT redact 10-digit epoch timestamps as phone numbers" do
+    it "should NOT redact bare 10-digit epoch timestamps as phone numbers" do
       line = 'job scheduled at 1718000000 duration_ms=4200000000'
       expect(PiiScrubber.scrub_log_line(line)).to eq(line)
     end
 
-    it "should leave clean lines untouched" do
+    it "should leave clean lines untouched (fast path skips regex passes)" do
       line = 'I, [2026-06-10] INFO -- : [Board#post_process] Creating buttonset for board 9_8765'
       expect(PiiScrubber.scrub_log_line(line)).to eq(line)
     end
@@ -705,18 +717,20 @@ describe PiiScrubber do
     end
 
     # Documented, accepted tradeoffs (see PiiScrubber.scrub_log_line comment).
-    # These assert the KNOWN over/under-matching so it is intentional, not a surprise.
 
-    it "OVER-matches any 3-2-4 dashed numeric as an SSN (accepted false positive)" do
-      # A non-SSN 3-2-4 token (e.g. some order/part ids) is redacted. Accepted: in a
-      # HIPAA-scoped log sink, catching a free-text SSN outweighs this low-harm masking.
+    it "OVER-matches some valid-looking 3-2-4 ids as SSNs (accepted false positive)" do
       expect(PiiScrubber.scrub_log_line('order 123-45-6789 shipped')).to include('[REDACTED_SSN]')
     end
 
-    it "does NOT match TLD-less or quoted-local-part emails (accepted gap)" do
-      # Real school/parent emails always have a dotted TLD; these forms are not scrubbed
-      # by the backstop and remain a per-call-site concern.
-      expect(PiiScrubber.scrub_log_line('login from user@localhost ok')).to eq('login from user@localhost ok')
+    it "does NOT redact SSA-invalid 3-2-4 tokens" do
+      expect(PiiScrubber.scrub_log_line('placeholder 000-00-0000 skipped')).to eq('placeholder 000-00-0000 skipped')
+      expect(PiiScrubber.scrub_log_line('group 123-00-6789 skipped')).to eq('group 123-00-6789 skipped')
+    end
+
+    it "should redact TLD-less and quoted-local-part emails" do
+      expect(PiiScrubber.scrub_log_line('login from user@localhost ok')).to eq('login from [REDACTED_EMAIL] ok')
+      expect(PiiScrubber.scrub_log_line('contact "john.doe"@example.com bounced')).to include('[REDACTED_EMAIL]')
+      expect(PiiScrubber.scrub_log_line('contact "john.doe"@example.com bounced')).not_to include('john.doe"@example.com')
     end
 
     it "does NOT scrub names or utterances (the app's real PHI - call-site responsibility)" do

@@ -23,6 +23,14 @@ describe PiiScrubbingFormatter do
     expect(out).to include('1_2345')
   end
 
+  it "should scrub phone numbers and IPs from formatted lines" do
+    out = PiiScrubbingFormatter.new.call('INFO', Time.now, nil, 'callback 555-123-4567 from 10.0.0.1')
+    expect(out).to include('[REDACTED_PHONE]')
+    expect(out).to include('[REDACTED_IP]')
+    expect(out).not_to include('555-123-4567')
+    expect(out).not_to include('10.0.0.1')
+  end
+
   context "composed with ActiveSupport::TaggedLogging (the production wiring)" do
     it "should scrub email AND keep the request-id tag" do
       io = StringIO.new

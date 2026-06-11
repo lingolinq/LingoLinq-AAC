@@ -97,12 +97,12 @@ Rails.application.configure do
 
   # Use a PII-scrubbing log formatter (keeps PID/timestamp). Under Cloud Run all
   # stdout is ingested into HIPAA-scoped Cloud Logging, so this is a defense-in-depth
-  # net only. IMPORTANT: it redacts EMAIL and SSN patterns ONLY. It does NOT scrub
-  # names, usernames, utterances, board labels, linking codes, or global_ids -- the
-  # highest-value PHI in an AAC product is a child's name/utterance, which no regex
-  # catches reliably. Keeping PHI out of logs therefore remains a per-call-site
-  # responsibility (use global_id, not user_name; do not log raw user content); this
-  # formatter is the last line of defense, not the primary one. See
+  # net only. It redacts email, phone (separator-required), SSN, and IPv4 patterns.
+  # It does NOT scrub names, usernames, utterances, board labels, linking codes, or
+  # global_ids -- the highest-value PHI in an AAC product is a child's name/utterance,
+  # which no regex catches reliably. Keeping PHI out of logs therefore remains a
+  # per-call-site responsibility (use global_id, not user_name; do not log raw user
+  # content); this formatter is the last line of defense, not the primary one. See
   # lib/pii_scrubbing_formatter.rb and PiiScrubber.scrub_log_line for scope/caveats.
   require_relative '../../lib/pii_scrubbing_formatter'
   config.log_formatter = PiiScrubbingFormatter.new

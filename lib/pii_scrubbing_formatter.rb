@@ -14,9 +14,11 @@ require_relative 'pii_scrubber'
 # which formats the line (timestamp/severity/tags/message) via the parent and
 # then scrubs the whole string before it is written.
 #
-# The scrub itself only targets always-unsafe, low-false-positive patterns
-# (email, SSN); see PiiScrubber.scrub_log_line for the rationale on what is and
-# is not redacted. Per-call-site log hygiene remains the primary control.
+# The scrub targets email, phone (separator-required), SSN, and IPv4 patterns;
+# see PiiScrubber.scrub_log_line for full scope/caveats. Names/utterances are
+# not regex-scrubbable -- per-call-site log hygiene remains the primary control.
+# Coverage is limited to lines flowing through config.log_formatter (production
+# Rails/Resque stdout); gems that bypass the formatter are out of scope.
 class PiiScrubbingFormatter < ::Logger::Formatter
   def call(severity, timestamp, progname, msg)
     PiiScrubber.scrub_log_line(super)
