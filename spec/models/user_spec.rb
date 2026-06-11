@@ -4377,6 +4377,33 @@ describe User, :type => :model do
       u2.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
       expect { u2.revoke_ai_consent!(source: 'system') }.not_to raise_error
     end
+
+    it 'records revoked_by and revoked_reason in the immutable AuditEvent payload, not just settings' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!(revoked_by: 'Parent <p@example.com>', reason: 'Withdrawing consent', source: 'parent')
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_revoke')
+      expect(ae.data['revoked_by']).to eq('Parent <p@example.com>')
+      expect(ae.data['revoked_reason']).to eq('Withdrawing consent')
+    end
+
+    it 'preserves revoked_by/revoked_reason in the audit trail even after a re-grant clears the settings copy' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!(revoked_by: 'Parent <p@example.com>', reason: 'changed mind')
+      revoke_ae = AuditEvent.last
+      u.reload
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.reload
+      # The settings copy is cleared on re-grant...
+      expect(u.settings['ai_consent']['revoked_by']).to be_blank
+      expect(u.settings['ai_consent']['revoked_reason']).to be_blank
+      # ...but the audit row still carries who revoked and why.
+      revoke_ae.reload
+      expect(revoke_ae.data['revoked_by']).to eq('Parent <p@example.com>')
+      expect(revoke_ae.data['revoked_reason']).to eq('changed mind')
+    end
   end
 
   describe 'AI consent atomicity and audit-event coupling' do

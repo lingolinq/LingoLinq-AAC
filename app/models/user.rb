@@ -584,6 +584,11 @@ class User < ApplicationRecord
           'type' => 'ai_consent_revoke',
           'disclosures_version' => c['disclosures_version'],
           'source' => source,
+          # Who revoked and why must live in the immutable audit trail, not only in
+          # settings: the settings copy is DELETED on the next re-grant, so without
+          # these the trail permanently loses the revocation actor and reason.
+          'revoked_by' => revoked_by,
+          'revoked_reason' => reason,
           'record_id' => c['record_id']
         },
         event_type: 'ai_consent_revoke',
