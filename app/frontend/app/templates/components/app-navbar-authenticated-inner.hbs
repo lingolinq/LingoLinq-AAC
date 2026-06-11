@@ -26,6 +26,19 @@
       {{/if}}
     {{/if}}
     {{/unless}}
+    {{!-- The dashboard's "Take a tour" + "Get Started" triggers live HERE for every
+         layout, as compact circle icon buttons LEFT-ALIGNED right after the Search
+         field. They sit INSIDE .app-navbar__nav-header (not the quick-actions
+         cluster) so the nav-header's `flex: 1` growth doesn't push them right. Gated
+         on the SAME dashboard context as the search (empty_header) so they don't
+         appear on board pages; the focused KID view hides them via
+         body.md-home-focused (the unlocked parent view shows them). --}}
+    {{#if this.appState.empty_header}}
+      <span class="app-navbar__home-actions">
+        {{#if this.appState.feature_flags.home_tour}}{{home-tour}}{{/if}}
+        {{getting-started-tour}}
+      </span>
+    {{/if}}
   </span>
   {{!-- Quick-actions cluster. Lives in its own span
        just after .app-navbar__nav-header so it renders between the search
@@ -39,13 +52,9 @@
          action handlers). The .app-navbar__create-board-new-link* CSS is
          intentionally left in place for now; this is the visual removal
          only, not a cleanup of the orphaned styles. --}}
-    {{#if this.appState.currentUser.user_name}}
-      <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-      </LinkTo>
-    {{/if}}
+    {{!-- Settings gear moved into #identity (now to the RIGHT of the Upgrade
+         pill — the two swapped places). The quick-actions wrapper uses
+         display:contents at ≥768px, so emptying it reserves no space. --}}
   </span>
   {{/unless}}
   <span id="identity" class="app-navbar-auth-nav--desktop advanced_selection identity-with-dark-toggle">
@@ -58,6 +67,19 @@
       {{/unless}}
     {{/if}}
     {{/unless}}
+    {{!-- Settings gear — swapped here from the quick-actions cluster, so it
+         now sits just to the right of the Upgrade pill. --}}
+    {{#if this.appState.currentUser.user_name}}
+      {{!-- On Balanced the gear is hidden here — the Settings link moves into the
+           identity dropdown under My Account (below). Other layouts keep it here. --}}
+      {{#unless (is-equal this.appState.currentUser.preferences.dashboard_layout "balanced")}}
+      <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </LinkTo>
+      {{/unless}}
+    {{/if}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
     {{!-- Beta feedback (full pill, large-only) moved to .app-navbar__quick-actions
          above so it tabs immediately after the search button instead of after
@@ -98,6 +120,13 @@
         <li role="presentation">
           <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
+        {{!-- Balanced layout moves the navbar Settings gear into the dropdown,
+             directly under My Account. --}}
+        {{#if (is-equal this.appState.currentUser.preferences.dashboard_layout "balanced")}}
+        <li role="presentation">
+          <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}}>{{t "Settings" key="settings"}}</LinkTo>
+        </li>
+        {{/if}}
         <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Boards" key="find_boards_nav"}}</LinkTo></li>
         <li><LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
@@ -106,6 +135,9 @@
         {{/if}}
         {{#if this.application.showDatabaseExplorerLink}}
         <li class="app-navbar__database-explorer-menu-item"><LinkTo @route="database">{{t "Database" key="database_explorer_nav"}}</LinkTo></li>
+        {{/if}}
+        {{#if this.application.showSystemSettingsLink}}
+        <li class="app-navbar__system-settings-menu-item"><LinkTo @route="system-settings.emails">{{t "System Settings" key="system_settings_nav"}}</LinkTo></li>
         {{/if}}
         <li class="divider" role="separator"></li>
         <li>

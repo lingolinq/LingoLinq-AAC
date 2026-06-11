@@ -5,6 +5,14 @@ export default Route.extend({
   router: service(),
   store: service(),
 
+  // Board creation is consolidated on the create-board-new page; the legacy
+  // /create-board route now redirects there so every entry point lands on the
+  // same flow.
+  beforeModel() {
+    this._super(...arguments);
+    this.router.transitionTo('create-board-new');
+  },
+
   activate() {
     this._super(...arguments);
     window.scrollTo(0, 0);

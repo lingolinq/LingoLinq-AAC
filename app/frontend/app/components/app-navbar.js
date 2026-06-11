@@ -47,17 +47,19 @@ export default Component.extend({
     'isAuthenticated',
     'application.showBetaFeedbackDrawer',
     'appState.speak_mode',
+    'appState.edit_mode',
     'appState.currentBoardState.id',
     function() {
-      // Hide while a board is actively rendered in speak mode (the speak
-      // header crowds the chrome there). When a board route fails to
-      // load, currentBoardState.id is null even though speak_mode may
-      // still be set — in that case the speak header is suppressed
-      // (see application.hbs) and the drawer tab should show, matching
-      // home-page behavior.
+      // Hide while a board is actively rendered in speak OR edit mode (the
+      // board-detail chrome crowds the navbar tab there, and application.hbs
+      // shows the bottom-center drawer tab instead). When a board route
+      // fails to load, currentBoardState.id is null even though the mode may
+      // still be set — in that case the board header is suppressed (see
+      // application.hbs) and the drawer tab should show, matching home-page
+      // behavior.
       return this.get('isAuthenticated') &&
         this.get('application.showBetaFeedbackDrawer') &&
-        (!this.appState.get('speak_mode') || !this.appState.get('currentBoardState.id'));
+        ((!this.appState.get('speak_mode') && !this.appState.get('edit_mode')) || !this.appState.get('currentBoardState.id'));
     }
   ),
 

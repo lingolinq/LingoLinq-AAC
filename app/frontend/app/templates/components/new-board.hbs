@@ -340,13 +340,6 @@
                   {{/each}}
                 </div>
               {{/if}}
-              <div class="nb-field nb-field--checkbox new-board-checkbox-row new-board-checkbox-row--suggestions">
-                <label for="word_suggestions" class="nb-checkbox">
-                  <Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
-                  <span>{{t "Show word completion suggestions" key="show_word_suggestions"}}</span>
-                </label>
-                <p class="nb-field__hint">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</p>
-              </div>
             </div>
           {{/if}}
         </section>

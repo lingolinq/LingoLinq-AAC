@@ -27,7 +27,8 @@ module FeatureFlags
               'home_tour', 'paste_html_import', 'catalog_board_prefetch',
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
-              'english_first_board_generation', 'signup_spanish_library_boards']
+              'english_first_board_generation', 'signup_spanish_library_boards',
+              'dashboard_drag_layout']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -42,7 +43,8 @@ module FeatureFlags
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
               'portrait_orientation_overlay', # TEMPORARY (2026-05-29): ON for everyone so Traci can view the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
               'background_board_prefetch',
-              'signup_default_library_boards', 'english_first_board_generation']
+              'signup_default_library_boards', 'english_first_board_generation',
+              'dashboard_drag_layout'] # TEMPORARY (2026-06-09): ON for everyone pre-production so the Getting Started drag-to-swap home layout can be validated. REMOVE from this list before production — canonical state is AVAILABLE-only (beta opt-in per user).
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -76,12 +78,16 @@ module FeatureFlags
                    ai_symbol_search ai_compliance_logging].freeze
   def self.frontend_flags_for(user)
     flags = {}
+    enabled_list = SystemFeatureSettings.effective_enabled_for(user)
+    canary_list = SystemFeatureSettings.canary_enabled_features
+    beta_list = SystemFeatureSettings.beta_opt_in_features
+    user_flags = user && user.settings && user.settings['feature_flags']
     AVAILABLE_FRONTEND_FEATURES.each do |feature|
-      if ENABLED_FRONTEND_FEATURES.include?(feature)
+      if enabled_list.include?(feature)
         flags[feature] = true
-      elsif user && user.settings && user.settings['feature_flags'] && user.settings['feature_flags'][feature]
+      elsif user_flags && user_flags[feature] && beta_list.include?(feature)
         flags[feature] = true
-      elsif user && user.settings && user.settings['feature_flags'] && user.settings['feature_flags']['canary'] && !DISABLED_CANARY_FEATURES.include?(feature)
+      elsif user_flags && user_flags['canary'] && canary_list.include?(feature)
         flags[feature] = true
       end
     end
@@ -103,12 +109,14 @@ module FeatureFlags
   # Server-side gate for copying default vocab boards into new user libraries.
   def self.signup_default_library_boards_enabled?(_user = nil)
     return true if ENV['SIGNUP_DEFAULT_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
-    ENABLED_FRONTEND_FEATURES.include?('signup_default_library_boards')
+    list = _user ? SystemFeatureSettings.effective_enabled_for(_user) : SystemFeatureSettings.default_enabled_features
+    list.include?('signup_default_library_boards')
   end
 
   def self.signup_spanish_library_boards_enabled?(user = nil)
     return true if ENV['SIGNUP_SPANISH_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
-    return false unless ENABLED_FRONTEND_FEATURES.include?('signup_spanish_library_boards')
+    list = user ? SystemFeatureSettings.effective_enabled_for(user) : SystemFeatureSettings.default_enabled_features
+    return false unless list.include?('signup_spanish_library_boards')
     return true unless user
     prefs = user.settings && user.settings['preferences']
     locale = (prefs && prefs['locale']) || (user.settings && user.settings['locale'])

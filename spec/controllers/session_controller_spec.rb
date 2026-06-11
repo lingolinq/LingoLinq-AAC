@@ -2245,6 +2245,50 @@ describe SessionController, :type => :controller do
       expect(response.location).not_to include('google_link')
     end
 
+    it "keeps register flow on signup_complete even when the Google account matches existing users" do
+      linked = User.process_new({
+        'user_name' => 'linked_register_google_user',
+        'name' => 'Linked Register Google User',
+        'email' => 'google@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_google!(google_profile[:sub], email: google_profile[:email], name: google_profile[:name])
+      email_match = User.process_new({
+        'user_name' => 'register_email_match',
+        'name' => 'Register Email Match',
+        'email' => 'google@example.com',
+        'password' => 'secret456',
+        'terms_agree' => true
+      }, { pending: true })
+      allow(GoogleOAuth).to receive(:fetch_state).and_return({
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'return_origin' => 'http://localhost:8184',
+        'registration_type' => 'teacher',
+        'user_name' => 'new_google_username',
+        'terms_agree' => true,
+        'product_improvement_opt_in' => true
+      })
+      allow(GoogleOAuth).to receive(:clear_state)
+      allow(GoogleOAuth).to receive(:exchange_code).and_return({
+        'sub' => google_profile[:sub],
+        'email' => google_profile[:email],
+        'email_verified' => true,
+        'name' => google_profile[:name]
+      })
+      expect(GoogleOAuth).to receive(:store_link) do |_nonce, link|
+        expect(link['mode']).to eq('signup_complete')
+        expect(link['user_name']).to eq('new_google_username')
+        expect(link['registration_type']).to eq('teacher')
+        expect(link['candidate_user_ids']).to eq([])
+      end
+
+      get :google_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{http://localhost:8184/register\?google_signup=})
+      expect(response.location).not_to include('/login?google_link=')
+    end
+
     it "redirects zero-candidate login to manual_link on the frontend origin" do
       allow(GoogleOAuth).to receive(:fetch_state).and_return({
         'flow' => 'login',
@@ -2403,6 +2447,59 @@ describe SessionController, :type => :controller do
       user = User.find_by(user_name: 'google_signup_user')
       expect(user).not_to eq(nil)
       expect(user.google_linked?).to eq(true)
+    end
+
+    it "creates accounts from signup_complete with the username stored before Google redirect" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-generated-signup',
+        'email' => 'generated-signup@gmail.com',
+        'name' => 'Generated Signup',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'user_name' => 'chosen_google_signup',
+        'registration_type' => 'teacher',
+        'terms_agree' => true,
+        'product_improvement_opt_in' => true
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      expect(GoogleOAuth).to receive(:clear_link).with('signup-generated-nonce')
+      post :google_signup_complete, params: {
+        nonce: 'signup-generated-nonce',
+        terms_agree: 'true'
+      }
+      json = assert_success_json
+      expect(json['token']).not_to eq(nil)
+      user = User.find_by(user_name: 'chosen_google_signup')
+      expect(user).not_to eq(nil)
+      expect(user.settings['preferences']['registration_type']).to eq('teacher')
+      expect(user.settings['preferences']['role']).to eq('supporter')
+      expect(user.settings['preferences']['cookies']).to eq(true)
+      expect(user.settings['preferences']['telemetry_opt_in']).to eq(true)
+      expect(user.settings['preferences']['comms_log_opt_in']).to eq(true)
+      expect(user.google_linked?).to eq(true)
+    end
+
+    it "requires a username for signup_complete" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-blank-username',
+        'email' => 'blank-google-signup@gmail.com',
+        'name' => 'Blank Google Signup',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'registration_type' => 'teacher',
+        'terms_agree' => true
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      post :google_signup_complete, params: {
+        nonce: 'signup-blank-username',
+        user_name: '',
+        terms_agree: 'true'
+      }
+      assert_error('username_required', 400)
     end
 
     it "requires terms for signup_complete" do

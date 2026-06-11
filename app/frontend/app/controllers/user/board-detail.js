@@ -210,6 +210,15 @@ export default Controller.extend(prefClasses, {
   right_panel_collapsed: false,
   left_panel_collapsed: false,
   right_panel_open_section: null,
+  // When the settings panel COLLAPSES, clear any open section so the collapsed rail
+  // doesn't keep an item selected/highlighted. Covers every collapse path (manual
+  // toggle, auto-collapse at ≤1200px, resize) in one place. Only acts on collapse →
+  // expanding via a rail-icon click (which sets collapsed=false first) is unaffected.
+  _clear_open_section_on_collapse: observer('right_panel_collapsed', function() {
+    if(this.get('right_panel_collapsed') && this.get('right_panel_open_section')) {
+      this.set('right_panel_open_section', null);
+    }
+  }),
   /* True when the currently-open right-panel section was opened
      while the panel was in COLLAPSED rail mode — i.e. the user
      was looking at the icon rail, clicked a section icon, the
@@ -343,6 +352,94 @@ export default Controller.extend(prefClasses, {
       _this._grid_settle_timer = null;
     }, 150);
   }),
+
+  // Size the <=768px word-prediction rail tiles to match the live board
+  // buttons so they read as one consistent set. Board buttons are sized by the
+  // CSS grid (gridWidth/cols x gridHeight/rows), which the rail — a sibling
+  // outside that grid — can't read in CSS, so we measure a rendered card and
+  // publish its box as CSS vars on .md-board-detail-main. The rail CSS consumes
+  // them with FIXED FALLBACKS, so a missed measurement just leaves the rail at
+  // its default size — it can never break the rail. Progressive enhancement.
+  _sync_prediction_tile_size: function() {
+    if(typeof document === 'undefined') { return; }
+    var main = document.querySelector('.md-board-detail-main');
+    if(!main) { return; }
+    var cell = document.querySelector('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty)');
+    if(!cell) { return; }
+    var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
+    var cardRect = card.getBoundingClientRect();
+    var cellRect = cell.getBoundingClientRect();
+    if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
+    var grid = document.querySelector('.md-board-detail-grid');
+    var gridStyle = grid ? window.getComputedStyle(grid) : null;
+    var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
+    var rowGap = gridStyle ? (parseFloat(gridStyle.rowGap) || 0) : 0;
+    // WIDTH. The rail is a fixed-width sibling of the FLEXIBLE board grid, so
+    // setting the rail to the measured card width is circular: the rail steals
+    // that width back from the grid, the cards resize, and the two stay one step
+    // out of sync forever (the rail renders NARROWER than the buttons). Solve
+    // for the convergent width instead. The grid + rail share a horizontal
+    // budget S = gridFadeWidth + railMargin + railWidth that is INVARIANT under
+    // how it's split (the flex:1 grid absorbs whatever the rail takes; the
+    // sidebar is a separate fixed sibling). At the width W where one board
+    // column == the rail:  S = (N+1)*W + (N-1)*colGap + railMargin  →
+    //   W = (S - (N-1)*colGap - railMargin) / (N+1).
+    // One measurement at ANY current rail width yields the right W. Falls back
+    // to the plain card width when the rail is hidden (>1200px in-bar layout).
+    var tileW = Math.round(cardRect.width);
+    var rail = document.querySelector('.md-board-detail-prediction-rail');
+    var gridFade = document.querySelector('.md-board-detail-grid-fade');
+    var cols = parseInt(this.get('current_grid.columns'), 10) || 0;
+    if(rail && gridFade && cols > 0 && window.getComputedStyle(rail).display !== 'none') {
+      var railMarginLeft = parseFloat(window.getComputedStyle(rail).marginLeft) || 0;
+      var shared = gridFade.getBoundingClientRect().width + railMarginLeft + rail.getBoundingClientRect().width;
+      var w = (shared - (cols - 1) * colGap - railMarginLeft) / (cols + 1);
+      if(w > 1) { tileW = Math.round(w); }
+    }
+    main.style.setProperty('--prediction-tile-w', tileW + 'px');
+    main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
+    // Match the board's vertical RHYTHM so rail tiles line up with board rows:
+    // board row pitch = cellHeight + rowGap; rail pitch = tileHeight + railGap.
+    // Tile height = card height, so the rail gap absorbs the difference.
+    main.style.setProperty('--prediction-tile-gap', Math.max(0, Math.round(cellRect.height + rowGap - cardRect.height)) + 'px');
+    // Align the first rail tile's top with the first board row. The rail is a
+    // flex child of grid-sidebar-wrap (align-items:flex-start), so it naturally
+    // starts at the wrap's content top; pad it down to the first card. Measured
+    // against the (stable) wrap, not the rail, so it can't feed back on itself.
+    var wrap = document.querySelector('.md-board-detail-grid-sidebar-wrap');
+    if(wrap) {
+      var wrapTop = wrap.getBoundingClientRect().top + (parseFloat(window.getComputedStyle(wrap).paddingTop) || 0);
+      main.style.setProperty('--prediction-rail-pad-top', Math.max(0, Math.round(cardRect.top - wrapTop)) + 'px');
+    }
+    // FONT: match the rail words to the board labels EXACTLY by copying the
+    // board label's computed font-size. A `cqw`-based match is fragile here —
+    // cqw resolves against the container's CONTENT box, and the rail tile has
+    // more horizontal padding than the board card (10px vs 4px), so equal outer
+    // widths still yield different cqw px. Reading the rendered px sidesteps
+    // that (and any future padding/border drift). All board labels share the
+    // same size, so the first is representative.
+    var label = card.querySelector && card.querySelector('.md-board-detail-symbol-card__label');
+    if(label) {
+      var labelFont = window.getComputedStyle(label).fontSize;
+      if(labelFont) { main.style.setProperty('--prediction-label-font', labelFont); }
+    }
+  },
+  /* (Re)point the ResizeObserver at the current board grid — the grid element
+     is replaced on board change, so re-observe whenever the board changes. */
+  _observe_prediction_grid: function() {
+    if(!this._predictionGridRO || typeof document === 'undefined') { return; }
+    try { this._predictionGridRO.disconnect(); } catch(e) { /* noop */ }
+    var grid = document.querySelector('.md-board-detail-grid');
+    if(grid) { this._predictionGridRO.observe(grid); }
+  },
+  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', function() {
+    var _this = this;
+    runLater(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this._sync_prediction_tile_size();
+      _this._observe_prediction_grid();
+    }, 160);
+  }),
   noUndo: true,
   noRedo: true,
 
@@ -390,18 +487,18 @@ export default Controller.extend(prefClasses, {
     };
     document.addEventListener('click', _this._closeDropdownsHandler, true);
 
-    // Auto-collapse both side panels at ≤1024px. matchMedia fires
+    // Auto-collapse both side panels at ≤1200px. matchMedia fires
     // when the breakpoint is CROSSED (resize transition); the
     // companion edit_mode observer below covers the other entry
     // points (direct page load in edit mode at narrow viewport,
     // refresh while in edit mode at narrow viewport) — without it,
-    // a user who LOADS edit mode at ≤1024px would never see the
+    // a user who LOADS edit mode at ≤1200px would never see the
     // auto-collapse because the viewport never crossed the threshold
     // while observable. The resize handler ONLY auto-collapses on
     // wide→narrow transitions (e.matches === true), so manually
     // expanding while already narrow isn't fought.
     if(typeof window !== 'undefined' && window.matchMedia) {
-      this._narrowViewportMql = window.matchMedia('(max-width: 1024px)');
+      this._narrowViewportMql = window.matchMedia('(max-width: 1200px)');
       this._narrowViewportHandler = function(e) {
         if(e.matches && _this.get('edit_mode')) {
           _this.set('left_panel_collapsed', true);
@@ -426,6 +523,46 @@ export default Controller.extend(prefClasses, {
           _this.set('right_panel_collapsed', true);
         }
       }, 0);
+    }
+
+    // Keep the <=768px prediction-rail tiles matched to the board buttons as
+    // the viewport changes (board buttons resize with the viewport). Debounced;
+    // each run is a single measure + two CSS-var writes. Cleaned up in
+    // willDestroy. See _sync_prediction_tile_size.
+    if(typeof window !== 'undefined') {
+      this._predictionTileResizeHandler = function() {
+        if(_this._predictionTileResizeTimer) { runCancel(_this._predictionTileResizeTimer); }
+        _this._predictionTileResizeTimer = runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this._sync_prediction_tile_size();
+        }, 120);
+      };
+      window.addEventListener('resize', this._predictionTileResizeHandler);
+      // Initial measure once the first board has rendered.
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._sync_prediction_tile_size();
+      }, 300);
+      // A window-resize / fixed timer only catches viewport changes — NOT the
+      // board re-laying-out (square-shape collapse, board switch, font/gap/shape
+      // pref changes, dev hot-reload) which resize the cells WITHOUT a window
+      // resize, leaving the rail measured against a stale layout. Observe the
+      // grid directly so the rail re-measures whenever the buttons actually
+      // change size. The closed-form measure is convergent (it settles to the
+      // same value in a tick), so the debounce + rounding prevent a RO loop.
+      if(typeof ResizeObserver !== 'undefined') {
+        this._predictionGridRO = new ResizeObserver(function() {
+          if(_this._predictionTileResizeTimer) { runCancel(_this._predictionTileResizeTimer); }
+          _this._predictionTileResizeTimer = runLater(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            _this._sync_prediction_tile_size();
+          }, 120);
+        });
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this._observe_prediction_grid();
+        }, 350);
+      }
     }
 
     // Portrait/narrow viewport tracking for the landscape-orientation
@@ -481,7 +618,7 @@ export default Controller.extend(prefClasses, {
 
   // Auto-collapse panels whenever edit_mode flips on at a narrow
   // viewport (e.g. user clicks "Edit Board" while viewport is
-  // already ≤1024px — matchMedia doesn't fire since the viewport
+  // already ≤1200px — matchMedia doesn't fire since the viewport
   // didn't change). The enterEditNow action handles this for the
   // in-app click path, but this observer is the catch-all for any
   // other path that sets edit_mode true. Gated on the narrow
@@ -489,7 +626,7 @@ export default Controller.extend(prefClasses, {
   _auto_collapse_panels_on_edit_at_narrow: observer('edit_mode', function() {
     if(!this.get('edit_mode')) { return; }
     if(typeof window === 'undefined' || !window.matchMedia) { return; }
-    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1024px)');
+    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1200px)');
     if(mql.matches) {
       this.set('left_panel_collapsed', true);
       this.set('right_panel_collapsed', true);
@@ -500,6 +637,14 @@ export default Controller.extend(prefClasses, {
     this._super(...arguments);
     if(this._closeDropdownsHandler) {
       document.removeEventListener('click', this._closeDropdownsHandler, true);
+    }
+    if(this._predictionTileResizeHandler) {
+      window.removeEventListener('resize', this._predictionTileResizeHandler);
+      if(this._predictionTileResizeTimer) { runCancel(this._predictionTileResizeTimer); }
+    }
+    if(this._predictionGridRO) {
+      try { this._predictionGridRO.disconnect(); } catch(e) { /* noop */ }
+      this._predictionGridRO = null;
     }
     if(this._narrowViewportMql && this._narrowViewportHandler) {
       if(this._narrowViewportMql.removeEventListener) {
@@ -568,6 +713,23 @@ export default Controller.extend(prefClasses, {
 
   has_sentence: computed('sentence_parts.[]', function() {
     return (this.get('sentence_parts') || []).length > 0;
+  }),
+
+  // Keep the most recent chips visible. The symbol strip wraps chips into
+  // rows and scrolls vertically (capped at one bar height in app.scss); as
+  // the message grows we scroll it to the bottom so the user always sees
+  // what they just added, with older rows scrolled up out of view. `next`
+  // waits for the new chips to render before measuring scrollHeight.
+  _scroll_sentence_to_newest: observer('sentence_parts.[]', function() {
+    next(function() {
+      var el = document.querySelector('#speak .md-board-detail-sentence-bar__text--with-symbols');
+      // Only pin to the newest (bottom) when chips have genuinely wrapped to a
+      // SECOND row. A single row exactly fills the viewport, and a few px of
+      // sub-row overflow (border/rounding) shouldn't scroll — doing so would
+      // hide the TOP of the only row (clipping the symbols). The 24px floor is
+      // well below a real chip row (~78px+) but above any single-row rounding.
+      if(el && (el.scrollHeight - el.clientHeight) > 24) { el.scrollTop = el.scrollHeight; }
+    });
   }),
 
   /**
@@ -684,12 +846,23 @@ export default Controller.extend(prefClasses, {
       var in_progress = !!emberGet(b, 'in_progress');
       var image_url = null;
       if(!in_progress) {
+        var raw_image = emberGet(b, 'image');
         image_url = wordSuggestionsModule.resolve_word_image({
-          image: emberGet(b, 'image'),
+          image: raw_image,
           original_image: emberGet(b, 'original_image')
         });
         if(!image_url) {
           image_url = _this._find_local_image_for_label(label);
+        }
+        // A word prediction with no board symbol is given the missing-image
+        // placeholder by complete_word. resolve_word_image() deliberately
+        // drops placeholders, so re-apply it here when the user shows symbols —
+        // otherwise the chip renders blank even though the button carries the
+        // fallback icon. Only an explicit placeholder URL qualifies; words with
+        // no image at all stay imageless.
+        if(!image_url && _this.get('utterance_show_symbols') &&
+           typeof raw_image === 'string' && wordSuggestionsModule.is_placeholder_image(raw_image)) {
+          image_url = raw_image;
         }
       }
       var chip = {
@@ -1746,8 +1919,48 @@ export default Controller.extend(prefClasses, {
 
   // Word suggestions
   suggestions: null,
-  show_word_suggestions: computed('edit_mode', function() {
-    return !this.get('edit_mode');
+  show_word_suggestions: computed('edit_mode', 'app_state.referenced_user.preferences.word_suggestions', function() {
+    // Global user preference gates word prediction in speak mode. Default is
+    // OFF: only an explicit `true` shows it (undefined/null/false = off). Never
+    // shown in edit mode.
+    if(this.get('edit_mode')) { return false; }
+    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
+  }),
+  // On/off state of word prediction (default OFF — only explicit true is on),
+  // used by the BOARD SETTINGS → Word Prediction toggle — independent of
+  // edit_mode, unlike show_word_suggestions which is always false while editing.
+  word_suggestions_enabled: computed('app_state.referenced_user.preferences.word_suggestions', function() {
+    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
+  }),
+  // Where word prediction renders in speak mode (user pref). 'speak_bar' /
+  // 'side_rail' pin a layout at all widths via a shell class; 'auto' (default,
+  // empty class) keeps the responsive in-bar/rail switch. See app.scss
+  // ".md-shell--wordpred-*" rules.
+  word_suggestion_position_class: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
+    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position');
+    if(pos === 'speak_bar') { return 'md-shell--wordpred-speak-bar'; }
+    if(pos === 'side_rail') { return 'md-shell--wordpred-side-rail'; }
+    return '';
+  }),
+  // ── Word-prediction position selector (edit-mode BOARD SETTINGS section) ──
+  // The current placement value (default 'auto'), the dropdown's open state,
+  // its options, and the label for the active option. Mirrors the Sentence Bar
+  // size dropdown's bindings in the same panel.
+  word_prediction_position_dropdown_open: false,
+  word_suggestion_position_value: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
+    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'auto';
+  }),
+  word_prediction_position_options: computed(function() {
+    return [
+      { id: 'auto', label: i18n.t('word_prediction_pos_auto', "Best fit for the screen") },
+      { id: 'speak_bar', label: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar") },
+      { id: 'side_rail', label: i18n.t('word_prediction_pos_side_rail', "To the right of the board") }
+    ];
+  }),
+  word_prediction_position_label: computed('word_suggestion_position_value', function() {
+    var val = this.get('word_suggestion_position_value');
+    var match = (this.get('word_prediction_position_options') || []).find(function(o) { return o.id === val; });
+    return match ? match.label : i18n.t('word_prediction_pos_auto', "Best fit for the screen");
   }),
 
   _suggestion_lookup_context: function() {
@@ -1890,6 +2103,7 @@ export default Controller.extend(prefClasses, {
 
   updateSuggestions: observer(
     'edit_mode',
+    'app_state.referenced_user.preferences.word_suggestions',
     'app_state.button_list',
     'app_state.button_list.[]',
     'app_state.button_list.@each.in_progress',
@@ -1902,7 +2116,9 @@ export default Controller.extend(prefClasses, {
     'sentence_parts.@each.in_progress',
     'model.locale',
     function() {
-      if(this.get('edit_mode')) {
+      // Skip the lookup entirely when in edit mode or word prediction is off
+      // (default OFF — only an explicit `true` enables it).
+      if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
         this.set('suggestions', null);
         return;
       }
@@ -2543,6 +2759,21 @@ export default Controller.extend(prefClasses, {
     return this.get('folder_display_style') === 'colored_corner';
   }),
 
+  // While the My Board Collection drawer is PREVIEWING (open) and the board on
+  // display is a dense 60 / 84 / 112-cell grid, force the COLORED-CORNER folder
+  // style regardless of the user's saved folder preference — those large grids
+  // render the tab-label / colored-face styles too cramped to read at preview
+  // density. Only the args passed to <BoardDetailGrid> are overridden (see
+  // board-detail.hbs); the saved preference is left untouched. Recomputes as the
+  // user taps board-to-board (model.grid changes on each transition).
+  _collection_preview_force_corner: computed('board_collection_open', 'model.grid.rows', 'model.grid.columns', function() {
+    if(!this.get('board_collection_open')) { return false; }
+    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+    var total = rows * cols;
+    return total === 60 || total === 84 || total === 112;
+  }),
+
   // Map of speak-menu item id → true for items the user has hidden.
   // Built from the `speak_menu_hidden_items` array (kept in sync with
   // user.preferences.speak_mode_hidden_menu_items). Templates use
@@ -2614,7 +2845,15 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.copy || !s.download || !s.print || !s.share;
   }),
-  speak_section_visible_session: computed('speak_menu_hidden_set', function() {
+  speak_section_visible_session: computed('speak_menu_hidden_set', 'app_state.currentUser.supporter_role', 'app_state.modeling', function() {
+    // Session holds supervisor-oriented tools (button levels, sticky board, pause
+    // logging, modeling, switch communicators). Hide the whole section on a plain
+    // COMMUNICATOR account (preferences.role != 'supporter'); show it for supporter
+    // / other roles, AND keep it visible on the communicator's own account while a
+    // supervisor is actively modeling for them (app_state.modeling).
+    var is_supporter = !!this.get('app_state.currentUser.supporter_role');
+    var modeling = !!this.get('app_state.modeling');
+    if(!is_supporter && !modeling) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
   }),
@@ -2782,6 +3021,16 @@ export default Controller.extend(prefClasses, {
       rows: ob.length,
       columns: (ob[0] && Array.isArray(ob[0]) && ob[0].length) || 0
     };
+  }),
+
+  /* The vertical prediction rail (speak mode, <=1024px) sits beside the board as
+     an extra "column", so it must never show more tiles than a board column has
+     buttons — i.e. cap it at the board's row count (5 rows → max 5 predictions,
+     3 rows → max 3). Falls back to the full list if the row count isn't known. */
+  prediction_rail_suggestions: computed('suggestions.list.[]', 'current_grid.rows', function() {
+    var list = this.get('suggestions.list') || [];
+    var rows = parseInt(this.get('current_grid.rows'), 10) || 0;
+    return (rows > 0 && list.length > rows) ? list.slice(0, rows) : list;
   }),
 
   grid_style: computed('current_grid.columns', 'current_grid.rows', function() {
@@ -4507,7 +4756,7 @@ export default Controller.extend(prefClasses, {
         // the room there. Set on entry only (matches how the rest of
         // the collapse state is purely user-toggled; no resize hook).
         var vw = (typeof window !== 'undefined' && window.innerWidth) || 0;
-        var collapse_sides = vw > 0 && vw <= 1024;
+        var collapse_sides = vw > 0 && vw <= 1200;
         _this.set('left_panel_collapsed', collapse_sides);
         _this.set('right_panel_collapsed', collapse_sides);
         _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
@@ -5395,6 +5644,41 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // Word prediction on/off — the SAME global user preference exposed on the
+    // Preferences page, mirrored in the edit-mode BOARD SETTINGS → Word
+    // Prediction section. Reads/writes referenced_user (the board's user,
+    // matching the speak-mode display gate). Dirty-bits preferences.device.updated
+    // so the raw preferences blob ships (Ember Data won't mark a nested set dirty
+    // on its own — same trick as go_to_classic / set_display_pref).
+    toggle_word_suggestions: function() {
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      var currentlyOn = prefUser.get('preferences.word_suggestions') !== false;
+      prefUser.set('preferences.word_suggestions', !currentlyOn);
+      if(prefUser.save) {
+        prefUser.set('preferences.device.updated', true);
+        prefUser.save();
+      }
+    },
+    toggle_word_prediction_position_dropdown: function() {
+      this.toggleProperty('word_prediction_position_dropdown_open');
+    },
+    close_word_prediction_position_dropdown: function() {
+      this.set('word_prediction_position_dropdown_open', false);
+    },
+    // Set word-prediction placement (auto / speak_bar / side_rail) + persist it,
+    // same way as toggle_word_suggestions.
+    pick_word_suggestion_position: function(id) {
+      this.set('word_prediction_position_dropdown_open', false);
+      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+      if(!prefUser) { return; }
+      prefUser.set('preferences.word_suggestion_position', id);
+      if(prefUser.save) {
+        prefUser.set('preferences.device.updated', true);
+        prefUser.save();
+      }
+    },
+
     make_a_copy: function() {
       this.set('share_dropdown_open', false);
       var _this = this;
@@ -5510,6 +5794,11 @@ export default Controller.extend(prefClasses, {
        submenu since we're taking over its surface anyway. */
     open_board_collection: function() {
       this.set('board_submenu_open', false);
+      // Close the options dropdown — the collection now PINS as a standalone
+      // right-side drawer (decoupled from show_options_menu) so it can persist
+      // while the user taps board-to-board and the selected board renders in the
+      // grid on the left.
+      this.set('show_options_menu', false);
       this.set('board_collection_open', true);
     },
 
@@ -5535,7 +5824,12 @@ export default Controller.extend(prefClasses, {
     select_board_from_collection: function(board) {
       if(!board) { return; }
       var key = (board.get && board.get('key')) || board.key;
-      this.set('board_collection_open', false);
+      // Keep the collection PINNED (do NOT clear board_collection_open) so the
+      // drawer stays open while the chosen board loads in the grid on the left.
+      // board-detail's controller is a singleton across board-detail routes, so
+      // the pinned state survives the transition. "Back to Speak Mode" (the
+      // drawer's back button → close_board_collection) unpins onto whatever board
+      // is showing — i.e. the last one selected.
       this.set('show_options_menu', false);
       if(key && this.router) {
         var parts = key.split('/');
@@ -5877,7 +6171,19 @@ export default Controller.extend(prefClasses, {
         function() { },
         { appState: _this.get('app_state'), stashes: _this.get('stashes') }
       ).then(function(image_url) {
-        activate(image_url || wordSuggestionsModule.resolve_word_image(word));
+        var resolved = image_url || wordSuggestionsModule.resolve_word_image(word);
+        // A real image was found, or the user is in text-only mode (chips
+        // render no image either way) — activate as-is.
+        if(resolved || !_this.get('utterance_show_symbols')) {
+          activate(resolved);
+          return;
+        }
+        // No real image found and the user shows symbols: add the same
+        // placeholder the prediction tile used (the missing-image icon) so
+        // the chip carries an icon instead of rendering blank.
+        wordSuggestionsModule.fallback_url().then(function(fb) {
+          activate(fb);
+        }, function() { activate(null); });
       });
     },
 
@@ -6174,23 +6480,26 @@ export default Controller.extend(prefClasses, {
       });
     },
 
+    // Expand / collapse the inline sidebar. This button now owns BOTH the
+    // visibility AND the persistent state (the separate pin control has been
+    // removed): it flips the shared `quick_sidebar` preference via the
+    // application controller's `stickSidebar` primitive (which persists to the
+    // DB), then reflects the new state locally. So expanding pins it open and
+    // collapsing turns the persistent state OFF. `stickSidebar` sets
+    // quick_sidebar synchronously before its save, so reading it right after
+    // gives the new value. lock_quick_sidebar still prevents closing.
     toggleInlineSidebar: function() {
       var prefs = this.get('app_state.currentUser.preferences') || {};
       if(this.get('inlineSidebarOpen') && prefs.quick_sidebar && prefs.lock_quick_sidebar) {
         return;
       }
-      this.toggleProperty('inlineSidebarOpen');
-    },
-    // Pin / unpin the inline sidebar open. Delegates to the application
-    // controller's existing `stickSidebar` primitive so the pinned state
-    // lives in ONE place — the persistent `quick_sidebar` preference shared
-    // with the app-level sidebar (board-alt / main board route). When
-    // quick_sidebar flips on, syncInlineSidebarOnPrefChange re-opens this
-    // sidebar and _maybeCloseInlineSidebarAfterAction keeps it open after jumps.
-    pinInlineSidebar: function() {
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
         appController.send('stickSidebar');
+        this.set('inlineSidebarOpen', !!this.get('app_state.currentUser.preferences.quick_sidebar'));
+      } else {
+        // Fallback if the app controller isn't reachable — at least flip locally.
+        this.toggleProperty('inlineSidebarOpen');
       }
     },
     sidebar_jump: function(key, board) {

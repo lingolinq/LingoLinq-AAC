@@ -11,27 +11,45 @@ describe FeatureFlags do
     it "should return the default set of flags" do
       stub_const('FeatureFlags::AVAILABLE_FRONTEND_FEATURES', ['a', 'b', 'c'])
       stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', ['d', 'b', 'c'])
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).and_return(['b', 'c'])
       flags = FeatureFlags.frontend_flags_for(nil)
       expect(flags).to eq({'b' => true, 'c' => true})
     end
     
-    it "should consider user-specific flags" do
+    it "should consider user-specific flags in the beta opt-in pool" do
       stub_const('FeatureFlags::AVAILABLE_FRONTEND_FEATURES', ['a', 'b', 'c'])
       stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', ['b'])
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).and_return(['b'])
+      allow(SystemFeatureSettings).to receive(:canary_enabled_features).and_return(['c'])
+      allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(['c'])
       u = User.new(:settings => {})
       u.settings['feature_flags'] = {'c' => true, 'd' => true}
       flags = FeatureFlags.frontend_flags_for(u)
       expect(flags).to eq({'b' => true, 'c' => true})
     end
     
-    it "should enable everything (except canary exceptions) for canary users" do
+    it "should enable canary pool features for canary users" do
       stub_const('FeatureFlags::AVAILABLE_FRONTEND_FEATURES', ['a', 'b', 'c'])
       stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', ['b'])
       stub_const('FeatureFlags::DISABLED_CANARY_FEATURES', ['a'])
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).and_return(['b'])
+      allow(SystemFeatureSettings).to receive(:canary_enabled_features).and_return(['b', 'c'])
+      allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(['c'])
       u = User.new(:settings => {})
       u.enable_feature('canary')
       flags = FeatureFlags.frontend_flags_for(u)
       expect(flags).to eq({'b' => true, 'c' => true})
+    end
+
+    it "should ignore per-user flags outside the beta opt-in pool" do
+      stub_const('FeatureFlags::AVAILABLE_FRONTEND_FEATURES', ['a', 'b', 'c'])
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).and_return(['b'])
+      allow(SystemFeatureSettings).to receive(:canary_enabled_features).and_return([])
+      allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(['b'])
+      u = User.new(:settings => {})
+      u.settings['feature_flags'] = {'c' => true}
+      flags = FeatureFlags.frontend_flags_for(u)
+      expect(flags).to eq({'b' => true})
     end
   end
   

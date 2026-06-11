@@ -19,6 +19,18 @@ export default Component.extend({
   // Each holds { state: 'loading' | 'loaded' | 'error', boards: [...] }.
   quick_core_group: null,
   vocal_flair_group: null,
+  // Hardcoded placeholder cards shown in the Keyboards category — an
+  // alphabetic and a QWERTY keyboard preview. Static (no real board yet);
+  // rendered as styled board cards in board-picker.hbs. computed() so i18n is
+  // resolved on first access rather than at class-definition time.
+  keyboard_placeholders: computed(function() {
+    return [
+      { id: 'alphabetic', name: i18n.t('alphabetic_keyboard', "Alphabetic Keyboard"),
+        rows: [['A', 'B', 'C', 'D', 'E'], ['F', 'G', 'H', 'I', 'J'], ['K', 'L', 'M', 'N', 'O']] },
+      { id: 'qwerty', name: i18n.t('qwerty_keyboard', "QWERTY Keyboard"),
+        rows: [['Q', 'W', 'E', 'R', 'T'], ['A', 'S', 'D', 'F', 'G'], ['Z', 'X', 'C', 'V', 'B']] }
+    ];
+  }),
   willInsertElement: function() {
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
