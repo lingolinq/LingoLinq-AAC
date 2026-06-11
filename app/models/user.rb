@@ -452,7 +452,9 @@ class User < ApplicationRecord
 
   # Records a parent-granted AI data-sharing consent at the given disclosures_version.
   # Idempotent on same-version re-call (returns false). Does NOT silently grant on
-  # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX).
+  # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX) -
+  # this holds even after a revoke, so an outdated grant link cannot reactivate
+  # consent at a superseded version.
   #
   # Precondition: the user must be persisted. `with_lock` calls `reload(lock: true)`
   # internally and will raise ActiveRecord::RecordNotFound on a User.new.
@@ -496,26 +498,28 @@ class User < ApplicationRecord
       self.settings ||= {}
       c = self.settings['ai_consent']
       c = {} unless c.is_a?(Hash)
-      # D-04 three-branch idempotency for an existing active (unrevoked) consent:
-      #   - same version requested:           no-op, return false (already granted)
-      #   - older version requested:          no-op, return false (downgrade refused;
-      #                                       Phase 3 controller re-prompts at current
-      #                                       version)
-      #   - newer version requested:          fall through; record the upgrade,
-      #                                       preserve record_id, capture the prior
-      #                                       version in the audit payload so audit
-      #                                       queries can distinguish first-grant
-      #                                       from version-upgrade events.
-      if c['granted_at'].present? && c['revoked_at'].blank?
-        # Coerce a stored string version so the comparison stays numeric, not
-        # lexicographic. disclosures_version is already a positive Integer (coerced
-        # above), so the only nil/garbage that can appear here is a legacy stored value.
-        prior_version = c['disclosures_version']
-        prior_version = Integer(prior_version) if prior_version.is_a?(String) && prior_version.strip.match?(/\A\d+\z/)
-        next if prior_version.nil?
-        next if prior_version == disclosures_version
+      # Idempotency / version contract against any prior consent record (D-04):
+      #   - stale (older) version:  no-op, return false. Applies whether or not the
+      #                             prior consent is currently revoked: following an
+      #                             outdated grant link must never reactivate consent
+      #                             against superseded disclosures. (Issue #1)
+      #   - same version, active:   no-op, return false (already granted). A same-version
+      #                             grant AFTER a revoke legitimately reactivates, so this
+      #                             no-op is gated on the consent still being active.
+      #   - newer version, active:  fall through; record the upgrade, preserve record_id,
+      #                             capture the prior version in the audit payload so audit
+      #                             queries can distinguish first-grant from upgrade events.
+      #   - any version after a revoke (>= prior): fall through and reactivate.
+      # Coerce a stored string version so the comparison stays numeric, not lexicographic.
+      # disclosures_version is already a positive Integer (coerced above).
+      prior_version = c['disclosures_version']
+      prior_version = Integer(prior_version) if prior_version.is_a?(String) && prior_version.strip.match?(/\A\d+\z/)
+      has_prior = c['granted_at'].present? && prior_version.is_a?(Integer)
+      active    = has_prior && c['revoked_at'].blank?
+      if has_prior
         next if disclosures_version < prior_version
-        prior_disclosures_version = prior_version
+        next if active && disclosures_version == prior_version
+        prior_disclosures_version = prior_version if active && disclosures_version > prior_version
       end
       # RFC-4122 UUID (122 bits); not GoSecure.nonce, which had low entropy under bulk backfill.
       c['record_id'] = SecureRandom.uuid if c['record_id'].blank?

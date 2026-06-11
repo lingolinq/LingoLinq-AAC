@@ -4252,6 +4252,38 @@ describe User, :type => :model do
       expect(u.settings['ai_consent']['disclosures_version']).to eq(3)
       expect(u.ai_consent_granted?(disclosures_version: 3)).to eq(true)
     end
+
+    it 'does NOT reactivate consent at a stale version after a revoke (revoked-then-stale grant is a no-op)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      u.reload
+      pre_count = AuditEvent.count
+      # Following an OLD v1 grant link after revoking v2 must not reactivate at v1.
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_at']).to be_present       # still revoked, not reactivated
+      expect(c['disclosures_version']).to eq(2)   # not downgraded to v1
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'reactivates consent on a same-or-newer version grant after a revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      u.reload
+      res = u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent <p@example.com>', source: 'in_app')
+      expect(res).to eq(true)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_at']).to be_blank
+      expect(c['disclosures_version']).to eq(2)
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(true)
+    end
   end
 
   describe '#revoke_ai_consent!' do
