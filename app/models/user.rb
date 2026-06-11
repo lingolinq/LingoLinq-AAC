@@ -468,8 +468,9 @@ class User < ApplicationRecord
   # against the same user. D-04 / D-05.
   #
   # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES),
-  # `invalid_granted_by_user_id` (malformed granted_by_user_id), and
-  # `self_grant_forbidden` (granted_by_user_id resolves to self.global_id). These
+  # `invalid_granted_by` (blank granted_by), `invalid_disclosures_version` (nil,
+  # non-numeric, or < 1), `invalid_granted_by_user_id` (malformed granted_by_user_id),
+  # and `self_grant_forbidden` (granted_by_user_id resolves to self.global_id). These
   # are stable machine tokens, not English prose - Phase 3 owns user-facing copy.
   #
   # `granted_by_user_id:` must be a global_id ("1_42") or bare numeric db id;
@@ -479,6 +480,11 @@ class User < ApplicationRecord
     # A parent-consent record without a grantor identity is not auditable. Reject
     # blank granted_by before granted_at is written. Machine token; Phase 3 owns copy.
     raise ArgumentError, 'invalid_granted_by' if granted_by.blank?
+    # Coerce to a positive Integer up front: a nil/garbage disclosures_version would
+    # otherwise write a granted_at row that ai_consent_granted? can never honor (and
+    # that a later valid grant can't repair), and a string version would make the
+    # stale-version check lexicographic. Raises 'invalid_disclosures_version'.
+    disclosures_version = ai_consent_normalize_version!(disclosures_version)
     if granted_by_user_id.present?
       granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
       raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
@@ -501,10 +507,15 @@ class User < ApplicationRecord
       #                                       queries can distinguish first-grant
       #                                       from version-upgrade events.
       if c['granted_at'].present? && c['revoked_at'].blank?
-        next if c['disclosures_version'] == disclosures_version
-        next if disclosures_version.nil? || c['disclosures_version'].nil?
-        next if disclosures_version < c['disclosures_version']
-        prior_disclosures_version = c['disclosures_version']
+        # Coerce a stored string version so the comparison stays numeric, not
+        # lexicographic. disclosures_version is already a positive Integer (coerced
+        # above), so the only nil/garbage that can appear here is a legacy stored value.
+        prior_version = c['disclosures_version']
+        prior_version = Integer(prior_version) if prior_version.is_a?(String) && prior_version.strip.match?(/\A\d+\z/)
+        next if prior_version.nil?
+        next if prior_version == disclosures_version
+        next if disclosures_version < prior_version
+        prior_disclosures_version = prior_version
       end
       # RFC-4122 UUID (122 bits); not GoSecure.nonce, which had low entropy under bulk backfill.
       c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
@@ -577,6 +588,18 @@ class User < ApplicationRecord
       res = true
     end
     res
+  end
+
+  # Coerces disclosures_version to a positive Integer so version comparisons are
+  # numeric (not lexicographic) and a nil/garbage value can never write a consent
+  # row that ai_consent_granted? can't honor. Accepts an Integer or an all-digit
+  # String; rejects nil, blank, non-numeric, and < 1 with 'invalid_disclosures_version'.
+  def ai_consent_normalize_version!(raw)
+    ok = raw.is_a?(Integer) || (raw.is_a?(String) && raw.strip.match?(/\A\d+\z/))
+    raise ArgumentError, 'invalid_disclosures_version' unless ok
+    v = Integer(raw.is_a?(String) ? raw.strip : raw)
+    raise ArgumentError, 'invalid_disclosures_version' if v < 1
+    v
   end
 
   # Coerces granted_by_user_id to shard-prefixed global_id ("1_42") so the

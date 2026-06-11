@@ -4209,6 +4209,49 @@ describe User, :type => :model do
       u.reload
       expect(u.settings && u.settings['ai_consent']).to be_blank
     end
+
+    it 'raises ArgumentError when disclosures_version is nil and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: nil, granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when disclosures_version is non-numeric' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 'abc', granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+    end
+
+    it 'raises ArgumentError when disclosures_version is below 1' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 0, granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+    end
+
+    it 'compares versions numerically, not lexicographically (v10 is newer than v2)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent', source: 'email_link')
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 10, granted_by: 'Parent', source: 'in_app')
+      # Lexicographic "10" < "2" would wrongly treat v10 as stale and no-op.
+      expect(res).to eq(true)
+      expect(AuditEvent.count - pre_count).to eq(1)
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(10)
+    end
+
+    it 'coerces a numeric-string disclosures_version to an Integer' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: '3', granted_by: 'Parent', source: 'email_link')
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(3)
+      expect(u.ai_consent_granted?(disclosures_version: 3)).to eq(true)
+    end
   end
 
   describe '#revoke_ai_consent!' do
