@@ -108,6 +108,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
+- [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -3725,3 +3726,31 @@ first run and left the file untouched.
 **Approach:** Repo file templates may keep `<% if %>` (trusted, rendered via normal mailer views). **Stored** `html_body`/`text_body` overrides must pass `SystemEmailTemplateSecurity.validate!` (only `<%= %>` tags; block dangerous expressions). Deliver overrides with `render_string(binding)` then `render html:, layout: 'email'` — not `render html:` alone (drops layout). `normalize_i18n_overrides` must accept `ActionController::Parameters` via `to_unsafe_h` or preview/save drops nested `i18n_overrides`.
 
 **Evidence:** `lib/system_email_template_security.rb`, `app/mailers/concerns/system_email_override.rb`; task log `2026-06-09-system-settings.md`.
+
+
+## Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB
+
+**Symptom:** A spec file fails ~dozens of examples in a full run, all on
+*global* count assertions (`expect(LogSession.count).to eq(2)` -> `got 110`).
+Easy to misread as cross-example state pollution / ordering.
+
+**Reality (log_session_spec.rb, 2026-06-11):** `lingolinq-test` carried ~108
+LogSession + ~95 JobStash + ~171 RemoteAction rows committed days earlier by a
+prior interrupted run. Transactional fixtures were fine (live count held steady
+across full runs = no ongoing leak); the orphans just inflated every unscoped
+count. A counting example fails the *same way in isolation*, which is the tell:
+true order-dependence passes alone, orphan-pollution does not. Examples that
+"pass alone" usually just don't assert a global count.
+
+**Diagnose:** add a throwaway `after(:each)` that logs the count, or
+`DB_USER=scotw RAILS_ENV=test bundle exec rails runner 'puts Model.count'`. If
+count is already nonzero at example #1, it is pre-existing committed data, not a
+leak. Check `Model.order(:id).first.created_at` for an old date.
+
+**Fix:** file-scoped `before(:each)` clearing the affected tables (runs inside
+the example txn, restored on rollback) for a deterministic baseline. Mirror
+`spec_helper`'s `RemoteAction.delete_all` and `log_session_spec`'s
+`JobStash.delete_all`. Keep it file-scoped, NOT global: a global
+`AuditEvent.delete_all` was shown to perturb counts. See
+[[reference_auditevent_escapes_rspec_txn]] and task log
+`2026-06-11-log-session-spec-isolation.md`.
