@@ -67,11 +67,6 @@ RSpec.configure do |config|
       )
     end
     RemoteAction.delete_all
-    # AuditEvent.create! (fired synchronously inside User#grant_ai_consent! /
-    # #revoke_ai_consent! under with_lock(requires_new: true)) commits outside the
-    # per-example fixture transaction, so rows accumulate across examples and break
-    # any `expect(AuditEvent.count).to eq(0)` baseline. Clean it like RemoteAction.
-    AuditEvent.delete_all
     RedisInit.reset_queue_pressure_cache!
     PaperTrail.request.whodunnit = nil
     RedisInit.cache_token = "#{rand(999)}.#{Time.now.to_f}"

@@ -3902,6 +3902,12 @@ describe User, :type => :model do
   end
 
   describe '#ai_consent_granted?' do
+    # AuditEvent.create! fires inside grant/revoke under with_lock(requires_new: true)
+    # and commits outside the per-example fixture transaction, so rows leak across
+    # examples and break the `expect(AuditEvent.count).to eq(0)` baselines. Clean per
+    # example, scoped to the consent specs so there is no global suite blast radius.
+    before(:each) { AuditEvent.delete_all }
+
     it 'returns false for a newly created user with no ai_consent grant' do
       u = User.create
       expect(u.settings).to be_a(Hash)
@@ -3953,6 +3959,8 @@ describe User, :type => :model do
   end
 
   describe '#grant_ai_consent!' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'writes the settings hash and returns truthy on first call' do
       u = User.create
       res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
@@ -4287,6 +4295,8 @@ describe User, :type => :model do
   end
 
   describe '#revoke_ai_consent!' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'returns false when called on a user with no consent record' do
       expect(AuditEvent.count).to eq(0)
       u = User.create
@@ -4407,6 +4417,8 @@ describe User, :type => :model do
   end
 
   describe 'AI consent atomicity and audit-event coupling' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'populates audit_events.event_type and record_id columns on grant (not just the data blob)' do
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
