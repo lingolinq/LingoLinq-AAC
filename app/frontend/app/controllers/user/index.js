@@ -13,7 +13,8 @@ import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
-import { filterRootBoards } from '../../utils/board-roots';
+import { filterRootBoards, dedupeByName } from '../../utils/board-roots';
+import { filterBrandRoots } from '../../utils/board-brands';
 import boardDetailCache from '../../utils/board_detail_cache';
 
 function invertBoardTagMap(map) {
@@ -319,7 +320,10 @@ export default Controller.extend({
      dashboard can apply the same clustering against its own fetched
      pool. Returns an empty array while my_boards is still loading. */
   myBoardsRoots: computed('model.my_boards.[]', 'model.id', function() {
-    return filterRootBoards(this.get('model.my_boards'), this.get('model.id'));
+    // filterRootBoards (copy_id) + filterBrandRoots (brand key-pattern) so the
+    // count/folder summaries match the grid, which now drops copy_id-less brand
+    // sub-boards too (see board_list).
+    return filterBrandRoots(filterRootBoards(this.get('model.my_boards'), this.get('model.id')));
   }),
   myBoardsTileCount: computed('myBoardsRoots.[]', function() {
     return (this.get('myBoardsRoots') || []).length;
@@ -533,11 +537,22 @@ export default Controller.extend({
       var list = [];
       var res = {remove_type: 'delete', remove_label: i18n.t('delete_lower', "delete"), remove_icon: 'glyphicon glyphicon-trash'};
       var cluster_orphans = false;
+      // Brand-family SUB-boards (e.g. CommuniKate "alcohol"/"bodyparts" pages)
+      // ride along in both the owned library (Mine) and the public search
+      // (Public). filterRootBoards can't drop them when the records have no
+      // copy_id, so `brand_clean` flags these tabs to run filterBrandRoots
+      // (key-pattern roots-only, the same classifier the Find Boards grouping +
+      // speak-menu brand sections use). Public additionally clusters/dedupes.
+      var root_dedupe = false;
+      var brand_clean = false;
       if(this.get('selected') == 'mine' || !this.get('selected')) {
         list = this.get('model.my_boards');
         cluster_orphans = true;
+        brand_clean = true;
       } else if(this.get('selected') == 'public') {
         list = this.get('model.public_boards');
+        root_dedupe = true;
+        brand_clean = true;
       } else if(this.get('selected') == 'private') {
         list = this.get('model.private_boards');
       } else if(this.get('selected') == 'root') {
@@ -562,6 +577,21 @@ export default Controller.extend({
       }
       list = list || [];
       if(list.loading || list.error) { return list; }
+
+      // Drop brand sub-boards (Mine + Public), then for Public also cluster to
+      // root tiles + collapse same-name duplicates. filterBrandRoots is the
+      // roots-only key-pattern filter that catches copy_id-less brand pages;
+      // it leaves non-brand boards (and the Mine tab's copy_id nesting below)
+      // untouched, so Mine keeps grouping real copies under their root. `.done`
+      // is preserved so the show-all / pagination branch keeps working.
+      if(brand_clean && !this.get('parent_object')) {
+        var was_done = list.done;
+        list = filterBrandRoots(list);
+        if(root_dedupe) {
+          list = dedupeByName(filterRootBoards(list, this.get('model.id')));
+        }
+        list.done = was_done;
+      }
 
       if(this.get('parent_object')) {
         list = [];

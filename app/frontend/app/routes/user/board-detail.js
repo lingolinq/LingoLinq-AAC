@@ -225,6 +225,14 @@ export default Route.extend({
     controller.set('model', model);
     controller.set('user', user);
 
+    // Light/dark board view is a remembered user preference (see
+    // controller._persist_board_dark_mode). Honor the saved choice on every
+    // board entry; when the user has never chosen, keep board-detail's
+    // historical default of dark. (create-board-new defaults the OTHER way —
+    // light — when unset; same `board_dark_mode` key, different fallback.)
+    var darkPref = this.appState.get('currentUser.preferences.board_dark_mode');
+    controller.set('dark_mode', (darkPref === undefined || darkPref === null) ? true : !!darkPref);
+
     // Mirror the board model onto the `board.index` controller. The
     // application controller injects `board: inject('board.index')` and
     // reads `this.get('board.model')` from many legacy code paths —

@@ -4555,6 +4555,22 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  /* Persist the board light/dark viewing choice to the logged-in user's
+     preferences so it's remembered across sessions and shared with the
+     create-board-new preview (both read `preferences.board_dark_mode`). Uses
+     the same `device.updated` dirty-flag trick as the display-prefs save above,
+     since Ember Data doesn't reliably mark the `preferences` raw blob dirty when
+     only a sub-key changes. Best-effort — a failed save just leaves the prior
+     remembered value. */
+  _persist_board_dark_mode: function(val) {
+    var user = this.get('app_state.currentUser');
+    if(user && user.set) {
+      user.set('preferences.board_dark_mode', !!val);
+      user.set('preferences.device.updated', true);
+      if(user.save) { user.save().then(null, function() {}); }
+    }
+  },
+
   actions: {
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
@@ -4565,6 +4581,18 @@ export default Controller.extend(prefClasses, {
          collection, clicked the backdrop, then reopened the menu
          would see the collection still mid-render. */
       this.set('board_collection_open', false);
+      /* Communicator accounts (no supporter_role) get the Buttons section
+         expanded by default the first time the menu opens — Find a Button /
+         Focus Words / Show Hidden are their primary actions, so they
+         shouldn't have to dig. Supporters keep it collapsed. Guarded by a
+         one-time flag so a user's later manual collapse is respected on
+         subsequent opens. */
+      if (!was_open && !this._buttons_submenu_defaulted) {
+        this._buttons_submenu_defaulted = true;
+        if (!this.get('app_state.currentUser.supporter_role')) {
+          this.set('buttons_submenu_open', true);
+        }
+      }
       // When opening, move keyboard focus into the menu's first item so
       // arrow-key / Tab navigation can begin there. When closing, return
       // focus to the trigger button so the user lands back where they
@@ -5155,6 +5183,7 @@ export default Controller.extend(prefClasses, {
     toggle_dark_mode: function() {
       this.set('show_options_menu', false);
       this.toggleProperty('dark_mode');
+      this._persist_board_dark_mode(this.get('dark_mode'));
     },
 
     // Explicit setter for the both-options segmented toggle in the
@@ -5162,6 +5191,7 @@ export default Controller.extend(prefClasses, {
     // clicking the already-active side is a harmless no-op.
     set_dark_mode: function(on) {
       this.set('dark_mode', !!on);
+      this._persist_board_dark_mode(!!on);
     },
 
     toggle_modeling: function() {
@@ -5831,15 +5861,18 @@ export default Controller.extend(prefClasses, {
       // drawer's back button → close_board_collection) unpins onto whatever board
       // is showing — i.e. the last one selected.
       this.set('show_options_menu', false);
+      // Return the Transition (thenable) so BoardCollection can keep its
+      // in-place loading overlay up until the chosen board has finished
+      // loading on the left, then clear it.
       if(key && this.router) {
         var parts = key.split('/');
         if(parts.length >= 2) {
-          this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          return this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         } else {
           /* Defensive fallback: keys SHOULD always be `<user>/<slug>`,
              but if somehow not, fall back to the classic splat route
              rather than hard-failing the transition. */
-          this.router.transitionTo('board', key);
+          return this.router.transitionTo('board', key);
         }
       }
     },

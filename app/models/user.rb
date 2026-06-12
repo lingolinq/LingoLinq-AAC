@@ -1133,7 +1133,12 @@ class User < ApplicationRecord
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
       'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access',
-      'dashboard_layout', 'dashboard_sections', 'dashboard_order', 'dashboard_positions', 'dashboard_boards'
+      'dashboard_layout', 'dashboard_sections', 'dashboard_order', 'dashboard_positions', 'dashboard_boards',
+      # Board light/dark viewing preference (boolean; true => dark). Persisted so
+      # the board-detail dark toggle and the create-board-new preview share one
+      # remembered choice across sessions. Unset => each surface applies its own
+      # default (board-detail dark, create-board-new light).
+      'board_dark_mode'
     ]
   # Known home-dashboard section keys — the SINGLE source of truth lives in the
   # frontend (app/frontend/app/utils/dashboard_sections.js: HOME_SECTIONS keys +

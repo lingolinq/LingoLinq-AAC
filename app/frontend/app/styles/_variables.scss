@@ -478,3 +478,51 @@ $la-mockup-orange-bg:  #F5E8DC;
 $la-mockup-purple-bg:  #EDE8F5;
 $la-mockup-red-bg:     $cat-feelings-bg;
 $la-mockup-blue-bg:    $cat-actions-bg;
+
+// =============================================================================
+// FOCUSED VIEW — Color tokens
+// =============================================================================
+// Semantic palette for the home dashboard's FOCUSED layout — the Speak "Let's
+// Communicate" hero, the focused pill-nav, the focused navbar trigger, and the
+// focused Boards card. Derived from the brand palette so the whole Focused
+// experience re-themes from these few anchors: change a value here and every
+// Focused surface in app.scss follows. (Defined after the brand + $la-* colors
+// above because several tokens reference them.)
+
+// — Hero (the full-width Speak "Let's Communicate" button) —
+// Anchor: Brand Navy pulled ~28% toward gray (desaturated) — the hero's identity.
+// Stored as a color-mix() so the OKLCH interpolation matches the original inline
+// value exactly; used ONLY via #{} interpolation in gradients (never in rgba()).
+$focus-hero-base:        color-mix(in oklch, $brand-navy, gray 28%);
+// Glossy radial gradient stops: lit center (a hair of white) → deep muted edge.
+$focus-hero-center:      color-mix(in oklch, $focus-hero-base 84%, white);
+$focus-hero-edge:        color-mix(in oklch, $focus-hero-base, black 34%);
+// Ink (text / icon / arrow / bevel sheen) sitting ON any dark Focused surface.
+$focus-on-dark:          #ffffff;
+// Ink color tinting every Focused elevation shadow (hero + cards + trigger).
+$focus-shadow-ink:       $la-navy;
+// Accent glows around the hero (resting verdigris bloom; hover denim bloom).
+$focus-hero-glow:        $brand-verdigris;
+$focus-hero-glow-hover:  $brand-dusty-denim;
+
+// — Chrome accents: focused pill-nav + navbar trigger (kept DISTINCT per design) —
+// Primary focused accent (the active pill end + the Boards-card denim accents).
+$focus-accent:           $brand-dusty-denim;
+// Shared gradient START for the trigger + active pill.
+$focus-accent-from:      $brand-blue-grey;
+// Distinct gradient ENDS — navbar trigger vs active pill.
+$focus-nav-accent-to:    $brand-charcoal-blue;
+$focus-pill-accent-to:   $focus-accent;
+
+// — Focused Boards card surface —
+// Cool blue-gray glass tints (used with alpha over the shell gradient).
+$focus-surface-top:      #ECF1FA;  // rgb(236, 241, 250)
+$focus-surface-bottom:   #D4DCEC;  // rgb(212, 220, 236)
+// Muted slate for the card's secondary / sub text.
+$focus-text-muted:       #8A97A8;
+
+// — Focused action buttons (View All Boards / "+" Create) —
+// A desaturated Dusty Denim "glossy button": top stop → deeper bottom stop.
+// color-mix() values — use ONLY via #{} interpolation in gradients (not rgba()).
+$focus-btn-base:         color-mix(in oklch, $brand-dusty-denim, gray 22%);
+$focus-btn-edge:         color-mix(in oklch, $focus-btn-base, black 14%);

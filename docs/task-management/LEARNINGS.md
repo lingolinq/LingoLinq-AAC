@@ -2234,6 +2234,47 @@ full owned set via `meta.more`, then `filterRootBoards` the accumulation
 
 **First seen in:** [2026-06-11-subboards-leaking-preview-and-collection.md](./2026-06-11-subboards-leaking-preview-and-collection.md)
 
+**Extension (2026-06-12) — the boards-page Public tab:** `board_list`
+(controllers/user/index.js) has its OWN id/copy_id clustering, but it only
+nests a sub-board under its root when the root is in the SAME list. The Public
+tab's source (`model.public_boards`, a public search) returns sub-board copies
+whose root isn't in the list, so they leaked through as top-level tiles — plus
+multiple owners' identically-named copies. Fix: flag the Public branch and run
+the accumulated list through `dedupeByName(filterRootBoards(list, model.id))`
+before the existing grouping/sort (preserve `.done`). `public_boards` is fully
+paginated by `generate_or_append_to_list`, so clustering isn't first-page-
+sensitive here. Mine-tab clustering left untouched. Same primitives search.js
+uses for online results: `sortByNameNatural(dedupeByName(filterRootBoards(...)))`.
+
+**First seen in:** [2026-06-12-public-tab-subboards-leak.md](./2026-06-12-public-tab-subboards-leak.md)
+
+**Extension (2026-06-12) — copy_id-less sub-boards need the BRAND key-pattern, not just `filterRootBoards`:** `filterRootBoards` keys ENTIRELY on `copy_id`. Legacy/un-clustered set copies (e.g. an account's CommuniKate pages) often have **no `copy_id` in the DB** (`relinking.rb#assert_copy_id`/`cluster_related_boards` exist precisely to back-fill it and frequently don't), so the serializer omits it and EVERY sub-board reads as a root — leaking on the boards-page Mine + Public tabs AND the speak-menu My Boards, all of which share that heuristic. The fix that works regardless of copy_id is `utils/board-brands.js#filterBrandRoots`: a board matching a brand family's `test()` (brand marker in key/name) but NOT its `root_re` (`<brand>-<size>` root shape) is a brand sub-board → drop it; non-brand boards pass. This is the same key-pattern classifier the Find Boards grouping + the speak-menu brand sections use. Compose as `filterBrandRoots(filterRootBoards(list, userId))` (+ `dedupeByName` for public search). Applied in `controllers/user/index.js` (board_list Mine+Public, myBoardsRoots) and `components/board-collection.js` (_sortMyBoards). LIMITATION: only the 4 known brands (CommuniKate/Quick Core/Sequoia/Vocal Flair); non-brand sets with nil copy_id still leak — the robust general fix is a server-computed `root` flag (board.rb `!copy_id || copy_id==global_id`, falling back to "no same-user immediately-upstream boards"). The boards-page `root: true` server param is ALSO broken (real filter commented out, replaced by `search_string ILIKE '%root%'` — boards_controller.rb:299).
+
+**First seen in:** [2026-06-12-subboards-brand-root-filter.md](./2026-06-12-subboards-brand-root-filter.md)
+
+---
+
+## Pattern: image drag-drop onto a button — reuse `save_image_preview`, swap the target
+
+**Surface:** board-detail edit mode (`content_grabbers.apply_dropped_image_to_button`) and create-board-new (`components/create-board-new.js`).
+
+The board-detail image-drop pipeline is: global `drop` listener (`services/content-grabbers.js:3050`) → `content_dropped(button_id, dataTransfer)` (bails unless `appState.edit_mode`) → `apply_dropped_image_to_button` = `read_file`→dataURL → `pictureGrabber.save_image_preview(preview)` (uploads, returns a SAVED image record with a hosted `.url`) → `editManager.change_button`. To get the same gesture on a surface WITHOUT a live board/editManager/`.button[data-id]`/edit_mode (e.g. create-board-new, where buttons are plain objects keyed by label in `_label_images`), reuse the two board-agnostic primitives — `content_grabbers.read_file` + `pictureGrabber.save_image_preview` — and write the returned `image.get('url')` into that surface's own button state instead of calling `change_button`. Don't touch the shared service.
+
+Gotchas: (1) Distinguish an external image drag from an internal HTML5 reorder drag by payload — reorder carries only `text/plain`; an image carries a `File`/`Files` type (during dragover files aren't readable yet, so check `dataTransfer.types` includes `Files`) or, cross-tab, `text/uri-list`/`<img>`-in-`text/html`. (2) The tile's own `ondrop`/`ondragover` must `stopPropagation` or the global document drop handler also fires. (3) Only persist a hosted URL (await `save_image_preview`) — never bake a `data:` URL into the saved board. (4) `dragover` must `preventDefault` on the target for `drop` to fire at all; set `dropEffect:'none'` to reject (e.g. blank cells when images are label-keyed).
+
+**Evidence:** task log `2026-06-12-create-board-new-image-drop.md`.
+
+**GOTCHA (do NOT "optimize"):** For create-board-new, bake the image **URL** onto
+`model.buttons[]`, never the saved image's `image_id`. `save_image_preview` creates
+a PRIVATE, unlinked ButtonImage (`license: {type:'private'}`, no `public:true`);
+linking it by `image_id` shows in the create preview but renders BLANK on the board
+page and bypasses caching. The server's `process_client_supplied_images`
+(board.rb:1262) only runs when `image_id` is blank — it creates a fresh
+`public:true`, board-owned ButtonImage from the URL (`process_new`, handles `data:`
+URLs → `ButtonImage.data`) and wires it into the after-save `map_images` cache. The
+"duplicate ButtonImage" from URL-baking is the intended trade-off for correct
+rendering + caching. (Burned once 2026-06-12 by an image_id "efficiency fix"; reverted.)
+
 ---
 
 ## Pattern: create-board-new preview URLs stripped by process_buttons whitelist
@@ -2987,7 +3028,20 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 
 **Footer note:** `.page-footer` is `display:none` everywhere except landing-alt (rules ~378/382) but KEPT in the DOM because the whole shell layout keys off `:has(.page-footer)`. A `display:none` footer still matches `:has()`. Don't remove the element to "hide the footer" — you'll break the scroll layout app-wide.
 
-**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`.
+**Same bug, another surface — the BOARD-PICKER page (2026-06-12):** `/board-picker`
+is a TOP-LEVEL route, so its `#content` is NOT `.index.with_user` and never gets the
+`#content` background (app.scss ~546). The `.md-shell--board-picker` mesh only reaches
+content height inside the scrolling `#content`, so on short content / small screens the
+area below the picker card rendered bare (looked like a purple/empty strip). Same FIX:
+paint the `.md-shell` base mesh on `#within_ember:has(.page-footer):has(.board-picker-page)`
+(compound `:has()` (1,2,0) out-specifies the `:has(.page-footer)` transparent reset at
+~415). **Lesson: when a page bg "doesn't fill to the bottom," don't reach for
+`min-height`/`flex-grow` on the inner shell/workspace — that's the wrong layer (it gets
+pinned/clipped by the `#content` scrollport). Paint the mesh on the fixed full-viewport
+`#within_ember`.** `footer` (controllers/application.js) is true for any non-board route,
+so most app pages ARE `:has(.page-footer)` and can use this.
+
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`.
 
 ---
 

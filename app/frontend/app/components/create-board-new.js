@@ -11,6 +11,7 @@ import modalUtil from '../utils/modal';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
+import contentGrabbers from '../utils/content_grabbers';
 import persistence from '../utils/persistence';
 import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
@@ -88,7 +89,11 @@ export default Component.extend({
     
     this.set('status', null);
     this.set('more_options', false);
-    this.set('preview_mode', 'dark');
+    // Board light/dark is a remembered user preference shared with board-detail
+    // (preferences.board_dark_mode). Honor a saved choice; default to LIGHT when
+    // the user has never picked (board-detail defaults the other way — dark).
+    var darkPref = this.appState.get('currentUser.preferences.board_dark_mode');
+    this.set('preview_mode', darkPref === true ? 'dark' : 'light');
     this.set('labels_list_open', false);
     /* Default "Are you creating this board for someone else?" to NO for EVERY
        user — boards default to being created for the current user themselves.
@@ -1223,6 +1228,10 @@ export default Component.extend({
         // Bake in the previewed symbol image so the saved board
         // uses what the user actually saw — without this the server
         // would re-search and might pick a different first result.
+        // Bake the URL (NOT image_id): the server's process_client_supplied_images
+        // turns it into a fresh PUBLIC board-owned ButtonImage and caches it via
+        // map_images. Linking the drop's private standalone image by id renders
+        // blank on the board page — see _applyDroppedImageToLabel.
         var img = label_images[key];
         if(img && img.image_url) {
           btn.image_url = img.image_url;
@@ -1521,6 +1530,130 @@ export default Component.extend({
     this.updateShowGrid();
   }),
 
+  // ── External image drag-and-drop onto a preview tile ────────────────────────
+  // Mirrors the board-detail edit-mode flow (content_grabbers.content_dropped →
+  // apply_dropped_image_to_button): drag an image file (or an image from another
+  // tab) onto a button and it becomes that button's symbol in place. The board
+  // doesn't exist yet, so instead of editManager.change_button we reuse the SAME
+  // upload primitive board-detail uses (pictureGrabber.save_image_preview) and
+  // write the persisted URL into our label-keyed `_label_images` map — the same
+  // map the symbol search fills, which preview_grid renders from and
+  // _completeSaveBoard bakes into model.buttons[]. So the dropped image shows
+  // immediately AND persists on Create.
+
+  /** Drag payload types as a plain array (`dataTransfer.types` is a
+   *  DOMStringList in some browsers). */
+  _dragTypes: function(dataTransfer) {
+    var types = (dataTransfer && dataTransfer.types) || [];
+    return Array.prototype.slice.call(types);
+  },
+
+  /** True when a drag carries an external image — a real image File, or (during
+   *  dragover, when files aren't yet readable) the `Files` type, or an image
+   *  dragged from another tab (`text/uri-list`). Internal tile-reorder drags
+   *  carry only `text/plain` (the source index), so they return false and fall
+   *  through to the swap logic. */
+  _dragHasImage: function(dataTransfer) {
+    if(!dataTransfer) { return false; }
+    if(dataTransfer.files && dataTransfer.files.length) {
+      for(var i = 0; i < dataTransfer.files.length; i++) {
+        var f = dataTransfer.files[i];
+        if(f && f.type && f.type.match(/^image/)) { return true; }
+      }
+    }
+    var types = this._dragTypes(dataTransfer);
+    return types.indexOf('Files') !== -1 || types.indexOf('text/uri-list') !== -1;
+  },
+
+  /** Resolve an image URL from a cross-tab/page image drag — `text/uri-list`
+   *  (the dragged image's src) or an `<img>` embedded in `text/html`. Mirrors
+   *  content_grabbers.content_dropped's items branch. Resolves null when none. */
+  _dropped_image_url: function(dataTransfer) {
+    var _this = this;
+    return new RSVP.Promise(function(resolve) {
+      var items = dataTransfer && dataTransfer.items;
+      var types = _this._dragTypes(dataTransfer);
+      if(!items || !items.length || !types.length) { return resolve(null); }
+      var results = {};
+      var promises = [];
+      var read = function(key, item) {
+        return new RSVP.Promise(function(res) {
+          try { item.getAsString(function(str) { results[key] = str; res(); }); }
+          catch(e) { res(); }
+        });
+      };
+      for(var i = 0; i < types.length; i++) {
+        if(types[i] === 'text/uri-list' && items[i]) { promises.push(read('url', items[i])); }
+        else if(types[i] === 'text/html' && items[i]) { promises.push(read('html', items[i])); }
+      }
+      if(!promises.length) { return resolve(null); }
+      RSVP.all(promises).then(function() {
+        if(!results.url && results.html) {
+          var pieces = results.html.split(/<\s*img/);
+          if(pieces.length > 1) {
+            var m = pieces[1].match(/src\s*=\s*['"]([^'"]+)/);
+            if(m && m[1]) { results.url = m[1]; }
+          }
+        }
+        resolve(results.url || null);
+      }, function() { resolve(null); });
+    });
+  },
+
+  /** Upload a dropped image and assign it to `label`'s button in place. Reuses
+   *  content_grabbers' read_file + pictureGrabber.save_image_preview (the board-
+   *  detail upload pipeline), then stores the persisted URL under the label so
+   *  the preview updates and the save bakes it in. */
+  _applyDroppedImageToLabel: function(label, dataTransfer) {
+    var _this = this;
+    var key = (label || '').toLowerCase();
+    if(!key || !dataTransfer) { return RSVP.reject(); }
+    var image_file = null;
+    if(dataTransfer.files && dataTransfer.files.length) {
+      for(var i = 0; i < dataTransfer.files.length; i++) {
+        var f = dataTransfer.files[i];
+        if(!image_file && f && f.type && f.type.match(/^image/)) { image_file = f; }
+      }
+    }
+    var url_promise;
+    if(image_file) {
+      url_promise = contentGrabbers.read_file(image_file).then(function(data) {
+        return data.target.result; // data URL
+      });
+    } else {
+      url_promise = this._dropped_image_url(dataTransfer);
+    }
+    return url_promise.then(function(url) {
+      if(!url) { return RSVP.reject(); }
+      var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
+      // `suggestion` seeds the saved image's button_label since there's no live
+      // button to read it from (save_image_preview falls back to it).
+      var preview = { url: url, content_type: content_type, protected: false, suggestion: label };
+      return contentGrabbers.pictureGrabber.save_image_preview(preview).then(function(image) {
+        if(_this.isDestroyed || _this.isDestroying) { return image; }
+        var saved_url = (image && image.get && image.get('url')) || url;
+        // Store ONLY the URL (not the saved image's id). On Create the server's
+        // process_client_supplied_images turns this URL into a fresh, PUBLIC,
+        // board-owned ButtonImage and wires it into the board's image cache
+        // (map_images). The standalone record save_image_preview made here is
+        // private/unlinked, so referencing it by image_id would show in this
+        // preview but render blank on the board page — see LEARNINGS. URL-baking
+        // is the deliberate, proven path (matches the symbol-search flow).
+        var next_map = Object.assign({}, _this.get('_label_images') || {});
+        next_map[key] = { image_url: saved_url };
+        _this.set('_label_images', next_map);
+        // Re-run preview_grid (deps on _label_images) so the tile updates.
+        _this.notifyPropertyChange('_label_images');
+        return image;
+      });
+    });
+  },
+
+  /** Remove the image drag-over highlight from a cell element. */
+  _clearCellDropHighlight: function(el) {
+    if(el && el.classList) { el.classList.remove('md-board-detail-grid__cell--image-drop'); }
+  },
+
   actions: {
     close: function() {
       if(this.get('standalone')) {
@@ -1683,16 +1816,55 @@ export default Component.extend({
       }
       this.set('_dragSourceIdx', idx);
     },
-    cellDragOver: function(event) {
-      if(event && event.preventDefault) { event.preventDefault(); }
+    cellDragOver: function(row, col, event) {
       // Stop propagation so the global file-drop handler (used for board file
       // imports) doesn't see this and treat our chip as a dropped file.
       if(event && event.stopPropagation) { event.stopPropagation(); }
-      if(event && event.dataTransfer) { event.dataTransfer.dropEffect = 'move'; }
+      var dt = event && event.dataTransfer;
+      // External image drag: accept ONLY on a labeled cell (images are keyed by
+      // label, so a blank tile has nothing to attach to) and show the drop cue.
+      if(dt && this._dragHasImage(dt)) {
+        var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+        var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+        var order = this.get('model.grid.labels_order') || 'rows';
+        var idx = (order === 'columns') ? (col * rows + row) : (row * cols + col);
+        var hasLabel = !!((this.get('positional_labels') || [])[idx]);
+        if(hasLabel) {
+          if(event.preventDefault) { event.preventDefault(); }
+          dt.dropEffect = 'copy';
+          if(event.currentTarget && event.currentTarget.classList) {
+            event.currentTarget.classList.add('md-board-detail-grid__cell--image-drop');
+          }
+        } else {
+          dt.dropEffect = 'none';
+        }
+        return;
+      }
+      // Internal tile reorder — accept on any cell (incl. blanks).
+      if(event && event.preventDefault) { event.preventDefault(); }
+      if(dt) { dt.dropEffect = 'move'; }
+    },
+    cellDragLeave: function(event) {
+      this._clearCellDropHighlight(event && event.currentTarget);
     },
     cellDrop: function(row, col, event) {
       if(event && event.preventDefault) { event.preventDefault(); }
       if(event && event.stopPropagation) { event.stopPropagation(); }
+      // External image dropped from the desktop or another tab → set THIS
+      // button's image in place (see _applyDroppedImageToLabel). Internal
+      // tile-reorder drags carry no image and fall through to the swap below.
+      var dt = event && event.dataTransfer;
+      if(dt && this._dragHasImage(dt)) {
+        this._clearCellDropHighlight(event && event.currentTarget);
+        this.set('_dragSourceIdx', null);
+        var rowsI = parseInt(this.get('model.grid.rows'), 10) || 0;
+        var colsI = parseInt(this.get('model.grid.columns'), 10) || 0;
+        var orderI = this.get('model.grid.labels_order') || 'rows';
+        var dropIdx = (orderI === 'columns') ? (col * rowsI + row) : (row * colsI + col);
+        var dropLabel = (this.get('positional_labels') || [])[dropIdx] || '';
+        if(dropLabel) { this._applyDroppedImageToLabel(dropLabel, dt); }
+        return;
+      }
       var sourceIdx = this.get('_dragSourceIdx');
       if(sourceIdx === null || sourceIdx === undefined) { return; }
       var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
@@ -1734,8 +1906,9 @@ export default Component.extend({
         this.set('model.grid.labels', newValue);
       }
     },
-    cellDragEnd: function() {
+    cellDragEnd: function(event) {
       this.set('_dragSourceIdx', null);
+      this._clearCellDropHighlight(event && event.currentTarget);
     },
     startCellEdit: function(idx, event) {
       if(event && event.stopPropagation) { event.stopPropagation(); }
@@ -1934,7 +2107,17 @@ export default Component.extend({
       this.toggleProperty('icon_picker_open');
     },
     togglePreviewMode: function() {
-      this.set('preview_mode', this.get('preview_mode') === 'dark' ? 'light' : 'dark');
+      var next = this.get('preview_mode') === 'dark' ? 'light' : 'dark';
+      this.set('preview_mode', next);
+      // Remember the choice on the user so board-detail and a future visit to
+      // this page open in the same mode. Same `device.updated` dirty-flag trick
+      // the board-detail save uses (Ember Data under-marks the raw prefs blob).
+      var user = this.appState.get('currentUser');
+      if(user && user.set) {
+        user.set('preferences.board_dark_mode', next === 'dark');
+        user.set('preferences.device.updated', true);
+        if(user.save) { user.save().then(null, function() {}); }
+      }
     },
     // Edit-rail accordion: clicking a section opens it (and closes any
     // other). Clicking the open one closes it. Drives the grid's

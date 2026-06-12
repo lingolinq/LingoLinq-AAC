@@ -164,16 +164,21 @@ function framedN(body, cols) {
   return { areas: areas, rows: rows };
 }
 
-// Focused View: Speak is the full-width hero on top, Extras never shows, each
-// remaining NON-action card (Boards, and Caseload/Org for supervisors) is its own
-// full-width row, and the visible utility cards (Account / Create a Board / Reports
-// / Edit Dashboard) share ONE row in the saved order. The grid widens to EXACTLY
-// the number of visible utility cards (`cols`), so when some are hidden the
-// remaining cards EXPAND to fill the row instead of leaving empty cells. The
-// utility row is emitted at the position of the FIRST visible utility card so a
-// whole row can be repositioned above or below it.
+// Focused View: Speak is a full-width hero that defaults to the top (its slot in
+// FOCUSED_DEFAULT_ORDER) but is REORDERABLE like any other full-width block — the
+// user can drag Boards above it. Extras never shows; each NON-action card (Speak,
+// Boards, and Caseload/Org for supervisors) is its own full-width row emitted at
+// its position in the saved order; the visible utility cards (Account / Create a
+// Board / Reports / Edit Dashboard) share ONE row. The grid widens to EXACTLY the
+// number of visible utility cards (`cols`), so when some are hidden the remaining
+// cards EXPAND to fill the row instead of leaving empty cells. The utility row is
+// emitted at the position of the FIRST visible utility card so a whole row can be
+// repositioned above or below it.
 function focusedLayout(vis, order) {
-  var rest = Object.assign({}, vis, { speak: false, extras: false });
+  // Only Extras is force-hidden in Focused View; Speak stays in the ordered set so
+  // it packs AT ITS SAVED POSITION (was excluded + force-pinned to the top before,
+  // which made Speak↔Boards reordering a no-op).
+  var rest = Object.assign({}, vis, { extras: false });
   var keys = orderedVisible(rest, order, FOCUSED_DEFAULT_ORDER);
   var a = function(k) { return AREA[k]; };
   var actionKeys = keys.filter(function(k) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1; });
@@ -185,10 +190,10 @@ function focusedLayout(vis, order) {
       // All utility cards collapse into ONE row, emitted where the first one sits.
       if (!actionEmitted) { rowsOut.push(actionKeys.map(a).join(' ')); actionEmitted = true; }
     } else {
+      // Full-width cards (Speak hero, Boards, Caseload/Org) — each at its order slot.
       rowsOut.push(fullN(a(k)));
     }
   });
-  if (vis.speak) { rowsOut = [fullN('speak')].concat(rowsOut); }
   var built = framedN(rowsOut, cols);
   built.cols = cols;
   return built;
