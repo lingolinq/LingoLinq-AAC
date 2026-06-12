@@ -33,7 +33,12 @@ class Api::DatabaseContentsController < ApplicationController
 
     total, total_exact = approximate_count(model)
 
-    log_access(model.table_name, limit, offset, serialized.length)
+    # Fail-closed: this endpoint discloses raw regulated rows, so the audit row
+    # is the control. If it did not persist, refuse the read rather than disclose
+    # without an accounting-of-disclosures record.
+    unless log_access(model.table_name, limit, offset, serialized.length)
+      return api_error(503, {error: 'Audit log write failed; read refused'})
+    end
 
     render json: {
       database_contents: {
@@ -86,10 +91,12 @@ class Api::DatabaseContentsController < ApplicationController
 
   # Record who read which table, for FERPA/HIPAA accounting-of-disclosures.
   # Only successful, authorized reads of real data reach here (404/403 paths
-  # disclose nothing). Auditing is best-effort: an audit-write failure must
-  # never break a read that the requester is already authorized to perform.
+  # disclose nothing). Fail-closed: unlike log_command's fail-open default (right
+  # for user-facing callers), a raw-data disclosure must not proceed unlogged, so
+  # this returns true iff the audit row persisted and the caller refuses the read
+  # when it did not.
   def log_access(table, limit, offset, returned)
-    AuditEvent.log_command(audit_user_key, {
+    event = AuditEvent.log_command(audit_user_key, {
       'type' => 'database_contents',
       'command' => table,
       'limit' => limit,
@@ -97,7 +104,9 @@ class Api::DatabaseContentsController < ApplicationController
       'returned' => returned,
       'acting_as' => audit_acting_as
     }.compact)
+    event&.persisted?
   rescue => e
-    Rails.logger.error("database_contents audit log failed: #{e.class}: #{e.message}")
+    Rails.logger.error('database_contents audit log failed: ' + e.class.to_s)
+    false
   end
 end
