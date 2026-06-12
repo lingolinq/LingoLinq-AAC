@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LingoLinq — Brand Palette</title>
+<style>
+  :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { margin: 0; padding: 32px; background: #F8F9FA; color: #1B365D; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 28px; color: #5A6A85; font-size: 15px; }
+  h2 { font-size: 16px; text-transform: uppercase; letter-spacing: 0.04em; color: #5A6A85; margin: 32px 0 12px; border-bottom: 1px solid #E0DCD6; padding-bottom: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+  .sw { border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(27,54,93,0.08), 0 6px 16px rgba(27,54,93,0.08); background: #fff; }
+  .chip { height: 92px; }
+  .meta { padding: 10px 12px; }
+  .name { font-weight: 700; font-size: 13.5px; }
+  .var { font-size: 12px; color: #6B7280; font-family: ui-monospace, Menlo, monospace; }
+  .hex { font-size: 12.5px; color: #46505F; font-family: ui-monospace, Menlo, monospace; margin-top: 2px; }
+  .note { font-size: 11.5px; color: #2A9D8F; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <h1>LingoLinq — Brand Palette</h1>
+  <p class="lead">Canonical swatches from <code>app/frontend/app/styles/_variables.scss</code>. Open this file in a browser to view.</p>
+
+  <h2>Main brand palette</h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background:#4C86D8"></div><div class="meta"><div class="name">Dusty Denim</div><div class="var">$brand-dusty-denim</div><div class="hex">#4C86D8</div><div class="note">primary brand blue</div></div></div>
+    <div class="sw"><div class="chip" style="background:#3A6BC7"></div><div class="meta"><div class="name">Smart Blue</div><div class="var">$brand-smart-blue</div><div class="hex">#3A6BC7</div></div></div>
+    <div class="sw"><div class="chip" style="background:#2A9D8F"></div><div class="meta"><div class="name">Verdigris</div><div class="var">$brand-verdigris</div><div class="hex">#2A9D8F</div><div class="note">teal accent</div></div></div>
+    <div class="sw"><div class="chip" style="background:#316F70"></div><div class="meta"><div class="name">Stormy Teal</div><div class="var">$brand-stormy-teal</div><div class="hex">#316F70</div></div></div>
+    <div class="sw"><div class="chip" style="background:#7693B9"></div><div class="meta"><div class="name">Blue Grey</div><div class="var">$brand-blue-grey</div><div class="hex">#7693B9</div></div></div>
+    <div class="sw"><div class="chip" style="background:#F2B95A"></div><div class="meta"><div class="name">Honey Bronze</div><div class="var">$brand-honey-bronze</div><div class="hex">#F2B95A</div><div class="note">warm accent</div></div></div>
+    <div class="sw"><div class="chip" style="background:#C9AD7A"></div><div class="meta"><div class="name">Soft Fawn</div><div class="var">$brand-soft-fawn</div><div class="hex">#C9AD7A</div></div></div>
+    <div class="sw"><div class="chip" style="background:#C0392B"></div><div class="meta"><div class="name">Danger</div><div class="var">$brand-danger</div><div class="hex">#C0392B</div></div></div>
+  </div>
+
+  <h2>Deep blues / navies (headers, heroes, dark surfaces)</h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background:#1B365D"></div><div class="meta"><div class="name">LA Navy</div><div class="var">$la-navy</div><div class="hex">#1B365D</div><div class="note">primary text / dark UI</div></div></div>
+    <div class="sw"><div class="chip" style="background:#1b2a4a"></div><div class="meta"><div class="name">Indigo</div><div class="var">$indigo</div><div class="hex">#1b2a4a</div><div class="note">"Let's Communicate" hero</div></div></div>
+    <div class="sw"><div class="chip" style="background:#120380"></div><div class="meta"><div class="name">Brand Navy</div><div class="var">$brand-navy</div><div class="hex">#120380</div></div></div>
+    <div class="sw"><div class="chip" style="background:#111A2E"></div><div class="meta"><div class="name">Blue Black</div><div class="var">$brand-blue-black</div><div class="hex">#111A2E</div></div></div>
+    <div class="sw"><div class="chip" style="background:#46505F"></div><div class="meta"><div class="name">Charcoal Blue</div><div class="var">$brand-charcoal-blue</div><div class="hex">#46505F</div></div></div>
+    <div class="sw"><div class="chip" style="background:#5A6A85"></div><div class="meta"><div class="name">Slate Blue</div><div class="var">$brand-slate-blue</div><div class="hex">#5A6A85</div></div></div>
+    <div class="sw"><div class="chip" style="background:#8585E6"></div><div class="meta"><div class="name">Logo Periwinkle</div><div class="var">$brand-right-logo</div><div class="hex">#8585E6</div><div class="note">logo speech-bubble</div></div></div>
+  </div>
+
+  <h2>Neutrals — charcoal / slate / steel</h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background:#374151"></div><div class="meta"><div class="name">Charcoal Dark</div><div class="var">$brand-charcoal-dark</div><div class="hex">#374151</div></div></div>
+    <div class="sw"><div class="chip" style="background:#6B7280"></div><div class="meta"><div class="name">Slate Gray</div><div class="var">$brand-slate-gray</div><div class="hex">#6B7280</div></div></div>
+    <div class="sw"><div class="chip" style="background:#9CA3AF"></div><div class="meta"><div class="name">Cool Steel</div><div class="var">$brand-cool-steel</div><div class="hex">#9CA3AF</div></div></div>
+  </div>
+
+  <h2>AA text variants (use on white/light — WCAG 1.4.3)</h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background:#1A7B7A"></div><div class="meta"><div class="name">Verdigris AA</div><div class="var">$brand-verdigris-aa</div><div class="hex">#1A7B7A</div><div class="note">4.73:1 on white</div></div></div>
+    <div class="sw"><div class="chip" style="background:#2860C9"></div><div class="meta"><div class="name">Dusty Denim AA</div><div class="var">$brand-dusty-denim-aa</div><div class="hex">#2860C9</div><div class="note">4.65:1 on white</div></div></div>
+  </div>
+
+  <h2>Backgrounds — warm stone &amp; cool surface scales</h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background:#F4F3F0"></div><div class="meta"><div class="name">Stone 100</div><div class="var">$brand-stone-100</div><div class="hex">#F4F3F0</div></div></div>
+    <div class="sw"><div class="chip" style="background:#EBE8E4"></div><div class="meta"><div class="name">Stone 200</div><div class="var">$brand-stone-200</div><div class="hex">#EBE8E4</div></div></div>
+    <div class="sw"><div class="chip" style="background:#E0DCD6"></div><div class="meta"><div class="name">Stone 300</div><div class="var">$brand-stone-300</div><div class="hex">#E0DCD6</div></div></div>
+    <div class="sw"><div class="chip" style="background:#F8F9FA"></div><div class="meta"><div class="name">Surface 100</div><div class="var">$surface-100</div><div class="hex">#F8F9FA</div></div></div>
+    <div class="sw"><div class="chip" style="background:#F0F4F8"></div><div class="meta"><div class="name">Surface 200</div><div class="var">$surface-200</div><div class="hex">#F0F4F8</div></div></div>
+  </div>
+</body>
+</html>
