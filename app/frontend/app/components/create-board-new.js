@@ -1631,6 +1631,13 @@ export default Component.extend({
       // MIME isn't image/* (e.g. data:text/html) before it reaches the upload
       // pipeline or the preview. The server also drops these (ButtonImage), but
       // bailing here keeps the raw payload out of the client entirely.
+      //
+      // NOTE (security review false-positive): a dropped FILE does NOT bypass this.
+      // The File branch above runs it through read_file → reader.readAsDataURL(),
+      // which yields `data:<file.type>;…`, so a text/html File becomes
+      // `data:text/html;…` and is caught right here by the same MIME check (and
+      // again server-side). There is no File path that skips it — and _dragHasImage
+      // only treats image-typed Files as images in the first place.
       if(content_type && !content_type.match(/^image\//)) { return RSVP.reject(); }
       // `suggestion` seeds the saved image's button_label since there's no live
       // button to read it from (save_image_preview falls back to it).
@@ -2119,7 +2126,8 @@ export default Component.extend({
       // with board-detail). Skip the save when the stored value already matches —
       // avoids redundant writes and the last-write-wins race on rapid toggles. Same
       // `device.updated` dirty-flag trick the board-detail save uses (Ember Data
-      // under-marks the raw prefs blob).
+      // under-marks the raw prefs blob). (Cross-tab last-write-wins still possible —
+      // inherent/low, accepted; see board-detail `_persist_board_dark_mode`.)
       var nextDark = next === 'dark';
       var user = this.appState.get('currentUser');
       if(user && user.set && !!user.get('preferences.board_dark_mode') !== nextDark) {

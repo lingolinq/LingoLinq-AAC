@@ -7858,5 +7858,6 @@
   "system_settings_tab_app_defaults": "*** App defaults",
   "system_settings_tab_features": "*** Features",
   "system_settings_email_signature_placeholder": "*** The LingoLinq Team",
-  "system_settings_org_email_signature_hint": "*** Overrides the site-wide email signature for this organization's domain."
+  "system_settings_org_email_signature_hint": "*** Overrides the site-wide email signature for this organization's domain.",
+  "opening_your_board": "*** Opening your board"
 }

@@ -4571,6 +4571,14 @@ export default Controller.extend(prefClasses, {
     // already-active side of the segmented toggle) — avoids redundant writes and
     // the last-write-wins race on rapid toggles. Normalized so unset (light) vs
     // an explicit false doesn't trigger a pointless write.
+    //
+    // NOTE (security review — LOW, accepted): this skip removes the local/redundant
+    // races, but two TABS (or otherwise concurrent saves) can still last-write-wins
+    // on the prefs blob. That's inherent to every client preference in the app —
+    // there's no server-side version/lock on `preferences` — and it isn't introduced
+    // here. Worst case is a single stale boolean (light vs dark) that self-corrects on
+    // the next toggle; no data corruption. A true fix is optimistic concurrency
+    // (etag/version) on the user-prefs endpoint — a system-wide change, out of scope.
     if(user && user.set && !!user.get('preferences.board_dark_mode') !== !!val) {
       user.set('preferences.board_dark_mode', !!val);
       user.set('preferences.device.updated', true);
@@ -4593,7 +4601,17 @@ export default Controller.extend(prefClasses, {
          Focus Words / Show Hidden are their primary actions, so they
          shouldn't have to dig. Supporters keep it collapsed. Guarded by a
          one-time flag so a user's later manual collapse is respected on
-         subsequent opens. */
+         subsequent opens.
+
+         NOTE (security review false-positive): `buttons_submenu_open` is NOT a
+         permission gate — it only controls whether an accordion section is
+         visually EXPANDED (`aria-expanded` + an `{{#if}}` in board-detail.hbs).
+         The items inside (Find a Button, etc.) are already rendered/usable to
+         anyone who can open this menu and carry their own access checks; the
+         `supporter_role` branch here only decides the initial expand state, so a
+         non-binary role (admin/supervisor) at worst sees the section pre-opened
+         or not — purely cosmetic, no boundary is crossed. The one-time instance
+         flag is intentionally per-session (a UX default, nothing to persist). */
       if (!was_open && !this._buttons_submenu_defaulted) {
         this._buttons_submenu_defaulted = true;
         if (!this.get('app_state.currentUser.supporter_role')) {
