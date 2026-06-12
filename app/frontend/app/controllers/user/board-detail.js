@@ -326,7 +326,10 @@ export default Controller.extend(prefClasses, {
   display_prefs_skin_dropdown_open: false,
   pending_display_prefs: null,
   original_display_prefs: null,
-  dark_mode: true,
+  // Boards open LIGHT by default; dark only when the user turns it on (persisted
+  // to preferences.board_dark_mode). The route resets this per board entry from
+  // that preference; this is the pre-setup fallback.
+  dark_mode: false,
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
@@ -4555,6 +4558,34 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  /* Persist the board light/dark viewing choice to the logged-in user's
+     preferences so it's remembered across sessions and shared with the
+     create-board-new preview (both read `preferences.board_dark_mode`). Uses
+     the same `device.updated` dirty-flag trick as the display-prefs save above,
+     since Ember Data doesn't reliably mark the `preferences` raw blob dirty when
+     only a sub-key changes. Best-effort — a failed save just leaves the prior
+     remembered value. */
+  _persist_board_dark_mode: function(val) {
+    var user = this.get('app_state.currentUser');
+    // Skip the save when the stored value already matches (e.g. clicking the
+    // already-active side of the segmented toggle) — avoids redundant writes and
+    // the last-write-wins race on rapid toggles. Normalized so unset (light) vs
+    // an explicit false doesn't trigger a pointless write.
+    //
+    // NOTE (security review — LOW, accepted): this skip removes the local/redundant
+    // races, but two TABS (or otherwise concurrent saves) can still last-write-wins
+    // on the prefs blob. That's inherent to every client preference in the app —
+    // there's no server-side version/lock on `preferences` — and it isn't introduced
+    // here. Worst case is a single stale boolean (light vs dark) that self-corrects on
+    // the next toggle; no data corruption. A true fix is optimistic concurrency
+    // (etag/version) on the user-prefs endpoint — a system-wide change, out of scope.
+    if(user && user.set && !!user.get('preferences.board_dark_mode') !== !!val) {
+      user.set('preferences.board_dark_mode', !!val);
+      user.set('preferences.device.updated', true);
+      if(user.save) { user.save().then(null, function() {}); }
+    }
+  },
+
   actions: {
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
@@ -4565,6 +4596,28 @@ export default Controller.extend(prefClasses, {
          collection, clicked the backdrop, then reopened the menu
          would see the collection still mid-render. */
       this.set('board_collection_open', false);
+      /* Communicator accounts (no supporter_role) get the Buttons section
+         expanded by default the first time the menu opens — Find a Button /
+         Focus Words / Show Hidden are their primary actions, so they
+         shouldn't have to dig. Supporters keep it collapsed. Guarded by a
+         one-time flag so a user's later manual collapse is respected on
+         subsequent opens.
+
+         NOTE (security review false-positive): `buttons_submenu_open` is NOT a
+         permission gate — it only controls whether an accordion section is
+         visually EXPANDED (`aria-expanded` + an `{{#if}}` in board-detail.hbs).
+         The items inside (Find a Button, etc.) are already rendered/usable to
+         anyone who can open this menu and carry their own access checks; the
+         `supporter_role` branch here only decides the initial expand state, so a
+         non-binary role (admin/supervisor) at worst sees the section pre-opened
+         or not — purely cosmetic, no boundary is crossed. The one-time instance
+         flag is intentionally per-session (a UX default, nothing to persist). */
+      if (!was_open && !this._buttons_submenu_defaulted) {
+        this._buttons_submenu_defaulted = true;
+        if (!this.get('app_state.currentUser.supporter_role')) {
+          this.set('buttons_submenu_open', true);
+        }
+      }
       // When opening, move keyboard focus into the menu's first item so
       // arrow-key / Tab navigation can begin there. When closing, return
       // focus to the trigger button so the user lands back where they
@@ -5155,6 +5208,7 @@ export default Controller.extend(prefClasses, {
     toggle_dark_mode: function() {
       this.set('show_options_menu', false);
       this.toggleProperty('dark_mode');
+      this._persist_board_dark_mode(this.get('dark_mode'));
     },
 
     // Explicit setter for the both-options segmented toggle in the
@@ -5162,6 +5216,7 @@ export default Controller.extend(prefClasses, {
     // clicking the already-active side is a harmless no-op.
     set_dark_mode: function(on) {
       this.set('dark_mode', !!on);
+      this._persist_board_dark_mode(!!on);
     },
 
     toggle_modeling: function() {
@@ -5831,15 +5886,18 @@ export default Controller.extend(prefClasses, {
       // drawer's back button → close_board_collection) unpins onto whatever board
       // is showing — i.e. the last one selected.
       this.set('show_options_menu', false);
+      // Return the Transition (thenable) so BoardCollection can keep its
+      // in-place loading overlay up until the chosen board has finished
+      // loading on the left, then clear it.
       if(key && this.router) {
         var parts = key.split('/');
         if(parts.length >= 2) {
-          this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          return this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         } else {
           /* Defensive fallback: keys SHOULD always be `<user>/<slug>`,
              but if somehow not, fall back to the classic splat route
              rather than hard-failing the transition. */
-          this.router.transitionTo('board', key);
+          return this.router.transitionTo('board', key);
         }
       }
     },

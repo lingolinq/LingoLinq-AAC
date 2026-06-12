@@ -1806,6 +1806,33 @@ describe Uploader do
       expect(Uploader.sanitize_url("http://13.142.13.1512:12345/?asdf=1")).to eq("http://13.142.13.1512:12345/?asdf=1")
       expect(Uploader.sanitize_url("http://username:password@example.com")).to eq("http://example.com")
     end
+
+    it 'should block IP-literal SSRF targets (cloud metadata, link-local, private ranges)' do
+      # Cloud metadata endpoint — the canonical SSRF target.
+      expect(Uploader.sanitize_url("http://169.254.169.254/latest/meta-data/iam/security-credentials/")).to eq(nil)
+      # Link-local + RFC1918 private ranges (not caught by the 127/0/localhost checks).
+      expect(Uploader.sanitize_url("http://169.254.1.1/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://10.0.0.5/internal")).to eq(nil)
+      expect(Uploader.sanitize_url("http://172.16.4.4/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://172.31.255.255/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://192.168.1.1/admin")).to eq(nil)
+      expect(Uploader.sanitize_url("http://100.64.0.1/")).to eq(nil)
+      # IPv6 loopback / link-local / unique-local literals.
+      expect(Uploader.sanitize_url("http://[::1]/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://[fe80::1]/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://[fc00::1]/")).to eq(nil)
+      # Public addresses still pass (172.15/172.32 are OUTSIDE the 172.16-31 private block).
+      expect(Uploader.sanitize_url("http://8.8.8.8/asdf")).to eq("http://8.8.8.8/asdf")
+      expect(Uploader.sanitize_url("http://172.15.0.1/")).to eq("http://172.15.0.1/")
+      expect(Uploader.sanitize_url("http://172.32.0.1/")).to eq("http://172.32.0.1/")
+    end
+
+    it 'should only allow http(s) schemes' do
+      expect(Uploader.sanitize_url("file:///etc/passwd")).to eq(nil)
+      expect(Uploader.sanitize_url("gopher://127.0.0.1:6379/_SET")).to eq(nil)
+      expect(Uploader.sanitize_url("ftp://example.com/x")).to eq(nil)
+      expect(Uploader.sanitize_url("data:text/html,<script>alert(1)</script>")).to eq(nil)
+    end
   end
 
   describe "remote_remove_later" do

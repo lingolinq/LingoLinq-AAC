@@ -105,4 +105,28 @@ export function groupBoardsByBrand(boards) {
   return groups;
 }
 
+/* Drop brand-family SUB-boards (the page copies that ride along inside a copied
+   set, e.g. "CommuniKate alcohol", "CommuniKate bodyparts") while keeping the
+   brand ROOT tile and every non-brand board untouched. This is the KEY-pattern
+   classifier the speak-menu brand sections already use (board-collection.js) —
+   it works even when the records have no `copy_id`, which is exactly the case
+   `filterRootBoards` (copy_id-based) misses. A board is a brand sub-board when it
+   matches a family's `test()` (brand marker in key/name) but NOT that family's
+   `root_re` (the `<brand>-<size>` root shape). Non-brand boards always pass. */
+export function filterBrandRoots(boards) {
+  if (!boards || !boards.filter) { return boards || []; }
+  return boards.filter(function(b) {
+    if (!b) { return false; }
+    var key = (b.get && b.get('key')) || b.key || '';
+    for (var i = 0; i < BRAND_FAMILIES.length; i++) {
+      var fam = BRAND_FAMILIES[i];
+      if (fam.test(b)) {
+        // Brand board: keep only the root; drop the descriptive-suffix sub-boards.
+        return fam.root_re ? fam.root_re.test(key) : true;
+      }
+    }
+    return true; // not a known brand — leave it alone
+  });
+}
+
 export default BRAND_FAMILIES;

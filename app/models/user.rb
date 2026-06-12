@@ -452,7 +452,9 @@ class User < ApplicationRecord
 
   # Records a parent-granted AI data-sharing consent at the given disclosures_version.
   # Idempotent on same-version re-call (returns false). Does NOT silently grant on
-  # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX).
+  # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX) -
+  # this holds even after a revoke, so an outdated grant link cannot reactivate
+  # consent at a superseded version.
   #
   # Precondition: the user must be persisted. `with_lock` calls `reload(lock: true)`
   # internally and will raise ActiveRecord::RecordNotFound on a User.new.
@@ -468,14 +470,23 @@ class User < ApplicationRecord
   # against the same user. D-04 / D-05.
   #
   # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES),
-  # `invalid_granted_by_user_id` (malformed granted_by_user_id), and
-  # `self_grant_forbidden` (granted_by_user_id resolves to self.global_id). These
+  # `invalid_granted_by` (blank granted_by), `invalid_disclosures_version` (nil,
+  # non-numeric, or < 1), `invalid_granted_by_user_id` (malformed granted_by_user_id),
+  # and `self_grant_forbidden` (granted_by_user_id resolves to self.global_id). These
   # are stable machine tokens, not English prose - Phase 3 owns user-facing copy.
   #
   # `granted_by_user_id:` must be a global_id ("1_42") or bare numeric db id;
   # bare ids are normalized to global_id form before the self-grant check.
   def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
     raise ArgumentError, 'invalid_source' unless AI_CONSENT_SOURCES.include?(source)
+    # A parent-consent record without a grantor identity is not auditable. Reject
+    # blank granted_by before granted_at is written. Machine token; Phase 3 owns copy.
+    raise ArgumentError, 'invalid_granted_by' if granted_by.blank?
+    # Coerce to a positive Integer up front: a nil/garbage disclosures_version would
+    # otherwise write a granted_at row that ai_consent_granted? can never honor (and
+    # that a later valid grant can't repair), and a string version would make the
+    # stale-version check lexicographic. Raises 'invalid_disclosures_version'.
+    disclosures_version = ai_consent_normalize_version!(disclosures_version)
     if granted_by_user_id.present?
       granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
       raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
@@ -487,21 +498,28 @@ class User < ApplicationRecord
       self.settings ||= {}
       c = self.settings['ai_consent']
       c = {} unless c.is_a?(Hash)
-      # D-04 three-branch idempotency for an existing active (unrevoked) consent:
-      #   - same version requested:           no-op, return false (already granted)
-      #   - older version requested:          no-op, return false (downgrade refused;
-      #                                       Phase 3 controller re-prompts at current
-      #                                       version)
-      #   - newer version requested:          fall through; record the upgrade,
-      #                                       preserve record_id, capture the prior
-      #                                       version in the audit payload so audit
-      #                                       queries can distinguish first-grant
-      #                                       from version-upgrade events.
-      if c['granted_at'].present? && c['revoked_at'].blank?
-        next if c['disclosures_version'] == disclosures_version
-        next if disclosures_version.nil? || c['disclosures_version'].nil?
-        next if disclosures_version < c['disclosures_version']
-        prior_disclosures_version = c['disclosures_version']
+      # Idempotency / version contract against any prior consent record (D-04):
+      #   - stale (older) version:  no-op, return false. Applies whether or not the
+      #                             prior consent is currently revoked: following an
+      #                             outdated grant link must never reactivate consent
+      #                             against superseded disclosures. (Issue #1)
+      #   - same version, active:   no-op, return false (already granted). A same-version
+      #                             grant AFTER a revoke legitimately reactivates, so this
+      #                             no-op is gated on the consent still being active.
+      #   - newer version, active:  fall through; record the upgrade, preserve record_id,
+      #                             capture the prior version in the audit payload so audit
+      #                             queries can distinguish first-grant from upgrade events.
+      #   - any version after a revoke (>= prior): fall through and reactivate.
+      # Coerce a stored string version so the comparison stays numeric, not lexicographic.
+      # disclosures_version is already a positive Integer (coerced above).
+      prior_version = c['disclosures_version']
+      prior_version = Integer(prior_version) if prior_version.is_a?(String) && prior_version.strip.match?(/\A\d+\z/)
+      has_prior = c['granted_at'].present? && prior_version.is_a?(Integer)
+      active    = has_prior && c['revoked_at'].blank?
+      if has_prior
+        next if disclosures_version < prior_version
+        next if active && disclosures_version == prior_version
+        prior_disclosures_version = prior_version if active && disclosures_version > prior_version
       end
       # RFC-4122 UUID (122 bits); not GoSecure.nonce, which had low entropy under bulk backfill.
       c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
@@ -566,6 +584,11 @@ class User < ApplicationRecord
           'type' => 'ai_consent_revoke',
           'disclosures_version' => c['disclosures_version'],
           'source' => source,
+          # Who revoked and why must live in the immutable audit trail, not only in
+          # settings: the settings copy is DELETED on the next re-grant, so without
+          # these the trail permanently loses the revocation actor and reason.
+          'revoked_by' => revoked_by,
+          'revoked_reason' => reason,
           'record_id' => c['record_id']
         },
         event_type: 'ai_consent_revoke',
@@ -574,6 +597,18 @@ class User < ApplicationRecord
       res = true
     end
     res
+  end
+
+  # Coerces disclosures_version to a positive Integer so version comparisons are
+  # numeric (not lexicographic) and a nil/garbage value can never write a consent
+  # row that ai_consent_granted? can't honor. Accepts an Integer or an all-digit
+  # String; rejects nil, blank, non-numeric, and < 1 with 'invalid_disclosures_version'.
+  def ai_consent_normalize_version!(raw)
+    ok = raw.is_a?(Integer) || (raw.is_a?(String) && raw.strip.match?(/\A\d+\z/))
+    raise ArgumentError, 'invalid_disclosures_version' unless ok
+    v = Integer(raw.is_a?(String) ? raw.strip : raw)
+    raise ArgumentError, 'invalid_disclosures_version' if v < 1
+    v
   end
 
   # Coerces granted_by_user_id to shard-prefixed global_id ("1_42") so the
@@ -1133,7 +1168,12 @@ class User < ApplicationRecord
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
       'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access',
-      'dashboard_layout', 'dashboard_sections', 'dashboard_order', 'dashboard_positions', 'dashboard_boards'
+      'dashboard_layout', 'dashboard_sections', 'dashboard_order', 'dashboard_positions', 'dashboard_boards',
+      # Board light/dark viewing preference (boolean; true => dark). Persisted so
+      # the board-detail dark toggle and the create-board-new preview share one
+      # remembered choice across sessions. Unset => each surface applies its own
+      # default (board-detail dark, create-board-new light).
+      'board_dark_mode'
     ]
   # Known home-dashboard section keys — the SINGLE source of truth lives in the
   # frontend (app/frontend/app/utils/dashboard_sections.js: HOME_SECTIONS keys +

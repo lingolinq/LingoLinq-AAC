@@ -77,9 +77,6 @@ export default Component.extend({
       res.push(cat);
     }
     LingoLinq.board_categories.forEach(function(c) {
-      // The tabbed (setup Board Category) view hides the Cause and Effect
-      // tab; the vertical /search/home picker keeps the full set.
-      if(_this.get('tabbed') && c.id === 'cause_effect') { return; }
       var cat = $.extend({}, c);
       if(_this.get('current_category') == c.id) {
         cat.selected = true;
@@ -243,6 +240,12 @@ export default Component.extend({
         // Setup Robust Vocabularies renders the Quick Core / Vocal Flair
         // brand cards instead of the flat category grid.
         _this._loadBrandGroups();
+      } else if(_this.get('tabbed') && str == 'cause_effect') {
+        // Board-picker page: Cause and Effect is "coming soon" — no catalog yet,
+        // so skip the board query (the template renders a coming-soon button
+        // instead of a grid). The non-tabbed /search/home picker keeps its prior
+        // behavior (loads boards via the else branch below).
+        _this.set('category_boards', []);
       } else {
         _this._resolveCategoryBoards(str);
       }

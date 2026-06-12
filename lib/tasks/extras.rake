@@ -38,11 +38,16 @@ task "extras:assert_js" do
   dest_front = './app/frontend/dist/assets/frontend.js'
   FileUtils.cp(placeholder, dest_front) if File.exist?(placeholder) && !File.exist?(dest_front)
   `touch ./app/frontend/dist/assets/vendor.js`
+  # ember-auto-import entry bundle (runtime + npm deps such as the ember-shepherd
+  # v2 addon's services/tour). The application.js manifest `//= require`s it, so it
+  # must exist on the Sprockets load path even before an Ember build has run (e.g.
+  # CI precompile without a frontend build) — touch an empty placeholder if absent.
+  `touch ./app/frontend/dist/assets/auto-import-app.js` unless File.exist?('./app/frontend/dist/assets/auto-import-app.js')
   `touch ./app/frontend/dist/assets/vendor.css` unless File.exist?('./app/frontend/dist/assets/vendor.css')
   `touch ./app/frontend/dist/assets/frontend.css` unless File.exist?('./app/frontend/dist/assets/frontend.css')
   # Copy Ember JS and CSS into Rails asset paths (symlinks break on WSL/Windows and
   # can be checked out as text files by git when core.symlinks=false)
-  %w[frontend.js vendor.js].each do |f|
+  %w[frontend.js vendor.js auto-import-app.js].each do |f|
     dest = "./app/assets/javascripts/#{f}"
     File.delete(dest) if File.exist?(dest) || File.symlink?(dest)
   end
@@ -52,6 +57,7 @@ task "extras:assert_js" do
   end
   `cp ./app/frontend/dist/assets/frontend.js ./app/assets/javascripts/frontend.js`
   `cp ./app/frontend/dist/assets/vendor.js   ./app/assets/javascripts/vendor.js`
+  `cp ./app/frontend/dist/assets/auto-import-app.js ./app/assets/javascripts/auto-import-app.js`
   `cp ./app/frontend/dist/assets/vendor.css  ./app/assets/stylesheets/vendor.css`
   `cp ./app/frontend/dist/assets/frontend.css ./app/assets/stylesheets/frontend.css`
 end

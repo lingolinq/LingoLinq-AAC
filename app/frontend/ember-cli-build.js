@@ -42,7 +42,28 @@ module.exports = function (defaults) {
     // Bootstrap extended.
     autoImport: {
       webpack: {
-        externals: { jquery: 'jQuery' }
+        externals: { jquery: 'jQuery' },
+        // The Rails app does NOT use Ember's generated index.html; it
+        // concatenates the build output through a Sprockets manifest
+        // (app/assets/javascripts/application.js → vendor.js + frontend.js).
+        // By default ember-auto-import code-splits npm deps (e.g. the
+        // ember-shepherd v2 addon's `services/tour`) into content-hashed
+        // `chunk.<id>.<hash>.js` files that only index.html knows to load —
+        // so on the deployed Rails app those chunks are never loaded and the
+        // module is "not found" at runtime (tours crash). Fix: disable
+        // splitting so all eagerly-imported code lands in the entry bundle,
+        // and give that bundle a STABLE (un-hashed) name so the Sprockets
+        // manifest can `//= require` it. Result: `assets/auto-import-app.js`
+        // contains the runtime + shepherd, and is concatenated into
+        // application.js alongside vendor.js/frontend.js.
+        optimization: {
+          splitChunks: false,
+          runtimeChunk: false
+        },
+        output: {
+          filename: 'auto-import-[name].js',
+          chunkFilename: 'auto-import-[name].js'
+        }
       }
     }
   });

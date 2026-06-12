@@ -12,6 +12,7 @@
 //
 //= require application-preload.js
 //= require vendor.js
+//= require auto-import-app.js
 //= require frontend.js
 
 window.load_state = window.load_state || {};

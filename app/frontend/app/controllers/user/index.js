@@ -14,7 +14,6 @@ import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
 import {
-  filterRootBoards,
   filterBrandSetRootBoards,
   dedupeBoardRows,
   boardsPagePreferUserNames,
@@ -315,7 +314,7 @@ export default Controller.extend({
      dashboard can apply the same clustering against its own fetched
      pool. Returns an empty array while my_boards is still loading. */
   myBoardsRoots: computed('model.my_boards.[]', 'model.id', function() {
-    return filterRootBoards(this.get('model.my_boards'), this.get('model.id'));
+    return filterBoardsPageTopLevelRoots(this.get('model.my_boards'), this.get('model.id'));
   }),
   myBoardsTileCount: computed('myBoardsRoots.[]', function() {
     return (this.get('myBoardsRoots') || []).length;

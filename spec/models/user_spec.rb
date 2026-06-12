@@ -3902,6 +3902,12 @@ describe User, :type => :model do
   end
 
   describe '#ai_consent_granted?' do
+    # AuditEvent.create! fires inside grant/revoke under with_lock(requires_new: true)
+    # and commits outside the per-example fixture transaction, so rows leak across
+    # examples and break the `expect(AuditEvent.count).to eq(0)` baselines. Clean per
+    # example, scoped to the consent specs so there is no global suite blast radius.
+    before(:each) { AuditEvent.delete_all }
+
     it 'returns false for a newly created user with no ai_consent grant' do
       u = User.create
       expect(u.settings).to be_a(Hash)
@@ -3953,6 +3959,8 @@ describe User, :type => :model do
   end
 
   describe '#grant_ai_consent!' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'writes the settings hash and returns truthy on first call' do
       u = User.create
       res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
@@ -4191,9 +4199,104 @@ describe User, :type => :model do
         )
       }.not_to raise_error
     end
+
+    it 'raises ArgumentError when granted_by is nil and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: nil, source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_granted_by')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by is blank and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: '   ', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_granted_by')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when disclosures_version is nil and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: nil, granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when disclosures_version is non-numeric' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 'abc', granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+    end
+
+    it 'raises ArgumentError when disclosures_version is below 1' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 0, granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+    end
+
+    it 'compares versions numerically, not lexicographically (v10 is newer than v2)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent', source: 'email_link')
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 10, granted_by: 'Parent', source: 'in_app')
+      # Lexicographic "10" < "2" would wrongly treat v10 as stale and no-op.
+      expect(res).to eq(true)
+      expect(AuditEvent.count - pre_count).to eq(1)
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(10)
+    end
+
+    it 'coerces a numeric-string disclosures_version to an Integer' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: '3', granted_by: 'Parent', source: 'email_link')
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(3)
+      expect(u.ai_consent_granted?(disclosures_version: 3)).to eq(true)
+    end
+
+    it 'does NOT reactivate consent at a stale version after a revoke (revoked-then-stale grant is a no-op)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      u.reload
+      pre_count = AuditEvent.count
+      # Following an OLD v1 grant link after revoking v2 must not reactivate at v1.
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_at']).to be_present       # still revoked, not reactivated
+      expect(c['disclosures_version']).to eq(2)   # not downgraded to v1
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'reactivates consent on a same-or-newer version grant after a revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      u.reload
+      res = u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent <p@example.com>', source: 'in_app')
+      expect(res).to eq(true)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_at']).to be_blank
+      expect(c['disclosures_version']).to eq(2)
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(true)
+    end
   end
 
   describe '#revoke_ai_consent!' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'returns false when called on a user with no consent record' do
       expect(AuditEvent.count).to eq(0)
       u = User.create
@@ -4284,9 +4387,38 @@ describe User, :type => :model do
       u2.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
       expect { u2.revoke_ai_consent!(source: 'system') }.not_to raise_error
     end
+
+    it 'records revoked_by and revoked_reason in the immutable AuditEvent payload, not just settings' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!(revoked_by: 'Parent <p@example.com>', reason: 'Withdrawing consent', source: 'parent')
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_revoke')
+      expect(ae.data['revoked_by']).to eq('Parent <p@example.com>')
+      expect(ae.data['revoked_reason']).to eq('Withdrawing consent')
+    end
+
+    it 'preserves revoked_by/revoked_reason in the audit trail even after a re-grant clears the settings copy' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!(revoked_by: 'Parent <p@example.com>', reason: 'changed mind')
+      revoke_ae = AuditEvent.last
+      u.reload
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.reload
+      # The settings copy is cleared on re-grant...
+      expect(u.settings['ai_consent']['revoked_by']).to be_blank
+      expect(u.settings['ai_consent']['revoked_reason']).to be_blank
+      # ...but the audit row still carries who revoked and why.
+      revoke_ae.reload
+      expect(revoke_ae.data['revoked_by']).to eq('Parent <p@example.com>')
+      expect(revoke_ae.data['revoked_reason']).to eq('changed mind')
+    end
   end
 
   describe 'AI consent atomicity and audit-event coupling' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'populates audit_events.event_type and record_id columns on grant (not just the data blob)' do
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')

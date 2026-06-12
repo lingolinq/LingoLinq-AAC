@@ -44,7 +44,13 @@ class Api::DatabaseSchemaController < ApplicationController
       { 'name' => table, 'columns' => cols }
     end
 
-    log_access(table_list.length)
+    # Fail-closed for consistency with the contents endpoint (same admin tool,
+    # same gating). Schema is metadata, not regulated rows, so the disclosure
+    # stakes are lower, but a uniform refuse-if-unlogged rule is simpler to audit
+    # than a per-endpoint split and the retry cost is identical.
+    unless log_access(table_list.length)
+      return api_error(503, {error: 'Audit log write failed; read refused'})
+    end
 
     render json: { database_schema: { tables: table_list } }
   end
@@ -75,17 +81,18 @@ class Api::DatabaseSchemaController < ApplicationController
 
   # Record who read the schema, for FERPA/HIPAA accounting-of-disclosures.
   # Only successful, authorized reads reach here (403 paths disclose nothing).
-  # Auditing is best-effort: an audit-write failure must never break a read the
-  # requester is already authorized to perform. Mirrors
-  # Api::DatabaseContentsController#log_access.
+  # Fail-closed: returns true iff the audit row persisted; the caller refuses the
+  # read otherwise. Mirrors Api::DatabaseContentsController#log_access.
   def log_access(table_count)
-    AuditEvent.log_command(audit_user_key, {
+    event = AuditEvent.log_command(audit_user_key, {
       'type' => 'database_schema',
       'command' => 'schema',
       'tables' => table_count,
       'acting_as' => audit_acting_as
     }.compact)
+    event&.persisted?
   rescue => e
-    Rails.logger.error("database_schema audit log failed: #{e.class}: #{e.message}")
+    Rails.logger.error('database_schema audit log failed: ' + e.class.to_s)
+    false
   end
 end
