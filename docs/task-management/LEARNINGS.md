@@ -4155,3 +4155,13 @@ correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/mode
 **Approach:** Repo file templates may keep `<% if %>` (trusted, rendered via normal mailer views). **Stored** `html_body`/`text_body` overrides must pass `SystemEmailTemplateSecurity.validate!` (only `<%= %>` tags; block dangerous expressions). Deliver overrides with `render_string(binding)` then `render html:, layout: 'email'` — not `render html:` alone (drops layout). `normalize_i18n_overrides` must accept `ActionController::Parameters` via `to_unsafe_h` or preview/save drops nested `i18n_overrides`.
 
 **Evidence:** `lib/system_email_template_security.rb`, `app/mailers/concerns/system_email_override.rb`; task log `2026-06-09-system-settings.md`.
+
+---
+
+## Pattern: client-supplied preferences that drive computed inline styles/classes need write-time shape coercion
+
+**Surface:** `User#process_params` `PREFERENCE_PARAMS` loop, dashboard_* prefs, `components/dashboard/authenticated-view.js`, `utils/dashboard_sections.js`.
+
+**Approach:** `PREFERENCE_PARAMS` assigns whitelisted prefs **verbatim** — no type/shape check. When a pref feeds a computed `htmlSafe` inline style or a CSS class name (the `dashboard_layout`/`dashboard_sections`/`dashboard_order`/`dashboard_positions`/`dashboard_boards` set), validate it server-side against a known-keys whitelist on write (`sanitize_dashboard_preferences!`), dropping invalid values so the client falls back to defaults. The frontend already filters unknown keys (`orderedVisible` keeps only `vis[k]`-truthy keys; `effectiveLayout` whitelists `gentle`/`focused`) and builds styles only from the `AREA` map — so this is defense-in-depth, not the sole guard. Key list source of truth is `dashboard_sections.js`; duplicate it in `User::DASHBOARD_SECTION_KEYS` with a sync comment (Ruby can't import the JS).
+
+**Evidence:** `app/models/user.rb` (`DASHBOARD_SECTION_KEYS`, `sanitize_dashboard_preferences!`); triage of 6 merge findings in task log `2026-06-12-dashboard-merge-security-findings.md`. Note: board enumeration via `user_id` is already blocked by `boards_controller#index` `allowed?(user, 'view_detailed')` — not a gap.
