@@ -185,6 +185,7 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(event.data['type']).to eq('database_contents')
       expect(event.data['command']).to eq('organizations')
       expect(event.data['limit']).to eq(5)
+      expect(event.data).not_to have_key('acting_as')
     end
 
     it 'should not write an AuditEvent for a non-allowlisted table (no disclosure)' do

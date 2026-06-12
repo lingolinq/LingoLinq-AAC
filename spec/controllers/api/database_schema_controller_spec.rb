@@ -129,6 +129,7 @@ describe Api::DatabaseSchemaController, :type => :controller do
       expect(event.user_key).to eq(@user.global_id)
       expect(event.data['type']).to eq('database_schema')
       expect(event.data['tables']).to eq(Api::SchemaExplorer::ALLOWED_MODELS.keys.length)
+      expect(event.data).not_to have_key('acting_as')
     end
 
     it 'should not write an AuditEvent for an unauthorized request' do
