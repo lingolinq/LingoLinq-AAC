@@ -1,4 +1,4 @@
-<div class="md-shell {{if (is-equal this.activeTab "home") "md-shell--home"}} {{if (is-equal this.effectiveLayout "balanced") "md-shell--layout-balanced"}} {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
+<div class="md-shell {{if (is-equal this.activeTab "home") "md-shell--home"}} {{if (is-equal this.effectiveLayout "focused") "md-shell--layout-focused"}} {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
   <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
   {{!-- The "Take a tour" + "Get Started" triggers live in the inner header
        (app-navbar-authenticated-inner → .app-navbar__home-actions) as circle icon
@@ -22,7 +22,7 @@
       {{t "Extras" key="extras"}}
     </button>
     {{!-- Communicators get a far-right "Account" pill → My Account (Reports having
-         moved to an Extras card for them) — but not on Balanced (minimal nav). --}}
+         moved to an Extras card for them) — but not on Focused (minimal nav). --}}
     {{#if this.showAccountPill}}
     <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav__pill md-pillnav__pill--account">{{t "Account" key="account"}}</LinkTo>
     {{/if}}
@@ -57,7 +57,7 @@
   </main>
   {{else}}
   <main class="md-main">
-    <header class="md-hero md-hero--dashboard">
+    <header class="md-hero md-hero--dashboard" style={{this.heroHideStyle}}>
       {{#if (is-equal this.activeTab "extras")}}
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
@@ -117,7 +117,7 @@
       <div class="md-card md-card--caseload md-card--caseload-wide-only" style={{this.cardHideStyle.caseload}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
@@ -129,7 +129,7 @@
       <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-as-button md-card--caseload-narrow-only" style={{this.cardHideStyle.caseload}} aria-label={{t "My Caseload" key="my_caseload"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
@@ -149,10 +149,10 @@
       <article class="md-card md-card--speak md-card--speak-wide-only" style={{this.cardHideStyle.speak}} aria-label={{t "Speak Mode" key="speak_mode"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/><path d="M15.6 8.5a5 5 0 0 1 0 7"/><path d="M18.7 5.8a9 9 0 0 1 0 12.4"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</h3>
+            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}} <span aria-hidden="true">→</span></h3>
             <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
           </div>
         </div>
@@ -164,10 +164,10 @@
       <button type="button" class="md-card md-card--speak md-card--speak-as-button md-card--speak-narrow-only" style={{this.cardHideStyle.speak}} aria-label={{t "Speak Mode" key="speak_mode"}} {{action "go" "speak"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/><path d="M15.6 8.5a5 5 0 0 1 0 7"/><path d="M18.7 5.8a9 9 0 0 1 0 12.4"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</h3>
+            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}} <span aria-hidden="true">→</span></h3>
             {{!-- Single supporting accent (no interactive UI): a calm
                  "ready" status line that makes the card feel active. --}}
             <span class="md-card__status">
@@ -179,20 +179,34 @@
         <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
       </button>
 
-      {{!-- Balanced layout hero — the greeting BAR ("Hey <name>") that replaces the
-           Speak card when Balanced is active. Always rendered; CSS shows it (and
-           hides the standard Speak card) only under .md-grid--layout-balanced, so
+      {{!-- Focused layout hero — the greeting BAR ("Hey <name>") that replaces the
+           Speak card when Focused is active. Always rendered; CSS shows it (and
+           hides the standard Speak card) only under .md-grid--layout-focused, so
            the Getting Started preview clone shows it for free when syncState stamps
            the layout class. The whole bar is the Speak tap-target. The primary-nav
            pills sit ABOVE this bar (the centered top .md-pillnav, kept visible in
-           balanced); the redundant "It's great to see you" dashboard hero is hidden
+           focused); the redundant "It's great to see you" dashboard hero is hidden
            so this "Hey <name>" is the only greeting. --}}
-      <button type="button" class="md-card md-card--speak md-card--speak-balanced" style={{this.cardHideStyle.speak}} {{action "go" "speak"}} aria-label={{t "Talk" key="focused_talk"}}>
-        <span class="md-card--speak-balanced__icon" aria-hidden="true">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v3"/><path d="M8 21h8"/></svg>
+      <button type="button" class="md-card md-card--speak md-card--speak-focused" style={{this.cardHideStyle.speak}} {{action "go" "speak"}} aria-label={{t "Let's Communicate" key="focused_home_title"}}>
+        <span class="md-card--speak-focused__icon" aria-hidden="true">
+          {{!-- Optimized 224px (2× the 112px display) assets: ~6.5KB WebP primary
+               with a ~27KB PNG fallback (down from a 281KB 500px PNG). decoding="sync"
+               forces a full decode before painting, so the preloaded image (see the
+               rel="preload" in index.html) renders atomically — not top-down — when
+               the Focused View card first shows. --}}
+          {{!-- EXPERIMENT: using speak-circle-simple-dark (the speak-circle-dark
+               assets are kept, just not referenced here for now). --}}
+          <picture>
+            <source srcset={{path "images/speak-circle-simple-dark.webp"}} type="image/webp">
+            <img src={{path "images/speak-circle-simple-dark.png"}} class="md-card--speak-focused__img" alt="" decoding="sync" fetchpriority="high">
+          </picture>
+
         </span>
-        <span class="md-card--speak-balanced__title">{{t "Hey %{name}" key="balanced_home_greeting" name=this.greetingFirstName}}</span>
-        <span class="md-card--speak-balanced__sub">{{t "Let's Communicate!" key="balanced_home_sub"}}</span>
+        <span class="md-card--speak-focused__text">
+          <span class="md-card--speak-focused__title">{{t "Let's Communicate" key="focused_home_title"}}</span>
+          <span class="md-card--speak-focused__divider" aria-hidden="true"></span>
+          <span class="md-card--speak-focused__sub">{{t "Open My Communication Board" key="focused_home_sub"}} <span class="md-card--speak-focused__arrow" aria-hidden="true">→</span></span>
+        </span>
       </button>
 
       {{!-- Extras card is itself the action (like the Speak Mode
@@ -205,10 +219,10 @@
       <button type="button" class="md-card md-card--extras md-card--as-button" style={{this.cardHideStyle.extras}} aria-label={{t "Extras" key="extras"}} {{action "goTab" "extras"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--extras" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D9573F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2.2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2.2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2.2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2.2"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Extras" key="extras"}}</h3>
+            <h3 class="md-card__title">{{t "Extras" key="extras"}} <span aria-hidden="true">→</span></h3>
             <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
           </div>
         </div>
@@ -226,7 +240,7 @@
       <button type="button" class="md-card md-card--org-management md-card--as-button" style={{this.cardHideStyle.org}} aria-label={{t "My Organizations" key="my_organizations"}} {{action "goOrganizations"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--org" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
@@ -236,6 +250,67 @@
       </button>
       {{/if}}
 
+      {{!-- Account — available to everyone, so ALWAYS rendered (hidden via
+           cardHideStyle when toggled off, so it stays in the DOM for the
+           Dashboard Design preview clone). Whole card is the action (like
+           Extras / My Organizations): a LinkTo to the account page, with the
+           a person SVG icon. --}}
+      <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-card md-card--account md-card--badge-action md-card--as-button" style={{this.cardHideStyle.account}} aria-label={{t "My Account" key="my_account"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--account" aria-hidden="true">
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="4"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "My Account" key="my_account"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__sub">{{t "Manage your account" key="manage_your_account"}}</div>
+          </div>
+        </div>
+      </LinkTo>
+
+      {{!-- Create a Board — a card-as-button (same treatment as Speak Mode) that
+           opens the new-board flow. Always
+           rendered; hidden via cardHideStyle when toggled off. --}}
+      <button type="button" class="md-card md-card--create-board md-card--badge-action md-card--as-button" style={{this.cardHideStyle.createboard}} aria-label={{t "Create a Board" key="create_a_board"}} {{action "openNewBoardOnBoards"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--create-board" aria-hidden="true">
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/><line x1="8.5" y1="12" x2="15.5" y2="12"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "Create a Board" key="create_a_board"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__sub">{{t "Create your own board" key="create_a_board_sub"}}</div>
+          </div>
+        </div>
+      </button>
+
+      {{!-- Reports — a card-as-button (same treatment as Speak Mode) opening the
+           reports view. Always rendered; hidden via cardHideStyle when toggled off. --}}
+      <button type="button" class="md-card md-card--reports md-card--badge-action md-card--as-button" style={{this.cardHideStyle.reports}} aria-label={{t "Reports" key="reports"}} {{action "goTab" "reports"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--reports" aria-hidden="true">
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7.5 16v-3"/><path d="M12 16V9"/><path d="M16.5 16v-5"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "Reports" key="reports"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__sub">{{t "View usage and progress" key="reports_card_sub"}}</div>
+          </div>
+        </div>
+      </button>
+
+      {{!-- Edit Dashboard — a card-as-button that opens the Dashboard Design modal
+           (the getting_started flow) so the user can re-arrange their home page.
+           Always rendered; hidden via cardHideStyle when toggled off. --}}
+      <button type="button" class="md-card md-card--edit-dashboard md-card--badge-action md-card--as-button" style={{this.cardHideStyle.editdashboard}} aria-label={{t "Edit Dashboard" key="edit_dashboard"}} {{action "editDashboard"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--edit-dashboard" aria-hidden="true">
+            <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/><path d="M14 6l3.5 3.5"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "Edit Dashboard" key="edit_dashboard"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__sub">{{t "Customize your Dashboard" key="edit_dashboard_sub"}}</div>
+          </div>
+        </div>
+      </button>
+
       {{!-- Boards is available to everyone → always rendered; hidden via
            cardHideStyle when turned off so it stays in the DOM for the
            Getting Started preview clone. --}}
@@ -243,10 +318,15 @@
         <div class="md-card__head md-card__head--between">
           <div class="md-card__left">
             <h3 class="md-card__title">{{t "Boards" key="boards"}} <span class="md-card__title-accent--verdigris">{{t "(Page-sets)" key="page_sets_parenthetical"}}</span></h3>
-            <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
+            <div class="md-card__sub">{{t "Browse and manage your boards" key="manage_your_boards"}}</div>
           </div>
-          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
+          {{!-- Focused View only (shown via CSS): a "[+] Create" pill linking to
+               the new-board page, styled like the View All Boards button. The
+               label removes the bare-"+" ambiguity for first-time users. --}}
+          <LinkTo @route="create-board-new" class="md-card--boards__add" aria-label={{t "Create a Board" key="create_a_board"}} title={{t "Create a Board" key="create_a_board"}}><span class="md-card--boards__add-icon" aria-hidden="true">+</span><span class="md-card--boards__add-text">{{t "Create" key="create"}}</span></LinkTo>
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "Create a Board" key="create_a_board"}} <span aria-hidden="true">→</span></button>
         </div>
+        <div class="md-card--boards__divider" aria-hidden="true"></div>
         {{#if this.boardsLoading}}
         <div class="md-card__loading">
           <div class="md-spinner" aria-hidden="true">

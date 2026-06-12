@@ -33,6 +33,15 @@
     <link rel="icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" type="image/png" />
     <link rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" />
 
+    <!-- Preload the Focused View "Let's Communicate" hero image during initial
+         page load. Its card is display:none until the Focused View layout is
+         active, so the browser would otherwise only fetch + decode it the moment
+         the card appears (making the image reveal top-down). Preloading fetches
+         the bytes up front so it paints instantly, paired with decoding="sync"
+         on the img. NOTE: index.html only processes ember-cli tokens like
+         {{rootURL}} — use HTML comments here, NOT {{!-- --}} (which leaks as text). -->
+    <link rel="preload" as="image" href="{{rootURL}}images/speak-circle-simple-dark.webp" type="image/webp" fetchpriority="high" />
+
     <style>
       /* Bootstrap skeleton — painted before vendor.css / frontend.css load
          and before Ember boots. Identical visual to the Rails-served

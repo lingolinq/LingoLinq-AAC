@@ -639,10 +639,10 @@ class User < ApplicationRecord
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
         'board_view_style' => 'modern',
-        # Home-page dashboard arrangement: 'dynamic' (default) or 'balanced'.
+        # Home-page dashboard arrangement: 'focused' (default) or 'gentle'.
         # Chosen during the Dashboard Design flow; drives the md-grid--layout-*
         # modifier on the dashboard grid.
-        'dashboard_layout' => 'dynamic',
+        'dashboard_layout' => 'focused',
         # Per-section visibility for the home dashboard cards, e.g.
         # {'boards' => true, 'extras' => false}. Chosen during the Getting
         # Started flow. A missing key (or true) means visible, so sections
@@ -1119,7 +1119,7 @@ class User < ApplicationRecord
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
       'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access',
-      'dashboard_layout', 'dashboard_sections', 'dashboard_positions', 'dashboard_boards'
+      'dashboard_layout', 'dashboard_sections', 'dashboard_order', 'dashboard_positions', 'dashboard_boards'
     ]
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports', 
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']

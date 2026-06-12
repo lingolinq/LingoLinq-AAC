@@ -258,7 +258,7 @@
           </label>
         </div>
         {{#if this.pending_preferences.word_suggestions}}
-          <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position'}}</label>
+          <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position_short'}}</label>
           {{bound-select select_class="form-control" select_id="word_suggestion_position" content=this.wordPredictionPositionList selection=this.pending_preferences.word_suggestion_position action=(action (mut this.pending_preferences.word_suggestion_position)) }}
         {{/if}}
       </div>

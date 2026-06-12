@@ -30,44 +30,38 @@ export default Component.extend({
 
   // The layout actually RENDERED — the saved `dashboard_layout` pref, validated to a
   // known variant. Everything that drives the grid (class, grid state, section
-  // visibility, the shell modifier) reads THIS. A legacy 'focused' value (the Focused
-  // layout was removed) falls back to the default 'dynamic'.
+  // visibility, the shell modifier) reads THIS. The default is 'focused'; an unset
+  // pref or any legacy/invalid value (e.g. the removed 'balanced') resolves to it.
   effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', function() {
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
-    if (['dynamic', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
+    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'focused'; }
     return layout;
   }),
 
+
   // Home dashboard arrangement modifier, driven by the EFFECTIVE layout (above).
   // Always resolves to a known variant so the grid has a stable hook class;
-  // 'dynamic' is today's default grid — the Balanced CSS variant hangs off
-  // md-grid--layout-balanced.
+  // 'focused' is the default grid — the Gentle View/Focused View CSS variants hang off
+  // md-grid--layout-gentle / md-grid--layout-focused.
   dashboardLayoutClass: computed('effectiveLayout', function() {
     return 'md-grid--layout-' + this.get('effectiveLayout');
   }),
 
   // Whether "Reports" appears in the primary pill-nav. It stays there only for
-  // SUPPORTERS on a non-Balanced layout. Communicators get Reports moved to an
-  // Extras card link instead (so it's out of their nav); Balanced hides it for
+  // SUPPORTERS on a non-Focused View layout. Communicators get Reports moved to an
+  // Extras card link instead (so it's out of their nav); Focused View hides it for
   // everyone. The Extras "Reports" card shows precisely when this is false (see
   // extrasItems).
   showReportsPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
     if (!this.get('appState.currentUser.supporter_role')) { return false; }
-    return this.get('effectiveLayout') !== 'balanced';
+    return this.get('effectiveLayout') !== 'focused';
   }),
 
-  // Communicators get a far-right "Account" pill in the nav — but NOT on Balanced
+  // Communicators get a far-right "Account" pill in the nav — but NOT on Focused View
   // (its nav is the minimal centered bar). Supporters never get it (they use the
   // identity dropdown).
   showAccountPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
-    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'balanced';
-  }),
-
-  // Short, friendly first name for the Balanced greeting ("Hey Johnny"). Prefer the
-  // display name's first word; fall back to the username.
-  greetingFirstName: computed('appState.currentUser.name', 'appState.currentUser.user_name', function() {
-    var raw = this.get('appState.currentUser.name') || this.get('appState.currentUser.user_name') || '';
-    return (raw || '').toString().trim().split(/\s+/)[0] || '';
+    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'focused';
   }),
 
   // Visibility map for the home dashboard cards, keyed by section key
@@ -87,10 +81,10 @@ export default Component.extend({
       availableHomeSections(user).forEach(function(s) {
         vis[s.key] = !sectionHidden(user, s.key);
       });
-      // The Balanced layout never shows the Extras card — Speak takes the focal
+      // The Focused View layout never shows the Extras card — Speak takes the focal
       // full-width hero slot instead. Force it hidden so the grid matrix and the
       // per-card cardHideStyle agree (no orphaned Extras card overflowing the grid).
-      if (this.get('effectiveLayout') === 'balanced') {
+      if (this.get('effectiveLayout') === 'focused') {
         vis.extras = false;
       }
       return vis;
@@ -101,36 +95,23 @@ export default Component.extend({
   // the computed grid-template-areas/rows. The layout is applied as an inline
   // style (gridStyle) from the shared layout matrix, so the home grid and the
   // Getting Started preview reflow identically with no CSS-specificity juggling.
-  dashboardGrid: computed('sectionVisibility', 'sectionPositions', 'sectionBoards', 'effectiveLayout', function() {
-    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionPositions'), this.get('sectionBoards'), this.get('effectiveLayout'));
+  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', function() {
+    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionOrder'), this.get('effectiveLayout'));
   }),
 
-  // The user's saved Boards placement ({side, raised}; drag-to-move the hero).
-  // Read like the other dashboard prefs and fully gated behind the
-  // `dashboard_drag_layout` flag. Returns null when unset → canonical layout.
-  sectionBoards: computed(
-    'appState.currentUser.preferences.dashboard_boards',
+  // The user's saved drag-to-reorder arrangement: an ordered array of section
+  // keys (the layout packs visible cards in this order — Boards full-width, small
+  // cards two-per-row; see dashboard_sections.gridLayoutState). Read like the
+  // other dashboard prefs and gated behind the `dashboard_drag_layout` flag (the
+  // only way to SET an order is the flagged drag UI). Returns null when unset or
+  // the flag is off → the canonical default order.
+  sectionOrder: computed(
+    'appState.currentUser.preferences.dashboard_order',
     'appState.feature_flags.dashboard_drag_layout',
     function() {
       if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
-      var b = this.get('appState.currentUser.preferences.dashboard_boards');
-      return (b && typeof b === 'object') ? b : null;
-    }
-  ),
-
-  // The user's saved drag-to-swap arrangement (section key → the section key
-  // whose home-slot it occupies; default identity). Read from preferences the
-  // same way as `dashboard_sections`, so a saved arrangement reflows the home
-  // grid on render. Fully gated behind the `dashboard_drag_layout` flag (the
-  // only way to SET a position is the flagged drag UI), and returns null when
-  // unset → the canonical layout.
-  sectionPositions: computed(
-    'appState.currentUser.preferences.dashboard_positions',
-    'appState.feature_flags.dashboard_drag_layout',
-    function() {
-      if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
-      var map = this.get('appState.currentUser.preferences.dashboard_positions');
-      return (map && typeof map === 'object') ? map : null;
+      var o = this.get('appState.currentUser.preferences.dashboard_order');
+      return (o && o.length) ? o : null;
     }
   ),
   gridClassString: computed('dashboardGrid', function() {
@@ -139,7 +120,17 @@ export default Component.extend({
   gridStyle: computed('dashboardGrid', function() {
     var s = this.get('dashboardGrid');
     // Inline !important so it wins over the base .md-grid !important rules.
-    return htmlSafe('grid-template-areas: ' + s.areasValue + ' !important; grid-template-rows: ' + s.rows + ' !important;');
+    var css = 'grid-template-areas: ' + s.areasValue + ' !important; grid-template-rows: ' + s.rows + ' !important;';
+    // Focused View pins the column count to the visible utility-card count so the
+    // utility row fills evenly (see gridLayoutState.columns); Gentle View leaves
+    // the stylesheet's columns in place.
+    if (s.columns) { css += ' grid-template-columns: ' + s.columns + ' !important;'; }
+    // Per-section reading-order as `--ord-<key>` custom properties — inert on large
+    // screens, consumed by the ≤950px Gentle View single-column flex fallback so its
+    // card order matches this (drag-aware) arrangement instead of a static order.
+    var oi = s.orderIndices || {};
+    Object.keys(oi).forEach(function(k) { css += ' --ord-' + k + ': ' + oi[k] + ';'; });
+    return htmlSafe(css);
   }),
 
   // Availability-only map (does this section EXIST for this user type, ignoring
@@ -172,10 +163,20 @@ export default Component.extend({
     var HIDDEN = htmlSafe('display: none !important;');
     var SHOWN = htmlSafe('');
     var map = {};
-    ['boards', 'speak', 'extras', 'caseload', 'org'].forEach(function(k) {
+    ['boards', 'speak', 'extras', 'caseload', 'org', 'account', 'createboard', 'reports', 'editdashboard'].forEach(function(k) {
       map[k] = vis[k] ? SHOWN : HIDDEN;
     });
     return map;
+  }),
+
+  // The welcome hero banner is a non-grid toggle (see EXTRA_HOME_TOGGLES): hidden
+  // via the same dashboard_sections preference the cards use. Focused View hides the
+  // hero in CSS regardless; this governs the Gentle View layout. Only applies to the
+  // GREETING hero — on the Extras tab the same <header> is the page header, which
+  // the toggle must never hide.
+  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', function() {
+    if (this.get('activeTab') === 'extras') { return htmlSafe(''); }
+    return sectionHidden(this.get('appState.currentUser'), 'hero') ? htmlSafe('display: none !important;') : htmlSafe('');
   }),
 
   activeTab: 'home',
@@ -208,11 +209,25 @@ export default Component.extend({
   didInsertElement() {
     this._super(...arguments);
     this._loadPreviewBoards();
+    this._syncLayoutBodyClass();
   },
 
   willDestroyElement() {
+    try { document.body.classList.remove('ll-layout-focused'); } catch (e) { /* noop */ }
     this._super(...arguments);
   },
+
+  // Reflect the active dashboard layout on <body> so chrome OUTSIDE the layout
+  // shell — e.g. the global navbar's circle buttons — can scope styling to
+  // Focused View. Toggled on render and whenever the layout changes.
+  _syncLayoutBodyClass: function() {
+    try {
+      document.body.classList.toggle('ll-layout-focused', this.get('effectiveLayout') === 'focused');
+    } catch (e) { /* noop */ }
+  },
+  _layoutBodyClassWatcher: observer('effectiveLayout', function() {
+    this._syncLayoutBodyClass();
+  }),
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
     return this.get('extras.ready') && !this.appState.get('currentUser.external_device');
@@ -802,6 +817,13 @@ export default Component.extend({
   }),
   previewBoards: computed(
     '_fetchedPreviewBoards.[]',
+    // Prefer the FULL fetched library (same pool boardCount uses) once it has
+    // paginated in: filterRootBoards is first-page-sensitive, so clustering only
+    // the first page leaks sub-board copies of a set into the strip. Recompute
+    // when the full set (and its per-board star/name) arrives.
+    '_fetchedBoards.[]',
+    '_fetchedBoards.@each.starred_for_current_user',
+    '_fetchedBoards.@each.name',
     // The appended 6th tile is the system Crisis Vocabulary board from the sidebar.
     'appState.sidebar_boards',
     // Re-sort the preview when a board's liked status flips or its
@@ -830,7 +852,16 @@ export default Component.extend({
     'appState.currentUser.preferences.home_board.id',
     function() {
       var _this = this;
-      var fetched = this.get('_fetchedPreviewBoards') || [];
+      // Roots only — `store.query('board', {user_id})` returns the full owned
+      // library INCLUDING every sub-board copy in a copied set, so the raw pool
+      // would fill the 5-tile preview with sub-boards. Cluster to root tiles the
+      // same way `boardCount` (this component) and the boards page do. Prefer the
+      // FULL `_fetchedBoards` pool (falling back to the first preview page until it
+      // arrives): `filterRootBoards` is first-page-sensitive, so clustering only the
+      // first 20 records lets sub-board copies leak through. See utils/board-roots.js
+      // / LEARNINGS "visible-tile counts need root clustering".
+      var pool = this.get('_fetchedBoards') || this.get('_fetchedPreviewBoards') || [];
+      var fetched = filterRootBoards(pool, this.get('appState.currentUser.id'));
       var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
       var seen = {};
       var ordered = [];
@@ -1012,7 +1043,7 @@ export default Component.extend({
     var externalDevice = user && user.get('external_device');
     var supporterRole = user && user.get('supporter_role');
     // Reports moves into Extras exactly when it's NOT in the pill-nav (communicators
-    // on any layout; everyone on Balanced) — see showReportsPill.
+    // on any layout; everyone on Focused View) — see showReportsPill.
     var showReports = !this.get('showReportsPill');
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
@@ -1239,6 +1270,19 @@ export default Component.extend({
     },
     getting_started: function() {
       this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
+    },
+    // Open the Dashboard Design tour (getting-started-tour, mounted in the navbar)
+    // directly on the "choose your display style" page. Prefer the DIRECT opener
+    // the tour registers on appState (deterministic — no cross-component observer
+    // timing/coalescing), and fall back to the appState signal (which the tour
+    // also observes) if the tour component hasn't registered yet.
+    editDashboard: function() {
+      var opener = this.get('appState.dashboard_design_opener');
+      if (opener) {
+        opener('getting_started_tour_display');
+      } else {
+        this.get('appState').set('open_dashboard_design', 'display');
+      }
     },
     extraAction: function(name) {
       var _this = this;
