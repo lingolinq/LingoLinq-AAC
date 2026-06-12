@@ -19,6 +19,7 @@ import Utils from '../utils/misc';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import boardPrefetchPlanner from '../utils/board_prefetch_planner';
+import rewriteBrokenSymbolUrl from '../utils/symbol-url';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -898,9 +899,7 @@ var persistence = Service.extend({
       // url = url.replace(/\%2520/g, '%20');
     }
     /* OpenSymbols removed arasaac/no_2.png (403 + XML); no.png is the live asset. */
-    if (url && /\/libraries\/arasaac\/no_2\.png(\?|$)/i.test(url)) {
-      url = url.replace(/\/no_2\.png/i, '/no.png');
-    }
+    url = rewriteBrokenSymbolUrl(url);
     if(url && url.match(/user_token=[\w-]+$/)) {
       return url.replace(/[\?\&]user_token=[\w-]+$/, '');
     } else {

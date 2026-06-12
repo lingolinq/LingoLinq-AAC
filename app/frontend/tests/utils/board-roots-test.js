@@ -10,13 +10,37 @@ import {
   filterBrandSetRootBoards,
   filterBoardsPageTopLevelRoots,
   isBrandSetRootBoard,
-  boardOwnerName
+  boardOwnerName,
+  boardsPagePreferUserNames
 } from '../../utils/board-roots';
 
 describe('board-roots', function() {
   function makeBoard(props) {
     return EmberObject.create(props);
   }
+
+  function makeAppState(opts) {
+    opts = opts || {};
+    return EmberObject.create({
+      currentUser: EmberObject.create({ user_name: opts.user_name || 'melis' }),
+      feature_flags: { boards_page_owner_dedup: opts.boards_page_owner_dedup !== false },
+      get: function(key) {
+        if (key === 'currentUser.user_name') { return this.currentUser.user_name; }
+        if (key === 'feature_flags.boards_page_owner_dedup') { return this.feature_flags.boards_page_owner_dedup; }
+        return EmberObject.prototype.get.call(this, key);
+      }
+    });
+  }
+
+  describe('boardsPagePreferUserNames', function() {
+    it('returns empty list when the feature flag is off', function() {
+      expect(boardsPagePreferUserNames(makeAppState({ boards_page_owner_dedup: false }))).toEqual([]);
+    });
+
+    it('returns current user then lingolinq when the feature flag is on', function() {
+      expect(boardsPagePreferUserNames(makeAppState({ user_name: 'melis' }))).toEqual(['melis', 'lingolinq']);
+    });
+  });
 
   describe('dedupeByName', function() {
     it('keeps the first board when no preferred owner matches', function() {
@@ -130,12 +154,25 @@ describe('board-roots', function() {
       expect(result[0].get('id')).toEqual('1');
     });
 
-    it('treats core-112 slug without quick- prefix as a Quick Core root', function() {
+    it('treats legacy core-112 slug as a Quick Core root when the name matches', function() {
       var root = makeBoard({
         name: 'Core 112',
-        key: 'example/core-112'
+        key: 'lingolinq/core-112'
       });
       expect(isBrandSetRootBoard(root)).toEqual(true);
+    });
+
+    it('does not classify incidental core-N slugs as Quick Core', function() {
+      var custom = makeBoard({
+        name: 'Weekly Planner',
+        key: 'school/core-5'
+      });
+      expect(isBrandSetRootBoard(custom)).toEqual(true);
+      expect(filterBrandSetRootBoards([custom]).length).toEqual(1);
+    });
+
+    it('returns false for a null board argument', function() {
+      expect(isBrandSetRootBoard(null)).toEqual(false);
     });
 
     it('drops Core Blocks topic pages by key slug and display name', function() {
@@ -199,6 +236,21 @@ describe('board-roots', function() {
       var rows = [
         { board: loser, children: [] },
         { board: winner, children: [{ board: child }] }
+      ];
+      var result = dedupeBoardRows(rows, { preferUserNames: ['melis', 'lingolinq'] });
+      expect(result.length).toEqual(1);
+      expect(result[0].board.get('key')).toEqual('lingolinq/quick-core-60');
+      expect(result[0].children.length).toEqual(1);
+      expect(result[0].children[0].board.get('id')).toEqual('child');
+    });
+
+    it('merges children from duplicate-name rows onto the preferred winner', function() {
+      var child = makeBoard({ id: 'child', name: 'Child', key: 'lingolinq/child' });
+      var winner = makeBoard({ id: '1', name: 'Quick Core 60', key: 'lingolinq/quick-core-60' });
+      var loser = makeBoard({ id: '2', name: 'Quick Core 60', key: 'other/quick-core-60' });
+      var rows = [
+        { board: winner, children: [] },
+        { board: loser, children: [{ board: child }] }
       ];
       var result = dedupeBoardRows(rows, { preferUserNames: ['melis', 'lingolinq'] });
       expect(result.length).toEqual(1);

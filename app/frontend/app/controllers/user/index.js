@@ -17,7 +17,8 @@ import {
   filterBrandSetRootBoards,
   dedupeBoardRows,
   boardsPagePreferUserNames,
-  filterBoardsPageTopLevelRoots
+  filterBoardsPageTopLevelRoots,
+  BOARDS_PAGE_SEARCH_LIMIT
 } from '../../utils/board-roots';
 import boardDetailCache from '../../utils/board_detail_cache';
 
@@ -46,9 +47,6 @@ function allTaggedGlobalIds(map) {
   });
   return s;
 }
-
-/** Cap live filter results so typing e.g. "h" does not render hundreds of tiles. */
-var BOARDS_PAGE_SEARCH_LIMIT = 50;
 
 export default Controller.extend({
   store: service('store'),
@@ -239,24 +237,54 @@ export default Controller.extend({
       return allCategorized;
     }
   ),
-  /** Sorted folder rows: { tag, count } for strip. Counts are static while
-     the main boards filter runs — see boards_page_visible_results. */
+  /** Sorted folder rows: { tag, count } for strip. When the main boards
+     filter is active, hide folders with zero matching root boards. */
   mineTagFolderSummaries: computed(
     'model.board_tag_map',
-    'model.my_boards.[]',
+    'filterStringDebounced',
+    'boardsPageSearchRows.[]',
     function() {
       var map = this.get('model.board_tag_map');
       if (!map || typeof map !== 'object') { return []; }
+      var filter = (this.get('filterStringDebounced') || '').trim();
+      var q = filter ? filter.toLowerCase() : null;
+      var haystackById = null;
+      if (q) {
+        haystackById = Object.create(null);
+        (this.get('boardsPageSearchRows') || []).forEach(function(row) {
+          var b = row.board;
+          if (!b || !b.get) { return; }
+          var gid = b.get('global_id');
+          if (gid) { haystackById[gid] = row.haystack; }
+          var bid = b.get('id');
+          if (bid && bid !== gid) { haystackById[bid] = row.haystack; }
+        });
+      }
       var keys = Object.keys(map).sort();
       var res = [];
       var _this = this;
       keys.forEach(function(tag) {
         var ids = map[tag] || [];
-        var cnt = 0;
-        ids.forEach(function(gid) {
-          if (_this._isMineBoardRoot(gid)) { cnt++; }
-        });
-        res.push({ tag: tag, count: cnt });
+        if (q) {
+          var show = tag.toLowerCase().indexOf(q) >= 0;
+          var cnt = 0;
+          ids.forEach(function(gid) {
+            if (!_this._isMineBoardRoot(gid)) { return; }
+            var hay = haystackById && haystackById[gid];
+            if (hay && hay.indexOf(q) >= 0) {
+              show = true;
+              cnt++;
+            }
+          });
+          if (!show || cnt === 0) { return; }
+          res.push({ tag: tag, count: cnt });
+        } else {
+          var unfilteredCnt = 0;
+          ids.forEach(function(gid) {
+            if (_this._isMineBoardRoot(gid)) { unfilteredCnt++; }
+          });
+          res.push({ tag: tag, count: unfilteredCnt });
+        }
       });
       return res;
     }
@@ -444,7 +472,7 @@ export default Controller.extend({
       return list;
     }
   ),
-  boards_page_visible_results: computed(
+  boardsPageSearchState: computed(
     'filtered_results',
     'filterStringDebounced',
     'boardsPageSearchRows.[]',
@@ -452,36 +480,49 @@ export default Controller.extend({
     function() {
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
-        return this.get('filtered_results') || [];
+        return { results: this.get('filtered_results') || [], truncated: false };
       }
       var q = filter.toLowerCase();
       var rows = this.get('boardsPageSearchRows') || [];
       var matches = [];
-      for (var i = 0; i < rows.length; i++) {
-        if (rows[i].haystack.indexOf(q) === -1) { continue; }
-        matches.push({ board: rows[i].board, children: [] });
-        if (matches.length >= BOARDS_PAGE_SEARCH_LIMIT) { break; }
+      var truncated = false;
+      if (rows.length) {
+        for (var i = 0; i < rows.length; i++) {
+          if (rows[i].haystack.indexOf(q) === -1) { continue; }
+          if (matches.length >= BOARDS_PAGE_SEARCH_LIMIT) {
+            truncated = true;
+            break;
+          }
+          matches.push({ board: rows[i].board, children: [] });
+        }
+        return { results: matches, truncated: truncated };
       }
-      return matches;
+      var fallbackRows = this.get('filtered_results') || [];
+      for (var j = 0; j < fallbackRows.length; j++) {
+        var row = fallbackRows[j];
+        if (!row || !row.board || !row.board.get) { continue; }
+        var haystack = (row.board.get('search_string') || '').toLowerCase();
+        if (haystack.indexOf(q) === -1) { continue; }
+        if (matches.length >= BOARDS_PAGE_SEARCH_LIMIT) {
+          truncated = true;
+          break;
+        }
+        matches.push({ board: row.board, children: row.children || [] });
+      }
+      return { results: matches, truncated: truncated };
     }
   ),
-  boards_page_search_truncated: computed(
-    'filterStringDebounced',
-    'boardsPageSearchRows.[]',
-    function() {
-      var filter = (this.get('filterStringDebounced') || '').trim();
-      if (!filter) { return false; }
-      var q = filter.toLowerCase();
-      var rows = this.get('boardsPageSearchRows') || [];
-      var count = 0;
-      for (var i = 0; i < rows.length; i++) {
-        if (rows[i].haystack.indexOf(q) === -1) { continue; }
-        count++;
-        if (count > BOARDS_PAGE_SEARCH_LIMIT) { return true; }
-      }
-      return false;
-    }
-  ),
+  boards_page_visible_results: computed('boardsPageSearchState', function() {
+    var state = this.get('boardsPageSearchState');
+    return (state && state.results) || [];
+  }),
+  boards_page_search_truncated: computed('boardsPageSearchState', function() {
+    var state = this.get('boardsPageSearchState');
+    return !!(state && state.truncated);
+  }),
+  boards_page_search_limit: computed(function() {
+    return BOARDS_PAGE_SEARCH_LIMIT;
+  }),
   board_list: computed(
     'selected',
     'parent_object',

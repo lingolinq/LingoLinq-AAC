@@ -1,11 +1,18 @@
 import { get as emberGet } from '@ember/object';
 import { BRAND_FAMILIES } from './board-brands';
 
+/** Cap live boards-page filter results (also used in i18n truncation hint). */
+export var BOARDS_PAGE_SEARCH_LIMIT = 50;
+
 /* Owner slugs to prefer when deduping same-name public boards — signed-in
-   user first, then the canonical lingolinq publisher. */
+   user first, then the canonical lingolinq publisher. Gated behind the
+   `boards_page_owner_dedup` feature flag (beta opt-in). */
 export function boardsPagePreferUserNames(appState) {
+  if (!appState || !appState.get || !appState.get('feature_flags.boards_page_owner_dedup')) {
+    return [];
+  }
   var names = [];
-  var currentName = appState && appState.get && appState.get('currentUser.user_name');
+  var currentName = appState.get('currentUser.user_name');
   if (currentName) { names.push(String(currentName).toLowerCase()); }
   names.push('lingolinq');
   return names;
@@ -98,6 +105,21 @@ function _pickBestByName(group, preferUserNames) {
   return best;
 }
 
+function _dedupeChildRows(children) {
+  var seen = Object.create(null);
+  var out = [];
+  (children || []).forEach(function(child) {
+    if (!child || !child.board) { return; }
+    var id = emberGet(child.board, 'id');
+    if (id == null || id === '') { out.push(child); return; }
+    var sid = String(id);
+    if (seen[sid]) { return; }
+    seen[sid] = true;
+    out.push(child);
+  });
+  return out;
+}
+
 /* Drop boards whose display `name` is a duplicate — one row per distinct
    name, compared case-insensitively (so "CommuniKate alcohol" and
    "CommuniKate Alcohol" collapse). Empty / missing names are NOT deduped.
@@ -115,24 +137,29 @@ export function dedupeByName(boards, options) {
     }).filter(function(n) { return !!n; });
   }
   var groups = Object.create(null);
-  var groupOrder = [];
-  var unnamed = [];
+  var outputOrder = [];
   boards.forEach(function(b) {
     if (!b) { return; }
     var name = emberGet(b, 'name') || '';
-    if (!name) { unnamed.push(b); return; }
+    if (!name) {
+      outputOrder.push({ kind: 'single', board: b });
+      return;
+    }
     var groupKey = name.toLowerCase();
     if (!groups[groupKey]) {
       groups[groupKey] = [];
-      groupOrder.push(groupKey);
+      outputOrder.push({ kind: 'group', key: groupKey });
     }
     groups[groupKey].push(b);
   });
   var out = [];
-  groupOrder.forEach(function(groupKey) {
-    out.push(_pickBestByName(groups[groupKey], preferUserNames));
+  outputOrder.forEach(function(item) {
+    if (item.kind === 'single') {
+      out.push(item.board);
+    } else {
+      out.push(_pickBestByName(groups[item.key], preferUserNames));
+    }
   });
-  unnamed.forEach(function(b) { out.push(b); });
   return out;
 }
 
@@ -141,7 +168,7 @@ export function dedupeByName(boards, options) {
    patterns as board-collection / board-brands — do NOT use server
    `root: true` for public originals. */
 export function isBrandSetRootBoard(board) {
-  if (!board) { return true; }
+  if (!board) { return false; }
   var key = emberGet(board, 'key') || '';
   for (var i = 0; i < BRAND_FAMILIES.length; i++) {
     var family = BRAND_FAMILIES[i];
@@ -169,24 +196,56 @@ export function filterBoardsPageTopLevelRoots(boards, userId) {
 }
 
 /* Dedupe `{ board, children }[]` rows by top-level board name, keeping
-   `children` on the surviving row. */
+   `children` from every row in the name group on the winning board. */
 export function dedupeBoardRows(rows, options) {
   if (!rows || !rows.forEach || !rows.length) { return []; }
-  var boards = [];
+  var preferUserNames = (options && options.preferUserNames) || [];
+  if (preferUserNames.length) {
+    preferUserNames = preferUserNames.map(function(n) {
+      return (n || '').toLowerCase();
+    }).filter(function(n) { return !!n; });
+  }
+  var groups = Object.create(null);
+  var groupOrder = [];
+  var unnamed = [];
   rows.forEach(function(row) {
-    if (row && row.board) { boards.push(row.board); }
+    if (!row || !row.board) { return; }
+    var name = emberGet(row.board, 'name') || '';
+    if (!name) { unnamed.push(row); return; }
+    var groupKey = name.toLowerCase();
+    if (!groups[groupKey]) {
+      groups[groupKey] = [];
+      groupOrder.push(groupKey);
+    }
+    groups[groupKey].push(row);
   });
-  var deduped = dedupeByName(boards, options);
-  var keepIds = Object.create(null);
-  deduped.forEach(function(b) {
-    var id = emberGet(b, 'id');
-    if (id != null && id !== '') { keepIds[String(id)] = true; }
+  var out = [];
+  groupOrder.forEach(function(groupKey) {
+    var groupRows = groups[groupKey];
+    var boards = groupRows.map(function(r) { return r.board; });
+    var winner = _pickBestByName(boards, preferUserNames);
+    if (!winner) { return; }
+    var winnerId = String(emberGet(winner, 'id'));
+    var winnerRow = null;
+    var mergedChildren = [];
+    groupRows.forEach(function(row) {
+      if (String(emberGet(row.board, 'id')) === winnerId) {
+        winnerRow = row;
+      }
+      (row.children || []).forEach(function(child) {
+        mergedChildren.push(child);
+      });
+    });
+    var resultRow = {
+      board: winner,
+      children: _dedupeChildRows(mergedChildren)
+    };
+    if (winnerRow && winnerRow.orphan) { resultRow.orphan = true; }
+    if (winnerRow && winnerRow.id != null) { resultRow.id = winnerRow.id; }
+    out.push(resultRow);
   });
-  return rows.filter(function(row) {
-    if (!row || !row.board) { return false; }
-    var id = emberGet(row.board, 'id');
-    return id != null && id !== '' && keepIds[String(id)];
-  });
+  unnamed.forEach(function(row) { out.push(row); });
+  return out;
 }
 
 /* Natural (numeric-aware) sort by display name — embedded numbers compare

@@ -39,9 +39,12 @@ export const BRAND_FAMILIES = [
     test: function(board) {
       var key = (board && board.get && board.get('key')) || '';
       var name = (board && board.get && board.get('name')) || '';
+      /* Key slugs: quick-core*, core-blocks*, or core-NN (2+ digits) — avoid
+         matching incidental slugs like user/core-5. Name patterns catch shipped
+         set titles ("Core 112 - …", "Core Blocks 40 - …"). */
       return /(?:^|\/|-)quick-core\b/i.test(key) ||
         /(?:^|\/|-)core-blocks\b/i.test(key) ||
-        /(?:^|\/|-)core-\d+\b/i.test(key) ||
+        /(^|\/)core-\d{2,}\b/i.test(key) ||
         /\bquick[\s-]?core\b/i.test(name) ||
         /\bcore\s+blocks\s+\d+\b/i.test(name) ||
         /\bcore\s+\d+\b/i.test(name);

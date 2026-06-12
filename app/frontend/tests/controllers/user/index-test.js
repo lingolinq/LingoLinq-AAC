@@ -74,6 +74,20 @@ describe('UserIndexController', 'controller:user-index', function() {
       return EmberObject.create(props);
     }
 
+    function stubAppState(controller, userName, opts) {
+      opts = opts || {};
+      var ownerDedup = opts.boards_page_owner_dedup !== false;
+      controller.set('appState', EmberObject.create({
+        currentUser: EmberObject.create({ user_name: userName || 'melis' }),
+        feature_flags: { boards_page_owner_dedup: ownerDedup },
+        get: function(key) {
+          if (key === 'currentUser.user_name') { return this.currentUser.user_name; }
+          if (key === 'feature_flags.boards_page_owner_dedup') { return this.feature_flags.boards_page_owner_dedup; }
+          return EmberObject.prototype.get.call(this, key);
+        }
+      }));
+    }
+
     function setupModel(controller, my_boards, homeKey) {
       controller.set('model', EmberObject.create({
         id: 'larry',
@@ -141,9 +155,7 @@ describe('UserIndexController', 'controller:user-index', function() {
         preferences: { home_board: { key: 'other/first' } },
         permissions: { edit: true }
       }));
-      controller.set('appState', EmberObject.create({
-        currentUser: EmberObject.create({ user_name: 'larry' })
-      }));
+      stubAppState(controller, 'larry');
       controller.set('selected', 'public');
       controller.set('parent_object', null);
 
@@ -174,9 +186,7 @@ describe('UserIndexController', 'controller:user-index', function() {
         preferences: { home_board: {} },
         permissions: { edit: true }
       }));
-      controller.set('appState', EmberObject.create({
-        currentUser: EmberObject.create({ user_name: 'melis' })
-      }));
+      stubAppState(controller, 'melis');
       controller.set('selected', 'public');
       controller.set('parent_object', null);
 
@@ -184,6 +194,36 @@ describe('UserIndexController', 'controller:user-index', function() {
 
       expect(list.filtered_results.length).toEqual(1);
       expect(list.filtered_results[0].board.get('key')).toEqual('lingolinq/quick-core-60');
+    });
+
+    it('keeps popularity order for same-name public boards when owner dedup flag is off', function() {
+      var controller = testOwner.lookup('controller:user/index');
+      var first = makeBoard({
+        id: '1',
+        key: 'other/quick-core-60',
+        name: 'Quick Core 60',
+        search_string: 'Quick Core 60 other quick-core-60'
+      });
+      var second = makeBoard({
+        id: '2',
+        key: 'lingolinq/quick-core-60',
+        name: 'Quick Core 60',
+        search_string: 'Quick Core 60 lingolinq quick-core-60'
+      });
+      controller.set('model', EmberObject.create({
+        id: 'larry',
+        public_boards: [first, second],
+        preferences: { home_board: {} },
+        permissions: { edit: true }
+      }));
+      stubAppState(controller, 'melis', { boards_page_owner_dedup: false });
+      controller.set('selected', 'public');
+      controller.set('parent_object', null);
+
+      var list = controller.get('board_list');
+
+      expect(list.filtered_results.length).toEqual(1);
+      expect(list.filtered_results[0].board.get('key')).toEqual('other/quick-core-60');
     });
 
     it('hides CommuniKate topic pages on Mine tab default grid', function() {
@@ -209,9 +249,7 @@ describe('UserIndexController', 'controller:user-index', function() {
         preferences: { home_board: {} },
         permissions: { edit: true }
       }));
-      controller.set('appState', EmberObject.create({
-        currentUser: EmberObject.create({ user_name: 'melis' })
-      }));
+      stubAppState(controller, 'melis');
       controller.set('selected', 'mine');
       controller.set('parent_object', null);
 
@@ -243,9 +281,7 @@ describe('UserIndexController', 'controller:user-index', function() {
         preferences: { home_board: {} },
         permissions: { edit: true }
       }));
-      controller.set('appState', EmberObject.create({
-        currentUser: EmberObject.create({ user_name: 'melis' })
-      }));
+      stubAppState(controller, 'melis');
       controller.set('selected', 'mine');
       controller.set('parent_object', null);
 
@@ -275,9 +311,7 @@ describe('UserIndexController', 'controller:user-index', function() {
         preferences: { home_board: {} },
         permissions: { edit: true }
       }));
-      controller.set('appState', EmberObject.create({
-        currentUser: EmberObject.create({ user_name: 'melis' })
-      }));
+      stubAppState(controller, 'melis');
       controller.set('selected', 'mine');
       controller.set('parent_object', null);
 
@@ -309,9 +343,7 @@ describe('UserIndexController', 'controller:user-index', function() {
         preferences: { home_board: {} },
         permissions: { edit: true }
       }));
-      controller.set('appState', EmberObject.create({
-        currentUser: EmberObject.create({ user_name: 'melis' })
-      }));
+      stubAppState(controller, 'melis');
       controller.set('selected', 'mine');
       controller.set('parent_object', null);
       controller.set('filterStringDebounced', 'holidays');
