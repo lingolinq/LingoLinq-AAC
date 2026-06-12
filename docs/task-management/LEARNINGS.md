@@ -4219,3 +4219,46 @@ correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/mode
 **Approach:** `PREFERENCE_PARAMS` assigns whitelisted prefs **verbatim** — no type/shape check. When a pref feeds a computed `htmlSafe` inline style or a CSS class name (the `dashboard_layout`/`dashboard_sections`/`dashboard_order`/`dashboard_positions`/`dashboard_boards` set), validate it server-side against a known-keys whitelist on write (`sanitize_dashboard_preferences!`), dropping invalid values so the client falls back to defaults. The frontend already filters unknown keys (`orderedVisible` keeps only `vis[k]`-truthy keys; `effectiveLayout` whitelists `gentle`/`focused`) and builds styles only from the `AREA` map — so this is defense-in-depth, not the sole guard. Key list source of truth is `dashboard_sections.js`; duplicate it in `User::DASHBOARD_SECTION_KEYS` with a sync comment (Ruby can't import the JS).
 
 **Evidence:** `app/models/user.rb` (`DASHBOARD_SECTION_KEYS`, `sanitize_dashboard_preferences!`); triage of 6 merge findings in task log `2026-06-12-dashboard-merge-security-findings.md`. Note: board enumeration via `user_id` is already blocked by `boards_controller#index` `allowed?(user, 'view_detailed')` — not a gap.
+
+## Pattern: top-level route templates render into `#content` with NO `.ember-view` wrapper (shell/workspace height)
+
+**Surface:** `templates/application.hbs:1458-1459` (`<div id="content">{{ outlet }}</div>`), standalone route templates like `templates/board-picker.hbs`, the `.md-shell` height/flex chain in `app.scss`.
+
+**Gotcha:** A top-level ROUTE template (e.g. `/board-picker`) renders its root element **directly** into `#content` via `{{ outlet }}` — there is NO `.ember-view` / `#index_view` wrapper between `#content` and `.md-shell`. So the real chain is `#content > .md-shell.md-shell--board-picker > .md-workspace`. Dashboard pages are different: they render under `#index_view` (a `.ember-view`), so `#content .ember-view > .md-shell` matches THEM but NOT a standalone route. The base shell rule already encodes this by listing BOTH variants: `#content .ember-view > .md-shell, #content > .md-shell {…}` (app.scss:41168-41169). If you target a standalone shell with an `.ember-view`-based selector, it silently never matches.
+
+**Symptom that surfaced it:** On `/board-picker` ≤950px the glass `.md-workspace` card stopped at content height with the `#within_ember` mesh filling below it ("card ends, shell shows"). The `@media (max-width:950px)` single-column block (app.scss:55596) collapses `.md-shell`→`min-height:auto;flex:0 0 auto` and `.md-shell > .md-workspace`→`flex:0 0 auto;min-height:min-content` — intentional for the dashboard (long board lists must scroll), wrong for a short standalone page.
+
+**Fix:** restore BOTH the shell height AND the workspace grow — they are co-dependent (a prior attempt that only flex-grew the workspace failed: the generic shell rule kept the shell collapsed, so there was no free height to grow into, AND the workspace's (0,2,0) rule lost the source-order tie to the generic `flex:0 0 auto !important`). Scope robustly via `#within_ember:has(.board-picker-page)` (proven to match — same hook the bg fix uses — and indifferent to wrapper structure):
+```scss
+@media (max-width: 950px) {
+  #within_ember:has(.board-picker-page) .md-shell--board-picker { min-height: 100vh !important; }           /* (1,2,0) beats #content > .md-shell (1,1,0) */
+  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace {
+    flex: 1 1 auto !important; min-height: auto !important;                                                  /* (1,3,0) beats .md-shell > .md-workspace (0,2,0) */
+  }
+}
+```
+**Lessons:** (1) Verify the actual DOM wrapper chain before writing shell/workspace selectors on a standalone route — don't assume the dashboard's `.ember-view`/`#index_view` nesting. (2) "Shrink-to-content vs fill-viewport" needs the shell height AND the workspace flex fixed together; fixing only one is a no-op. (3) For a card-not-full-height bug, flex-grow IS the right layer (≠ the `#within_ember` bg-paint fix used for bg-not-filling) — but only once the shell provides a definite tall height.
+
+**Evidence:** task log `2026-06-12-board-picker-workspace-fullheight.md`; contrast `2026-06-12-board-picker-bg-and-tabs.md` (bg fill, different layer).
+
+## Pattern: v2 Ember addons (ember-auto-import code-splitting) break on the Rails-served bundle
+
+**Surface:** `app/frontend/ember-cli-build.js` (`autoImport.webpack`), `app/assets/javascripts/application.js` + `application-test.js` (Sprockets manifests), `bin/render-build.sh`, `lib/tasks/extras.rake` (`extras:assert_js`).
+
+**Symptom:** A feature using a **v2 Ember addon** (e.g. `ember-shepherd` → the Shepherd tours) works under `ember serve` but on the deployed Rails app throws `Could not find module '<pkg>/services/<x>' imported from 'frontend/services/<x>'` and `this.class.create is not a function` (the injected service can't be built).
+
+**Root cause:** A v2 addon's `_app_` re-export is merged into the app (`frontend/services/<x>`) but its real implementation is pulled in by **ember-auto-import**, which by default **code-splits** it into a content-hashed `chunk.<id>.<hash>.js`. Ember's own `index.html` loads those chunk `<script>`s; the **Rails app does NOT use that index.html** — it concatenates only `vendor.js` + `frontend.js` via the Sprockets manifest (`//= require`). So the chunk that DEFINES the module is never on the page. This app's integration (`fingerprint`/`minify` disabled, manual concat) assumes everything lands in `vendor.js`/`frontend.js`; the first runtime auto-import dependency exposes the gap.
+
+**Deploy flow (important):** Render DOES build — `render.yaml` → `bin/render-build.sh`: `extras:assert_js` → `ember build --environment production` → hardcoded `cp -f dist/assets/{frontend,vendor}.{js,css}` onto the Sprockets load path (`app/assets/javascripts|stylesheets`) → `assets:clobber` + `assets:precompile`. Anything not in that `cp` list and not `//= require`d is dropped.
+
+**Fix (4 coordinated changes):**
+1. `ember-cli-build.js` `autoImport.webpack`: `optimization: { splitChunks: false, runtimeChunk: false }` + `output: { filename: 'auto-import-[name].js', chunkFilename: 'auto-import-[name].js' }` → one stable `dist/assets/auto-import-app.js` (runtime + all eager deps), no hashed chunks. (Only safe if the app has no dynamic `import()` — verify with `grep -rE "import\(" app/`; `LingoLinq.Log.import` etc. are method calls, not module imports.)
+2. `application.js` (+ `application-test.js`): `//= require auto-import-app.js` immediately BEFORE `frontend.js` (runtime must load before the app that consumes it).
+3. `bin/render-build.sh`: add `cp -f app/frontend/dist/assets/auto-import-app.js app/assets/javascripts/auto-import-app.js` to the copy block.
+4. `extras:assert_js`: copy it too, and `touch` an empty placeholder when no build exists so precompile never fails on the missing `require`.
+
+**Verify:** after `ember build` there must be ZERO `dist/assets/chunk.*.js` the app needs (only `auto-import-app.js`); after `assets:precompile`, the served `public/assets/application-*.js` must contain the impl (`grep -c Shepherd …` > 0) and define `<pkg>/services/<x>`. Load order: auto-import runtime byte-offset < the `frontend/services/<x>` re-export.
+
+**Lessons:** (1) The Rails app ignores Ember's `index.html` — any ember-auto-import output beyond `vendor.js`/`frontend.js` must be manually wired into the Sprockets manifest AND the render-build copy step. (2) Adding a v2 addon to this app is never just `npm install` — it needs this build-wiring. (3) Diagnose deploy bugs against the ACTUAL build (`render.yaml`/`render-build.sh`), not assumptions about committed assets.
+
+**Evidence:** task log `2026-06-12-shepherd-tours-broken-on-render.md`.

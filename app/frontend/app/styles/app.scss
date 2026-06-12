@@ -55656,6 +55656,23 @@ a.md-goal-nav-action:hover,
     border-radius: 48px !important;
     overflow: visible !important;
   }
+  /* Board-picker is a short standalone page rendered straight into `#content`
+     ({{outlet}}, no `.ember-view`/`#index_view` wrapper), so the dashboard's
+     shrink-to-content rules above (`.md-shell` → min-height:auto;flex:0 0 auto,
+     `.md-shell > .md-workspace` → flex:0 0 auto;min-height:min-content) leave the
+     glass card stopping at its content while the `#within_ember` mesh fills below
+     it — the "card ends, shell shows" gap. Restore the shell's full height AND let
+     the workspace grow into it (both are required: a previous attempt that only
+     flex-grew the workspace failed because the shell stayed collapsed). Scoped via
+     `#within_ember:has(.board-picker-page)` (proven to match this page, robust to
+     wrapper structure, specificity (1,2,0)/(1,3,0) wins over the generic rules). */
+  #within_ember:has(.board-picker-page) .md-shell--board-picker {
+    min-height: 100vh !important;
+  }
+  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace {
+    flex: 1 1 auto !important;
+    min-height: auto !important;
+  }
   .md-grid {
     grid-template-columns: 1fr !important;
     grid-template-areas:
