@@ -13,7 +13,13 @@ import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
-import { filterRootBoards } from '../../utils/board-roots';
+import {
+  filterRootBoards,
+  filterBrandSetRootBoards,
+  dedupeBoardRows,
+  boardsPagePreferUserNames,
+  filterBoardsPageTopLevelRoots
+} from '../../utils/board-roots';
 import boardDetailCache from '../../utils/board_detail_cache';
 
 function invertBoardTagMap(map) {
@@ -41,6 +47,9 @@ function allTaggedGlobalIds(map) {
   });
   return s;
 }
+
+/** Cap live filter results so typing e.g. "h" does not render hundreds of tiles. */
+var BOARDS_PAGE_SEARCH_LIMIT = 50;
 
 export default Controller.extend({
   store: service('store'),
@@ -231,62 +240,24 @@ export default Controller.extend({
       return allCategorized;
     }
   ),
-  /** Sorted folder rows: { tag, count } for strip (hidden when filter excludes tag name and all boards in tag). */
+  /** Sorted folder rows: { tag, count } for strip. Counts are static while
+     the main boards filter runs — see boards_page_visible_results. */
   mineTagFolderSummaries: computed(
     'model.board_tag_map',
-    'filterStringDebounced',
     'model.my_boards.[]',
     function() {
       var map = this.get('model.board_tag_map');
       if (!map || typeof map !== 'object') { return []; }
-      var filter = (this.get('filterStringDebounced') || '').trim();
-      var re = null;
-      if (filter) {
-        try { re = new RegExp(filter, 'i'); } catch (e) { re = null; }
-      }
-      var gidToTags = invertBoardTagMap(map);
       var keys = Object.keys(map).sort();
       var res = [];
       var _this = this;
       keys.forEach(function(tag) {
         var ids = map[tag] || [];
-        if (re) {
-          var show = tag.match(re);
-          if (!show) {
-            /* Only let a root match cause the chip to show — sub-board
-               copies that came along via downstream tagging would
-               otherwise force the chip in for filter strings that
-               match a buried page name. */
-            show = ids.some(function(gid) {
-              if (!_this._isMineBoardRoot(gid)) { return false; }
-              var b = _this._findMineBoardByGlobalId(gid);
-              if (!b) { return false; }
-              return _this._boardRowMatchesFilter({ board: b, children: [] }, re, gidToTags);
-            });
-          }
-          if (!show) { return; }
-          var cnt = 0;
-          ids.forEach(function(gid) {
-            if (!_this._isMineBoardRoot(gid)) { return; }
-            var b = _this._findMineBoardByGlobalId(gid);
-            if (!b) { return; }
-            if (_this._boardRowMatchesFilter({ board: b, children: [] }, re, gidToTags)) {
-              cnt++;
-            }
-          });
-          res.push({ tag: tag, count: cnt });
-        } else {
-          /* Count only ROOT tagged boards — sub-board copies stored in
-             the tag map via the "include sub-boards" checkbox are part
-             of their root's tree, not standalone categorized items
-             from the user's mental model. Folder chip, drilled-in
-             grid, and BOARDS-chip "in folders" all agree on this. */
-          var cnt = 0;
-          ids.forEach(function(gid) {
-            if (_this._isMineBoardRoot(gid)) { cnt++; }
-          });
-          res.push({ tag: tag, count: cnt });
-        }
+        var cnt = 0;
+        ids.forEach(function(gid) {
+          if (_this._isMineBoardRoot(gid)) { cnt++; }
+        });
+        res.push({ tag: tag, count: cnt });
       });
       return res;
     }
@@ -305,6 +276,31 @@ export default Controller.extend({
     });
     return map;
   }),
+  boardTagMapInverted: computed('model.board_tag_map', function() {
+    return invertBoardTagMap(this.get('model.board_tag_map'));
+  }),
+  /** Pre-lowercased haystacks for live boards-page filter (built once per tab list). */
+  boardsPageSearchRows: computed(
+    'boards_page_raw_list.[]',
+    'boardTagMapInverted',
+    function() {
+      var rawList = this.get('boards_page_raw_list') || [];
+      var gidToTags = this.get('boardTagMapInverted') || {};
+      var rows = [];
+      for (var i = 0; i < rawList.length; i++) {
+        var b = rawList[i];
+        if (!b || !b.get) { continue; }
+        var haystack = (b.get('search_string') || '').toLowerCase();
+        var gid = b.get('global_id');
+        var tags = gidToTags[gid];
+        if (tags && tags.length) {
+          haystack = haystack + ' ' + tags.join(' ').toLowerCase();
+        }
+        rows.push({ board: b, haystack: haystack });
+      }
+      return rows;
+    }
+  ),
   _findMineBoardByGlobalId: function(gid) {
     var map = this.get('myBoardsByGlobalIdMap');
     if (!map) { return null; }
@@ -452,59 +448,41 @@ export default Controller.extend({
   boards_page_visible_results: computed(
     'filtered_results',
     'filterStringDebounced',
-    'boards_page_raw_list',
+    'boardsPageSearchRows.[]',
     'parent_object',
-    'mineFoldersEnabled',
-    'model.board_tag_map',
     function() {
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
         return this.get('filtered_results') || [];
       }
-      var rawList = this.get('boards_page_raw_list');
-      var useMineFolder = this.get('mineFoldersEnabled');
-      if (rawList && rawList.length > 0 && !useMineFolder) {
-        try {
-          var re = new RegExp(filter, 'i');
-          return rawList.filter(function(b) {
-            return (b && b.get && b.get('search_string') || '').match(re);
-          }).map(function(b) {
-            return { board: b, children: [] };
-          });
-        } catch (e) {
-          return this.get('filtered_results') || [];
-        }
+      var q = filter.toLowerCase();
+      var rows = this.get('boardsPageSearchRows') || [];
+      var matches = [];
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].haystack.indexOf(q) === -1) { continue; }
+        matches.push({ board: rows[i].board, children: [] });
+        if (matches.length >= BOARDS_PAGE_SEARCH_LIMIT) { break; }
       }
-      var list = this.get('filtered_results') || [];
-      var tagMap = this.get('model.board_tag_map');
-      var gidToTags = invertBoardTagMap(tagMap);
-      try {
-        var re = new RegExp(filter, 'i');
-        return list.filter(function(i) {
-          return this._boardRowMatchesFilter(i, re, gidToTags);
-        }.bind(this));
-      } catch (err) {
-        return list;
-      }
+      return matches;
     }
   ),
-  _boardRowMatchesFilter: function(row, re, gidToTags) {
-    if (!row || !row.board || !row.board.get) { return false; }
-    var board = row.board;
-    var search = (board.get('search_string') || '');
-    if (search.match(re)) { return true; }
-    var gid = board.get('global_id');
-    var tags = (gidToTags && gidToTags[gid]) || [];
-    for (var t = 0; t < tags.length; t++) {
-      if (tags[t].match(re)) { return true; }
+  boards_page_search_truncated: computed(
+    'filterStringDebounced',
+    'boardsPageSearchRows.[]',
+    function() {
+      var filter = (this.get('filterStringDebounced') || '').trim();
+      if (!filter) { return false; }
+      var q = filter.toLowerCase();
+      var rows = this.get('boardsPageSearchRows') || [];
+      var count = 0;
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].haystack.indexOf(q) === -1) { continue; }
+        count++;
+        if (count > BOARDS_PAGE_SEARCH_LIMIT) { return true; }
+      }
+      return false;
     }
-    if (row.children && row.children.length) {
-      return row.children.some(function(c) {
-        return this._boardRowMatchesFilter({ board: c.board, children: [] }, re, gidToTags);
-      }.bind(this));
-    }
-    return false;
-  },
+  ),
   board_list: computed(
     'selected',
     'parent_object',
@@ -780,6 +758,37 @@ export default Controller.extend({
           var bName = (bBoard.get('name') || '').toLowerCase();
           return aName.localeCompare(bName);
         });
+      }
+      /* Default grid only — search uses boards_page_raw_list and bypasses
+         this dedup. Both tabs: brand-set roots + same-name collapse. Mine
+         also drops owned copy-set sub-boards via filterRootBoards first. */
+      if (!this.get('parent_object')) {
+        var selectedTab = this.get('selected');
+        var preferOwners = boardsPagePreferUserNames(this.get('appState'));
+        if (selectedTab === 'public') {
+          var publicRootIds = Object.create(null);
+          filterBrandSetRootBoards(new_list.map(function(row) {
+            return row && row.board;
+          })).forEach(function(b) {
+            if (b) { publicRootIds[String(emberGet(b, 'id'))] = true; }
+          });
+          new_list = new_list.filter(function(row) {
+            if (!row || !row.board) { return false; }
+            return publicRootIds[String(emberGet(row.board, 'id'))];
+          });
+          new_list = dedupeBoardRows(new_list, { preferUserNames: preferOwners });
+        } else if (selectedTab === 'mine' || !selectedTab) {
+          var mineRootIds = Object.create(null);
+          filterBoardsPageTopLevelRoots(list, this.get('model.id')).forEach(function(b) {
+            if (b) { mineRootIds[String(emberGet(b, 'id'))] = true; }
+          });
+          new_list = new_list.filter(function(row) {
+            if (row && row.orphan) { return true; }
+            if (!row || !row.board) { return false; }
+            return mineRootIds[String(emberGet(row.board, 'id'))];
+          });
+          new_list = dedupeBoardRows(new_list, { preferUserNames: preferOwners });
+        }
       }
       /* if(this.get('filterString')) {
         var re = new RegExp(this.get('filterString'), 'i');

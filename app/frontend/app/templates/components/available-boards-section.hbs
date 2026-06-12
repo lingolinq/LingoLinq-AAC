@@ -403,6 +403,9 @@
                     {{else}}
                       <p class="ub-boards-page__folder-context-empty">{{t "No boards in this folder yet. Drag a board onto a folder, or use \"Tag a board\" to add one." key="folder_empty_hint"}}</p>
                     {{/each}}
+                    {{#if this.boardsCtrl.boards_page_search_truncated}}
+                      <p class="ub-boards-page__filter-truncated-hint">{{t "Showing the first 50 matches. Keep typing to narrow results." key="boards_filter_truncated_hint"}}</p>
+                    {{/if}}
                     {{#if this.boardsCtrl.board_list.has_more}}
                       {{#unless this.boardsCtrl.filterString}}
                         <div class="ub-boards-page__show-more" style="overflow-anchor: none;">
@@ -739,6 +742,9 @@
             {{/if}}
           {{/if}}
         {{/each}}
+        {{#if this.boardsCtrl.boards_page_search_truncated}}
+          <p class="ub-boards-page__filter-truncated-hint">{{t "Showing the first 50 matches. Keep typing to narrow results." key="boards_filter_truncated_hint"}}</p>
+        {{/if}}
         {{#if this.boardsCtrl.board_list.has_more}}
           {{#unless this.boardsCtrl.filterString}}
             <div class="ub-boards-page__show-more" style="overflow-anchor: none;">

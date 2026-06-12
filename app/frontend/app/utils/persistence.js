@@ -832,6 +832,10 @@ var persistence = EmberObject.extend({
       // TODO: did this bust everyone?
       // url = url.replace(/\%2520/g, '%20');
     }
+    /* OpenSymbols removed arasaac/no_2.png (403 + XML); no.png is the live asset. */
+    if (url && /\/libraries\/arasaac\/no_2\.png(\?|$)/i.test(url)) {
+      url = url.replace(/\/no_2\.png/i, '/no.png');
+    }
     if(url && url.match(/user_token=[\w-]+$/)) {
       return url.replace(/[\?\&]user_token=[\w-]+$/, '');
     } else {

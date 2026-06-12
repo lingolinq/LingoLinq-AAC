@@ -32,11 +32,19 @@ export const BRAND_FAMILIES = [
     label_key: 'quick_core',
     default_label: 'Quick Core',
     query: 'Quick Core',
-    root_re: /(^|\/)quick-core-\d+(-w(?:ith)?-keyboard)?$/i,
+    /* Roots: `quick-core-60`, `core-112`, `core-blocks-112`, optional `-w-keyboard`.
+       Sub-boards: `core-blocks-112-categories`, names like "Core Blocks 112 - …"
+       or "Core 112 - at". Legacy slugs omit the `quick-` prefix on copies. */
+    root_re: /(^|\/)(?:quick-core|core)(?:-blocks)?-\d+(-w(?:ith)?-keyboard)?$/i,
     test: function(board) {
       var key = (board && board.get && board.get('key')) || '';
       var name = (board && board.get && board.get('name')) || '';
-      return /(?:^|\/|-)quick-core\b/i.test(key) || /\bquick[\s-]?core\b/i.test(name);
+      return /(?:^|\/|-)quick-core\b/i.test(key) ||
+        /(?:^|\/|-)core-blocks\b/i.test(key) ||
+        /(?:^|\/|-)core-\d+\b/i.test(key) ||
+        /\bquick[\s-]?core\b/i.test(name) ||
+        /\bcore\s+blocks\s+\d+\b/i.test(name) ||
+        /\bcore\s+\d+\b/i.test(name);
     }
   },
   {

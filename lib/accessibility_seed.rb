@@ -13,7 +13,7 @@ module AccessibilitySeed
   ].freeze
 
   YES_IMAGE_URL = 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png'.freeze
-  NO_IMAGE_URL = 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no_2.png'.freeze
+  NO_IMAGE_URL = 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no.png'.freeze
 
   def self.enabled?
     ENV['SEED_ACCESSIBILITY_USERS'].to_s =~ BetaSeed::TRUTHY_PATTERN
