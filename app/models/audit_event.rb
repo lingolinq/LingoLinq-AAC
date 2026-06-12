@@ -11,10 +11,10 @@ class AuditEvent < ApplicationRecord
   end
   
   def self.log_command(user_key, opts)
-    comment = self.new(user_key: user_key, data: opts)
-    unless comment.save
-      Rails.logger.error('[AuditEvent] failed to persist audit record: ' + comment.errors.full_messages.join(', '))
+    event = self.new(user_key: user_key, data: opts)
+    unless event.save
+      Rails.logger.error('[AuditEvent] failed to persist audit record: ' + event.errors.full_messages.join(', '))
     end
-    comment
+    event
   end
 end
