@@ -166,6 +166,25 @@ class ButtonImage < ApplicationRecord
     lib
   end
   
+  # True when an `image/svg+xml` data: URI carries SCRIPTABLE content — a <script>
+  # or <foreignObject> element, an inline event handler (on…=), or a javascript:
+  # URI. Decodes the payload (base64 or percent-encoded) first so the check runs on
+  # the real markup, not the wrapper. Used to reject malicious SVG uploads at the
+  # data: sink; static symbol SVGs contain none of these and pass.
+  def self.svg_data_uri_active_content?(data_uri)
+    str = data_uri.to_s
+    return false unless str.match(/\Adata:image\/svg\+xml/i)
+    payload = str.sub(/\Adata:[^,]*,/, '')
+    decoded = if str.match(/;base64,/i)
+      (Base64.decode64(payload) rescue '')
+    else
+      (CGI.unescape(payload) rescue payload)
+    end
+    decoded = decoded.to_s.downcase
+    decoded.include?('<script') || decoded.include?('<foreignobject') ||
+      !!decoded.match(/\son\w+\s*=/) || decoded.include?('javascript:')
+  end
+
   def process_params(params, non_user_params)
     raise "user required as image author" unless self.user_id || non_user_params[:user] || non_user_params[:no_author]
     self.user ||= non_user_params[:user] if non_user_params[:user]
@@ -188,12 +207,29 @@ class ButtonImage < ApplicationRecord
       # Data URLs (word art, file upload, webcam) are not processed by process_url (http only).
       # Store in data column so JsonApi can return them before S3 upload completes.
       data_url = params['data_url'].presence || (params['url'] if params['url'].to_s.match(/^data:/))
+      # Security: a ButtonImage must be an image. Drop a data: URI whose own MIME
+      # isn't image/* (e.g. data:text/html — a stored-XSS payload were the bytes
+      # ever served / opened as a document) so it's never stored.
+      data_url = nil if data_url.to_s.match(/\Adata:/i) && !data_url.to_s.match(/\Adata:image\//i)
+      # ...and drop an SVG data: URI that carries ACTIVE content (<script>, event
+      # handlers, <foreignObject>, javascript: URIs) — those would execute if the
+      # bytes were ever opened as a document. Static symbol SVGs have none, so they
+      # pass. (Remote http SVGs, fetched by the upload job, are a separate follow-up.)
+      data_url = nil if data_url.present? && ButtonImage.svg_data_uri_active_content?(data_url)
       if data_url.present?
         self.data = data_url
         self.settings['data_uri'] = data_url
       end
       process_url(params['url'], non_user_params) if params['url'] && params['url'].match(/^http/)
-      self.settings['content_type'] = params['content_type'] if params['content_type']
+      # Security: only ever store an image/* content type. Anything else
+      # (text/html, application/*, …) is coerced to image/png so a client-supplied
+      # type can't ride through to the S3 object's Content-Type and get served
+      # inline as a document. SVG passes (a legit symbol-library type); stripping
+      # scripts from SVG is a separate follow-up.
+      if params['content_type'].present?
+        ct = params['content_type'].to_s
+        self.settings['content_type'] = ct.match(/\Aimage\//i) ? ct : 'image/png'
+      end
       self.settings['width'] = params['width'].to_i if params['width']
       self.settings['height'] = params['height'].to_i if params['height']
       self.settings['hc'] = !!params['hc'] if params['hc']

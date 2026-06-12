@@ -107,6 +107,13 @@
             {{/if}}
           </section>
         {{/each}}
+      {{else if (and this.tabbed this.category.cause_effect)}}
+        {{!-- Board-picker page: Cause and Effect is in development — show a single
+             "coming soon" button as the category's content instead of a grid. The
+             non-tabbed picker keeps its board grid (falls to the {{else}} below). --}}
+        <div class="md-home-boards-picker__coming-soon">
+          <button type="button" class="md-btn md-home-boards-picker__coming-soon-btn" disabled>{{t "Coming soon" key="coming_soon"}}</button>
+        </div>
       {{else}}
       {{!-- Keyboards shows only the hardcoded placeholders above — suppress the
            category_boards grid + fallback search (nothing is tagged "keyboards",

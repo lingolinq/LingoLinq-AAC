@@ -510,7 +510,8 @@
                          draggable={{if cell.draggable "true" "false"}}
                          onclick={{action "cellClicked" cell.idx}}
                          ondragstart={{action "cellDragStart" rowIdx colIdx}}
-                         ondragover={{action "cellDragOver"}}
+                         ondragover={{action "cellDragOver" rowIdx colIdx}}
+                         ondragleave={{action "cellDragLeave"}}
                          ondrop={{action "cellDrop" rowIdx colIdx}}
                          ondragend={{action "cellDragEnd"}}>
                       <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default {{unless cell.has_color "md-board-detail-symbol-card--no-color"}} {{if cell.empty "md-board-detail-symbol-card--empty"}} {{if cell.is_duplicate "md-board-detail-symbol-card--duplicate"}} {{if cell.no_category "md-board-detail-symbol-card--no-category"}}"

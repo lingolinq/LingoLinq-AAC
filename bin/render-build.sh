@@ -49,10 +49,18 @@ cd ../..
 echo "=== Copying Ember build output into Rails asset paths ==="
 cp -f app/frontend/dist/assets/frontend.js  app/assets/javascripts/frontend.js
 cp -f app/frontend/dist/assets/vendor.js    app/assets/javascripts/vendor.js
+# ember-auto-import entry bundle (runtime + npm deps such as the ember-shepherd
+# v2 addon's services/tour). Without copying this onto the Sprockets load path,
+# the bundle that DEFINES those modules is never loaded on the Rails-served app
+# and tours crash with "Could not find module 'ember-shepherd/services/tour'".
+# Stable filename comes from autoImport.webpack.output in
+# app/frontend/ember-cli-build.js; concatenated via application.js manifest.
+cp -f app/frontend/dist/assets/auto-import-app.js app/assets/javascripts/auto-import-app.js
 cp -f app/frontend/dist/assets/frontend.css app/assets/stylesheets/frontend.css
 cp -f app/frontend/dist/assets/vendor.css   app/assets/stylesheets/vendor.css
-echo "frontend.js:  $(wc -c < app/assets/javascripts/frontend.js) bytes"
-echo "vendor.js:    $(wc -c < app/assets/javascripts/vendor.js) bytes"
+echo "frontend.js:        $(wc -c < app/assets/javascripts/frontend.js) bytes"
+echo "vendor.js:          $(wc -c < app/assets/javascripts/vendor.js) bytes"
+echo "auto-import-app.js: $(wc -c < app/assets/javascripts/auto-import-app.js) bytes"
 echo "frontend.css: $(wc -c < app/assets/stylesheets/frontend.css) bytes"
 echo "vendor.css:   $(wc -c < app/assets/stylesheets/vendor.css) bytes"
 

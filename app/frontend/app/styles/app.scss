@@ -632,6 +632,25 @@ html, body {
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
 }
 
+/* Board-picker page: same recurring "short background" bug as login/register —
+   /board-picker is a top-level route, so its #content is NOT `.index.with_user`
+   and never gets the #content background (line ~546), and the .md-shell mesh only
+   reaches content height inside the scrolling #content. So on short content the
+   area below the picker card renders bare. FIX (per LEARNINGS): paint the SAME
+   .md-shell base mesh on the full-viewport `#within_ember` (position:fixed; inset:0
+   on the page-footer layout) so it fills the ENTIRE viewport behind the scrolling
+   content — no seam, no short bg. Compound :has() (1,2,0) out-specifies the
+   `:has(.page-footer)` reset above. */
+#within_ember:has(.page-footer):has(.board-picker-page) {
+  background:
+    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
+    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
+    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
+    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
+    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
+    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
+}
+
 /* Full-screen onboarding: hide the app footer bar on the beta pages. Use
    display:none (not removal) — the element stays in the DOM so the
    `:has(.page-footer)` shell layout above still matches; it just no longer
@@ -5223,6 +5242,28 @@ tr.accuracy_non_mastered {
   font-size: 16px;
   color: var(--md-muted);
 }
+/* Cause and Effect category — a single centered "Coming soon" pill while the
+   catalog is in development (no board grid). Mirrors the keyboard "Coming soon"
+   tag's brand-blue pill language, sized up as a standalone button. */
+.md-home-boards-picker__coming-soon {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+}
+.md-home-boards-picker__coming-soon-btn,
+.md-home-boards-picker__coming-soon-btn[disabled] {
+  cursor: default;
+  padding: 12px 28px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: $brand-smart-blue;
+  background: rgba($brand-smart-blue, 0.12);
+  border: 1px solid rgba($brand-smart-blue, 0.25);
+  opacity: 1;
+}
 .md-home-boards-picker__search {
   margin-top: 1.25rem;
   padding-top: 1rem;
@@ -5716,12 +5757,16 @@ tr.accuracy_non_mastered {
     0 2px 8px rgba(15, 23, 42, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
 }
+/* Hover/focus previews the ACTIVE look — same soft verdigris glow ring as the
+   selected tab (per request) so every tab "lights up" to its active state on
+   hover. Kept in sync with the .is-active rule below. */
 .board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li > a:hover,
 .board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li > a:focus-visible {
-  border-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
   box-shadow:
-    0 4px 12px rgba(15, 23, 42, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+    0 0 14px rgba($brand-verdigris, 0.22),
+    0 6px 16px rgba($brand-verdigris-aa, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
 }
 /* Selected tab — same pill, plus a soft subtle verdigris glow ring so it's
    clearly the active one. */
@@ -29364,23 +29409,23 @@ header #identity #identity_button.btn::after {
    unscoped so both layouts stay circular. */
 body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger,
 body.ll-layout-focused .app-navbar__home-actions .md-getting-started-tour__trigger {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  color: #ffffff !important;
+  background: linear-gradient(135deg, $focus-accent-from, $focus-nav-accent-to) !important;
+  border: 1px solid rgba($focus-on-dark, 0.16) !important;
+  color: $focus-on-dark !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 4px 10px rgba($la-navy, 0.28) !important;
+    inset 0 1px 0 rgba($focus-on-dark, 0.18),
+    0 4px 10px rgba($focus-shadow-ink, 0.28) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger-icon,
 body.ll-layout-focused .app-navbar__home-actions .md-getting-started-tour__trigger-icon {
-  color: #ffffff !important;
+  color: $focus-on-dark !important;
 }
 /* The map (Take a Tour) glyph uses HARDCODED hex strokes (#4C86D8 / #46505F), not
    currentColor, so `color` doesn't reach it — override the strokes to white. */
 body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger-icon * {
-  stroke: #ffffff !important;
+  stroke: $focus-on-dark !important;
 }
 /* While the Getting Started modal series is open the page chrome is dimmed
    (body.md-gst-active, set by getting-started-tour). Hide the relocated inner-header
@@ -41271,8 +41316,8 @@ a.la-footer-bottom-a11y-wcag {
    brand colour (the RIGHT side) instead of the global charcoal-blue. */
 .md-shell--layout-focused .md-pillnav__pill.active,
 .md-shell--layout-focused .md-pillnav__pill.is-active {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-dusty-denim) !important;
-  border-color: rgba($brand-dusty-denim, 0.3) !important;
+  background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+  border-color: rgba($focus-pill-accent-to, 0.3) !important;
 }
 .md-workspace > .md-pillnav::after {
   content: '' !important;
@@ -42352,6 +42397,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
       radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.06), transparent 50%),
       linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 15%)} 0%, #{color.adjust($brand-stone-200, $lightness: 15%)} 50%, #{color.adjust($brand-stone-300, $lightness: 15%)} 100%) !important;
   }
+  /* The Speak card uses its own variant classes (--speak-wide-only article /
+     --speak-as-button narrow), NOT the generic --as-button, so it must be listed
+     explicitly or it would stay left-aligned when it's the lone full-width card. */
+  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-wide-only .md-card__head,
+  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-as-button .md-card__head,
   .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button .md-card__head,
   .md-grid--fullspan-extras  .md-card.md-card--extras.md-card--as-button .md-card__head,
   .md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__head,
@@ -42362,6 +42412,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   /* Centre the TITLE/SUB text too — not just the icon+text cluster — when the card
      spans both columns (per request), overriding their default left alignment. */
+  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-wide-only .md-card__titles,
+  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-as-button .md-card__titles,
   .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button .md-card__titles,
   .md-grid--fullspan-extras  .md-card.md-card--extras.md-card--as-button .md-card__titles,
   .md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__titles,
@@ -46900,52 +46952,51 @@ a.md-goal-nav-action:hover,
   /* Hero height — 20px taller (200→220) for a bit more presence. */
   min-height: 220px !important;
   padding: 20px 32px !important;
-  color: #ffffff !important;
+  color: $focus-on-dark !important;
   font: inherit !important;
   cursor: pointer !important;
   /* Discrete object, not a full-bleed banner: breathing room around it + a rim,
      and a transition so the hover/press states animate. */
   margin: 6px 6px 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba($focus-on-dark, 0.14) !important;
   transition: transform 0.14s ease, box-shadow 0.14s ease !important;
-  /* "Glossy button" radial sheen on a DESATURATED Brand Navy (navy mixed ~28%
-     toward gray to pull the chroma down): lightest in the CENTER, fading to a
-     dark muted navy at the OUTSIDE edges (OKLAB-interpolated). Centre adds a
-     hair of white for the sheen; the outer stop is deepened 34% toward black. */
+  /* "Glossy button" radial sheen on a DESATURATED Brand Navy ($focus-hero-base):
+     lightest in the CENTER, fading to a dark muted navy at the OUTSIDE edges
+     (OKLAB-interpolated). See $focus-hero-center / $focus-hero-edge. */
   background: radial-gradient(ellipse at center in oklab,
-    color-mix(in oklch, color-mix(in oklch, $brand-navy, gray 28%) 84%, white) 0%,
-    color-mix(in oklch, color-mix(in oklch, $brand-navy, gray 28%), black 34%) 100%) !important;
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%) !important;
   /* RAISED elevation: a bright lit top bevel + a darker inner bottom lip (the
      extruded edge) + a tight contact shadow and a broad drop shadow, so the button
      clearly floats above the page rather than reading as a flat hero. */
   box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.36),
-    inset 0 -7px 14px rgba($la-navy, 0.36),
-    0 3px 6px rgba($la-navy, 0.26),
-    0 20px 40px rgba($la-navy, 0.42),
-    0 38px 70px rgba($la-navy, 0.30),
-    0 0 28px rgba($brand-verdigris, 0.10) !important;
+    inset 0 3px 0 rgba($focus-on-dark, 0.36),
+    inset 0 -7px 14px rgba($focus-shadow-ink, 0.36),
+    0 3px 6px rgba($focus-shadow-ink, 0.26),
+    0 20px 40px rgba($focus-shadow-ink, 0.42),
+    0 38px 70px rgba($focus-shadow-ink, 0.30),
+    0 0 28px rgba($focus-hero-glow, 0.10) !important;
 }
 /* Hover: a clear "press me" cue — lift 2px, deepen the drop shadow, and bloom a
    faint brand-blue glow around the whole card so it reads as interactive. */
 .md-grid.md-grid--layout-focused .md-card.md-card--speak-focused:hover {
   transform: translateY(-2px) !important;
   box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.40),
-    inset 0 -7px 14px rgba($la-navy, 0.34),
-    0 6px 14px rgba($la-navy, 0.28),
-    0 34px 60px rgba($la-navy, 0.50),
-    0 56px 96px rgba($la-navy, 0.34),
-    0 0 46px rgba($brand-dusty-denim, 0.35) !important;
+    inset 0 3px 0 rgba($focus-on-dark, 0.40),
+    inset 0 -7px 14px rgba($focus-shadow-ink, 0.34),
+    0 6px 14px rgba($focus-shadow-ink, 0.28),
+    0 34px 60px rgba($focus-shadow-ink, 0.50),
+    0 56px 96px rgba($focus-shadow-ink, 0.34),
+    0 0 46px rgba($focus-hero-glow-hover, 0.35) !important;
 }
 /* Active: PRESS — depress down, collapse the drop shadow + invert to an inset
    "pushed-in" shadow (the decisive "it's a button" cue). */
 .md-grid.md-grid--layout-focused .md-card.md-card--speak-focused:active {
   transform: translateY(2px) !important;
   box-shadow:
-    inset 0 2px 5px rgba($la-navy, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 1px 2px rgba($la-navy, 0.18) !important;
+    inset 0 2px 5px rgba($focus-shadow-ink, 0.35),
+    inset 0 1px 0 rgba($focus-on-dark, 0.18),
+    0 1px 2px rgba($focus-shadow-ink, 0.18) !important;
 }
 .md-grid.md-grid--layout-focused .md-card.md-card--speak-as-button { display: none !important; }
 /* Larger screens only (above the wrap breakpoint): nudge the centered icon+text
@@ -46957,29 +47008,29 @@ a.md-goal-nav-action:hover,
     padding-right: 40px !important;
   }
 }
-.md-card--speak-focused__icon { color: #ffffff; line-height: 0; }
+.md-card--speak-focused__icon { color: $focus-on-dark; line-height: 0; }
 /* Speech badge bumped ~12.5% (112→126px) so it clearly wins over the text and
    becomes the hero's unmistakable focal point. */
 .md-card--speak-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
 /* Image on the left, title + subheader stacked + LEFT-aligned on the right. */
 .md-card--speak-focused__text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; }
-.md-card--speak-focused__title { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; color: #ffffff; }
+.md-card--speak-focused__title { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; color: $focus-on-dark; }
 /* Divider between the title and subheader: a left→right fading hairline
    (white, on the dark button). */
 .md-card--speak-focused__divider {
   width: 100%;
   height: 1px;
   margin: 3px 0;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.1) 100%);
+  background: linear-gradient(90deg, rgba($focus-on-dark, 0.55) 0%, rgba($focus-on-dark, 0.1) 100%);
 }
 /* Clear secondary line under the "Let's Communicate" title: a touch smaller
    (17→15) with a little more space from the divider, so it stops competing with
    the title. Brightened to ~88% white for legibility at the smaller size. */
-.md-card--speak-focused__sub { font-size: 15px; font-weight: 500; color: rgba(255, 255, 255, 0.88); margin-top: 4px; }
+.md-card--speak-focused__sub { font-size: 15px; font-weight: 500; color: rgba($focus-on-dark, 0.88); margin-top: 4px; }
 /* The "→" reads as an intentional "go" affordance, not trailing punctuation:
    brighter (full white vs the 0.78 sub) and a touch larger + bolder. */
 .md-card--speak-focused__arrow {
-  color: #ffffff;
+  color: $focus-on-dark;
   font-size: 1.5em;
   font-weight: 700;
   line-height: 1;
@@ -47011,14 +47062,13 @@ a.md-goal-nav-action:hover,
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add,
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:hover,
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add:focus-visible {
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  /* Desaturated Dusty Denim (denim mixed ~22% toward gray to pull the chroma
-     down) — top stop is the muted brand swatch, fading a touch deeper at the
-     bottom for the raised-button depth. White text. */
+  color: $focus-on-dark !important;
+  border-color: rgba($focus-on-dark, 0.18) !important;
+  /* Desaturated Dusty Denim "glossy button" — top stop is the muted brand swatch
+     ($focus-btn-base), fading a touch deeper ($focus-btn-edge) for raised depth. */
   background: linear-gradient(160deg in oklab,
-    color-mix(in oklch, $brand-dusty-denim, gray 22%) 0%,
-    color-mix(in oklch, color-mix(in oklch, $brand-dusty-denim, gray 22%), black 14%) 100%) !important;
+    #{$focus-btn-base} 0%,
+    #{$focus-btn-edge} 100%) !important;
 }
 /* Focused View hides the in-card "Create a Board" pill — there's a dedicated
    Create a Board action card in this layout, so the pill is redundant here.
@@ -47036,20 +47086,20 @@ a.md-goal-nav-action:hover,
     linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.12) 20%, rgba(255, 255, 255, 0) 42%),
     /* Very subtle blue-white tint (~2-3% denim cast) instead of the neutral
        gray — warms the surface toward the brand blue without reading as colored. */
-    linear-gradient(180deg, rgba(236, 241, 250, 0.60) 0%, rgba(212, 220, 236, 0.55) 100%) !important;
+    linear-gradient(180deg, rgba($focus-surface-top, 0.60) 0%, rgba($focus-surface-bottom, 0.55) 100%) !important;
   /* Quiet outer container — the content does the work, so the frame is a soft,
      low-contrast border, gently rounded, with a light shadow (not a shout). */
-  border: 1px solid rgba($la-navy, 0.07) !important;
+  border: 1px solid rgba($focus-shadow-ink, 0.07) !important;
   border-radius: 20px !important;
   /* Bottom edge still reads as floating (light rim bevels + a soft drop shadow),
      and a faint hero-blue wash bleeds in from the top so the Boards section feels
      related to the hero above it — all kept subtle. */
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 0 9px 18px rgba(76, 134, 216, 0.07),
+    inset 0 9px 18px rgba($focus-accent, 0.07),
     inset 0 -1px 0 rgba(255, 255, 255, 0.45),
-    0 1px 3px rgba($la-navy, 0.05),
-    0 6px 16px rgba($la-navy, 0.08) !important;
+    0 1px 3px rgba($focus-shadow-ink, 0.05),
+    0 6px 16px rgba($focus-shadow-ink, 0.08) !important;
   backdrop-filter: blur(14px) saturate(1.3) !important;
   -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
   /* Positioning context for the absolutely-placed "View All Boards" button below. */
@@ -47059,7 +47109,7 @@ a.md-goal-nav-action:hover,
    (it was reading as a second, unrelated element). Lighter muted slate so the two
    lines read as title → supporting line. */
 .md-grid.md-grid--layout-focused .md-card--boards .md-card__sub {
-  color: #8A97A8 !important;
+  color: $focus-text-muted !important;
 }
 /* Focused View — move "View All Boards" up to the Boards card's TOP-RIGHT, on the
    header row (the Create-a-Board pill that used to sit there is hidden here).
@@ -47121,9 +47171,9 @@ a.md-goal-nav-action:hover,
      match — the "+" isn't a .md-btn so it doesn't inherit it otherwise. */
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    inset 0 -1px 0 rgba($brand-dusty-denim, 0.18),
-    0 1px 2px rgba($la-navy, 0.08),
-    0 6px 16px rgba($brand-dusty-denim, 0.20) !important;
+    inset 0 -1px 0 rgba($focus-accent, 0.18),
+    0 1px 2px rgba($focus-shadow-ink, 0.08),
+    0 6px 16px rgba($focus-accent, 0.20) !important;
   transition: transform 0.14s ease, box-shadow 0.14s ease !important;
 }
 .md-grid.md-grid--layout-focused .md-card--boards .md-card--boards__add-icon {
@@ -50423,6 +50473,23 @@ a.md-goal-nav-action:hover,
     0 0 10px 0 rgba(232, 163, 23, 0.55),
     0 0 22px 4px rgba(232, 163, 23, 0.28),
     inset 0 0 0 1.5px rgba(232, 163, 23, 0.7) !important;
+}
+/* Drop cue while dragging an external image over a labeled tile (set by
+   cellDragOver in create-board-new). Brand teal so it reads as "drop here to
+   set this symbol", distinct from the amber duplicate/no-category warnings. */
+.md-board-detail-grid__cell--image-drop {
+  position: relative;
+  z-index: 2;
+}
+.md-board-detail-grid__cell--image-drop .md-board-detail-symbol-card {
+  box-shadow:
+    0 0 0 2px rgba(42, 157, 143, 0.85),
+    0 0 12px 0 rgba(42, 157, 143, 0.55),
+    0 0 24px 4px rgba(42, 157, 143, 0.28),
+    inset 0 0 0 1.5px rgba(42, 157, 143, 0.75) !important;
+  outline: 2px dashed rgba(42, 157, 143, 0.9);
+  outline-offset: 3px;
+  transition: box-shadow 0.12s ease, outline-color 0.12s ease;
 }
 /* Bottom-left warning triangle. Absolutely positioned inside the card
    so it floats over the symbol image without disrupting the existing
@@ -55588,6 +55655,23 @@ a.md-goal-nav-action:hover,
     padding: 40px 40px calc(40px - 9rem) 40px !important;
     border-radius: 48px !important;
     overflow: visible !important;
+  }
+  /* Board-picker is a short standalone page rendered straight into `#content`
+     ({{outlet}}, no `.ember-view`/`#index_view` wrapper), so the dashboard's
+     shrink-to-content rules above (`.md-shell` → min-height:auto;flex:0 0 auto,
+     `.md-shell > .md-workspace` → flex:0 0 auto;min-height:min-content) leave the
+     glass card stopping at its content while the `#within_ember` mesh fills below
+     it — the "card ends, shell shows" gap. Restore the shell's full height AND let
+     the workspace grow into it (both are required: a previous attempt that only
+     flex-grew the workspace failed because the shell stayed collapsed). Scoped via
+     `#within_ember:has(.board-picker-page)` (proven to match this page, robust to
+     wrapper structure, specificity (1,2,0)/(1,3,0) wins over the generic rules). */
+  #within_ember:has(.board-picker-page) .md-shell--board-picker {
+    min-height: 100vh !important;
+  }
+  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace {
+    flex: 1 1 auto !important;
+    min-height: auto !important;
   }
   .md-grid {
     grid-template-columns: 1fr !important;
@@ -69000,6 +69084,32 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex-direction: column;
   min-height: 0; /* allow inner body to actually scroll inside the flex parent */
   width: 100%;
+  position: relative; /* anchor for the in-place loading overlay */
+}
+/* In-place loading overlay (set by select_board). Fills the panel, dims +
+   blurs the list beneath, and centres the reused premium-progress card so the
+   wait matches the boards-page loading chrome. */
+.md-board-collection__loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 14px;
+  animation: ll-premium-progress-fade-in 200ms ease-out;
+}
+.md-board-collection__loading-card {
+  /* Tighter than the full-screen variant so it sits comfortably inside the
+     narrower options-menu panel. */
+  width: 100%;
+  max-width: 320px;
+  padding: 26px 28px 24px;
+  border-radius: 22px;
 }
 .md-board-collection__header {
   position: sticky;
@@ -69298,6 +69408,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-collection__item-home {
   background: rgba(80, 217, 209, 0.18);
   color: rgba(115, 232, 224, 1);
+}
+/* Language label is navy at 65% on light surfaces (above) — invisible on the
+   dark options-menu panel. Lighten it to a muted slate so it reads as a
+   secondary detail without competing with the board name. */
+.md-board-detail--dark .md-board-collection__item-lang {
+  color: rgba(226, 232, 240, 0.70);
 }
 
 /* Side-information pill — total button count for the board. Sits

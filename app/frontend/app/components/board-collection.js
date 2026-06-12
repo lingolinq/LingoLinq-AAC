@@ -1,9 +1,11 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { later as runLater } from '@ember/runloop';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import { filterRootBoards, dedupeByName } from '../utils/board-roots';
+import { filterBrandRoots } from '../utils/board-brands';
 /* Brand families (CommuniKate / Quick Core / Sequoia / Vocal Flair) — the
    `query`/`root_re`/`test` metadata now lives in the shared util so the
    Find Boards grid grouping and this panel classify brands identically.
@@ -211,8 +213,12 @@ export default Component.extend({
     /* Cluster to root tiles first — the `?user_id=X` query returns the
        full owned library including sub-board copies (the server `root`
        param is broken; see `_loadMyBoards`). Applied to the FULLY
-       accumulated set so it isn't first-page-sensitive. */
-    boards = filterRootBoards(boards || [], this._subjectUserId());
+       accumulated set so it isn't first-page-sensitive.
+       filterRootBoards keys on copy_id; brand-family page copies (e.g.
+       CommuniKate "alcohol") often have NO copy_id, so filterBrandRoots
+       drops those by key-pattern too — the same roots-only classifier the
+       Find Boards grouping + brand sections below use. */
+    boards = filterBrandRoots(filterRootBoards(boards || [], this._subjectUserId()));
     var homeKey = this._subjectHomeKey();
     var home = null;
     var starred = [];
@@ -358,7 +364,24 @@ export default Component.extend({
          controller's action also does the actual `router.transitionTo`
          so any navigation policy lives in one place. */
       var fn = this.get('onSelect');
-      if (typeof fn === 'function' && board) { fn(board); }
+      if (typeof fn !== 'function' || !board) { return; }
+      /* Dim the panel with an in-place loading overlay while the chosen
+         board loads on the left (the collection stays pinned open). The
+         controller returns the route Transition; clear when it settles.
+         Safety timeout covers the fallback path that returns nothing. */
+      var _this = this;
+      this.set('board_loading', true);
+      this.set('loading_board_name', (board.get && board.get('name')) || board.name || null);
+      var done = function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('board_loading', false);
+        _this.set('loading_board_name', null);
+      };
+      var ret = fn(board);
+      if (ret && typeof ret.then === 'function') {
+        ret.then(done, done);
+      }
+      runLater(_this, done, 8000);
     }
   }
 });

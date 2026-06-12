@@ -140,13 +140,17 @@ function _wirePreviewDrag(liveEl, ctx) {
       state.frame = 0;
       state.card.style.setProperty('transform', 'translate3d(' + ((state.x - state.startX) / scale) + 'px,' + ((state.y - state.startY) / scale) + 'px,0)', 'important');
       var hit = keyAt(state.x, state.y, state.card);
-      var hitKey = (hit && hit.key !== state.key) ? hit.key : null;
+      var hitKey = (hit && hit.key !== state.key && acceptsDrop(state.key, hit.key)) ? hit.key : null;
       if (hitKey !== state.lastHit) {
         state.lastHit = hitKey;
+        // Remember the card we highlighted so the DROP commits to exactly what the
+        // user saw, instead of re-hit-testing at release (the dragged card sits
+        // under the cursor and made elementsFromPoint miss — drops took 2-3 tries).
+        state.lastHitCard = hitKey && hit ? hit.card : null;
         clearTargets();
         // Only highlight a target the drop would actually accept, so a disallowed
         // drop (a utility card over a full-width row) gives no false affordance.
-        if (hitKey && acceptsDrop(state.key, hitKey)) { highlight([hitKey]); }
+        if (hitKey) { highlight([hitKey]); }
       }
     });
   };
@@ -203,7 +207,7 @@ function _wirePreviewDrag(liveEl, ctx) {
         if (e.button != null && e.button > 0) { return; }
         // Ghost: lift the card out (dimmed via .md-gst-dragging) and let it follow
         // the cursor by translating it — z-index above its siblings.
-        state = { key: s.key, card: card, ov: ov, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, lastHit: null, frame: 0 };
+        state = { key: s.key, card: card, ov: ov, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, lastHit: null, lastHitCard: null, frame: 0 };
         card.classList.add('md-gst-dragging');
         card.style.setProperty('z-index', '999', 'important');
         try { ov.setPointerCapture(e.pointerId); } catch (e2) { /* unsupported — drag still works without capture */ }
@@ -220,7 +224,18 @@ function _wirePreviewDrag(liveEl, ctx) {
         var src = state;
         state = null;
         if (src.frame) { caf(src.frame); }
-        var hit = keyAt(e.clientX, e.clientY, src.card);
+        // Commit to the target highlighted during the drag (what the user saw),
+        // NOT a fresh hit-test at release: the dragged card (z-index 999, under
+        // the cursor) made elementsFromPoint intermittently miss the target, so
+        // drops needed 2-3 tries even with the outline showing. Fall back to a
+        // hit-test only when no target was highlighted (e.g. a flick with no
+        // intervening move frame).
+        var hitKey = src.lastHit;
+        var hitCard = src.lastHitCard;
+        if (!hitKey) {
+          var h = keyAt(e.clientX, e.clientY, src.card);
+          if (h && h.key !== src.key && acceptsDrop(src.key, h.key)) { hitKey = h.key; hitCard = h.card; }
+        }
         // Drop the ghost back into the grid (transform pinned to none keeps hover
         // suppressed); a re-render after commit snaps it to its new cell.
         src.card.classList.remove('md-gst-dragging');
@@ -228,8 +243,8 @@ function _wirePreviewDrag(liveEl, ctx) {
         src.card.style.removeProperty('z-index');
         clearTargets();
         try { src.ov.releasePointerCapture(e.pointerId); } catch (e2) { /* noop */ }
-        if (hit && hit.key !== src.key) {
-          commitDrop(src.key, hit.key, _dropAfter(hit.card, e.clientX, e.clientY));
+        if (hitKey && hitKey !== src.key && hitCard) {
+          commitDrop(src.key, hitKey, _dropAfter(hitCard, e.clientX, e.clientY));
         }
       };
       ov.addEventListener('pointerup', finish);
@@ -778,8 +793,36 @@ export default Component.extend({
       // Whole-attribute set with a FRESH object reference → ember-data registers a real
       // change (serialized + saved) and fires the property change (home re-renders).
       user.set('preferences', prefs);
-      if (user.save) { user.save(); }
+      // Remember that the dashboard actually changed + the in-flight save, so the
+      // tour's Done/close handler can hard-reload the home page (landing at the top)
+      // only when something changed, and only AFTER the new layout has persisted.
+      this._dashboardDesignChanged = true;
+      this._dashboardSavePromise = (user.save) ? user.save() : null;
     }
+  },
+
+  // After the Dashboard Design modal closes (Done or ×) following a real change,
+  // hard-RELOAD the home page. The re-rendered grid otherwise leaves the viewport
+  // scrolled to the bottom; a reload lands cleanly at the TOP — a scroll-to-top is
+  // unreliable cross-browser and adds motion AAC users don't need. Deferred until
+  // the save persists so the reloaded page reflects the chosen layout.
+  _reloadAfterDashboardDesign: function() {
+    if (!this._dashboardDesignChanged) { return; }
+    this._dashboardDesignChanged = false;
+    var _this = this;
+    var p = this._dashboardSavePromise;
+    this._dashboardSavePromise = null;
+    // Only reload if this tour is still mounted (i.e. the user is still on the
+    // home page) when the save settles. If they navigated away in the meantime
+    // the component is torn down — reloading then would yank them out of
+    // wherever they went; skip it. The saved layout still applies on their next
+    // visit to home, so nothing is lost.
+    var doReload = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      try { window.location.reload(); } catch (e) { /* noop */ }
+    };
+    if (p && typeof p.then === 'function') { p.then(doReload, doReload); }
+    else { doReload(); }
   },
 
   // Welcome (first) page content (HTML string — Shepherd renders `text` via
@@ -1182,10 +1225,18 @@ export default Component.extend({
     });
     // Clear the page down to brand + identity + dimmed bg while the series runs.
     try { document.body.classList.add('md-gst-active'); } catch (e) { /* noop */ }
+    var _this = this;
     tour.addSteps(this._buildSteps()).then(function() {
       if (tour.tourObject) {
-        tour.tourObject.on('complete', _clearCentered);
-        tour.tourObject.on('cancel', _clearCentered);
+        // The display step's `hide` hook (which saves) runs BEFORE these end events,
+        // so by now _dashboardSavePromise/_dashboardDesignChanged are set. Reload the
+        // home page after Done (complete) or × (cancel) when the dashboard changed.
+        var onEnd = function() {
+          _clearCentered();
+          _this._reloadAfterDashboardDesign();
+        };
+        tour.tourObject.on('complete', onEnd);
+        tour.tourObject.on('cancel', onEnd);
       }
       // Start at a specific step when requested (e.g. the home "Edit Dashboard"
       // button jumps straight to the display-style page); otherwise begin at the

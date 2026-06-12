@@ -2235,6 +2235,47 @@ full owned set via `meta.more`, then `filterRootBoards` the accumulation
 
 **First seen in:** [2026-06-11-subboards-leaking-preview-and-collection.md](./2026-06-11-subboards-leaking-preview-and-collection.md)
 
+**Extension (2026-06-12) — the boards-page Public tab:** `board_list`
+(controllers/user/index.js) has its OWN id/copy_id clustering, but it only
+nests a sub-board under its root when the root is in the SAME list. The Public
+tab's source (`model.public_boards`, a public search) returns sub-board copies
+whose root isn't in the list, so they leaked through as top-level tiles — plus
+multiple owners' identically-named copies. Fix: flag the Public branch and run
+the accumulated list through `dedupeByName(filterRootBoards(list, model.id))`
+before the existing grouping/sort (preserve `.done`). `public_boards` is fully
+paginated by `generate_or_append_to_list`, so clustering isn't first-page-
+sensitive here. Mine-tab clustering left untouched. Same primitives search.js
+uses for online results: `sortByNameNatural(dedupeByName(filterRootBoards(...)))`.
+
+**First seen in:** [2026-06-12-public-tab-subboards-leak.md](./2026-06-12-public-tab-subboards-leak.md)
+
+**Extension (2026-06-12) — copy_id-less sub-boards need the BRAND key-pattern, not just `filterRootBoards`:** `filterRootBoards` keys ENTIRELY on `copy_id`. Legacy/un-clustered set copies (e.g. an account's CommuniKate pages) often have **no `copy_id` in the DB** (`relinking.rb#assert_copy_id`/`cluster_related_boards` exist precisely to back-fill it and frequently don't), so the serializer omits it and EVERY sub-board reads as a root — leaking on the boards-page Mine + Public tabs AND the speak-menu My Boards, all of which share that heuristic. The fix that works regardless of copy_id is `utils/board-brands.js#filterBrandRoots`: a board matching a brand family's `test()` (brand marker in key/name) but NOT its `root_re` (`<brand>-<size>` root shape) is a brand sub-board → drop it; non-brand boards pass. This is the same key-pattern classifier the Find Boards grouping + the speak-menu brand sections use. Compose as `filterBrandRoots(filterRootBoards(list, userId))` (+ `dedupeByName` for public search). Applied in `controllers/user/index.js` (board_list Mine+Public, myBoardsRoots) and `components/board-collection.js` (_sortMyBoards). LIMITATION: only the 4 known brands (CommuniKate/Quick Core/Sequoia/Vocal Flair); non-brand sets with nil copy_id still leak — the robust general fix is a server-computed `root` flag (board.rb `!copy_id || copy_id==global_id`, falling back to "no same-user immediately-upstream boards"). The boards-page `root: true` server param is ALSO broken (real filter commented out, replaced by `search_string ILIKE '%root%'` — boards_controller.rb:299).
+
+**First seen in:** [2026-06-12-subboards-brand-root-filter.md](./2026-06-12-subboards-brand-root-filter.md)
+
+---
+
+## Pattern: image drag-drop onto a button — reuse `save_image_preview`, swap the target
+
+**Surface:** board-detail edit mode (`content_grabbers.apply_dropped_image_to_button`) and create-board-new (`components/create-board-new.js`).
+
+The board-detail image-drop pipeline is: global `drop` listener (`services/content-grabbers.js:3050`) → `content_dropped(button_id, dataTransfer)` (bails unless `appState.edit_mode`) → `apply_dropped_image_to_button` = `read_file`→dataURL → `pictureGrabber.save_image_preview(preview)` (uploads, returns a SAVED image record with a hosted `.url`) → `editManager.change_button`. To get the same gesture on a surface WITHOUT a live board/editManager/`.button[data-id]`/edit_mode (e.g. create-board-new, where buttons are plain objects keyed by label in `_label_images`), reuse the two board-agnostic primitives — `content_grabbers.read_file` + `pictureGrabber.save_image_preview` — and write the returned `image.get('url')` into that surface's own button state instead of calling `change_button`. Don't touch the shared service.
+
+Gotchas: (1) Distinguish an external image drag from an internal HTML5 reorder drag by payload — reorder carries only `text/plain`; an image carries a `File`/`Files` type (during dragover files aren't readable yet, so check `dataTransfer.types` includes `Files`) or, cross-tab, `text/uri-list`/`<img>`-in-`text/html`. (2) The tile's own `ondrop`/`ondragover` must `stopPropagation` or the global document drop handler also fires. (3) Only persist a hosted URL (await `save_image_preview`) — never bake a `data:` URL into the saved board. (4) `dragover` must `preventDefault` on the target for `drop` to fire at all; set `dropEffect:'none'` to reject (e.g. blank cells when images are label-keyed).
+
+**Evidence:** task log `2026-06-12-create-board-new-image-drop.md`.
+
+**GOTCHA (do NOT "optimize"):** For create-board-new, bake the image **URL** onto
+`model.buttons[]`, never the saved image's `image_id`. `save_image_preview` creates
+a PRIVATE, unlinked ButtonImage (`license: {type:'private'}`, no `public:true`);
+linking it by `image_id` shows in the create preview but renders BLANK on the board
+page and bypasses caching. The server's `process_client_supplied_images`
+(board.rb:1262) only runs when `image_id` is blank — it creates a fresh
+`public:true`, board-owned ButtonImage from the URL (`process_new`, handles `data:`
+URLs → `ButtonImage.data`) and wires it into the after-save `map_images` cache. The
+"duplicate ButtonImage" from URL-baking is the intended trade-off for correct
+rendering + caching. (Burned once 2026-06-12 by an image_id "efficiency fix"; reverted.)
+
 ---
 
 ## Pattern: create-board-new preview URLs stripped by process_buttons whitelist
@@ -2988,7 +3029,20 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 
 **Footer note:** `.page-footer` is `display:none` everywhere except landing-alt (rules ~378/382) but KEPT in the DOM because the whole shell layout keys off `:has(.page-footer)`. A `display:none` footer still matches `:has()`. Don't remove the element to "hide the footer" — you'll break the scroll layout app-wide.
 
-**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`.
+**Same bug, another surface — the BOARD-PICKER page (2026-06-12):** `/board-picker`
+is a TOP-LEVEL route, so its `#content` is NOT `.index.with_user` and never gets the
+`#content` background (app.scss ~546). The `.md-shell--board-picker` mesh only reaches
+content height inside the scrolling `#content`, so on short content / small screens the
+area below the picker card rendered bare (looked like a purple/empty strip). Same FIX:
+paint the `.md-shell` base mesh on `#within_ember:has(.page-footer):has(.board-picker-page)`
+(compound `:has()` (1,2,0) out-specifies the `:has(.page-footer)` transparent reset at
+~415). **Lesson: when a page bg "doesn't fill to the bottom," don't reach for
+`min-height`/`flex-grow` on the inner shell/workspace — that's the wrong layer (it gets
+pinned/clipped by the `#content` scrollport). Paint the mesh on the fixed full-viewport
+`#within_ember`.** `footer` (controllers/application.js) is true for any non-board route,
+so most app pages ARE `:has(.page-footer)` and can use this.
+
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`.
 
 ---
 
@@ -4194,3 +4248,74 @@ the example txn, restored on rollback) for a deterministic baseline. Mirror
 **Approach:** `PREFERENCE_PARAMS` assigns whitelisted prefs **verbatim** — no type/shape check. When a pref feeds a computed `htmlSafe` inline style or a CSS class name (the `dashboard_layout`/`dashboard_sections`/`dashboard_order`/`dashboard_positions`/`dashboard_boards` set), validate it server-side against a known-keys whitelist on write (`sanitize_dashboard_preferences!`), dropping invalid values so the client falls back to defaults. The frontend already filters unknown keys (`orderedVisible` keeps only `vis[k]`-truthy keys; `effectiveLayout` whitelists `gentle`/`focused`) and builds styles only from the `AREA` map — so this is defense-in-depth, not the sole guard. Key list source of truth is `dashboard_sections.js`; duplicate it in `User::DASHBOARD_SECTION_KEYS` with a sync comment (Ruby can't import the JS).
 
 **Evidence:** `app/models/user.rb` (`DASHBOARD_SECTION_KEYS`, `sanitize_dashboard_preferences!`); triage of 6 merge findings in task log `2026-06-12-dashboard-merge-security-findings.md`. Note: board enumeration via `user_id` is already blocked by `boards_controller#index` `allowed?(user, 'view_detailed')` — not a gap.
+
+## Pattern: top-level route templates render into `#content` with NO `.ember-view` wrapper (shell/workspace height)
+
+**Surface:** `templates/application.hbs:1458-1459` (`<div id="content">{{ outlet }}</div>`), standalone route templates like `templates/board-picker.hbs`, the `.md-shell` height/flex chain in `app.scss`.
+
+**Gotcha:** A top-level ROUTE template (e.g. `/board-picker`) renders its root element **directly** into `#content` via `{{ outlet }}` — there is NO `.ember-view` / `#index_view` wrapper between `#content` and `.md-shell`. So the real chain is `#content > .md-shell.md-shell--board-picker > .md-workspace`. Dashboard pages are different: they render under `#index_view` (a `.ember-view`), so `#content .ember-view > .md-shell` matches THEM but NOT a standalone route. The base shell rule already encodes this by listing BOTH variants: `#content .ember-view > .md-shell, #content > .md-shell {…}` (app.scss:41168-41169). If you target a standalone shell with an `.ember-view`-based selector, it silently never matches.
+
+**Symptom that surfaced it:** On `/board-picker` ≤950px the glass `.md-workspace` card stopped at content height with the `#within_ember` mesh filling below it ("card ends, shell shows"). The `@media (max-width:950px)` single-column block (app.scss:55596) collapses `.md-shell`→`min-height:auto;flex:0 0 auto` and `.md-shell > .md-workspace`→`flex:0 0 auto;min-height:min-content` — intentional for the dashboard (long board lists must scroll), wrong for a short standalone page.
+
+**Fix:** restore BOTH the shell height AND the workspace grow — they are co-dependent (a prior attempt that only flex-grew the workspace failed: the generic shell rule kept the shell collapsed, so there was no free height to grow into, AND the workspace's (0,2,0) rule lost the source-order tie to the generic `flex:0 0 auto !important`). Scope robustly via `#within_ember:has(.board-picker-page)` (proven to match — same hook the bg fix uses — and indifferent to wrapper structure):
+```scss
+@media (max-width: 950px) {
+  #within_ember:has(.board-picker-page) .md-shell--board-picker { min-height: 100vh !important; }           /* (1,2,0) beats #content > .md-shell (1,1,0) */
+  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace {
+    flex: 1 1 auto !important; min-height: auto !important;                                                  /* (1,3,0) beats .md-shell > .md-workspace (0,2,0) */
+  }
+}
+```
+**Lessons:** (1) Verify the actual DOM wrapper chain before writing shell/workspace selectors on a standalone route — don't assume the dashboard's `.ember-view`/`#index_view` nesting. (2) "Shrink-to-content vs fill-viewport" needs the shell height AND the workspace flex fixed together; fixing only one is a no-op. (3) For a card-not-full-height bug, flex-grow IS the right layer (≠ the `#within_ember` bg-paint fix used for bg-not-filling) — but only once the shell provides a definite tall height.
+
+**Evidence:** task log `2026-06-12-board-picker-workspace-fullheight.md`; contrast `2026-06-12-board-picker-bg-and-tabs.md` (bg fill, different layer).
+
+## Pattern: v2 Ember addons (ember-auto-import code-splitting) break on the Rails-served bundle
+
+**Surface:** `app/frontend/ember-cli-build.js` (`autoImport.webpack`), `app/assets/javascripts/application.js` + `application-test.js` (Sprockets manifests), `bin/render-build.sh`, `lib/tasks/extras.rake` (`extras:assert_js`).
+
+**Symptom:** A feature using a **v2 Ember addon** (e.g. `ember-shepherd` → the Shepherd tours) works under `ember serve` but on the deployed Rails app throws `Could not find module '<pkg>/services/<x>' imported from 'frontend/services/<x>'` and `this.class.create is not a function` (the injected service can't be built).
+
+**Root cause:** A v2 addon's `_app_` re-export is merged into the app (`frontend/services/<x>`) but its real implementation is pulled in by **ember-auto-import**, which by default **code-splits** it into a content-hashed `chunk.<id>.<hash>.js`. Ember's own `index.html` loads those chunk `<script>`s; the **Rails app does NOT use that index.html** — it concatenates only `vendor.js` + `frontend.js` via the Sprockets manifest (`//= require`). So the chunk that DEFINES the module is never on the page. This app's integration (`fingerprint`/`minify` disabled, manual concat) assumes everything lands in `vendor.js`/`frontend.js`; the first runtime auto-import dependency exposes the gap.
+
+**Deploy flow (important):** Render DOES build — `render.yaml` → `bin/render-build.sh`: `extras:assert_js` → `ember build --environment production` → hardcoded `cp -f dist/assets/{frontend,vendor}.{js,css}` onto the Sprockets load path (`app/assets/javascripts|stylesheets`) → `assets:clobber` + `assets:precompile`. Anything not in that `cp` list and not `//= require`d is dropped.
+
+**Fix (4 coordinated changes):**
+1. `ember-cli-build.js` `autoImport.webpack`: `optimization: { splitChunks: false, runtimeChunk: false }` + `output: { filename: 'auto-import-[name].js', chunkFilename: 'auto-import-[name].js' }` → one stable `dist/assets/auto-import-app.js` (runtime + all eager deps), no hashed chunks. (Only safe if the app has no dynamic `import()` — verify with `grep -rE "import\(" app/`; `LingoLinq.Log.import` etc. are method calls, not module imports.)
+2. `application.js` (+ `application-test.js`): `//= require auto-import-app.js` immediately BEFORE `frontend.js` (runtime must load before the app that consumes it).
+3. `bin/render-build.sh`: add `cp -f app/frontend/dist/assets/auto-import-app.js app/assets/javascripts/auto-import-app.js` to the copy block.
+4. `extras:assert_js`: copy it too, and `touch` an empty placeholder when no build exists so precompile never fails on the missing `require`.
+
+**Verify:** after `ember build` there must be ZERO `dist/assets/chunk.*.js` the app needs (only `auto-import-app.js`); after `assets:precompile`, the served `public/assets/application-*.js` must contain the impl (`grep -c Shepherd …` > 0) and define `<pkg>/services/<x>`. Load order: auto-import runtime byte-offset < the `frontend/services/<x>` re-export.
+
+**Lessons:** (1) The Rails app ignores Ember's `index.html` — any ember-auto-import output beyond `vendor.js`/`frontend.js` must be manually wired into the Sprockets manifest AND the render-build copy step. (2) Adding a v2 addon to this app is never just `npm install` — it needs this build-wiring. (3) Diagnose deploy bugs against the ACTUAL build (`render.yaml`/`render-build.sh`), not assumptions about committed assets.
+
+**Evidence:** task log `2026-06-12-shepherd-tours-broken-on-render.md`.
+
+## Pattern: SSRF guard for server-side image/URL fetches lives in `Uploader.sanitize_url`
+
+**Surface:** `lib/uploader.rb#sanitize_url` (called by `valid_remote_url?` + every server-side image fetch: `ButtonImage.process_url`, OBF import, symbol download). Any flow where a CLIENT supplies an image `url` that the server later fetches (symbol search, board-detail image drop, create-board-new drag-drop, OBF import) funnels through here.
+
+**Gotcha:** `sanitize_url` is the single SSRF chokepoint, but its original host checks (`^127`, `localhost`, `^0`, decimal-IP) MISSED link-local `169.254.169.254` (cloud metadata) and RFC1918 private ranges (`10/172.16-31/192.168`) — so an authenticated user could point any image-URL flow at internal services. It also didn't restrict the scheme (so `file://`/`gopher://`/`data:` reached the builder, and a nil-host URI could crash the `uri.host.match` line).
+
+**Fix shape:** restrict scheme to http/https; for IP-LITERAL hosts use Ruby `IPAddr` predicates `loopback?`/`private?`/`link_local?` (+ explicit `100.64.0.0/10` CGN) to reject the reserved ranges. `IPAddr.new(host)` raising on a non-literal hostname is the signal to fall through (don't block public hostnames). `require 'ipaddr'` at the top. Keep the existing string/decimal checks — they catch encodings IPAddr won't (`http://0/`, bare-decimal IPv4).
+
+**Residual (documented, not yet fixed):** a hostname that RESOLVES to an internal IP (DNS rebinding) still passes — IP-literal checks can't see it. The robust fix is resolve-and-pin at the HTTP-client (Typhoeus) layer; adding DNS resolution inside `sanitize_url` was rejected because it makes the (network-free) spec do live lookups and adds latency to the hot fetch path.
+
+**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" has a thorough adversarial block (header injection, `@`-tricks, tabs, unicode) — extend it, don't replace it. New cases must keep public hosts (`8.8.8.8`, `172.15/172.32` which are OUTSIDE 172.16-31) passing.
+
+**Lesson:** before "fixing" a client-side upload finding, trace to the server fetch — the create-board drag-drop "SSRF" finding was really a gap in the shared `sanitize_url`, fixed once at the chokepoint, not in the UI component. Also: client supplied image URLs are baked as `<img src>` (no HTML execution sink), and `data:` URLs are stored, never fetched — so "stored XSS via data: URL" doesn't apply here.
+
+**Evidence:** task log `2026-06-12-pr-security-review-response.md`.
+
+## Pattern: ButtonImage content_type is the image-type allowlist chokepoint (stored-XSS defense)
+
+**Surface:** `app/models/button_image.rb#process_params` (~line 190-200) — the single place `content_type` and data: URIs get stored for EVERY image path (symbol search, board-detail drop, create-board drag-drop, OBF import). `process_url` (concerns/uploadable.rb) does NOT set content_type; `Uploader.remote_upload` (uploader.rb:296,318) passes content_type straight onto the S3 object's `Content-Type`.
+
+**Gotcha:** client-supplied `content_type` was stored verbatim — `inferImageContentType` (content-grabbers.js) returns the data: MIME / passed-in type as-is (no allowlist), and `ButtonImage` did `settings['content_type'] = params['content_type']` with no check. So a dropped `data:text/html` or a scriptable SVG could be stored as a "ButtonImage" and re-served inline with that type. Board buttons render via `<img src>` (no script exec), so it's NOT a confirmed app-origin XSS — the real residual is a malicious **SVG** served inline from the CDN origin + arbitrary non-image blobs stored as images.
+
+**Fix (defense-in-depth, at the sink):** coerce any non-`image/*` content_type to `image/png`; drop a `data:` URI whose MIME isn't `image/*` (kills the `data:text/html` payload). SVG (`image/svg+xml`) must PASS — OpenSymbols serves SVG symbols, so rejecting it breaks legit rendering; script-sanitizing SVG on upload (loofah/sanitize, strip `<script>`/handlers/`foreignObject`) is the deeper follow-up.
+
+**Lesson:** a client-side "unsafe upload" finding usually resolves at a server chokepoint, not in the UI component — same as the SSRF→`sanitize_url` fix. Trace content_type all the way to what the CDN serves before judging exploitability; `<img src>` rendering neutralizes most stored-image XSS, leaving SVG-served-inline as the real residual.
+
+**Evidence:** task log `2026-06-12-pr-security-review-response.md`; tests in `spec/models/button_image_spec.rb` "process_params".

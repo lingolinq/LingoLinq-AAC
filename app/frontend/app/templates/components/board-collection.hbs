@@ -144,3 +144,22 @@
     {{/unless}}
   {{/each}}
 </div>
+
+{{!-- In-place loading overlay shown after a board row is clicked: dims the
+      whole panel and surfaces the same "premium progress" chrome the boards
+      page uses (boards.hbs / index-loading.hbs) so the wait reads as one
+      continuous, on-brand loading state while the chosen board loads on the
+      left. Cleared when the route Transition settles (see select_board). --}}
+{{#if this.board_loading}}
+  <div class="md-board-collection__loading-overlay" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-premium-progress__card md-board-collection__loading-card">
+      <h2 class="ll-premium-progress__title">{{t "Opening your board" key="opening_your_board"}}</h2>
+      {{#if this.loading_board_name}}
+        <p class="ll-premium-progress__sub">{{this.loading_board_name}}</p>
+      {{else}}
+        <p class="ll-premium-progress__sub">{{t "Loading boards and communication resources" key="loading_boards_and_resources"}}</p>
+      {{/if}}
+      <div class="ll-premium-progress__bar" aria-hidden="true"></div>
+    </div>
+  </div>
+{{/if}}
