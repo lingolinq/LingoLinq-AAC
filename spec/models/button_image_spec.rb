@@ -315,6 +315,25 @@ describe ButtonImage, :type => :model do
       expect(j.data).to eq('data:image/png;base64,iVBORw0KGgo=')
       expect(j.settings['data_uri']).to eq('data:image/png;base64,iVBORw0KGgo=')
     end
+
+    it "should drop an SVG data: URI carrying active content but keep a static SVG" do
+      u = User.new
+      # script element (raw + base64 + percent-encoded), event handler, foreignObject
+      raw = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+      b64 = 'data:image/svg+xml;base64,' + Base64.strict_encode64('<svg onload="alert(1)"></svg>')
+      pct = 'data:image/svg+xml,' + CGI.escape('<svg><foreignObject><body onload="x"></body></foreignObject></svg>')
+      [raw, b64, pct].each do |evil|
+        i = ButtonImage.new(:user_id => 1)
+        i.process_params({ 'url' => evil }, { :user => u })
+        expect(i.data).to eq(nil)
+        expect(i.settings['data_uri']).to eq(nil)
+      end
+      # A static symbol SVG (no script/handlers) passes through.
+      good = 'data:image/svg+xml,' + CGI.escape('<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>')
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'url' => good }, { :user => u })
+      expect(j.data).to eq(good)
+    end
   end
    
   it "should securely serialize settings" do

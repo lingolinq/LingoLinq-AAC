@@ -166,6 +166,25 @@ class ButtonImage < ApplicationRecord
     lib
   end
   
+  # True when an `image/svg+xml` data: URI carries SCRIPTABLE content — a <script>
+  # or <foreignObject> element, an inline event handler (on…=), or a javascript:
+  # URI. Decodes the payload (base64 or percent-encoded) first so the check runs on
+  # the real markup, not the wrapper. Used to reject malicious SVG uploads at the
+  # data: sink; static symbol SVGs contain none of these and pass.
+  def self.svg_data_uri_active_content?(data_uri)
+    str = data_uri.to_s
+    return false unless str.match(/\Adata:image\/svg\+xml/i)
+    payload = str.sub(/\Adata:[^,]*,/, '')
+    decoded = if str.match(/;base64,/i)
+      (Base64.decode64(payload) rescue '')
+    else
+      (CGI.unescape(payload) rescue payload)
+    end
+    decoded = decoded.to_s.downcase
+    decoded.include?('<script') || decoded.include?('<foreignobject') ||
+      !!decoded.match(/\son\w+\s*=/) || decoded.include?('javascript:')
+  end
+
   def process_params(params, non_user_params)
     raise "user required as image author" unless self.user_id || non_user_params[:user] || non_user_params[:no_author]
     self.user ||= non_user_params[:user] if non_user_params[:user]
@@ -192,6 +211,11 @@ class ButtonImage < ApplicationRecord
       # isn't image/* (e.g. data:text/html — a stored-XSS payload were the bytes
       # ever served / opened as a document) so it's never stored.
       data_url = nil if data_url.to_s.match(/\Adata:/i) && !data_url.to_s.match(/\Adata:image\//i)
+      # ...and drop an SVG data: URI that carries ACTIVE content (<script>, event
+      # handlers, <foreignObject>, javascript: URIs) — those would execute if the
+      # bytes were ever opened as a document. Static symbol SVGs have none, so they
+      # pass. (Remote http SVGs, fetched by the upload job, are a separate follow-up.)
+      data_url = nil if data_url.present? && ButtonImage.svg_data_uri_active_content?(data_url)
       if data_url.present?
         self.data = data_url
         self.settings['data_uri'] = data_url

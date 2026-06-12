@@ -89,11 +89,12 @@ export default Component.extend({
     
     this.set('status', null);
     this.set('more_options', false);
-    // Board light/dark is a remembered user preference shared with board-detail
-    // (preferences.board_dark_mode). Honor a saved choice; default to LIGHT when
-    // the user has never picked (board-detail defaults the other way — dark).
+    // Board light/dark mirrors the user's single `board_dark_mode` preference —
+    // the same one board-detail's dark toggle writes. This page has no default of
+    // its own: it just reflects the preference (unset/false → light, true → dark),
+    // which is light until the user turns on dark in board-detail.
     var darkPref = this.appState.get('currentUser.preferences.board_dark_mode');
-    this.set('preview_mode', darkPref === true ? 'dark' : 'light');
+    this.set('preview_mode', darkPref ? 'dark' : 'light');
     this.set('labels_list_open', false);
     /* Default "Are you creating this board for someone else?" to NO for EVERY
        user — boards default to being created for the current user themselves.
@@ -1626,6 +1627,11 @@ export default Component.extend({
     return url_promise.then(function(url) {
       if(!url) { return RSVP.reject(); }
       var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
+      // Defense-in-depth: only accept image payloads. Reject a data: URI whose
+      // MIME isn't image/* (e.g. data:text/html) before it reaches the upload
+      // pipeline or the preview. The server also drops these (ButtonImage), but
+      // bailing here keeps the raw payload out of the client entirely.
+      if(content_type && !content_type.match(/^image\//)) { return RSVP.reject(); }
       // `suggestion` seeds the saved image's button_label since there's no live
       // button to read it from (save_image_preview falls back to it).
       var preview = { url: url, content_type: content_type, protected: false, suggestion: label };
@@ -2109,12 +2115,15 @@ export default Component.extend({
     togglePreviewMode: function() {
       var next = this.get('preview_mode') === 'dark' ? 'light' : 'dark';
       this.set('preview_mode', next);
-      // Remember the choice on the user so board-detail and a future visit to
-      // this page open in the same mode. Same `device.updated` dirty-flag trick
-      // the board-detail save uses (Ember Data under-marks the raw prefs blob).
+      // Remember the choice on the user (single `board_dark_mode` preference, shared
+      // with board-detail). Skip the save when the stored value already matches —
+      // avoids redundant writes and the last-write-wins race on rapid toggles. Same
+      // `device.updated` dirty-flag trick the board-detail save uses (Ember Data
+      // under-marks the raw prefs blob).
+      var nextDark = next === 'dark';
       var user = this.appState.get('currentUser');
-      if(user && user.set) {
-        user.set('preferences.board_dark_mode', next === 'dark');
+      if(user && user.set && !!user.get('preferences.board_dark_mode') !== nextDark) {
+        user.set('preferences.board_dark_mode', nextDark);
         user.set('preferences.device.updated', true);
         if(user.save) { user.save().then(null, function() {}); }
       }

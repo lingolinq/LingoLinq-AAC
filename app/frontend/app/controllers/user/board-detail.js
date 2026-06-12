@@ -326,7 +326,10 @@ export default Controller.extend(prefClasses, {
   display_prefs_skin_dropdown_open: false,
   pending_display_prefs: null,
   original_display_prefs: null,
-  dark_mode: true,
+  // Boards open LIGHT by default; dark only when the user turns it on (persisted
+  // to preferences.board_dark_mode). The route resets this per board entry from
+  // that preference; this is the pre-setup fallback.
+  dark_mode: false,
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
@@ -4564,7 +4567,11 @@ export default Controller.extend(prefClasses, {
      remembered value. */
   _persist_board_dark_mode: function(val) {
     var user = this.get('app_state.currentUser');
-    if(user && user.set) {
+    // Skip the save when the stored value already matches (e.g. clicking the
+    // already-active side of the segmented toggle) — avoids redundant writes and
+    // the last-write-wins race on rapid toggles. Normalized so unset (light) vs
+    // an explicit false doesn't trigger a pointless write.
+    if(user && user.set && !!user.get('preferences.board_dark_mode') !== !!val) {
       user.set('preferences.board_dark_mode', !!val);
       user.set('preferences.device.updated', true);
       if(user.save) { user.save().then(null, function() {}); }
