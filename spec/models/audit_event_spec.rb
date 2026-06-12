@@ -72,5 +72,22 @@ describe AuditEvent, :type => :model do
       expect(captured).to include('[REDACTED_EMAIL]')
       expect(captured).not_to include('grandma@hospital.example')
     end
+
+    it 'falls back to a non-echoing placeholder when the scrubber itself fails' do
+      # If PiiScrubber is unavailable (e.g. lib/ not autoloaded in a worker) the
+      # scrub call raises; the fallback must NOT log the raw e.message we were
+      # trying to scrub, or the scrubber-absent path becomes the PII-leak path.
+      event = AuditEvent.new
+      allow(event).to receive(:save!).and_raise(StandardError.new('PG error near grandma@hospital.example'))
+      allow(AuditEvent).to receive(:new).and_return(event)
+      allow(PiiScrubber).to receive(:scrub_log_line).and_raise(NameError.new('uninitialized constant'))
+
+      logged = nil
+      allow(Rails.logger).to receive(:error) { |line| logged = line }
+      expect { AuditEvent.log_command('fred', {}) }.not_to raise_error
+
+      expect(logged).to include('[unscrubbable]')
+      expect(logged).not_to include('grandma@hospital.example')
+    end
   end
 end

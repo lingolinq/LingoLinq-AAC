@@ -21,8 +21,10 @@ class AuditEvent < ApplicationRecord
       # `user_key` is an opaque global_id. `e.message` is the one field that can
       # echo input (DB/encoding errors), so it is PII-scrubbed and length-capped.
       # The scrub is guarded so a missing constant (e.g. lib/ not autoloaded in a
-      # Resque worker) can never raise here and defeat fail-open.
-      detail = (PiiScrubber.scrub_log_line(e.message.to_s) rescue e.message.to_s).truncate(300)
+      # Resque worker) can never raise here and defeat fail-open. The fallback is
+      # a non-echoing placeholder, NOT the raw message: if the scrubber is absent
+      # we must not leak the unredacted `e.message` we were trying to scrub.
+      detail = (PiiScrubber.scrub_log_line(e.message.to_s) rescue '[unscrubbable]').truncate(300)
       message = '[AuditEvent] failed to persist audit record for ' + user_key.to_s + ': ' + e.class.to_s + ': ' + detail
       Rails.logger.error(message)
       # Alert so fail-open gaps surface in monitoring. Send the already-scrubbed
