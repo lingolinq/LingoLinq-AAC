@@ -385,6 +385,46 @@ describe('UserIndexController', 'controller:user-index', function() {
       expect(controller.get('boards_page_visible_results').length).toEqual(50);
       expect(controller.get('boards_page_search_truncated')).toEqual(true);
     });
+
+    it('ignores live filter while drilled into a folder so the grid shows folder boards only', function() {
+      var controller = testOwner.lookup('controller:user/index');
+      var folderBoard = makeBoard({
+        id: 'folder-root',
+        global_id: 'folder-root',
+        name: 'Work Root',
+        key: 'larry/work-root',
+        search_string: 'Work Root larry work-root'
+      });
+      var holidayBoard = makeBoard({
+        id: 'holiday-board',
+        name: 'Holiday Board',
+        key: 'larry/holiday',
+        search_string: 'Holiday Board larry holiday'
+      });
+      controller.set('model', EmberObject.create({
+        id: 'larry',
+        my_boards: [folderBoard, holidayBoard],
+        board_tag_map: { Work: ['folder-root'] },
+        preferences: { home_board: {} },
+        permissions: { edit: true }
+      }));
+      stubAppState(controller, 'melis');
+      controller.set('selected', 'mine');
+      controller.set('parent_object', null);
+      controller.set('filterStringDebounced', 'holiday');
+      controller.set('mineTagFolderDrillIn', 'Work');
+
+      var folderKeys = (controller.get('board_list').filtered_results || []).map(function(row) {
+        return row.board.get('key');
+      });
+      expect(folderKeys).toEqual(['larry/work-root']);
+
+      var visibleKeys = controller.get('boards_page_visible_results').map(function(row) {
+        return row.board.get('key');
+      });
+      expect(visibleKeys).toEqual(['larry/work-root']);
+      expect(controller.get('boards_page_search_truncated')).toEqual(false);
+    });
   });
 });
 // import Ember from 'ember';

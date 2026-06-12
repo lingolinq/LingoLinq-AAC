@@ -258,5 +258,23 @@ describe('board-roots', function() {
       expect(result[0].children.length).toEqual(1);
       expect(result[0].children[0].board.get('id')).toEqual('child');
     });
+
+    it('preserves synthetic orphan rows without board ids', function() {
+      var root = makeBoard({ id: '1', name: 'Quick Core 60', key: 'lingolinq/quick-core-60' });
+      var duplicate = makeBoard({ id: '2', name: 'Quick Core 60', key: 'other/quick-core-60' });
+      var orphanBoard = makeBoard({ name: 'Orphan Boards id:99' });
+      var orphanChild = makeBoard({ id: 'child', name: 'Child', key: 'lingolinq/child' });
+      var rows = [
+        { board: root, children: [] },
+        { board: duplicate, children: [] },
+        { board: orphanBoard, children: [{ board: orphanChild }], orphan: true }
+      ];
+      var result = dedupeBoardRows(rows, { preferUserNames: ['melis', 'lingolinq'] });
+      expect(result.length).toEqual(2);
+      expect(result[0].board.get('key')).toEqual('lingolinq/quick-core-60');
+      expect(result[1].orphan).toEqual(true);
+      expect(result[1].board.get('name')).toEqual('Orphan Boards id:99');
+      expect(result[1].children.length).toEqual(1);
+    });
   });
 });

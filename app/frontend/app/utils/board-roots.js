@@ -205,11 +205,22 @@ export function dedupeBoardRows(rows, options) {
       return (n || '').toLowerCase();
     }).filter(function(n) { return !!n; });
   }
+  var orphans = [];
+  var regular = [];
+  rows.forEach(function(row) {
+    if (!row || !row.board) { return; }
+    /* Synthetic orphan clusters use createRecord boards with no id;
+       keep them out of name dedup so they are not dropped or merged. */
+    if (row.orphan) {
+      orphans.push(row);
+      return;
+    }
+    regular.push(row);
+  });
   var groups = Object.create(null);
   var groupOrder = [];
   var unnamed = [];
-  rows.forEach(function(row) {
-    if (!row || !row.board) { return; }
+  regular.forEach(function(row) {
     var name = emberGet(row.board, 'name') || '';
     if (!name) { unnamed.push(row); return; }
     var groupKey = name.toLowerCase();
@@ -245,6 +256,7 @@ export function dedupeBoardRows(rows, options) {
     out.push(resultRow);
   });
   unnamed.forEach(function(row) { out.push(row); });
+  orphans.forEach(function(row) { out.push(row); });
   return out;
 }
 

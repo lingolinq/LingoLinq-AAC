@@ -477,7 +477,13 @@ export default Controller.extend({
     'filterStringDebounced',
     'boardsPageSearchRows.[]',
     'parent_object',
+    'mineTagFolderDrillIn',
     function() {
+      /* Folder drill-in hides the Boards Filter UI but keeps any
+         prior filterStringDebounced — show the folder grid only. */
+      if (this.get('mineTagFolderDrillIn')) {
+        return { results: this.get('filtered_results') || [], truncated: false };
+      }
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
         return { results: this.get('filtered_results') || [], truncated: false };
