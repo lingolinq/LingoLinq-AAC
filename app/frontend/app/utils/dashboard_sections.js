@@ -21,8 +21,26 @@ var HOME_SECTIONS = [
   { key: 'speak',    cardClass: 'md-card--speak',         labelKey: 'speak_mode',       labelDefault: "Speak Mode",       available: function() { return true; } },
   { key: 'extras',   cardClass: 'md-card--extras',        labelKey: 'extras',           labelDefault: "Extras",           available: function() { return true; } },
   { key: 'caseload', cardClass: 'md-card--caseload',      labelKey: 'my_caseload',      labelDefault: "My Caseload",      available: function(user) { return !!(user && user.get('supporter_role')); } },
-  { key: 'org',      cardClass: 'md-card--org-management', labelKey: 'my_organizations', labelDefault: "My Organizations", available: function(user) { return hasOrgManagement(user); } }
+  { key: 'org',      cardClass: 'md-card--org-management', labelKey: 'my_organizations', labelDefault: "My Organizations", available: function(user) { return hasOrgManagement(user); } },
+  { key: 'account',  cardClass: 'md-card--account',        labelKey: 'my_account',       labelDefault: "My Account",       available: function() { return true; } },
+  { key: 'createboard', cardClass: 'md-card--create-board', labelKey: 'create_a_board',   labelDefault: "Create a Board",   available: function() { return true; } },
+  { key: 'reports',  cardClass: 'md-card--reports',        labelKey: 'reports',          labelDefault: "Reports",          available: function() { return true; } },
+  { key: 'editdashboard', cardClass: 'md-card--edit-dashboard', labelKey: 'edit_dashboard', labelDefault: "Edit Dashboard", available: function() { return true; } }
 ];
+
+// Toggleable home elements that are NOT placed by the grid engine — they render
+// outside the grid but are turned on/off in the Dashboard Design modal and
+// persisted in preferences.dashboard_sections exactly like the cards (so
+// sectionHidden(user, key) governs them too). `gentleOnly` items only appear on
+// the Gentle View layout (Focused View hides them in CSS), so their modal toggle is hidden
+// when Focused View is selected. ADD a non-grid toggle here.
+var EXTRA_HOME_TOGGLES = [
+  { key: 'hero', cardClass: 'md-hero--dashboard', labelKey: 'home_welcome_banner', labelDefault: "Welcome banner", gentleOnly: true }
+];
+// i18n registration: EXTRA_HOME_TOGGLES labels are rendered via a dynamic
+// i18n.t(labelKey, labelDefault), which i18n_generator.rb's literal-only scanner
+// can't see. Register them here as literals so they land in the locale files:
+//   i18n.t('home_welcome_banner', "Welcome banner")
 
 // Mirrors authenticated-view's has_management_responsibility: a user manages
 // orgs if they have a non-restricted manager-type org, OR are a supporter.
@@ -64,248 +82,204 @@ function sectionLabel(section) {
 var RIGHT_SECTIONS = ['speak', 'extras', 'org'];
 
 // Grid area name per section key (`sup` is a constant 0-height bottom row).
-var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt', caseload: 'caseload' };
+var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt', caseload: 'caseload', account: 'account', createboard: 'createboard', reports: 'reports', editdashboard: 'editdashboard' };
 
-// ── THE LAYOUT MATRIX ──────────────────────────────────────────────────────
-// Given the visibility map, return the dashboard's grid-template-areas (an array
-// of row strings) + grid-template-rows. This is the SINGLE authoritative source
-// for both the real home grid and the Getting Started preview — they apply it as
-// an inline style, so there are no modifier-class layouts and no CSS-specificity
-// management. Add a new arrangement by adding a branch below.
-//
-// Branches are first-match-wins, most-specific first. Cards keep their fixed
-// grid-area names (see AREA); `.` is an empty cell. Two visible cards with Boards
-// gone sit side-by-side in left→right priority: caseload, speak, extras, org.
-function dashboardLayout(vis) {
-  var cl = !!vis.caseload, sp = !!vis.speak, ex = !!vis.extras, og = !!vis.org, bd = !!vis.boards;
-  var L = function(areas, rows) { return { areas: areas, rows: rows }; };
+// ── THE LAYOUT ENGINE (ordered-list reorder model) ──────────────────────────
+// The dashboard is an ORDERED LIST of section keys. The user drags cards in the
+// Dashboard Design preview to reorder them; the order is saved as
+// preferences.dashboard_order and read by BOTH the real home grid and the modal
+// preview, so they can never drift. Layout = pack that ordered list into
+// grid-template-areas: small cards fill TWO-PER-ROW; Boards is a full-width row
+// wherever it sits in the order; a small card left without a row-partner spans the
+// full width (and gets the fullspan treatment). This replaced the old
+// swap-permutation + Boards side/raised placement — a single order supports
+// inserting a card between ANY rows and moving Boards like any other block.
 
-  // Boards hidden, Extras + Org both visible → Extras left of Org; the top row
-  // carries whichever of Caseload/Speak remain.
-  if (!bd && ex && og) {
-    if (cl && sp) { return L(['caseload speak', 'extras org_mgmt', '. sup'], 'auto auto 0'); }
-    if (cl) { return L(['caseload caseload', 'extras org_mgmt', '. sup'], 'auto auto 0'); }
-    if (sp) { return L(['speak speak', 'extras org_mgmt', '. sup'], 'auto auto 0'); }
-    return L(['extras org_mgmt', '. sup'], 'auto 0');
-  }
-  // Boards gone + exactly two cards left → one side-by-side row.
-  if (!bd && !sp && !og && ex && cl) { return L(['caseload extras', '. sup'], 'auto 0'); }
-  if (!bd && !sp && !ex && og && cl) { return L(['caseload org_mgmt', '. sup'], 'auto 0'); }
-  if (!bd && !ex && !cl && sp && og) { return L(['speak org_mgmt', '. sup'], 'auto 0'); }
-  // Boards gone + three cards left WITHOUT the extras+org pair (that pair has its
-  // own row via the branch above). Caseload + Speak take the top row; the remaining
-  // single card spans BOTH columns instead of sitting orphaned in one — no lone
-  // half-row. (The {cl,ex,og} / {sp,ex,og} threes are already full-width-top above.)
-  if (!bd && cl && sp && ex && !og) { return L(['caseload speak', 'extras extras', '. sup'], 'auto auto 0'); }
-  if (!bd && cl && sp && !ex && og) { return L(['caseload speak', 'org_mgmt org_mgmt', '. sup'], 'auto auto 0'); }
-  // Boards visible with AT MOST two other cards → Boards spans both columns; the
-  // other card(s) sit above it — one card full-width, two side-by-side (left→
-  // right priority: caseload, speak, extras, org).
-  if (bd) {
-    var others = [];
-    if (cl) { others.push('caseload'); }
-    if (sp) { others.push('speak'); }
-    if (ex) { others.push('extras'); }
-    if (og) { others.push('org'); }
-    if (others.length === 0) { return L(['boards boards', '. sup'], 'auto 0'); }
-    if (others.length === 1) { return L([AREA[others[0]] + ' ' + AREA[others[0]], 'boards boards', '. sup'], 'auto auto 0'); }
-    if (others.length === 2) { return L([AREA[others[0]] + ' ' + AREA[others[1]], 'boards boards', '. sup'], 'auto auto 0'); }
-  }
-  // Caseload + Speak + Org visible, Extras hidden (3 others) → Org slides up under
-  // Speak, Boards stays the tall left card. (The no-caseload form of this is a
-  // "Boards + two others" case, handled full-width above.)
-  if (bd && cl && sp && og && !ex) {
-    return L(['caseload speak', 'boards org_mgmt', '. sup'], 'auto auto 0');
-  }
-  // Speak hidden (none of the above) → drop its slot, pull the column up.
-  if (!sp) {
-    if (cl && og) { return L(['caseload extras', 'boards org_mgmt', '. sup'], 'auto auto 0'); }
-    if (cl) { return L(['caseload caseload', 'boards extras', '. sup'], 'auto auto 0'); }
-    if (og) { return L(['boards extras', 'org_mgmt org_mgmt', '. sup'], 'auto auto 0'); }
-    return L(['boards extras', '. sup'], 'auto 0');
-  }
-  // Default arrangements (everything in its normal place).
-  if (cl && og) { return L(['caseload speak', 'boards extras', 'boards org_mgmt', '. sup'], 'auto auto auto 0'); }
-  if (cl) { return L(['caseload caseload', 'boards speak', 'boards extras', '. sup'], 'auto auto auto 0'); }
-  if (og) { return L(['boards speak', 'boards extras', 'org_mgmt org_mgmt', '. sup'], 'auto auto auto 0'); }
-  return L(['boards speak', 'boards extras', '. sup'], 'auto auto 0');
+// Canonical default order (used when the user hasn't reordered). For a
+// communicator this packs to: Account|Extras, full-width Boards, Create-a-Board|
+// Speak, full-width Reports — and slots Caseload/Org in for supervisors.
+var DEFAULT_ORDER = ['caseload', 'account', 'speak', 'org', 'boards', 'createboard', 'extras', 'reports', 'editdashboard'];
+
+// Focused View (focused) has its OWN default order. Speak becomes the full-width
+// hero and Extras is hidden, so those positions don't matter here; the rest packs
+// to (communicator): full-width Boards, My Account|Create a Board, Reports|Edit
+// Dashboard — with Caseload/Org slotted in for supervisors. Kept separate from
+// DEFAULT_ORDER so changing the Focused View default never affects Gentle View.
+var FOCUSED_DEFAULT_ORDER = ['speak', 'boards', 'caseload', 'org', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
+
+// The visible section keys in display order: start from the saved order (or the
+// default), append any visible key the saved order is missing (robustness when a
+// new card type ships), then drop the hidden ones.
+function orderedVisible(vis, order, defaultOrder) {
+  var base = defaultOrder || DEFAULT_ORDER;
+  var ord = (order && order.length) ? order.slice() : base.slice();
+  base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
+  return ord.filter(function(k) { return vis[k]; });
 }
 
-// Apply the user's saved card POSITIONS (drag-to-swap, chosen in the Getting
-// Started preview) to a layout's grid-template-areas. `positions` maps a section
-// key to the section key whose home-slot it should occupy (default identity); a
-// swap is the pair {A: B, B: A}. We relabel the area-name tokens in place rather
-// than touching per-card `grid-area`, so this rides the existing inline grid style
-// and naturally no-ops on the narrow (order-based) layout.
-//
-// Robustness: we only relabel a CLOSED PERMUTATION over currently-visible,
-// non-boards cards. If the saved map is partial/inconsistent (e.g. it references a
-// now-hidden card's slot), we fall back to the untouched layout — never emitting a
-// non-rectangular (invalid) template that would drop a card. Boards is excluded
-// (it's the spanning hero, a different cell shape).
-function applyPositions(areas, vis, positions) {
-  if (!positions) { return areas; }
-  var tokenMap = {}; // source area-name → target area-name
-  Object.keys(positions).forEach(function(k) {
-    var target = positions[k];
-    if (k === 'boards' || target === 'boards') { return; }
-    if (!vis[k] || !vis[target]) { return; }
-    if (!AREA[k] || !AREA[target]) { return; }
-    tokenMap[AREA[k]] = AREA[target];
-  });
-  var sources = Object.keys(tokenMap);
-  if (sources.length === 0) { return areas; }
-  // Must be a bijection over the SAME token set (closed permutation): every
-  // target is also a source, and targets are distinct. Otherwise → identity.
-  var seenTarget = {};
-  var closed = sources.every(function(src) {
-    var dst = tokenMap[src];
-    if (seenTarget[dst] || !tokenMap.hasOwnProperty(dst)) { return false; }
-    seenTarget[dst] = true;
-    return true;
-  });
-  if (!closed) { return areas; }
-  return areas.map(function(row) {
-    return row.split(' ').map(function(tok) { return tokenMap[tok] || tok; }).join(' ');
-  });
-}
-
-// ── Boards placement (drag-to-MOVE the hero card) ───────────────────────────
-// Boards is the tall 2-row hero; unlike the equal 1×1 small cards it can't just
-// trade area-name tokens. Its placement is a separate descriptor:
-//   { side: 'left'|'right', raised: boolean }
-// applied as STRUCTURAL transforms on the (already small-card-permuted) areas:
-//   raised → swap Boards' 2-row block with the single card directly above it in
-//            its column (vertical swap); columns unchanged.
-//   side   → mirror: move Boards to the other column (swap the two tokens in each
-//            of Boards' rows) and report `boardsRight` so the caller can swap the
-//            column widths — the WIDER column follows Boards (the 55/45 'anchor').
-// Default ({}/left/not-raised) is a NO-OP → byte-identical to today. Only a clean
-// 2-row single-column Boards block is transformable; anything else (Boards full-
-// width, 1-row, or absent) returns the layout untouched (safe fallback), so this
-// can never produce an invalid template or drop a card.
-
-// Locate Boards in an areas array: which column (0/1), the row indices it spans,
-// and whether it is full-width (spans both columns in a row).
-function boardsCells(areas) {
-  var col = -1, rows = [], fullWidth = false;
-  areas.forEach(function(row, i) {
-    var t = row.split(' ');
-    if (t[0] === 'boards' && t[1] === 'boards') { fullWidth = true; col = 0; rows.push(i); }
-    else if (t[0] === 'boards') { col = 0; rows.push(i); }
-    else if (t[1] === 'boards') { col = 1; rows.push(i); }
-  });
-  return { col: col, rows: rows, fullWidth: fullWidth };
-}
-
-function setCol(rowStr, c, tok) {
-  var t = rowStr.split(' ');
-  t[c] = tok;
-  return t.join(' ');
-}
-
-// Boards is a clean, transformable 2-row single-column block.
-function boardsMovable(bc) {
-  return bc.col >= 0 && bc.rows.length === 2 && !bc.fullWidth && bc.rows[1] === bc.rows[0] + 1;
-}
-
-function applyBoardsPlacement(areas, boards) {
-  if (!boards || (boards.side !== 'right' && !boards.raised)) {
-    return { areas: areas, boardsRight: false };
-  }
-  var bc = boardsCells(areas);
-  if (!boardsMovable(bc)) { return { areas: areas, boardsRight: false }; }
-  var out = areas.slice();
-
-  // 1) raised: swap the Boards block with the single card directly above it in the
-  //    same column — only when that cell is a real single card (not '.', not Boards,
-  //    not a full-width or multi-row span). Boards shifts up; the card drops to the
-  //    block's old bottom cell.
-  if (boards.raised) {
-    var c = bc.col, top = bc.rows[0];
-    if (top > 0) {
-      var aboveRow = out[top - 1].split(' ');
-      var aboveTok = aboveRow[c];
-      var aboveSingle = aboveTok && aboveTok !== '.' && aboveTok !== 'boards' && aboveRow[0] !== aboveRow[1];
-      var aboveSpans = out.filter(function(r) { return r.split(' ')[c] === aboveTok; }).length > 1;
-      if (aboveSingle && !aboveSpans) {
-        out[top - 1] = setCol(out[top - 1], c, 'boards');
-        out[top + 1] = setCol(out[top + 1], c, aboveTok);
-      }
+// Pack an ordered list of visible keys into area-row strings (WITHOUT the trailing
+// '. sup' spacer). Small cards pair two-per-row; Boards is its own full-width row;
+// a small card left without a partner spans the full width.
+function packOrder(keys) {
+  var a = function(k) { return AREA[k]; };
+  var rows = [], pending = null;
+  keys.forEach(function(key) {
+    if (key === 'boards') {
+      if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
+      rows.push('boards boards');
+    } else if (pending) {
+      rows.push(a(pending) + ' ' + a(key)); pending = null;
+    } else {
+      pending = key;
     }
-  }
-
-  // 2) side right: mirror Boards into the other column by swapping the two tokens in
-  //    each of its (possibly raised) rows. The wider column follows Boards.
-  var boardsRight = false;
-  if (boards.side === 'right') {
-    var bc2 = boardsCells(out);
-    if (boardsMovable(bc2)) {
-      bc2.rows.forEach(function(i) {
-        var t = out[i].split(' ');
-        var tmp = t[0]; t[0] = t[1]; t[1] = tmp;
-        out[i] = t.join(' ');
-      });
-      boardsRight = boardsCells(out).col === 1;
-    }
-  }
-  return { areas: out, boardsRight: boardsRight };
+  });
+  if (pending) { rows.push(a(pending) + ' ' + a(pending)); }
+  return rows;
 }
 
-// The Balanced display style: Speak is a full-width hero spanning both columns
-// (and is given ~2× its Dynamic height by the `.md-grid--layout-balanced
-// .md-card--speak` CSS rule), and the Extras card never shows. Everything else
-// (Boards + optional Caseload/Org) reuses the canonical matrix with Speak and
-// Extras removed, then we stack the full-width `speak speak` hero on top. This
-// keeps Balanced a thin transform over the shared layout — adding a card type
-// to the matrix benefits Balanced for free. `positions`/`boards` (drag-to-swap,
-// flag-gated) apply to the non-hero remainder; the hero row is fixed.
-function balancedLayout(vis, positions, boards) {
+// Wrap packed rows with the constant 0-height '. sup' spacer + matching row sizes
+// (every content row 'auto', the spacer '0').
+function framed(body) {
+  var areas = body.concat(['. sup']);
+  var rows = areas.map(function(_row, i) { return i === areas.length - 1 ? '0' : 'auto'; }).join(' ');
+  return { areas: areas, rows: rows };
+}
+
+function dashboardLayout(vis, order) {
+  return framed(packOrder(orderedVisible(vis, order)));
+}
+
+// The small "utility" action cards that share ONE row on Focused View.
+var FOCUSED_ACTION_KEYS = ['account', 'createboard', 'reports', 'editdashboard'];
+
+// Wrap packed N-column rows with the constant 0-height spacer ('.' ×(N-1) + 'sup',
+// so the spacer row has exactly N columns like the content rows). N-wide
+// generalization of framed().
+function framedN(body, cols) {
+  var spacer = [];
+  for (var i = 0; i < cols - 1; i++) { spacer.push('.'); }
+  spacer.push('sup');
+  var areas = body.concat([spacer.join(' ')]);
+  var rows = areas.map(function(_row, i) { return i === areas.length - 1 ? '0' : 'auto'; }).join(' ');
+  return { areas: areas, rows: rows };
+}
+
+// Focused View: Speak is the full-width hero on top, Extras never shows, each
+// remaining NON-action card (Boards, and Caseload/Org for supervisors) is its own
+// full-width row, and the visible utility cards (Account / Create a Board / Reports
+// / Edit Dashboard) share ONE row in the saved order. The grid widens to EXACTLY
+// the number of visible utility cards (`cols`), so when some are hidden the
+// remaining cards EXPAND to fill the row instead of leaving empty cells. The
+// utility row is emitted at the position of the FIRST visible utility card so a
+// whole row can be repositioned above or below it.
+function focusedLayout(vis, order) {
   var rest = Object.assign({}, vis, { speak: false, extras: false });
-  var base = dashboardLayout(rest);
-  var areas = applyPositions(base.areas, rest, positions);
-  var bp = applyBoardsPlacement(areas, boards);
-  areas = bp.areas;
-  if (vis.speak) {
-    areas = ['speak speak'].concat(areas);
-  }
-  var rows = vis.speak ? ('auto ' + base.rows) : base.rows;
-  return { areas: areas, rows: rows, boardsRight: bp.boardsRight };
+  var keys = orderedVisible(rest, order, FOCUSED_DEFAULT_ORDER);
+  var a = function(k) { return AREA[k]; };
+  var actionKeys = keys.filter(function(k) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1; });
+  var cols = Math.max(1, actionKeys.length);
+  var fullN = function(name) { var r = []; for (var i = 0; i < cols; i++) { r.push(name); } return r.join(' '); };
+  var rowsOut = [], actionEmitted = false;
+  keys.forEach(function(k) {
+    if (FOCUSED_ACTION_KEYS.indexOf(k) !== -1) {
+      // All utility cards collapse into ONE row, emitted where the first one sits.
+      if (!actionEmitted) { rowsOut.push(actionKeys.map(a).join(' ')); actionEmitted = true; }
+    } else {
+      rowsOut.push(fullN(a(k)));
+    }
+  });
+  if (vis.speak) { rowsOut = [fullN('speak')].concat(rowsOut); }
+  var built = framedN(rowsOut, cols);
+  built.cols = cols;
+  return built;
 }
 
-// Derive the dashboard grid state from the visibility map: the card-STYLING
-// classes still needed (with-caseload / with-org-mgmt restyle the Speak/Caseload
-// cards — they no longer drive layout) plus the computed grid-template areas/rows
-// and a ready-to-apply inline `grid-template-areas` value. `positions` (optional)
-// applies the small-card drag-to-swap arrangement; `boards` (optional) applies the
-// Boards move. `layout` (optional) selects the display style: 'balanced' routes
-// through balancedLayout (Speak hero + no Extras); anything else (default
-// 'dynamic') uses the canonical matrix. Omitting all yields the canonical layout
-// unchanged. When Boards is mirrored to the right, `md-grid--boards-right` is added
-// so the (media-scoped) CSS can swap the column widths — never inline, so the
-// mobile breakpoints are untouched.
-function gridLayoutState(vis, positions, boards, layout) {
+// Move srcKey to just before/after dstKey in a FULL order array (all section
+// keys, including hidden ones, so a hidden card keeps its relative slot). Returns
+// a new normalized full order. Drives the Dashboard Design drag-to-insert.
+function reorderInsert(order, srcKey, dstKey, after, defaultOrder) {
+  var base = defaultOrder || DEFAULT_ORDER;
+  var full = (order && order.length) ? order.slice() : base.slice();
+  base.forEach(function(k) { if (full.indexOf(k) === -1) { full.push(k); } });
+  full = full.filter(function(k) { return k !== srcKey; });
+  var idx = full.indexOf(dstKey);
+  if (idx < 0) { full.push(srcKey); return full; }
+  full.splice(idx + (after ? 1 : 0), 0, srcKey);
+  return full;
+}
+
+// Derive the dashboard grid state from the visibility map + saved order: the
+// card-STYLING classes still needed (with-caseload / with-org-mgmt restyle the
+// Speak/Caseload cards), the boards-full + per-card fullspan flags, plus the
+// computed grid-template areas/rows and a ready-to-apply inline value. `order`
+// (optional) is the saved drag arrangement; `layout` selects 'focused' (Speak
+// hero + no Extras) vs the default 'gentle'.
+function gridLayoutState(vis, order, layout) {
   vis = vis || {};
   var classes = [];
   if (vis.caseload) { classes.push('md-grid--with-caseload'); }
   if (vis.org) { classes.push('md-grid--with-org-mgmt'); }
-  var areas, rows, boardsRight;
-  if (layout === 'balanced') {
-    var bl = balancedLayout(vis, positions, boards);
-    areas = bl.areas; rows = bl.rows; boardsRight = bl.boardsRight;
-  } else {
-    var canonical = dashboardLayout(vis);
-    areas = applyPositions(canonical.areas, vis, positions);
-    var bp = applyBoardsPlacement(areas, boards);
-    areas = bp.areas; rows = canonical.rows; boardsRight = bp.boardsRight;
-  }
-  if (boardsRight) { classes.push('md-grid--boards-right'); }
+  var built = (layout === 'focused') ? focusedLayout(vis, order) : dashboardLayout(vis, order);
+  var areas = built.areas, rows = built.rows;
   // Flag when Boards spans BOTH columns (a full-width 'boards boards' row) so the
   // CSS can let the board strip shrink to fit instead of horizontally scrolling.
-  if (areas.some(function(row) { return row === 'boards boards'; })) { classes.push('md-grid--boards-full'); }
+  if (areas.some(function(row) { var t = row.split(' '); return t.length > 1 && t.every(function(c) { return c === 'boards'; }); })) { classes.push('md-grid--boards-full'); }
+  // Flag a SMALL card that spans both columns (a lone card with no row-partner
+  // renders as a full-width 'X X' row). The CSS gives that wide button the page
+  // (md-shell) gradient and centres its content.
+  areas.forEach(function(row) {
+    var t = row.split(' ');
+    if (t[0] === t[1] && t[0] !== 'boards' && t[0] !== '.' && t[0] !== 'sup') {
+      var key = Object.keys(AREA).filter(function(k) { return AREA[k] === t[0]; })[0];
+      if (key) { classes.push('md-grid--fullspan-' + key); }
+    }
+  });
   var areasValue = areas.map(function(row) { return '"' + row + '"'; }).join(' ');
-  return { classes: classes, areas: areas, rows: rows, areasValue: areasValue };
+  // Focused View pins the column count to the visible utility-card count (so the
+  // utility row fills evenly); Gentle View leaves columns to the stylesheet (null).
+  var columns = built.cols ? ('repeat(' + built.cols + ', 1fr)') : null;
+  // Reading-order index per section (top-to-bottom, left-to-right through the
+  // areas). Emitted as `--ord-<key>` custom properties so the single-column
+  // small-screen fallback can flex-`order` the cards to MATCH the large-screen
+  // arrangement (incl. drag reorders) instead of a static order. Keyed by section
+  // key (org_mgmt → org) so the CSS maps card class → var.
+  var areaToKey = {};
+  Object.keys(AREA).forEach(function(k) { areaToKey[AREA[k]] = k; });
+  var orderIndices = {}, oidx = 0, seenArea = {};
+  areas.forEach(function(row) {
+    row.split(' ').forEach(function(tok) {
+      if (tok === '.' || tok === 'sup' || seenArea[tok]) { return; }
+      seenArea[tok] = true;
+      var key = areaToKey[tok];
+      if (key) { orderIndices[key] = oidx++; }
+    });
+  });
+  return { classes: classes, areas: areas, rows: rows, areasValue: areasValue, columns: columns, orderIndices: orderIndices };
 }
 
-export { HOME_SECTIONS, RIGHT_SECTIONS, AREA, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, applyBoardsPlacement, boardsCells };
-export default { HOME_SECTIONS, RIGHT_SECTIONS, AREA, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, applyBoardsPlacement, boardsCells };
+// Focused-View drag rules. A single utility card may only reorder WITHIN the
+// utility row; whole rows reposition between rows. Returns a new full order, or
+// null when the drop is disallowed (a utility card dragged onto a full-width row —
+// "not single elements inside those rows"). Drives the constrained drag-to-reorder.
+function reorderForFocused(order, srcKey, dstKey, after, defaultOrder) {
+  var srcAction = FOCUSED_ACTION_KEYS.indexOf(srcKey) !== -1;
+  var dstAction = FOCUSED_ACTION_KEYS.indexOf(dstKey) !== -1;
+  // A utility card can't leave its row onto a full-width row.
+  if (srcAction && !dstAction) { return null; }
+  // A full-width row dropped onto the utility row snaps to the utility block's
+  // edge, so the row lands directly above/below the WHOLE utility row (never
+  // between two utility cards).
+  if (!srcAction && dstAction) {
+    var base = defaultOrder || FOCUSED_DEFAULT_ORDER;
+    var full = (order && order.length) ? order.slice() : base.slice();
+    base.forEach(function(k) { if (full.indexOf(k) === -1) { full.push(k); } });
+    var actionsInOrder = full.filter(function(k) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1; });
+    if (actionsInOrder.length) {
+      dstKey = after ? actionsInOrder[actionsInOrder.length - 1] : actionsInOrder[0];
+    }
+  }
+  return reorderInsert(order, srcKey, dstKey, after, defaultOrder);
+}
+
+export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused };
+export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused };

@@ -31,8 +31,7 @@
          field. They sit INSIDE .app-navbar__nav-header (not the quick-actions
          cluster) so the nav-header's `flex: 1` growth doesn't push them right. Gated
          on the SAME dashboard context as the search (empty_header) so they don't
-         appear on board pages; the focused KID view hides them via
-         body.md-home-focused (the unlocked parent view shows them). --}}
+         appear on board pages. --}}
     {{#if this.appState.empty_header}}
       <span class="app-navbar__home-actions">
         {{#if this.appState.feature_flags.home_tour}}{{home-tour}}{{/if}}
@@ -70,9 +69,9 @@
     {{!-- Settings gear — swapped here from the quick-actions cluster, so it
          now sits just to the right of the Upgrade pill. --}}
     {{#if this.appState.currentUser.user_name}}
-      {{!-- On Balanced the gear is hidden here — the Settings link moves into the
+      {{!-- On Focused the gear is hidden here — the Settings link moves into the
            identity dropdown under My Account (below). Other layouts keep it here. --}}
-      {{#unless (is-equal this.appState.currentUser.preferences.dashboard_layout "balanced")}}
+      {{#unless (is-equal (or this.appState.currentUser.preferences.dashboard_layout "focused") "focused")}}
       <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -120,9 +119,9 @@
         <li role="presentation">
           <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
-        {{!-- Balanced layout moves the navbar Settings gear into the dropdown,
+        {{!-- Focused layout moves the navbar Settings gear into the dropdown,
              directly under My Account. --}}
-        {{#if (is-equal this.appState.currentUser.preferences.dashboard_layout "balanced")}}
+        {{#if (is-equal (or this.appState.currentUser.preferences.dashboard_layout "focused") "focused")}}
         <li role="presentation">
           <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}}>{{t "Settings" key="settings"}}</LinkTo>
         </li>

@@ -64,6 +64,10 @@ module GoogleAuthentication
           'comms_log_opt_in' => product_improvement_opt_in
         }
       }
+      # user_name is passed through as-is here: sanitization is delegated to
+      # clean_path (processable.rb), which User.process_new → generate_user_name
+      # applies (strips everything but [a-zA-Z0-9_-]). Don't assume this method
+      # sanitizes — a future refactor must keep going through clean_path.
       params['user_name'] = user_name
       user = User.process_new(params, { pending: true, allow_password_change: true })
       raise GoogleOAuth::Error, 'user_creation_failed' if !user || user.errored?

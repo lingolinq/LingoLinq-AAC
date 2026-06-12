@@ -52,6 +52,16 @@
             </div>
           {{/if}}
         </div>
+        {{#unless this.googleSignupTerms}}
+          <div class="register-checkboxes">
+            <div class="checkbox big_checkbox">
+              <div id="google_signup_terms_label">
+                <Input @type="checkbox" @checked={{this.googleSignupTerms}} aria-labelledby="google_signup_terms_label" />
+                {{t "By checking this box, I agree to the LingoLinq " key="register_terms_privacy_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Service" key="terms_of_service"}}</a>{{t " and " key="and_spaced"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t "." key="period"}}
+              </div>
+            </div>
+          </div>
+        {{/unless}}
         <div class="register-btn-wrap">
           <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
             {{#if this.googleSignupBusy}}
