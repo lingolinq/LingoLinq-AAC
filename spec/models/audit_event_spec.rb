@@ -26,15 +26,17 @@ describe AuditEvent, :type => :model do
       expect(e.data['type']).to eq('run')
     end
     
-    it 'should log an error when save fails without raising' do
+    it 'should log loudly and not raise when persistence fails' do
+      # The real failure mode is a raise (encryption-key drift, DB error), not a
+      # false return -- AuditEvent has no validations, so save never returns false.
       event = AuditEvent.new
-      allow(event).to receive(:save).and_return(false)
-      allow(event).to receive(:errors).and_return(double(full_messages: ['Validation failed: User key required']))
+      allow(event).to receive(:save!).and_raise(StandardError.new('boom'))
       allow(AuditEvent).to receive(:new).and_return(event)
-      
-      expect(Rails.logger).to receive(:error).with('[AuditEvent] failed to persist audit record: Validation failed: User key required')
-      result = AuditEvent.log_command('test_user', {})
-      
+
+      expect(Rails.logger).to receive(:error).with('[AuditEvent] failed to persist audit record for fred: StandardError: boom')
+      result = nil
+      expect { result = AuditEvent.log_command('fred', {}) }.not_to raise_error
+
       expect(result).to eq(event)
       expect(result.id).to be_nil
     end
