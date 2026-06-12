@@ -109,7 +109,7 @@ module Converters::Utils
   def self.remote_to_boards(user, url)
     result = []
     Progress.update_current_progress(0.1, :downloading_file)
-    response = Typhoeus.get(Uploader.sanitize_url(url))
+    response = SafeHttp.get(url)
     file = Tempfile.new('stash')
     file.binmode
     file.write response.body

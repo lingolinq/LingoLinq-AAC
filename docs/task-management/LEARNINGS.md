@@ -4298,15 +4298,17 @@ the example txn, restored on rollback) for a deterministic baseline. Mirror
 
 **Gotcha:** `sanitize_url` is the single SSRF chokepoint, but its original host checks (`^127`, `localhost`, `^0`, decimal-IP) MISSED link-local `169.254.169.254` (cloud metadata) and RFC1918 private ranges (`10/172.16-31/192.168`) — so an authenticated user could point any image-URL flow at internal services. It also didn't restrict the scheme (so `file://`/`gopher://`/`data:` reached the builder, and a nil-host URI could crash the `uri.host.match` line).
 
-**Fix shape:** restrict scheme to http/https; for IP-LITERAL hosts use Ruby `IPAddr` predicates `loopback?`/`private?`/`link_local?` (+ explicit `100.64.0.0/10` CGN) to reject the reserved ranges. `IPAddr.new(host)` raising on a non-literal hostname is the signal to fall through (don't block public hostnames). `require 'ipaddr'` at the top. Keep the existing string/decimal checks — they catch encodings IPAddr won't (`http://0/`, bare-decimal IPv4).
+**Fix shape:** two layers — (1) `sanitize_url` for fast string-level checks (scheme, IP literals, encodings); (2) `lib/safe_http.rb` for every user-supplied fetch: resolve hostname via `Addrinfo.getaddrinfo`, reject if **any** A/AAAA answer is in a blocked range, then pin validated IPs into libcurl via `CURLOPT_RESOLVE` (`resolve:` in Typhoeus) so connect-time DNS cannot rebind. Redirects are followed manually (max 5 hops) with full re-validation per hop; `followlocation` is always false. Shared IP classification lives in `SafeHttp.blocked_address?` (also used by `sanitize_url` for literals).
 
-**Residual (documented, not yet fixed):** a hostname that RESOLVES to an internal IP (DNS rebinding) still passes — IP-literal checks can't see it. The robust fix is resolve-and-pin at the HTTP-client (Typhoeus) layer; adding DNS resolution inside `sanitize_url` was rejected because it makes the (network-free) spec do live lookups and adds latency to the hot fetch path.
+**Call sites:** `SafeHttp.get/head/post` replaces `Typhoeus.*(Uploader.sanitize_url(...))` in uploadable, uploader `remote_zip`, converters, exporter, openaac.rake, and webhook callbacks.
 
-**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" has a thorough adversarial block (header injection, `@`-tricks, tabs, unicode) — extend it, don't replace it. New cases must keep public hosts (`8.8.8.8`, `172.15/172.32` which are OUTSIDE 172.16-31) passing.
+**Residual:** `api/search_controller.rb` image/audio proxy still fetches user URLs without this stack — separate follow-up PR.
+
+**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" stays network-free (adversarial string cases). DNS/pin behavior in `spec/lib/safe_http_spec.rb` with stubbed `Addrinfo.getaddrinfo`.
 
 **Lesson:** before "fixing" a client-side upload finding, trace to the server fetch — the create-board drag-drop "SSRF" finding was really a gap in the shared `sanitize_url`, fixed once at the chokepoint, not in the UI component. Also: client supplied image URLs are baked as `<img src>` (no HTML execution sink), and `data:` URLs are stored, never fetched — so "stored XSS via data: URL" doesn't apply here.
 
-**Evidence:** task log `2026-06-12-pr-security-review-response.md`.
+**Evidence:** task logs `2026-06-12-pr-security-review-response.md`, `2026-06-12-ssrf-dns-rebinding-fix.md`.
 
 ## Pattern: ButtonImage content_type is the image-type allowlist chokepoint (stored-XSS defense)
 

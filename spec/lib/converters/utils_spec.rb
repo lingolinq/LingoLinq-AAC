@@ -89,13 +89,13 @@ describe Converters::Utils do
   describe "remote_to_boards" do
     it "should make a request to the specified url" do
       res = OpenStruct.new(:body => "bacon", :headers => {'Content-Type' => 'image/png'})
-      expect(Typhoeus).to receive(:get).with("http://example.com/board").and_return(res)
+      expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       expect { Converters::Utils.remote_to_boards(nil, "http://example.com/board") }.to raise_error("Unrecognized file type: image/png")
     end
     
     it "should error on unrecognized file type" do
       res = OpenStruct.new(:body => "bacon", :headers => {'Content-Type' => 'image/png'})
-      expect(Typhoeus).to receive(:get).with("http://example.com/board").and_return(res)
+      expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       expect { Converters::Utils.remote_to_boards(nil, "http://example.com/board") }.to raise_error("Unrecognized file type: image/png")
     end
     
@@ -105,7 +105,7 @@ describe Converters::Utils do
       shell['name'] = "Cool Board"
 
       res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obf'})
-      expect(Typhoeus).to receive(:get).with("http://example.com/board").and_return(res)
+      expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       b = Board.new
       expect(Converters::LingoLinq).to receive(:from_obf).and_return(b)
       res = Converters::Utils.remote_to_boards(nil, "http://example.com/board")
@@ -118,7 +118,7 @@ describe Converters::Utils do
       shell['name'] = "Cool Board"
 
       res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obz'})
-      expect(Typhoeus).to receive(:get).with("http://example.com/board").and_return(res)
+      expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       b = Board.new
       expect(Converters::LingoLinq).to receive(:from_obz).and_return([b])
       res = Converters::Utils.remote_to_boards(nil, "http://example.com/board")

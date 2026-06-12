@@ -43,7 +43,7 @@ namespace :openaac do
       url = "#{OPENBOARDS_BASE}/#{filename}"
       puts "\n[#{filename}] Downloading from #{url}..."
 
-      response = Typhoeus.get(Uploader.sanitize_url(url), timeout: 300, connecttimeout: 30)
+      response = SafeHttp.get(url, timeout: 300, connecttimeout: 30)
       unless response.success?
         puts "  SKIP: HTTP #{response.code} - #{response.return_message}"
         next

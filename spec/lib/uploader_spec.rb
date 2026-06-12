@@ -1527,7 +1527,7 @@ describe Uploader do
     it "should call the block with the loaded zip" do
       expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
       res = OpenStruct.new(body: 'abc')
-      expect(Typhoeus).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
+      expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
       Uploader.remote_zip('http://www.example.com/import.zip') do |zipper|
         expect(zipper).to eq({zipper: true})
       end

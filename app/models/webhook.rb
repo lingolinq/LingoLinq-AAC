@@ -155,8 +155,9 @@ class Webhook < ApplicationRecord
         s = 10
         begin
           Timeout::timeout(s + 1) do
-            url = Uploader.sanitize_url(url)
-            res = Typhoeus.post(url, body: body, timeout: s)
+            sanitized = Uploader.sanitize_url(url)
+            res = SafeHttp.post(url, body: body, timeout: s)
+            url = res.effective_url || sanitized
           end
         rescue Timeout::Error => e
           res = OpenStruct.new(:code => 0, :body => "Timeout, request took more than #{s} seconds")
