@@ -55,5 +55,22 @@ describe AuditEvent, :type => :model do
       expect(logged).to include('[REDACTED_EMAIL]')
       expect(logged).not_to include('grandma@hospital.example')
     end
+
+    it 'alerts Sentry with a scrubbed message when persistence fails' do
+      # Fail-open paths must surface in monitoring; the alert carries the same
+      # scrubbed message, never the raw exception (which Sentry would not scrub).
+      event = AuditEvent.new
+      allow(event).to receive(:save!).and_raise(StandardError.new('db error for grandma@hospital.example'))
+      allow(AuditEvent).to receive(:new).and_return(event)
+      allow(Rails.logger).to receive(:error)
+      allow(Sentry).to receive(:initialized?).and_return(true)
+
+      captured = nil
+      expect(Sentry).to receive(:capture_message) { |msg, *_| captured = msg }
+      expect { AuditEvent.log_command('fred', {}) }.not_to raise_error
+
+      expect(captured).to include('[REDACTED_EMAIL]')
+      expect(captured).not_to include('grandma@hospital.example')
+    end
   end
 end

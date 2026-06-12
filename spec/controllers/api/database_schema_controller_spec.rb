@@ -140,13 +140,15 @@ describe Api::DatabaseSchemaController, :type => :controller do
       expect(response.status).to eq(403)
     end
 
-    it 'should still serve the read when the audit write fails' do
+    it 'refuses the read with 503 when the audit write does not persist (fail-closed)' do
       make_admin
-      expect(AuditEvent).to receive(:log_command).and_raise(StandardError.new('boom'))
+      # log_command is fail-open and returns an unsaved record on failure; the
+      # raw-data explorer refuses to disclose without a persisted audit row.
+      allow(AuditEvent).to receive(:log_command).and_return(AuditEvent.new)
       get :index
-      expect(response.successful?).to eq(true)
+      expect(response.status).to eq(503)
       json = JSON.parse(response.body)
-      expect(json['database_schema']['tables']).to be_a(Array)
+      expect(json).not_to have_key('database_schema')
     end
 
     # The gate must authorize the ACTING admin (@true_user), not the account

@@ -188,6 +188,17 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(event.data).not_to have_key('acting_as')
     end
 
+    it 'refuses the read with 503 when the audit write does not persist (fail-closed)' do
+      make_admin
+      Organization.create
+      # Simulate an audit-write failure: log_command returns an unsaved record.
+      allow(AuditEvent).to receive(:log_command).and_return(AuditEvent.new)
+      get :index, params: {table: 'organizations', limit: 5, offset: 0}
+      expect(response.status).to eq(503)
+      json = JSON.parse(response.body)
+      expect(json).not_to have_key('database_contents')
+    end
+
     it 'should not write an AuditEvent for a non-allowlisted table (no disclosure)' do
       make_admin
       expect {
