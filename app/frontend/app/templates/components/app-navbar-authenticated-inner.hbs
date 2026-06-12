@@ -135,6 +135,9 @@
         {{#if this.application.showDatabaseExplorerLink}}
         <li class="app-navbar__database-explorer-menu-item"><LinkTo @route="database">{{t "Database" key="database_explorer_nav"}}</LinkTo></li>
         {{/if}}
+        {{#if this.application.showSystemSettingsLink}}
+        <li class="app-navbar__system-settings-menu-item"><LinkTo @route="system-settings.emails">{{t "System Settings" key="system_settings_nav"}}</LinkTo></li>
+        {{/if}}
         <li class="divider" role="separator"></li>
         <li>
           <a href="#" {{action "openCompanySidebar" preventDefault=true}} class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</a>
