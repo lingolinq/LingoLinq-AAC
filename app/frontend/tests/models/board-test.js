@@ -32,6 +32,13 @@ describe('Board', function() {
       var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('icon_url_with_fallback')).toEqual(board.fallback_image_url);
     });
+    it("rewrites removed OpenSymbols arasaac/no_2.png in image_url", function() {
+      var board = LingoLinq.store.createRecord('board', {
+        image_url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no_2.png'
+      });
+      board.set('persistence', EmberObject.create({ online: true, get: function(key) { return this[key]; } }));
+      expect(board.get('icon_url_with_fallback')).toEqual('https://opensymbols.s3.amazonaws.com/libraries/arasaac/no.png');
+    });
     it("should automatically check for locally-stored data-uri on load");
   });
 

@@ -19,9 +19,11 @@ import progress_tracker from './progress_tracker';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import rewriteBrokenSymbolUrl from './symbol-url';
 
 var clean_url = function(str) {
   str = str || "";
+  str = rewriteBrokenSymbolUrl(str);
   return str.replace(/"/g, "%22");
 };
 var dom = document.createElement('div');
@@ -779,8 +781,8 @@ var Button = EmberObject.extend({
         promises.push(RSVP.resolve());
       } else if(_this.image_id) {
         if(_this.image_url && (_this.image_url.match(/^https?:\/\//) || _this.image_url.match(/^data:/))) {
-          _this.set('local_image_url', _this.image_url);
-          _this.set('original_image_url', _this.image_url);
+          _this.set('local_image_url', rewriteBrokenSymbolUrl(_this.image_url));
+          _this.set('original_image_url', rewriteBrokenSymbolUrl(_this.image_url));
         }
         promises.push(_this.load_image('local'));
       }
@@ -1082,6 +1084,12 @@ Button.button_styling = function(button, board, pos) {
 
 Button.broken_image = function(image, skip_server_reattempt) {
   image.already_broken = image.already_broken || {};
+  var rewritten = rewriteBrokenSymbolUrl(image.src);
+  if(rewritten && rewritten !== image.src && !image.already_broken[image.src]) {
+    image.already_broken[image.src] = true;
+    image.src = rewritten;
+    return;
+  }
   if(image.already_broken[image.src]) { return; }
   if(capabilities.installed_app && image.src && image.src.match(/localhost/) && !skip_server_reattempt) {
     // Apparently the local server just returns a blank response
