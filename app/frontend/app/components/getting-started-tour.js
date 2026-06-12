@@ -809,9 +809,18 @@ export default Component.extend({
   _reloadAfterDashboardDesign: function() {
     if (!this._dashboardDesignChanged) { return; }
     this._dashboardDesignChanged = false;
+    var _this = this;
     var p = this._dashboardSavePromise;
     this._dashboardSavePromise = null;
-    var doReload = function() { try { window.location.reload(); } catch (e) { /* noop */ } };
+    // Only reload if this tour is still mounted (i.e. the user is still on the
+    // home page) when the save settles. If they navigated away in the meantime
+    // the component is torn down — reloading then would yank them out of
+    // wherever they went; skip it. The saved layout still applies on their next
+    // visit to home, so nothing is lost.
+    var doReload = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      try { window.location.reload(); } catch (e) { /* noop */ }
+    };
     if (p && typeof p.then === 'function') { p.then(doReload, doReload); }
     else { doReload(); }
   },

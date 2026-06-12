@@ -1,5 +1,6 @@
 require 'aws-sdk-s3'
 require 'accessible-books'
+require 'ipaddr'
 
 module Uploader
   S3_EXPIRATION_TIME=60*60
@@ -79,7 +80,25 @@ module Uploader
   def self.sanitize_url(url)
     uri = URI.parse(url) rescue nil
     return nil unless uri
-    return nil if !Rails.env.development? && (uri.host.match(/^127/) || uri.host.match(/localhost/) || uri.host.match(/^0/) || uri.host.to_s == uri.host.to_i.to_s)
+    # Only ever fetch over http(s) — reject file://, gopher://, ftp://, data:, etc.
+    # (also prevents a nil-host crash on schemeless/opaque URIs below).
+    return nil unless ['http', 'https'].include?(uri.scheme)
+    return nil if uri.host.to_s.strip.empty?
+    unless Rails.env.development?
+      return nil if uri.host.match(/^127/) || uri.host.match(/localhost/) || uri.host.match(/^0/) || uri.host.to_s == uri.host.to_i.to_s
+      # Block IP-literal hosts pointing at loopback / link-local / private space —
+      # the SSRF targets the string checks above miss: cloud metadata
+      # 169.254.169.254 (link-local), RFC1918 10.x / 172.16-31.x / 192.168.x
+      # (private), ::1, fe80::, fc00::, and carrier-grade NAT 100.64/10. Only
+      # applies to literal IPs; a hostname that isn't an IP literal fails the
+      # IPAddr parse and falls through (DNS-rebinding to an internal address is a
+      # deeper, HTTP-client-layer concern — see SECURITY note in this method).
+      literal = (IPAddr.new(uri.host.sub(/^\[/, '').sub(/\]$/, '')) rescue nil)
+      if literal && (literal.loopback? || literal.private? || literal.link_local? ||
+                     IPAddr.new('100.64.0.0/10').include?(literal))
+        return nil
+      end
+    end
     port_suffix = ""
     port_suffix = ":#{uri.port}" if (uri.scheme == 'http' && uri.port != 80)
     "#{uri.scheme}://#{uri.host}#{port_suffix}#{uri.path}#{uri.query && "?#{uri.query}"}"
