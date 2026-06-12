@@ -80,6 +80,18 @@ module SafeHttp
       false
     end
 
+    # Build a Typhoeus::Request with DNS pins for streaming/callback use (e.g. proxy).
+    def build_typhoeus_request(url, **opts)
+      prepared = prepare_request(url)
+      return nil unless prepared
+
+      request_opts = opts.merge(followlocation: false)
+      request_opts[:resolve] = prepared[:pins] if prepared[:pins]
+      request = Typhoeus::Request.new(prepared[:effective_url], **request_opts)
+      attach_effective_url(request, prepared[:effective_url])
+      request
+    end
+
     private
 
     def skip_blocked_checks?

@@ -158,6 +158,24 @@ describe SafeHttp do
     end
   end
 
+  describe '.build_typhoeus_request' do
+    it 'returns a pinned Typhoeus::Request for hostnames' do
+      addrs = [instance_double(Addrinfo, ip_address: '93.184.216.34')]
+      expect(Addrinfo).to receive(:getaddrinfo).and_return(addrs)
+
+      req = SafeHttp.build_typhoeus_request('http://www.example.com/pic.png')
+      expect(req).to be_a(Typhoeus::Request)
+      expect(req.url).to eq('http://www.example.com/pic.png')
+      expect(req.options[:followlocation]).to eq(false)
+      expect(req.options[:resolve]).to eq(['www.example.com:80:93.184.216.34'])
+      expect(req.effective_url).to eq('http://www.example.com/pic.png')
+    end
+
+    it 'returns nil for blocked URLs' do
+      expect(SafeHttp.build_typhoeus_request('http://169.254.169.254/meta')).to eq(nil)
+    end
+  end
+
   describe '.post' do
     it 'posts with DNS pins for hostnames' do
       addrs = [instance_double(Addrinfo, ip_address: '93.184.216.34')]

@@ -224,15 +224,13 @@ class Api::SearchController < ApplicationController
       end
     end
     
-    # TODO: add timeout for slow requests
-    request = Typhoeus::Request.new(uri.to_s, followlocation: true)
     error = nil
     s3_cache_miss = false
     begin
+      request = safe_proxy_request(uri.to_s)
       content_type, body = get_url_in_chunks(request)
       if content_type == 'redirect'
-        uri = URI.parse(body)
-        request = Typhoeus::Request.new(uri.to_s, followlocation: true)
+        request = safe_proxy_request(body)
         content_type, body = get_url_in_chunks(request)
       end
     rescue BadFileError => e
@@ -271,6 +269,12 @@ class Api::SearchController < ApplicationController
 
   private
 
+  def safe_proxy_request(url)
+    request = SafeHttp.build_typhoeus_request(url)
+    raise BadFileError, 'blocked or invalid URL' unless request
+    request
+  end
+
   def attempt_button_set_regenerate(url)
     match = url.to_s.match(%r{/button_set_cache/([^/]+)/})
     return nil unless match
@@ -304,7 +308,7 @@ class Api::SearchController < ApplicationController
     return nil unless result && result[:success] && result[:url]
     return nil if result[:url] == url
 
-    retry_request = Typhoeus::Request.new(result[:url], followlocation: true)
+    retry_request = safe_proxy_request(result[:url])
     content_type, body = get_url_in_chunks(retry_request)
     [content_type, body]
   rescue => e

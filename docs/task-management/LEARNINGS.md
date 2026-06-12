@@ -4300,11 +4300,9 @@ the example txn, restored on rollback) for a deterministic baseline. Mirror
 
 **Fix shape:** two layers — (1) `sanitize_url` for fast string-level checks (scheme, IP literals, encodings); (2) `lib/safe_http.rb` for every user-supplied fetch: resolve hostname via `Addrinfo.getaddrinfo`, reject if **any** A/AAAA answer is in a blocked range, then pin validated IPs into libcurl via `CURLOPT_RESOLVE` (`resolve:` in Typhoeus) so connect-time DNS cannot rebind. Redirects are followed manually (max 5 hops) with full re-validation per hop; `followlocation` is always false. Shared IP classification lives in `SafeHttp.blocked_address?` (also used by `sanitize_url` for literals).
 
-**Call sites:** `SafeHttp.get/head/post` replaces `Typhoeus.*(Uploader.sanitize_url(...))` in uploadable, uploader `remote_zip`, converters, exporter, openaac.rake, and webhook callbacks.
+**Call sites:** `SafeHttp.get/head/post` replaces `Typhoeus.*(Uploader.sanitize_url(...))` in uploadable, uploader `remote_zip`, converters, exporter, openaac.rake, and webhook callbacks. Streaming proxy fetches use `SafeHttp.build_typhoeus_request` in `api/search_controller.rb#proxy`.
 
-**Residual:** `api/search_controller.rb` image/audio proxy still fetches user URLs without this stack — separate follow-up PR.
-
-**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" stays network-free (adversarial string cases). DNS/pin behavior in `spec/lib/safe_http_spec.rb` with stubbed `Addrinfo.getaddrinfo`.
+**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" stays network-free (adversarial string cases). DNS/pin behavior in `spec/lib/safe_http_spec.rb` with stubbed `Addrinfo.getaddrinfo`. Proxy SSRF rejection in `spec/controllers/api/search_controller_spec.rb`.
 
 **Lesson:** before "fixing" a client-side upload finding, trace to the server fetch — the create-board drag-drop "SSRF" finding was really a gap in the shared `sanitize_url`, fixed once at the chokepoint, not in the UI component. Also: client supplied image URLs are baked as `<img src>` (no HTML execution sink), and `data:` URLs are stored, never fetched — so "stored XSS via data: URL" doesn't apply here.
 

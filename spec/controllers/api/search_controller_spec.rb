@@ -339,6 +339,15 @@ describe Api::SearchController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('something bad')
     end
+
+    it "should reject SSRF targets before fetching" do
+      token_user
+      expect(controller).not_to receive(:get_url_in_chunks)
+      get :proxy, params: {:url => 'http://169.254.169.254/latest/meta-data/'}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('blocked or invalid URL')
+    end
     
     it "should escape the URI if needed" do
       token_user
