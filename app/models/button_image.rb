@@ -188,12 +188,24 @@ class ButtonImage < ApplicationRecord
       # Data URLs (word art, file upload, webcam) are not processed by process_url (http only).
       # Store in data column so JsonApi can return them before S3 upload completes.
       data_url = params['data_url'].presence || (params['url'] if params['url'].to_s.match(/^data:/))
+      # Security: a ButtonImage must be an image. Drop a data: URI whose own MIME
+      # isn't image/* (e.g. data:text/html — a stored-XSS payload were the bytes
+      # ever served / opened as a document) so it's never stored.
+      data_url = nil if data_url.to_s.match(/\Adata:/i) && !data_url.to_s.match(/\Adata:image\//i)
       if data_url.present?
         self.data = data_url
         self.settings['data_uri'] = data_url
       end
       process_url(params['url'], non_user_params) if params['url'] && params['url'].match(/^http/)
-      self.settings['content_type'] = params['content_type'] if params['content_type']
+      # Security: only ever store an image/* content type. Anything else
+      # (text/html, application/*, …) is coerced to image/png so a client-supplied
+      # type can't ride through to the S3 object's Content-Type and get served
+      # inline as a document. SVG passes (a legit symbol-library type); stripping
+      # scripts from SVG is a separate follow-up.
+      if params['content_type'].present?
+        ct = params['content_type'].to_s
+        self.settings['content_type'] = ct.match(/\Aimage\//i) ? ct : 'image/png'
+      end
       self.settings['width'] = params['width'].to_i if params['width']
       self.settings['height'] = params['height'].to_i if params['height']
       self.settings['hc'] = !!params['hc'] if params['hc']

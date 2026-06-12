@@ -283,6 +283,38 @@ describe ButtonImage, :type => :model do
       expect(i.settings['url']).to eq(nil)
       expect(i.settings['pending_url']).to eq('http://www.example.com')
     end
+
+    it "should coerce a non-image content_type to image/png" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({ 'content_type' => 'text/html' }, { :user => u })
+      expect(i.settings['content_type']).to eq('image/png')
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'content_type' => 'application/javascript' }, { :user => u })
+      expect(j.settings['content_type']).to eq('image/png')
+    end
+
+    it "should keep legitimate image content_types (incl. svg)" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({ 'content_type' => 'image/svg+xml' }, { :user => u })
+      expect(i.settings['content_type']).to eq('image/svg+xml')
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'content_type' => 'image/jpeg' }, { :user => u })
+      expect(j.settings['content_type']).to eq('image/jpeg')
+    end
+
+    it "should drop a non-image data: URI (e.g. data:text/html) and keep image data: URIs" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({ 'url' => 'data:text/html,<script>alert(1)</script>' }, { :user => u })
+      expect(i.data).to eq(nil)
+      expect(i.settings['data_uri']).to eq(nil)
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'url' => 'data:image/png;base64,iVBORw0KGgo=' }, { :user => u })
+      expect(j.data).to eq('data:image/png;base64,iVBORw0KGgo=')
+      expect(j.settings['data_uri']).to eq('data:image/png;base64,iVBORw0KGgo=')
+    end
   end
    
   it "should securely serialize settings" do

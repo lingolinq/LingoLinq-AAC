@@ -4278,3 +4278,15 @@ correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/mode
 **Lesson:** before "fixing" a client-side upload finding, trace to the server fetch — the create-board drag-drop "SSRF" finding was really a gap in the shared `sanitize_url`, fixed once at the chokepoint, not in the UI component. Also: client supplied image URLs are baked as `<img src>` (no HTML execution sink), and `data:` URLs are stored, never fetched — so "stored XSS via data: URL" doesn't apply here.
 
 **Evidence:** task log `2026-06-12-pr-security-review-response.md`.
+
+## Pattern: ButtonImage content_type is the image-type allowlist chokepoint (stored-XSS defense)
+
+**Surface:** `app/models/button_image.rb#process_params` (~line 190-200) — the single place `content_type` and data: URIs get stored for EVERY image path (symbol search, board-detail drop, create-board drag-drop, OBF import). `process_url` (concerns/uploadable.rb) does NOT set content_type; `Uploader.remote_upload` (uploader.rb:296,318) passes content_type straight onto the S3 object's `Content-Type`.
+
+**Gotcha:** client-supplied `content_type` was stored verbatim — `inferImageContentType` (content-grabbers.js) returns the data: MIME / passed-in type as-is (no allowlist), and `ButtonImage` did `settings['content_type'] = params['content_type']` with no check. So a dropped `data:text/html` or a scriptable SVG could be stored as a "ButtonImage" and re-served inline with that type. Board buttons render via `<img src>` (no script exec), so it's NOT a confirmed app-origin XSS — the real residual is a malicious **SVG** served inline from the CDN origin + arbitrary non-image blobs stored as images.
+
+**Fix (defense-in-depth, at the sink):** coerce any non-`image/*` content_type to `image/png`; drop a `data:` URI whose MIME isn't `image/*` (kills the `data:text/html` payload). SVG (`image/svg+xml`) must PASS — OpenSymbols serves SVG symbols, so rejecting it breaks legit rendering; script-sanitizing SVG on upload (loofah/sanitize, strip `<script>`/handlers/`foreignObject`) is the deeper follow-up.
+
+**Lesson:** a client-side "unsafe upload" finding usually resolves at a server chokepoint, not in the UI component — same as the SSRF→`sanitize_url` fix. Trace content_type all the way to what the CDN serves before judging exploitability; `<img src>` rendering neutralizes most stored-image XSS, leaving SVG-served-inline as the real residual.
+
+**Evidence:** task log `2026-06-12-pr-security-review-response.md`; tests in `spec/models/button_image_spec.rb` "process_params".
