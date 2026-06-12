@@ -40,5 +40,20 @@ describe AuditEvent, :type => :model do
       expect(result).to eq(event)
       expect(result.id).to be_nil
     end
+
+    it 'scrubs PII from the exception message before logging' do
+      # A DB/encoding error can echo input back in e.message; that one field is
+      # the only interpolated value that could carry PII, so it must be scrubbed.
+      event = AuditEvent.new
+      allow(event).to receive(:save!).and_raise(StandardError.new('PG error near grandma@hospital.example'))
+      allow(AuditEvent).to receive(:new).and_return(event)
+
+      logged = nil
+      allow(Rails.logger).to receive(:error) { |line| logged = line }
+      expect { AuditEvent.log_command('fred', {}) }.not_to raise_error
+
+      expect(logged).to include('[REDACTED_EMAIL]')
+      expect(logged).not_to include('grandma@hospital.example')
+    end
   end
 end
