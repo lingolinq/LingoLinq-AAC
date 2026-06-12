@@ -35,11 +35,12 @@ export default Controller.extend({
   googleSignupUserNameInvalid: computed('googleSignupUserName', function() {
     return !!(this.get('googleSignupUserName') || '').match(/[\s\.'"]/);
   }),
-  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', function() {
+  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', 'showCoppaConsent', 'age_attested', function() {
     if(this.get('googleSignupBusy')) { return true; }
     if(!this.get('googleSignupTerms')) { return true; }
     if(this.get('googleSignupUserNameMissing')) { return true; }
     if(this.get('googleSignupUserNameInvalid')) { return true; }
+    if(!this.get('showCoppaConsent') && !this.get('age_attested')) { return true; }
     return false;
   }),
   registration_types: LingoLinq.registrationTypes,
@@ -167,6 +168,32 @@ export default Controller.extend({
     return false;
   }),
   age_attested: false,
+  combined_consent: computed('age_attested', 'model.terms_agree', {
+    get() {
+      return !!this.get('age_attested') && !!this.get('model.terms_agree');
+    },
+    set(key, value) {
+      var v = !!value;
+      this.set('age_attested', v);
+      this.set('model.terms_agree', v);
+      return v;
+    }
+  }),
+  combined_google_consent: computed('age_attested', 'googleSignupTerms', {
+    get() {
+      return !!this.get('age_attested') && !!this.get('googleSignupTerms');
+    },
+    set(key, value) {
+      var v = !!value;
+      this.set('age_attested', v);
+      this.set('googleSignupTerms', v);
+      return v;
+    }
+  }),
+  ageAttestationRequired: computed('triedToSave', 'age_attested', 'showCoppaConsent', function() {
+    if(this.get('showCoppaConsent')) { return false; }
+    return this.get('triedToSave') && !this.get('age_attested');
+  }),
   googleSsoEnabled: computed('appState.feature_flags.google_sso', function() {
     return !!this.get('appState.feature_flags.google_sso');
   }),

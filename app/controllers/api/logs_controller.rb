@@ -198,7 +198,7 @@ class Api::LogsController < ApplicationController
     })
     if !log || log.errored?
       errs = log && log.processing_errors
-      Rails.logger.warn("Log creation failed: user_id=#{params.dig('log', 'user_id')}, goal_id=#{params.dig('log', 'goal_id')}, errors=#{errs.inspect}")
+      Rails.logger.warn("Log creation failed: errors=#{errs.inspect}")
       api_error(400, {error: "log creation failed", errors: errs})
     else
       render json: JsonApi::Log.as_json(log, :wrapper => true).to_json

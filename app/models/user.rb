@@ -22,6 +22,12 @@ class User < ApplicationRecord
   has_many :licenses
   has_one :user_extra
 
+  # Version stamp recorded with a user's captured privacy-consent at signup.
+  # Keep in sync with the "Last Updated" date in the Privacy Policy
+  # (app/frontend/app/templates/privacy.hbs). Bump when a material change
+  # requires users to re-consent.
+  PRIVACY_POLICY_VERSION = '2026-06-09'
+
   def current_sponsor
     Organization.find_by(id: self.managing_organization_id)
   end
@@ -401,6 +407,14 @@ class User < ApplicationRecord
     c.delete('parent_consent_expires_at')
     c.delete('pending_parent_consent')
     self.settings['coppa'] = c
+    # Record the parent's Privacy Policy acknowledgment (on the child's behalf)
+    # at the moment they complete the token flow; deferred from the child's
+    # signup (see process_params).
+    self.settings['privacy_policy_acknowledged'] = {
+      'acknowledged_at' => Time.now.utc.iso8601,
+      'policy_version' => PRIVACY_POLICY_VERSION,
+      'acknowledged_by' => 'parent'
+    }
     res = self.save
     if res
       devices.each(&:invalidate_cached_keys)
@@ -1142,8 +1156,22 @@ class User < ApplicationRecord
     ['name', 'description', 'details_url', 'location', 'cell_phone'].each do |arg|
       self.settings[arg] = process_string(params[arg]) if params[arg]
     end
-    if params['terms_agree']
+    # Use process_boolean (true / '1' / 'true' only) rather than a bare
+    # truthiness check: in Ruby the string 'false' is truthy, so `if
+    # params['terms_agree']` would record consent for an API request that
+    # explicitly declined. Consent must be recorded only on an affirmative.
+    if process_boolean(params['terms_agree'])
       self.settings['terms_agreed'] = Time.now.to_i
+      # The signup consent checkbox covers BOTH the Terms of Use and the
+      # Privacy Policy (see register.hbs), so capture an explicit, versioned
+      # record that the user acknowledged the Privacy Policy, alongside the
+      # terms timestamp. For under-13 signups this record is removed in the
+      # COPPA block below and re-stamped by the *parent* in
+      # grant_parental_consent!, since a child cannot acknowledge on its own.
+      self.settings['privacy_policy_acknowledged'] = {
+        'acknowledged_at' => Time.now.utc.iso8601,
+        'policy_version' => PRIVACY_POLICY_VERSION
+      }
     end
     if params['avatar_url'] && (params['avatar_url'].match(/^http/) || params['avatar_url'] == 'fallback')
       if self.settings['avatar_url'] && self.settings['avatar_url'] != 'fallback'
@@ -1202,6 +1230,10 @@ class User < ApplicationRecord
           'parent_consent_token' => GoSecure.nonce('parent_consent'),
           'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
         }
+        # COPPA: a child cannot acknowledge the Privacy Policy on its own. Drop
+        # any signup-time acknowledgment stamped above; it is recorded by the
+        # parent in grant_parental_consent! once they complete the token flow.
+        self.settings.delete('privacy_policy_acknowledged')
       end
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
@@ -1512,13 +1544,13 @@ class User < ApplicationRecord
               if timestamp > 0 && Time.at(timestamp) <= 6.hours.ago
                 Rails.logger.debug("Expired supervisee_code skipped for user #{self.global_id}")
               else
-                Rails.logger.warn("Supervisee link failed for user #{self.global_id} with code: #{params['supervisee_code']} (user may not exist or lack premium)")
+                Rails.logger.warn("Supervisee link failed for user #{self.global_id} (code invalid, or target user may not exist or lack premium)")
               end
             rescue => e
-              Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+              Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}")
             end
           else
-            Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+            Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}")
           end
           # Don't fail the update - just skip the supervisee linking
         end
@@ -1538,7 +1570,7 @@ class User < ApplicationRecord
         unless self.process_supervisor_key(params['supervisor_key'])
           # Processing failed - log but don't block the update
           # This is likely a stale key from a previous session or deleted user
-          Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} with key: #{params['supervisor_key']}")
+          Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} (key invalid, or references a deleted/ineligible user)")
           # Don't fail the update - just skip the supervisor key processing
         end
       rescue => e

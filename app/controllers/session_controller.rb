@@ -476,7 +476,7 @@ class SessionController < ApplicationController
     org = Organization.find_by_saml_issuer(logout_request.issuer)
     return render inline: "No valid org found for issuer" unless org
     settings = saml_settings(org)
-    logger.info "IdP initiated Logout for #{logout_request.name_id}"
+    logger.info "IdP initiated Logout for org #{org.global_id}"
 
     # Actually log out this session
     user = org.find_saml_user(logout_request.name_id)
@@ -539,7 +539,7 @@ class SessionController < ApplicationController
         u.password_used!
         token_json = JsonApi::Token.as_json(u, d)
         # Log only non-sensitive metadata; never log tokens (security)
-        Rails.logger.info("Token issued for user #{u.user_name}: keys=#{token_json.keys.join(',')}")
+        Rails.logger.info("Token issued for user #{u.global_id}: keys=#{token_json.keys.join(',')}")
         # Rails 7: render json: expects a hash, not a pre-encoded string
         render json: token_json
       else

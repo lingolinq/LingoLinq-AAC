@@ -1,14 +1,25 @@
 # Parental consent email (COPPA / under-13 registration)
 
-This document describes the **parent-facing email** sent when a new account is created with “under 13” selected and `COPPA_PARENTAL_CONSENT` / `domain_settings.coppa_parental_consent` is enabled. Legal can edit the **Rails locale strings** below; no code change is required for copy updates once keys exist.
+This document describes the **parent-facing email** sent when a new account is created with “under 13” selected and `COPPA_PARENTAL_CONSENT` / `domain_settings.coppa_parental_consent` is enabled.
 
-## Where the copy lives
+## Editing copy (preferred: System Settings)
+
+Admins with **System Settings** access can edit this email without a deploy:
+
+1. Open **System Settings → Emails → Parental consent request**.
+2. Use the **Message content** tab for subject, greeting, intro, action prompt, and footer (`%{app_name}` is supported where shown).
+3. Use **App defaults** (site-wide) or **Organization settings → Customization** (per org) for branding: app name, company name, support URL, admin email, and email signature.
+
+Overrides are stored in `Setting['default_email_templates']` (site default) or `org.settings['email_templates']` (per organization). Unchanged fields fall back to `config/locales/en.yml`.
+
+## Where the copy lives (code defaults)
 
 | Piece | Location |
 |--------|-----------|
 | Subject | `config/locales/en.yml` → `parental_consent_mailer.subject` |
 | Body lines | `config/locales/en.yml` → `parental_consent_mailer.*` |
 | HTML / text layout | `app/views/user_mailer/parental_consent_request.html.erb`, `parental_consent_request.text.erb` |
+| Admin overrides | System Settings email editor / `lib/system_email_templates.rb` |
 
 The mailer method is `UserMailer#parental_consent_request` in `app/mailers/user_mailer.rb`.
 
@@ -59,5 +70,6 @@ This is **not** because the parent address is wrong: `UserMailer#parental_consen
 
 ## Changelog
 
+- **2026-06-09** — Admin-editable copy via System Settings (Message content tab) and branding via App defaults / org settings.
 - **2026-04-13** — Initial engineering defaults added with COPPA parental consent feature.
 - **2026-04-14** — Documented Resque + SES and `INLINE_PARENTAL_CONSENT_EMAIL` for local testing.

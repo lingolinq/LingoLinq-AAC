@@ -4,7 +4,7 @@ module Passwords
   def generate_password_reset
     clean_password_resets
     if self.settings['password_resets'].length > 5
-      Rails.logger.warn("Throttled password reset for user \"#{self.user_name}\", too many attempts")
+      Rails.logger.warn("Throttled password reset for user #{self.global_id}, too many attempts")
       return false 
     end
     self.settings['password_resets'] << {

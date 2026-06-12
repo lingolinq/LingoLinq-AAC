@@ -114,6 +114,13 @@ Router.map(function() {
   this.route('bulk_purchase', { path: '/purchase/:id'});
   this.route('support', { path: '/support' });
   this.route('database', { path: '/database' });
+  this.route('system-settings', { path: '/system-settings' }, function() {
+    this.route('index', { path: '/' });
+    this.route('emails', { path: '/emails' });
+    this.route('email-edit', { path: '/emails/:template_slug' });
+    this.route('app-defaults', { path: '/app-defaults' });
+    this.route('features', { path: '/features' });
+  });
   this.route('beta-feedback', { path: '/beta-feedback' });
   this.route('beta-feedback-admin', { path: '/beta-feedback/admin' }, function() {
     this.route('entry', { path: '/:feedback_id' });

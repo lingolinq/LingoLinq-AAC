@@ -82,6 +82,11 @@ describe UserMailer, :type => :mailer do
   end
 
   describe "parental_consent_request" do
+    after do
+      Setting.find_by(key: SystemEmailTemplates::DEFAULT_KEY)&.destroy
+      RedisInit.default.del("setting/#{SystemEmailTemplates::DEFAULT_KEY}")
+    end
+
     it "sends to the parent email with a consent URL" do
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       JsonApi::Json.load_domain('test.host')
@@ -99,6 +104,47 @@ describe UserMailer, :type => :mailer do
       expect(m.subject).to eq(I18n.t('parental_consent_mailer.subject', app_name: 'LingoLinq'))
       html = message_body(m, :html)
       expect(html).to match(/parental_consent\/complete/)
+    end
+
+    it "uses admin-edited i18n overrides in the email body" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+        i18n_overrides: {
+          'parental_consent_mailer.greeting' => 'Custom greeting,'
+        }
+      })
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid2',
+        'email' => 'kid_m2@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_m2@example.com'
+      }, {:pending => true})
+      m = UserMailer.parental_consent_request(u.global_id)
+      html = message_body(m, :html)
+      expect(html).to include('Custom greeting,')
+    end
+
+    it 'applies the email layout when an html_body override is stored' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+        html_body: '<p>Custom layout test body</p>'
+      })
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid3',
+        'email' => 'kid_m3@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_m3@example.com'
+      }, {:pending => true})
+      m = UserMailer.parental_consent_request(u.global_id)
+      html = message_body(m, :html)
+      expect(html).to include('Custom layout test body')
+      expect(html).to include('background-color: #eee')
     end
   end
   
