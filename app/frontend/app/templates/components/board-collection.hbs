@@ -1,0 +1,146 @@
+{{!-- "My Board Collection" — inline panel that replaces the speak-mode
+      options menu's Board brand. The outer wrapper owns its own
+      scroll, the header sits sticky so the back button and title stay
+      put while the section list scrolls beneath. --}}
+<div class="md-board-collection__header">
+  <button type="button" class="md-board-collection__back" {{action "back"}}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+    <span>{{t "Back to Speak Mode" key="back_to_speak_mode"}}</span>
+  </button>
+  <div class="md-board-collection__title">
+    {{t "My Board Collection" key="my_board_collection"}}
+  </div>
+  {{!-- Modern in-panel search filter. Live filter — no submit needed.
+       Magnifier on the left, clear (×) on the right when the input
+       has a value. Matches against board name AND key so URL slugs
+       work too. --}}
+  <div class="md-board-collection__search {{if this.search_active 'md-board-collection__search--active'}}">
+    <svg class="md-board-collection__search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/>
+      <path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input
+      type="text"
+      class="md-board-collection__search-input"
+      placeholder={{t "Search boards" key="board_collection_search_placeholder"}}
+      aria-label={{t "Search boards" key="board_collection_search_placeholder"}}
+      value={{this.search_query}}
+      {{on "input" (action "update_search")}} />
+    {{#if this.search_active}}
+      <button type="button" class="md-board-collection__search-clear" {{action "clear_search"}} aria-label={{t "Clear search" key="clear_search"}}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    {{/if}}
+  </div>
+</div>
+
+<div class="md-board-collection__body">
+  {{!-- My Boards (owned + shared, root tiles only) --}}
+  <section class="md-board-collection__section">
+    <h3 class="md-board-collection__section-label"><span>{{t "My Boards" key="my_boards"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+    {{#if (is_equal this.my_boards_state.state "loaded")}}
+      {{#if this.my_boards_state.boards.length}}
+        <ul class="md-board-collection__list">
+          {{!-- Default cap is 5 rows (home + first 4 favorites/others).
+               `visible_my_boards` honors the my_boards_expanded toggle;
+               the "Show N more" / "Show fewer" button below flips it. --}}
+          {{#each this.visible_my_boards as |board|}}
+            <li class="md-board-collection__row">
+              <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{action "select_board" board}}>
+                <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
+                <span class="md-board-collection__item-name">{{board.name}}</span>
+                {{#if (board-language-label board)}}
+                  <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
+                {{/if}}
+                {{#if (is_equal board.key this.home_key)}}
+                  {{!-- Home-board indicator. Mirrors the per-tile pattern
+                       on the boards page (templates/components/board-icon.hbs)
+                       so the same Glyphicon is the user's home-board
+                       cue across surfaces. --}}
+                  <span class="md-board-collection__item-home" aria-label={{t "Home board" key="home_board"}} title={{t "Home board" key="home_board"}}>
+                    <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
+                  </span>
+                {{/if}}
+                {{#if board.grid.rows}}
+                  {{!-- Grid size (rows x columns) — the same metric the
+                       boards-page board card shows in its top-right corner
+                       (templates/components/board-icon.hbs). Replaces the raw
+                       button count. --}}
+                  <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>
+                {{/if}}
+              </button>
+            </li>
+          {{/each}}
+        </ul>
+        {{#if this.my_boards_overflow_count}}
+          {{!-- "Show more" expansion control. NOTE: do NOT pass `count=`
+               here — i18n.t treats `count` as a pluralization signal and
+               will both prepend the count AND pluralize the last word
+               (producing "3 Show 3 mores"). Using `n=` keeps the
+               substitution purely positional (utils/i18n.js:92-119). --}}
+          <button type="button" class="md-board-collection__more" {{action "toggle_my_boards_expanded"}} aria-expanded={{if this.my_boards_expanded "true" "false"}}>
+            <span class="md-board-collection__more-label">
+              {{#if this.my_boards_expanded}}
+                {{t "Show fewer" key="show_fewer_boards"}}
+              {{else}}
+                {{t "Show %{n} more boards" n=this.my_boards_overflow_count key="show_n_more_boards"}}
+              {{/if}}
+            </span>
+            <svg class="md-board-collection__more-chevron {{if this.my_boards_expanded 'md-board-collection__more-chevron--open'}}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        {{/if}}
+      {{else}}
+        <p class="md-board-collection__empty">{{t "No boards found" key="no_boards_found"}}</p>
+      {{/if}}
+    {{else if (is_equal this.my_boards_state.state "error")}}
+      <p class="md-board-collection__error">{{t "Couldn't load boards" key="boards_load_error"}}</p>
+    {{else}}
+      <p class="md-board-collection__loading">{{t "Loading boards…" key="loading_boards"}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- Brand families (alphabetical within each, family order fixed
+        by BRAND_FAMILIES in the component) --}}
+  {{#each this.ordered_brands as |brand|}}
+    {{!-- Hide brand sections that resolved to zero boards so the
+          panel doesn't show a row of empty headers. Keep loading /
+          error so the user can tell the section is in flight. --}}
+    {{#unless (and (is_equal brand.state "loaded") (is_equal brand.boards.length 0))}}
+      <section class="md-board-collection__section">
+        <h3 class="md-board-collection__section-label"><span>{{t brand.default_label key=brand.label_key}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+        {{#if (is_equal brand.state "loaded")}}
+          <ul class="md-board-collection__list">
+            {{#each brand.boards as |board|}}
+              <li class="md-board-collection__row">
+                <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{action "select_board" board}}>
+                  <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
+                  <span class="md-board-collection__item-name">{{board.name}}</span>
+                {{#if (board-language-label board)}}
+                  <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
+                {{/if}}
+                  {{#if (is_equal board.key this.home_key)}}
+                    <span class="md-board-collection__item-home" aria-label={{t "Home board" key="home_board"}} title={{t "Home board" key="home_board"}}>
+                      <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
+                    </span>
+                  {{/if}}
+                  {{#if board.grid.rows}}
+                    <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>
+                  {{/if}}
+                </button>
+              </li>
+            {{/each}}
+          </ul>
+        {{else if (is_equal brand.state "error")}}
+          <p class="md-board-collection__error">{{t "Couldn't load boards" key="boards_load_error"}}</p>
+        {{else}}
+          <p class="md-board-collection__loading">{{t "Loading boards…" key="loading_boards"}}</p>
+        {{/if}}
+      </section>
+    {{/unless}}
+  {{/each}}
+</div>

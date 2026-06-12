@@ -160,6 +160,28 @@ describe Api::BetaFeedbackController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['beta_feedback'].map { |r| r['subject'] }).to eq(%w[Apple Zebra])
     end
+
+    it 'should include request_virtual_meeting in index rows as a boolean' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'Meeting request',
+        'feedback_type' => 'feature',
+        'severity' => 'major',
+        'general_feedback' => 'g' * 12,
+        'request_virtual_meeting' => 'true'
+      })
+
+      get :index
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['beta_feedback'].length).to eq(1)
+      expect(json['beta_feedback'][0]['id']).to eq(m.global_id)
+      expect(json['beta_feedback'][0]['request_virtual_meeting']).to eq(true)
+    end
   end
 
   describe 'show' do
@@ -201,6 +223,27 @@ describe Api::BetaFeedbackController, :type => :controller do
       expect(json['beta_feedback']['id']).to eq(m.global_id)
       expect(json['beta_feedback']['general_feedback']).to eq('Detail text here ok')
       expect(json['beta_feedback']['steps_to_reproduce']).to eq('Step one')
+    end
+
+    it 'should include request_virtual_meeting in detail payload as a boolean' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'Meeting detail',
+        'feedback_type' => 'feature',
+        'severity' => 'minor',
+        'general_feedback' => 'Detail text here ok',
+        'request_virtual_meeting' => true
+      })
+
+      get :show, params: {id: m.global_id}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['beta_feedback']['id']).to eq(m.global_id)
+      expect(json['beta_feedback']['request_virtual_meeting']).to eq(true)
     end
 
     it 'should 404 for non-beta message' do
@@ -260,6 +303,44 @@ describe Api::BetaFeedbackController, :type => :controller do
       expect(m.hidden).to eq(true)
       json = JSON.parse(response.body)
       expect(json['beta_feedback']['id']).to eq(m.global_id)
+    end
+
+    it 'should set priority for admin' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'To prioritize',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'general_feedback' => 'h' * 12
+      })
+
+      patch :update, params: {id: m.global_id, beta_feedback: {priority: 'high'}}
+      expect(response.successful?).to eq(true)
+      m.reload
+      expect(m.beta_priority).to eq('high')
+      json = JSON.parse(response.body)
+      expect(json['beta_feedback']['priority']).to eq('high')
+    end
+
+    it 'should reject invalid priority' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'Bad priority',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'general_feedback' => 'h' * 12
+      })
+
+      patch :update, params: {id: m.global_id, beta_feedback: {priority: 'urgent'}}
+      assert_error('Invalid priority', 400)
     end
   end
 end

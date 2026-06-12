@@ -4,6 +4,7 @@ import { later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import session from '../utils/session';
 import modalUtil from '../utils/modal';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Delete User Modal Component
@@ -46,21 +47,26 @@ export default Component.extend({
       if (user_name !== user.user_name) {
         this.set('error', i18n.t('wrong_user_name', "User name isn't correct"));
       } else {
-        this.persistence.ajax('/api/v1/users/' + user_name + '/flush/user', {
-          type: 'POST',
-          data: {
-            confirm_user_id: user.id,
-            user_name: user_name
-          }
-        }).then(() => {
-          this.get('modal').close();
-          modalUtil.success(i18n.t('user_to_be_deleted', "Your user account will be deleted within approximately the next 24 hours."), false, true);
-          runLater(function() {
-            session.invalidate();
-          }, 10000);
-        }, () => {
-          this.set('error', i18n.t('user_delete_failed', "User account delete failed unexpectedly"));
-        });
+        return actionLock.run('delete-user:' + user.id, () => {
+          this.set('deleting', true);
+          return this.persistence.ajax('/api/v1/users/' + user_name + '/flush/user', {
+            type: 'POST',
+            data: {
+              confirm_user_id: user.id,
+              user_name: user_name
+            }
+          }).then(() => {
+            this.set('deleting', false);
+            this.get('modal').close();
+            modalUtil.success(i18n.t('user_to_be_deleted', "Your user account will be deleted within approximately the next 24 hours."), false, true);
+            runLater(function() {
+              session.invalidate();
+            }, 10000);
+          }, () => {
+            this.set('deleting', false);
+            this.set('error', i18n.t('user_delete_failed', "User account delete failed unexpectedly"));
+          });
+        }, {timeout: 10000});
       }
     }
   }

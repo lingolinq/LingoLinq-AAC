@@ -4,7 +4,7 @@
 # Run: bundle exec rake openaac:import_vocabularies
 #
 # Optional env:
-#   VOCABULARY_USER_NAME=example   (default: example) - user to own imported boards
+#   VOCABULARY_USER_NAME=lingolinq   (default: lingolinq) - user to own imported boards
 #   ONLY=quick-core-24.obz        - import only this file (for testing)
 #
 namespace :openaac do
@@ -30,7 +30,7 @@ namespace :openaac do
   desc 'Download OBZ files from openboards.s3.amazonaws.com and import via Converters::LingoLinq.from_obz()'
   task import_vocabularies: :environment do
     require Rails.root.join('lib', 'converters', 'lingo_linq')
-    user_name = ENV['VOCABULARY_USER_NAME'] || 'example'
+    user_name = ENV['VOCABULARY_USER_NAME'] || 'lingolinq'
     user = User.find_by(user_name: user_name)
     raise "User not found: #{user_name}. Run db:seed or create the user first." unless user
 

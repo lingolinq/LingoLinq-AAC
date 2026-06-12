@@ -556,6 +556,32 @@ describe('User', function() {
       });
     });
 
+    it('should localize remote avatars when loading supervisors', function() {
+      var user = LingoLinq.store.createRecord('user');
+      user.set('id', 'bob');
+      user.set('supervisors', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
+      stub(persistence, 'ajax', function(url, opts) {
+        if(url == '/api/v1/users/bob/supervisors') {
+          return RSVP.resolve({
+            user: [{avatar_url: 'https://example.com/avatar.png'}]
+          });
+        } else {
+          return RSVP.reject();
+        }
+      });
+      stub(persistence, 'find_url', function(url, type) {
+        expect(url).toEqual('https://example.com/avatar.png');
+        expect(type).toEqual('image');
+        return RSVP.resolve('data:image/png;base64,avatar');
+      });
+      user.set('load_all_connections', true);
+      waitsFor(function() { return user.get('all_connections.loaded') && user.get('supervisors.0.avatar_url') == 'data:image/png;base64,avatar'; });
+      runs(function() {
+        expect(user.get('supervisors.0.original_avatar_url')).toEqual('https://example.com/avatar.png');
+        expect(user.get('supervisors.0.avatar_url')).toEqual('data:image/png;base64,avatar');
+      });
+    });
+
     it('should load supervisees if it is possible there are more', function() {
       var user = LingoLinq.store.createRecord('user');
       user.set('id', 'bob');

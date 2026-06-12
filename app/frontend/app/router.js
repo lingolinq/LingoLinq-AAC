@@ -55,8 +55,8 @@ Router.map(function() {
     this.route('supervisors', { path: '/supervisors' });
   });
   this.route('caseload', { path: '/caseload' });
-  this.route('board-layout', { path: '/board-layout/*board_key' });
   this.route('create-board', { path: '/create-board' });
+  this.route('create-board-new', { path: '/create-board-new' });
   this.route('about', { path: '/about' });
   this.route('landing-alt', { path: '/landing-alt' });
   this.route('download', { path: '/download' });
@@ -79,6 +79,8 @@ Router.map(function() {
     this.route('device');
   });
   this.route('register');
+  this.route('beta-welcome-message');
+  this.route('beta-welcome');
   this.route('intro');
   this.route('trends');
   this.route('forgot_password');
@@ -91,9 +93,11 @@ Router.map(function() {
   this.route('start_codes', { path: '/start_codes/:id' });
   this.route('admin', { path: '/admin' });
   this.route('lesson', { path: '/lessons/:lesson_id/:lesson_code/:user_token'});
+  this.route('organizations', { path: '/organizations' });
   this.route('organization', { path: '/organizations/:id' }, function() {
     this.route('people');
     this.route('reports');
+    this.route('telemetry');
     this.route('subscription');
     this.route('extras');
     this.route('lessons');
@@ -109,6 +113,14 @@ Router.map(function() {
   this.route('gift_purchase', { path: '/gift' });
   this.route('bulk_purchase', { path: '/purchase/:id'});
   this.route('support', { path: '/support' });
+  this.route('database', { path: '/database' });
+  this.route('system-settings', { path: '/system-settings' }, function() {
+    this.route('index', { path: '/' });
+    this.route('emails', { path: '/emails' });
+    this.route('email-edit', { path: '/emails/:template_slug' });
+    this.route('app-defaults', { path: '/app-defaults' });
+    this.route('features', { path: '/features' });
+  });
   this.route('beta-feedback', { path: '/beta-feedback' });
   this.route('beta-feedback-admin', { path: '/beta-feedback/admin' }, function() {
     this.route('entry', { path: '/:feedback_id' });
@@ -117,8 +129,15 @@ Router.map(function() {
   this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });
   this.route('profile', { path: '/profile/:user_id/:profile_id'});
+  // Eval namespace must come before user so /eval/* matches eval, not a user named "eval"
+  this.route('eval', { path: '/eval' }, function() {
+    this.route('quick', { path: '/quick/:user_id' });
+  });
   // Setup must come before user so /setup matches the wizard, not user with id "setup"
   this.route('setup', { path: '/setup'});
+  // Standalone home-board picker (decoupled from the setup wizard). Must also
+  // come before user so /board-picker isn't matched as a user id.
+  this.route('board-picker', { path: '/board-picker'});
   this.route('user', { resetNamespace: true, path: '/:user_id' }, function() {
     this.route('home', { path: '/home' });
     this.route('extras', { path: '/extras' });
@@ -148,6 +167,11 @@ Router.map(function() {
     this.route('password_reset', { path: '/password_reset/:code' });
   });
   this.route('speech', { path: '/speech' });
+  this.route('demo', { path: '/demo' }, function() {
+    this.route('index', { path: '/' });
+    this.route('speak');
+    this.route('style');
+  });
   this.route('board', { resetNamespace: true, path: '/*key'}, function() {
 //    this.route('error');
     this.route('stats');

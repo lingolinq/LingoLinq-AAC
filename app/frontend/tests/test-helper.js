@@ -52,5 +52,22 @@ QUnit.on('runEnd', function(runEnd) {
   }
 });
 
+// Explicit imports for new-style QUnit acceptance tests. The requirejs-based
+// auto-loader above misses modules due to AMD registration timing on this Ember
+// version; importing them here guarantees they're pulled into the bundle and
+// their `module()`/`test()` calls fire before `start()` below.
+import 'frontend/tests/acceptance/board-detail-empty-state-test';
+import 'frontend/tests/unit/controllers/board-index-word-prediction-locale-test';
+import 'frontend/tests/unit/controllers/copying-board-test';
+import 'frontend/tests/unit/controllers/user-board-detail-image-cache-test';
+import 'frontend/tests/unit/utils/board-detail-cache-test';
+import 'frontend/tests/unit/utils/board-prefetch-planner-test';
+import 'frontend/tests/unit/utils/loading-overlay-cache-test';
+import 'frontend/tests/unit/utils/persistence-json-payload-cache-test';
+import 'frontend/tests/unit/utils/raw-events-test';
+import 'frontend/tests/unit/models/board-reload-if-lite-test';
+import 'frontend/tests/unit/models/buttonset-cache-fallback-test';
+import 'frontend/tests/unit/components/share-board-guard-test';
+
 // loadTests: false — we already pre-loaded all test modules above
 start({ loadTests: false });

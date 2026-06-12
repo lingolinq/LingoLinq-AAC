@@ -3,9 +3,13 @@ import {
   it,
   expect,
   beforeEach,
-  afterEach
+  afterEach,
+  waitsFor,
+  runs
 } from 'frontend/tests/helpers/jasmine';
 import 'frontend/tests/helpers/ember_helper';
+import RSVP from 'rsvp';
+import EmberObject from '@ember/object';
 import LingoLinq from '../../app';
 
 describe('ApplicationController', 'controller:application', function() {
@@ -76,6 +80,176 @@ describe('ApplicationController', 'controller:application', function() {
       controller.send('invalidateSession');
       expect(controllerCalled).toEqual(true);
       expect(globalCalled).toEqual(false);
+    });
+  });
+
+  describe('copy_source_board', function() {
+    var originalFindRecord;
+    var originalStashes;
+    var originalCurrentBoardState;
+
+    beforeEach(function() {
+      var controller = testOwner.lookup('controller:application');
+      originalFindRecord = LingoLinq.store.findRecord;
+      originalStashes = controller.get('stashes');
+      originalCurrentBoardState = controller.get('appState.currentBoardState');
+    });
+
+    afterEach(function() {
+      var controller = testOwner.lookup('controller:application');
+      LingoLinq.store.findRecord = originalFindRecord;
+      controller.set('stashes', originalStashes);
+      controller.set('appState.currentBoardState', originalCurrentBoardState);
+    });
+
+    it('uses the active root board when copying from a sub-board', function() {
+      var controller = testOwner.lookup('controller:application');
+      var visibleBoard = EmberObject.create({ id: '1_2', key: 'example/child' });
+      var rootBoard = EmberObject.create({ id: '1_1', key: 'example/root' });
+      var requestedRef = null;
+      var resolvedBoard = null;
+
+      controller.set('appState.currentBoardState', { id: '1_2', key: 'example/child' });
+      controller.set('stashes', EmberObject.create({
+        temporary_root_board_state: null,
+        root_board_state: { id: '1_1', key: 'example/root' }
+      }));
+      LingoLinq.store.findRecord = function(type, ref) {
+        requestedRef = ref;
+        return RSVP.resolve(rootBoard);
+      };
+
+      controller.copy_source_board(visibleBoard).then(function(board) {
+        resolvedBoard = board;
+      });
+
+      waitsFor(function() { return resolvedBoard; });
+      runs(function() {
+        expect(requestedRef).toEqual('example/root');
+        expect(resolvedBoard).toEqual(rootBoard);
+        expect(rootBoard.get('copy_source_from_board')).toEqual(visibleBoard);
+      });
+    });
+
+    it('does not use copy metadata as the board-set root when the copied board is not the active board state', function() {
+      var controller = testOwner.lookup('controller:application');
+      var visibleBoard = EmberObject.create({
+        id: '2_2',
+        global_id: '2_2',
+        key: 'example/current-top',
+        copy_id: '1_1',
+        copy_key: 'template/quick-core-think'
+      });
+      var requestedRef = null;
+      var resolvedBoard = null;
+
+      controller.set('appState.currentBoardState', { id: '9_9', key: 'stale/other-board' });
+      controller.set('stashes', EmberObject.create({
+        temporary_root_board_state: null,
+        root_board_state: { id: '9_8', key: 'stale/root' }
+      }));
+      LingoLinq.store.findRecord = function(type, ref) {
+        requestedRef = ref;
+        return RSVP.reject();
+      };
+
+      controller.copy_source_board(visibleBoard).then(function(board) {
+        resolvedBoard = board;
+      });
+
+      waitsFor(function() { return resolvedBoard; });
+      runs(function() {
+        expect(requestedRef).toEqual(null);
+        expect(resolvedBoard).toEqual(visibleBoard);
+      });
+    });
+
+    it('uses a linked top page as the copy root when no active root is available', function() {
+      var controller = testOwner.lookup('controller:application');
+      var visibleBoard = EmberObject.create({
+        id: '1_2',
+        global_id: '1_2',
+        key: 'example/lunch',
+        linked_boards: [
+          { id: '1_1', key: 'example/top-page', name: 'Top Page' }
+        ]
+      });
+      var topBoard = EmberObject.create({ id: '1_1', global_id: '1_1', key: 'example/top-page' });
+      var requestedRef = null;
+      var resolvedBoard = null;
+
+      controller.set('appState.currentBoardState', { id: '1_2', key: 'example/lunch' });
+      controller.set('stashes', EmberObject.create({
+        temporary_root_board_state: null,
+        root_board_state: null
+      }));
+      LingoLinq.store.findRecord = function(type, ref) {
+        requestedRef = ref;
+        return RSVP.resolve(topBoard);
+      };
+
+      controller.copy_source_board(visibleBoard).then(function(board) {
+        resolvedBoard = board;
+      });
+
+      waitsFor(function() { return resolvedBoard; });
+      runs(function() {
+        expect(requestedRef).toEqual('example/top-page');
+        expect(resolvedBoard).toEqual(topBoard);
+        expect(topBoard.get('copy_source_from_board')).toEqual(visibleBoard);
+      });
+    });
+  });
+
+  describe('copy_and_edit_board', function() {
+    it('passes the resolved source board into the copy flow', function() {
+      var controller = testOwner.lookup('controller:application');
+      var sourceBoard = EmberObject.create({ id: '2_2', key: 'example/current-top' });
+      var copiedBoard = EmberObject.create({ id: '3_3', key: 'me/current-top' });
+      var copiedSource = null;
+      var toggled = false;
+
+      controller.set('appState', EmberObject.create({
+        check_for_needing_purchase: function() { return RSVP.resolve(); },
+        jump_to_board: function() { },
+        toggle_edit_mode: function() { toggled = true; }
+      }));
+      controller.copy_board = function(decision, for_editing, selected_user_name, copy_finished, source_board) {
+        copiedSource = source_board;
+        return RSVP.resolve(copiedBoard);
+      };
+
+      controller.send('copy_and_edit_board', sourceBoard);
+
+      waitsFor(function() { return toggled; });
+      runs(function() {
+        expect(copiedSource).toEqual(sourceBoard);
+      });
+    });
+
+    it('passes the board-detail skip-source flag into the copy flow', function() {
+      var controller = testOwner.lookup('controller:application');
+      var sourceBoard = EmberObject.create({ id: '2_2', key: 'example/current-top' });
+      var copiedBoard = EmberObject.create({ id: '3_3', key: 'me/current-top' });
+      var skipped = null;
+      var toggled = false;
+
+      controller.set('appState', EmberObject.create({
+        check_for_needing_purchase: function() { return RSVP.resolve(); },
+        jump_to_board: function() { },
+        toggle_edit_mode: function() { toggled = true; }
+      }));
+      controller.copy_board = function(decision, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution) {
+        skipped = skip_source_resolution;
+        return RSVP.resolve(copiedBoard);
+      };
+
+      controller.send('copy_and_edit_board', sourceBoard, true);
+
+      waitsFor(function() { return toggled; });
+      runs(function() {
+        expect(skipped).toEqual(true);
+      });
     });
   });
 });

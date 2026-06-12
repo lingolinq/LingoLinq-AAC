@@ -1,0 +1,270 @@
+<div class="demo-board-page {{if this.edit_mode "demo-board-page--editing" "demo-board-page--speak-only"}} md-shell md-shell--board-detail md-board-detail--dark">
+  <main class="md-board-detail-main demo-board-page__main">
+    <div id="speak" class="md-board-detail-sentence-row demo-board-page__sentence-row">
+      <LinkTo @route="offline_boards" class="md-board-detail-home-btn demo-board-page__exit-link" aria-label={{t "Exit demo" key="demo_exit_demo"}} title={{t "Exit demo" key="demo_exit_demo"}}>
+        <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <g transform="translate(24 0) scale(-1 1)">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </g>
+        </svg>
+      </LinkTo>
+      <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
+        {{#if this.has_board_history}}
+          <button type="button" class="md-board-detail-sentence-bar__back-btn" {{action "go_back"}} aria-label={{t "Go back to previous board" key="board_detail_go_back"}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6" stroke="#0F172A"/>
+            </svg>
+          </button>
+        {{/if}}
+        {{#if this.has_sentence}}
+          <button type="button" class="md-board-detail-sentence-bar__text demo-board-page__sentence-preview {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite" aria-label={{t "Show full message" key="demo_show_full_message"}} {{action "open_sentence_dialog"}}>
+            {{#if this.has_hidden_sentence_parts}}
+              <span class="demo-board-page__sentence-ellipsis" aria-label={{t "Earlier words hidden" key="demo_earlier_words_hidden"}}>...</span>
+            {{/if}}
+            {{#if this.utterance_show_symbols}}
+              {{#each this.visible_sentence_parts as |part|}}
+                <span class="md-board-detail-sentence-bar__chip {{if this.utterance_text_on_top "md-board-detail-sentence-bar__chip--text-top"}}">
+                  {{#if this.utterance_text_on_top}}
+                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                  {{/if}}
+                  {{#if part.image_url}}
+                    <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
+                  {{/if}}
+                  {{#unless this.utterance_text_on_top}}
+                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                  {{/unless}}
+                </span>
+              {{/each}}
+            {{else}}
+              <span class="demo-board-page__sentence-text-preview">{{this.sentence_text}}</span>
+            {{/if}}
+          </button>
+        {{else}}
+          <div class="md-board-detail-sentence-bar__text {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite">
+            <span class="md-board-detail-sentence-bar__placeholder">{{t "Tap symbols to build your message" key="board_detail_tap_symbols"}}</span>
+          </div>
+        {{/if}}
+        <div class="md-board-detail-sentence-bar__actions">
+          <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-label={{t "Speak sentence" key="board_detail_speak_sentence"}} {{action "speak_sentence"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+          <div class="md-board-detail-sentence-bar__tools">
+            <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace_lower"}} aria-label={{t "Backspace" key="backspace_lower"}} {{action "backspace_sentence"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                <line x1="18" y1="9" x2="12" y2="15"/>
+                <line x1="12" y1="9" x2="18" y2="15"/>
+              </svg>
+            </button>
+            <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Clear" key="board_detail_clear"}} aria-label={{t "Clear" key="board_detail_clear"}} {{action "clear_sentence"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+            </button>
+            <button type="button" class="md-board-detail-sentence-bar__tool-btn {{if this.quick_words_open 'md-board-detail-sentence-bar__tool-btn--active'}}" title={{t "Quick words" key="demo_quick_words"}} aria-label={{t "Quick words" key="demo_quick_words"}} aria-haspopup="true" aria-expanded={{if this.quick_words_open "true" "false"}} aria-controls="demo-quick-words-panel" {{action "toggle_quick_words"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="demo-board-page__settings-link {{if this.edit_mode "demo-board-page__settings-link--active"}}" aria-label={{t "Try styling options" key="demo_try_styling_options"}} title={{t "Try styling options" key="demo_try_styling_options"}} aria-expanded={{if this.edit_mode "true" "false"}} aria-controls="demo-style-panel" {{action "toggle_edit_panel"}}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.38 1.07V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.04 3.9l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6A1.65 1.65 0 0 0 10.38 3V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.36.56.91.9 1.6 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z"/>
+        </svg>
+      </button>
+    </div>
+
+    {{#if this.quick_words_open}}
+      <div id="demo-quick-words-panel" class="demo-board-page__quick-words" role="toolbar" aria-label={{t "Quick words" key="demo_quick_words"}}>
+        {{#each this.quick_words as |item|}}
+          <button type="button" class="demo-board-page__quick-word {{if item.punctuation "demo-board-page__quick-word--punctuation"}}" {{action "add_quick_word" item}} aria-label={{concat (t "Add quick word" key="demo_add_quick_word") ": " item.label}}>
+            {{item.label}}
+          </button>
+        {{/each}}
+      </div>
+    {{/if}}
+
+    {{#if this.sentence_dialog_open}}
+      <div class="demo-board-page__sentence-dialog-backdrop" role="presentation" {{action "close_sentence_dialog"}}>
+        <section class="demo-board-page__sentence-dialog" role="dialog" aria-modal="true" aria-labelledby="demo-full-message-heading" {{action "open_sentence_dialog" bubbles=false}}>
+          <div class="demo-board-page__sentence-dialog-header">
+            <h2 id="demo-full-message-heading">{{t "Full message" key="demo_full_message"}}</h2>
+            <button type="button" class="demo-board-page__sentence-dialog-close" aria-label={{t "Close" key="close"}} {{action "close_sentence_dialog"}}>
+              &times;
+            </button>
+          </div>
+          <div class="demo-board-page__sentence-dialog-body {{if this.utterance_show_symbols "demo-board-page__sentence-dialog-body--symbols"}}">
+            {{#if this.utterance_show_symbols}}
+              {{#each this.sentence_parts as |part|}}
+                <span class="md-board-detail-sentence-bar__chip demo-board-page__sentence-dialog-chip {{if this.utterance_text_on_top "md-board-detail-sentence-bar__chip--text-top"}}">
+                  {{#if this.utterance_text_on_top}}
+                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                  {{/if}}
+                  {{#if part.image_url}}
+                    <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
+                  {{/if}}
+                  {{#unless this.utterance_text_on_top}}
+                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                  {{/unless}}
+                </span>
+              {{/each}}
+            {{else}}
+              <p>{{this.sentence_text}}</p>
+            {{/if}}
+          </div>
+        </section>
+      </div>
+    {{/if}}
+
+    {{#if this.edit_mode}}
+      <section id="demo-style-panel" class="demo-board-page__style-panel" aria-label={{t "Board styling options" key="demo_board_styling_options"}}>
+        <div class="demo-board-page__style-panel-header">
+          <div>
+            <p class="demo-board-page__eyebrow">{{t "Public Demo" key="demo_public_demo"}}</p>
+            <h2>{{t "Board Styling" key="demo_board_styling"}}</h2>
+            <p>{{t "Preview the same button and board display options used in Speak Mode. These changes are local to this demo." key="demo_style_intro"}}</p>
+          </div>
+          <button type="button" class="demo-board-page__style-panel-close" aria-label={{t "Close settings" key="demo_close_settings"}} title={{t "Close settings" key="demo_close_settings"}} {{action "close_edit_panel"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="md-board-detail-edit-toolbar__section">
+          <span class="md-board-detail-edit-toolbar__section-label">{{t "Text" key="text"}}</span>
+          <div class="md-board-detail-edit-toolbar__section-buttons">
+            <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper">
+              <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Decrease text size" key="demo_decrease_text_size"}} {{action "adjust_text_size" -1}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Increase text size" key="demo_increase_text_size"}} {{action "adjust_text_size" 1}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="md-board-detail-edit-toolbar__section">
+          <span class="md-board-detail-edit-toolbar__section-label">{{t "Button Shape" key="demo_button_shape"}}</span>
+          <div class="md-board-detail-edit-toolbar__section-buttons">
+            <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Stretch buttons" key="board_detail_prefs_stretch"}}>
+              <button type="button" role="radio" aria-checked={{if (is-equal this.demo_prefs.stretch_buttons "none") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.demo_prefs.stretch_buttons 'none') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Square" key="board_detail_settings_square"}} aria-label={{t "Square" key="board_detail_settings_square"}} {{action "set_pref" "stretch_buttons" "none"}}>
+                <span class="md-settings-stretch-icon md-settings-stretch-icon--square"></span>
+              </button>
+              <button type="button" role="radio" aria-checked={{if (is-equal this.demo_prefs.stretch_buttons "prefer_tall") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.demo_prefs.stretch_buttons 'prefer_tall') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Tall" key="board_detail_settings_tall"}} aria-label={{t "Tall" key="board_detail_settings_tall"}} {{action "set_pref" "stretch_buttons" "prefer_tall"}}>
+                <span class="md-settings-stretch-icon md-settings-stretch-icon--tall"></span>
+              </button>
+              <button type="button" role="radio" aria-checked={{if (is-equal this.demo_prefs.stretch_buttons "prefer_wide") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.demo_prefs.stretch_buttons 'prefer_wide') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Wide" key="board_detail_settings_wide"}} aria-label={{t "Wide" key="board_detail_settings_wide"}} {{action "set_pref" "stretch_buttons" "prefer_wide"}}>
+                <span class="md-settings-stretch-icon md-settings-stretch-icon--wide"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="md-board-detail-edit-toolbar__section">
+          <span class="md-board-detail-edit-toolbar__section-label">{{t "Spacing" key="demo_spacing"}}</span>
+          <div class="md-board-detail-edit-toolbar__section-buttons">
+            <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper">
+              <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Decrease spacing" key="demo_decrease_spacing"}} {{action "adjust_button_spacing" -1}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Increase spacing" key="demo_increase_spacing"}} {{action "adjust_button_spacing" 1}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="md-board-detail-edit-toolbar__section">
+          <span class="md-board-detail-edit-toolbar__section-label">{{t "Border" key="demo_border"}}</span>
+          <div class="md-board-detail-edit-toolbar__section-buttons">
+            <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper">
+              <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Decrease border size" key="demo_decrease_border_size"}} {{action "adjust_button_border" -1}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Increase border size" key="demo_increase_border_size"}} {{action "adjust_button_border" 1}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="md-board-detail-edit-toolbar__section">
+          <span class="md-board-detail-edit-toolbar__section-label">{{t "Text Position" key="demo_text_position"}}</span>
+          <div class="md-board-detail-edit-toolbar__section-buttons">
+            <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Text position" key="board_detail_prefs_text_position"}}>
+              <button type="button" role="radio" aria-checked={{if (is-equal this.demo_prefs.button_text_position "top") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.demo_prefs.button_text_position 'top') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on top" key="board_detail_settings_text_top"}} aria-label={{t "Text on top" key="board_detail_settings_text_top"}} {{action "set_pref" "button_text_position" "top"}}>
+                <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--top">Aa</span><span class="md-settings-btnmock__img"></span></span>
+              </button>
+              <button type="button" role="radio" aria-checked={{if (is-equal this.demo_prefs.button_text_position "bottom") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.demo_prefs.button_text_position 'bottom') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on bottom" key="board_detail_settings_text_bottom"}} aria-label={{t "Text on bottom" key="board_detail_settings_text_bottom"}} {{action "set_pref" "button_text_position" "bottom"}}>
+                <span class="md-settings-btnmock"><span class="md-settings-btnmock__img"></span><span class="md-settings-btnmock__text md-settings-btnmock__text--bottom">Aa</span></span>
+              </button>
+              <button type="button" role="radio" aria-checked={{if (is-equal this.demo_prefs.button_text_position "text_only") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.demo_prefs.button_text_position 'text_only') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text only" key="board_detail_settings_text_only"}} aria-label={{t "Text only" key="board_detail_settings_text_only"}} {{action "set_pref" "button_text_position" "text_only"}}>
+                <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--only">Aa</span></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="md-board-detail-edit-toolbar__section">
+          <span class="md-board-detail-edit-toolbar__section-label">{{t "Image Background" key="demo_image_background"}}</span>
+          <div class="md-board-detail-edit-toolbar__section-buttons">
+            <select class="md-settings-select md-settings-select--img-bg" aria-label={{t "Image Background" key="demo_image_background"}} onchange={{action "set_symbol_background_from_select" value="target.value"}}>
+              <option value="clear" selected={{is-equal this.image_background_value "clear"}}>{{t "Colored" key="colored"}}</option>
+              <option value="white" selected={{is-equal this.image_background_value "white"}}>{{t "White" key="white"}}</option>
+              <option value="black" selected={{is-equal this.image_background_value "black"}}>{{t "Black" key="black"}}</option>
+              <option value="high_contrast" selected={{is-equal this.image_background_value "high_contrast"}}>{{t "High Contrast" key="high_contrast"}}</option>
+            </select>
+          </div>
+        </div>
+      </section>
+    {{/if}}
+
+    {{#if this.status_message}}
+      <p class="demo-board-page__status" role="status">{{this.status_message}}</p>
+    {{/if}}
+
+    <section class="demo-board-page__board" aria-label={{t "Demo board" key="demo_board"}} style={{safe-style this.grid_style}}>
+      <div class="demo-board-page__board-title">
+        <h2>{{this.board.name}}</h2>
+      </div>
+      {{board-detail-grid
+        board=this.board
+        orderedButtons=this.ordered_buttons
+        activeCategory=this.active_category
+        editMode=this.edit_mode
+        labelsEditable=false
+        folderLabelsOnTab=this.folder_labels_on_tab
+        folderColoredCorner=this.folder_colored_corner
+        folderColoredFace=this.folder_colored_face
+        buttonTextSizeClass=this.button_text_size_class
+        buttonTextPositionClass=this.button_text_position_class
+        hiddenButtonsClass=this.hidden_buttons_class
+        symbolBackgroundClass=this.symbol_background_class
+        highContrastClass=this.high_contrast_class
+        buttonShapeClass=this.button_shape_class
+        gridStyle=this.grid_style
+        buttonTextSizePx=this.button_text_size_px
+        buttonSpacingPx=this.button_spacing_px
+        buttonBorderPx=this.button_border_px
+        buttonFontStyle=this.button_font_style
+        selectButton=(action "select_button")
+        selectButtonKey=(action "select_button_key")
+        editButtonSettings=(action "demo_disabled")
+        openColorPicker=(action "demo_disabled")
+        stashButton=(action "demo_disabled")
+        wordData=(action "demo_disabled")
+        clearButton=(action "demo_disabled")
+        toggleButtonMenu=(action "demo_disabled")}}
+    </section>
+  </main>
+</div>

@@ -12,13 +12,13 @@
     {{/if}}
     {{#if this.filtered_results}}
       {{t "(filtered)" key="filtered"}}
-      <span style='font-size: 12px; padding-left: 5px;'>
+      <span style='font-size: 14px; padding-left: 5px;'>
       <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=this.type highlighted=null start="" end="" device_id="" location_id=""}}>
         {{t "clear filter" key="clear_filter"}}
       </LinkTo>
       </span>
     {{else}}
-      <span style='font-size: 12px; padding-left: 5px;'>
+      <span style='font-size: 14px; padding-left: 5px;'>
         {{#if this.all_logs}}
           <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="note" highlighted=null}}>{{t "Show Only Messages" key="show_only_messages"}}</LinkTo> 
           {{#if this.model.currently_premium}}
@@ -57,7 +57,7 @@
   {{else if this.logs}}
     {{#if this.meta.logging_cutoffs}}
       <div class='alert alert-warning'>
-        {{t "NOTE: The results you are seeing are limited based on the user's preferences. You are currently only able to see results from the last " key="limited_logging_results"}}
+        {{t "NOTE: The results you are seeing are limited based on the user's settings. You are currently only able to see results from the last " key="limited_logging_results"}}
         {{seconds_ago this.logging_cutoff_seconds}}.
         {{#if this.model.permissions.delete}}
           {{#if this.model.has_logging_code}}
@@ -99,7 +99,7 @@
                   <span class="sr-only">{{t "journal" key="journal_lower"}}</span>
                 </LinkTo>
               </td>
-              <td style="font-size: 12px; width: 100%;">
+              <td style="font-size: 14px; width: 100%;">
                 {{t "Latest Evaluation" key="latest_pending"}}
               </td>
               {{#unless this.messages_only}}

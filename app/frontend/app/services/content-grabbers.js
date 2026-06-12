@@ -2,7 +2,7 @@ import { isTesting } from '@ember/debug';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
-import { later as runLater, run, schedule } from '@ember/runloop';
+import { later as runLater, cancel, run, schedule } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
 // import $ from 'jquery';
@@ -30,6 +30,39 @@ var contentGrabbers = Service.extend({
     stashesService = this.stashes;
     persistenceService = this.persistence;
     window.cg = this;
+  },
+  inferImageContentType: function(url, previewContentType, forceContentType) {
+    if(forceContentType) { return forceContentType; }
+    if(previewContentType) { return previewContentType; }
+    if(!url || typeof url !== 'string') { return null; }
+    if(url.match(/^data:/)) {
+      return url.split(/;/)[0].split(/:/)[1] || null;
+    }
+    var path = url.split(/\?/)[0].toLowerCase();
+    if(path.match(/\.svg$/)) { return 'image/svg+xml'; }
+    if(path.match(/\.png$/)) { return 'image/png'; }
+    if(path.match(/\.jpe?g$/)) { return 'image/jpeg'; }
+    if(path.match(/\.gif$/)) { return 'image/gif'; }
+    if(path.match(/\.webp$/)) { return 'image/webp'; }
+    return 'image/png';
+  },
+  formatUploadError: function(err) {
+    err = err || {};
+    if(err.error && typeof err.error === 'string') { return err.error; }
+    if(err.ref) {
+      var ref = err.ref;
+      if(ref.errors && ref.errors[0]) {
+        var e0 = ref.errors[0];
+        if(e0.detail) { return e0.detail; }
+        if(e0.title) { return e0.title; }
+      }
+      if(ref.payload && ref.payload.error) { return ref.payload.error; }
+      if(ref.error) { return ref.error; }
+      if(ref.message) { return ref.message; }
+    }
+    if(err.message) { return err.message; }
+    if(typeof err === 'string') { return err; }
+    return i18n.t('unexpected_error', "unexpected error");
   },
 
   setup: function(button, controller) {
@@ -64,6 +97,30 @@ var contentGrabbers = Service.extend({
       }
       var original = object;
       var original_url = object.get('url');
+
+      // Persisted images must not be saved with a changed URL – the server creates a
+      // new id and Ember Data cannot mutate RecordIdentifier.
+      if(object.constructor.modelName === 'image' && !object.get('isNew') && original_url && !original_url.match(/^data:/)) {
+        var urlChange = object.changedAttributes && object.changedAttributes().url;
+        if(urlChange) {
+          object = LingoLinq.store.createRecord('image', {
+            url: object.get('url'),
+            content_type: object.get('content_type'),
+            width: object.get('width'),
+            height: object.get('height'),
+            hc: object.get('hc'),
+            external_id: object.get('external_id'),
+            search_term: object.get('search_term'),
+            button_label: object.get('button_label'),
+            license: object.get('license'),
+            protected: object.get('protected'),
+            protected_source: object.get('protected_source'),
+            finding_user_name: object.get('finding_user_name')
+          });
+          original = object;
+          original_url = object.get('url');
+        }
+      }
       
       // For images with URLs (not data URLs), check for duplicates before saving
       // This prevents Ember Data ID conflicts when the same image URL is saved multiple times
@@ -90,7 +147,7 @@ var contentGrabbers = Service.extend({
           existingPending.then(function(rec) {
             resolve(rec);
           }, function(err) {
-            reject(err);
+            reject({error: _this.formatUploadError(err), ref: err});
           });
           return;
         }
@@ -110,6 +167,7 @@ var contentGrabbers = Service.extend({
           if(object.get('isNew')) {
             LingoLinq.store.unloadRecord(object);
           }
+          delete pendingMap[normalized_url];
           delete pendingRecordMap[normalized_url];
           deferred.resolve(existing_saved);
           resolve(existing_saved);
@@ -119,13 +177,16 @@ var contentGrabbers = Service.extend({
         // We're the first for this URL: save and resolve when done
 
         object.save().then(function(saved) {
+          delete pendingMap[normalized_url];
           delete pendingRecordMap[normalized_url];
           deferred.resolve(saved);
           resolve(saved);
         }, function(err) {
           delete pendingMap[normalized_url];
           delete pendingRecordMap[normalized_url];
-          reject({error: 'record failed to save', ref: err});
+          var wrapped = {error: 'record failed to save', ref: err};
+          deferred.reject(wrapped);
+          reject(wrapped);
         });
         return;
       }
@@ -169,17 +230,29 @@ var contentGrabbers = Service.extend({
     });
     return promise;
   },
-  upload_to_remote: function(params) {
+  upload_to_remote: function(params, extra) {
     var _this = this;
     var promise = new RSVP.Promise(function(resolve, reject) {
+      extra = extra || {};
       var fd = new FormData();
       for(var idx in params.upload_params) {
         fd.append(idx, params.upload_params[idx]);
       }
+      var blobForFile = null;
       if(params.blob) {
-        fd.append('file', params.blob);
+        blobForFile = params.blob;
       } else if(params.data_url) {
-        fd.append('file', _this.data_uri_to_blob(params.data_url));
+        blobForFile = _this.data_uri_to_blob(params.data_url);
+      }
+      if(blobForFile) {
+        // S3 POST policies bind the object Content-Type. Browsers often use
+        // application/octet-stream (or "") for .obf/.obz and other extensions;
+        // without matching the signed type the upload returns 403.
+        var signedType = params.upload_params['Content-Type'] || params.upload_params['content-type'];
+        if(signedType && blobForFile.type !== signedType) {
+          blobForFile = new Blob([blobForFile], {type: signedType});
+        }
+        fd.append('file', blobForFile);
       }
 
       persistenceService.ajax({
@@ -190,10 +263,14 @@ var contentGrabbers = Service.extend({
         contentType: false   // tell jQuery not to set contentType
       }).then(function(data) {
         var method = params.success_method || 'GET';
-        persistenceService.ajax({
-          url: params.success_url,
-          type: method
-        }).then(function(data) {
+        var ajaxOpts = {url: params.success_url, type: method};
+        if(extra.success_post_json && typeof extra.success_post_json === 'object' && Object.keys(extra.success_post_json).length > 0) {
+          ajaxOpts.contentType = 'application/json; charset=UTF-8';
+          ajaxOpts.dataType = 'json';
+          ajaxOpts.data = JSON.stringify(extra.success_post_json);
+          ajaxOpts.type = 'POST';
+        }
+        persistenceService.ajax(ajaxOpts).then(function(data) {
           resolve(data);
         }, function(err) {
           reject({error: "upload not completed"});
@@ -204,29 +281,47 @@ var contentGrabbers = Service.extend({
     });
     return promise;
   },
-  upload_for_processing: function(file, url, params, progressor) {
+  upload_for_processing: function(file, url, params, progressor, uploadOpts) {
+    uploadOpts = uploadOpts || {};
+    var blob = uploadOpts.blob;
+    var successPostJson = uploadOpts.success_post_json;
     var data_uri = null;
 
-    var generate_data_uri = window.cg.read_file(file);
+    var canUseNativeBlob = file && typeof Blob !== 'undefined' &&
+      (file instanceof Blob || (typeof File !== 'undefined' && file instanceof File));
+    var useBlob = !!(blob && canUseNativeBlob);
 
-    var prep = generate_data_uri.then(function(data) {
-      data_uri = data.target.result;
-      return persistenceService.ajax(url, {
+    var prep = null;
+    if(useBlob) {
+      prep = persistenceService.ajax(url, {
         type: 'POST',
         data: params
       });
-    });
+    } else {
+      var generate_data_uri = window.cg.read_file(file);
+      prep = generate_data_uri.then(function(data) {
+        data_uri = data.target.result;
+        return persistenceService.ajax(url, {
+          type: 'POST',
+          data: params
+        });
+      });
+    }
 
     var upload = prep.then(function(meta) {
-      meta.remote_upload.data_url = data_uri;
+      if(useBlob) {
+        meta.remote_upload.blob = blob;
+      } else {
+        meta.remote_upload.data_url = data_uri;
+      }
       meta.remote_upload.success_method = 'POST';
-      return window.cg.upload_to_remote(meta.remote_upload);
+      return window.cg.upload_to_remote(meta.remote_upload, {success_post_json: successPostJson});
     });
 
     var progress = upload.then(function(data) {
       if(data.progress) {
         return new RSVP.Promise(function(resolve, reject) {
-          progress_tracker.track(data.progress, function(event) {
+          var trackId = progress_tracker.track(data.progress, function(event) {
             progressor.set('progress', event);
             if(event.status == 'errored') {
               progressor.set('status', {errored: true});
@@ -236,6 +331,7 @@ var contentGrabbers = Service.extend({
               resolve(event.result);
             }
           });
+          progressor.set('track_id', trackId);
         });
       } else {
         return RSVP.reject({error: 'not confirmed'});
@@ -343,6 +439,10 @@ var contentGrabbers = Service.extend({
   },
   content_dropped: function(button_id, dataTransfer) {
     if(!appStateService.get('edit_mode') || !dataTransfer) { return; }
+    // board-detail applies a dropped image DIRECTLY to the button (upload +
+    // change_button, no settings modal) — see apply_dropped_image_to_button.
+    // The classic board keeps the file_dropped → button-settings flow.
+    var on_board_detail = (('' + (appStateService.get('current_route') || '')).indexOf('board-detail') >= 0);
     if(dataTransfer.files && dataTransfer.files.length > 0) {
       var files = dataTransfer.files;
       var image = null, sound = null;
@@ -354,7 +454,8 @@ var contentGrabbers = Service.extend({
         }
       }
       if(image) {
-        window.cg.file_dropped(button_id, 'image', image);
+        if(on_board_detail) { window.cg.apply_dropped_image_to_button(button_id, image); }
+        else { window.cg.file_dropped(button_id, 'image', image); }
       } else if(sound) {
         window.cg.file_dropped(button_id, 'sound', sound);
       } else {
@@ -393,7 +494,8 @@ var contentGrabbers = Service.extend({
           }
         }
         if(results.url) {
-          window.cg.file_dropped(button_id, 'image', {url: results.url});
+          if(on_board_detail) { window.cg.apply_dropped_image_to_button(button_id, {url: results.url}); }
+          else { window.cg.file_dropped(button_id, 'image', {url: results.url}); }
         }
       });
       if(!found) {
@@ -402,6 +504,37 @@ var contentGrabbers = Service.extend({
     } else {
       alert(i18n.t('unrecognized_drop_type', "Unrecognized drop type"));
     }
+  },
+  apply_dropped_image_to_button: function(button_id, image_or_url) {
+    // Direct image apply for board-detail edit mode: upload the dropped image,
+    // then set it on the button via editManager.change_button — which updates
+    // image_url for the grid, marks the board edited, and re-renders — with NO
+    // button-settings modal. Mirrors the modal's set_as_button_image upload
+    // (pictureGrabber.save_image_preview) but commits straight to the button so
+    // the dropped image shows + persists immediately. image_or_url is either a
+    // File (dropped image file) or {url} (image dragged from another page/tab).
+    if(!button_id || !image_or_url) { return RSVP.reject(); }
+    var url_promise;
+    if(image_or_url.url) {
+      url_promise = RSVP.resolve(image_or_url.url);
+    } else {
+      url_promise = window.cg.read_file(image_or_url).then(function(data) {
+        return data.target.result; // data URL
+      });
+    }
+    return url_promise.then(function(url) {
+      var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
+      var preview = { url: url, content_type: content_type, protected: false };
+      return pictureGrabber.save_image_preview(preview).then(function(image) {
+        if(image && image.set) { image.set('source_url', url); }
+        editManager.change_button(button_id, {
+          image: image,
+          image_id: image.get('id'),
+          _picked_display_url: (image.get('url') || url)
+        });
+        return image;
+      });
+    });
   },
   read_file: function(file, type) {
     return new RSVP.Promise(function(resolve, reject) {
@@ -673,6 +806,27 @@ var pictureGrabber = EmberObject.extend({
   clear_image_preview: function() {
     this.controller.set('image_preview', null);
   },
+  normalize_preview_license: function(preview) {
+    var license = preview && preview.license;
+    if(license && typeof license === 'object' && typeof license.type === 'string') {
+      return {
+        type: license.type,
+        copyright_notice_url: license.copyright_notice_url || preview.copyright_notice_url || preview.license_url,
+        source_url: license.source_url || preview.source_url,
+        author_name: license.author_name || preview.author,
+        author_url: license.author_url || preview.author_url,
+        uneditable: license.uneditable !== false
+      };
+    }
+    return {
+      type: (typeof license === 'string' && license) || 'private',
+      copyright_notice_url: preview.license_url || preview.copyright_notice_url,
+      source_url: preview.source_url,
+      author_name: preview.author,
+      author_url: preview.author_url,
+      uneditable: true
+    };
+  },
   default_image_preview_license: function() {
     var user = appStateService.get('currentUser');
     if(user && this.controller.get('image_preview')) {
@@ -688,14 +842,7 @@ var pictureGrabber = EmberObject.extend({
     }
   },
   pick_preview: function(preview) {
-    var license = {
-      type: preview.license,
-      copyright_notice_url: preview.license_url,
-      source_url: preview.source_url,
-      author_name: preview.author,
-      author_url: preview.author_url,
-      uneditable: true
-    };
+    var license = this.normalize_preview_license(preview);
 
     // Validate URLs - ensure we have a valid image URL
     var image_url = preview.image_url || preview.url || preview.thumbnail_url;
@@ -712,11 +859,13 @@ var pictureGrabber = EmberObject.extend({
       save_url: save_url,
       search_term: this.controller.get('image_search.term'),
       hc: preview.hc,
-      external_id: preview.id,
+      external_id: preview.external_id || preview.id,
       protected: preview.protected,
       protected_source: preview.protected_source,
       finding_user_name: preview.finding_user_name,
       content_type: preview.content_type,
+      width: preview.width,
+      height: preview.height,
       license: license
     });
   },
@@ -1096,34 +1245,61 @@ var pictureGrabber = EmberObject.extend({
   },
   save_image_preview: function(preview, force_content_type) {
     var _this = this;
+    var previewUrl = preview.save_url || preview.url;
+    if(previewUrl && !preview.content_type) {
+      emberSet(preview, 'content_type', window.cg.inferImageContentType(previewUrl, preview.content_type, force_content_type));
+    }
     if(preview.url.match(/^data:/)) {
-      emberSet(preview, 'content_type', force_content_type || preview.content_type || preview.url.split(/;/)[0].split(/:/)[1]);
+      emberSet(preview, 'content_type', window.cg.inferImageContentType(preview.url, preview.content_type, force_content_type));
     }
     if(!preview.license || !preview.license.copyright_notice_url) {
       emberSet(preview, 'license', preview.license || {});
       var license_url = null;
+      var license_type = preview.license.type;
+      if(license_type && typeof license_type === 'object' && license_type.type) {
+        license_type = license_type.type;
+      }
       var licenses = LingoLinq.licenseOptions;
       for(var idx = 0; idx < licenses.length; idx++) {
-        if(licenses[idx].id == preview.license.type) {
+        if(licenses[idx].id == license_type) {
           license_url = licenses[idx].url;
         }
       }
       emberSet(preview, 'license.copyright_notice_url', license_url);
     }
-    var image_load = new RSVP.Promise(function(resolve, reject) {
-      var i = new window.Image();
-      i.onload = function() {
-        resolve({
-          width: i.width,
-          height: i.height
-        });
-      };
-      i.onerror = function() {
-        reject({error: "image calculation failed"});
-      };
+    var image_load;
+    if(preview.width && preview.height) {
+      image_load = RSVP.resolve({
+        width: preview.width,
+        height: preview.height
+      });
+    } else {
+      image_load = new RSVP.Promise(function(resolve, reject) {
+        var settled = false;
+        var finish = function(fn, arg) {
+          if(settled) { return; }
+          settled = true;
+          fn(arg);
+        };
+        var timer = runLater(function() {
+          finish(reject, {error: i18n.t('image_calculation_failed', "image calculation failed")});
+        }, 10000);
+        var i = new window.Image();
+        i.onload = function() {
+          cancel(timer);
+          finish(resolve, {
+            width: i.width,
+            height: i.height
+          });
+        };
+        i.onerror = function() {
+          cancel(timer);
+          finish(reject, {error: i18n.t('image_calculation_failed', "image calculation failed")});
+        };
 
-      i.src = preview.save_url || preview.url;
-    });
+        i.src = preview.save_url || preview.url;
+      });
+    }
 
     var button_id = _this.controller && _this.controller.get('model.id');
     var button = button_id ? editManager.find_button(button_id) : null;
@@ -1188,6 +1364,19 @@ var pictureGrabber = EmberObject.extend({
 
       var normalized_url = persistenceService.normalize_url(url);
 
+      // When replacing a button symbol with a different URL, always create a new
+      // Image record. Saving over the button's existing image id makes the server
+      // assign a new id and Ember Data cannot mutate RecordIdentifier (47563→47566).
+      var currentImage = button && button.get && button.get('image');
+      var currentImageId = button && button.get && button.get('image_id');
+      var forceNewRecord = false;
+      if(currentImageId && currentImage && !currentImage.get('isNew')) {
+        var priorNorm = persistenceService.normalize_url(currentImage.get('url') || '');
+        if(priorNorm && priorNorm !== normalized_url) {
+          forceNewRecord = true;
+        }
+      }
+
       // If a save for this URL is already in progress, wait for it (avoids duplicate records)
       var pendingMap = window.cg && window.cg.get('_pendingImageSavesByUrl');
       if(pendingMap && pendingMap[normalized_url]) {
@@ -1195,10 +1384,11 @@ var pictureGrabber = EmberObject.extend({
       }
 
       // Check if an image with this URL already exists (saved or in-flight)
-      var existing_image = LingoLinq.store.peekAll('image').find(function(img) {
+      var existing_image = forceNewRecord ? null : LingoLinq.store.peekAll('image').find(function(img) {
         if(img.get('isDeleted')) { return false; }
         var img_url = img.get('url');
-        return img_url && persistenceService.normalize_url(img_url) === normalized_url;
+        if(!img_url || persistenceService.normalize_url(img_url) !== normalized_url) { return false; }
+        return true;
       });
 
       if(existing_image) {
@@ -1217,24 +1407,29 @@ var pictureGrabber = EmberObject.extend({
         if(preview.license && !existing_image.get('license')) {
           existing_image.set('license', preview.license);
         }
-        if(existing_image.get('hasDirtyAttributes')) {
+        var dirtyAttrs = existing_image.changedAttributes && existing_image.changedAttributes();
+        if(existing_image.get('hasDirtyAttributes') && !(dirtyAttrs && dirtyAttrs.url && !existing_image.get('isNew'))) {
           return existing_image.save().then(function() {
             return existing_image;
           });
         }
-        return RSVP.resolve(existing_image);
+        if(dirtyAttrs && dirtyAttrs.url && !existing_image.get('isNew')) {
+          // fall through to create a fresh record below
+        } else {
+          return RSVP.resolve(existing_image);
+        }
       }
 
       var image = LingoLinq.store.createRecord('image', {
         url: normalized_url,
-        content_type: preview.content_type,
+        content_type: window.cg.inferImageContentType(normalized_url, preview.content_type, force_content_type),
         width: data.width,
         height: data.height,
         hc: preview.hc,
         external_id: preview.external_id,
         search_term: preview.search_term,
         button_label: label || preview.suggestion,
-        license: preview.license,
+        license: _this.normalize_preview_license(preview),
         protected: preview.protected,
         protected_source: preview.protected_source,
         finding_user_name: preview.finding_user_name
@@ -1256,9 +1451,26 @@ var pictureGrabber = EmberObject.extend({
       img.set('alternate_error', true);
     });
   },
+  resolveSavedImageRecord: function(image, pickedDisplayUrl) {
+    var savedId = image && ((image.get && image.get('id')) || image.id);
+    var usable = image && image.get && !image.isDestroyed;
+    if(!usable && savedId) {
+      image = LingoLinq.store.peekRecord('image', savedId);
+    }
+    if(!image || image.isDestroyed) {
+      return null;
+    }
+    if(pickedDisplayUrl && (!image.get('url') || !String(image.get('url')).match(/^https?:\/\//))) {
+      image.set('url', pickedDisplayUrl);
+    }
+    return image;
+  },
   select_image_preview: function(url, force_content_type) {
     var preview = this.controller && this.controller.get('image_preview');
-    if(!preview || (!preview.url && !preview.word_editor)) { return; }
+    if(!preview || (!preview.url && !preview.word_editor)) { return RSVP.resolve(); }
+    if(this._activeImageSavePromise) {
+      return this._activeImageSavePromise;
+    }
     this.controller.set('model.pending_image', true);
     var _this = this;
 
@@ -1272,15 +1484,27 @@ var pictureGrabber = EmberObject.extend({
           }, function() {
           });
         }
-        return;
+        if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+          _this.controller.set('model.pending_image', false);
+        }
+        return this._activeImageSavePromise || RSVP.resolve();
       } else {
         emberSet(preview, 'url', url);
       }
     }
     var save_image = this.save_image_preview(preview, force_content_type);
     var button_id = _this.controller.get('model.id');
-    save_image.then(function(image) {
+    this._activeImageSavePromise = save_image.then(function(image) {
+      var pickedDisplayUrl = preview.save_url || preview.url || null;
+      image = _this.resolveSavedImageRecord(image, pickedDisplayUrl);
+      if(!image) {
+        return RSVP.reject({error: i18n.t('image_unavailable_after_save', "image record unavailable after save")});
+      }
+      if(image.invalidateCachedDisplayUrls) {
+        image.invalidateCachedDisplayUrls();
+      }
       if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+        _this.controller.set('fresh_picture_url', pickedDisplayUrl);
         _this.controller.set('model.image', image);
       }
       _this.clear();
@@ -1289,7 +1513,8 @@ var pictureGrabber = EmberObject.extend({
       var syncServerId = (image.get && image.get('id')) || image.id;
       editManager.change_button(button_id, {
         'image': image,
-        'image_id': syncServerId
+        'image_id': syncServerId,
+        '_picked_display_url': pickedDisplayUrl
       });
       // Defer to afterRender so Ember Data has finished processing the save response.
       // This ensures we use the server-assigned id (not the client id) when the server
@@ -1298,10 +1523,14 @@ var pictureGrabber = EmberObject.extend({
         var serverId = image.get && image.get('id') || image.id;
         editManager.change_button(button_id, {
           'image': image,
-          'image_id': serverId
+          'image_id': serverId,
+          '_picked_display_url': pickedDisplayUrl
         });
         var board = editManager.controller && editManager.controller.get('model');
-        var imgUrl = (image.get && (image.get('best_url') || image.get('url'))) || (image.url || '');
+        var imgUrl = pickedDisplayUrl || (image.get && image.get('url')) || (image.url || '');
+        if(!imgUrl || !imgUrl.match(/^https?:\/\//)) {
+          imgUrl = (image.get && (image.get('best_url'))) || (image.url || '');
+        }
         if(board && imgUrl && (imgUrl.match(/^https?:\/\//) || imgUrl.match(/^data:/) || imgUrl.match(/^blob:/))) {
           var urls = board.get('image_urls') || {};
           urls = Object.assign({}, urls, { [serverId]: imgUrl });
@@ -1319,19 +1548,28 @@ var pictureGrabber = EmberObject.extend({
         _this.controller.set('model.pending_image', false);
       }
     }).then(null, function(err) {
-      err = err || {};
-      err.error = err.error || "unexpected error";
-      lingoLinqExtras.track_error("upload failed: " + err.error);
-      alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
+      var errorMessage = window.cg.formatUploadError(err);
+      lingoLinqExtras.track_error("upload failed: " + errorMessage);
+      alert(i18n.t('upload_failed_with_error', "upload failed: " + errorMessage));
       if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
         _this.controller.set('model.pending_image', false);
       }
+      return RSVP.reject(err);
+    }).then(function() {
+      _this._activeImageSavePromise = null;
+    }, function() {
+      _this._activeImageSavePromise = null;
     });
+    return this._activeImageSavePromise;
   },
   save_pending: function() {
     var _this = this;
+    if(!this.controller || this.controller.isDestroyed || this.controller.isDestroying) { return RSVP.resolve(); }
+    if(this._activeImageSavePromise) {
+      return this._activeImageSavePromise;
+    }
     if(this.controller.get('image_preview')) {
-      this.select_image_preview();
+      return this.select_image_preview() || RSVP.resolve();
     } else if(this.controller.get('model.image') && !this.controller.get('model.image.incomplete')) {
       var license = this.controller.get('model.image.license');
       var original = this.controller.get('original_image_license') || {};
@@ -1359,6 +1597,7 @@ var pictureGrabber = EmberObject.extend({
         }
       }
     }
+    return RSVP.resolve();
   },
   webcam_available: function() {
     return !!(navigator.getUserMedia || window.cg.capture_types().image);
@@ -1555,6 +1794,24 @@ var videoGrabber = EmberObject.extend({
     }
     this.controller = controller;
     _this.controller.addObserver('video_preview', _this, _this.default_video_preview_license);
+  },
+  triggerControllerAction: function(actionName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    var controller = this.controller;
+    if(!controller) { return; }
+
+    var action = controller.get && controller.get(actionName);
+    if(action && typeof action === 'function') {
+      return action.apply(null, args);
+    }
+
+    var targetActionName = typeof action === 'string' ? action : actionName;
+    var target = controller.get && controller.get('targetObject');
+    if(targetActionName && target && typeof target.send === 'function') {
+      return target.send.apply(target, [targetActionName].concat(args));
+    } else if(targetActionName && controller.send && typeof controller.send === 'function') {
+      return controller.send.apply(controller, [targetActionName].concat(args));
+    }
   },
   clear: function() {
     var stream = this.controller && this.controller.get('video_recording.stream');
@@ -1900,7 +2157,7 @@ var videoGrabber = EmberObject.extend({
     this.controller.set('video_preview.saving', true);
     var _this = this;
 
-    _this.controller.sendAction('video_pending');
+    _this.triggerControllerAction('video_pending');
 
     if(preview.url.match(/^data:/)) {
       preview.content_type = preview.content_type || preview.url.split(/;/)[0].split(/:/)[1];
@@ -1935,14 +2192,14 @@ var videoGrabber = EmberObject.extend({
     save_video.then(function(video) {
       _this.controller.set('video', video);
       _this.clear_video_work();
-      _this.controller.sendAction('video_ready', video.get('id'));
+      _this.triggerControllerAction('video_ready', video.get('id'));
     }, function(err) {
       err = err || {};
       err.error = err.error || "unexpected error";
       lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
       _this.controller.set('video_preview.saving', false);
-      _this.controller.sendAction('video_not_ready');
+      _this.triggerControllerAction('video_not_ready');
     });
   },
   save_pending: function() {
@@ -2595,57 +2852,107 @@ var boardGrabber = EmberObject.extend({
     }
   },
   file_selected: function(board) {
-    var data_uri = null;
-
     if(!board) {
       modal.close();
       modal.error(i18n.t('invalid_board_file', "Please select a valid board file (.obf or .obz)"));
       return;
     }
-    var generate_data_uri = window.cg.read_file(board);
 
-    var progressor = EmberObject.create();
-    var error = modal.error;
+    var startImport = function(recipientGlobalIds) {
+      var progressor = EmberObject.create();
+      var error = modal.error;
 
-    // TODO: add a confirmation step, including option for privacy level
-    modal.open('importing-boards', progressor);
+      modal.open('importing-boards', progressor);
 
-    var type = 'obf';
-    if(board.name && board.name.match(/\.obz$/)) {
-      type = 'obz';
-    }
+      var type = 'obf';
+      if(board.name && board.name.match(/\.obz$/)) {
+        type = 'obz';
+      }
 
-    var progress = window.cg.upload_for_processing(board, '/api/v1/boards/imports', {type: type}, progressor);
+      var successPost = null;
+      if(recipientGlobalIds && recipientGlobalIds.length > 0) {
+        successPost = {recipient_global_ids: recipientGlobalIds};
+      }
 
-    progress.then(function(boards) {
-      if(boards[0] && boards[0].key) {
-        if(modal.is_open('importing-boards')) {
-          var importKey = boards[0].key;
+      var progress = window.cg.upload_for_processing(board, '/api/v1/boards/imports', {type: type}, progressor, {
+        blob: board,
+        success_post_json: successPost
+      });
+
+      progress.then(function(boards) {
+        var dismissBg = progressor.get('import_dismissed_to_background');
+        var navigateToImport = function(importKey) {
           var importParts = importKey ? importKey.split('/') : [];
           if(importParts.length === 2) {
             boardGrabber.transitioner.transitionTo('user.board-detail', importParts[0], importParts[1]);
           } else {
             boardGrabber.transitioner.transitionTo('board', importKey);
           }
+        };
+        if(boards[0] && boards[0].key) {
+          var importKey = boards[0].key;
+          if(dismissBg) {
+            modal.flash(
+              i18n.t('board_import_finished_background', "Your board import finished."),
+              'success',
+              false,
+              true,
+              {
+                timeout: 12000,
+                action: {
+                  text: i18n.t('open_imported_board', "Open board"),
+                  callback: function() {
+                    navigateToImport(importKey);
+                  }
+                }
+              }
+            );
+          } else if(modal.is_open('importing-boards')) {
+            navigateToImport(importKey);
+          } else {
+            modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
+          }
         } else {
-          modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
+          if(modal.is_open('importing-boards')) {
+            modal.close();
+          }
+          if(dismissBg) {
+            if(boards.error && boards.error.protected) {
+              modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
+            } else {
+              modal.error(i18n.t('board_import_failed', "Board Import failed"));
+            }
+          } else {
+            if(boards.error && boards.error.protected) {
+              modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
+            } else {
+              modal.error(i18n.t('board_import_failed', "Board Import failed"));
+            }
+          }
         }
-      } else {
+      }, function() {
+        var dismissBg = progressor.get('import_dismissed_to_background');
         if(modal.is_open('importing-boards')) {
           modal.close();
         }
-        if(boards.error && boards.error.protected) {
-          modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
+        if(dismissBg) {
+          modal.error(i18n.t('upload_failed', "Upload failed"));
         } else {
-          modal.error(i18n.t('board_import_failed', "Board Import failed"));          
+          error(i18n.t('upload_failed', "Upload failed"));
         }
-      }
-    }, function() {
-      if(modal.is_open('importing-boards')) {
-        modal.close();
-      }
-      error(i18n.t('upload_failed', "Upload failed"));
-    });
+      });
+    };
+
+    if(appStateService.get('feature_flags.multi_user_board_import') && !isTesting()) {
+      modal.open('import-board-recipients', {file: board}).then(function(res) {
+        if(!res || res.dismissed) {
+          return;
+        }
+        startImport(res.recipient_global_ids || []);
+      });
+    } else {
+      startImport(null);
+    }
   }
 }).create();
 

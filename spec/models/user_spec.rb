@@ -172,7 +172,7 @@ describe User, :type => :model do
       expect(perms['edit_boards']).to eq(nil)
       expect(perms['manage_supervision']).to eq(nil)
       expect(perms['model']).to eq(true)
-      expect(perms['set_goals']).to eq(nil)
+      expect(perms['set_goals']).to eq(true)
       expect(perms['view_deleted_boards']).to eq(nil)
       expect(perms['view_word_map']).to eq(true)
       expect(perms['view_detailed']).to eq(true)
@@ -277,7 +277,7 @@ describe User, :type => :model do
       expect(u.settings['preferences']['activation_location']).to eq('end')
       expect(u.settings['preferences']['logging']).to eq(false)
       expect(u.settings['preferences']['geo_logging']).to eq(false)
-      expect(u.settings['preferences']['auto_home_return']).to eq(true)
+      expect(u.settings['preferences']['auto_home_return']).to eq(false)
       expect(u.settings['preferences']['auto_open_speak_mode']).to eq(true)
       expect(u.user_name).to match(/\Ano-name(_\d+)?\z/)
       expect(u.email_hash).not_to eq(nil)
@@ -367,6 +367,22 @@ describe User, :type => :model do
   end
 
   describe "track_boards" do
+    before(:each) do
+      JobStash.delete_all
+      allow(RedisInit).to receive(:any_queue_pressure?).and_return(false)
+    end
+
+    def expect_refresh_stats_scheduled(stash)
+      jobs = Worker.scheduled_actions('slow').select do |job|
+        args = job['args'][2]
+        args &&
+          args['method'] == 'refresh_stats' &&
+          args['arguments'][0] == {'stash' => stash.global_id} &&
+          args['arguments'][1].is_a?(Integer)
+      end
+      expect(jobs.length).to eq(1)
+    end
+
     it "should schedule a background job by default" do
       u = User.create
       u.instance_variable_set('@do_track_boards', true)
@@ -396,7 +412,7 @@ describe User, :type => :model do
       expect(o).to receive(:select).with('id').and_return([b])
       u.track_boards(true)
       s = JobStash.last
-      expect(Worker.scheduled_for?(:slow, Board, :perform_action, {'method' => 'refresh_stats', 'arguments' => [{'stash' => s.global_id}, Time.now.to_i]})).to eq(true)
+      expect_refresh_stats_scheduled(s)
       expect(s.data).to eq([b.global_id])
     end
 
@@ -423,8 +439,8 @@ describe User, :type => :model do
       expect(u.settings['home_board_changed']).to eq(true)
       u.track_boards(true)
       s = JobStash.last
-      expect(Worker.scheduled_for?(:slow, Board, :perform_action, {'method' => 'refresh_stats', 'arguments' => [{'stash' => s.global_id}, Time.now.to_i]})).to eq(true)
       expect(s.data).to eq([b2.global_id])
+      expect_refresh_stats_scheduled(s)
     end
 
     it "should create missing connections" do
@@ -525,6 +541,52 @@ describe User, :type => :model do
       expect(u.settings['public']).to eq(true)
     end
 
+    it "should record a versioned privacy-policy acknowledgment alongside terms agreement" do
+      u = User.new
+      u.process_params({}, {})
+      expect(u.settings['terms_agreed']).to eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']).to eq(nil)
+
+      u.process_params({'terms_agree' => true}, {})
+      expect(u.settings['terms_agreed']).to_not eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']).to_not eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(u.settings['privacy_policy_acknowledged']['acknowledged_at']).to match(/^\d{4}-\d{2}-\d{2}T/)
+    end
+
+    it "should not record acknowledgment when terms_agree is the string 'false'" do
+      # In Ruby the string 'false' is truthy; the gate must use process_boolean
+      # so an API request that explicitly declines records neither terms
+      # agreement nor the Privacy Policy acknowledgment.
+      u = User.new
+      u.process_params({'terms_agree' => 'false'}, {})
+      expect(u.settings['terms_agreed']).to eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']).to eq(nil)
+    end
+
+    it "should defer a minor's privacy-policy acknowledgment to the parental grant (COPPA)" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_privacy',
+        'email' => 'kidpriv@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentpriv@example.com'
+      }, {})
+      # The child's signup tick must NOT record the Privacy Policy acknowledgment...
+      expect(u.settings['coppa']['pending_parent_consent']).to eq(true)
+      expect(u.settings['privacy_policy_acknowledged']).to eq(nil)
+
+      # ...the parent records it by completing the email token flow.
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(token)).to eq(true)
+      expect(u.settings['privacy_policy_acknowledged']).to_not eq(nil)
+      expect(u.settings['privacy_policy_acknowledged']['acknowledged_by']).to eq('parent')
+      expect(u.settings['privacy_policy_acknowledged']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}
@@ -532,6 +594,26 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(false)
       u.process_params({'preferences' => {'cookies' => 'true'}}, {})
       expect(u.settings['preferences']['cookies']).to eq(true)
+    end
+
+    it "should ignore beta_program_access from preferences unless updater is admin" do
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {'beta_program_access' => true}}, {})
+      expect(u.settings['preferences']['beta_program_access']).to eq(nil)
+      u.process_params({'preferences' => {'beta_program_access' => true}}, {'updater' => u})
+      expect(u.settings['preferences']['beta_program_access']).to eq(nil)
+      admin = User.new
+      admin.settings = {'admin' => true}
+      u.process_params({'preferences' => {'beta_program_access' => true}}, {'updater' => admin})
+      expect(u.settings['preferences']['beta_program_access']).to eq(true)
+      u.process_params({'preferences' => {'beta_program_access' => 'false'}}, {'updater' => admin})
+      expect(u.settings['preferences']['beta_program_access']).to eq(false)
+    end
+
+    it "should default beta_program_access to true for new users" do
+      u = User.process_new({'name' => 'beta_default_user'})
+      expect(u.settings['preferences']['beta_program_access']).to eq(true)
     end
 
     it "should remove spaces from email" do
@@ -1389,7 +1471,7 @@ describe User, :type => :model do
       u = User.create
       b = Board.create(:user => u)
       b2 = Board.create(:user => u)
-      expect(Board).to receive(:copy_board_links_for).with(u, {:valid_ids => nil, :starting_old_board => b, :starting_new_board => b2, :authorized_user => nil, :make_public => false, :new_default_locale=>nil,:old_default_locale=>nil,:copy_prefix=>nil, :copier => nil, :disconnect => nil, :new_owner => nil})
+      expect(Board).to receive(:copy_board_links_for).with(u, {:valid_ids => nil, :expand_selected_board_ids => false, :starting_old_board => b, :starting_new_board => b2, :authorized_user => nil, :make_public => false, :new_default_locale=>nil,:old_default_locale=>nil,:copy_prefix=>nil, :copier => nil, :disconnect => nil, :new_owner => nil})
       u.copy_board_links(old_board_id: b.global_id, new_board_id: b2.global_id)
     end
     
@@ -1397,7 +1479,7 @@ describe User, :type => :model do
       u = User.create
       b = Board.create(:user => u)
       b2 = Board.create(:user => u)
-      expect(Board).to receive(:copy_board_links_for).with(u, {:valid_ids => nil, :starting_old_board => b, :starting_new_board => b2, :authorized_user => nil, :make_public => true, :new_default_locale=>nil,:old_default_locale=>nil,:copy_prefix=>nil, :copier => nil, :disconnect => nil, :new_owner => nil})
+      expect(Board).to receive(:copy_board_links_for).with(u, {:valid_ids => nil, :expand_selected_board_ids => false, :starting_old_board => b, :starting_new_board => b2, :authorized_user => nil, :make_public => true, :new_default_locale=>nil,:old_default_locale=>nil,:copy_prefix=>nil, :copier => nil, :disconnect => nil, :new_owner => nil})
       res = u.copy_board_links(old_board_id: b.global_id, new_board_id: b2.global_id, ids_to_copy: [], make_public: true)
       expect(res.keys).to eq(['affected_board_ids', 'new_board_ids'])
     end
@@ -1466,7 +1548,7 @@ describe User, :type => :model do
       u = User.create
       b = Board.create(:user => u)
       b2 = Board.create(:user => u)
-      expect(Board).to receive(:copy_board_links_for).with(u, {:valid_ids => nil, :starting_old_board => b, :starting_new_board => b2, :authorized_user => nil, :make_public => false, :new_default_locale=>nil,:old_default_locale=>nil,:copy_prefix=>nil, :copier => nil, :disconnect => nil, :new_owner => nil})
+      expect(Board).to receive(:copy_board_links_for).with(u, {:valid_ids => nil, :expand_selected_board_ids => false, :starting_old_board => b, :starting_new_board => b2, :authorized_user => nil, :make_public => false, :new_default_locale=>nil,:old_default_locale=>nil,:copy_prefix=>nil, :copier => nil, :disconnect => nil, :new_owner => nil})
       expect(Board).to receive(:find_by_path).with(b.global_id).and_return(b)
       expect(Board).to receive(:find_by_path).with(b2.global_id).and_return(b2)
       expect(b2).to receive(:swap_images).with('bacon', u, [b2.global_id])
@@ -1991,7 +2073,7 @@ describe User, :type => :model do
         'key' => b.key,
         'home_lock' => false,
         'locale' => 'en',
-        'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png'
+        'image' => Board::DEFAULT_ICON
       })
     end
 
@@ -2365,21 +2447,56 @@ describe User, :type => :model do
   end
   
   describe "sidebar_boards" do
-    it "should return the default by default" do
+    it "should return the default active list by default" do
       u = User.new
-      expect(u.sidebar_boards).to eq(User.default_sidebar_boards)
+      expect(u.sidebar_boards).to eq(User.default_active_sidebar_boards)
     end
     
-    it "should return the default if the current setting is an empty list" do
+    it "should return the default active list if the current setting is an empty list" do
       u = User.new
       u.settings = {'preferences' => {'sidebar_boards' => []}}
-      expect(u.sidebar_boards).to eq(User.default_sidebar_boards)
+      expect(u.sidebar_boards).to eq(User.default_active_sidebar_boards)
     end
     
     it "should return the current setting if it's a non-empty list" do
       u = User.new
       u.settings = {'preferences' => {'sidebar_boards' => ['a', 'b', 'c']}}
       expect(u.sidebar_boards).to eq(['a', 'b', 'c'])
+    end
+
+    it "should merge new default sidebar entries into an older saved string list" do
+      u = User.new
+      old_default_keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact - [SystemBoardSources.board_key('crisis-vocabulary')]
+      u.settings = {'preferences' => {'sidebar_boards' => old_default_keys}}
+      keys = u.sidebar_boards.map { |b| User.sidebar_board_identity(b) }
+      expect(keys).to include(SystemBoardSources.board_key('crisis-vocabulary'))
+    end
+
+    it "should merge new default sidebar entries into an older saved default list" do
+      u = User.new
+      old_defaults = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }
+      u.settings = {'preferences' => {'sidebar_boards' => old_defaults}}
+      expect(u.sidebar_boards.map { |b| b['key'] || 'alert' }).to eq(
+        User.default_sidebar_boards.map { |b| b['key'] || 'alert' }
+      )
+    end
+
+    it "should not re-add sidebar boards the user removed from their saved list" do
+      u = User.new
+      social_key = 'mbaud12/senner-baud-greetings'
+      saved = User.default_sidebar_boards.reject do |b|
+        b['key'] == social_key || b['key'] == SystemBoardSources.board_key('crisis-vocabulary')
+      end
+      u.settings = {'preferences' => {'sidebar_boards' => saved}}
+      keys = u.sidebar_boards.map { |b| b['key'] || 'alert' }
+      expect(keys).not_to include(social_key)
+      expect(keys).to include(SystemBoardSources.board_key('crisis-vocabulary'))
+    end
+
+    it "should leave social in the disabled pool by default" do
+      keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include('mbaud12/senner-baud-greetings')
+      expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
     end
   end
   
@@ -3543,6 +3660,32 @@ describe User, :type => :model do
     end
   end
 
+  describe "copy_board_to_library" do
+    it "returns false without a valid original board" do
+      u = User.create
+      expect(u.copy_board_to_library({}, nil, nil)).to eq(false)
+    end
+
+    it "copies a board without setting home_board" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
+      expect(u.settings['preferences']['home_board']).to eq(nil)
+      expect(u.boards.where(parent_board: b1).first).to_not eq(nil)
+    end
+
+    it "returns true when the user already owns a matching copy" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      existing = b1.copy_for(u)
+      expect(u).to_not receive(:copy_board_links)
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
+      expect(u.boards.where(parent_board: b1).first.id).to eq(existing.id)
+    end
+  end
+
   describe "copy_to_home_board" do
     it "should return without an valid original board" do
       u = User.create
@@ -3755,6 +3898,491 @@ describe User, :type => :model do
     it "should return empty policy for users without an org" do
       u = User.create
       expect(u.effective_data_policy).to eq({})
+    end
+  end
+
+  describe '#ai_consent_granted?' do
+    it 'returns false for a newly created user with no ai_consent grant' do
+      u = User.create
+      expect(u.settings).to be_a(Hash)
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'returns false when settings hash exists but ai_consent key is absent' do
+      u = User.create
+      u.settings = {}
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'returns true after grant_ai_consent! at the same disclosures_version' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(true)
+    end
+
+    it 'returns false when queried at a different disclosures_version' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'returns false after revoke_ai_consent!' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      u.revoke_ai_consent!
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'raises ArgumentError when disclosures_version: kwarg is omitted' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect { u.ai_consent_granted? }.to raise_error(ArgumentError)
+    end
+
+    it 'returns false when explicit disclosures_version: nil is passed' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: nil)).to eq(false)
+    end
+  end
+
+  describe '#grant_ai_consent!' do
+    it 'writes the settings hash and returns truthy on first call' do
+      u = User.create
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to be_truthy
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c).to be_a(Hash)
+      expect(c['granted_at']).to be_present
+      expect(c['granted_by']).to eq('Parent Name <parent@example.com>')
+      expect(c['source']).to eq('email_link')
+      expect(c['record_id']).to be_present
+      expect(c['disclosures_version']).to eq(1)
+    end
+
+    it 'deletes pending_token and pending_token_expires_at on grant' do
+      u = User.create
+      u.settings ||= {}
+      u.settings['ai_consent'] = {
+        'pending_token' => 'abc',
+        'pending_token_expires_at' => (Time.now.utc + 14 * 86400).iso8601
+      }
+      u.save
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c).not_to have_key('pending_token')
+      expect(c).not_to have_key('pending_token_expires_at')
+    end
+
+    it 'assigns record_id in RFC-4122 UUID format on first grant' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      # 8-4-4-4-12 hex pattern. We assert the contract (UUID-shaped string),
+      # not the implementation (whatever generator was used). Adversary-flagged
+      # concern: the prior implementation (GoSecure.nonce) had only ~20 bits of
+      # input entropy per second per purpose, which could collide under bulk
+      # admin_backfill. SecureRandom.uuid gives 122 bits.
+      expect(u.settings['ai_consent']['record_id']).to match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/)
+    end
+
+    it 'preserves record_id across the revoke/re-grant lifecycle' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      original_record_id = u.settings['ai_consent']['record_id']
+      expect(original_record_id).to be_present
+      u.revoke_ai_consent!
+      u.reload
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.settings['ai_consent']['record_id']).to eq(original_record_id)
+    end
+
+    it "fires exactly one AuditEvent with data['type'] == 'ai_consent_grant' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      expect(AuditEvent.count).to eq(0)
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to be_truthy
+      expect(AuditEvent.count).to eq(1)
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_grant')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('email_link')
+      expect(ae.data['granted_by']).to eq('Parent Name <parent@example.com>')
+      expect(ae.data['record_id']).to be_present
+      u.reload
+      expect(ae.data['record_id']).to eq(u.settings['ai_consent']['record_id'])
+    end
+
+    it 'is idempotent on same-version re-call: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'does NOT silently grant at a stale (older) version: returns false and fires no AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(2)
+    end
+
+    it 'accepts a version upgrade: grant at a newer disclosures_version overwrites the prior active grant and preserves record_id' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      original_record_id = u.settings['ai_consent']['record_id']
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'in_app')
+      expect(res).to eq(true)
+      expect(AuditEvent.count - pre_count).to eq(1)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['disclosures_version']).to eq(2)
+      expect(c['source']).to eq('in_app')
+      expect(c['record_id']).to eq(original_record_id)
+      expect(c['revoked_at']).to be_blank
+    end
+
+    it 'records the prior_disclosures_version in the audit payload on a version upgrade' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'in_app')
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_grant')
+      expect(ae.data['disclosures_version']).to eq(2)
+      expect(ae.data['prior_disclosures_version']).to eq(1)
+    end
+
+    it 'emits prior_disclosures_version as nil on a first-time grant (no prior version to upgrade from)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      ae = AuditEvent.last
+      expect(ae.data['prior_disclosures_version']).to be_nil
+    end
+
+    it 'passes through optional ip, user_agent, granted_by_user_id to the settings hash' do
+      u = User.create
+      granter = User.create
+      u.grant_ai_consent!(
+        disclosures_version: 1,
+        granted_by: 'Parent Name <parent@example.com>',
+        source: 'in_app',
+        ip: '192.0.2.42',
+        user_agent: 'Mozilla/5.0 (test-agent)',
+        granted_by_user_id: granter.global_id
+      )
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['ip']).to eq('192.0.2.42')
+      expect(c['user_agent']).to eq('Mozilla/5.0 (test-agent)')
+      expect(c['granted_by_user_id']).to eq(granter.global_id)
+      expect(c['source']).to eq('in_app')
+    end
+
+    it 'accepts the admin_backfill source value' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Admin Backfill', source: 'admin_backfill')
+      u.reload
+      expect(u.settings['ai_consent']['source']).to eq('admin_backfill')
+    end
+
+    it 'raises ArgumentError when source is not in the allowlist' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'sms_link')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: nil)
+      }.to raise_error(ArgumentError, 'invalid_source')
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: '')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      u.reload
+      # Pre-validation raise means no settings mutation, no audit row.
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id equals self.global_id (no self-grant)' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Self',
+          source: 'in_app',
+          granted_by_user_id: u.global_id
+        )
+      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id is the bare numeric self id (no self-grant bypass)' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Self',
+          source: 'in_app',
+          granted_by_user_id: u.id
+        )
+      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id is not a global_id or numeric db id' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Parent',
+          source: 'in_app',
+          granted_by_user_id: 'not-a-valid-id'
+        )
+      }.to raise_error(ArgumentError, 'invalid_granted_by_user_id')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'normalizes a bare numeric granted_by_user_id to global_id form in settings' do
+      u = User.create
+      granter = User.create
+      u.grant_ai_consent!(
+        disclosures_version: 1,
+        granted_by: 'Parent',
+        source: 'in_app',
+        granted_by_user_id: granter.id
+      )
+      u.reload
+      expect(u.settings['ai_consent']['granted_by_user_id']).to eq(granter.global_id)
+    end
+
+    it 'allows a different user as granted_by_user_id' do
+      u = User.create
+      granter = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Parent',
+          source: 'in_app',
+          granted_by_user_id: granter.global_id
+        )
+      }.not_to raise_error
+    end
+  end
+
+  describe '#revoke_ai_consent!' do
+    it 'returns false when called on a user with no consent record' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      pre_count = AuditEvent.count
+      res = u.revoke_ai_consent!
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'marks the record revoked and returns true on first call after grant' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      res = u.revoke_ai_consent!
+      expect(res).to eq(true)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_present
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it "fires exactly one AuditEvent with data['type'] == 'ai_consent_revoke' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      u.reload
+      granted_record_id = u.settings['ai_consent']['record_id']
+      u.revoke_ai_consent!(source: 'parent')
+      expect(AuditEvent.count).to eq(2)
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_revoke')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('parent')
+      expect(ae.data['record_id']).to eq(granted_record_id)
+    end
+
+    it 'is idempotent on already-revoked: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      expect(AuditEvent.count).to eq(2)
+      u.reload
+      first_revoked_at = u.settings['ai_consent']['revoked_at']
+      pre_count = AuditEvent.count
+      res = u.revoke_ai_consent!
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to eq(first_revoked_at)
+    end
+
+    it 'passes through optional revoked_by and reason to the settings hash' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      u.revoke_ai_consent!(revoked_by: 'Parent Name <parent@example.com>', reason: 'Withdrawing consent')
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_by']).to eq('Parent Name <parent@example.com>')
+      expect(c['revoked_reason']).to eq('Withdrawing consent')
+    end
+
+    it 'defaults source to parent when not specified' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      expect(AuditEvent.last.data['source']).to eq('parent')
+    end
+
+    it 'raises ArgumentError when revoke source is not in the allowlist' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect {
+        u.revoke_ai_consent!(source: 'malicious-input')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      # Pre-validation raise: settings still show the grant intact
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_blank
+    end
+
+    it 'accepts admin and system as revoke sources in addition to parent' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect { u.revoke_ai_consent!(source: 'admin') }.not_to raise_error
+      u2 = User.create
+      u2.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect { u2.revoke_ai_consent!(source: 'system') }.not_to raise_error
+    end
+  end
+
+  describe 'AI consent atomicity and audit-event coupling' do
+    it 'populates audit_events.event_type and record_id columns on grant (not just the data blob)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_grant')
+      expect(ae.record_id).to eq(u.settings['ai_consent']['record_id'])
+    end
+
+    it 'populates audit_events.event_type and record_id columns on revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      record_id = u.settings['ai_consent']['record_id']
+      u.revoke_ai_consent!
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_revoke')
+      expect(ae.record_id).to eq(record_id)
+    end
+
+    it 'rolls back the User settings write when AuditEvent.create! raises during grant' do
+      u = User.create
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        expect { u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link') }.to raise_error(ActiveRecord::RecordInvalid)
+      }.not_to change { AuditEvent.count }
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'rolls back the User settings write when AuditEvent.create! raises during revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      pre_count = AuditEvent.count
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        u.revoke_ai_consent!
+      }.to raise_error(ActiveRecord::RecordInvalid)
+      expect(AuditEvent.count).to eq(pre_count)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_blank
+    end
+
+    it 'rolls back the consent write even when the audit error is rescued inside an outer transaction (requires_new SAVEPOINT)' do
+      # Without `requires_new: true` on with_lock, Rails would join the outer
+      # transaction and a rescued AR error would still leave the consent settings
+      # committed when the outer transaction commits. This spec is the canary for
+      # that regression.
+      u = User.create
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      ActiveRecord::Base.transaction do
+        begin
+          u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+        rescue ActiveRecord::RecordInvalid
+          # Caller swallows the audit failure (e.g. controller renders a 500)
+          # but expects the consent write to NOT have leaked through.
+        end
+        # Outer transaction commits cleanly here.
+      end
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'no-ops on a stale in-memory revoke after another copy already revoked (lost-update guard via with_lock reload)' do
+      # NOTE: This test runs single-threaded inside Rails' test transaction, so it
+      # does not exercise true cross-connection SELECT FOR UPDATE blocking. What it
+      # does prove is the second half of the lost-update guard: with_lock reloads
+      # the row inside its block, so a stale in-memory copy observes the committed
+      # state (revoked) and the idempotency guard correctly no-ops. The SELECT FOR
+      # UPDATE behavior under real concurrent connections is a database-level
+      # guarantee, not asserted here.
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u_a = User.find(u.id)
+      u_b = User.find(u.id)
+      u_a.revoke_ai_consent!
+      # u_b is stale: in-memory state still says granted-and-unrevoked. Calling
+      # revoke! should reload inside with_lock, see the revoked state, and no-op.
+      res = u_b.revoke_ai_consent!
+      expect(res).to eq(false)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_present
+    end
+
+    it 'treats a non-Hash truthy value at settings[ai_consent] as missing (does not crash)' do
+      u = User.create
+      u.settings = { 'ai_consent' => 'corrupted-string-value' }
+      u.save
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+      # grant! must overwrite the malformed value with a proper hash.
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(true)
+      u.reload
+      expect(u.settings['ai_consent']).to be_a(Hash)
+      expect(u.settings['ai_consent']['granted_at']).to be_present
     end
   end
 end

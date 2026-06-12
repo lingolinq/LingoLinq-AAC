@@ -34,7 +34,7 @@
         <div class="form-group">
           <div class="col-sm-12">
             <p class='form-control-static'>
-              {{t "All other settings are controlled from the user's Preferences page" key="other_settings_on_preferences"}}
+              {{t "All other settings are controlled from the user's Settings page" key="other_settings_on_preferences"}}
             </p>
             {{#if this.model.user.preferences.home_board}}
               <p>
@@ -105,6 +105,7 @@
     </form>
   </div>
   <div class="modal-footer md-modal-footer">
+    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
     <button class='btn btn-lg btn-primary' disabled={{this.status.loading}} {{action "update"}}>
       {{#if this.status.loading}}
         {{t "Updating User..." key="updating_user"}}
@@ -114,6 +115,5 @@
         {{t "Update User" key="update_user"}}
       {{/if}}
     </button>
-    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

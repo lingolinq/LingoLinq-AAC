@@ -137,9 +137,24 @@ task "scheduler:dispatch" => :environment do
       "#{count} stale sessions purged"
     end
 
+    run_task.call("redact_old_ai_api_log_ips") do
+      count = AiApiLog.redact_old_ip_addresses!
+      "#{count} AI log IPs redacted"
+    end
+
     run_task.call("expire_stale_supervisor_consent_requests") do
       count = SupervisorConsentExpirationWorker.perform
       "#{count} expired"
+    end
+
+    run_task.call("flush_expired_beta_feedback_recordings") do
+      count = BetaFeedbackRecording.flush_expired
+      "#{count} recordings deleted"
+    end
+
+    run_task.call("expire_licenses") do
+      count = License.expire_stale_licenses!
+      "#{count} licenses expired"
     end
   end
 

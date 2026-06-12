@@ -785,7 +785,8 @@ describe Subscription, :type => :model do
         }
       }])
       expect(u.expires_at).to eq(nil)
-      expect(u.settings['subscription']['added_to_organization']).to eql(Time.now.iso8601)
+      expect(Time.parse(u.settings['subscription']['added_to_organization'])).to be > 5.seconds.ago
+      expect(Time.parse(u.settings['subscription']['added_to_organization'])).to be < 5.seconds.from_now
       expect(Worker.scheduled?(User, :perform_action, {'id' => u.id, 'method' => 'subscription_token', 'arguments' => ['token', 'unsubscribe']})).to eq(false)
     end
 
@@ -925,7 +926,8 @@ describe Subscription, :type => :model do
         expect(u.settings['subscription']['subscription_id']).to eq('12345')
         expect(u.settings['subscription']['customer_id']).to eq('23456')
         expect(u.settings['subscription']['plan_id']).to eq('monthly_6')
-        expect(u.settings['subscription']['started']).to eq(Time.now.iso8601)
+        expect(u.settings['subscription']['started']).to be > (Time.now - 2).iso8601
+        expect(u.settings['subscription']['started']).to be < (Time.now + 2).iso8601
         expect(u.expires_at).to eq(nil)
       end
     
@@ -1856,7 +1858,8 @@ describe Subscription, :type => :model do
       u.settings['subscription']['last_purchased'] = 3.years.ago.iso8601
       hash2 = u.subscription_hash
 
-      expect(hash).to eq(hash2)
+      # timestamp is set by Time.now on each call; compare meaningful fields only
+      expect(hash.except('timestamp')).to eq(hash2.except('timestamp'))
     end
 
     it "should change when an active subscription is canceled" do
@@ -1903,7 +1906,8 @@ describe Subscription, :type => :model do
       u.settings['subscription']['last_purchased'] = 3.years.ago.iso8601
       hash2 = u.subscription_hash
 
-      expect(hash).to eq(hash2)
+      # timestamp is set by Time.now on each call; compare meaningful fields only
+      expect(hash.except('timestamp')).to eq(hash2.except('timestamp'))
     end
 
     it "should change when a paid communicator switches to supporter" do

@@ -2,5 +2,8 @@
   "name": "temporary-ember-fix",
   "keywords": [
     "ember-addon"
-  ]
+  ],
+  "dependencies": {
+    "broccoli-replace": "^0.12.0"
+  }
 }

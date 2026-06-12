@@ -16,6 +16,22 @@ LingoLinq.Image = DS.Model.extend({
   onLicenseLoad: observer('license', function() {
     this.clean_license();
   }),
+  invalidateCachedDisplayUrls: function() {
+    this.set('data_url', null);
+    this.set('data_url_no_sym', null);
+    this.set('checked_for_data_url', false);
+    this.notifyPropertyChange('data_url');
+    this.notifyPropertyChange('data_url_no_sym');
+    this.notifyPropertyChange('url');
+  },
+  clearCachedUrlsOnUrlChange: observer('url', function() {
+    var url = this.get('url');
+    if(!url) { return; }
+    if(url !== this.get('_display_url_source')) {
+      this.invalidateCachedDisplayUrls();
+      this.set('_display_url_source', url);
+    }
+  }),
   url: DS.attr('string'),
   data_url: DS.attr('string'),
   fallback: DS.attr('boolean'),

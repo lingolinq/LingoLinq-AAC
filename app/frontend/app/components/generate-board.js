@@ -207,7 +207,8 @@ export default Component.extend({
         })() : null);
         if (resp && resp.error) {
           msg = resp.error;
-          if (resp.error_detail) { msg += ' (' + resp.error_detail + ')'; }
+          if (resp.error_kind) { msg += ' [' + resp.error_kind + ']'; }
+          if (resp.error_detail) { msg += ' - ' + resp.error_detail; }
         }
         _this.set('status', { error: msg });
       });

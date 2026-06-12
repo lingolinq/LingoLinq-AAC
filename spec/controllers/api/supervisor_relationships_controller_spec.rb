@@ -150,6 +150,30 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(json['supervisor_relationship']['status']).to eq('approved')
     end
 
+    it "should audit the authenticated user when approving" do
+      token_user
+      supervisor = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: @user,
+        status: 'pending',
+        permission_level: 'view_only'
+      )
+      rel.generate_consent_token!
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+
+      expect(AuditEvent).to receive(:log_command).with(@user.global_id, hash_including(
+        'type' => 'supervisor_consent_response',
+        'decision' => 'approve',
+        'relationship_id' => rel.global_id,
+        'supervisor_id' => supervisor.global_id,
+        'communicator_id' => @user.global_id
+      )).and_call_original
+
+      put :approve, params: { id: rel.global_id, consent_response_token: rel.consent_response_token }
+      expect(response).to be_successful
+    end
+
     it "should return error for invalid token" do
       put :approve, params: { id: 'bogus', consent_response_token: 'bogus' }
       expect(response).not_to be_successful

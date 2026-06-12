@@ -5,6 +5,19 @@ import EmberObject from '@ember/object';
 import app_state from '../utils/app_state';
 
 export default Controller.extend({
+  /* Header loading indicator state — defaults true (showing spinner)
+     while the inner board-preview component fetches the board and
+     paints its canvas. The component fires `onLoadingChange(false)`
+     once the board record resolves; the modal hides the indicator. */
+  preview_loading: true,
+  reset_preview_loading: observer('model_key', function() {
+    /* Reset to loading whenever the modal opens with a new key, so
+       reusing the same modal for a different board correctly
+       re-shows the indicator. */
+    if(this.get('model_key')) {
+      this.set('preview_loading', true);
+    }
+  }),
   update_style_needed: observer('model.board.key', 'model.allow_style', 'model.board.style.options', function() {
     if(this.get('model.board.key')) {
       if(this.get('model.board.key') != this.get('model_key')) {
@@ -71,6 +84,9 @@ export default Controller.extend({
     }
   }),
   actions: {
+    set_preview_loading: function(value) {
+      this.set('preview_loading', !!value);
+    },
     close: function() {
       this.set('model_style', null);
       modal.close_board_preview();
@@ -90,6 +106,18 @@ export default Controller.extend({
       } else if(this.get('model.callback')) {
         this.get('model.callback')();
       }
+    },
+    remove: function() {
+      /* Touch-device parity for the tile's hover-only `.board_action`.
+         The callback is a closure bound in available-boards-section.hbs
+         that dispatches `remove_board(remove_type, board)` to the user
+         controller — same path the hover button takes. Close the
+         preview first so the subsequent confirm-delete-board /
+         confirm-remove-board modal opens on a clean stack. */
+      var ctx = this.get('model.remove');
+      if(!ctx || !ctx.callback) { return; }
+      this.send('close');
+      ctx.callback();
     }
   }
 });

@@ -1,0 +1,84 @@
+{{!-- Chip-style input for board labels. Bulk-paste compatible. --}}
+<div class="label-chips__container"
+     role="group"
+     aria-label={{t "Labels" key="labels"}}
+     {{action "focusInput" on="click"}}>
+  {{#if this.showChips}}
+    {{#each this.chip_items as |item index|}}
+      {{#if (is_equal index this.editingIndex)}}
+        <span class="label-chips__chip label-chips__chip--editing">
+          <input type="text"
+                 id={{this.editInputId}}
+                 class="label-chips__chip-edit-input"
+                 value={{this.editingValue}}
+                 aria-label={{t "Edit label" key="edit_label_chip"}}
+                 oninput={{action "editInputChanged" value="target.value"}}
+                 onkeydown={{action "editKeydown"}}
+                 onblur={{action "commitEdit"}} />
+        </span>
+      {{else}}
+        <span class="label-chips__chip {{if item.is_duplicate "label-chips__chip--duplicate"}} {{if item.has_color "label-chips__chip--colored"}} {{if (is_equal index this.draggingIndex) "label-chips__chip--dragging"}} {{if (is_equal index this.dropTargetIndex) "label-chips__chip--drop-target"}}"
+              style={{item.bg_style}}
+              draggable="true"
+              ondragstart={{action "chipDragStart" index}}
+              ondragover={{action "chipDragOver" index}}
+              ondragleave={{action "chipDragLeave" index}}
+              ondrop={{action "chipDrop" index}}
+              ondragend={{action "chipDragEnd"}}>
+          {{#if item.is_duplicate}}
+            {{!-- Duplicate-label warning icon. Sits to the left of the
+                 label text on the chip — same visual language as the
+                 preview-card warning, smaller scale to fit the chip
+                 height. Pure presentational; the chip's edit + remove
+                 buttons retain their click targets. --}}
+            <span class="label-chips__chip-warning"
+                  aria-label={{t "Duplicate label" key="duplicate_label_warning"}}
+                  title={{t "Duplicate label" key="duplicate_label_warning"}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9.5"/>
+                <line x1="12" y1="7.5" x2="12" y2="13"/>
+                <circle cx="12" cy="16.5" r="0.7" fill="currentColor" stroke="none"/>
+              </svg>
+            </span>
+          {{/if}}
+          <button type="button"
+                  class="label-chips__chip-label-btn"
+                  {{action "startEdit" index bubbles=false}}
+                  aria-label={{t "Edit %{word}" key="edit_label_chip_named" word=item.value}}>
+            <span class="label-chips__chip-label">{{item.value}}</span>
+          </button>
+          <button type="button"
+                  class="label-chips__chip-remove"
+                  {{action "removeChipAt" index bubbles=false}}
+                  aria-label={{t "Remove %{word}" key="remove_label_chip" word=item.value}}>
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
+              <path d="M1 1 L9 9 M9 1 L1 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </span>
+      {{/if}}
+    {{/each}}
+  {{/if}}
+  {{#if this.showInput}}
+    {{!-- textarea (not input) so the placeholder text can wrap on narrow
+         viewports — <input> placeholders are single-line by spec. The
+         existing handleKeydown action calls preventDefault on Enter, so
+         pressing Enter still adds a chip rather than inserting a newline.
+         CSS forces single-line height by default; mobile @media doubles
+         the height so the wrapped placeholder is visible. --}}
+    <textarea rows="1"
+              value={{this.currentInput}}
+              id={{this.inputId}}
+              class="label-chips__input"
+              placeholder={{this.placeholder}}
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="true"
+              oninput={{action "inputChanged" value="target.value"}}
+              onkeydown={{action "handleKeydown"}}
+              onpaste={{action "handlePaste"}}
+              onfocus={{action "handleFocus"}}
+              onblur={{action "handleBlur"}}></textarea>
+  {{/if}}
+</div>

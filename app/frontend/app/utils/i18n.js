@@ -510,7 +510,21 @@ var i18n = EmberObject.extend({
   },
   key_string: function(keyCode) {
     var codes = this.get('keys');
-    return codes[keyCode];
+    if(codes[keyCode]) {
+      return codes[keyCode];
+    }
+    var code_names = {
+      Space: 'spacebar',
+      Enter: 'enter',
+      Escape: 'escape',
+      Tab: 'tab',
+      Backspace: 'backspace',
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+      ArrowUp: 'up',
+      ArrowDown: 'down'
+    };
+    return code_names[keyCode];
   },
   readable_language: function(locale) {
     var unknown = i18n.t('unknown_language', "Unknown Language");

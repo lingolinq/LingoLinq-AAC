@@ -1,0 +1,78 @@
+<div class="register-page-bg beta-welcome-page beta-welcome-page--agreement" role="main">
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="register-page beta-welcome-page__frame">
+    <div class="register-card beta-welcome-card beta-welcome-card--agreement">
+      <div class="la-section-header">
+        <span class="la-section-eyebrow-badge">{{t "Beta program" key="beta_welcome_eyebrow"}}</span>
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "LingoLinq Beta Test Agreement" key="beta_agreement_title"}}</h2>
+        </div>
+        <p class="beta-welcome-card__subtitle">{{t "Plain-language terms for our beta community. Please read before you continue." key="beta_agreement_subtitle"}}</p>
+      </div>
+
+      <div class="beta-welcome-body">
+        <p class="beta-welcome-lead">{{t "Welcome to the team! Before we start testing LingoLinq together, please look over this short agreement. By continuing, you agree to these terms:" key="beta_agreement_lead"}}</p>
+
+        <section class="beta-welcome-agreement-block">
+          <h3 class="beta-welcome-section__title">{{t "Open source & sharing" key="beta_agreement_open_source_title"}}</h3>
+          <ul class="beta-welcome-list">
+            <li><strong>{{t "Share your journey:" key="beta_agreement_share_title"}}</strong> {{t "LingoLinq is open source. We encourage you to share screenshots, videos, and reviews to help build excitement." key="beta_agreement_share_body"}}</li>
+            <li><strong>{{t "Ideas:" key="beta_agreement_ideas_title"}}</strong> {{t "Suggestions and bug reports may be used to improve LingoLinq for everyone, without extra obligations to you." key="beta_agreement_ideas_body"}}</li>
+          </ul>
+        </section>
+
+        <section class="beta-welcome-agreement-block">
+          <h3 class="beta-welcome-section__title">{{t "Privacy & keeping data safe" key="beta_agreement_privacy_title"}}</h3>
+          <p>{{t "To build your voice in the best way possible, we need to understand how it works in real-world situations. Our engineers may use communication and background data (telemetry) to fix bugs and improve speed. We protect this data in accordance with our Privacy Notice." key="beta_agreement_privacy_body"}}</p>
+          <p>{{t "Any communication logs reviewed for troubleshooting are stripped of names and personal profiles before engineers see them." key="beta_agreement_logs_body"}}</p>
+          <ul class="beta-welcome-list">
+            <li><strong>{{t "Parents & guardians:" key="beta_agreement_parents_title"}}</strong> {{t "If you are a parent of a tester under 13, complete our Verifiable Parental Consent during registration." key="beta_agreement_parents_body"}}</li>
+            <li><strong>{{t "Teachers & schools:" key="beta_agreement_schools_title"}}</strong> {{t "In educational settings, ensure proper district approval or parental consent for FERPA compliance." key="beta_agreement_schools_body"}}</li>
+            <li><strong>{{t "Clinicians & SLPs:" key="beta_agreement_clinicians_title"}}</strong> {{t "Do not input real patient PHI until a BAA is signed. Contact" key="beta_agreement_clinicians_body"}} <a href="mailto:beta@lingolinq.com">beta@lingolinq.com</a> {{t "first." key="beta_agreement_clinicians_body_suffix"}}</li>
+          </ul>
+        </section>
+
+        <section class="beta-welcome-agreement-block">
+          <h3 class="beta-welcome-section__title">{{t "Your right to be forgotten" key="beta_agreement_forgotten_title"}}</h3>
+          <p>{{t "Email" key="beta_agreement_forgotten_email"}} <a href="mailto:beta@lingolinq.com">beta@lingolinq.com</a> {{t "to delete your account. We permanently delete your PII within 48 hours and only keep data that cannot be linked back to you." key="beta_agreement_forgotten_body"}}</p>
+        </section>
+
+        <div class="beta-welcome-callout beta-welcome-callout--safety" role="note">
+          <div class="beta-welcome-callout__icon" aria-hidden="true">⚠️</div>
+          <div class="beta-welcome-callout__content">
+            <h3 class="beta-welcome-callout__title">{{t "Important safety note for AAC users" key="beta_agreement_safety_title"}}</h3>
+            <p><strong>{{t "Keep your main voice handy:" key="beta_agreement_safety_lead"}}</strong> {{t "This is pre-release software — it may have bugs or occasionally crash. Please keep your primary communication device with you as a backup while we test. Do not rely on LingoLinq as your only way to talk during this beta phase." key="beta_agreement_safety_body"}}</p>
+          </div>
+        </div>
+
+        <section class="beta-welcome-agreement-block">
+          <h3 class="beta-welcome-section__title">{{t "The legal stuff" key="beta_agreement_legal_title"}}</h3>
+          <p>{{t "You use this test version at your own risk. LingoLinq is provided as-is without warranties. This agreement stays in place until our official launch or until the beta program ends." key="beta_agreement_legal_body"}}</p>
+          <p>{{t "Thank you for partnering with us to build LingoLinq!" key="beta_agreement_thanks"}}</p>
+        </section>
+      </div>
+
+      <div class="beta-welcome-footer">
+        <div class="register-checkboxes beta-welcome-accept">
+          <div class="checkbox big_checkbox">
+            <label>
+              <Input @type="checkbox" @checked={{this.agreementAccepted}} />
+              {{t "I have read and accept the Beta Test Agreement." key="beta_agreement_accept"}}
+            </label>
+          </div>
+        </div>
+
+        <div class="register-btn-wrap beta-welcome-actions">
+          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{action "acceptAgreement"}}>
+            {{t "Get Started" key="get_started"}}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,4 +1,4 @@
-class UserBoardConnection < ActiveRecord::Base
+class UserBoardConnection < ApplicationRecord
   before_save :generate_defaults
   belongs_to :board
   belongs_to :user

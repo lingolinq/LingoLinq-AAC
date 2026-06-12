@@ -72,7 +72,10 @@
     </form>
   </div>
   <div class="modal-footer md-modal-footer">
-    <button class='btn btn-lg btn-primary' {{action "set_languages"}}>{{t "Switch Languages" key="switch_languages"}}</button>
     <a href="#" class="btn btn-lg btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+    <button type="button" class="btn btn-lg btn-default" {{action "open_translate"}}>
+      {{t "Translate to Another Language" key="translate_another_language"}}
+    </button>
+    <button class='btn btn-lg btn-primary' {{action "set_languages"}}>{{t "Switch Languages" key="switch_languages"}}</button>
   </div>
 {{/modal-dialog}}

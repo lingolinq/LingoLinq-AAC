@@ -183,18 +183,24 @@ header.new_index {
         }
         .badge_earned {
           img {
-            height: 40px; 
-            width: 40px; 
+            height: 40px;
+            width: 40px;
           }
         }
       }
     }
     &.tiny {
-      height: 50px;
+      // `tiny` was removed from the user-facing dropdown — see
+      // utils/display_prefs.js. Legacy users with `vocalization_
+      // height: 'tiny'` still produce this class via the legacy
+      // resolver, but render at 90px (the new "small" minimum) so
+      // their bar still meets WCAG AAA touch-target floor for the
+      // stacked Options + Sidebar toggles.
+      height: 90px;
       + #content {
-        margin-top: 50px;
+        margin-top: 90px;
         + #sidebar, + #sidebar_tease {
-          margin-top: 50px;
+          margin-top: 90px;
         }
       }
       #reply_icon {
@@ -237,20 +243,20 @@ header.new_index {
           &.utterance_cursor {
             margin: 5px 0 -4px;
           }
-          max-width: 30px; 
-          height: 40px; 
-          font-size: 11px;
+          max-width: 30px;
+          height: 40px;
+          font-size: 14px;
           margin: 0px 7px 1px;
           padding-top: 2px;
           img {
-            height: 26px; 
+            height: 26px;
             max-width: 30px;
           }
           .modeling {
             top: 3px;
             width: 13px;
             height: 13px;
-            font-size: 10px;
+            font-size: 14px;
           }
         }
         &.text_only .history_button {
@@ -261,14 +267,14 @@ header.new_index {
         }
       }
       #blank_status {
-        font-size: 12px;
+        font-size: 14px;
         height: 40px;
         .progress {
           width: 40px;
           height: 15px;
-          font-size: 10px;
+          font-size: 14px;
           .progress-bar {
-            font-size: 10px;
+            font-size: 14px;
           }
         }
         .eye_status {

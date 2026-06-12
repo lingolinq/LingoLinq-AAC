@@ -25,8 +25,8 @@
       <button
         type="button"
         role="tab"
-        class="cat-chip {{cat.id}} {{if (eq this.activeCategory cat.id) 'active'}}"
-        aria-selected={{eq this.activeCategory cat.id}}
+        class="cat-chip {{cat.id}} {{if (is_equal this.activeCategory cat.id) 'active'}}"
+        aria-selected={{is_equal this.activeCategory cat.id}}
         aria-controls="symbol-grid"
         {{on "click" (fn this.selectCategory cat.id)}}
       >
@@ -40,7 +40,7 @@
     id="symbol-grid"
     class="symbol-grid"
     role="grid"
-    aria-label="{{if (eq this.activeCategory 'all') 'All symbols' (concat this.activeCategory ' symbols')}}"
+    aria-label="{{if (is_equal this.activeCategory 'all') 'All symbols' (concat this.activeCategory ' symbols')}}"
   >
     {{#if this.isLoading}}
       {{!-- Loading skeletons --}}

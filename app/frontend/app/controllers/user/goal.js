@@ -6,8 +6,10 @@ import app_state from '../../utils/app_state';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  store: service('store'),
   load_logs: function() {
     var _this = this;
     var user_id = this.get('user.id');

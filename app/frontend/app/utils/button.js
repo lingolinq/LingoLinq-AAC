@@ -13,6 +13,7 @@ import utterance from './utterance';
 import persistence from './persistence';
 import capabilities from './capabilities';
 import i18n from './i18n';
+import { pick_aac_color } from './parts_of_speech';
 import stashes from './_stashes';
 import progress_tracker from './progress_tracker';
 import { htmlSafe } from '@ember/template';
@@ -35,6 +36,15 @@ var clean_text = function(str) {
 
 var Button = EmberObject.extend({
   init: function() {
+    // Wire the actual appState service onto the instance so computeds
+    // that depend on `appState.edit_mode` (e.g. display_as_hidden) can
+    // track reactive changes. The imported `app_state` module is a
+    // Proxy that delegates to `LingoLinq.appState`, but Ember's dep
+    // tracking won't see notifications through the Proxy — set the
+    // real service instance directly when available.
+    if(!this.appState) {
+      this.appState = (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState) || app_state;
+    }
     this.updateAction();
     this.update_add_vocalization();
     this.add_classes();
@@ -64,7 +74,7 @@ var Button = EmberObject.extend({
     'book',
     'link_disabled',
     function() {
-      if(this.get('load_board')) {
+      if(this.get('load_board') && !this.get('link_disabled')) {
         this.set('buttonAction', 'folder');
       } else if(this.get('integration') != null) {
         this.set('buttonAction', 'integration');
@@ -229,6 +239,18 @@ var Button = EmberObject.extend({
   empty_or_hidden: computed('empty', 'hidden', 'stashes.all_buttons_enabled', function() {
     return !!(this.get('empty') || (this.get('hidden') && !this.get('stashes.all_buttons_enabled')));
   }),
+  // Whether this button should receive the `--hidden` visual class
+  // outside of preview mode. In edit mode (without an active preview),
+  // buttons with `level_modifications` should NOT show as hidden —
+  // their `hidden` attribute reflects level-rule application, not
+  // author intent, and the author needs to see them in full CSS to
+  // edit. Speak mode and edit-mode-with-preview cases are handled at
+  // the template level (combining this with previewLevelsMode).
+  display_as_hidden: computed('hidden', 'level_modifications', 'appState.edit_mode', function() {
+    if(!this.get('hidden')) { return false; }
+    if(!this.get('appState.edit_mode')) { return true; }
+    return !this.get('level_modifications');
+  }),
   add_classes: observer(
     'background_color',
     'border_color',
@@ -285,6 +307,41 @@ var Button = EmberObject.extend({
       return str || null;
     }
   }),
+  // Lowest level number attached to this button (the "starts at"
+  // level). Used to color the level badge on the board grid in
+  // edit mode.
+  primary_level: computed('level_modifications', function() {
+    var mods = this.get('level_modifications') || {};
+    var levels = [];
+    for(var idx in mods) {
+      var n = parseInt(idx, 10);
+      if(n > 0) { levels.push(n); }
+    }
+    if(!levels.length) { return null; }
+    return Math.min.apply(null, levels);
+  }),
+  // Color for the badge — derived from primary_level. Mirrors the
+  // controller's level_color_map (controllers/user/board-detail.js)
+  // so panel pills and button badges agree on the palette. Modern
+  // Tailwind-inspired progression: cool blues at low levels, warm
+  // mids, emerald at level 10.
+  level_badge_color: computed('primary_level', function() {
+    var lvl = this.get('primary_level');
+    if(!lvl) { return null; }
+    var palette = {
+      1:  '#0EA5E9',
+      2:  '#3B82F6',
+      3:  '#6366F1',
+      4:  '#8B5CF6',
+      5:  '#A855F7',
+      6:  '#EC4899',
+      7:  '#F43F5E',
+      8:  '#F97316',
+      9:  '#F59E0B',
+      10: '#10B981'
+    };
+    return palette[lvl] || '#2A9D8F';
+  }),
   apply_level: function(level) {
     var mods = this.get('level_modifications') || {};
     var _this = this;
@@ -294,13 +351,20 @@ var Button = EmberObject.extend({
     keys.forEach(function(key) {
       if(mods[key]) {
         for(var attr in mods[key]) {
-          _this.set(attr, mods[key][attr]);
+          // Coerce string "true"/"false" rule values to real booleans
+          // (see Button.coerce_level_value). Without this, "false" is
+          // truthy and the level filter inverts.
+          _this.set(attr, Button.coerce_level_value(attr, mods[key][attr]));
         }
       }
     });
   },
   set_val(key, val) {
-    this.set(key, val);
+    // fast_html applies level rules through here; rule values can be the
+    // strings "true"/"false" (legacy/copied boards), so coerce the
+    // boolean-ish attributes — otherwise `hidden = "false"` is truthy
+    // and the classic browse grid hides buttons the level rule promotes.
+    this.set(key, Button.coerce_level_value(key, val));
   },
   fast_html: computed(
     'refresh_token',
@@ -323,28 +387,36 @@ var Button = EmberObject.extend({
     function() {
       var res = "";
       if(this.get('board.display_level') && this.get('level_modifications')) {
-        if(this.get('board.display_level') == this.get('board.default_level')) {
-        } else {
-          var mods = this.get('level_modifications');
-          var level = this.get('board.display_level');
-          if(mods.override) {
-            for(var key in mods.override) {
-              this.set_val(key, mods.override[key]);
+        /* SCOPED ONE-BRANCH CHANGE: previously, when display_level ==
+           board.default_level this whole block was a no-op (the level
+           rules were skipped). That left the board in a stale state —
+           notably board-alt normal mode, which renders via fast_html
+           and so never applied the previously-set level on load. The
+           apply logic below is byte-for-byte the SAME code that always
+           ran for non-default levels; running it at the default level
+           too is idempotent for an already-authored board (it sets
+           each attribute to exactly the value that level dictates) and
+           corrects the stale case. No other behavior changes: override
+           still wins, then pre, then levels 1..display_level. */
+        var mods = this.get('level_modifications');
+        var level = this.get('board.display_level');
+        if(mods.override) {
+          for(var key in mods.override) {
+            this.set_val(key, mods.override[key]);
+          }
+        }
+        if(mods.pre) {
+          for(var key in mods.pre) {
+            if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
+              this.set_val(key, mods.pre[key]);
             }
           }
-          if(mods.pre) {
-            for(var key in mods.pre) {
+        }
+        for(var idx = 1; idx <= level; idx++) {
+          if(mods[idx]) {
+            for(var key in mods[idx]) {
               if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                this.set_val(key, mods.pre[key]);
-              }
-            }
-          }
-          for(var idx = 1; idx <= level; idx++) {
-            if(mods[idx]) {
-              for(var key in mods[idx]) {
-                if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                  this.set_val(key, mods[idx][key]);
-                }
+                this.set_val(key, mods[idx][key]);
               }
             }
           }
@@ -353,7 +425,11 @@ var Button = EmberObject.extend({
       var btnInlineStyle = this.get('computed_style') + '';
       var bg = this.get('background_color');
       if(bg && window.tinycolor) {
-        btnInlineStyle = btnInlineStyle + 'outline-color:' + window.tinycolor(bg).darken(20).toRgbString() + ';';
+        var darkenedRing = window.tinycolor(bg).darken(20).toRgbString();
+        btnInlineStyle = btnInlineStyle + 'outline-color:' + darkenedRing + ';';
+        // Also drive the CSS variable that `.button`'s box-shadow inset
+        // ring reads — see comment in app.scss `.button` rule.
+        btnInlineStyle = btnInlineStyle + '--btn-ring-color:' + darkenedRing + ';';
       }
       res = res + "<a href='#' style='" + btnInlineStyle + "' class='" + this.get('computed_class') + "' data-id='" + this.get('id') + "' tabindex='0'>";
       if(this.get('pending')) {
@@ -467,12 +543,12 @@ var Button = EmberObject.extend({
   load_image: function(preference) {
     var _this = this;
     if(!_this.image_id) { return RSVP.resolve(); }
-    var image = LingoLinq.store.peekRecord('image', _this.image_id);
-    if(image && (!image.get('isLoaded') || !image.get('best_url'))) { image = null; }
-    if(preference == 'remote' && image && !image.get('permissions')) { image = null; }
-    _this.set('image', image);
-    if(image && image.get('hc')) { _this.set('hc_image', true); }
+    var requestedId = _this.image_id;
+    var stillCurrent = function() {
+      return String(_this.image_id) === String(requestedId);
+    };
     var check_image = function(image) {
+      if(!stillCurrent()) { return RSVP.resolve(image); }
       var best = image.get('best_url');
       if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
         _this.set('local_image_url', best);
@@ -480,6 +556,7 @@ var Button = EmberObject.extend({
       _this.set('original_image_url', image.get('url'));
       if(image.get('hc')) { _this.set('hc_image', true); }
       return image.checkForDataURL().then(function() {
+        if(!stillCurrent()) { return image; }
         var url = image.get('best_url');
         if(url && (url.match(/^https?:\/\//) || url.match(/^data:/) || url.match(/^blob:/))) {
           _this.set('local_image_url', url);
@@ -487,24 +564,49 @@ var Button = EmberObject.extend({
         return image;
       }, function() { return RSVP.resolve(image); });
     };
+    var image = LingoLinq.store.peekRecord('image', requestedId);
+    if(image && (!image.get('isLoaded') || !image.get('best_url'))) { image = null; }
+    if(preference == 'remote' && image && !image.get('permissions')) { image = null; }
+    var assigned = stillCurrent() ? _this.get('image') : null;
+    if(!image && assigned && assigned.get && String(assigned.get('id')) === String(requestedId)) {
+      var assignedUrl = assigned.get('url');
+      if(!assignedUrl) {
+        var boardUrls = _this.get('board.image_urls');
+        assignedUrl = (boardUrls && boardUrls[requestedId]) || _this.image_url;
+      }
+      if(assignedUrl) {
+        return check_image(assigned);
+      }
+    }
+    if(stillCurrent()) {
+      _this.set('image', image);
+      if(image && image.get('hc')) { _this.set('hc_image', true); }
+    }
     if(!image) {
       var image_urls = this.get('board.image_urls');
-      var hc = (_this.get('board.hc_image_ids') || {})[_this.image_id];
-      if(hc) { _this.set('hc_image', true); }
-      var url_val = (image_urls && image_urls[_this.image_id]) ? image_urls[_this.image_id] : _this.image_url;
+      var hc = (_this.get('board.hc_image_ids') || {})[requestedId];
+      if(hc && stillCurrent()) { _this.set('hc_image', true); }
+      var url_val = (image_urls && image_urls[requestedId]) ? image_urls[requestedId] : null;
+      if(!url_val && _this.image_url && preference != 'remote') {
+        // button.image_url can lag behind image_id after a symbol swap; only reuse it
+        // when the board has no image_urls map (legacy) or still maps this id to it.
+        if(!image_urls || !Object.keys(image_urls).length) {
+          url_val = _this.image_url;
+        }
+      }
       if(url_val && preference != 'remote') {
         var looks_like_url = (typeof url_val === 'string') && (url_val.match(/^https?:\/\//) || url_val.match(/^data:/));
         if(looks_like_url) {
-          var img = LingoLinq.store.peekRecord('image', _this.image_id);
+          var img = LingoLinq.store.peekRecord('image', requestedId);
           if(!img) {
             img = LingoLinq.store.createRecord('image', {
               url: url_val
             });
-            img.set('id', _this.image_id);
+            img.set('id', requestedId);
             img.set('incomplete', true);
             var alts = null;
             for(var key in image_urls) {
-              if(key.match(_this.image_id + '-')) {
+              if(key.match(requestedId + '-')) {
                 var lib = key.split(/-/).pop();
                 alts = alts || [];
                 alts.push({library: lib, url: image_urls[key]});
@@ -512,21 +614,26 @@ var Button = EmberObject.extend({
             }
             if(alts) { img.set('alternates', alts); }
           }
-          _this.set('image', img);
+          if(stillCurrent()) {
+            _this.set('image', img);
+          }
           return check_image(img);
         }
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no image lookups');
       } else {
-        if(!(_this.image_id || '').match(/^tmp/) && preference != 'remote') {
+        if(!(requestedId || '').match(/^tmp/) && preference != 'remote') {
           console.warn("had to revert to image record lookup");
         }
-        var find = LingoLinq.store.findRecord('image', _this.image_id).then(function(image) {
+        var find = LingoLinq.store.findRecord('image', requestedId).then(function(image) {
+          if(!stillCurrent()) { return image; }
           _this.set('image', image);
           if(image.get('incomplete')) {
             image.reload().then(function() {
-              check_image(image);
+              if(stillCurrent()) {
+                check_image(image);
+              }
             }, function(err) { });
           }
           return check_image(image);
@@ -701,34 +808,37 @@ var Button = EmberObject.extend({
       promises.forEach(function(p) { p.then(null, function() { }); });
     });
   }),
-  check_for_parts_of_speech: function(keyed_colors) {
-    var appState = this.appState || app_state;
-    var persistenceService = this.persistence || persistence;
+  check_for_parts_of_speech: function(keyed_colors, prefetchedRes) {
+    var self = this;
+    if(!self || typeof self.get !== 'function') { return; }
+    var appState = self.appState || Button.get_app_state();
+    if(!appState || typeof appState.get !== 'function') { return; }
+    var persistenceService = self.persistence || persistence;
     var colors = keyed_colors || LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors;
-    if(appState.get('edit_mode') && !this.get('empty') && this.get('label')) {
-      var text = this.get('vocalization') || this.get('label');
-      var _this = this;
-      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
+    if(appState.get('edit_mode') && !self.get('empty') && self.get('label')) {
+      var text = self.get('vocalization') || self.get('label');
+      var _this = self;
+      var apply = function(res) {
+        if(!_this || !_this.get) { return; }
+        if(!colors || !colors.forEach) { return; }
         if(!_this.get('background_color') && !_this.get('border_color') && res && res.types) {
-          var found = false;
           _this.set('parts_of_speech_matching_word', res.word);
-          res.types.forEach(function(type) {
-            if(!found) {
-              colors.forEach(function(color) {
-                if(!found && color.types && color.types.indexOf(type) >= 0) {
-                  _this.set('background_color', color.fill);
-                  _this.set('border_color', color.border);
-                  _this.set('part_of_speech', type);
-                  _this.set('suggested_part_of_speech', type);
-                  boundClasses.add_rule(_this);
-                  boundClasses.add_classes(_this);
-                  found = true;
-                }
-              });
-            }
-          });
+          var picked = pick_aac_color(res.types, colors, res.word || text);
+          if(picked) {
+            _this.set('background_color', picked.color.fill);
+            _this.set('border_color', picked.color.border);
+            _this.set('part_of_speech', picked.type);
+            _this.set('suggested_part_of_speech', picked.type);
+            boundClasses.add_rule(_this);
+            boundClasses.add_classes(_this);
+          }
         }
-      }, function() { });
+      };
+      if(prefetchedRes) {
+        apply(prefetchedRes);
+        return;
+      }
+      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(apply, function() { });
     }
   },
   raw: function() {
@@ -755,6 +865,25 @@ Button.attributes = ['label', 'background_color', 'border_color', 'image_id', 's
             'integration', 'video', 'book', 'part_of_speech', 'external_id', 'add_to_vocalization',
             'add_vocalization', 'text_only', 'no_skin',
             'home_lock', 'blocking_speech', 'level_modifications', 'inflections', 'ref_id', 'rules'];
+
+// Legacy/copied boards persist boolean level-rule values as the STRINGS
+// "true"/"false" instead of real booleans. Assigning `hidden = "false"`
+// is catastrophic — JS treats any non-empty string as truthy, so
+// `boundClasses.add_classes` stamps `hidden_button` (and the hidden-guard
+// in activate_button fires) on a button the level rule meant to SHOW.
+// board-detail's _make_btn already does this string-or-bool comparison,
+// which is why level filtering works there but not in the classic
+// (board/board-alt) renderers. This is the single source of truth for
+// which rule attributes are boolean-ish and how to coerce them; used by
+// Button.apply_level, Button.set_val, and board.js render_fast_html.
+Button.LEVEL_BOOL_ATTRS = ['hidden', 'link_disabled', 'add_to_vocalization', 'add_vocalization',
+            'home_lock', 'blocking_speech', 'hide_label', 'text_only', 'no_skin'];
+Button.coerce_level_value = function(attr, val) {
+  if(Button.LEVEL_BOOL_ATTRS.indexOf(attr) !== -1) {
+    return (val === true || val === 'true');
+  }
+  return val;
+};
 
 // Static service registry for use in static methods
 Button._services = {
@@ -822,6 +951,9 @@ Button.computed_style = function(pos, button) {
     if(bg && window.tinycolor) {
       var darkenedBorder = window.tinycolor(bg).darken(20).toRgbString();
       str = str + "outline-color:" + darkenedBorder + ";";
+      // Also expose as a CSS variable so the `.button`'s box-shadow
+      // inset (which renders uniformly on all sides) picks it up.
+      str = str + "--btn-ring-color:" + darkenedBorder + ";";
     }
     return htmlSafe(str);
 };
@@ -2024,12 +2156,9 @@ Button.load_actions = function() {
         return i18n.t('say', "Say: ") + phrase;
       },
       trigger: function(match) {
-        if(app_state.get('speak_mode') && match) {
-          var phrase = match[1];
-          speecher.speak_text(phrase);
-          // TODO: this will be easier for people to find as a 
-          // button setting, yo
-        }    
+        if(match && match[1]) {
+          speecher.speak_text(match[1]);
+        }
       }
     },
   ];

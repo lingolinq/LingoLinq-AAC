@@ -16,6 +16,25 @@ export default Route.extend({
   stashes: service('stashes'),
   appState: service('app-state'),
   persistence: service('persistence'),
+  beforeModel: function(transition) {
+    var from = transition && transition.from;
+    var from_name = (from && from.name) || '';
+    // Auto-launch into speak mode ONLY on a genuine login / app-boot
+    // entry into the dashboard:
+    //   - cold boot / full-page reload after auth -> no `transition.from`
+    //   - SPA login flow (login route -> index)    -> from a `login*` route
+    // ANY other navigation into index / user.home (notably Exit Speak
+    // Mode from board-detail's `exit_to_home` -> index, or board-alt's
+    // EXIT BOARDS -> return_to_index -> user.home) must NOT re-enter
+    // speak mode. Stored on appState because user.home extends this
+    // route (inherits setupController, which has no transition arg) and
+    // index.afterModel may replaceWith('user.home') — the origin
+    // `transition.from` is preserved across that chain, so a recompute
+    // there still resolves to "not login".
+    var login_entry = !from || /^login(\.|$)/.test(from_name);
+    this.appState.set('_index_login_entry', login_entry);
+    return this._super.apply(this, arguments);
+  },
   model: function() {
     var _this = this;
     if(session.get('access_token')) {
@@ -34,6 +53,32 @@ export default Route.extend({
   },
   afterModel: function(model) {
     if (model && model.get('user_name') && session.get('access_token')) {
+      try {
+        if (window.sessionStorage && sessionStorage.getItem('ll_pending_beta_welcome') === '1') {
+          sessionStorage.removeItem('ll_pending_beta_welcome');
+          if (model.get('preferences.beta_program_access') !== false) {
+            this.router.transitionTo('beta-welcome-message');
+            return;
+          }
+        }
+      } catch (e) { /* sessionStorage unavailable */ }
+      var home_board_key = model.get('preferences.home_board.key');
+      // Direct users straight to their home board on login/app-boot —
+      // the `progress.setup_done` gate was tied to the Getting Started
+      // onboarding flow (now disabled / under evaluation for re-add),
+      // and held users on the dashboard until that flow was complete.
+      // With onboarding off, any user who has a home_board_key should
+      // skip the dashboard and land in speak mode on their board.
+      // Other gates kept: `_index_login_entry` so in-app returns to
+      // index (e.g. Exit Speak Mode) don't bounce back into speak,
+      // and supporter_view / eval_ended which need the dashboard.
+      // Users without a home_board_key still fall through to the
+      // dashboard below — there's no board to send them to yet.
+      if (this.appState.get('_index_login_entry') && home_board_key && !model.get('supporter_view') && !model.get('eval_ended')) {
+        this.appState.home_in_speak_mode({user: model});
+        this.appState.set('already_homed', true);
+        return;
+      }
       this.router.replaceWith('user.home', model.get('user_name'));
     }
   },
@@ -46,7 +91,10 @@ export default Route.extend({
     controller.set('subscription', Subscription.create());
     controller.set('model', model);
     // Note: 'extras' is already injected via dependency injection, no need to set it again
-    var jump_to_speak = !!((_this.stashes.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode')));
+    // Gated on `_index_login_entry` (see beforeModel): auto-speak only on
+    // a login / app-boot entry. Inherited by user.home, so board-alt's
+    // EXIT BOARDS (-> user.home) also lands on the dashboard, not speak.
+    var jump_to_speak = !!(_this.appState.get('_index_login_entry') && ((_this.stashes.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode'))));
 
     var progress = _this.appState.get('sessionUser.preferences.progress') || {};
     if(!progress || (!progress.skipped_subscribe_modal && !progress.setup_done)) {

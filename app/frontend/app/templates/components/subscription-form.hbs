@@ -1,7 +1,7 @@
 {{#if this.trial_choice}}
-  <div style='margin-top: 30px;'>
-    <button class='btn btn-default btn-lg' {{action "skip_subscription"}} style='height: 75px; width: calc(50% - 7px); margin-right: 10px;'>{{t "Start with a<br>2-month trial" key="start_with_two_month_trial"}}</button>
-    <button class='btn btn-primary btn-lg' {{action "check_pricing"}} style='height: 75px; width: calc(50% - 7px);'>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
+  <div class="subscription-form-trial-choice">
+    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--trial" {{action "skip_subscription"}}>{{t "Start with a<br>2-month trial" key="start_with_two_month_trial"}}</button>
+    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--pricing" {{action "check_pricing"}}>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
   </div>
 {{else}}
   <form {{action "purchase" on="submit"}} class="row subscription-form-with-cards">
@@ -132,7 +132,7 @@
                     {{#if this.subscription.communicator_type}}
                       <label>
                         <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" class="subscription-form__premium-symbol-image" alt="">
-                        <Input type="checkbox" @checked={{this.subscription.extras}} />
+                        <Input @type="checkbox" @checked={{this.subscription.extras}} />
                         {{t "add symbols from LessonPix, PCS (BoardMaker) Tobii Dynavox & SymbolStix for US$25" key="add_premium_symbols2"}}
                       </label>
                     {{/if}}
@@ -279,7 +279,7 @@
                       {{else}}
                         <label>
                           <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" class="subscription-form__premium-symbol-image" alt="">
-                          <Input type="checkbox" @checked={{this.subscription.extras}} />
+                          <Input @type="checkbox" @checked={{this.subscription.extras}} />
                           {{t "add symbols from LessonPix, PCS (BoardMaker) Tobii Dynavox & SymbolStix for US$25" key="add_premium_symbols2"}}
                         </label>
                       {{/if}}
@@ -395,7 +395,7 @@
       {{/unless}}
     {{else}}
       <div class="form-group">
-        <div class="col-sm-12 subscription-activate-row" style='margin-top: 20px;'>
+        <div class="col-sm-12 subscription-activate-row">
           {{#if this.not_authenticated}}
             {{#unless this.subscription.confirmation}}
               <p class='text-danger'>{{t "There appears to be an issue with your session that could prevent your purchase from completing. Please try logging out and back in. If that doesn't correct the problem, please try a different browser or contact our support team." key="error_subscription_wont_word"}}</p>

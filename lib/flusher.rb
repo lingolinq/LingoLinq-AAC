@@ -25,6 +25,11 @@ module Flusher
     summaries.each do |summary|
       flush_record(summary)
     end
+
+    ai_logs = AiApiLog.where(user_global_id: user.global_id)
+    ai_logs.find_each do |log|
+      flush_record(log)
+    end
   end
   
   def self.flush_record(record, record_db_id=nil, record_class=nil)
@@ -215,6 +220,10 @@ module Flusher
     end
     UserLink.where(user_id: user.id).each do |link|
       flush_record(link) unless except_org_links && link.record_code && link.record_code.match(/^Organization/)
+    end
+    License.where(user_id: user.id).each do |lic|
+      lic.update!(user_id: nil, granted_at: nil)
+      flush_versions(lic.id, 'License')
     end
   end
   

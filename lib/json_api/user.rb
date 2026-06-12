@@ -332,10 +332,41 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
       if args[:supervisor]
         json['edit_permission'] = args[:supervisor].edit_permission_for?(user)
         json['modeling_only'] = args[:supervisor].modeling_only_for?(user)
+        # Match Api::GoalsController#create: same scope normalization as ApplicationController#allowed?
+        scopes = PermissionScopesNormalize.for_api(args[:supervisor].permission_scopes || [])
+        json['can_set_goals'] = user.allows?(args[:supervisor], 'set_goals', scopes)
         json['premium'] = user.any_premium_or_grace_period?
         json['skin'] = user.settings['preferences']['skin']
         json['symbols'] = user.settings['preferences']['preferred_symbols']
         json['goal'] = user.settings['primary_goal']
+        # Total count + a small slice of this user's active goals so the
+        # supervisor's caseload card can show a real "GOALS n" count
+        # and (when more than one) render the expandable list. Capped
+        # to keep the payload light — the caseload is a quick overview,
+        # not the full goals page. Existing index
+        # `index_user_goals_on_user_id_and_active` keeps both queries cheap.
+        json['goals_count'] = UserGoal.where(:user_id => user.id, :active => true).count
+        json['active_goals'] = UserGoal.where(:user_id => user.id, :active => true)
+          .order('"primary" DESC NULLS LAST, updated_at DESC').limit(10).map do |g|
+            # Derived status — surfaces a high-level state the
+            # caseload card can color-code without the supporter
+            # having to open the goal detail page.
+            #   'achieved'    → goal is no longer active but ended
+            #   'in_progress' → started + updated within 14 days
+            #   'paused'      → active but no recent updates
+            #   'active'      → default (started, currently active)
+            status =
+              if !g.active && g.settings && g.settings['ended_at']
+                'achieved'
+              elsif g.updated_at && g.updated_at > 14.days.ago
+                'in_progress'
+              elsif g.settings && g.settings['started_at'].nil?
+                'paused'
+              else
+                'active'
+              end
+            { 'id' => g.global_id, 'summary' => g.summary, 'primary' => !!g.primary, 'status' => status }
+          end
         json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
         json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
       elsif args[:supervisee]

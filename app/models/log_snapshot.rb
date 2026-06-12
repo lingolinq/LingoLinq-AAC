@@ -1,4 +1,4 @@
-class LogSnapshot < ActiveRecord::Base
+class LogSnapshot < ApplicationRecord
   include Permissions
   include Processable
   include GlobalId

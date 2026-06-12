@@ -117,6 +117,10 @@ export default modal.ModalController.extend({
       var board = _this.get('model.board');
       LingoLinq.store.findRecord('user', for_user_id).then(function(user) {
         editManager.copy_board(board, 'links_copy_as_home', user, false, library).then(function() {
+          // Confirm success before the modal closes — without this the
+          // user just sees the modal vanish with no acknowledgement
+          // that the copy + home-board assignment actually completed.
+          modal.success(i18n.t('home_board_copied', "Home board copy created and set successfully!"));
           _this.send('done');
         }, function() {
           _this.set('status', {errored: true});

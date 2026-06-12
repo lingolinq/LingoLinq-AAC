@@ -16,162 +16,394 @@
           <hr class="la-about-hero-separator" aria-hidden="true">
         </div>
         <p>{{t "We emailed the parent or guardian address you provided. They must approve your account before you can sign in. Ask them to check their inbox (and spam folder)." key="coppa_waiting_parent_body"}}</p>
-        <p><LinkTo @route="login" class="register-btn">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
-      {{else}}
-      <div class="la-section-header">
-        <div class="la-hero-title-wrap">
-          <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Create a " key="create_account_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span><span class="la-hero-title__prefix">{{t " Account" key="create_account_suffix"}}</span></h2>
-        </div>
-        <hr class="la-about-hero-separator" aria-hidden="true">
-      </div>
-      <form novalidate {{action "saveProfile" on="submit"}}>
-      {{#if this.start_code_ref}}
-        <div class="register-invite">
-          <div class="register-invite-icon">
-            {{#if this.start_code_ref.image_url}}
-              <img src={{this.start_code_ref.image_url}} alt="">
-            {{else}}
-              <span class="glyphicon glyphicon-paperclip"></span>
-            {{/if}}
+        <p class="register-footer-link"><LinkTo @route="login">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
+      {{else if this.showGoogleSignup}}
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Create with Google" key="google_create_with_google"}}</h2>
           </div>
-          <div class="register-invite-info">
-            <h4>
-              {{t "Invited By" key="invited_by"}}
-              {{#if this.start_code_ref.organization}}
-                {{t "Organization - " key="organization_dash"}}
-              {{else}}
-                {{t "Supervisor - " key="supervisor_dash"}}
-              {{/if}}
-              <em>{{this.start_code_ref.name}}</em>
-            </h4>
-            <p>{{t "When you sign up using the provided start code, you will automatically be connected to the organization or user that invited you to join. Some default settings such as home board may also be set automatically for you." key="auto_start_code_explainer"}}</p>
-          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
         </div>
-      {{/if}}
-      <div class="form-group">
-        <label for="name">{{t "Name" key="name"}}</label>
-        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
-      </div>
-      <div class="form-group">
-        <label for="user_name">{{t "Username" key="username"}}</label>
-        <Input @value={{this.model.user_name}} class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)" />
-        {{#if this.noSpacesName}}
-          <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
-        {{else if this.user.user_name_check.checking}}
-        {{else if this.user.user_name_check.exists}}
-          <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
-        {{else if this.noName}}
-          <span class='text-danger'>{{t "name or username is required" key="name_or_username_required"}}</span>
-        {{/if}}
-      </div>
-      <div class="form-group">
-        <label for="email">{{t "Email" key="email"}}</label>
-        <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
-        {{#if this.badEmail}}
-          <span class='text-danger'>{{t "email required" key="email_required"}}</span>
-        {{/if}}
-      </div>
-      {{#if this.showCoppaConsent}}
+        <p class="google-link-context">{{t "Signed in to Google as %{email}" email=this.googleSignupProfile.email key="google_signed_in_as"}}</p>
+        <p>{{t "Choose the username you want for your LingoLinq account, then finish creating your account." key="google_signup_complete_body_username_required"}}</p>
         <div class="form-group">
-          <fieldset>
-            <legend class="sr-only">{{t "How old is the person creating this account?" key="coppa_age_gate_prompt"}}</legend>
-            <span id="coppa-age-prompt">{{t "How old is the person creating this account?" key="coppa_age_gate_prompt"}}</span>
-            <div class="checkbox big_checkbox" style="margin-top: 0.5rem;">
-              <label>
-                <input type="radio" name="coppa_age" checked={{is-equal this.coppa_age_group "over_13"}} onclick={{action (mut this.coppa_age_group) "over_13"}} />
-                {{t "13 or older" key="coppa_age_13_or_older"}}
-              </label>
-            </div>
+          <label for="google_signup_user_name">{{t "Username" key="username"}}</label>
+          <Input @value={{this.googleSignupUserName}} class="form-control" id="google_signup_user_name" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+          {{#if this.googleSignupUserNameMissing}}
+            <span class="text-danger">{{t "username required" key="username_required"}}</span>
+          {{else if this.googleSignupUserNameInvalid}}
+            <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
+          {{/if}}
+        </div>
+        <div class="register-checkboxes">
+          {{#if this.showCoppaConsent}}
             <div class="checkbox big_checkbox">
-              <label>
-                <input type="radio" name="coppa_age" checked={{is-equal this.coppa_age_group "under_13"}} onclick={{action (mut this.coppa_age_group) "under_13"}} />
-                {{t "Under 13" key="coppa_age_under_13"}}
-              </label>
+              <Input @type="checkbox" @checked={{this.googleSignupTerms}} id="register_google_terms_consent" aria-labelledby="register_google_terms_consent_text" />
+              <span id="register_google_terms_consent_text" class="big_checkbox__consent">
+                {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+              </span>
             </div>
-            {{#if this.coppaAgeRequired}}
-              <span class="text-danger">{{t "Please select an age option." key="coppa_age_required"}}</span>
-            {{/if}}
-          </fieldset>
+          {{else}}
+            <div class="checkbox big_checkbox">
+              <Input @type="checkbox" @checked={{this.combined_google_consent}} id="register_google_combined_consent" aria-labelledby="register_google_combined_consent_text" />
+              <span id="register_google_combined_consent_text" class="big_checkbox__consent">
+                {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
+              </span>
+            </div>
+          {{/if}}
         </div>
-        {{#if (is-equal this.coppa_age_group "under_13")}}
-          <div class="form-group">
-            <label for="parent_consent_email">{{t "Parent or guardian email" key="coppa_parent_email_label"}}</label>
-            <Input @value={{this.parent_consent_email}} class="form-control" id="parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} />
-            {{#if this.coppaParentEmailMissing}}
-              <span class="text-danger">{{t "Parent or guardian email is required for users under 13." key="coppa_parent_email_required"}}</span>
+        <div class="register-btn-wrap">
+          <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
+            {{#if this.googleSignupBusy}}
+              {{t "Signing Up..." key="signing_up"}}
+            {{else}}
+              {{t "Create Account" key="google_signup_create_account"}}
             {{/if}}
-            {{#if this.coppaParentEmailSameAsAccount}}
-              <span class="text-danger">{{t "Parent email must be different from the account email." key="coppa_parent_email_must_differ"}}</span>
-            {{/if}}
-          </div>
-        {{/if}}
-      {{/if}}
-      <div class="form-group">
-        <label for="password">{{t "Password" key="password"}}</label>
-        <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="at least 6 characters" />
-        {{#if this.shortPassword}}
-          <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
-        {{/if}}
-      </div>
-      <div class="form-group">
-        <label for="registration_type">{{t "Type" key="type"}}</label>
-        {{bound-select select_class="form-control" select_id="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
-      </div>
-      <div class="form-group">
-        {{#unless this.start_code}}
-          <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
-            {{t "I have a start code" key="have_a_start_code"}}
           </button>
-        {{else}}
-          <label for="start_code">{{t "Start Code" key="start_code"}}</label>
-          <Input @value={{this.model.start_code}} class="form-control" placeholder="optional, if provided" />
-        {{/unless}}
-      </div>
-      <div class="register-checkboxes">
-        <div class="checkbox big_checkbox">
-          <label>
-            <Input @type="checkbox" @checked={{this.user.preferences.cookies}} />
-            {{t "Send usage data to %app_name% for analytics, error tracking and feature improvements" key="allow_cookies"}}
-          </label>
         </div>
-        <div class="checkbox big_checkbox">
-          <label>
-            <Input @type="checkbox" @checked={{this.model.terms_agree}} />
-            By registering or using the product, you agree that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
-          </label>
+        {{#if this.googleSignupError}}
+          <p class="register-error">{{t "There was an unexpected error while registering" key="error_registering"}}</p>
+        {{/if}}
+      {{else if this.google_signup}}
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Create with Google" key="google_create_with_google"}}</h2>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
         </div>
-      </div>
-      <div class="register-btn-wrap">
-      {{#if (persistence-online)}}
-        <button type="submit" disabled={{this.registering.saving}} class="register-btn">
-          {{#if this.registering.initializing}}
-            {{t "Handling Start Code..." key="processing_start_code"}}
-          {{else if this.registering.saving}}
-            {{t "Signing Up..." key="signing_up"}}
-          {{else}}
-            {{t "Sign Up" key="sign_up"}}
-          {{/if}}
-        </button>
+        {{#if this.googleSignupBusy}}
+          <p>{{t "Checking..." key="checking"}}</p>
+        {{else if this.googleSignupError}}
+          <p class="register-error">{{t "This Google sign-in session expired. Please try again." key="google_link_session_expired"}}</p>
+          <p class="register-footer-link"><LinkTo @route="login">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
+        {{/if}}
       {{else}}
-        <button type='submit' disabled='true' class="register-btn register-btn--disabled">
-          {{t "Not Online" key="not_online"}}
-        </button>
-      {{/if}}
-      </div>
-      {{#if this.registering.error}}
-        <p class='register-error'>
-          {{#if this.registering.error.email_blocked}}
-            {{t "The email address provided has been blocked, please try a different address" key="email_blocked"}}
-          {{else if this.registering.error.progress}}
-            {{t "User initialization failed. Please contact support." key="user_init_failed"}}
-          {{else if this.registering.error.start_code}}
-            {{t "Please re-check the start code" key="check_start_code"}}
-          {{else}}
-            {{t "There was an unexpected error while registering" key="error_registering"}}
+        <form novalidate autocomplete="off" {{action "saveProfile" on="submit"}}>
+          <div class="la-section-header">
+            <div class="la-hero-title-wrap">
+              <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Create a " key="create_account_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span><span class="la-hero-title__prefix">{{t " Account" key="create_account_suffix"}}</span></h2>
+            </div>
+            <hr class="la-about-hero-separator" aria-hidden="true">
+          </div>
+
+          {{#if this.start_code_ref}}
+            <div class="register-invite">
+              <div class="register-invite-icon">
+                {{#if this.start_code_ref.image_url}}
+                  <img src={{this.start_code_ref.image_url}} alt="">
+                {{else}}
+                  <span class="glyphicon glyphicon-paperclip"></span>
+                {{/if}}
+              </div>
+              <div class="register-invite-info">
+                <h4>
+                  {{t "Invited By" key="invited_by"}}
+                  {{#if this.start_code_ref.organization}}
+                    {{t "Organization - " key="organization_dash"}}
+                  {{else}}
+                    {{t "Supervisor - " key="supervisor_dash"}}
+                  {{/if}}
+                  <em>{{this.start_code_ref.name}}</em>
+                </h4>
+                <p>{{t "When you sign up using the provided start code, you will automatically be connected to the organization or user that invited you to join. Some default settings such as home board may also be set automatically for you." key="auto_start_code_explainer"}}</p>
+              </div>
+            </div>
           {{/if}}
-        </p>
-      {{/if}}
-      </form>
+
+          {{#if this.showRoleStep}}
+            <p class="register-step-copy">{{t "Choose the role that best describes who this account is for." key="register_choose_role_intro"}}</p>
+            <div class="register-role-options">
+              <button type="button" class="register-choice-card" {{action "select_registration_role" "communicator"}}>
+                <span>{{t "Communicator" key="registration_role_communicator_short"}}</span>
+                <span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="register-choice-card" {{action "select_registration_role" "supporter"}}>
+                <span>{{t "Supporter" key="registration_role_supporter"}}</span>
+                <span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            {{#if this.start_code}}
+              <div class="form-group">
+                <label for="start_code_role">{{t "Start Code" key="start_code"}}</label>
+                <Input @value={{this.model.start_code}} class="form-control" id="start_code_role" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+              </div>
+            {{else}}
+              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+                {{t "I have a start code" key="have_a_start_code"}}
+              </button>
+            {{/if}}
+
+          {{else if this.showCommunicatorAgeStep}}
+            <button type="button" class="register-back-link" {{action "go_to_step" "role"}}>
+              <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
+              {{t "Choose a different role" key="choose_different_role"}}
+            </button>
+            <p class="register-step-copy">{{t "First, we need your date of birth to help us give you the best experience." key="register_birthdate_intro"}}</p>
+            <div class="form-group">
+              <label>{{t "Date of birth" key="date_of_birth"}}</label>
+              <div class="register-date-row">
+                {{bound-select select_class="form-control" select_id="birth_month" content=this.birthMonths selection=this.birth_month action=(action (mut this.birth_month)) }}
+                {{bound-select select_class="form-control" select_id="birth_year" content=this.birthYears selection=this.birth_year action=(action (mut this.birth_year)) }}
+              </div>
+              {{#if this.communicatorAgeRequired}}
+                <span class="text-danger">{{t "Please choose a birth month and year." key="birthdate_required"}}</span>
+              {{/if}}
+            </div>
+            <div class="register-btn-wrap">
+              <button type="button" class="register-btn register-btn--wide" {{action "continue_communicator_age"}}>
+                {{t "Next" key="next"}}
+              </button>
+            </div>
+
+          {{else if this.showSupporterTypeStep}}
+            <button type="button" class="register-back-link" {{action "go_to_step" "role"}}>
+              <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
+              {{t "Choose a different role" key="choose_different_role"}}
+            </button>
+            <p class="register-step-copy">{{t "What kind of supporter account are you creating?" key="supporter_type_prompt"}}</p>
+            <div class="register-supporter-types register-supporter-types--large" role="radiogroup" aria-label={{t "What kind of supporter are you?" key="supporter_type_group"}}>
+              {{#each this.supporter_types as |st|}}
+                <button type="button" role="radio"
+                  aria-checked={{if (is-equal this.model.preferences.registration_type st.id) "true" "false"}}
+                  class="register-supporter-type {{if (is-equal this.model.preferences.registration_type st.id) 'register-supporter-type--active'}}"
+                  {{action "select_supporter_type" st.id}}>{{st.name}}</button>
+              {{/each}}
+            </div>
+            {{#if this.start_code}}
+              <div class="form-group">
+                <label for="start_code_supporter">{{t "Start Code" key="start_code"}}</label>
+                <Input @value={{this.model.start_code}} class="form-control" id="start_code_supporter" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+              </div>
+            {{else}}
+              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+                {{t "I have a start code" key="have_a_start_code"}}
+              </button>
+            {{/if}}
+
+          {{else if this.showUnder13Step}}
+            <button type="button" class="register-back-link" {{action "go_to_step" "communicator_age"}}>
+              <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
+              {{t "Change date of birth" key="change_date_of_birth"}}
+            </button>
+            <h3 class="register-role-heading">{{this.selectedRoleSignupHeading}}</h3>
+            <p class="register-step-copy">{{t "A parent or guardian needs to approve this account before it can be used." key="under_13_parent_approval_intro"}}</p>
+            <div class="form-group">
+              <label for="parent_consent_email">{{t "Parent or guardian email" key="coppa_parent_email_label"}}</label>
+              <Input @value={{this.parent_consent_email}} class="form-control" id="parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} autocomplete="email" inputmode="email" />
+              {{#if this.coppaParentEmailMissing}}
+                <span class="text-danger">{{t "Parent or guardian email is required for users under 13." key="coppa_parent_email_required"}}</span>
+              {{/if}}
+              {{#if this.coppaParentEmailSameAsAccount}}
+                <span class="text-danger">{{t "Parent email must be different from the account email." key="coppa_parent_email_must_differ"}}</span>
+              {{/if}}
+            </div>
+            <div class="form-group">
+              <label for="user_name_under_13">{{t "Username" key="username"}}</label>
+              <Input @type="text" @value={{this.model.user_name}} class="form-control" id="user_name_under_13" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              {{#if this.userNameMissing}}
+                <span class='text-danger'>{{t "username required" key="username_required"}}</span>
+              {{else if this.noSpacesName}}
+                <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
+              {{else if this.user.user_name_check.exists}}
+                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+              {{/if}}
+            </div>
+            <div class="form-group">
+              <label for="email_under_13">{{t "Email" key="email"}}</label>
+              <Input @type="email" @value={{this.model.email}} class="form-control" id="email_under_13" autocomplete="email" inputmode="email" />
+              {{#if this.badEmail}}
+                <span class='text-danger'>{{t "email required" key="email_required"}}</span>
+              {{/if}}
+            </div>
+            <div class="form-group">
+              <label for="password_under_13">{{t "Password" key="password"}}</label>
+              {{password-field id="password_under_13" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
+              {{#if this.shortPassword}}
+                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
+              {{/if}}
+            </div>
+            {{#if this.start_code}}
+              <div class="form-group">
+                <label for="start_code_under_13">{{t "Start Code" key="start_code"}}</label>
+                <Input @value={{this.model.start_code}} class="form-control" id="start_code_under_13" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+              </div>
+            {{else}}
+              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+                {{t "I have a start code" key="have_a_start_code"}}
+              </button>
+            {{/if}}
+            <div class="register-checkboxes">
+              <div class="checkbox big_checkbox">
+                <Input @type="checkbox" @checked={{this.model.terms_agree}} id="register_under_13_terms_consent" aria-labelledby="register_under_13_terms_consent_text" />
+                <span id="register_under_13_terms_consent_text" class="big_checkbox__consent">
+                  {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+                </span>
+              </div>
+            </div>
+            <div class="register-btn-wrap">
+              {{#if (persistence-online)}}
+                <button type="submit" disabled={{this.accountStepEmailSignupDisabled}} class="register-btn register-btn--wide">
+                  {{#if this.registering.initializing}}
+                    {{t "Handling Start Code..." key="processing_start_code"}}
+                  {{else if this.registering.saving}}
+                    {{t "Signing Up..." key="signing_up"}}
+                  {{else}}
+                    {{t "Sign Up" key="sign_up"}}
+                  {{/if}}
+                </button>
+              {{else}}
+                <button type='submit' disabled='true' class="register-btn register-btn--disabled register-btn--wide">
+                  {{t "Not Online" key="not_online"}}
+                </button>
+              {{/if}}
+            </div>
+            {{#unless this.model.terms_agree}}
+              <p class="register-help-text">{{t "Agree to the Terms of Service before continuing with email." key="email_terms_required_hint"}}</p>
+            {{/unless}}
+            {{#if this.userNameBlank}}
+              <p class="register-help-text">{{t "Choose a username before continuing with email." key="email_username_required_hint"}}</p>
+            {{/if}}
+
+          {{else if this.showAccountStep}}
+            {{#if (is-equal this.registration_role "supporter")}}
+              <button type="button" class="register-back-link" {{action "go_to_step" "supporter_type"}}>
+                <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
+                {{t "Change supporter type" key="change_supporter_type"}}
+              </button>
+            {{else}}
+              <button type="button" class="register-back-link" {{action "go_to_step" "communicator_age"}}>
+                <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
+                {{t "Change date of birth" key="change_date_of_birth"}}
+              </button>
+            {{/if}}
+            <h3 class="register-role-heading">{{this.selectedRoleSignupHeading}}</h3>
+            <div class="form-group">
+              <label for="user_name_account">{{t "Username" key="username"}}</label>
+              <Input @type="text" @value={{this.model.user_name}} class="form-control" id="user_name_account" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              {{#if this.userNameMissing}}
+                <span class='text-danger'>{{t "username required" key="username_required"}}</span>
+              {{else if this.noSpacesName}}
+                <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
+              {{else if this.user.user_name_check.exists}}
+                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+              {{/if}}
+            </div>
+            <div class="register-checkboxes">
+              {{#if this.showCoppaConsent}}
+                <div class="checkbox big_checkbox">
+                  <Input @type="checkbox" @checked={{this.model.terms_agree}} id="register_terms_consent" aria-labelledby="register_terms_consent_text" />
+                  <span id="register_terms_consent_text" class="big_checkbox__consent">
+                    {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+                  </span>
+                </div>
+              {{else}}
+                <div class="checkbox big_checkbox">
+                  <Input @type="checkbox" @checked={{this.combined_consent}} id="register_combined_consent" aria-labelledby="register_combined_consent_text" />
+                  <span id="register_combined_consent_text" class="big_checkbox__consent">
+                    {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
+                  </span>
+                </div>
+              {{/if}}
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @type="checkbox" @checked={{this.productImprovementOptIn}} />
+                  {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
+                </label>
+              </div>
+              {{#if this.ageAttestationRequired}}
+                <span class='text-danger register-checkboxes__error'>{{t "You must confirm your age and agree to the Terms of Use and Privacy Policy to create an account." key="combined_consent_required_message"}}</span>
+              {{/if}}
+            </div>
+            {{#if this.googleSsoEnabled}}
+              <div class="register-btn-wrap">
+                <button type="button" disabled={{this.googleRegisterDisabled}} class="register-btn register-btn--google" {{action "continue_with_google"}}>
+                  <span class="register-btn--google__icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+                      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                    </svg>
+                  </span>
+                  <span class="register-btn--google__label">{{t "Continue with Google" key="continue_with_google"}}</span>
+                </button>
+              </div>
+              {{#unless this.model.terms_agree}}
+                <p class="register-help-text">{{t "Agree to the Terms of Service before continuing with Google." key="google_terms_required_hint"}}</p>
+              {{/unless}}
+              {{#if this.userNameBlank}}
+                <p class="register-help-text">{{t "Choose a username before continuing with Google." key="google_username_required_hint"}}</p>
+              {{/if}}
+              <div class="login-google-divider">
+                <span>{{t "or sign up with email" key="or_sign_up_with_email"}}</span>
+              </div>
+            {{/if}}
+            <div class="form-group">
+              <label for="email_account">{{t "Email" key="email"}}</label>
+              <Input @type="email" @value={{this.model.email}} class="form-control" id="email_account" autocomplete="email" inputmode="email" />
+              {{#if this.badEmail}}
+                <span class='text-danger'>{{t "email required" key="email_required"}}</span>
+              {{/if}}
+            </div>
+            <div class="form-group">
+              <label for="password_account">{{t "Password" key="password"}}</label>
+              {{password-field id="password_account" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
+              {{#if this.shortPassword}}
+                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
+              {{/if}}
+            </div>
+            {{#if this.start_code}}
+              <div class="form-group">
+                <label for="start_code_account">{{t "Start Code" key="start_code"}}</label>
+                <Input @value={{this.model.start_code}} class="form-control" id="start_code_account" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+              </div>
+            {{else}}
+              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+                {{t "I have a start code" key="have_a_start_code"}}
+              </button>
+            {{/if}}
+            <div class="register-btn-wrap">
+              {{#if (persistence-online)}}
+                <button type="submit" disabled={{this.accountStepEmailSignupDisabled}} class="register-btn register-btn--wide">
+                  {{#if this.registering.initializing}}
+                    {{t "Handling Start Code..." key="processing_start_code"}}
+                  {{else if this.registering.saving}}
+                    {{t "Signing Up..." key="signing_up"}}
+                  {{else}}
+                    {{t "Sign Up" key="sign_up"}}
+                  {{/if}}
+                </button>
+              {{else}}
+                <button type='submit' disabled='true' class="register-btn register-btn--disabled register-btn--wide">
+                  {{t "Not Online" key="not_online"}}
+                </button>
+              {{/if}}
+            </div>
+            {{#unless this.model.terms_agree}}
+              <p class="register-help-text">{{t "Agree to the Terms of Service before continuing with email." key="email_terms_required_hint"}}</p>
+            {{/unless}}
+            {{#if this.userNameBlank}}
+              <p class="register-help-text">{{t "Choose a username before continuing with email." key="email_username_required_hint"}}</p>
+            {{/if}}
+          {{/if}}
+
+          {{#if this.registering.error}}
+            <p class='register-error'>
+              {{#if this.registering.error.email_blocked}}
+                {{t "The email address provided has been blocked, please try a different address" key="email_blocked"}}
+              {{else if this.registering.error.progress}}
+                {{t "User initialization failed. Please contact support." key="user_init_failed"}}
+              {{else if this.registering.error.start_code}}
+                {{t "Please re-check the start code" key="check_start_code"}}
+              {{else}}
+                {{t "There was an unexpected error while registering" key="error_registering"}}
+              {{/if}}
+            </p>
+          {{/if}}
+
+          <p class="register-footer-link">{{t "Already have a LingoLinq account?" key="already_have_lingolinq_account"}} <LinkTo @route="login">{{t "Log in" key="log_in"}}</LinkTo></p>
+        </form>
       {{/if}}
     {{else}}
       <div class="la-section-header">

@@ -76,6 +76,7 @@
     {{/unless}}
   </div>
   <div class="modal-footer md-modal-footer">
+    <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
     {{#if this.update_tag_id}}
       <button class='btn btn-primary' {{action "save"}}>{{t "Update Tag" key="update_tag"}}</button>
     {{else}}
@@ -87,6 +88,5 @@
         {{/if}}
       </button>
     {{/if}}
-    <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

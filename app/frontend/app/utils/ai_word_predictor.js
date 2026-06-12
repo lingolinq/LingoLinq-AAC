@@ -1,6 +1,7 @@
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
+import app_state from './app_state';
 
 // AI-powered word prediction service.
 // Optimized for Gemini free tier (20 requests/minute).
@@ -31,11 +32,25 @@ var ai_word_predictor = {
 
   _debounce_ms: 300,
 
+  _cache_key: function(sentence, locale) {
+    return (locale || 'en') + ':' + (sentence || '').toString().trim().toLowerCase();
+  },
+
+  is_enabled: function(appStateService) {
+    var state = appStateService || app_state;
+    if(!state || typeof state.get !== 'function') { return false; }
+    return !!state.get('feature_flags.ai_word_prediction');
+  },
+
   predict: function(sentence, options) {
     var _this = this;
     options = options || {};
     var locale = options.locale || 'en';
     var count = options.count || 4;
+
+    if(!_this.is_enabled(options.appState)) {
+      return RSVP.resolve([]);
+    }
 
     // Cancel any pending debounced request
     if(_this._pending_timer) {
@@ -51,7 +66,7 @@ var ai_word_predictor = {
       return RSVP.resolve([]);
     }
 
-    var key = sentence.trim().toLowerCase();
+    var key = _this._cache_key(sentence, locale);
 
     // Check cache first — free, no API call
     var cached = _this._cache[key];
@@ -71,7 +86,7 @@ var ai_word_predictor = {
 
     // Skip debounce for prediction taps (immediate)
     if(options.immediate) {
-      return _this._fetch(key, locale, count);
+      return _this._fetch(sentence.trim().toLowerCase(), locale, count);
     }
 
     // Debounce for board-button taps
@@ -80,7 +95,7 @@ var ai_word_predictor = {
       _this._pending_timer = runLater(function() {
         _this._pending_timer = null;
         _this._pending_reject = null;
-        _this._fetch(key, locale, count).then(resolve, function() { resolve([]); });
+        _this._fetch(sentence.trim().toLowerCase(), locale, count).then(resolve, function() { resolve([]); });
       }, _this._debounce_ms);
     });
   },
@@ -105,7 +120,7 @@ var ai_word_predictor = {
         data: { sentence: sentence, locale: locale, count: count }
       }).then(function(result) {
         var words = (result && result.words) || [];
-        _this._cache_put(sentence, words);
+        _this._cache_put(sentence, words, locale);
         resolve(words);
       }, function(xhr) {
         if(xhr && xhr.status === 429) {
@@ -117,7 +132,8 @@ var ai_word_predictor = {
     });
   },
 
-  _cache_put: function(key, words) {
+  _cache_put: function(sentence, words, locale) {
+    var key = this._cache_key(sentence, locale);
     if(Object.keys(this._cache).length >= this._cache_max) {
       var oldest_key = null;
       var oldest_ts = Infinity;

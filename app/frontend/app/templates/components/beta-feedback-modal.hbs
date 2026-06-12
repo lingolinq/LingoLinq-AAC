@@ -1,0 +1,5 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="beta-feedback-modal-wrap">
+    {{beta-feedback-panel isDrawer=true onSubmitSuccess=(action "onSubmitSuccess") onCancel=(action "onCancel") onClose=(action "close")}}
+  </div>
+{{/modal-dialog}}

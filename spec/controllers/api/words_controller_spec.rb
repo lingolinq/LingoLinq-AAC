@@ -107,4 +107,53 @@ describe Api::WordsController, :type => :controller do
       )
     end
   end
+
+  describe "post 'predict'" do
+    it "should reject unauthenticated prediction requests" do
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      expect(AiWordPredictor).not_to receive(:predict)
+
+      post 'predict', params: { 'sentence' => 'I want to' }
+      assert_error('Authentication required', 401)
+      expect(response.status).to eq(401)
+      expect(@error_json['unauthorized']).to eq(true)
+    end
+
+    it "should require a sentence" do
+      token_user
+      post 'predict', params: { 'sentence' => '' }
+      assert_error('sentence required')
+    end
+
+    it "should reject when ai_word_prediction is disabled for the user" do
+      token_user
+      allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(false)
+      post 'predict', params: { 'sentence' => 'I want to' }
+      assert_error('ai_word_prediction is not enabled for this user')
+    end
+
+    it "should reject when COPPA gate blocks the user" do
+      token_user
+      allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(true)
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(true)
+      post 'predict', params: { 'sentence' => 'I want to' }
+      expect(response.status).to eq(403)
+    end
+
+    it "should call AiWordPredictor.predict with the api user" do
+      token_user
+      allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(true)
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      expect(AiWordPredictor).to receive(:predict).with(hash_including(
+        sentence: 'I want to',
+        locale: 'en',
+        count: 4,
+        user: @user
+      )).and_return(%w[play go eat help])
+
+      post 'predict', params: { 'sentence' => 'I want to' }
+      json = assert_success_json
+      expect(json).to eq({ 'words' => %w[play go eat help] })
+    end
+  end
 end

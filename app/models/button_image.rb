@@ -1,4 +1,4 @@
-class ButtonImage < ActiveRecord::Base
+class ButtonImage < ApplicationRecord
   include Processable
   include Permissions
   include Uploadable
@@ -218,29 +218,118 @@ class ButtonImage < ActiveRecord::Base
     true
   end
 
+  def library_url_for_skin
+    candidates = [
+      settings['library_url_for_skin'],
+      settings['library_skin_base_url'],
+      settings['source_url'],
+      settings['pre_variant_url'],
+      url
+    ]
+    (settings['library_alternates'] || {}).each_value do |alt|
+      candidates << alt['url'] if alt.is_a?(Hash)
+    end
+    candidates.compact.find { |u| u.to_s.match(/\/libraries\//) }
+  end
+
+  def needs_library_url_enrichment?
+    return false if library_url_for_skin
+    return false if settings['library_url_lookup_attempted']
+    !!(url.to_s.match(/amazonaws|lingolinq.*uploads/i))
+  end
+
+  # Re-resolve a plain S3 copy to the canonical OpenSymbols/library URL so
+  # check_for_variants and client skin_image_map can apply skin tones.
+  def ensure_library_url_for_skin!(label: nil, force: false)
+    return true if library_url_for_skin && !force
+    return false if settings['library_url_lookup_attempted'] && !force
+
+    settings['library_url_lookup_attempted'] = true
+    settings['button_label'] ||= label if label.present?
+    changed = false
+    lib = image_library
+    search_label = settings['button_label'] || settings['search_term']
+    libraries = []
+    libraries << lib if lib && lib != 'unknown'
+    libraries << 'arasaac' if libraries.empty? && settings.dig('license', 'author_url').to_s.match(/arasaac/i)
+    libraries << 'opensymbols' if libraries.empty?
+
+    if search_label.present? && libraries.any?
+      libraries.uniq.each do |library|
+        image_data = (Uploader.find_images(search_label, library, 'en', user, nil, true) || [])[0]
+        next unless image_data && image_data['url'].to_s.match(/\/libraries\//)
+        settings['library_url_for_skin'] = Uploader.fronted_url(image_data['url'])
+        settings['external_id'] ||= image_data['external_id'] if image_data['external_id']
+        settings['library_alternates'] ||= {}
+        settings['library_alternates'][library] ||= {
+          'url' => settings['library_url_for_skin'],
+          'license' => image_data['license'],
+          'content_type' => image_data['content_type']
+        }
+        changed = true
+        break
+      end
+    end
+
+    if changed
+      check_for_variants(true)
+      save
+      return true
+    end
+    save if settings['library_url_lookup_attempted']
+    false
+  end
+
+  def skin_capable_url
+    if settings['library_skin_base_url']
+      url = Uploader.fronted_url(settings['library_skin_base_url'])
+      return url if url_skinnable?(url)
+    end
+    lib_url = library_url_for_skin
+    if lib_url
+      url = Uploader.fronted_url(lib_url)
+      return url if url_skinnable?(url)
+    end
+    nil
+  end
+
+  def url_skinnable?(url)
+    return false unless url
+    url.match(/\.varianted-skin\.\w+$/) ||
+      (url.match(/\/libraries\/twemoji\//) && url.match(/-var\w+UNI/))
+  end
+
   def check_for_variants(force=false)
     return false if self.settings['checked_for_variants'] && !force
-    if self.url && !self.url.match(/\.varianted-skin\./) && !self.url.match(/-var\w+UNI/)
-      if self.url.match(/\/libraries\/twemoji\//) && self.settings['external_id']
+    variant_target = library_url_for_skin || self.url
+    if variant_target && !variant_target.match(/\.varianted-skin\./) && !variant_target.match(/-var\w+UNI/)
+      if variant_target.match(/\/libraries\/twemoji\//) && self.settings['external_id']
         token = ENV['OPENSYMBOLS_TOKEN']
         url = "https://www.opensymbols.org/api/v2/symbols/twemoji/#{self.settings['external_id']}"
         res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10)
         json = JSON.parse(res.body) rescue nil
-        if json && json['symbol'] && json['symbol']['image_url'] && json['symbol']['image_url'] != self.url
-          self.settings['pre_variant_url'] = self.url
-          self.url = json['symbol']['image_url']
+        if json && json['symbol'] && json['symbol']['image_url'] && json['symbol']['image_url'] != variant_target
+          self.settings['pre_variant_url'] ||= variant_target
+          if variant_target == self.url
+            self.url = json['symbol']['image_url']
+          else
+            self.settings['library_skin_base_url'] = json['symbol']['image_url']
+          end
           self.settings['checked_for_variants'] = true
           self.save
           return true
         end
-      elsif self.url.match(/\/libraries\//)
-        extension = (self.url.split(/\//)[-1] || '').split(/\./)[-1]
-        new_url = self.url + '.varianted-skin.' + extension
-        lookup_url = new_url
-        req = Typhoeus.head(URI.escape(new_url))
+      elsif variant_target.match(/\/libraries\//)
+        extension = (variant_target.split(/\//)[-1] || '').split(/\./)[-1]
+        new_url = variant_target + '.varianted-skin.' + extension
+        req = Typhoeus.head(URI.escape(new_url), timeout: 5)
         if req.success?
-          self.settings['pre_variant_url'] = self.url
-          self.url = new_url
+          self.settings['pre_variant_url'] ||= variant_target
+          if variant_target == self.url
+            self.url = new_url
+          else
+            self.settings['library_skin_base_url'] = new_url
+          end
           self.settings['checked_for_variants'] = true
           self.save
           return true

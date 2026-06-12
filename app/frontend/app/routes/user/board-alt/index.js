@@ -35,6 +35,11 @@ export default Route.extend({
   setupController: function(controller, model) {
     LingoLinq.log.track('setting up controller');
     var _this = this;
+    /* Drop any pending board-loading overlay (My Boards picker,
+       boards-page tile click, etc.). LOADING_OVERLAY_MIN_MS still
+       enforces a minimum visible duration so a fast transition
+       doesn't flash-and-disappear. Same pattern as board-detail. */
+    this.appState.hide_loading_overlay();
     _this.set('board', model);
     controller.set('model', model);
     controller.set('ordered_buttons', null);

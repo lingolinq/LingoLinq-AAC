@@ -664,4 +664,78 @@ describe PiiScrubber do
       expect(findings_after.any? { |f| f[:type] == :blocklist_name }).to eq(false)
     end
   end
+
+  describe "scrub_log_line" do
+    it "should redact email addresses" do
+      line = 'I, [2026-06-10] INFO -- : ExternalTracker sync failed body=contact parent@example.com bounced'
+      result = PiiScrubber.scrub_log_line(line)
+      expect(result).not_to include('parent@example.com')
+      expect(result).to include('[REDACTED_EMAIL]')
+    end
+
+    it "should redact multiple emails in one line" do
+      result = PiiScrubber.scrub_log_line('to=a@b.com cc=c@d.org')
+      expect(result).to eq('to=[REDACTED_EMAIL] cc=[REDACTED_EMAIL]')
+    end
+
+    it "should redact SSNs" do
+      result = PiiScrubber.scrub_log_line('record ssn=123-45-6789 saved')
+      expect(result).not_to include('123-45-6789')
+      expect(result).to include('[REDACTED_SSN]')
+    end
+
+    it "should redact phone numbers with explicit separators" do
+      result = PiiScrubber.scrub_log_line('callback to 555-123-4567 failed')
+      expect(result).not_to include('555-123-4567')
+      expect(result).to include('[REDACTED_PHONE]')
+    end
+
+    it "should redact IP addresses" do
+      result = PiiScrubber.scrub_log_line('session from 192.168.1.100 expired')
+      expect(result).not_to include('192.168.1.100')
+      expect(result).to include('[REDACTED_IP]')
+    end
+
+    it "should NOT redact global_ids (intentionally retained for diagnostics)" do
+      line = 'Token issued for user 1_2345: keys=user,id'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+
+    it "should NOT redact bare 10-digit epoch timestamps as phone numbers" do
+      line = 'job scheduled at 1718000000 duration_ms=4200000000'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+
+    it "should leave clean lines untouched (fast path skips regex passes)" do
+      line = 'I, [2026-06-10] INFO -- : [Board#post_process] Creating buttonset for board 9_8765'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+
+    it "should return non-string input unchanged" do
+      expect(PiiScrubber.scrub_log_line(nil)).to be_nil
+      expect(PiiScrubber.scrub_log_line(42)).to eq(42)
+    end
+
+    # Documented, accepted tradeoffs (see PiiScrubber.scrub_log_line comment).
+
+    it "OVER-matches some valid-looking 3-2-4 ids as SSNs (accepted false positive)" do
+      expect(PiiScrubber.scrub_log_line('order 123-45-6789 shipped')).to include('[REDACTED_SSN]')
+    end
+
+    it "does NOT redact SSA-invalid 3-2-4 tokens" do
+      expect(PiiScrubber.scrub_log_line('placeholder 000-00-0000 skipped')).to eq('placeholder 000-00-0000 skipped')
+      expect(PiiScrubber.scrub_log_line('group 123-00-6789 skipped')).to eq('group 123-00-6789 skipped')
+    end
+
+    it "should redact TLD-less and quoted-local-part emails" do
+      expect(PiiScrubber.scrub_log_line('login from user@localhost ok')).to eq('login from [REDACTED_EMAIL] ok')
+      expect(PiiScrubber.scrub_log_line('contact "john.doe"@example.com bounced')).to include('[REDACTED_EMAIL]')
+      expect(PiiScrubber.scrub_log_line('contact "john.doe"@example.com bounced')).not_to include('john.doe"@example.com')
+    end
+
+    it "does NOT scrub names or utterances (the app's real PHI - call-site responsibility)" do
+      line = 'speak event for child Jamie: utterance="I want juice"'
+      expect(PiiScrubber.scrub_log_line(line)).to eq(line)
+    end
+  end
 end

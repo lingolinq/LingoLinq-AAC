@@ -34,12 +34,21 @@
           <span class="md-hero--user__meta">{{this.model.location}}</span>
         </div>
       {{/if}}
+      {{!-- Bottom divider + "Launch the Getting Started Wizard Again"
+           button DISABLED: the onboarding flow is being evaluated for
+           later add-back (see also showGettingStarted in
+           dashboard/authenticated-view.js). With the only thing under
+           the divider gone, the divider itself is orphan styling, so
+           the whole __divider + __below-divider block is commented out
+           rather than left as an empty rule. Restore by un-commenting. --}}
+      {{!--
       <hr class="md-hero--user__divider" aria-hidden="true">
       <div class="md-hero--user__below-divider">
         {{#if this.model.permissions.edit}}
           <a href="#" {{action "setup"}} class="md-hero--user__wizard-btn">{{t "Launch the Getting Started Wizard Again" key="launch_setup"}}</a>
         {{/if}}
       </div>
+      --}}
       {{#if this.model.details_url}}
         <p class="md-hero--user__url"><a href={{this.model.details_url}} target="_blank" rel="noopener">{{this.model.details_url}}</a></p>
       {{/if}}
@@ -70,14 +79,19 @@
         <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_approve"}}>{{t "Approve %{org}" org=this.model.pending_supervision_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_reject"}}>{{t "Deny Access"}}</button>
       </div>
-    {{else if this.model.pending}}
-      <div class='alert alert-success'>
-        {{t "Welcome to %app_name%! Watch for an email from us in your inbox. You'll need to confirm registration within seven days of registering or your account will be disabled." key="welcome_remember_confirm"}}
-        {{#if this.resentConfirmation}}
-          {{t "Confirmation Email Sent!" key="confirmation_sent"}}
-        {{else}}
-          <a href="#" class="alert-link" {{action "resendConfirmation"}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
-        {{/if}}
+    {{else if this.show_welcome_notice}}
+      <div class="ll-welcome-notice ll-welcome-notice--long" role="status">
+        <span class="ll-welcome-notice__text">
+          {{t "Welcome to %app_name%! Watch for an email from us in your inbox. You'll need to confirm registration within seven days of registering or your account will be disabled." key="welcome_remember_confirm"}}
+          {{#if this.resentConfirmation}}
+            {{t "Confirmation Email Sent!" key="confirmation_sent"}}
+          {{else}}
+            <a href="#" class="ll-welcome-notice__link" {{action "resendConfirmation"}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
+          {{/if}}
+        </span>
+        <button type="button" class="ll-welcome-notice__close" {{action "dismiss_welcome_notice"}} aria-label={{t "Dismiss" key="dismiss"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     {{else if this.model.expired}}
       {{#if this.app_state.feature_flags.subscriptions}}
@@ -138,7 +152,7 @@
                 {{t "Liked Boards" key="liked_boards"}}
               </div>
               {{#if this.model.preferences.home_board.key}}
-                <div style='font-size: 12px;'>{{t "including<br>%{bn}" bn=this.model.preferences.home_board.key key="including_board_name"}}</div>
+                <div style='font-size: 14px;'>{{t "including<br>%{bn}" bn=this.model.preferences.home_board.key key="including_board_name"}}</div>
               {{/if}}
             </div>
           </a>
@@ -149,7 +163,7 @@
           <!-- TODO: if supervisor, maybe show external-device modal insead of home search (maybe with link to search) -->
           <LinkTo @route="home-boards" class="btn big_button btn-default">
             <span class='glyphicon glyphicon-home'></span>
-            {{t "No Home<br>Board Set" key="no_home_board_set"}}
+            {{t "No Home<br/>Board Set" key="no_home_board_set"}}
           </LinkTo>
         {{/if}}
       </div>
@@ -191,7 +205,7 @@
                   {{/if}}
                 </div>
               </div>
-              <div style='font-size: 12px; color: #888; margin-top: -7px;'>
+              <div style='font-size: 14px; color: #888; margin-top: -7px;'>
                 {{#if this.model.profile_due.overdue}}
                   {{t "overdue" key="overdue"}}
                 {{else if this.model.profile_due.soon}}
@@ -625,17 +639,17 @@
                   {{#each this.filtered_devices as |device|}}
                     <tr>
                       <td>{{device.name}}
-                        <div style='font-size: 12px; color: #888;'>{{device.ref_id}}</div>
+                        <div style='font-size: 14px; color: #888;'>{{device.ref_id}}</div>
                       </td>
                       <td>
                         {{device.app_version}}<br>
                         {{device.token_type}}
                       </td>
-                      <td style='width: 30%; font-size: 10px;'>{{device.user_agent}}</td>
+                      <td style='width: 30%; font-size: 14px;'>{{device.user_agent}}</td>
                       <td>{{device.ip_address}}</td>
                       <td>
                         {{date device.last_used}}
-                        <div style='font-size: 12px;'>
+                        <div style='font-size: 14px;'>
                           {{t "expires after" key="expires_after"}}
                           {{device.token_timeout}}{{t ", or" key="comma_or"}}
                           {{device.inactivity_timeout}} 

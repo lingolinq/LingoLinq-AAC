@@ -4,7 +4,7 @@ import i18n from '../../utils/i18n';
 export default Route.extend({
   model: function() {
     var user = this.modelFor('user');
-    user.set('subroute_name', i18n.t('preferences', 'preferences'));
+    user.set('subroute_name', i18n.t('preferences', 'settings'));
     return user;
   },
   setupController: function(controller, model) {
@@ -21,6 +21,9 @@ export default Route.extend({
   },
   actions: {
     willTransition: function(transition) {
+      if(this.get('controller.teardownWeblingerListeners')) {
+        this.get('controller').teardownWeblingerListeners();
+      }
       // save preferences if they aren't cancelled or already being saved
       if(!this.get('controller.skip_save_on_transition')) {
         var orig_prefs = JSON.stringify(this.get('controller.original_preferences') || {});

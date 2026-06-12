@@ -8,39 +8,58 @@
       <h3>{{t "PIN Required" key="pin_required"}}</h3>
     </div>
     <div class="modal-body md-modal-body" style="text-align: center;">
-      <table class="table table-bordered advanced_selection" id="pin"><tbody>
+      <div class="speak-mode-pin-entry">
+        <input type="text" class="form-control speak-mode-pin-entry__input" readonly value={{if this.show_typed_digits this.pin this.pin_dots}} rel={{this.pin}} aria-label={{t "Speak Mode PIN" key="speak_mode_pin"}}>
+        <button type="button" class="btn btn-primary pass_through speak-mode-pin-entry__submit" {{action "submit_pin"}}>{{t "Submit" key="pin_submit_button"}}</button>
+      </div>
+      {{#if this.invalid_pin}}
+        <p class="text-danger speak-mode-pin-entry__error" role="alert">{{t "Invalid PIN. Try again!" key="invalid_pin_try_again"}}</p>
+      {{/if}}
+      <table class="table table-bordered advanced_selection" id="pin">
+        <colgroup>
+          <col span="3" style="width: 33.33%;">
+        </colgroup>
+        <tbody>
         <tr>
-          <td><button type="button" {{action "add_digit" "1" on="select"}}>1</button></td>
-          <td><button type="button" {{action "add_digit" "2" on="select"}}>2</button></td>
-          <td><button type="button" {{action "add_digit" "3" on="select"}}>3</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "1"}}>1</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "2"}}>2</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "3"}}>3</button></td>
         </tr>
         <tr>
-          <td><button type="button" {{action "add_digit" "4" on="select"}}>4</button></td>
-          <td><button type="button" {{action "add_digit" "5" on="select"}}>5</button></td>
-          <td><button type="button" {{action "add_digit" "6" on="select"}}>6</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "4"}}>4</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "5"}}>5</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "6"}}>6</button></td>
         </tr>
         <tr>
-          <td><button type="button" {{action "add_digit" "7" on="select"}}>7</button></td>
-          <td><button type="button" {{action "add_digit" "8" on="select"}}>8</button></td>
-          <td><button type="button" {{action "add_digit" "9" on="select"}}>9</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "7"}}>7</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "8"}}>8</button></td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "9"}}>9</button></td>
         </tr>
         <tr>
-          <td>&nbsp;</td>
-          <td><button type="button" {{action "add_digit" "0" on="select"}}>0</button></td>
-          <td>&nbsp;</td>
+          <td>
+            <button type="button" class="pin-key pin-key__icon" {{action "delete_digit"}} aria-label={{t "Backspace" key="backspace_lower"}}>
+              <img src={{path "images/delete.svg"}} alt="">
+            </button>
+          </td>
+          <td><button type="button" class="pin-key" {{action "add_digit" "0"}}>0</button></td>
+          <td>
+            <button type="button" class="pin-key pin-key__icon" {{action "toggle_typed_digits"}} aria-label={{if this.show_typed_digits (t "Hide digits" key="pin_hide_digits") (t "Show digits" key="pin_show_digits")}}>
+              {{#if this.show_typed_digits}}
+                <span class="glyphicon glyphicon-eye-close" aria-hidden="true"></span>
+              {{else}}
+                <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>
+              {{/if}}
+            </button>
+          </td>
         </tr>
       </tbody></table>
-      {{#if this.invalid_pin}}
-        <p class="text-danger">{{t "Invalid PIN. Try again!" key="invalid_pin_try_again"}}</p>
-      {{/if}}
-      <input type="text" class="form-control" value={{this.pin_dots}} rel={{this.pin}} style="font-size: 50px; height: 55px; text-align: center; line-height: 20px; padding-top: 0;">
     </div>
     <div class="modal-footer md-modal-footer">
       {{#unless this.model.hide_hint}}
         {{#if this.show_pin}}
           PIN: {{ this.model.actual_pin }}
         {{else}}
-          <a href="#" {{action "reveal_pin" on="click"}}>touch here to show the PIN</a>
+          <a href="#" class="pass_through" {{action "reveal_pin" on="click"}}>{{t "Reveal PIN" key="pin_reveal_pin"}}</a>
         {{/if}}
       {{/unless}}
     </div>

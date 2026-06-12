@@ -7,6 +7,7 @@ import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
+import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
@@ -29,10 +30,14 @@ export default modal.ModalController.extend({
       var list = [];
       var promises = [];
       list.push({label: this.get('model.board.name')});
+      /* Include EVERY button. The previous `b.locale != model.locale`
+         filter was an over-optimization that silently excluded all
+         buttons whenever button_set had stale per-button locale fields
+         (post-translation cache mismatch), producing an empty
+         Re-Translate modal. Matching change in the active component
+         path at components/button-set.js. */
       (this.get('model.button_set.buttons') || []).forEach(function(b, idx) {
-        if(b.locale != _this.get('model.locale')) {
-          list.push(b);
-        }
+        list.push(b);
         if(list.length >= 100) {
           lists.push(list);
           list = [];
@@ -106,14 +111,14 @@ export default modal.ModalController.extend({
         });
       }
       var res = [];
-      var locale = this.get('model.locale');
       var board_ids = this.get('model.old_board_ids_to_translate');
       var translations = this.get('translations') || {};
       var original_board_id = this.get('model.board.id');
       var translating = !!(this.get('translating'));
       words.forEach(function(b, idx) {
         if(translating) {
-          if(locale && b.locale && b.locale == locale) { return; }
+          /* Removed the `b.locale == locale` skip — matching change
+             in components/button-set.js. */
           if(board_ids && board_ids.indexOf(b.board_id) == -1) { return; }
           if(!board_ids && b.board_id != original_board_id) { return; }
         }
@@ -198,16 +203,32 @@ export default modal.ModalController.extend({
           source_lang: _this.get('model.board.locale'),
           destination_lang: _this.get('model.locale'),
           set_as_default: _this.get('model.default_language'),
+          /* `force_update_default` tells the server's translate_set to
+             apply the new labels to the visible button text even when
+             source_lang == destination_lang. Without this flag the
+             server silently stores the translations in the per-button
+             translations cache but never updates the visible labels,
+             so a Re-Translate produces no apparent change. Set by
+             translation-select#translate from the Re-Translate path. */
+          force_update_default: _this.get('model.force_update_default') || false,
           translations: translations,
           board_ids_to_translate: _this.get('model.new_board_ids_to_translate')
         }
       }).then(function(res) {
-        progress_tracker.track(res.progress, function(event) {
-          if(event.status == 'errored' || (event.status == 'finished' && event.result && event.result.translated === false)) {
+        app_state.set('board_translate_in_progress', true);
+        modal.flash(i18n.t('applying_translations', "Applying Translations..."), 'notice', false, true);
+        var track_id = null;
+        track_id = progress_tracker.track(res.progress, function(event) {
+          if(progress_tracker.is_terminal(event)) {
+            app_state.set('board_translate_in_progress', false);
+            modal.close('flash');
+            progress_tracker.untrack(track_id);
+          }
+          if(progress_tracker.is_errored(event) || (progress_tracker.is_finished(event) && event.result && event.result.translated === false)) {
             _this.set('saving_translations', null);
             LingoLinq.track_error("translation save fail - " + JSON.stringify(event), event)
             _this.set('error_saving_translations', true);
-          } else if(event.status == 'finished') {
+          } else if(progress_tracker.is_finished(event)) {
             _this.set('saving_translations', null);
             _this.set('error_saving_translations', null);
             modal.close({translated: true});

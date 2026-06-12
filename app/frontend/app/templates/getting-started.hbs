@@ -12,7 +12,7 @@
           {{t "Learn about %app_name%" key="learn_about_app"}}
         </a>
         <br>
-        <span class="text-muted" style="font-size: 12px;">
+        <span class="text-muted" style="font-size: 14px;">
         {{#if this.model.progress.intro_watched}}
           {{t "Done!" key="done_excl"}}
         {{else}}
@@ -27,7 +27,7 @@
           {{t "Pick a home board" key="pick_a_home_board"}}
         </LinkTo>
         <br>
-        <span class="text-muted" style="font-size: 12px;">
+        <span class="text-muted" style="font-size: 14px;">
         {{#if this.model.progress.home_board_set}}
           {{t "Done!" key="done_excl"}}
         {{else}}
@@ -42,7 +42,7 @@
           {{t "Add the app to your device" key="add_app_to_your_device"}}
         </a>
         <br>
-        <span class="text-muted" style="font-size: 12px;">
+        <span class="text-muted" style="font-size: 14px;">
         {{#if this.model.progress.app_added}}
           {{t "Done!" key="done_excl"}}
         {{else}}
@@ -54,10 +54,10 @@
       <li class={{if this.model.progress.preferences_edited "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{this.preferences_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
         <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>
-          {{t "Configure your board preferences" key="configure_your_board_preferences"}}
+          {{t "Configure your board settings" key="configure_your_board_preferences"}}
         </LinkTo>
         <br>
-        <span class="text-muted" style="font-size: 12px;">
+        <span class="text-muted" style="font-size: 14px;">
         {{#if this.model.progress.preferences_edited}}
           {{t "Done!" key="done_excl"}}
         {{else}}
@@ -72,7 +72,7 @@
           {{t "Update your profile" key="update_your_profile"}}
         </LinkTo>
         <br>
-        <span class="text-muted" style="font-size: 12px;">
+        <span class="text-muted" style="font-size: 14px;">
         {{#if this.model.progress.profile_edited}}
           {{t "Done!" key="done_excl"}}
         {{else}}
@@ -88,7 +88,7 @@
             {{t "Set up a subscription" key="pick_subscription"}}
           </LinkTo>
           <br>
-          <span class="text-muted" style="font-size: 12px;">
+          <span class="text-muted" style="font-size: 14px;">
           {{#if this.model.progress.subscription_set}}
             {{t "Done!" key="done_excl"}}
           {{else}}

@@ -1,62 +1,34 @@
 <section class="ub-boards-page__boards-section" aria-labelledby="{{this.headingId}}">
   <div class="ub-boards-page__boards-header">
     <div class="ub-boards-page__boards-header-left">
+      {{!-- Synonymous-term treatment: AAC users come from different
+           systems where the same concept is called "Boards" (LingoLinq
+           / TouchChat), "Vocabularies" (PRC/Tobii), or "Page-Sets"
+           (NovaChat). Primary heading stays "Boards"; the equivalent
+           terms ride in a parenthetical aside — lighter weight, muted
+           color — so users coming from other systems recognize the
+           section without the aliases competing with the heading. --}}
       <h2 id="{{this.headingId}}" class="ub-boards-page__boards-title">
-        {{#if this.boardsCtrl.model.external_device}}
-          {{t "%app_name% Boards in this Account:" key="boards_in_this_account"}}
-        {{else}}
-          {{t "Available Boards" key="available_boards_colon"}}
-        {{/if}}
+        <span class="ub-boards-page__boards-title-primary">{{t "Boards" key="boards"}}</span>
+        <span class="ub-boards-page__boards-title-aliases" aria-label={{t "also called Vocabularies or Page-Sets" key="boards_aliases_aria"}}>{{t "(Vocabularies & Page-Sets)" key="boards_aliases_parenthetical"}}</span>
       </h2>
     </div>
     {{#if this.showNewBoard}}
       <button class="ub-boards-page__new-board-btn" {{action "newBoard"}}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        {{t "New Board" key="create_a_new_board"}}
+        {{#if this.boardsCtrl.is_boards_empty}}
+          {{t "Create Your First Board" key="create_first_board"}}
+        {{else}}
+          {{t "New Board" key="create_a_new_board"}}
+        {{/if}}
       </button>
     {{/if}}
   </div>
 
-  {{!-- Tab strip --}}
-  <ul class="ub-boards-page__tabs" role="tablist">
-    {{#if this.boardsCtrl.model.permissions.edit}}
-      <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "setSelected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
-    {{else if this.boardsCtrl.model.permissions.model}}
-      <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "setSelected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
-    {{/if}}
-    {{#unless this.appState.currentUser.modeling_only}}
-      <li role="presentation" class={{if this.boardsCtrl.public_selected "is-active"}}><a href="#" {{action "setSelected" "public"}}>{{t "Public" key="public"}}</a></li>
-    {{/unless}}
-    {{#if this.boardsCtrl.model.permissions.model}}
-      <li role="presentation" class={{if this.boardsCtrl.root_selected "is-active"}}><a href="#" {{action "setSelected" "root"}}>{{t "Root" key="root"}}</a></li>
-    {{/if}}
-    {{#unless this.appState.currentUser.modeling_only}}
-      <li role="presentation" class={{if this.boardsCtrl.starred_selected "is-active"}}><a href="#" {{action "setSelected" "starred"}}>{{t "Liked" key="starred"}}</a></li>
-    {{/unless}}
-    {{#unless this.appState.currentUser.modeling_only}}
-      {{#if this.boardsCtrl.model.permissions.model}}
-        <li role="presentation" class="dropdown {{if this.boardsCtrl.other_selected "is-active"}}">
-          <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-            {{this.boardsCtrl.more_label}} <span class="caret"></span>
-          </a>
-          <ul class="dropdown-menu">
-            {{#if this.boardsCtrl.model.permissions.edit}}
-              <li><a href="#" {{action "setSelected" "shared"}}>{{t "Shared with Me" key="shared_with_me"}}</a></li>
-            {{/if}}
-            {{#if this.boardsCtrl.model.prior_home_boards}}
-              <li><a href="#" {{action "setSelected" "prior_home"}}>{{t "Prior Home Boards" key="prior_home"}}</a></li>
-            {{/if}}
-            {{#if this.boardsCtrl.model.permissions.edit}}
-              <li><a href="#" {{action "setSelected" "private"}}>{{t "Private" key="private"}}</a></li>
-            {{/if}}
-            {{#each this.boardsCtrl.model.board_tags as |tag|}}
-              <li><a href="#" {{action "setTag" tag}}>{{tag}}</a></li>
-            {{/each}}
-          </ul>
-        </li>
-      {{/if}}
-    {{/unless}}
-  </ul>
+  {{!-- Tab strip was moved into available-boards-section.hbs (placed
+       directly above the Boards Filter) so the user picks a tab and
+       then refines with the filter input. See that template for the
+       rendered <ul class="ub-boards-page__tabs"> markup. --}}
 
   {{!-- Board grid (Mine folders, filter, DnD) --}}
   <div class="ub-boards-page__boards-body">

@@ -96,7 +96,7 @@ module JsonApi::Json
         'settings' => domain
       }
       domain_overrides['settings']['app_name'] ||= "LingoLinq"
-      domain_overrides['settings']['company_name'] ||= "Someone"
+      domain_overrides['settings']['company_name'] ||= "Lingolinq"
       # Org host_settings replace default_domain; merge COPPA from ENV unless org set it explicitly.
       s = domain_overrides['settings']
       if s['coppa_parental_consent'].nil?
@@ -134,28 +134,33 @@ module JsonApi::Json
     %w[1 true yes on].include?(v)
   end
 
+  def self.base_default_domain_settings
+    {
+      'app_name' => ENV['APP_NAME'] || "LingoLinq",
+      'company_name' => ENV['COMPANY_NAME'] || "Lingolinq",
+      'logo_url' => "/images/logo-new.png",
+      'ios_store_url' => ENV['IOS_STORE_URL'],
+      'play_store_url' => ENV['PLAY_STORE_URL'],
+      'kindle_store_url' => ENV['KINDLE_STORE_URL'],
+      'windows_32_bit_url' => ENV['WINDOWS_32_BIT_URL'],
+      'windows_64_bit_url' => ENV['WINDOWS_64_BIT_URL'],
+      'blog_url' => ENV['BLOG_URL'],
+      'twitter_url' => ENV['TWITTER_URL'],
+      'twitter_handle' => ENV['TWITTER_HANDLE'],
+      'facebook_url' => ENV['FACEBOOK_URL'],
+      'youtube_url' => ENV['YOUTUBE_URL'],
+      'support_url' => ENV['SUPPORT_URL'],
+      'board_user_name' => ENV['BOARD_USER_NAME'] || 'example',
+      'full_domain' => true,
+      'coppa_parental_consent' => JsonApi::Json.coppa_parental_consent_from_env?
+    }
+  end
+
   def self.default_domain
+    settings = base_default_domain_settings.merge(SystemAppDefaults.get.slice(*SystemAppDefaults::EDITABLE_FIELDS))
     {
       'css' => nil,
-      'settings' => {
-        'app_name' => ENV['APP_NAME'] || "LingoLinq",
-        'company_name' => ENV['COMPANY_NAME'] || "Someone",
-        'logo_url' => "/images/logo-new.png",
-        'ios_store_url' => ENV['IOS_STORE_URL'],
-        'play_store_url' => ENV['PLAY_STORE_URL'],
-        'kindle_store_url' => ENV['KINDLE_STORE_URL'],
-        'windows_32_bit_url' => ENV['WINDOWS_32_BIT_URL'],
-        'windows_64_bit_url' => ENV['WINDOWS_64_BIT_URL'],
-        'blog_url' => ENV['BLOG_URL'],
-        'twitter_url' => ENV['TWITTER_URL'],
-        'twitter_handle' => ENV['TWITTER_HANDLE'],
-        'facebook_url' => ENV['FACEBOOK_URL'],
-        'youtube_url' => ENV['YOUTUBE_URL'],
-        'support_url' => ENV['SUPPORT_URL'],
-        'board_user_name' => ENV['BOARD_USER_NAME'] || 'example',
-        'full_domain' => true,
-        'coppa_parental_consent' => JsonApi::Json.coppa_parental_consent_from_env?
-      }
+      'settings' => settings
     }
   end
 end

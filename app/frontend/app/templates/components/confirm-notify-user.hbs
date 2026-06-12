@@ -22,6 +22,7 @@
             {{t "Sending Message..." key="sending_message"}}
           </button>
         {{else}}
+          <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           <button class='btn btn-lg btn-primary' {{action "confirm"}}>
             {{t "Send Message" key="send_message"}}
             {{#if this.seconds}}
@@ -29,7 +30,6 @@
               {{this.seconds}}s
             {{/if}}
           </button>
-          <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
         {{/if}}
         {{#if this.error}}
           <p class='text-danger'>{{t "There was an unexpected problem sending the message" key="error_sending_message"}}</p>

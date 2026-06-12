@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
@@ -14,6 +14,8 @@ import session from '../../utils/session';
 import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
+import { filterRootBoards } from '../../utils/board-roots';
+import { availableHomeSections, sectionHidden, gridLayoutState } from '../../utils/dashboard_sections';
 
 export default Component.extend({
   tagName: '',
@@ -25,6 +27,220 @@ export default Component.extend({
   stashes: service('stashes'),
   modal: service('modal'),
   app_state: alias('appState'),
+
+  // The layout actually RENDERED. Normally the saved `dashboard_layout` pref, but
+  // when a focused communicator's grown-up presses-and-holds the lock to reveal the
+  // full dashboard (caregiverUnlocked), the parent/caregiver view is the BALANCED
+  // layout — NOT the default dynamic — so 'focused' resolves to 'balanced' while
+  // unlocked. Everything that drives the grid (class, grid state, section
+  // visibility, the shell modifier) reads THIS, so the parent view is fully balanced.
+  effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', 'caregiverUnlocked', function() {
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
+    if (['dynamic', 'focused', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
+    if (this.get('caregiverUnlocked') && layout === 'focused') { return 'balanced'; }
+    return layout;
+  }),
+
+  // Home dashboard arrangement modifier, driven by the EFFECTIVE layout (above).
+  // Always resolves to a known variant so the grid has a stable hook class;
+  // 'dynamic' is today's default grid — the focused/balanced CSS variants
+  // hang off md-grid--layout-focused / md-grid--layout-balanced.
+  dashboardLayoutClass: computed('effectiveLayout', function() {
+    return 'md-grid--layout-' + this.get('effectiveLayout');
+  }),
+
+  // Whether "Reports" appears in the primary pill-nav. It stays there only for
+  // SUPPORTERS on a non-Balanced layout. Communicators get Reports moved to an
+  // Extras card link instead (so it's out of their nav); Balanced hides it for
+  // everyone (Focused has no pill-nav). The Extras "Reports" card shows precisely
+  // when this is false (see extrasItems).
+  showReportsPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
+    if (!this.get('appState.currentUser.supporter_role')) { return false; }
+    return this.get('effectiveLayout') !== 'balanced';
+  }),
+
+  // Communicators get a far-right "Account" pill in the nav — but NOT on Balanced
+  // (its nav is the minimal centered bar). Supporters never get it (they use the
+  // identity dropdown).
+  showAccountPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
+    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'balanced';
+  }),
+
+  // Transient "the grown-up unlocked the full dashboard" flag. Set by a press-and-
+  // hold on the Grown-Ups lock; NOT persisted — it resets on reload / re-entry, so
+  // the kid-facing focused view is always the default for a focused communicator.
+  caregiverUnlocked: false,
+
+  // The Focused home view renders when ALL hold: we're on the Home tab, the user is a
+  // COMMUNICATOR (not a supporter), they picked the 'focused' display in Getting
+  // Started, and a grown-up hasn't pressed-and-held to reveal the full dashboard.
+  // Preference-only gating — no feature flag (chosen display == their display).
+  focusedHomeLayout: computed(
+    'activeTab',
+    'appState.currentUser.preferences.dashboard_layout',
+    'appState.currentUser.supporter_role',
+    'appState.gettingStartedActive',
+    'caregiverUnlocked',
+    function() {
+      if (this.get('caregiverUnlocked')) { return false; }
+      // Don't flip the home behind the open Getting Started modal — the modal's
+      // preview clones the dashboard grid, which the focused view removes. Block only
+      // when the modal is ACTUALLY open: the flag drives reactivity, but we confirm
+      // against body.md-gst-active (the real "modal open" signal) so a stale flag can
+      // never trap the user on the default layout once the modal has closed.
+      if (this.get('appState.gettingStartedActive') &&
+          typeof document !== 'undefined' &&
+          document.body.classList.contains('md-gst-active')) {
+        return false;
+      }
+      if (this.get('activeTab') !== 'home') { return false; }
+      if (this.get('appState.currentUser.supporter_role')) { return false; }
+      return this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
+    }
+  ),
+
+  // After a grown-up presses-and-holds the lock to leave focused mode, the full
+  // dashboard shows but this communicator's SAVED display is still 'focused' — so
+  // surface a "Back to Kiddo's View" affordance to return. True only while unlocked
+  // AND the user is a focused communicator.
+  showBackToFocused: computed(
+    'caregiverUnlocked',
+    'appState.currentUser.preferences.dashboard_layout',
+    'appState.currentUser.supporter_role',
+    function() {
+      return !!this.get('caregiverUnlocked') &&
+        !this.get('appState.currentUser.supporter_role') &&
+        this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
+    }
+  ),
+
+  // Short, friendly first name for the focused greeting ("Hi Johnny"). Prefer the
+  // display name's first word; fall back to the username.
+  greetingFirstName: computed('appState.currentUser.name', 'appState.currentUser.user_name', function() {
+    var raw = this.get('appState.currentUser.name') || this.get('appState.currentUser.user_name') || '';
+    return (raw || '').toString().trim().split(/\s+/)[0] || '';
+  }),
+
+  // Hide the inner-header chrome (Upgrade / Settings / identity dropdown) while the
+  // focused view is active by toggling a body class — the SAME mechanism the Getting
+  // Started tour uses (body.md-gst-active). CSS scopes the hiding so the focused view
+  // never has to reach into the separate header component.
+  _syncFocusedBodyClass: function() {
+    try {
+      if (this.isDestroying || this.isDestroyed) { document.body.classList.remove('md-home-focused'); return; }
+      if (this.get('focusedHomeLayout')) { document.body.classList.add('md-home-focused'); }
+      else { document.body.classList.remove('md-home-focused'); }
+    } catch (e) { /* body class is presentational — never block render */ }
+  },
+  _focusedBodyClassObserver: observer('focusedHomeLayout', function() { this._syncFocusedBodyClass(); }),
+
+  // Visibility map for the home dashboard cards, keyed by section key
+  // (boards/speak/extras/caseload/org). A key is present+true only when the
+  // section is BOTH available to this user type AND not hidden by their saved
+  // `dashboard_sections` preference (set in the Getting Started flow). The
+  // template gates each card — and the caseload/org grid modifiers — on this,
+  // so hiding a section also reflows the grid as if that section didn't exist.
+  sectionVisibility: computed(
+    'appState.currentUser.preferences.dashboard_sections',
+    'effectiveLayout',
+    'appState.currentUser.supporter_role',
+    'appState.currentUser.organizations',
+    function() {
+      var user = this.get('appState.currentUser');
+      var vis = {};
+      availableHomeSections(user).forEach(function(s) {
+        vis[s.key] = !sectionHidden(user, s.key);
+      });
+      // The Balanced layout never shows the Extras card — Speak takes the focal
+      // full-width hero slot instead. Force it hidden so the grid matrix and the
+      // per-card cardHideStyle agree (no orphaned Extras card overflowing the grid).
+      if (this.get('effectiveLayout') === 'balanced') {
+        vis.extras = false;
+      }
+      return vis;
+    }
+  ),
+
+  // Dashboard grid state derived from visibility — the card-styling classes plus
+  // the computed grid-template-areas/rows. The layout is applied as an inline
+  // style (gridStyle) from the shared layout matrix, so the home grid and the
+  // Getting Started preview reflow identically with no CSS-specificity juggling.
+  dashboardGrid: computed('sectionVisibility', 'sectionPositions', 'sectionBoards', 'effectiveLayout', function() {
+    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionPositions'), this.get('sectionBoards'), this.get('effectiveLayout'));
+  }),
+
+  // The user's saved Boards placement ({side, raised}; drag-to-move the hero).
+  // Read like the other dashboard prefs and fully gated behind the
+  // `dashboard_drag_layout` flag. Returns null when unset → canonical layout.
+  sectionBoards: computed(
+    'appState.currentUser.preferences.dashboard_boards',
+    'appState.feature_flags.dashboard_drag_layout',
+    function() {
+      if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
+      var b = this.get('appState.currentUser.preferences.dashboard_boards');
+      return (b && typeof b === 'object') ? b : null;
+    }
+  ),
+
+  // The user's saved drag-to-swap arrangement (section key → the section key
+  // whose home-slot it occupies; default identity). Read from preferences the
+  // same way as `dashboard_sections`, so a saved arrangement reflows the home
+  // grid on render. Fully gated behind the `dashboard_drag_layout` flag (the
+  // only way to SET a position is the flagged drag UI), and returns null when
+  // unset → the canonical layout.
+  sectionPositions: computed(
+    'appState.currentUser.preferences.dashboard_positions',
+    'appState.feature_flags.dashboard_drag_layout',
+    function() {
+      if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
+      var map = this.get('appState.currentUser.preferences.dashboard_positions');
+      return (map && typeof map === 'object') ? map : null;
+    }
+  ),
+  gridClassString: computed('dashboardGrid', function() {
+    return (this.get('dashboardGrid.classes') || []).join(' ');
+  }),
+  gridStyle: computed('dashboardGrid', function() {
+    var s = this.get('dashboardGrid');
+    // Inline !important so it wins over the base .md-grid !important rules.
+    return htmlSafe('grid-template-areas: ' + s.areasValue + ' !important; grid-template-rows: ' + s.rows + ' !important;');
+  }),
+
+  // Availability-only map (does this section EXIST for this user type, ignoring
+  // the hidden preference). The template gates caseload/org on this so they
+  // never render for users who don't have them — while every available card is
+  // ALWAYS rendered (hidden ones via cardHideStyle), so the Getting Started
+  // preview clone is full-fidelity and a re-checked section actually reappears.
+  sectionAvailable: computed(
+    'appState.currentUser',
+    'appState.currentUser.supporter_role',
+    'appState.currentUser.organizations',
+    function() {
+      var user = this.get('appState.currentUser');
+      var map = {};
+      availableHomeSections(user).forEach(function(s) { map[s.key] = true; });
+      return map;
+    }
+  ),
+
+  // Per-card inline style that HIDES a section when it's turned off — `display:
+  // none !important` so it beats every stylesheet rule (incl. the wide/narrow
+  // variant `display:...!important` @media rules) regardless of specificity,
+  // with no cascade juggling. Visible sections get an empty style so their
+  // normal (wide/narrow) display rules govern. Because hidden cards stay in the
+  // DOM (just display:none), the dashboard clone the Getting Started modal makes
+  // contains every available card — toggling one back on shows it instead of
+  // leaving phantom grid space.
+  cardHideStyle: computed('sectionVisibility', function() {
+    var vis = this.get('sectionVisibility') || {};
+    var HIDDEN = htmlSafe('display: none !important;');
+    var SHOWN = htmlSafe('');
+    var map = {};
+    ['boards', 'speak', 'extras', 'caseload', 'org'].forEach(function(k) {
+      map[k] = vis[k] ? SHOWN : HIDDEN;
+    });
+    return map;
+  }),
 
   activeTab: 'home',
   /** When set (e.g. on user.extras), open this tab on load */
@@ -56,6 +272,30 @@ export default Component.extend({
   didInsertElement() {
     this._super(...arguments);
     this._loadPreviewBoards();
+    this._syncFocusedBodyClass();
+  },
+
+  willDestroyElement() {
+    this._super(...arguments);
+    if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
+    try { document.body.classList.remove('md-home-focused'); } catch (e) { /* noop */ }
+  },
+
+  didRender() {
+    this._super(...arguments);
+    // Self-heal the Getting Started "modal open" flag. body.md-gst-active is the
+    // real signal that the GS modal is showing; the gettingStartedActive flag only
+    // mirrors it (for reactive gating of focusedHomeLayout). If the flag is still
+    // true but the modal is gone (a missed _clearCentered on close), clear it so the
+    // focused layout can apply — otherwise a stale flag traps the user on the default
+    // layout. Idempotent: once cleared the condition is false, so no render loop.
+    try {
+      if (this.get('appState.gettingStartedActive') &&
+          typeof document !== 'undefined' &&
+          !document.body.classList.contains('md-gst-active')) {
+        this.set('appState.gettingStartedActive', false);
+      }
+    } catch (e) { /* defensive — never block render */ }
   },
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
@@ -69,13 +309,28 @@ export default Component.extend({
     }
   ),
   last_board_name: computed('stashes.root_board_state', 'appState.currentUser.user_name', function() {
+    // Helper: ignore synthetic OBF boards (keys like `obf/eval`,
+    // `obf/emergency`, etc.) — their names are throwaway timestamp ids.
+    var isObfKey = function(k) { return k && /^obf\//.test(k); };
+
+    var fromStashKey = this.stashes.get('root_board_state.key');
     var fromStash = this.stashes.get('root_board_state.name');
-    if(fromStash) { return fromStash; }
+    if(fromStash && !isObfKey(fromStashKey)) { return fromStash; }
+
     var userName = this.appState.get('currentUser.user_name');
     if(!userName) { return null; }
     try {
       var stored = localStorage['ll_last_board_' + userName];
-      if(stored) { return JSON.parse(stored).name || null; }
+      if(stored) {
+        var parsed = JSON.parse(stored);
+        if(isObfKey(parsed && parsed.key)) {
+          // Stale synthetic-board entry from a prior session — clean it
+          // out so it doesn't keep showing up on the dashboard.
+          try { delete localStorage['ll_last_board_' + userName]; } catch(e) { }
+          return null;
+        }
+        return (parsed && parsed.name) || null;
+      }
     } catch(e) { }
     return null;
   }),
@@ -527,12 +782,28 @@ export default Component.extend({
       var user = this.get('appState.sessionUser');
       var needs_subscribe_modal = false;
       if(!progress || (!progress.skipped_subscribe_modal && !progress.setup_done)) {
-        if(user.get('grace_period')) {
-          if(modal.route) {
-            needs_subscribe_modal = true;
-          }
-        }
+        // TEMPORARILY DISABLED 2026-05-27: post-registration subscribe
+        // modal is suppressed so newly-registered users route directly
+        // into the home-page tour instead (see routes/register.js
+        // `save_done` → appState.auto_open_home_tour = true, which
+        // home-tour.js observes and auto-fires).
+        //
+        // The subscribe modal template, component, SCSS, and the
+        // `modal.open('subscribe')` mechanism are all preserved — to
+        // restore the original behavior, uncomment the if/grace_period
+        // block below and remove the auto_open_home_tour line in
+        // routes/register.js.
+        //
+        // if(user.get('grace_period')) {
+        //   if(modal.route) {
+        //     needs_subscribe_modal = true;
+        //   }
+        // }
       } else if(this.get('appState.sessionUser.really_expired')) {
+        // Expired-account path is UNCHANGED — existing users whose
+        // trial ran out still see the subscribe modal so they can
+        // renew. Only the new-registration grace_period path above
+        // is suppressed.
         needs_subscribe_modal = true;
       }
       if(needs_subscribe_modal && !this.appState.get('logging_in')) {
@@ -579,8 +850,16 @@ export default Component.extend({
     return this.get('model') || this.get('appState.currentUser');
   }),
   showGettingStarted: computed('appState.currentUser.preferences.progress', function() {
-    var progress = this.appState.get('currentUser.preferences.progress');
-    return progress && !progress.setup_done;
+    // Getting Started onboarding flow is currently DISABLED — we're
+    // evaluating whether to bring it back in a later iteration. Returning
+    // false here also strips the `md-grid--with-getting-started` modifier
+    // from the dashboard grid (see authenticated-view.hbs), so the layout
+    // doesn't reserve a hole where the card used to live. To re-enable:
+    // restore the original return below AND un-comment the matching
+    // article block in templates/components/dashboard/authenticated-view.hbs.
+    // var progress = this.appState.get('currentUser.preferences.progress');
+    // return progress && !progress.setup_done;
+    return false;
   }),
   gettingStartedPercent: computed('appState.currentUser.preferences.progress', function() {
     var options = ['intro_watched', 'profile_edited', 'preferences_edited', 'home_board_set', 'app_added'];
@@ -605,19 +884,148 @@ export default Component.extend({
   boardsLoading: computed('_previewBoardsLoaded', '_fetchedPreviewBoards', function() {
     return this.get('_previewBoardsLoaded') && !this.get('_fetchedPreviewBoards');
   }),
-  previewBoards: computed('_fetchedPreviewBoards.[]', function() {
-    var boards = this.get('_fetchedPreviewBoards') || [];
-    var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
-    return boards.slice(0, 5).map(function(board, idx) {
-      return {
-        board: board,
-        name: board.get('name') || board.get('key'),
-        imageUrl: board.get('icon_url_with_fallback'),
-        key: board.get('key'),
-        thumbClass: thumbClasses[idx % thumbClasses.length]
+  previewBoards: computed(
+    '_fetchedPreviewBoards.[]',
+    // The appended 6th tile is the system Crisis Vocabulary board from the sidebar.
+    'appState.sidebar_boards',
+    // Re-sort the preview when a board's liked status flips or its
+    // display name changes, since the new ordering rule
+    // (home → liked-alpha → others-alpha) reads both per-board.
+    // IMPORTANT: must depend on `starred_for_current_user`, NOT the
+    // raw `starred` attribute. The boards-index endpoint that
+    // populates `_fetchedPreviewBoards` doesn't pass permissions, so
+    // every record has starred=undefined (see board.js:859). The
+    // computed `starred_for_current_user` falls back to the user's
+    // `stats.starred_board_refs` list, which is the same source the
+    // template uses to render the heart icon on each tile — keeping
+    // the sort partition and the heart rendering in sync.
+    '_fetchedPreviewBoards.@each.starred_for_current_user',
+    '_fetchedPreviewBoards.@each.name',
+    'appState.referenced_user.stats.starred_board_refs.[]',
+    // Re-snapshot when a board's image attrs change. The board model's
+    // checkForDataURLOnChange observer sets `image_data_uri` after a
+    // user visits a board (offline-caching), and `image_url` itself
+    // can refresh during a record reload. Without tracking these,
+    // the POJO's captured `imageUrl` stayed pointing at the original
+    // (sometimes now-invalid) URL, leaving the thumb broken on return.
+    '_fetchedPreviewBoards.@each.image_url',
+    '_fetchedPreviewBoards.@each.image_data_uri',
+    'appState.currentUser.preferences.home_board.key',
+    'appState.currentUser.preferences.home_board.id',
+    function() {
+      var _this = this;
+      var fetched = this.get('_fetchedPreviewBoards') || [];
+      var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
+      var seen = {};
+      var ordered = [];
+      // When a board's display name falls back to its key (no `name`
+      // setting or no record loaded), the key has the shape
+      // "user_name/board-slug" and overflows the 150px tile width.
+      // Insert a zero-width space after each `/` so the browser's
+      // line-breaking algorithm prefers that as the wrap point
+      // (otherwise it picks the dash inside the slug and produces
+      // "vocal-" / "flair-84" instead of "user_name/" / "vocal-flair-84").
+      // ZWSP doesn't affect text width, copy-paste, or accessibility.
+      var add = function(board, fallbackName, key, fallbackImg, isHome) {
+        if (!key || seen[key]) { return; }
+        seen[key] = true;
+        var rawName = (board && board.get && board.get('name')) || fallbackName || key;
+        var displayName = (typeof rawName === 'string' && rawName.indexOf('/') !== -1)
+          ? rawName.replace(/\//g, '/​')
+          : rawName;
+        ordered.push({
+          board: board,
+          name: displayName,
+          imageUrl: (board && board.get && board.get('icon_url_with_fallback')) || fallbackImg || '',
+          key: key,
+          languageLabel: board && board.get ? (function() {
+            var locale = board.get('locale');
+            var locales = board.get('locales') || [];
+            if(!locale) { return null; }
+            if(locales.length <= 1 && (locale === 'en' || locale === 'en-US')) { return null; }
+            return i18n.readable_language(locale);
+          })() : null,
+          // Flag the home-board tile so the template can apply the
+          // distinct outline + glow + "Home Board" badge styling
+          // defined in app.scss (.md-strip__item--home).
+          isHome: !!isHome
+        });
       };
-    });
-  }),
+
+      // Ordering rule (per request):
+      //   1. Home board first (always, when set)
+      //   2. Liked / starred boards next, alphabetical by name
+      //   3. Everything else, alphabetical by name
+      // The "Last used board" step that previously occupied slot #2 has
+      // been removed — it conflicted with the liked-first rule and the
+      // last_board_name computed below still exists for other surfaces.
+
+      // 1. Home board
+      var homeKey = this.appState.get('currentUser.preferences.home_board.key');
+      var homeId = this.appState.get('currentUser.preferences.home_board.id');
+      if (homeKey) {
+        var homeRec = null;
+        if (homeId) {
+          try { homeRec = this.get('store').peekRecord('board', homeId); } catch(e) { }
+        }
+        if (!homeRec) {
+          homeRec = fetched.find(function(b) { return b.get('key') === homeKey; });
+        }
+        add(homeRec, this.appState.get('currentUser.preferences.home_board.name'), homeKey, null, true);
+      }
+
+      // 2 + 3. Partition the fetched pool into starred and non-starred,
+      // sort each alphabetically (case-insensitive, locale-aware), then
+      // emit starred first followed by the rest. seen[key] in `add`
+      // already keeps the home board from being re-added.
+      var alphaByName = function(a, b) {
+        var an = ((a && a.get && a.get('name')) || a.get('key') || '').toLowerCase();
+        var bn = ((b && b.get && b.get('name')) || b.get('key') || '').toLowerCase();
+        return an.localeCompare(bn);
+      };
+      // Use `starred_for_current_user` (NOT raw `starred`) — see the
+      // dependent-keys comment above for why.
+      var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred_for_current_user'); }).sort(alphaByName);
+      var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred_for_current_user'); }).sort(alphaByName);
+      starredAlpha.forEach(function(board) {
+        if (ordered.length >= 5) { return; }
+        add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
+      });
+      othersAlpha.forEach(function(board) {
+        if (ordered.length >= 5) { return; }
+        add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
+      });
+
+      var top = ordered.slice(0, 5);
+      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as a
+      // 6th tile at the END of the list — same key/name/image the sidebar uses.
+      try {
+        var sidebars = this.appState.get('sidebar_boards') || [];
+        var crisis = null;
+        for (var ci = 0; ci < sidebars.length; ci++) {
+          var ck = emberGet(sidebars[ci], 'key');
+          if (ck && ck.split('/').pop() === 'crisis-vocabulary') { crisis = sidebars[ci]; break; }
+        }
+        if (crisis) {
+          var crisisKey = emberGet(crisis, 'key');
+          if (!top.some(function(it) { return it.key === crisisKey; })) {
+            top = top.concat([{
+              board: null,
+              name: emberGet(crisis, 'name') || i18n.t('crisis_vocabulary', "Crisis Vocabulary"),
+              imageUrl: emberGet(crisis, 'image') || '',
+              key: crisisKey,
+              languageLabel: null,
+              isHome: false
+            }]);
+          }
+        }
+      } catch (e) { /* crisis tile is a best-effort append — never block the strip */ }
+      return top.map(function(item, idx) {
+        item.thumbClass = thumbClasses[idx % thumbClasses.length];
+        return item;
+      });
+    }
+  ),
   _loadPreviewBoards: observer('appState.currentUser.id', function() {
     var _this = this;
     var user = _this.get('appState.currentUser');
@@ -625,15 +1033,21 @@ export default Component.extend({
     if (_this.get('_previewBoardsLoaded')) { return; }
     _this.set('_previewBoardsLoaded', true);
     // Fetch preview boards (5) and total count in parallel
-    _this.get('store').query('board', { user_id: user.get('id'), per_page: 5 }).then(function(boards) {
+    // Bumped from 5 to 20 so previewBoards has enough variety to apply
+    // its home → liked-alpha → others-alpha ordering rule. The preview
+    // still slices to 5; the extras only serve to give the client-side
+    // partition (starred vs not) something real to sort. Board count
+    // follow-up (_fetchRemainingForCount) is unaffected — it just sees
+    // a larger first page before paging the rest for the total count.
+    _this.get('store').query('board', { user_id: user.get('id'), per_page: 20 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
       _this.set('_fetchedPreviewBoards', results);
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
-        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results.length);
+        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results);
       } else {
-        _this.set('_fetchedBoardCount', results.length);
+        _this.set('_fetchedBoards', results);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
@@ -644,84 +1058,107 @@ export default Component.extend({
     var _this = this;
     _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      var count = accumulated + boards.map(function(b) { return b; }).length;
+      var combined = accumulated.concat(boards.map(function(b) { return b; }));
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
-        _this._fetchRemainingForCount(userId, meta.next_offset, count);
+        _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
-        _this.set('_fetchedBoardCount', count);
+        _this.set('_fetchedBoards', combined);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedBoardCount', accumulated);
+      _this.set('_fetchedBoards', accumulated);
     });
   },
-  boardCount: computed('appState.currentUser.root_boards.length', 'appState.currentUser.my_boards.length', '_fetchedBoardCount', function() {
+  /* Count of the user's CORE (root tile) boards, matching the "My
+     Boards" stat on the boards page. /api/v1/boards?user_id=X returns
+     every board copy in the library, so filterRootBoards clusters the
+     fetched pool the same way myBoardsRoots does on the boards page.
+     Prefer the pool the dashboard fetched itself; fall back to
+     currentUser.my_boards if the boards page has already populated
+     it. */
+  boardCount: computed('_fetchedBoards.[]', 'appState.currentUser.my_boards.[]', 'appState.currentUser.id', function() {
     var user = this.get('appState.currentUser');
     if (!user) { return 0; }
-    var roots = user.get('root_boards');
-    if (roots && roots.length !== undefined) { return roots.length; }
-    var mine = user.get('my_boards');
-    if (mine && mine.length !== undefined) { return mine.length; }
-    var fetched = this.get('_fetchedBoardCount');
-    if (fetched !== undefined && fetched !== null) { return fetched; }
-    return 0;
-  }),
-  _animateBoardCount: observer('boardCount', function() {
-    var _this = this;
-    var target = _this.get('boardCount') || 0;
-    var current = _this.get('_displayBoardCount') || 0;
-    if (current === target) { return; }
-    if (_this._boardCountFrame) { cancelAnimationFrame(_this._boardCountFrame); }
-    var start = current;
-    var diff = target - start;
-    var duration = Math.min(400, Math.max(150, Math.abs(diff) * 15));
-    var startTime = null;
-    function step(timestamp) {
-      if (_this.isDestroying || _this.isDestroyed) { return; }
-      if (!startTime) { startTime = timestamp; }
-      var elapsed = timestamp - startTime;
-      var progress = Math.min(elapsed / duration, 1);
-      // ease-out cubic
-      var eased = 1 - Math.pow(1 - progress, 3);
-      _this.set('_displayBoardCount', Math.round(start + diff * eased));
-      if (progress < 1) {
-        _this._boardCountFrame = requestAnimationFrame(step);
-      }
+    var userId = user.get('id');
+    var boards = this.get('_fetchedBoards');
+    if (!boards || !boards.length) {
+      boards = user.get('my_boards');
     }
-    _this._boardCountFrame = requestAnimationFrame(step);
+    if (!boards || !boards.forEach) { return 0; }
+    return filterRootBoards(boards, userId).length;
   }),
-  displayBoardCount: computed('_displayBoardCount', 'boardCount', function() {
-    var display = this.get('_displayBoardCount');
-    if (display !== undefined && display !== null) { return display; }
-    return this.get('boardCount') || 0;
-  }),
-  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
+  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.currentUser.supporter_role', 'showReportsPill', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
     var user = appState.get('currentUser');
     var perms = user && user.get('permissions.delete');
     var modelingOnly = user && user.get('modeling_only');
     var externalDevice = user && user.get('external_device');
+    var supporterRole = user && user.get('supporter_role');
+    // Reports moves into Extras exactly when it's NOT in the pill-nav (communicators
+    // on any layout; everyone on Balanced) — see showReportsPill.
+    var showReports = !this.get('showReportsPill');
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
     return [
-      { title_key: 'learn_and_setup_card', title_default: 'Learn and Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started with %app_name%', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
+      { title_key: 'learn_and_setup_card', title_default: 'Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
       { title_key: 'sync', title_default: 'Sync', subtitle_key: 'sync_subtitle', subtitle_default: 'Sync your data', image: 'images/pastel-logging.png', action: 'sync_details', btn_key: 'sync', btn_default: 'Sync', show: !externalDevice },
       { title_key: 'goals', title_default: 'Goals', subtitle_key: 'goals_subtitle', subtitle_default: 'Track progress', image: 'images/pastel-reports2.png', action: 'goals', btn_key: 'view', btn_default: 'View', show: !!perms },
+      // Reports — surfaced here for users who don't have it in the pill-nav.
+      { title_key: 'reports', title_default: 'Reports', subtitle_key: 'reports_extras_subtitle', subtitle_default: 'Usage & progress', image: 'images/pastel-reports2.png', action: 'reports', btn_key: 'view', btn_default: 'View', show: showReports },
       { title_key: 'new_note', title_default: 'New Note', subtitle_key: 'new_note_subtitle', subtitle_default: 'Add a progress note', image: 'images/pastel-chat.svg', action: 'record_note', btn_key: 'add', btn_default: 'Add', show: !modelingOnly },
-      { title_key: 'run_eval', title_default: 'Run Evaluation', subtitle_key: 'run_eval_subtitle', subtitle_default: 'Assessment tools', image: 'images/pastel-lightbulb.png', action: 'run_eval', btn_key: 'run_action', btn_default: 'Run', show: !modelingOnly },
+      // Run Evaluation is an SLP/supporter assessment tool — hidden on a communicator's own account.
+      { title_key: 'run_eval', title_default: 'Run Evaluation', subtitle_key: 'run_eval_subtitle', subtitle_default: 'Assessment tools', image: 'images/pastel-lightbulb.png', action: 'run_eval', btn_key: 'run_action', btn_default: 'Run', show: !modelingOnly && !!supporterRole },
       { title_key: 'my_account', title_default: 'My Account', subtitle_key: 'profile_and_settings', subtitle_default: 'Profile and settings', image: 'images/pastel-extras.png', action: 'account', btn_key: 'open', btn_default: 'Open', show: !!perms },
-      { title_key: 'supervisors', title_default: 'Supervisors', subtitle_key: 'manage_supervisors_sub', subtitle_default: 'Add or manage who can support you', image: 'images/pastel-chat.svg', action: 'supervisors', btn_key: 'view', btn_default: 'View', show: true },
+      { title_key: 'supervisors', title_default: 'Supervisors', subtitle_key: 'manage_supervisors_sub', subtitle_default: 'Who supports you', image: 'images/pastel-chat.svg', action: 'supervisors', btn_key: 'view', btn_default: 'View', show: true },
       { title_key: 'trainings', title_default: 'Trainings', subtitle_key: 'trainings_subtitle', subtitle_default: 'Continuing education', image: 'images/pastel-modeling.png', action: 'lessons', btn_key: 'start', btn_default: 'Start', show: !!lessons },
       { title_key: 'critical_access', title_default: 'Basic Access', subtitle_key: 'offline_boards_subtitle', subtitle_default: 'Offline boards', image: 'images/pastel-house.png', action: 'offline_boards', btn_key: 'access', btn_default: 'Access', show: !!emergencyBoards }
     ];
   }),
 
   actions: {
+    // Grown-Ups lock (focused view): press-and-HOLD to exit. pointerdown starts a
+    // ~700ms timer that, if not cancelled by release/leave, drops focused mode and
+    // reveals the full caregiver dashboard. A deliberate hold (not a tap) keeps a
+    // communicator from leaving their view by accident.
+    lockHoldStart: function() {
+      var _this = this;
+      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); }
+      this.set('lockHolding', true);
+      this._lockHoldTimer = runLater(this, function() {
+        _this._lockHoldTimer = null;
+        _this.set('lockHolding', false);
+        _this.send('exitFocusedLayout');
+      }, 700);
+    },
+    lockHoldEnd: function() {
+      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
+      this.set('lockHolding', false);
+    },
+    // Transient unlock — reveal the normal dashboard for the grown-up WITHOUT changing
+    // the saved display preference. focusedHomeLayout flips false → the full chrome
+    // (pill-nav + header) returns; the body class is removed by its observer.
+    exitFocusedLayout: function() {
+      this.set('caregiverUnlocked', true);
+    },
+    // Re-enter the focused (kid-facing) view from the "Back to Kiddo's View" button.
+    backToFocused: function() {
+      this.set('caregiverUnlocked', false);
+    },
     addOrganization: function() {
       var user_name = this.appState.get('currentUser.user_name');
       if(user_name) {
         this.get('router').transitionTo('user.subscription', user_name);
+      }
+    },
+    // Single action for the My Organizations card-as-button: open the
+    // organizations list when the user has any, otherwise fall through to the
+    // add-organization flow (mirrors the prior two-button behavior).
+    goOrganizations: function() {
+      if ((this.get('all_orgs.length') || 0) > 0) {
+        this.get('router').transitionTo('organizations');
+      } else {
+        this.send('addOrganization');
       }
     },
     goToBoard: function(boardKey) {
@@ -818,8 +1255,8 @@ export default Component.extend({
     go: function(dest) {
       if (dest === 'speak') {
         var user = this.appState.get('currentUser');
+        var homeBoard = user && user.get('preferences.home_board');
         var lastBoard = this.stashes.get('root_board_state');
-        // Fall back to localStorage if stash doesn't have the board
         if (!lastBoard || !lastBoard.key) {
           var userName = user && user.get('user_name');
           if (userName) {
@@ -831,22 +1268,15 @@ export default Component.extend({
             } catch(e) { }
           }
         }
-        var homeBoard = user && user.get('preferences.home_board');
-        if (lastBoard && lastBoard.key) {
-          var lbParts = lastBoard.key.split('/');
-          if(lbParts.length === 2) {
-            this.get('router').transitionTo('user.board-detail', lbParts[0], lbParts[1]);
+        // Continue Speaking: prefer the user's home board; fall back to last board in board-detail
+        var target = (homeBoard && homeBoard.key) ? homeBoard : ((lastBoard && lastBoard.key) ? lastBoard : null);
+        if (target && target.key) {
+          var parts = target.key.split('/');
+          if(parts.length === 2) {
+            this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
           } else {
-            this.get('router').transitionTo('board', lastBoard.key);
-            this.appState.toggle_mode('speak', {force: true, override_state: lastBoard});
-          }
-        } else if (homeBoard && homeBoard.key) {
-          var hbParts = homeBoard.key.split('/');
-          if(hbParts.length === 2) {
-            this.get('router').transitionTo('user.board-detail', hbParts[0], hbParts[1]);
-          } else {
-            this.get('router').transitionTo('board', homeBoard.key);
-            this.appState.toggle_mode('speak', {force: true, override_state: homeBoard});
+            this.get('router').transitionTo('board', target.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: target});
           }
         } else if (user && user.get('user_name')) {
           this.get('router').transitionTo('user.boards', user.get('user_name')).then(function() {
@@ -854,6 +1284,29 @@ export default Component.extend({
             if (content) { content.scrollTop = 0; }
             window.scrollTo(0, 0);
           });
+        }
+        return;
+      }
+      if (dest === 'last_board') {
+        var u2 = this.appState.get('currentUser');
+        var lb = this.stashes.get('root_board_state');
+        if (!lb || !lb.key) {
+          var un2 = u2 && u2.get('user_name');
+          if (un2) {
+            try {
+              var s2 = localStorage['ll_last_board_' + un2];
+              if (s2) { lb = JSON.parse(s2); }
+            } catch(e) { }
+          }
+        }
+        if (lb && lb.key) {
+          var lbp = lb.key.split('/');
+          if (lbp.length === 2) {
+            this.get('router').transitionTo('user.board-detail', lbp[0], lbp[1]);
+          } else {
+            this.get('router').transitionTo('board', lb.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: lb});
+          }
         }
         return;
       }
@@ -882,10 +1335,12 @@ export default Component.extend({
       if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
+      var _this = this;
+      var go = function() { _this.get('router').transitionTo('create-board-new'); };
       if (this.appState.check_for_needing_purchase) {
-        this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+        this.appState.check_for_needing_purchase().then(go, go);
       } else {
-        modal.open('new-board');
+        go();
       }
     },
     openSupervisorsModal: function() {
@@ -898,6 +1353,7 @@ export default Component.extend({
       this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
     },
     extraAction: function(name) {
+      var _this = this;
       var appState = this.appState;
       var user = appState.get('currentUser');
       var userName = user && user.get('user_name');
@@ -905,10 +1361,11 @@ export default Component.extend({
       if (name === 'intro') {
         this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
       } else if (name === 'newBoard') {
+        var go = function() { _this.get('router').transitionTo('create-board-new'); };
         if (this.appState.check_for_needing_purchase) {
-          this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+          this.appState.check_for_needing_purchase().then(go, go);
         } else {
-          modal.open('new-board');
+          go();
         }
       } else if (name === 'searchBoards') {
         this.get('router').transitionTo('search', 'any', encodeURIComponent('_'));
@@ -918,6 +1375,8 @@ export default Component.extend({
         modal.open('sync-details', { details: list });
       } else if (name === 'goals') {
         if (userName) { this.get('router').transitionTo('user.goals', userName); }
+      } else if (name === 'reports') {
+        if (userName) { this.get('router').transitionTo('user.stats', userName); }
       } else if (name === 'record_note') {
         if (this.appState.check_for_needing_purchase) {
           this.appState.check_for_needing_purchase().then(function() { modal.open('record-note', { note_type: 'text', user: user }); }, function() { modal.open('record-note', { note_type: 'text', user: user }); });
@@ -932,6 +1391,10 @@ export default Component.extend({
         if (userId) { this.get('router').transitionTo('user.lessons', userId); }
       } else if (name === 'offline_boards') {
         this.get('router').transitionTo('offline_boards');
+      } else if (name === 'supervisors') {
+        // The whole Supervisors card is now the action (no separate button),
+        // so route its action through here too.
+        this.send('openSupervisorsModal');
       }
     },
     recordNoteFor: function(supervisee) {
@@ -964,8 +1427,9 @@ export default Component.extend({
       this.get('router').transitionTo('search', 'any', encodeURIComponent('_'));
     },
     newBoard: function() {
+      var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        modal.open('new-board');
+        _this.get('router').transitionTo('create-board-new');
       });
     },
     quick_assessment: function(user) {
@@ -1146,7 +1610,7 @@ export default Component.extend({
       var user = this.appState.get('currentUser');
       user.set('preferences.new_index', true);
       user.save().then(null, function() { });
-      modal.success(i18n.t('revert_new_dashboard', "Welcome to the new, cleaner dashboard! If you're not a fan you can switch back on your Preferences page."));
+      modal.success(i18n.t('revert_new_dashboard', "Welcome to the new, cleaner dashboard! If you're not a fan you can switch back on your Settings page."));
     },
     set_goal: function(user) {
       var _this = this;
@@ -1196,8 +1660,9 @@ export default Component.extend({
     modeling_ideas: function(user_name) {
       var users = [];
       if(!user_name) {
-        if((this.appState.get('currentUser.supervisees') || []).length > 0) {
-          (this.appState.get('currentUser.known_supervisees') || []).forEach(function(u) {
+        var knownSupervisees = this.appState.get('currentUser.known_supervisees') || [];
+        if(knownSupervisees.length > 0) {
+          knownSupervisees.forEach(function(u) {
             if(emberGet(u, 'premium')) {
               users.push(u);
             }

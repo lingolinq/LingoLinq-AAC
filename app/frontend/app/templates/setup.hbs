@@ -10,7 +10,11 @@
           <p class="text-danger">{{t "Error loading user, please make sure you have permission to support this user" key="error_loading_user_check_permission"}}</p>
         </div>
       {{else}}
-        {{#unless (is-equal this.mode "layout")}}
+        {{!-- Board Category step is being restyled to stand alone like the
+             boards page, so it hides the shared wizard chrome (title,
+             progress, voice toggle, Back/Previous/Next). Every other step
+             keeps the header. Scoped here so only this page is affected. --}}
+        {{#unless (or (is-equal this.mode "layout") (is-equal this.setupComponent "setup/board_category"))}}
         <header class="md-hero md-hero--setup">
           <div class="md-hero--setup__head">
             <h1 class="md-hero__title">{{t "Account Setup" key="account_setup"}}</h1>
@@ -53,7 +57,7 @@
           </div>
         </header>
         {{/unless}}
-        <article class="md-card md-card--setup {{if (is-equal this.setupComponent "setup/intro") "md-card--setup-intro"}} {{if (is-equal this.mode "layout") "md-card--setup-standalone"}}" id="setup_container" style={{if this.no_scroll "margin-bottom: 0;"}}>
+        <article class="md-card md-card--setup {{if (is-equal this.setupComponent "setup/intro") "md-card--setup-intro"}} {{if (is-equal this.mode "layout") "md-card--setup-standalone"}} {{if (is-equal this.setupComponent "setup/board_category") "md-card--setup-bare"}}" id="setup_container" style={{if this.no_scroll "margin-bottom: 0;"}}>
           {{#if (is-equal this.mode "layout")}}
             <button type="button" class="md-board-layout-close" {{action "close_board_layout"}} aria-label={{t "Close" key="close"}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

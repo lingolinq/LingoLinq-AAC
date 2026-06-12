@@ -2,13 +2,18 @@ import Controller from '@ember/controller';
 import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
-import session from '../utils/session';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { debounce } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import progress_tracker from '../utils/progress_tracker';
+import { filterRootBoards, dedupeByName, sortByNameNatural } from '../utils/board-roots';
+import { groupBoardsByBrand } from '../utils/board-brands';
 
 export default Controller.extend({
+  router: service('router'),
+
   title: computed('searchString', function() {
     return "Search results for " + this.get('searchString');
   }),
@@ -21,18 +26,55 @@ export default Controller.extend({
     res.push({name: i18n.t('any_language', "Any Language"), id: 'any'});
     return res;
   }),
+  /* Single "Boards" section for the header jump dropdown
+     (search-board-jump) — the online search results. The dropdown's filter
+     input is the page's live search box, so the boards are the current
+     server results, cleaned up the same way the boards page and the
+     speak-mode "My Board Collection" panel clean theirs:
+       - filterRootBoards drops copy/sub-board records that rode along
+         inside a copied set (keeps the visible root tile),
+       - dedupeByName collapses identically-named duplicates (e.g. several
+         owners shipping the same "CommuniKate Top Page"), and
+       - sortByNameNatural orders numerically (Quick Core 84 before 112). */
+  /* Online search results grouped by brand family (CommuniKate, Quick
+     Core, Sequoia, Vocal Flair, then "Other Boards") so the grid separates
+     boards by type. `online_results.results` is already deduped + natural-
+     sorted, and grouping preserves that order within each brand. */
+  online_groups: computed('online_results.results', function() {
+    var online = this.get('online_results');
+    if(!online || !online.results) { return []; }
+    return groupBoardsByBrand(online.results);
+  }),
+  // Static i18n declarations — the grid group headers render via dynamic
+  // `{{t group.default_label key=group.label_key}}`, which i18n_generator's
+  // static parser can't extract. Brand keys are declared in
+  // board-collection.js; the grid adds the "Other Boards" bucket.
+  // eslint-disable-next-line no-unused-vars
+  _search_group_i18n_extractor_no_op: function() {
+    i18n.t('other_boards', "Other Boards");
+  },
+  jump_sections: computed('online_results', function() {
+    var userId = app_state.get('currentUser.id');
+    var online = this.get('online_results');
+    return [{
+      id: 'boards',
+      label_key: 'boards',
+      default_label: 'Boards',
+      state: online ? (online.loading ? 'loading' : 'loaded') : 'loading',
+      boards: sortByNameNatural(dedupeByName(filterRootBoards((online && online.results) || [], userId)))
+    }];
+  }),
+  // Natural (numeric-aware) sort by display name, so "Quick Core 84" sorts
+  // before "Quick Core 112" (plain lexicographic put 112 first because
+  // '1' < '8'). Delegates to the shared util the jump dropdown uses so the
+  // grid and dropdown order boards consistently.
+  sort_boards_by_name: function(boards) {
+    return sortByNameNatural(boards);
+  },
+
   load_results: function(str) {
     var _this = this;
     this.set('online_results', {loading: true, results: []});
-    this.set('local_results', {loading: true, results: []});
-
-    if(session.get('isAuthenticated')) {
-      persistence.find_boards(str).then(function(res) {
-        _this.set('local_results', {results: res});
-      }, function() { _this.set('local_results', {results: []}); });
-    } else {
-      _this.set('local_results', {impossible: true});
-    }
 
     function loadBoards() {
       if(persistence.get('online')) {
@@ -54,7 +96,11 @@ export default Controller.extend({
         }
         lookup.then(function(res) {
           _this.set('search_promise', null);
-          _this.set('online_results', {results: res.map(function(i) { return i; })});
+          /* Public search returns the same board from multiple owners
+             (e.g. "Vocal Flair 84" by several users). Collapse exact-name
+             duplicates, keeping the first — server popularity order means
+             that's the most-prominent one. */
+          _this.set('online_results', {results: dedupeByName(_this.sort_boards_by_name(res.map(function(i) { return i; })))});
         }, function() {
           _this.set('search_promise', null);
           _this.set('online_results', {results: []});
@@ -74,11 +120,11 @@ export default Controller.extend({
                       attributes: board
                     }}));
                   });
-                  _this.set('personal_results', {results: result});
+                  _this.set('personal_results', {results: _this.sort_boards_by_name(result)});
                 }
               });
             } else {
-              _this.set('personal_results', {results: res.map(function(i) { return i; })});
+              _this.set('personal_results', {results: _this.sort_boards_by_name(res.map(function(i) { return i; }))});
             }
           }, function() {
             _this.set('personal_results', {results: []});
@@ -98,10 +144,28 @@ export default Controller.extend({
     });
 
   },
+  /** Live filter: re-run the search whenever the query or locale changes (debounced 300ms). */
+  _autoSearch: observer('searchString', 'locale', function() {
+    debounce(this, this._runAutoSearch, 300);
+  }),
+  _runAutoSearch: function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var str = this.get('searchString') || '';
+    this.load_results(str);
+    this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
+  },
   actions: {
     searchBoards: function() {
       this.load_results(this.get('searchString'));
-      this.transitionToRoute('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
+      this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
+    },
+    /* Picked a board from the header jump dropdown — open it. Mirrors the
+       board-tile navigation used across the app
+       (router.transitionTo('board', key)). */
+    select_jump_board: function(board) {
+      if(!board) { return; }
+      var key = board.get ? board.get('key') : board.key;
+      if(key) { this.router.transitionTo('board', key); }
     }
   }
 });

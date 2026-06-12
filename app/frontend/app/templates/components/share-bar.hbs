@@ -25,7 +25,7 @@
       {{#each this.user.supervisors as |sup|}}
         <button class='btn btn-default' style='margin-top: -10px; margin-bottom: -10px;' {{action "message" sup}}>
           <img style="width: 50px; height: 50px;" src={{sup.avatar_url}} >
-          <div style='width: 70px; font-size: 12px; overflow: hidden; margin-bottom: -5px; margin-left: -10px; margin-right: -10px;'>{{sup.user_name}}</div>
+          <div style='width: 70px; font-size: 14px; overflow: hidden; margin-bottom: -5px; margin-left: -10px; margin-right: -10px;'>{{sup.user_name}}</div>
         </button>
       {{/each}}
     </span>

@@ -1,5 +1,6 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
+import RSVP from 'rsvp';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
@@ -40,6 +41,19 @@ export default Route.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  telemetry: service('telemetry'),
+  beforeModel: function() {
+    if(typeof window === 'undefined') { return; }
+    var path = window.location.pathname;
+    if(path !== '/auth' && path.indexOf('/auth/') !== 0) { return; }
+    // OAuth paths must be handled by Rails, not the Ember SPA. If the app
+    // booted here, the /auth proxy did not run — fall back to Rails on :5000.
+    if(window.location.port === '8184') {
+      var qs = window.location.search || '';
+      window.location.replace(window.location.protocol + '//' + window.location.hostname + ':5000' + path + qs);
+      return new RSVP.Promise(function() { /* wait for full-page navigation */ });
+    }
+  },
   activate: function() {
     var session = this.get('session');
     if(session && typeof session.restore === 'function') {
@@ -129,8 +143,20 @@ export default Route.extend({
     willTransition: function(transition) {
 //      this.appState.global_transition(transition);
     },
+    error: function(error, transition) {
+      // Application-level error handler. When any route's model rejects
+      // and bubbles up to here, error.hbs renders in the application
+      // outlet. Clear board / speak state so the error chrome (header,
+      // body classes, navbar variant) matches the home page rather than
+      // inheriting "in-board" state from whatever loaded before.
+      this.appState.set('currentBoardState', null);
+      // Returning true (the default) lets Ember continue to render the
+      // error template / fallback. We just want to side-effect first.
+      return true;
+    },
     didTransition: function() {
       this.appState.finish_global_transition();
+      this.telemetry.trackRoute(this.router.currentRouteName);
       if (!this.appState.get('skip_scroll_to_top')) {
         window.scrollTo(0, 0);
         var content = document.getElementById('content');
@@ -151,7 +177,7 @@ export default Route.extend({
     newBoard: function() {
       var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        modal.open('new-board');
+        _this.router.transitionTo('create-board-new');
       });
     },
     pickWhichHome: function() {

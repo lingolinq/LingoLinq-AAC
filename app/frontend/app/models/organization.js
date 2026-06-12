@@ -58,6 +58,7 @@ LingoLinq.Organization = DS.Model.extend({
   management_action: DS.attr('string'),
   assignment_action: DS.attr('string'),
   default_locale: DS.attr('string'),
+  default_beta_program_access: DS.attr('boolean'),
   preferred_symbols: DS.attr('string'),
   start_codes: DS.attr('raw'),
   custom_domain: DS.attr('boolean'),

@@ -18,7 +18,7 @@ module Throttling
     protected_paths = ['oauth2/token', '^/token', 'api/v1/forgot_password', 'api/v1/gifts/code_check',
           'api/v1/boards/.+/imports', 'api/v1/boards/.+/download', 'api/v1/boards/.+/rename',
           'api/v1/users/\w+/replace_board', 'api/v1/users/\w+/rename', 'auth/lookup', 'saml/tmp_token',
-          'api/v1/purchase_gift', 'api/v1/messages', 'api/v1/logs/code_check']
+          'api/v1/purchase_gift', 'api/v1/messages', 'api/v1/beta_feedback_recordings', 'api/v1/logs/code_check']
     re = /#{protected_paths.join('|')}/
 
     limit_proc = proc {|req|

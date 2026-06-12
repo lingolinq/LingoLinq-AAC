@@ -33,6 +33,17 @@
     </div>
 
     <div class="md-org-settings-field">
+      <label class="md-org-settings-field__label">{{t "Beta program access for start codes" key="org_default_beta_program_access_label"}}</label>
+      <label class="md-org-settings-toggle">
+        <Input @checked={{this.model.default_beta_program_access}} @type="checkbox" class="md-org-settings-toggle__input" />
+        <span class="md-org-settings-toggle__label">{{t "Grant beta program access to new users who register with a start code from this organization" key="org_default_beta_program_access_toggle"}}</span>
+      </label>
+      <span class="md-org-settings-field__hint">
+        {{t "When off, users who sign up with this organization's start code will not see the beta welcome flow. Self-service signups without a start code are not affected by this setting." key="org_default_beta_program_access_hint"}}
+      </span>
+    </div>
+
+    <div class="md-org-settings-field">
       <label for="board" class="md-org-settings-field__label">{{t "Home Boards" key="home_boards"}}</label>
       <Textarea @value={{this.home_board_key_lines}} class="md-org-settings-textarea" id="board" placeholder={{this.board_keys_placeholder}} />
       <span class="md-org-settings-field__hint">
@@ -238,6 +249,11 @@
       <div class="md-org-settings-field">
         <label for="admin_email" class="md-org-settings-field__label">{{t "Admin Email" key="admin_email"}}</label>
         <Input @value={{this.model.host_settings.admin_email}} class="md-org-settings-input" id="admin_email" placeholder="for alerts and messages" />
+      </div>
+      <div class="md-org-settings-field">
+        <label for="email_signature" class="md-org-settings-field__label">{{t "Email signature" key="system_settings_email_signature"}}</label>
+        <Input @value={{this.model.host_settings.email_signature}} class="md-org-settings-input" id="email_signature" placeholder={{t "The LingoLinq Team" key="system_settings_email_signature_placeholder"}} />
+        <span class="md-org-settings-field__hint">{{t "Overrides the site-wide email signature for this organization's domain." key="system_settings_org_email_signature_hint"}}</span>
       </div>
       <div class="md-org-settings-field">
         <label for="logo_url" class="md-org-settings-field__label">{{t "Logo Image URL" key="logo_image_url"}}</label>

@@ -26,7 +26,37 @@
       {{/if}}
     {{/if}}
     {{/unless}}
+    {{!-- The dashboard's "Take a tour" + "Get Started" triggers live HERE for every
+         layout, as compact circle icon buttons LEFT-ALIGNED right after the Search
+         field. They sit INSIDE .app-navbar__nav-header (not the quick-actions
+         cluster) so the nav-header's `flex: 1` growth doesn't push them right. Gated
+         on the SAME dashboard context as the search (empty_header) so they don't
+         appear on board pages; the focused KID view hides them via
+         body.md-home-focused (the unlocked parent view shows them). --}}
+    {{#if this.appState.empty_header}}
+      <span class="app-navbar__home-actions">
+        {{#if this.appState.feature_flags.home_tour}}{{home-tour}}{{/if}}
+        {{getting-started-tour}}
+      </span>
+    {{/if}}
   </span>
+  {{!-- Quick-actions cluster. Lives in its own span
+       just after .app-navbar__nav-header so it renders between the search
+       icon and the #identity dropdown. On wide screens links hide via
+       .app-navbar__small-only / .app-navbar__large-only logic. --}}
+  {{#unless (is-equal this.appState.current_route "landing-alt")}}
+  <span class="app-navbar__quick-actions">
+    {{!-- "New board (preview)" pill removed from the navbar — the route
+         link now sits behind every existing "New Board" / "Create a New
+         Board" button across the app (see newBoard / openNewBoardOnBoards
+         action handlers). The .app-navbar__create-board-new-link* CSS is
+         intentionally left in place for now; this is the visual removal
+         only, not a cleanup of the orphaned styles. --}}
+    {{!-- Settings gear moved into #identity (now to the RIGHT of the Upgrade
+         pill — the two swapped places). The quick-actions wrapper uses
+         display:contents at ≥768px, so emptying it reserves no space. --}}
+  </span>
+  {{/unless}}
   <span id="identity" class="app-navbar-auth-nav--desktop advanced_selection identity-with-dark-toggle">
     {{#unless this.appState.currentBoardState.id}}
     {{#if this.appState.currentUser}}
@@ -37,22 +67,36 @@
       {{/unless}}
     {{/if}}
     {{/unless}}
+    {{!-- Settings gear — swapped here from the quick-actions cluster, so it
+         now sits just to the right of the Upgrade pill. --}}
+    {{#if this.appState.currentUser.user_name}}
+      {{!-- On Balanced the gear is hidden here — the Settings link moves into the
+           identity dropdown under My Account (below). Other layouts keep it here. --}}
+      {{#unless (is-equal this.appState.currentUser.preferences.dashboard_layout "balanced")}}
+      <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </LinkTo>
+      {{/unless}}
+    {{/if}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      {{t "Beta feedback" key="beta_feedback_nav"}}
-    </LinkTo>
-    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
+    {{!-- Beta feedback (full pill, large-only) moved to .app-navbar__quick-actions
+         above so it tabs immediately after the search button instead of after
+         Upgrade. --}}
+    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support app-navbar__large-only" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
           <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.85.7c0 1.6-2.35 2.3-2.35 2.3"/><circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none"/></svg>
         </span>
       </div>
     </LinkTo>
+    {{!-- Beta (circular, small-only) and Settings moved to .app-navbar__quick-actions
+         above. The --full beta pill (large-only) above remains here for desktop. --}}
     {{/unless}}
     <span style="display: inline-block;" class="dropdown">
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
-        <span class="user_holder">
+        <span class="user_holder {{if this.appState.currentUser.avatar_url_is_default 'user_holder--default'}}">
           <img src={{this.appState.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
         </span>
         {{#if this.application.session.invalid_token}}
@@ -76,10 +120,24 @@
         <li role="presentation">
           <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
+        {{!-- Balanced layout moves the navbar Settings gear into the dropdown,
+             directly under My Account. --}}
+        {{#if (is-equal this.appState.currentUser.preferences.dashboard_layout "balanced")}}
+        <li role="presentation">
+          <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}}>{{t "Settings" key="settings"}}</LinkTo>
+        </li>
+        {{/if}}
+        <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Boards" key="find_boards_nav"}}</LinkTo></li>
         <li><LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
         {{#if this.application.showBetaFeedbackAdminLink}}
         <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>
+        {{/if}}
+        {{#if this.application.showDatabaseExplorerLink}}
+        <li class="app-navbar__database-explorer-menu-item"><LinkTo @route="database">{{t "Database" key="database_explorer_nav"}}</LinkTo></li>
+        {{/if}}
+        {{#if this.application.showSystemSettingsLink}}
+        <li class="app-navbar__system-settings-menu-item"><LinkTo @route="system-settings.emails">{{t "System Settings" key="system_settings_nav"}}</LinkTo></li>
         {{/if}}
         <li class="divider" role="separator"></li>
         <li>
@@ -138,32 +196,26 @@
     {{/unless}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
-    <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "openBetaFeedback"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</button>
+    {{!-- Language picker — mirrors the desktop dropdown's
+         `openLanguage` link (which sends `language` to the
+         application controller). Surfaces the user's current
+         locale string and opens the locale-picker modal. --}}
+    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "language"}}>{{t "Language" key="language"}}</button>
     {{#if this.application.showBetaFeedbackAdminLink}}
     <LinkTo @route="beta-feedback-admin" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo>
     {{/if}}
-    {{/unless}}
-    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "toggleThemePicker"}}>{{t "Theme" key="theme"}}</button>
-    {{#if this.application.showThemePicker}}
-      <div class="ll-bento-theme-picker ll-bento-theme-picker--in-drawer" role="dialog" aria-label={{t "Choose theme" key="choose_theme"}}>
-        <div class="ll-bento-theme-picker__row">
-          <div class="ll-bento-theme-picker__options">
-            <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "light") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "light"}} title={{t "Light" key="light"}} aria-pressed={{is-equal this.appState.themeMode "light"}}>
-              <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__light-teal-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-light-teal-grad-picker-drawer" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#64b9bc"/><stop offset="100%" stop-color="#82afdc"/></linearGradient></defs><path fill="url(#ll-light-teal-grad-picker-drawer)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
-            </button>
-            <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "midDay") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "midDay"}} title={{t "Midday" key="midday"}} aria-pressed={{is-equal this.appState.themeMode "midDay"}}>
-              <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__midday-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-eclipse-sun-picker-drawer" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#ffe082"/><stop offset="25%" stop-color="#ffc107"/><stop offset="50%" stop-color="#ff8f00"/><stop offset="75%" stop-color="#e65100"/><stop offset="100%" stop-color="#bf360c"/></radialGradient><radialGradient id="ll-eclipse-moon-picker-drawer" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-eclipse-sun-picker-drawer)" fill-rule="evenodd" d="M20 12L15.7 10.5 17.66 6.34 13.5 8.3 12 4 10.5 8.3 6.34 6.34 8.3 10.5 4 12 8.3 13.5 6.34 17.66 10.5 15.7 12 20 13.5 15.7 17.66 17.66 15.7 13.5 20 12z" clip-rule="evenodd"/><circle cx="15" cy="12" r="5.5" fill="url(#ll-eclipse-moon-picker-drawer)"/></svg></span>
-            </button>
-            <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "dark") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "dark"}} title={{t "Dark" key="dark"}} aria-pressed={{is-equal this.appState.themeMode "dark"}}>
-              <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-dark-toggle__moon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><defs><radialGradient id="ll-moon-grad-picker-drawer" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-moon-grad-picker-drawer)" fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd"/></svg></span>
-            </button>
-            <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "default") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "default"}} title={{t "Default" key="default_theme"}} aria-pressed={{is-equal this.appState.themeMode "default"}}>
-              <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__gold-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-gold-grad-picker-drawer" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4ECDC4"/><stop offset="50%" stop-color="#F0F0F0"/><stop offset="100%" stop-color="#FF6B47"/></linearGradient></defs><path fill="url(#ll-gold-grad-picker-drawer)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
-            </button>
-          </div>
-        </div>
-      </div>
+    {{#if this.application.showDatabaseExplorerLink}}
+    <LinkTo @route="database" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Database" key="database_explorer_nav"}}</LinkTo>
     {{/if}}
+    {{/unless}}
+    {{!-- Theme picker removed from the mobile drawer per design
+         request — the persistent navbar theme switcher (visible on
+         wider viewports) is the canonical control. Removing both
+         the trigger button and the inline picker block here so
+         the option doesn't surface in the hamburger menu. The
+         `toggleThemePicker` / `selectThemeMode` actions stay on
+         the application controller for the desktop picker. --}}
     <div class="la-mobile-drawer__divider"></div>
     <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Account" key="my_account"}}</LinkTo>
     <LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Boards" key="my_boards"}}</LinkTo>

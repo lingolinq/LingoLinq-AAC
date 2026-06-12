@@ -129,6 +129,22 @@ describe ContactMessage, :type => :model do
     expect(m.recipient).to eq('beta_feedback')
   end
 
+  it "should persist request_virtual_meeting for beta feedback" do
+    [true, 'true', '1', 'on'].each do |value|
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'Summary',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'general_feedback' => 'x' * 12,
+        'request_virtual_meeting' => value
+      })
+
+      expect(m.errored?).to eq(false)
+      expect(m.settings['request_virtual_meeting']).to eq(true)
+    end
+  end
+
   it "should reject beta feedback without subject" do
     m = ContactMessage.process_new({
       'recipient' => 'beta_feedback',
@@ -149,6 +165,51 @@ describe ContactMessage, :type => :model do
     })
     expect(m.errored?).to eq(true)
     expect(m.processing_errors).to eq(['Invalid screenshot format'])
+  end
+
+  it "should attach a confirmed beta feedback recording" do
+    rec = BetaFeedbackRecording.create!(
+      content_type: 'video/webm',
+      byte_size: 1000,
+      status: 'confirmed',
+      confirmed_at: Time.now
+    )
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'subject' => 'Recording feedback',
+      'feedback_type' => 'boards',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12,
+      'recording_id' => rec.global_id,
+      'recording_token' => rec.token,
+      'recording_consent' => true
+    })
+
+    expect(m.errored?).to eq(false)
+    rec.reload
+    expect(rec.contact_message_id).to eq(m.id)
+    expect(m.settings['recording_id']).to eq(rec.global_id)
+  end
+
+  it "should reject beta feedback recording without consent" do
+    rec = BetaFeedbackRecording.create!(
+      content_type: 'video/webm',
+      byte_size: 1000,
+      status: 'confirmed',
+      confirmed_at: Time.now
+    )
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'subject' => 'Recording feedback',
+      'feedback_type' => 'boards',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12,
+      'recording_id' => rec.global_id,
+      'recording_token' => rec.token
+    })
+
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Recording consent is required'])
   end
 
   it "should reject beta feedback with invalid email" do

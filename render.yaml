@@ -81,6 +81,14 @@ services:
           type: redis
           name: lingolinq-redis
           property: connectionString
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: SECURE_ENCRYPTION_KEY
+        generateValue: true
+      - key: SECURE_NONCE_KEY
+        generateValue: true
+      - key: COOKIE_KEY
+        generateValue: true
       - key: RAILS_LOG_TO_STDOUT
         value: "true"
       - key: LD_PRELOAD

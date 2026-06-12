@@ -1,5 +1,74 @@
-<div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
+<div class="md-shell {{if (is-equal this.activeTab "home") "md-shell--home"}} {{if (is-equal this.effectiveLayout "balanced") "md-shell--layout-balanced"}} {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
   <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
+  {{!-- "Back to Kiddo's View" — shown after a grown-up presses-and-holds the lock to
+       leave focused mode. Fixed under the inner header, top-centre; returns this
+       focused communicator to their kid-facing view. --}}
+  {{#if this.showBackToFocused}}
+    <div class="md-back-to-focused-bar">
+      <button type="button" class="md-back-to-focused" {{action "backToFocused"}}>
+        <svg class="md-back-to-focused__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
+        {{!-- Full label on wider screens; collapses to just "Back" at ≤950px. --}}
+        <span class="md-back-to-focused__full">{{t "Back to Kiddo's View" key="focused_back_to_kiddos"}}</span>
+        <span class="md-back-to-focused__short">{{t "Back" key="back"}}</span>
+      </button>
+    </div>
+  {{/if}}
+  {{!-- The "Take a tour" + "Get Started" triggers live in the inner header
+       (app-navbar-authenticated-inner → .app-navbar__home-actions) as circle icon
+       buttons for EVERY dashboard layout. That navbar is global, so the
+       getting-started-tour component stays mounted across a mid-modal layout flip
+       (no fixed-corner copy needed). The focused KID view hides them via
+       body.md-home-focused; the unlocked parent view shows them. --}}
+  {{!-- Hidden clone-source for the Getting Started Focused preview. While the modal
+       is open the real focused view ISN'T rendered (focusedHomeLayout is blocked so
+       the grid the Dynamic/Balanced previews clone stays put), so render the SAME
+       Dashboard::FocusedHome off-screen here — the preview clones this live markup,
+       which keeps it permanently in sync with the real focused view. --}}
+  {{#if this.appState.gettingStartedActive}}
+  <div class="md-gst-focused-source" aria-hidden="true">
+    <Dashboard::FocusedHome
+      @greetingName={{this.greetingFirstName}}
+      @previewBoards={{this.previewBoards}}
+      @hideSpeak={{this.cardHideStyle.speak}}
+      @hideBoards={{this.cardHideStyle.boards}}
+      @onTalk={{action "go" "speak"}}
+      @onBoard={{action "goToBoard"}}
+    />
+  </div>
+  {{/if}}
+  {{#if this.focusedHomeLayout}}
+    {{!-- FOCUSED LAYOUT (communicators) — a stripped, kid-facing home: short
+         greeting, a full-width Talk hero, board previews, and a press-and-hold
+         Grown-Ups lock. The pill-nav + inner-header chrome are hidden (the latter
+         via body.md-home-focused). Reuses existing colors/elements; the grown-up
+         presses-and-holds the lock to drop back to the full dashboard. --}}
+    {{!-- Focused-home content via the shared Dashboard::FocusedHome component, so the
+         real view and the Getting Started Focused preview render identical markup. --}}
+    <Dashboard::FocusedHome
+      @greetingName={{this.greetingFirstName}}
+      @previewBoards={{this.previewBoards}}
+      @hideSpeak={{this.cardHideStyle.speak}}
+      @hideBoards={{this.cardHideStyle.boards}}
+      @onTalk={{action "go" "speak"}}
+      @onBoard={{action "goToBoard"}}
+    />
+
+    {{!-- Grown-Ups lock, fixed top-right. PRESS-AND-HOLD (~700ms) exits focused mode
+         and reveals the full caregiver dashboard (transient — not a pref change).
+         Interactive, so it lives in the real view (not the shared component). --}}
+    <div class="md-focused-lock {{if this.lockHolding "is-holding"}}" role="button" tabindex="0"
+         aria-label={{t "For grown-ups — press and hold to unlock" key="focused_grownups_unlock"}}
+         {{on "pointerdown" (action "lockHoldStart")}}
+         {{on "pointerup" (action "lockHoldEnd")}}
+         {{on "pointerleave" (action "lockHoldEnd")}}
+         {{on "pointercancel" (action "lockHoldEnd")}}>
+      <span class="md-focused-lock__icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      </span>
+      <span class="md-focused-lock__label">{{t "Grown-Ups" key="focused_grownups"}}</span>
+      <span class="md-focused-lock__hold" aria-hidden="true"></span>
+    </div>
+  {{else}}
   {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
@@ -8,12 +77,19 @@
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "goTab" "boards"}}>
       {{t "Boards" key="boards"}}
     </button>
-    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "goTab" "reports"}}>
+    {{#if this.showReportsPill}}
+    <button type="button" class="md-pillnav__pill md-pillnav__pill--reports {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "goTab" "reports"}}>
       {{t "Reports" key="reports"}}
     </button>
+    {{/if}}
     <button type="button" class="md-pillnav__pill {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "goTab" "extras"}}>
       {{t "Extras" key="extras"}}
     </button>
+    {{!-- Communicators get a far-right "Account" pill → My Account (Reports having
+         moved to an Extras card for them) — but not on Balanced (minimal nav). --}}
+    {{#if this.showAccountPill}}
+    <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav__pill md-pillnav__pill--account">{{t "Account" key="account"}}</LinkTo>
+    {{/if}}
   </nav>
   <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
     <button type="button" class="md-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
@@ -29,8 +105,13 @@
     <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
       <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
       <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
+      {{#if this.showReportsPill}}
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option md-pillnav-dropdown__option--reports {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
+      {{/if}}
       <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
+      {{#if this.showAccountPill}}
+      <li><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{{t "Account" key="account"}}</LinkTo></li>
+      {{/if}}
     </ul>
   </div>
 
@@ -45,12 +126,20 @@
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
       {{else}}
-        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting_no_name"}}{{/if}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
       {{/if}}
     </header>
 
-<section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}} {{if this.appState.currentUser.supporter_role "md-grid--with-caseload"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+<section class="md-grid md-grid--dashboard {{this.dashboardLayoutClass}} {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if (is-equal this.activeTab "home") this.gridClassString}}" style={{if (is-equal this.activeTab "home") this.gridStyle}} aria-label={{t "Dashboard" key="dashboard"}}>
+      {{!-- Getting Started onboarding card DISABLED — we're evaluating
+           whether to bring it back in a later iteration. The matching
+           showGettingStarted computed in dashboard/authenticated-view.js
+           also returns false, so the surrounding section won't get the
+           `md-grid--with-getting-started` modifier and the grid won't
+           reserve an empty slot. To re-enable: restore the computed AND
+           un-comment this block. --}}
+      {{!--
       {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
       <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
         <div class="md-card__head md-card__head--getting-started">
@@ -77,42 +166,51 @@
       </article>
       <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
-      {{#if this.appState.currentUser.supporter_role}}
-      <div class="md-card md-card--caseload">
+      --}}
+      {{#if this.sectionAvailable.caseload}}
+      {{!-- My Caseload renders two sibling variants; the CSS @media rules in
+           app.scss show exactly one per viewport. >1024px: the wide card with
+           a separate "Manage" button (--caseload-wide-only). ≤1024px: the whole
+           card is the action target, styled as a raised button
+           (--caseload-as-button --caseload-narrow-only). Action/i18n keys are
+           duplicated across the two branches but the markup is otherwise
+           identical; the SVG/title/sub stay in lockstep. The card is gated on
+           AVAILABILITY (not visibility) and hidden via cardHideStyle when the
+           user turns it off, so it stays in the DOM for the Getting Started
+           preview clone. --}}
+      <div class="md-card md-card--caseload md-card--caseload-wide-only" style={{this.cardHideStyle.caseload}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
-            <div class="md-card__sub">{{t "View and manage your communicators" key="view_manage_communicators"}}</div>
+            <div class="md-card__sub">{{t "Manage your communicators" key="view_manage_communicators"}}</div>
           </div>
         </div>
         <LinkTo @route="caseload" class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
       </div>
-      {{/if}}
-      {{#if this.has_management_responsibility}}
-      <article class="md-card md-card--org-management" aria-label={{t "My Organizations" key="my_organizations"}}>
+      <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-as-button md-card--caseload-narrow-only" style={{this.cardHideStyle.caseload}} aria-label={{t "My Caseload" key="my_caseload"}}>
         <div class="md-card__head">
-          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
+          <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
-            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
+            <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
+            <div class="md-card__sub">{{t "Manage your communicators" key="view_manage_communicators"}}</div>
           </div>
         </div>
-        {{#if this.all_orgs.length}}
-          <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
-        {{else}}
-          <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
-            {{t "Add Organization" key="add_organization"}}
-          </button>
-        {{/if}}
-      </article>
+      </LinkTo>
       {{/if}}
-
-      <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
+      {{!-- Speak Mode mirrors My Caseload: two sibling variants, CSS @media
+           rules show exactly one per viewport. >1024px: the wide card with a
+           separate "Continue Speaking" button (--speak-wide-only). ≤1024px: the
+           whole card is the action button (--speak-as-button
+           --speak-narrow-only). Single-row layout (head left, button right) is
+           driven by the flex rules on `.md-grid .md-card.md-card--speak`. Always
+           rendered (Speak is available to everyone); hidden via cardHideStyle
+           when turned off so it stays in the DOM for the preview clone. --}}
+      <article class="md-card md-card--speak md-card--speak-wide-only" style={{this.cardHideStyle.speak}} aria-label={{t "Speak Mode" key="speak_mode"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
@@ -122,54 +220,96 @@
             <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
           </div>
         </div>
-        <div class="md-card__row">
-          <div class="md-chip md-chip--soft">
-            <span class="md-chip__dot" aria-hidden="true"></span>
-            {{#if this.last_board_name}}
-              {{t "Last board: %{name}" key="md_last_board_name" name=this.last_board_name}}
-            {{else}}
-              {{t "Last board: None" key="md_last_board_none"}}
-            {{/if}}
-          </div>
-          <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
-            {{t "Continue Speaking" key="continue_speaking"}}
-          </button>
-        </div>
+        <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
+          {{t "Continue Speaking" key="continue_speaking"}}
+        </button>
         <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
       </article>
+      <button type="button" class="md-card md-card--speak md-card--speak-as-button md-card--speak-narrow-only" style={{this.cardHideStyle.speak}} aria-label={{t "Speak Mode" key="speak_mode"}} {{action "go" "speak"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</h3>
+            {{!-- Single supporting accent (no interactive UI): a calm
+                 "ready" status line that makes the card feel active. --}}
+            <span class="md-card__status">
+              <span class="md-card__status-dot" aria-hidden="true"></span>
+              {{t "Ready to communicate" key="ready_to_communicate"}}
+            </span>
+          </div>
+        </div>
+        <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
+      </button>
 
-      <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
-        <div class="md-card__head md-card__head--between">
-          <div>
+      {{!-- Balanced layout hero — the greeting BAR ("Hey <name>") that replaces the
+           Speak card when Balanced is active. Always rendered; CSS shows it (and
+           hides the standard Speak card) only under .md-grid--layout-balanced, so
+           the Getting Started preview clone shows it for free when syncState stamps
+           the layout class. The whole bar is the Speak tap-target. The primary-nav
+           pills sit ABOVE this bar (the centered top .md-pillnav, kept visible in
+           balanced); the redundant "It's great to see you" dashboard hero is hidden
+           so this "Hey <name>" is the only greeting. --}}
+      <button type="button" class="md-card md-card--speak md-card--speak-balanced" style={{this.cardHideStyle.speak}} {{action "go" "speak"}} aria-label={{t "Talk" key="focused_talk"}}>
+        <span class="md-card--speak-balanced__icon" aria-hidden="true">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v3"/><path d="M8 21h8"/></svg>
+        </span>
+        <span class="md-card--speak-balanced__title">{{t "Hey %{name}" key="balanced_home_greeting" name=this.greetingFirstName}}</span>
+        <span class="md-card--speak-balanced__sub">{{t "Let's Communicate!" key="balanced_home_sub"}}</span>
+      </button>
+
+      {{!-- Extras card is itself the action (like the Speak Mode
+           card-as-button): the whole card is a single tappable button that
+           opens the Extras tab — the separate "Explore Extras" button is
+           gone. `md-card--as-button` layers the glassy actionable treatment
+           (shared with the speak/caseload as-button variants). Always rendered
+           (Extras is available to everyone); hidden via cardHideStyle when
+           turned off so it stays in the DOM for the preview clone. --}}
+      <button type="button" class="md-card md-card--extras md-card--as-button" style={{this.cardHideStyle.extras}} aria-label={{t "Extras" key="extras"}} {{action "goTab" "extras"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--extras" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
+          </div>
+          <div class="md-card__titles">
             <h3 class="md-card__title">{{t "Extras" key="extras"}}</h3>
             <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
           </div>
         </div>
-        <div class="md-extrasRow">
-          <div class="md-extrasIcon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
-          </div>
-          <button type="button" class="md-btn md-btn--primary" {{action "goTab" "extras"}}>
-            {{t "Explore Extras" key="explore_extras"}}
-          </button>
-        </div>
         <div class="md-card__extras-wave" aria-hidden="true"></div>
-      </article>
+      </button>
 
-      <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
+      {{#if this.sectionAvailable.org}}
+      {{!-- My Organizations is itself the action (like the Extras / Speak
+           card-as-buttons): the whole card is a single button that opens the
+           organizations list (or the add-organization flow when there are
+           none). `md-card--as-button` layers the shared glassy treatment;
+           the icon + wording are unchanged. Gated on AVAILABILITY (not
+           visibility) and hidden via cardHideStyle when turned off, so it
+           stays in the DOM for the Getting Started preview clone. --}}
+      <button type="button" class="md-card md-card--org-management md-card--as-button" style={{this.cardHideStyle.org}} aria-label={{t "My Organizations" key="my_organizations"}} {{action "goOrganizations"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
+            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
+          </div>
+        </div>
+      </button>
+      {{/if}}
+
+      {{!-- Boards is available to everyone → always rendered; hidden via
+           cardHideStyle when turned off so it stays in the DOM for the
+           Getting Started preview clone. --}}
+      <article class="md-card md-card--boards" style={{this.cardHideStyle.boards}} aria-label={{t "Boards" key="boards"}}>
         <div class="md-card__head md-card__head--between">
           <div class="md-card__left">
-            <h3 class="md-card__title">{{t "Boards" key="boards"}}</h3>
+            <h3 class="md-card__title">{{t "Boards" key="boards"}} <span class="md-card__title-accent--verdigris">{{t "(Page-sets)" key="page_sets_parenthetical"}}</span></h3>
             <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
           </div>
           <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
-          <div class="md-stat">
-            <div class="md-stat__num">{{this.displayBoardCount}}</div>
-            <div class="md-stat__meta">
-              <div>{{t "Total" key="total"}}</div>
-              <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
-            </div>
-          </div>
         </div>
         {{#if this.boardsLoading}}
         <div class="md-card__loading">
@@ -183,12 +323,44 @@
         </div>
         {{else if this.previewBoards.length}}
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
-          {{#each this.previewBoards as |preview|}}
-            <button type="button" class="md-strip__item" role="listitem" {{action "goToBoard" preview.key}}>
+          {{#each this.previewBoards key="key" as |preview|}}
+            <button type="button" class="md-strip__item {{if preview.isHome 'md-strip__item--home'}} {{if preview.board.starred_for_current_user 'md-strip__item--liked'}}" role="listitem" {{action "goToBoard" preview.key}}>
+              {{#if preview.isHome}}
+                {{!-- Home Board badge — pinned to the top of the tile
+                     (absolute, see .md-strip__home-badge in app.scss)
+                     so it visually crowns the tile without shifting
+                     the thumb/label layout that the other tiles use. --}}
+                <span class="md-strip__home-badge">{{t "Home Board" key="home_board"}}</span>
+              {{/if}}
+              {{#if preview.board.starred_for_current_user}}
+                {{!-- Filled-heart indicator in the top-right for liked
+                     boards (mirrors the My Boards picker + boards-page
+                     treatments). pointer-events:none so the tile's
+                     own click still navigates. --}}
+                <span class="md-strip__heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                    <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
+                  </svg>
+                </span>
+              {{/if}}
               <div class="md-thumb {{preview.thumbClass}}" aria-hidden="true">
-                <img src={{preview.imageUrl}} class="md-thumb__board-img" alt="">
+                {{!-- Bind directly to the board record's
+                     icon_url_with_fallback computed when we have the
+                     record, so the thumb auto-refreshes when the
+                     board's image attrs change after a visit (the
+                     observer that fires `checkForDataURL` mutates
+                     `image_data_uri` on the underlying record).
+                     `preview.imageUrl` is the captured fallback for
+                     the home-board case where peekRecord returned
+                     null — see add() in previewBoards computed. --}}
+                <img src={{if preview.board preview.board.icon_url_with_fallback preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
-              <div class="md-strip__label">{{preview.name}}</div>
+              <div class="md-strip__label">
+                {{preview.name}}
+                {{#if preview.languageLabel}}
+                  <span class="md-strip__lang">{{preview.languageLabel}}</span>
+                {{/if}}
+              </div>
             </button>
           {{/each}}
         </div>
@@ -301,10 +473,13 @@
 
       {{#if (is-equal this.activeTab "extras")}}
       <section class="md-extras-page" aria-label={{t "Extras" key="extras"}}>
-        <div class="md-extras-page__grid" role="list">
+        <div class="md-extras-page__grid">
           {{#each this.extrasItems as |item|}}
             {{#if item.show}}
-              <article class="md-extras-card" role="listitem">
+              {{!-- Whole card is the action (no separate button) — styled like
+                   the My Organizations card-as-button. extraAction routes every
+                   action (incl. supervisors → openSupervisorsModal). --}}
+              <button type="button" class="md-extras-card" {{action "extraAction" item.action}}>
                 <div class="md-extras-card__head">
                   <div class="md-extras-card__icon-wrap md-extras-card__icon-wrap--{{item.action}}">
                     {{#if (is-equal item.action "intro")}}
@@ -313,6 +488,8 @@
                       <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8" stroke="#4C86D8"/><polyline points="18 2 18 8 12 8" stroke="#4C86D8"/><path d="M20 12a8 8 0 0 1-14.3 4.8" stroke="#46505F"/><polyline points="6 22 6 16 12 16" stroke="#46505F"/></svg>
                     {{else if (is-equal item.action "goals")}}
                       <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#316F70"/></svg>
+                    {{else if (is-equal item.action "reports")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M7 16l4-6 4 4 5-8" stroke="#4C86D8"/></svg>
                     {{else if (is-equal item.action "record_note")}}
                       <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#7693B9"/></svg>
                     {{else if (is-equal item.action "run_eval")}}
@@ -334,18 +511,7 @@
                     <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
                   </div>
                 </div>
-                <div class="md-extras-card__btn-wrap">
-                {{#if (is-equal item.action "supervisors")}}
-                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "openSupervisorsModal"}}>
-                    {{t "View" key="view"}} →
-                  </button>
-                {{else}}
-                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "extraAction" item.action}}>
-                    {{t item.btn_default key=item.btn_key}} →
-                  </button>
-                {{/if}}
-                </div>
-              </article>
+              </button>
             {{/if}}
           {{/each}}
         </div>
@@ -355,6 +521,7 @@
   </main>
   {{/if}}
 
+  {{/if}}{{!-- /focusedHomeLayout --}}
   </div>{{!-- .md-workspace --}}
 
   {{#if this.isSearchOpen}}

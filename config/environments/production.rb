@@ -10,7 +10,14 @@ Rails.application.configure do
   # Rake tasks automatically ignore this option for performance.
   config.eager_load = true
 
-  config.secret_key_base = ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]
+  # Fail loud at boot if SECRET_KEY_BASE is missing. The previous form
+  # (`ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]`) silently collapsed two
+  # encryption domains and made rotation procedures ambiguous.
+  # Render production sets SECRET_KEY_BASE via `generateValue: true`.
+  secret_key_base = ENV.fetch('SECRET_KEY_BASE')
+  raise ArgumentError, 'SECRET_KEY_BASE must be set and non-blank' if secret_key_base.strip.empty?
+
+  config.secret_key_base = secret_key_base
   
   # Full error reports are disabled and caching is turned on.
   config.consider_all_requests_local       = false
@@ -88,8 +95,17 @@ Rails.application.configure do
   # Disable automatic flushing of the log to improve performance.
   # config.autoflush_log = false
 
-  # Use default logging formatter so that PID and timestamp are not suppressed.
-  config.log_formatter = ::Logger::Formatter.new
+  # Use a PII-scrubbing log formatter (keeps PID/timestamp). Under Cloud Run all
+  # stdout is ingested into HIPAA-scoped Cloud Logging, so this is a defense-in-depth
+  # net only. It redacts email, phone (separator-required), SSN, and IPv4 patterns.
+  # It does NOT scrub names, usernames, utterances, board labels, linking codes, or
+  # global_ids -- the highest-value PHI in an AAC product is a child's name/utterance,
+  # which no regex catches reliably. Keeping PHI out of logs therefore remains a
+  # per-call-site responsibility (use global_id, not user_name; do not log raw user
+  # content); this formatter is the last line of defense, not the primary one. See
+  # lib/pii_scrubbing_formatter.rb and PiiScrubber.scrub_log_line for scope/caveats.
+  require_relative '../../lib/pii_scrubbing_formatter'
+  config.log_formatter = PiiScrubbingFormatter.new
 
   if ENV["RAILS_LOG_TO_STDOUT"].present?
     logger           = ActiveSupport::Logger.new(STDOUT)

@@ -1,5 +1,7 @@
+require_relative '../../../lib/method_tracer'
+
 class Api::BoardsController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+  extend MethodTracer
   before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download, :index]
   # index: allowed unauthenticated for public board search (no user_id or user_id=cache). cache: requires auth (not in except list).
 
@@ -35,7 +37,18 @@ class Api::BoardsController < ApplicationController
       end
     end
     start = Time.now.to_i
-    boards = boards.includes(:board_content)
+    # `:parent_board` eager-load prevents the N+1 in `lib/json_api/board.rb`
+    # where `build_json` unconditionally accesses `board.parent_board` for
+    # every result. Without this include, a paginated index call fires one
+    # extra SELECT per board (~25 at default per_page). Verified by the
+    # regression spec in spec/controllers/api/boards_controller_spec.rb.
+    # See docs/task-management/2026-05-27-boards-index-n-plus-one.md.
+    # NOTE: id-only partial selects off this relation (the two
+    # `.except(:includes)` sites below, ~line 173 and ~307) drop this
+    # eager-load so the :parent_board preloader does not read an unselected
+    # parent_board_id FK (LINGOLINQ-RAILS-J). If you ever switch this to a
+    # `references`/`eager_load`-backed join, update those two sites too.
+    boards = boards.includes(:board_content, :parent_board)
     other_boards = nil
     other_searchable_board_ids = nil
 
@@ -155,7 +168,14 @@ class Api::BoardsController < ApplicationController
           locs = locs.where(locale: [params['locale'], params['locale'].split(/-|_/)[0]])
         end
         if params['user_id']
-          board_ids = boards.select('id, board_content_id').limit(500).map(&:id)
+          # `.except(:includes)`: `boards` carries `includes(:board_content,
+          # :parent_board)` for the full serialization path below. A partial
+          # `select('id, board_content_id')` omits `parent_board_id`, so the
+          # preloader raises MissingAttributeError when it reads the
+          # :parent_board foreign key off these records. We only want the ids
+          # here, so drop the eager-load entirely (also avoids a wasted
+          # preload over up to 500 discarded records). See LINGOLINQ-RAILS-J.
+          board_ids = boards.except(:includes).select('id, board_content_id').limit(500).map(&:id)
           locs = locs.where(board_id: board_ids)
         end
         board_ids = []
@@ -284,7 +304,12 @@ class Api::BoardsController < ApplicationController
       if !params['q'].blank? && !params['public']
         limited_boards = boards
         if params['allow_job'] #&& boards.limit(26).select('id').length > 25
-          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []))
+          # `.except(:includes)`: see the note above. The partial select omits
+          # `parent_board_id`, which the `includes(:parent_board)` preloader
+          # needs, so loading these records raised MissingAttributeError and
+          # 500'd the request (LINGOLINQ-RAILS-J). We only need the global_ids
+          # to hand off to the background long_query job.
+          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.except(:includes).select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []), for_user: @api_user)
           boards = []
         else
           # For private user searches this will limit to the user's first 25 boards
@@ -330,7 +355,7 @@ class Api::BoardsController < ApplicationController
     ApplicationRecord.using(:master) do
       # Followers can get behind, resulting in outdated info being
       # sent back to the user, or used for background jobs :-/
-      board = Board.find_by_path(params['id'])
+      board = Board.find_by_possibly_old_path(params['id'])
     end
     if !board
       deleted_board = DeletedBoard.find_by_path(params['id'])
@@ -368,7 +393,118 @@ class Api::BoardsController < ApplicationController
     render json: json.to_json
     Rails.logger.warn('done with controller')
   end
-  
+
+  # One-shot tree fetch: returns the root board AND every reachable
+  # descendant in a single response. The frontend uses this for the
+  # initial board entry so the whole sub-tree lands in cache in one
+  # round-trip — every subsequent folder tap inside that tree is then
+  # served synchronously from cache, no network, no overlay flash.
+  #
+  # Leans on `Board#downstream_board_ids` (already precomputed and
+  # stored in settings by `upstream_downstream#track_downstream_boards!`)
+  # so we don't have to walk the tree at request time. One bulk
+  # `Board.find_all_by_global_id` resolves every descendant in one
+  # query. Each board's JSON is serialized via the same
+  # `JsonApi::Board.as_json` path the `show` action uses, so the
+  # client treats responses identically.
+  #
+  # Capped at MAX_TREE descendants for safety — a healthy AAC vocab
+  # tree is well under that ceiling; extremely large trees fall back
+  # to the depth-1 prefetch on the client.
+  MAX_TREE = 500
+  def tree
+    # Member route is GET /api/v1/boards/:board_id/tree, so Rails supplies
+    # params['board_id'] (NOT params['id']). Reading 'id' here made every
+    # /tree request resolve to a nil board -> 404 "Record not found",
+    # silently disabling the instant-cache prefetch. Accept both.
+    board_path = params['board_id'] || params['id']
+    root = nil
+    ApplicationRecord.using(:master) do
+      root = Board.find_by_possibly_old_path(board_path)
+    end
+    return unless exists?(root)
+    return unless allowed?(root, 'view')
+
+    descendant_ids = ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
+    descendants = []
+    if descendant_ids.any?
+      ApplicationRecord.using(:master) do
+        descendants = Board.find_all_by_global_id(descendant_ids)
+      end
+      # Permission filter. Use the Permissable model method `allows?`
+      # directly — NOT the controller's `allowed?`, which renders an
+      # error response as a side effect (it's designed for single-
+      # resource gates, not list filtering). `scopes` mirrors what
+      # `allowed?` computes internally via `api_permission_scopes`.
+      scopes = api_permission_scopes
+      descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
+    end
+
+    # as_lite drops the per-board N+1 enrichment (parent_board, find_copies_by,
+    # shared_users, per-image ButtonImage lookups) that made this endpoint
+    # Rack::Timeout under MAX_TREE fan-out. See RCA 2026-05-24, issue #286.
+    # Gated by a deploy-free kill-switch (see lite_board_serialization?).
+    lite = lite_board_serialization?
+    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
+    descendants_json = descendants.map do |b|
+      JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
+    end
+    render json: { root: root_json, descendants: descendants_json }
+  end
+
+  # Kill-switch for the #tree / #bulk lite serialization (RCA 2026-05-24,
+  # issue #286). Lite is ON by default. Ops can revert to the full as_json
+  # path WITHOUT a deploy by writing the Setting from a console:
+  #   Setting.set('tree_lite_serialization', 'false')
+  # and re-enable with any other value (or by deleting the Setting). The
+  # Setting.set call busts the Redis cache, so the flip takes effect on the
+  # next request. The unset (default-on) path is one cached lookup, O(1) per
+  # request, negligible next to the per-board fan-out this removes.
+  def lite_board_serialization?
+    Setting.get_cached('tree_lite_serialization') != 'false'
+  end
+  private :lite_board_serialization?
+
+  # Bulk-resolve a list of board keys/ids in one request. The frontend
+  # uses this to pre-warm the boardDetailCache for a board's reachable
+  # sub-tree on initial entry — one round-trip per BFS layer instead of
+  # one per board. Permission-filtered: a board the caller can't view
+  # is silently dropped from the response (the client just won't have a
+  # cache entry and will fall back to the per-board endpoint if they
+  # navigate to it later, where the standard auth error path applies).
+  #
+  # Capped at MAX_BULK to prevent abuse / runaway memory; typical AAC
+  # vocab trees fit comfortably under that ceiling.
+  MAX_BULK = 200
+  def bulk
+    raw_keys = params[:keys]
+    raw_keys = [raw_keys] unless raw_keys.is_a?(Array)
+    keys = raw_keys.map { |k| k.to_s.strip }.reject(&:blank?).uniq.first(MAX_BULK)
+    return render(json: { boards: [] }) if keys.empty?
+
+    boards = []
+    ApplicationRecord.using(:master) do
+      # find_by_path accepts both global IDs ("1_123") and key paths
+      # ("user_name/board"), matching the single-board endpoint.
+      boards = keys.map { |k| Board.find_by_path(k) }.compact
+    end
+
+    # Permission filter via the Permissable model method `allows?`
+    # (NOT the controller's `allowed?`, which renders an error
+    # response as a side effect). Denied boards are silently dropped.
+    scopes = api_permission_scopes
+    visible = boards.select { |b| b && b.allows?(@api_user, 'view', scopes) }
+
+    # Same lite serialization as #tree: this is a prefetch warm, not a
+    # navigation, so skip the per-board N+1 enrichment (RCA 2026-05-24,
+    # issue #286). Same deploy-free kill-switch as #tree.
+    lite = lite_board_serialization?
+    out = visible.map do |board|
+      JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
+    end
+    render json: { boards: out }
+  end
+
   def from_html
     permitted = params.permit(:html, :name, :key, :locale)
     html = permitted[:html].to_s
@@ -419,7 +555,12 @@ class Api::BoardsController < ApplicationController
       user: @api_user
     )
     if result[:error]
-      return api_error(503, { error: result[:error] })
+      err_payload = { error: result[:error] }
+      if Rails.env.development?
+        err_payload[:error_detail] = result[:error_detail] if result[:error_detail].present?
+        err_payload[:error_kind] = result[:error_kind] if result[:error_kind].present?
+      end
+      return api_error(503, err_payload)
     end
     words = result[:words]
     return api_error(400, { error: 'Could not generate words' }) if words.blank?
@@ -464,6 +605,13 @@ class Api::BoardsController < ApplicationController
       end
       return unless allowed?(user, 'edit')
       @board_user = user
+    end
+    if FeatureFlags.feature_enabled_for?('english_first_board_generation', @api_user)
+      locale = board_params['locale'].to_s
+      translations = board_params['translations']
+      if locale.present? && !locale.match?(/^en/i) && translations.blank?
+        board_params['locale'] = 'en'
+      end
     end
     opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
     if board_params['parent_board_id']
@@ -643,7 +791,7 @@ class Api::BoardsController < ApplicationController
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])
     return unless allowed?(board, 'edit')
-    progress = Progress.schedule(board, :slice_locales, params['locales'], params['ids_to_update'], (@api_user && @api_user.global_id))
+    progress = Progress.schedule(board, :slice_locales, params['locales'], params['ids_to_update'], (@api_user && @api_user.global_id), for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -719,13 +867,18 @@ class Api::BoardsController < ApplicationController
       'text_only' => params['text_only'] == '1',
       'text_case' => params['text_case'],
       'font' => params['font']
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
   
   def import
     if params['url']
-      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'])
+      extra = {}
+      raw = params['recipient_global_ids'] || params.dig('board', 'recipient_global_ids')
+      if raw.present?
+        extra['recipient_global_ids'] = raw.is_a?(Array) ? raw : raw.to_s.split(/,/).map(&:strip).reject(&:blank?)
+      end
+      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'], extra, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     else
       type = (params['type'] == 'obz' ? 'obz' : 'obf')
@@ -749,14 +902,23 @@ class Api::BoardsController < ApplicationController
     translations = translations.to_unsafe_h if translations.respond_to?(:to_unsafe_h)
     set_as_default = true
     set_as_default = false if params['set_as_default'] == false || params['set_as_default'] == 'false' || params['set_as_default'] == 0 || params['set_as_default'] == '0'
+    # When the client opts in via `force_update_default`, the server
+    # applies the new labels to the visible button text even when
+    # source_lang == destination_lang. The default behavior (off)
+    # leaves `set_as_default_here` falsy in same-locale re-translation
+    # so existing labels are preserved; the flag is set by the
+    # Re-Translate path in translation-select.js where the user has
+    # explicitly chosen to overwrite.
+    force_update_default = params['force_update_default'] == '1' || params['force_update_default'] == 'true' || params['force_update_default'] == true || params['force_update_default'] == 1
     progress = Progress.schedule(board, :translate_set, translations, {
       'source' => params['source_lang'],
       'dest' => params['destination_lang'],
       'allow_fallbacks' => params['fallbacks'] == '1' || params['fallbacks'] == 'true' || params['fallbacks'] == true || params['fallbacks'] == 1,
+      'force_update_default' => force_update_default,
       'board_ids' => ids,
       'default' => set_as_default,
       'user_key' => user_for_paper_trail
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -767,7 +929,7 @@ class Api::BoardsController < ApplicationController
     ids = params['board_ids_to_convert'] || []
     ids << board.global_id
     ids << "new:#{board.global_id}" if params['include_new']
-    progress = Progress.schedule(board, :swap_images, params['library'], @api_user.global_id, ids)
+    progress = Progress.schedule(board, :swap_images, params['library'], @api_user.global_id, ids, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -777,7 +939,7 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(board, 'edit')
     ids = params['board_ids_to_update'] || []
     ids << board.global_id
-    progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids)
+    progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 

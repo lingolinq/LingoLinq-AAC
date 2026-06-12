@@ -228,8 +228,46 @@
           </div>
         {{else}}
           <div class='col-sm-12' style='margin-top: 8px;'>
+            {{#if this.ai_focus_generation_enabled}}
+              <div class="nb-ai-generate">
+                <p class="nb-ai-generate__lead">{{t "Describe a topic, book, or lesson and AI will suggest focus words. You can review and edit the list before applying it." key="ai_generate_focus_words_lead"}}</p>
+                {{#if this.ai_generate_error}}
+                  <div class="nb-alert nb-alert--warning" role="alert">
+                    <span class="nb-alert__icon" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                        <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                      </svg>
+                    </span>
+                    <div class="nb-alert__body">
+                      <p class="nb-alert__text">{{this.ai_generate_error}}</p>
+                    </div>
+                  </div>
+                {{/if}}
+                <div class="form-group">
+                  <label for="focus_words_ai_prompt">{{t "Description" key="ai_focus_words_description_label"}}</label>
+                  <Textarea id="focus_words_ai_prompt" @value={{this.ai_prompt}} class="form-control" rows="2" placeholder={{t "e.g. The Grinch, kindergarten morning circle, fractions lesson" key="ai_focus_words_description_placeholder"}} />
+                </div>
+                <div class="form-group">
+                  <label for="focus_words_ai_count">{{t "Number of words" key="ai_focus_words_count_label"}}</label>
+                  <Input id="focus_words_ai_count" @type="number" @value={{this.ai_word_count}} min="5" max="50" class="form-control" />
+                </div>
+                <button type="button"
+                        class="btn btn-primary nb-ai-generate__btn"
+                        disabled={{this.ai_generate_disabled}}
+                        aria-disabled={{if this.ai_generate_disabled "true" "false"}}
+                        {{action "generate_focus_words_with_ai"}}>
+                  {{#if this.ai_generating}}
+                    {{t "Generating Focus Words..." key="ai_generating_focus_words"}}
+                  {{else}}
+                    {{t "Generate Focus Words with AI" key="ai_generate_focus_words_btn"}}
+                  {{/if}}
+                </button>
+              </div>
+            {{/if}}
             <div class="form-group">
-              <Textarea @value={{this.words}} class="form-control" placeholder="Enter a custom list of focus words" />
+              <Textarea @value={{this.words}} class="form-control" placeholder={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} />
             </div>
           </div>
           {{#if this.model.user}}

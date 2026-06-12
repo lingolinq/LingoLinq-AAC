@@ -2,12 +2,12 @@
 <div class={{if this.pictureState "active" "hidden"}}>
   {{#if this.show_libraries}}
     {{#if this.image_libraries}}
-      <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key="library_colon"}}</div>
+      <div style='float: left; width: 55px; font-size: 14px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
         {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=this.image_libraries selection=this.image_library action=(action (mut this.image_library)) }}
       </div>
     {{else}}
-      <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
+      <div style='float: left; width: 255px; font-size: 14px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
     {{/if}}
     {{#if this.app_state.feature_flags.skin_tones}}
       <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action "library_options"}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
@@ -20,7 +20,7 @@
         </div>
       {{/if}}
     {{/if}}
-    <div style='font-size: 12px; margin-top: 5px;' class='text-muted'>
+    <div style='font-size: 14px; margin-top: 5px;' class='text-muted'>
       <em>{{t "Enter a search term, or paste a URL or file" key="search_or_paste"}}</em>
     </div>
   {{/if}}
@@ -53,7 +53,7 @@
       <button type="button" class='btn btn-default' style='width: 44px; height: 34px; overflow: hidden;'>
         <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
       </button>
-      <input type="file" name="image_upload" id="image_upload" accept="image/*">
+      <input type="file" name="image_upload" id="image_upload" accept="image/*" tabindex="-1">
     </span>
     {{#if this.show_library_options}}
       <div style='margin-top: 3px;'>
@@ -124,7 +124,7 @@
         {{/unless}}
         <div style="margin-top: 10px;">
           <button type="button" class='btn btn-primary' {{action "select_image_preview"}}>
-            {{#if this.button.pending}}
+            {{#if this.model.pending_image}}
               {{t "Saving..." key="saving"}}
             {{else}}
               {{t "Use This" key="use_this"}}
@@ -205,7 +205,7 @@
           {{#unless this.webcam}}
             {{#if this.model.image.url}}
               <div style="text-align: center; margin-bottom: 10px; margin-top: 10px;">
-                <img src={{this.model.image.best_url_without_preferred_symbols}} class="button_image">
+                <img src={{or this.fresh_picture_url this.model.image.url this.model.image.best_url_without_preferred_symbols}} class="button_image">
               </div>
               {{pick-license license=this.model.image.license}}
               {{#if this.model.image.skinned}}

@@ -1391,6 +1391,17 @@ describe UserBadge, type: :model do
   end
 
   describe "process_goal_badges" do
+    it "accepts badges as a hash with numeric keys (JSON object form)" do
+      h = ActiveSupport::HashWithIndifferentAccess.new(
+        '0' => {'simple_type' => 'custom', 'image_url' => 'http://example.com/a.png'},
+        '1' => {'simple_type' => 'custom', 'image_url' => 'http://example.com/b.png'}
+      )
+      res = UserBadge.process_goal_badges(h)
+      expect(res.length).to eq(2)
+      expect(res[0]['level']).to eq(1)
+      expect(res[1]['level']).to eq(2)
+    end
+
     it "should process basic parameters" do
       res = UserBadge.process_goal_badges([])
       expect(res).to eq([])

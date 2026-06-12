@@ -1,0 +1,53 @@
+{{#if this.loadError}}
+  <p role="alert">{{t "Could not load features. Try again or sign in as an admin." key="system_settings_features_load_error"}}</p>
+{{else}}
+  <p class="la-system-settings__hint">{{this.scopeHint}}</p>
+  {{#if this.inheritedLabel}}
+    <p class="la-system-settings__scope-badge"><span class="label label-info">{{this.inheritedLabel}}</span></p>
+  {{/if}}
+
+  <div class="la-system-settings__toolbar">
+    <label class="la-system-settings__search-label">
+      <span class="la-system-settings__label-text">{{t "Search" key="system_settings_search_label"}}</span>
+      <Input @type="search" @value={{this.searchQuery}} class="form-control la-system-settings__search-input" autocomplete="off" placeholder={{t "Feature name…" key="system_settings_features_search_placeholder"}} />
+    </label>
+    <label class="la-system-settings__filter">
+      <span class="la-system-settings__label-text">{{t "Category" key="system_settings_category_label"}}</span>
+      <select class="form-control" onchange={{action (mut this.categoryFilter) value="target.value"}}>
+        {{#each this.categoryOptions as |opt|}}
+          <option value={{opt.id}} selected={{is-equal opt.id this.categoryFilter}}>{{opt.label}}</option>
+        {{/each}}
+      </select>
+    </label>
+  </div>
+
+  {{#if this.loading}}
+    <p class="la-system-settings__loading" aria-live="polite">{{t "Loading..." key="loading"}}</p>
+  {{else if this.filteredFeatures.length}}
+    <ul class="la-system-settings__feature-list">
+      {{#each this.filteredFeatures as |feature|}}
+        <li class="la-system-settings__feature-item">
+          <label class="la-system-settings__feature-label">
+            <Input @type="checkbox" @checked={{get this.pendingToggles feature.key}} @disabled={{feature.env_locked}} {{action "toggleFeature" feature.key on="change"}} />
+            <span class="la-system-settings__feature-name">{{feature.name}}</span>
+            <span class="la-system-settings__feature-key">{{feature.key}}</span>
+          </label>
+          <p class="la-system-settings__feature-desc">{{feature.description}}</p>
+          {{#if feature.env_locked}}
+            <span class="label label-warning">{{t "Controlled by environment variable" key="system_settings_env_locked"}}</span>
+          {{/if}}
+          {{#if feature.ai_feature}}
+            <span class="label label-default">{{t "AI feature" key="system_settings_ai_feature"}}</span>
+          {{/if}}
+        </li>
+      {{/each}}
+    </ul>
+  {{else}}
+    <p>{{t "No features match your filters." key="system_settings_features_empty"}}</p>
+  {{/if}}
+
+  <div class="la-system-settings__actions">
+    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{action "saveFeatures"}}>{{t "Save" key="save"}}</button>
+    <button type="button" class="btn btn-default" disabled={{this.saving}} {{action "resetFeatures"}}>{{this.resetButtonLabel}}</button>
+  </div>
+{{/if}}

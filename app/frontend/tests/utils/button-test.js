@@ -34,6 +34,18 @@ context('Button', function() {
       expect(button.get('talkAction')).toEqual(true);
       expect(button.get('folderAction')).toEqual(false);
     });
+
+    it("should treat disabled links as talk buttons", function() {
+      var button = Button.create({
+        load_board: {id: '1_2', key: 'example/linked'},
+        link_disabled: true
+      });
+      expect(button.get('buttonAction')).toEqual('talk');
+      expect(button.get('talkAction')).toEqual(true);
+      expect(button.get('folderAction')).toEqual(false);
+      button.set('link_disabled', false);
+      expect(button.get('buttonAction')).toEqual('folder');
+    });
   });
 
   it("should run this test once", function() {
@@ -409,6 +421,76 @@ context('Button', function() {
       waitsFor(function() { return loaded; });
       runs(function() {
         expect(b.get('local_image_url')).toEqual('http://www.example.com/pic.png');
+      });
+    });
+
+    it('should ignore stale findRecord results after image_id changes', function() {
+      var b = Button.create();
+      b.image_id = '1';
+      var deferred = RSVP.defer();
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        if(type === 'image' && id === '1') {
+          return deferred.promise;
+        }
+        return RSVP.reject('unexpected lookup');
+      });
+
+      var oldImage = LingoLinq.store.push({ data: {
+        id: '1',
+        type: 'image',
+        attributes: { url: 'http://www.example.com/old.png' }
+      }});
+      var newImage = LingoLinq.store.push({ data: {
+        id: '2',
+        type: 'image',
+        attributes: { url: 'http://www.example.com/new.png' }
+      }});
+      stub(newImage, 'checkForDataURL', function() { return RSVP.resolve(newImage); });
+      stub(oldImage, 'checkForDataURL', function() { return RSVP.resolve(oldImage); });
+
+      var loaded = false;
+      b.load_image().then(function() {
+        loaded = true;
+      });
+
+      b.set('image', newImage);
+      b.set('local_image_url', 'http://www.example.com/new.png');
+      b.image_id = '2';
+      deferred.resolve(oldImage);
+
+      waitsFor(function() { return loaded; });
+      runs(function() {
+        expect(b.get('image.id')).toEqual('2');
+        expect(b.get('local_image_url')).toEqual('http://www.example.com/new.png');
+      });
+    });
+
+    it('should not reuse a stale button.image_url after image_id changes', function() {
+      var b = Button.create({
+        image_id: '2',
+        image_url: 'http://www.example.com/old.png',
+        board: EmberObject.create({
+          image_urls: {
+            1: 'http://www.example.com/old.png'
+          }
+        })
+      });
+      var assigned = LingoLinq.store.push({ data: {
+        id: '2',
+        type: 'image',
+        attributes: { url: 'http://www.example.com/new.png' }
+      }});
+      stub(assigned, 'checkForDataURL', function() { return RSVP.resolve(assigned); });
+      b.set('image', assigned);
+
+      var loaded = false;
+      b.load_image('local').then(function() {
+        loaded = true;
+      });
+      waitsFor(function() { return loaded; });
+      runs(function() {
+        expect(b.get('image.id')).toEqual('2');
+        expect(b.get('image.url')).toEqual('http://www.example.com/new.png');
       });
     });
   });

@@ -92,7 +92,7 @@ module ExternalTracker
       return nil
     end
     if res.code.to_i >= 300
-      Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code} body=#{res.body.to_s[0, 500]}")
+      Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code}")
     end
     res.code
   end

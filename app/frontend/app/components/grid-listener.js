@@ -3,6 +3,19 @@ import $ from 'jquery';
 
 
 export default Component.extend({
+  triggerGridEvent: function() {
+    var args = Array.prototype.slice.call(arguments);
+    var gridEvent = this.get('gridEvent') || this.get('grid_event');
+    if (gridEvent && typeof gridEvent === 'function') {
+      gridEvent.apply(null, args);
+    } else {
+      var actionName = typeof gridEvent === 'string' ? gridEvent : 'grid_event';
+      var target = this.get('targetObject');
+      if (target && typeof target.send === 'function') {
+        target.send.apply(target, [actionName].concat(args));
+      }
+    }
+  },
   touchStart: function (event) {
     this.select(event);
   },
@@ -16,14 +29,7 @@ export default Component.extend({
     var $cell = $(event.target).closest('div.cell');
     if ($cell.length) {
       event.preventDefault();
-      var gridEvent = this.get('gridEvent') || this.get('grid_event');
-      if (gridEvent && typeof gridEvent === 'function') {
-        gridEvent('setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
-      } else if (gridEvent && typeof gridEvent === 'string') {
-        this.sendAction(gridEvent, 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
-      } else {
-        this.sendAction('grid_event', 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
-      }
+      this.triggerGridEvent('setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
     }
   },
   didInsertElement: function () {
@@ -38,25 +44,10 @@ export default Component.extend({
   },
   handleMouseMove: function (event) {
     var $cell = $(event.target).closest('div.cell');
-    var gridEvent = this.get('gridEvent') || this.get('grid_event');
-    if (gridEvent && typeof gridEvent === 'function') {
-      if ($cell.length) {
-        gridEvent('hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
-      } else {
-        gridEvent('hoverOffGrid');
-      }
-    } else if (gridEvent && typeof gridEvent === 'string') {
-      if($cell.length) {
-        this.sendAction(gridEvent, 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
-      } else {
-        this.sendAction(gridEvent, 'hoverOffGrid');
-      }
+    if($cell.length) {
+      this.triggerGridEvent('hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
     } else {
-      if($cell.length) {
-        this.sendAction('grid_event', 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
-      } else {
-        this.sendAction('grid_event', 'hoverOffGrid');
-      }
+      this.triggerGridEvent('hoverOffGrid');
     }
   }
 });

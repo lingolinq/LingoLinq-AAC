@@ -2,13 +2,34 @@ import { htmlSafe } from '@ember/template';
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
+import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { later as runLater } from '@ember/runloop';
+import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 export default Component.extend({
   appState: service('app-state'),
   router: service('router'),
+  /** Drives the full-screen "Loading Board Preview" overlay rendered
+   *  at the bottom of board-icon.hbs. Set to true on board_preview
+   *  and cleared after a short delay so the spinner shows while the
+   *  modal materializes. */
+  loadingPreview: false,
+  triggerExternalAction: function(actionName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    var action = this.get(actionName);
+    if (action && typeof action === 'function') {
+      return action.apply(null, args);
+    }
+
+    var targetActionName = typeof action === 'string' ? action : actionName;
+    var target = this.get('targetObject');
+    if (targetActionName && target && typeof target.send === 'function') {
+      return target.send.apply(target, [targetActionName].concat(args));
+    }
+  },
   willInsertElement: function() {
     this.set_board_record();
   },
@@ -123,17 +144,87 @@ export default Component.extend({
       return htmlSafe('cursor: default; opacity: 0.6; pointer-events: none;');
     }
   }),
+  /* Translated-language marker for the tile. Returns the readable
+     language name (e.g. "Spanish", "Polish") when the board has been
+     translated to a non-English locale OR has multiple locales
+     available; null otherwise. The board's `locale` field reflects
+     the CURRENT default locale (set when a translation is accepted
+     as default), so a Spanish-translated board has `locale = 'es'`
+     even if the board name itself is still the original English.
+     Multi-locale boards still mark with the current locale so the
+     user can tell at a glance which language they'd be picking. */
+  translated_language_label: computed('board_record.locale', 'board_record.locales.length', function() {
+    var board = this.get('board_record');
+    if (!board || !board.get) { return null; }
+    var locale = board.get('locale');
+    var locales = board.get('locales') || [];
+    var hasMultiple = locales && locales.length > 1;
+    var nonDefault = locale && locale !== 'en' && locale !== 'en-US';
+    if (!hasMultiple && !nonDefault) { return null; }
+    if (!locale) { return null; }
+    return i18n.readable_language(locale);
+  }),
+  tile_aria_label: computed('best_name', 'translated_language_label', function() {
+    var name = this.get('best_name') || '';
+    var lang = this.get('translated_language_label');
+    if(lang) {
+      return name + ', ' + lang;
+    }
+    return name;
+  }),
   actions: {
+    /* Keyboard activation for the role="button" div that wraps the
+       card body — Enter and Space mirror the click handler so the
+       tile remains keyboard-operable now that it's not a native
+       <button> (a real button would block the parent's drag). */
+    pickKeydown: function(event) {
+      if (!event) { return; }
+      var key = event.key;
+      if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+        event.preventDefault();
+        this.send('pick_board', this.get('board_record'));
+      }
+    },
     board_preview: function(board) {
       var _this = this;
+      /* Flip the loading flag immediately so the overlay paints on
+         this same render tick — the modal opens synchronously below
+         but the data it needs (locale defaults, board record
+         hydration) can hold up the visual modal for a noticeable
+         beat. The overlay covers that gap. Cleared after 1.2s,
+         which is comfortably past the typical modal-open time. */
+      _this.set('loadingPreview', true);
+      runLater(_this, function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('loadingPreview', false);
+      }, 1200);
       board.preview_option = null;
       if(_this.get('localized')) {
         board.preview_locale = this.get('board_record.localized_locale');
       }
+      /* Forward the parent's remove context (label/icon/type/callback)
+         onto the board so the preview modal can render a touch-friendly
+         delete affordance. The hover-only `.board_action` button on the
+         tile is unreachable on touch devices; this carries the same
+         contextual remove (delete / unlike / unshare / untag) into the
+         modal. Only set when the parent supplied a callback — contexts
+         without remove permission (public browse, style-picker drill)
+         leave it null and the modal hides the button. */
+      var removeCallback = _this.get('removeCallback');
+      if(removeCallback) {
+        board.preview_remove = {
+          type: _this.get('removeType'),
+          label: _this.get('removeLabel'),
+          icon: _this.get('removeIcon'),
+          callback: removeCallback
+        };
+      } else {
+        board.preview_remove = null;
+      }
       if(_this.onActionOverride && typeof _this.onActionOverride === 'function') {
         _this.onActionOverride(this.get('board_record.key'));
       } else if(_this.get('action_override')) {
-        _this.sendAction('action_override', this.get('board_record.key'));
+        _this.triggerExternalAction('action_override', this.get('board_record.key'));
       } else {
         modal.board_preview(board, board.preview_locale, this.get('allow_style'), function() {
           _this.send('pick_board', board);
@@ -158,11 +249,24 @@ export default Component.extend({
         _this.onActionOverride(key);
       } else if(_this.get('action_override')) {
         var key = board_record.get ? board_record.get('key') : board_record.key;
-        _this.sendAction('action_override', key);
+        _this.triggerExternalAction('action_override', key);
       } else if(_this.onAction && typeof _this.onAction === 'function') {
-        _this.onAction(board_record);
+        // Copy-cluster folders are passed in as a { board, children }
+        // wrapper, and load_children needs that wrapper intact (board_list
+        // reads parent_object.board / parent_object.children when drilling
+        // in). set_board_record unwraps `board` down to the inner record
+        // for display, so when this icon represents a children cluster
+        // hand back the ORIGINAL wrapper; otherwise (e.g. find-a-board's
+        // selectFoundBoard, which has no children) keep the unwrapped
+        // record so that behavior is unchanged.
+        var orig = _this.get('board');
+        if(_this.get('children') && orig && orig.children) {
+          _this.onAction(orig);
+        } else {
+          _this.onAction(board_record);
+        }
       } else if(this.get('children')) {
-        _this.sendAction('action', board_record);
+        _this.triggerExternalAction('action', board_record);
       } else if(this.get('option') == 'select') {
         board_record.preview_option = 'select';
         if(_this.get('localized')) {
@@ -172,7 +276,7 @@ export default Component.extend({
           if (_this.onAction && typeof _this.onAction === 'function') {
             _this.onAction(board_record);
           } else {
-            _this.sendAction('action', board_record);
+            _this.triggerExternalAction('action', board_record);
           }
         });
       } else if(_this.get('allow_style') && _this.get('override_count')) {
@@ -180,19 +284,42 @@ export default Component.extend({
           board_record.preview_locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
         modal.board_preview(board_record, board_record.preview_locale, this.get('allow_style'), function() {
-          // _this.sendAction('action', board_record);
         });
       } else {
         var key = board_record.get ? board_record.get('key') : board_record.key;
         var parts = key ? key.split('/') : [];
         if(parts.length === 2) {
-          _this.router.transitionTo('user.board-detail', parts[0], parts[1]);
+          // Card click → board-detail. Paint the shared "Preparing your
+          // Board" overlay (same one Classic ↔ Modern uses) so the
+          // route load is masked instead of flashing source-page chrome.
+          // Theme detection mirrors go_to_modern: default dark, flip to
+          // light only on an explicit non-dark themeMode signal.
+          var routerSvc = _this.router;
+          var appStateService = _this.appState;
+          var isDark = true;
+          if (appStateService && typeof appStateService.get === 'function') {
+            var themeMode = appStateService.get('themeMode');
+            if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
+              isDark = false;
+            }
+          }
+          paint_view_switch_overlay({
+            routerSvc: routerSvc,
+            isDark: isDark,
+            accentLight: false,
+            transition: function() {
+              return routerSvc.transitionTo('user.board-detail', parts[0], parts[1]);
+            }
+          });
         } else {
           var id = board_record.get ? board_record.get('id') : board_record.id;
           var opts = {force_board_state: {key: key, id: id}};
           if(_this.get('localized')) {
             opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
           }
+          // Keyed-board path is an in-app state flip via
+          // home_in_speak_mode, not a route load — no overlay (it would
+          // just flash and dismiss with nothing to mask).
           _this.appState.home_in_speak_mode(opts);
         }
       }

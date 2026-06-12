@@ -67,6 +67,16 @@ var eat_events = function(event) {
   // on mobile, long presses result in unexpected selection issues.
   // This is an attempt to remedy, for Speak Mode at the very least.
   if (!buttonTracker.appState || buttonTracker.appState.isDestroyed || buttonTracker.appState.isDestroying) { return; }
+  // board-detail (modernized board view) relies on browser-synthesized click
+  // events throughout — both the grid buttons ({{action "select_button"}}) and
+  // the page chrome (options toggle, sidebar toggle, sentence-bar tools). The
+  // original board page dispatches selection via raw_events' own frame_event
+  // and doesn't need the synthesized click, which is why this handler has
+  // always been safe there. preventDefault()'ing touchstart here suppresses
+  // click synthesis on Android, so ANY tap inside board-detail silently does
+  // nothing — not just grid buttons. Widen the carve-out to the whole
+  // board-detail view so chrome taps work too.
+  if($(event.target).closest('.board-detail-view, .md-board-detail-grid').length > 0) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
@@ -101,7 +111,6 @@ $(document).on('mousedown touchstart', function(event) {
     buttonTracker.lastTouchStartAny = now;
   }
   if(buttonTracker.dwell_elem && isFinite(event.clientX) && isFinite(event.clientY)) {
-    console.log("linger cleared because touch event");
     buttonTracker.clear_dwell();
     event.target = document.elementFromPoint(event.clientX, event.clientY);
   }
@@ -138,7 +147,6 @@ $(document).on('mousedown touchstart', function(event) {
   }
   buttonTracker.lastTouchRelease = (new Date()).getTime();
   if((event.type == 'mouseup' || event.type == 'touchend' || event.type == 'touchcancel') && buttonTracker.dwell_elem) {
-    console.log("linger cleared because touch release event");
     buttonTracker.clear_dwell();
   }
   if(!event.fake_event) {
@@ -176,6 +184,22 @@ $(document).on('mousedown touchstart', function(event) {
     if(focusedCard.classList.contains('md-board-detail-symbol-card--empty')) { return; }
     // Simulate a click on the card — this triggers the Ember {{action "select_button"}}
     focusedCard.click();
+    return;
+  }
+  // Speak Options modal: the menu's primary controls are <div
+  // class="md-speak-menu__btn"> elements (Share / Repeats / Repairs /
+  // Alerts / Phrases / punctuation / volume) that carry role="button"
+  // tabindex="0" so the modal-dialog focus trap can reach them. They are
+  // activated via the AAC .advanced_selection -> speak_menu region path,
+  // never natively, so Space/Enter must synthesize a click (same proven
+  // mechanism as the board-detail symbol card above). Native <button>
+  // speak-menu controls (Exit / close / bottom row) are skipped here so
+  // the browser activates them exactly once.
+  var focusedMenuBtn = (event.target && event.target.closest) ?
+    event.target.closest('.md-speak-menu__btn') : null;
+  if(focusedMenuBtn && focusedMenuBtn.tagName !== 'BUTTON' && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.preventDefault();
+    focusedMenuBtn.click();
     return;
   }
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open()) {
@@ -1250,19 +1274,35 @@ var buttonTracker = EmberObject.extend({
               $elem.removeClass('focus');
             }, 500);
             $elem.trigger('select');
-          } else if(elem_wrap.dom.tagName == 'A' && $(elem_wrap.dom).closest('#pin').length > 0) {
+          } else if($(elem_wrap.dom).closest('#pin').length > 0 && (elem_wrap.dom.tagName == 'A' || elem_wrap.dom.tagName == 'BUTTON')) {
             event.preventDefault();
-            $(elem_wrap.dom).trigger('select');
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           } else if(
             elem_wrap.dom.classList.contains('speak_menu_button') ||
             elem_wrap.dom.classList.contains('md-speak-menu__btn') ||
             elem_wrap.dom.classList.contains('md-speak-menu__bottom-btn')
           ) {
-            // Native CustomEvent so Ember's event dispatcher receives it (jquery-integration is off).
-            var speakMenuEvent = new CustomEvent('speakmenuselect', { bubbles: true, cancelable: true });
-            speakMenuEvent.button_id = elem_wrap.dom.id;
-            speakMenuEvent.swipe_direction = swipe_direction;
-            elem_wrap.dom.dispatchEvent(speakMenuEvent);
+            if(elem_wrap.dom.tagName === 'BUTTON') {
+              // Native <button> speak-menu controls (Exit Speak Mode,
+              // Speak Mode, speak-as / model-for, locale chips, the
+              // bottom-row buttons) carry an Ember {{action}} and have NO
+              // #menu_* id, so the speakmenuselect path — which is keyed
+              // by elem.id and dispatched to speak-menu's button_event
+              // id-switch — has nothing to match and they silently no-op
+              // on touch. Fire a real passthrough click so the Ember
+              // action runs, the same way the generic non-button speak
+              // menu links are handled in the final else below.
+              event.preventDefault();
+              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            } else {
+              // #menu_* AAC tiles (<div class="md-speak-menu__btn">):
+              // route via the speakmenuselect CustomEvent so Ember's
+              // event dispatcher receives it (jquery-integration is off).
+              var speakMenuEvent = new CustomEvent('speakmenuselect', { bubbles: true, cancelable: true });
+              speakMenuEvent.button_id = elem_wrap.dom.id;
+              speakMenuEvent.swipe_direction = swipe_direction;
+              elem_wrap.dom.dispatchEvent(speakMenuEvent);
+            }
           } else if((elem_wrap.dom.className || "").match(/button/) || elem_wrap.virtual_button) {
             event.swipe_direction = swipe_direction;
             buttonTracker.button_release(elem_wrap, event, event_source);
@@ -1272,6 +1312,21 @@ var buttonTracker = EmberObject.extend({
             // Synthetic native click so Ember actions (e.g. toggleSidebar) run
             event.preventDefault();
             dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+          } else if(event_source === 'click' && event.type === 'mouseup' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view')) {
+            // Board-detail chrome (options menu, sentence-bar tools, sidebar
+            // toggle, etc.) on a MOUSE release: the browser's native click fires
+            // regardless of preventDefault, AND the `.board-detail-view` carve-out
+            // in eat_events keeps it alive — so synthesizing another click here
+            // would fire the Ember {{action}} TWICE (options menu opens then
+            // instantly closes). Do nothing; let the single native mouse click
+            // drive it.
+            //   IMPORTANT — only skip for `mouseup`. On TOUCH (touchend) the
+            // preventDefault above CANCELS the browser's synthesized click, so the
+            // synthetic dispatchPassThroughClick below is the ONLY click; touch
+            // (real tablets AND devtools device-emulation) MUST fall through and
+            // synthesize, or board-detail chrome stops responding to taps.
+            // Dwell / eye-gaze / scanning use a different event_source and also
+            // fall through (no native click of any kind).
           } else {
             event.preventDefault();
             // Speak menu links (Un-Flip, Cancel, etc.) and other non-button targets
@@ -1746,17 +1801,17 @@ var buttonTracker = EmberObject.extend({
   },
   dwell_linger: function(event) {
     // debounce, waiting for clearance
-    if(buttonTracker.dwell_wait) { console.log("linger waiting for dwell timeout"); return; }
+    if(buttonTracker.dwell_wait) { return; }
     // touch events get blocked because mousemove gets triggered by 
     // finger taps and would create a dwell element directly under 
     // the finger, essentially eating all touches
-    if(buttonTracker.triggerEvent && buttonTracker.triggerEvent.type == 'touchstart') { console.log("linger ignored for touch event"); return; }
+    if(buttonTracker.triggerEvent && buttonTracker.triggerEvent.type == 'touchstart') { return; }
 
     var dwell_selection = buttonTracker.dwell_selection != 'button' && buttonTracker.dwell_selection != 'expression';
     // cursor-based trackers can throw the cursor up against the edges of the screen causing
-    // inaccurate lingers for the buttons along the edges
-    if(event.type == 'mousemove' && (event.clientX === 0 || event.clientY === 0 || event.clientX >= (window.innerWidth - 1) || event.clientY >= (window.innerHeight - 1))) {
-      console.log("linger waiting because on a screen edge", event.clientX, event.clientY);
+    // inaccurate lingers for the buttons along the edges. Real mouse pointers can legitimately
+    // sit on viewport-edge buttons, so only apply this guard to non-mouse dwell types.
+    if(event.type == 'mousemove' && buttonTracker.check('dwell_type') != 'mouse_dwell' && (event.clientX === 0 || event.clientY === 0 || event.clientX >= (window.innerWidth - 1) || event.clientY >= (window.innerHeight - 1))) {
       return;
     }
     if(buttonTracker.last_triggering_dwell_event && dwell_selection) {
@@ -1766,7 +1821,6 @@ var buttonTracker = EmberObject.extend({
       var diffX = Math.abs(event.clientX - last.clientX);
       var diffY = Math.abs(event.clientY - last.clientY);
       if(diffX < needed_distance && diffY < needed_distance) {
-        console.log("linger waiting because selected recently");
         return;
       }
     } else if(buttonTracker.debounce) {
@@ -1774,7 +1828,6 @@ var buttonTracker = EmberObject.extend({
       if(buttonTracker.last_selection && buttonTracker.last_selection.ts) {
         var now = (new Date()).getTime();
         if(now - buttonTracker.last_selection.ts < buttonTracker.debounce) {
-          console.log("linger waiting because of debounce after selection");
           return;
         }
       }
@@ -1789,7 +1842,6 @@ var buttonTracker = EmberObject.extend({
     var elem_wrap = buttonTracker.find_selectable_under_event(event, true, false);
     if(elem_wrap && buttonTracker.dwell_ignore == elem_wrap.dom) {
       buttonTracker.dwell_ignore = null;
-      console.log("linger waiting because on an ignored elem");
       return;
     }
     var arrow_or_head_cursor = buttonTracker.check('dwell_type') == 'arrow_dwell' || buttonTracker.check('dwell_type') == 'head';
@@ -1891,7 +1943,6 @@ var buttonTracker = EmberObject.extend({
     buttonTracker.linger_clear_later = runLater(function() {
       // clear the dwell icon if not dwell activity for a period of time
       if(!buttonTracker.dwell_no_cutoff && dwell_selection) {
-        console.log("linger cleared because linger timed out");
         buttonTracker.clear_dwell(elem_wrap && elem_wrap.dom);  
       }
     }, allowed_delay_between_events);
@@ -1916,17 +1967,14 @@ var buttonTracker = EmberObject.extend({
       // if so clear the object, also check for repeat robot events
       if(now - buttonTracker.last_dwell_linger.started > buttonTracker.dwell_timeout + 1000 - duration) {
         // if it's been too long since starting to track the dwell, start over
-        console.log("linger cleared because linger took too long");
         buttonTracker.last_dwell_linger = null;
       } else if(!buttonTracker.dwell_no_cutoff && now - buttonTracker.last_dwell_linger.updated > allowed_delay_between_events - duration) {
         // if it's been too long since the last dwell event, start over
-        console.log("linger cleared because too long a gap");
         buttonTracker.last_dwell_linger = null;
       } else if(!buttonTracker.dwell_no_cutoff && event.type == 'mousemove' && last_event && event.clientX == last_event.clientX && event.clientY == last_event.clientY && (now - buttonTracker.last_dwell_linger.updated) > allowed_delay_between_identical_events) {
         // if it's on the exact same location as the last mouse event
         // and it's been more than 300ms, this sounds suspiciously like
         // an artifical event, which should restart the dwell timer
-        console.log("linger timer reset because exact same location");
         buttonTracker.last_dwell_linger.events = [];
         buttonTracker.last_dwell_linger.started = null;
         buttonTracker.last_dwell_linger.updated = null;
@@ -1935,11 +1983,10 @@ var buttonTracker = EmberObject.extend({
         var bounds = buttonTracker.last_dwell_linger.loose_bounds();
         if(event.clientX < bounds.left || event.clientX > bounds.left + bounds.width ||
               event.clientY < bounds.top || event.clientY > bounds.top + bounds.height) {
-          console.log("linger cleared because out of bounds", event.clientX, event.clientY);
           buttonTracker.last_dwell_linger = null;
         }
       }
-    } else if(event.type == 'mousemove' && buttonTracker.last_dwell_event && event.clientX == buttonTracker.last_dwell_event.clientX && event.clientY == buttonTracker.last_dwell_event.clientY && (now - buttonTracker.last_dwell_event.ts) > allowed_delay_between_identical_events) {
+    } else if(!buttonTracker.dwell_no_cutoff && event.type == 'mousemove' && buttonTracker.last_dwell_event && event.clientX == buttonTracker.last_dwell_event.clientX && event.clientY == buttonTracker.last_dwell_event.clientY && (now - buttonTracker.last_dwell_event.ts) > allowed_delay_between_identical_events) {
       // if the linger has timed out and the next mouse event is exactly
       // the same location as the last event, this sounds like
       // an artificial event, which should be ignored
@@ -1971,11 +2018,9 @@ var buttonTracker = EmberObject.extend({
       var old_dist = (Math.abs(old_bounds.left + (old_bounds.width / 2) - avg_x) + Math.abs(old_bounds.top + (old_bounds.height / 2) - avg_y)) / 2;
       var new_dist = (Math.abs(new_bounds.left + (new_bounds.width / 2) - avg_x) + Math.abs(new_bounds.top + (new_bounds.height / 2) - avg_y)) / 2;
       if(new_dist < old_dist) {
-        console.log("linger switched to new target", event.clientX, event.clientY, elem_wrap.dom);
         buttonTracker.last_dwell_linger = elem_wrap;
       }
     } else if(elem_wrap) {
-      console.log("linger started for new target", event.clientX, event.clientY, elem_wrap.dom);
       buttonTracker.last_dwell_linger = elem_wrap;
     }
 
@@ -2020,17 +2065,20 @@ var buttonTracker = EmberObject.extend({
           // if we're getting close to the dwell timeout, schedule a listener to trigger
           // it in case we don't get a follow-on event in time
           var will_trigger_at = buttonTracker.last_dwell_linger.started + buttonTracker.dwell_timeout;
-          var ms_since_start = now - buttonTracker.last_dwell_linger.started;
           var ms_until_trigger = will_trigger_at - now;
-          if((event.type == 'mousemove' && buttonTracker.dwell_no_cutoff && ms_since_start > minimum_interaction_window) || (ms_until_trigger < allowed_delay_between_events * 3 / 4)) {
+          var schedule_dwell_trigger = false;
+          var trigger_delay = Math.max(0, ms_until_trigger - 50);
+          if(buttonTracker.dwell_no_cutoff && dwell_selection && (event.type == 'mousemove' || event.type == 'gazelinger')) {
+            // Cursor/gaze may stop moving before dwell completes; always schedule the timeout.
+            schedule_dwell_trigger = true;
+            trigger_delay = Math.max(0, ms_until_trigger);
+          } else if(ms_until_trigger < allowed_delay_between_events * 3 / 4) {
+            schedule_dwell_trigger = true;
+          }
+          if(schedule_dwell_trigger) {
             buttonTracker.linger_close_enough_later = runLater(function() {
               buttonTracker.dwell_linger(event);
-            }, ms_until_trigger - 50);
-          } else if(event.type == 'gazelinger' && buttonTracker.dwell_no_cutoff) {
-            buttonTracker.linger_close_enough_later = runLater(function() {
-              console.log("FORCE SELECT");
-              buttonTracker.dwell_linger(event);
-            }, ms_until_trigger - 50);
+            }, trigger_delay);
           }
         }
       } else {
@@ -2113,7 +2161,7 @@ var buttonTracker = EmberObject.extend({
         return null;
       }
       if(region.id == 'pin') {
-        return buttonTracker.element_wrap($target.closest("a")[0]);
+        return buttonTracker.element_wrap($target.closest("a,button")[0]);
       } else if(region.id == 'word_suggestions') {
         return buttonTracker.element_wrap($target.closest("a")[0]);
       } else if(region.id == 'identity') {
@@ -2145,7 +2193,24 @@ var buttonTracker = EmberObject.extend({
         return buttonTracker.element_wrap(region);
       }
     }
+    // board-detail deliberately omits .advanced_selection (see board-detail-grid.hbs);
+    // route dwell/scanning hits through button_from_point instead of Ember click synthesis.
+    if(!region && buttonTracker.appState && buttonTracker.appState.get('speak_mode')) {
+      if($target.closest('.md-board-detail-grid').length > 0) {
+        return buttonTracker.button_from_point(event.clientX, event.clientY);
+      }
+      if($target.closest('#speak.md-board-detail-sentence-row').length > 0) {
+        return buttonTracker.speak_bar_element_from_event($target);
+      }
+    }
     return null;
+  },
+  speak_bar_element_from_event: function($target) {
+    var $row = $target.closest('#speak.md-board-detail-sentence-row');
+    if($row.length === 0 || $row.hasClass('md-board-detail-sentence-row--preview')) { return null; }
+    var elem = $target.closest('button, a, [role="button"], .md-board-detail-sentence-bar__text')[0];
+    if(!elem || elem.disabled) { return null; }
+    return buttonTracker.element_wrap(elem);
   },
   button_from_point: function(x, y) {
     // TODO: support virtual board dom
@@ -2285,6 +2350,34 @@ var buttonTracker = EmberObject.extend({
     }
     return res;
   },
+  // board-detail grid omits .advanced_selection so Ember {{action "select_button"}}
+  // handles pointer clicks. Symbol cards still carry .button, so raw_events also
+  // routes speak-mode releases through buttonSelect — duplicating utterance adds
+  // on mouse (mouseup + synthesized click). Touch suppresses click via
+  // preventDefault on touchend, so raw_events must remain the sole path there.
+  // Dwell, scanning, keyboard, and long-press use non-'click' sources and must
+  // still route through buttonSelect because Ember actions never fire for them.
+  board_detail_grid_target: function(elem) {
+    if(!elem) { return false; }
+    var dom = elem.dom || elem;
+    if(dom && dom.nodeType === 1) {
+      return $(dom).closest('.md-board-detail-grid').length > 0;
+    }
+    if(elem.virtual_button && $('.md-board-detail-grid').length > 0) {
+      return true;
+    }
+    return false;
+  },
+  defer_board_detail_click_to_ember: function(elem, source) {
+    if(source !== 'click') { return false; }
+    if(!buttonTracker.appState || !buttonTracker.appState.get('speak_mode')) { return false; }
+    if(!buttonTracker.board_detail_grid_target(elem)) { return false; }
+    var releaseType = buttonTracker.lastReleaseEvent && buttonTracker.lastReleaseEvent.type;
+    if(releaseType && releaseType.match(/touch/)) {
+      return false;
+    }
+    return true;
+  },
   button_select: function(elem, args, source) {
     var dom = elem.dom || elem;
     // INFLECTIONS OVERLAY: Overlay buttons have select_callback set by editManager.overlay_grid.
@@ -2303,6 +2396,9 @@ var buttonTracker = EmberObject.extend({
           return;
         }
         if(buttonTracker.appState.get('speak_mode')) {
+          if(buttonTracker.defer_board_detail_click_to_ember(elem, source)) {
+            return;
+          }
           editManager.controller.send('buttonSelect', id, args || null);
           return;
         }
@@ -2366,17 +2462,17 @@ var buttonTracker = EmberObject.extend({
         var height = $board.height() + top;
         var pct_x = Math.round((x - left) / width * 1000) / 1000;
         var pct_y = Math.round((y - top) / height * 1000) / 1000;
-        var prior = buttonTracker.hit_spots[buttonTracker.hit_spots.length - 2];
+        var hit_spots = buttonTracker.hit_spots || [];
+        var prior = hit_spots[hit_spots.length - 2];
         if(prior) {
           prior.pct_x = Math.round((prior.x - left) / width * 1000) / 1000;
-          prior.pct_y = Math.round((prior.y - left) / height * 1000) / 1000;
+          prior.pct_y = Math.round((prior.y - top) / height * 1000) / 1000;
         }
-        if(buttonTracker.hit_spots && buttonTracker.hit_spots.length > 0 && buttonTracker.hit_spots[buttonTracker.hit_spots.length - 1].distance != null) {
-          var distance = buttonTracker.hit_spots[buttonTracker.hit_spots.length - 1].distance;
+        if(hit_spots.length > 0 && hit_spots[hit_spots.length - 1].distance != null) {
+          var distance = hit_spots[hit_spots.length - 1].distance;
           travel = Math.round((distance.x / width) + (distance.y / height) * 1000) / 1000;
         } else if(prior) {
           // find based on the last location
-          var prior = buttonTracker.hit_spots[buttonTracker.hit_spots.length - 2];
           var a = Math.abs(pct_x - ((prior.x - left) / width));
           var b = Math.abs(pct_y - ((prior.y - top) / height));
           travel = Math.round(Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2)) * 1000) / 1000;

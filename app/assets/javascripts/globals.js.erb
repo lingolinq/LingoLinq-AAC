@@ -1,3 +1,5 @@
+// Recompile when globally enabled flags change (Sprockets does not track lib/ otherwise).
+//= depend_on feature_flags.rb
 window.default_app_name = <%= (ENV['APP_NAME'] || "LingoLinq").to_json %>;
 window.defualt_company_name = <%= (ENV['COMPANY_NAME'] || "LingoLinq").to_json %>;
 window.enabled_frontend_features = <%= FeatureFlags::ENABLED_FRONTEND_FEATURES.to_json %>;

@@ -1,26 +1,41 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}} {{if this.app_state.edit_mode "edit-mode-active"}} {{if this.app_state.beta_program_access "beta-program-access"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
 {{app-loading-overlay}}
+{{app-toast}}
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
     {{app-navbar onSupport=(action "support")}}
   {{else}}
-  {{#if this.app_state.speak_mode}}
-    <span id="speak">
+  {{#if (and this.app_state.speak_mode this.app_state.currentBoardState.id)}}
+    <span id="speak" class="{{if this.app_state.eval_mode "md-eval-header"}}">
       <span class="speak-header__home-marker">
         {{#triple-click-listener triple_click="meta_home_click"}}
-          {{#if this.on_board_or_alt}}
-            <button class='btn btn-default access {{if this.boardPickerVisible "board-picker-btn--open"}}' id="home_button" {{action (if this.boardPickerVisible "closeBoardPicker" "openBoardPicker")}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}} aria-expanded={{if this.boardPickerVisible "true" "false"}}>
-              {{#if this.boardPickerVisible}}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="20" height="20" aria-hidden="true" style="pointer-events: none; display: block;">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              {{else}}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
-                  <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
-                </svg>
-              {{/if}}
+          {{#if this.app_state.eval_mode}}
+            {{!-- Eval-mode home button — uses the same modern outline-house
+                 icon as the board-detail sentence bar (mirrors that visual
+                 language). Action goes home rather than opening the board
+                 picker since the picker would exit eval anyway. --}}
+            <button class="btn btn-default access" id="home_button" {{action "home"}} style="position: relative;" aria-label={{t "Home" key="home"}}>
+              <span class="sr-only">{{t "Home" key="home"}}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
+                <path d="M3 12 12 3l9 9"/>
+                <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/>
+              </svg>
+            </button>
+          {{else if this.on_board_or_alt}}
+            {{!-- My Boards button — used to open the modal-based
+                 picker (replaced 2026-05-23). Now invokes
+                 `openMyBoards` which stashes the current board so the
+                 boards page can offer a "Back to <board>" chip, then
+                 transitions to /u/:user_name/boards. Single source of
+                 truth: the boards-page route handles the entire UX
+                 (folders, tabs, filter, grid) — no parallel modal
+                 markup or state machine. --}}
+            <button class='btn btn-default access' id="home_button" {{action "openMyBoards"}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
+                <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+              </svg>
             </button>
           {{else}}
             <button class={{if this.on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" {{action "home"}} style='position: relative;'>
@@ -167,7 +182,7 @@
             <!-- TODO: these popups should be dwellable, but if opened via dwell they should auto-close after like ten seconds -->
             <button id='speak_mode_notification' class='btn btn-default' {{action "speak_mode_notification"}}>
               {{#if this.stashes.board_level}}
-                <span style='color: #ddd; font-size: 12px; position: absolute; top: 3px; text-align: right;'>L{{this.stashes.board_level}}</span>
+                <span style='color: #ddd; font-size: 14px; position: absolute; top: 3px; text-align: right;'>L{{this.stashes.board_level}}</span>
               {{/if}}
               {{#if this.app_state.speak_mode_modeling_ideas.enabled}}
                 <span class='notification' style='height: 100%; position: absolute; top: 5px; left: 0; right: 0; bottom: 5px; height: auto;'>
@@ -204,7 +219,19 @@
       {{#triple-click-listener triple_click="toggle_modeling"}}
         <button class="btn btn-default access" id="clear_button" {{action "clear"}} style='position: relative;'>
           <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
-          <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>
+          {{#if this.app_state.eval_mode}}
+            {{!-- Modern trash-can icon for the eval clear button —
+                 mirrors the trash-can icon on board-detail's sentence
+                 bar so the two surfaces share the same Clear glyph. --}}
+            <svg class="md-eval-clear-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              <line x1="10" y1="11" x2="10" y2="17"/>
+              <line x1="14" y1="11" x2="14" y2="17"/>
+            </svg>
+          {{else}}
+            <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>
+          {{/if}}
           {{#if this.app_state.modeling}}
             <div style="position: absolute; bottom: 2px; left: 2px;">
               <span class="glyphicon glyphicon-hand-up"></span>
@@ -255,7 +282,7 @@
           {{else}}
             <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
             <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
-            <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
+            <span style='font-size: 14px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
           {{/if}}
         </button>
         <div class="nav-header__board-bar-right">
@@ -324,7 +351,7 @@
                   {{#if this.app_state.feature_flags.board_levels}}
                     <span class="dropdown" style="display: inline-block;">
                       <a class='btn btn-default' id='level_dropdown' data-toggle="dropdown" href="#" >
-                        <span style='padding: 8px; border-radius: 100px; border: 1px solid #96ceff; background: #eaf5ff; margin-left: -5px'>L{{this.board.current_level}}</span>
+                        <span style='padding: 8px; border-radius: 100px; border: 1px solid #96ceff; background: #eaf5ff; color: #1B365D; font-weight: 700; margin-left: -5px'>L{{this.board.current_level}}</span>
                         <b class="caret"></b>
                       </a>
                       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
@@ -338,13 +365,13 @@
                               <b>{{t "Level" key="level"}} {{this.board.current_level}}</b>
                             {{/if}}
                             {{#if this.level_buttons}}
-                              <div style='font-size: 12px;'>{{t "visible button" key="n_visible_buttons" count=this.level_buttons}}</div>
+                              <div style='font-size: 14px;'>{{t "visible button" key="n_visible_buttons" count=this.level_buttons}}</div>
                             {{/if}}
                           </span>
                           <button class='skippy btn btn-default' {{action "adjust_level" "plus"}}><span class='glyphicon glyphicon-plus'></span></button>
                         </li>
                         <li>
-                          <div style='width: calc(100% - 10px); font-size: 12px; white-space: normal; margin: 15px 10px 5px;'>
+                          <div style='width: calc(100% - 10px); font-size: 14px; white-space: normal; margin: 15px 10px 5px;'>
                             {{t "Some boards are built with progressive levels in mind, so you can start basic and grow the vocabulary over time without having to rebuild everything. Find a level that works for your communicator, you can easily change it later." key="board_levels_explainer"}}
                           </div>
                         </li>
@@ -506,10 +533,22 @@
                   {{/unless}}
                 </ul>
               </span>
+              {{!-- Single "Modern View" link, styled like the Speak
+                   Mode button; navigates straight to the modern
+                   (board-detail) view. --}}
+              <a href="#" class="btn board-view-modern-btn" {{action "go_to_modern"}}>
+                <span class="glyphicon glyphicon-th-large"></span>
+                <span class="wide">{{t "Modern View" key="board_view_modern"}}</span>
+              </a>
             {{/if}}
           {{/if}}
 
-          {{!-- Hamburger menu for small screens --}}
+          {{!-- Hamburger menu for small screens. The button + dropdown
+               share a positioning wrapper so the menu anchors directly
+               below the hamburger instead of inheriting #normal_mode's
+               wider positioning context (which dropped the menu out
+               to the right of the button). --}}
+          <span class="la-board-hamburger-wrap">
           <button class="la-board-hamburger" type="button" {{action "toggleBoardMenu"}} aria-label={{t "Menu" key="menu"}}>
             <span class="la-board-hamburger__bar"></span>
             <span class="la-board-hamburger__bar"></span>
@@ -554,6 +593,27 @@
                     <span class="glyphicon glyphicon-duplicate"></span>
                     {{t "Make a Copy" key="make_copy"}}
                   </button>
+                  {{!-- Set as Home Board: same gate as the full-size
+                       "Set as Home" link in the dropdown menu (board
+                       isn't already the user's current home AND the
+                       user is signed in) so the action is only offered
+                       when it would actually do something. Wires to
+                       the existing `setAsHome` action used at full
+                       size. --}}
+                  {{#if this.app_state.current_board_not_home_or_supervising}}
+                    <button type="button" class="la-board-mobile-menu__item" {{action "setAsHome"}}>
+                      <span class="glyphicon glyphicon-home"></span>
+                      {{t "Set as Home Board" key="set_as_home_board"}}
+                    </button>
+                  {{/if}}
+                  {{!-- Add to Sidebar: same action as the full-size
+                       More-menu item; only offered to signed-in users
+                       (mirrors the same condition wrapping the
+                       full-size entry at application.hbs ~492). --}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "add_to_sidebar"}}>
+                    <span class="glyphicon glyphicon-list"></span>
+                    {{t "Add to Sidebar" key="add_to_sidebar"}}
+                  </button>
                 {{/if}}
                 <button type="button" class="la-board-mobile-menu__item" {{action "downloadBoard"}}>
                   <span class="glyphicon glyphicon-cloud-download"></span>
@@ -563,6 +623,16 @@
                   <span class="glyphicon glyphicon-print"></span>
                   {{t "Print Board" key="print_board"}}
                 </button>
+                {{!-- Other Actions: wires to the same `board_actions`
+                     action used at full size (opens modals/board-actions
+                     via application.js#board_actions), gated on the
+                     feature flag that controls the full-size link. --}}
+                {{#if this.app_state.feature_flags.other_menu}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "board_actions"}}>
+                    <span class="glyphicon glyphicon-cog"></span>
+                    {{t "Other Actions" key="other_actions"}}
+                  </button>
+                {{/if}}
               {{/unless}}
               <div class="la-board-mobile-menu__divider"></div>
               <button type="button" class="la-board-mobile-menu__item la-board-mobile-menu__item--exit" {{action "exitBoards"}}>
@@ -571,6 +641,7 @@
               </button>
             </div>
           {{/if}}
+          </span>
         </span>
         <span id="board_id">
           {{#if this.app_state.current_board_is_home}}
@@ -646,7 +717,6 @@
               <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
             </div>
             <div class="la-topbar-right header-unauth-right">
-              <LinkTo @route="login" class="la-topbar-sign-in">{{t "Sign In" key='login'}}</LinkTo>
               <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
               <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key='fsa_open_menu'}} {{action "toggleLandingNav"}}>
                 <span class="la-topbar-hamburger__bar"></span>
@@ -865,6 +935,16 @@
         </span>
       {{/if}}
       {{#unless (is-equal this.app_state.current_route "landing")}}
+      {{!-- Settings shortcut — hidden on board-alt and board-detail pages (those have their own settings access) --}}
+      {{#if this.app_state.currentUser.user_name}}
+        {{#unless (or this.on_board_alt this.on_board_detail)}}
+          <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </LinkTo>
+        {{/unless}}
+      {{/if}}
       <span style="display: inline-block;" class={{if this.app_state.super_no_linky "dropdown hidden" "dropdown"}}>
         <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
           {{#if this.app_state.speak_mode}}
@@ -877,7 +957,22 @@
             {{/if}}
           {{/if}}
           {{#if this.app_state.currentUser}}
-            <span class='user_holder'>
+            {{!-- Default-avatar swap is now driven entirely by the
+                 `.user_holder--default` class (set when
+                 currentUser.avatar_url_is_default is true). The
+                 silhouette is painted as a `background-image` data
+                 URI on `.user_holder--default` (see app.scss), and
+                 the `<img>` is hidden via the
+                 `.user_holder--default img.user` rule. The inline
+                 `<svg>` previously rendered here was stripped: in
+                 production builds the asset fingerprinter mangled
+                 its `url(#gradient-id)` fragment references, so
+                 every shape that used a gradient fill painted
+                 transparent and only the one solid-color circle
+                 survived (the small lavender dot inside an empty
+                 ring). The data-URI background-image encodes `#`
+                 as `%23` and is never seen by the rewriter. --}}
+            <span class='user_holder {{if this.app_state.currentUser.avatar_url_is_default 'user_holder--default'}}'>
               <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='user' onerror='button_broken_image(this);' >
             </span>
             {{#if this.app_state.modeling_for_user}}
@@ -1137,7 +1232,7 @@
                 {{/if}}
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
-                <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+                <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
                 <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
                   {{#if this.app_state.currentUser.unread_messages}}
                     <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
@@ -1187,25 +1282,38 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.currentUser}}
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">
+    <a href="#" {{action "openBetaFeedback" preventDefault=true}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       {{t "Beta feedback" key="beta_feedback_nav"}}
-    </LinkTo>
-    {{/if}}
-    {{style-switcher}}
-    {{#if this.app_state.currentUser}}
-    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
+    </a>
+    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support app-navbar__large-only" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
           <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
         </span>
       </div>
     </LinkTo>
+    <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </LinkTo>
+    <a href="#" {{action "openBetaFeedback" preventDefault=true}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
+      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
+    </a>
     {{/if}}
     <span style="display: inline-block;" class="dropdown">
       {{#if this.app_state.currentUser}}
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
-        <span class="user_holder">
+        {{!-- See application.hbs:957 for why the inline <svg> was
+             removed — production asset fingerprinting mangles the
+             `url(#gradient-id)` fragment refs, leaving only the one
+             solid-color shape visible. The default silhouette is
+             now painted via the `.user_holder--default` background-
+             image data URI in app.scss; the `<img>` is hidden by
+             the companion `.user_holder--default img.user` rule
+             when the user has no uploaded avatar. --}}
+        <span class="user_holder {{if this.app_state.currentUser.avatar_url_is_default 'user_holder--default'}}">
           <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
         </span>
         {{#if this.session.invalid_token}}
@@ -1226,11 +1334,27 @@
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
         <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+        {{!-- Exit Boards (identity dropdown, board-alt ≤1024px) — gives
+             the user a way out when they're on board-alt normal mode and
+             the dropdown is the only menu surface visible. Class
+             `dropdown-menu__exit-boards-item` is hidden by default and
+             revealed at ≤1024px on board-alt-view via SCSS. Wires to
+             the same `exitBoards` action used by the hamburger menu and
+             the full-size header so behavior is consistent. --}}
+        {{#if this.app_state.currentBoardState.id}}
+          <li role="presentation" class="dropdown-menu__exit-boards-item">
+            <a href="#" {{action "exitBoards" preventDefault=true}}>
+              <span class="glyphicon glyphicon-log-out" aria-hidden="true"></span>
+              {{t "Exit Boards" key="exit_boards"}}
+            </a>
+          </li>
+          <li role="presentation" class="dropdown-menu__exit-boards-divider divider" aria-hidden="true"></li>
+        {{/if}}
         <li role="presentation">
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
         <li><LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
-        <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+        <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
         <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
           {{#if this.app_state.currentUser.unread_messages}}
             <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
@@ -1238,9 +1362,18 @@
           {{t "Messages" key="messages"}}
         </LinkTo></li>
         <li><a href="#" {{action "support" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
-        <li class="app-navbar__beta-feedback-menu-item"><LinkTo @route="beta-feedback">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo></li>
+        {{#if this.app_state.currentBoardState.key}}
+        <li class="dropdown-menu__try-new-style-item"><a href="#" {{action "goToNewStyle" preventDefault=true}}>{{t "Try New Style" key="try_new_style"}}</a></li>
+        {{/if}}
+        <li class="app-navbar__beta-feedback-menu-item"><a href="#" {{action "openBetaFeedback" preventDefault=true}}>{{t "Beta feedback" key="beta_feedback_nav"}}</a></li>
         {{#if this.showBetaFeedbackAdminLink}}
         <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>
+        {{/if}}
+        {{#if this.showDatabaseExplorerLink}}
+        <li class="app-navbar__database-explorer-menu-item"><LinkTo @route="database">{{t "Database" key="database_explorer_nav"}}</LinkTo></li>
+        {{/if}}
+        {{#if this.showSystemSettingsLink}}
+        <li class="app-navbar__system-settings-menu-item"><LinkTo @route="system-settings.emails">{{t "System Settings" key="system_settings_nav"}}</LinkTo></li>
         {{/if}}
         <li class="divider" role="separator"></li>
         <li>
@@ -1306,6 +1439,22 @@
   {{/if}}
   </div>
 </header>
+{{#if (or this.app_state.currentUser this.app_state.sessionUser)}}
+  {{#if this.showBetaFeedbackDrawer}}
+    {{#if (or this.app_state.speak_mode this.app_state.edit_mode)}}
+      <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{action "toggleBetaFeedbackDrawer"}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>{{t "Beta feedback" key="beta_feedback_nav"}}</span>
+        <svg class="beta-feedback-drawer-tab__caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    {{/if}}
+    <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}}>
+      <aside class="beta-feedback-drawer__panel">
+        {{beta-feedback-panel isDrawer=true onSubmitSuccess=(action "closeBetaFeedbackDrawer") onCancel=(action "closeBetaFeedbackDrawer") onClose=(action "closeBetaFeedbackDrawer")}}
+      </aside>
+    </div>
+  {{/if}}
+{{/if}}
 <div id="content" class="{{this.content_class}} {{if this.hide_header "content--no-top-padding"}}">
   {{ outlet }}
 </div>
@@ -1382,65 +1531,6 @@
 {{! Page footer: show on index/dashboard/setup and when not viewing a board (setup_footer no longer used; setup uses same page footer as other pages) }}
 {{#if this.footer}}
   {{page-footer support=(action "support") language=(action "language")}}
-{{/if}}
-
-{{#if this.boardPickerVisible}}
-  <div id="board_picker_backdrop" {{action "closeBoardPicker"}} role="button" tabindex="0" aria-label={{t "Close" key="close"}} style="position: fixed; inset: 0; background: rgba(0,0,0,0.32); z-index: 900;"></div>
-  <div id="board_picker" role="dialog" aria-label={{t "My Boards" key="my_boards"}}>
-    <div id="board_picker_header">
-      <span class="la-section-eyebrow-badge">{{t "My Boards" key="my_boards"}}</span>
-      <button type="button" class="board-picker__close" {{action "closeBoardPicker"}} aria-label={{t "Close" key="close"}}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="20" height="20" aria-hidden="true">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
-    </div>
-    {{#unless this.boardPickerHasHomeBoard}}
-      <p class="board-picker__no-home-msg" role="status">
-        {{t "You haven't selected a home board yet. Click \"Home Board\" to create one." key="no_home_board_picker_hint"}}
-      </p>
-    {{/unless}}
-    <div class="board-picker__filter-row">
-      <button type="button" class="board-picker__home-btn {{unless this.boardPickerHasHomeBoard 'board-picker__home-btn--unset'}}" {{action "pickHomeBoard"}} aria-label={{if this.boardPickerHasHomeBoard (t "Home Board" key="board_detail_home_board") (t "No home board set, click to create one" key="no_home_board_picker_aria")}}>
-        <svg class="board-picker__home-btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none" width="18" height="18" aria-hidden="true">
-          <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
-        </svg>
-        <span class="board-picker__home-btn-label">{{t "Home Board" key="board_detail_home_board"}}</span>
-      </button>
-      <div class="board-picker__filter">
-        <svg class="board-picker__filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" class="board-picker__filter-input" placeholder={{t "Filter boards..." key="filter_boards"}} value={{this.boardPickerFilter}} oninput={{action "updateBoardPickerFilter" value="target.value"}} autocomplete="off">
-        {{#if this.boardPickerFilter}}
-          <button type="button" class="board-picker__filter-clear" {{action "updateBoardPickerFilter" ""}} aria-label={{t "Clear filter" key="clear_filter"}}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        {{/if}}
-      </div>
-    </div>
-    <div id="board_picker_inner">
-      {{#if this.boardPickerLoading}}
-        <div class="board-picker__loading" role="status" aria-live="polite" aria-busy="true">
-          <span class="board-picker__loading-spinner" aria-hidden="true"></span>
-          <span class="board-picker__loading-text">{{t "Loading boards..." key="loading_boards"}}</span>
-        </div>
-      {{else}}
-        {{#each this.filteredBoardPickerBoards as |board|}}
-          <a href="#" {{action "pickBoard" board.key}} class="board-picker__item">
-            <span class="board-picker__thumb">
-              <img src={{board.icon_url_with_fallback}} alt="" onerror="this.style.visibility='hidden';">
-            </span>
-            <span class="board-picker__name">{{board.name}}</span>
-          </a>
-        {{else}}
-          <p class="board-picker__empty">{{t "No boards match your filter" key="no_boards_match_filter"}}</p>
-        {{/each}}
-      {{/if}}
-    </div>
-  </div>
 {{/if}}
 
 </div>

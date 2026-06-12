@@ -1,17 +1,34 @@
 module FeatureFlags
   # TODO: remove unused feature flags after like December 2019
-  AVAILABLE_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 
-              'canvas_render', 'snapshots', 'enable_all_buttons', 
+  # NOTE: 'customize_menu' is currently registered in BOTH lists below —
+  # it ships ON for everyone temporarily during the current testing
+  # window (per Scot #1 review + Traci's direction 2026-05-27). When
+  # testing is complete and we move to the canonical "off by default,
+  # beta opt-in per user" pattern, REMOVE 'customize_menu' from
+  # ENABLED_FRONTEND_FEATURES (keeping it in AVAILABLE_FRONTEND_FEATURES)
+  # so it switches to a per-user-flag. See:
+  # app/frontend/app/templates/user/board-detail.hbs ({{#if … customize_menu}})
+  # app/frontend/app/controllers/user/board-detail.js set_speak_menu_item_hidden
+  AVAILABLE_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar',
+              'canvas_render', 'snapshots', 'enable_all_buttons',
               'video_recording', 'goals', 'app_connections', 'translation', 'geo_sidebar',
               'modeling', 'edit_before_copying', 'core_reports', 'lessonpix',
               'audio_recordings', 'fast_render', 'badge_progress', 'board_levels', 'premium_symbols',
               'find_multiple_buttons', 'new_speak_menu', 'native_keyboard', 'inflections_overlay',
-              'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages', 
+              'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages',
               'app_store_monthly_purchases', 'ios_head_tracking', 'vertical_ios_head_tracking',
               'auto_inflections', 'remote_modeling', 'focus_word_highlighting', 'profiles',
               'skin_tones', 'lessons', 'other_menu', 'shallow_clones', 'ai_board_generation',
               'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search',
-              'ai_compliance_logging', 'supervisor_consent_flow']
+              'ai_compliance_logging', 'supervisor_consent_flow', 'product_telemetry',
+              'telemetry_admin_panel',
+              'tarheel_reader', 'auth_spa_transition', 'google_sso', 'quick_screen_eval',
+              'comprehensive_eval_ai', 'multi_user_board_import', 'customize_menu',
+              'home_tour', 'paste_html_import', 'catalog_board_prefetch',
+              'background_board_prefetch',
+              'portrait_orientation_overlay', 'signup_default_library_boards',
+              'english_first_board_generation', 'signup_spanish_library_boards',
+              'dashboard_drag_layout']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -20,7 +37,14 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation']
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
+              'google_sso', 'quick_screen_eval', 'multi_user_board_import',
+              'customize_menu', # TEMPORARY: ON for everyone during testing — remove from this list when moving to beta-opt-in (see comment above AVAILABLE_FRONTEND_FEATURES)
+              'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
+              'portrait_orientation_overlay', # TEMPORARY (2026-05-29): ON for everyone so Traci can view the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
+              'background_board_prefetch',
+              'signup_default_library_boards', 'english_first_board_generation',
+              'dashboard_drag_layout'] # TEMPORARY (2026-06-09): ON for everyone pre-production so the Getting Started drag-to-swap home layout can be validated. REMOVE from this list before production — canonical state is AVAILABLE-only (beta opt-in per user).
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -42,18 +66,28 @@ module FeatureFlags
     'ai_board_suggestions' => 'Feb 21, 2026',
     'ai_symbol_search' => 'Feb 21, 2026',
     'ai_compliance_logging' => 'Feb 21, 2026',
-    'supervisor_consent_flow' => 'Mar 22, 2026'
+    'supervisor_consent_flow' => 'Mar 22, 2026',
+    'tarheel_reader' => 'Apr 14, 2026',
+    'auth_spa_transition' => 'Apr 25, 2026',
+    'google_sso' => 'May 18, 2026',
+    'quick_screen_eval' => 'May 9, 2026',
+    'comprehensive_eval_ai' => 'May 12, 2026',
+    'multi_user_board_import' => 'May 15, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
                    ai_symbol_search ai_compliance_logging].freeze
   def self.frontend_flags_for(user)
     flags = {}
+    enabled_list = SystemFeatureSettings.effective_enabled_for(user)
+    canary_list = SystemFeatureSettings.canary_enabled_features
+    beta_list = SystemFeatureSettings.beta_opt_in_features
+    user_flags = user && user.settings && user.settings['feature_flags']
     AVAILABLE_FRONTEND_FEATURES.each do |feature|
-      if ENABLED_FRONTEND_FEATURES.include?(feature)
+      if enabled_list.include?(feature)
         flags[feature] = true
-      elsif user && user.settings && user.settings['feature_flags'] && user.settings['feature_flags'][feature]
+      elsif user_flags && user_flags[feature] && beta_list.include?(feature)
         flags[feature] = true
-      elsif user && user.settings && user.settings['feature_flags'] && user.settings['feature_flags']['canary'] && !DISABLED_CANARY_FEATURES.include?(feature)
+      elsif user_flags && user_flags['canary'] && canary_list.include?(feature)
         flags[feature] = true
       end
     end
@@ -72,6 +106,23 @@ module FeatureFlags
     !!flags[feature]
   end
 
+  # Server-side gate for copying default vocab boards into new user libraries.
+  def self.signup_default_library_boards_enabled?(_user = nil)
+    return true if ENV['SIGNUP_DEFAULT_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
+    list = _user ? SystemFeatureSettings.effective_enabled_for(_user) : SystemFeatureSettings.default_enabled_features
+    list.include?('signup_default_library_boards')
+  end
+
+  def self.signup_spanish_library_boards_enabled?(user = nil)
+    return true if ENV['SIGNUP_SPANISH_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
+    list = user ? SystemFeatureSettings.effective_enabled_for(user) : SystemFeatureSettings.default_enabled_features
+    return false unless list.include?('signup_spanish_library_boards')
+    return true unless user
+    prefs = user.settings && user.settings['preferences']
+    locale = (prefs && prefs['locale']) || (user.settings && user.settings['locale'])
+    locale.to_s.match?(/^es/i)
+  end
+
   # Check if AI features are allowed for a user's organization.
   # Organizations can opt out of all AI processing (required for FERPA/HIPAA compliance).
   def self.ai_enabled_for?(user)
@@ -88,5 +139,21 @@ module FeatureFlags
     return false unless AI_FEATURES.include?(feature)
     return false unless ai_enabled_for?(user)
     feature_enabled_for?(feature, user)
+  end
+
+  # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.
+  # Set COPPA_AI_HARD_GATE=false in env for emergency rollback only.
+  def self.coppa_ai_hard_gate_enabled?
+    ENV['COPPA_AI_HARD_GATE'].to_s.downcase != 'false'
+  end
+
+  # Returns true when AI calls must be blocked for this user because COPPA
+  # parental consent is still pending. Used by every AI call site as a
+  # short-circuit before PiiScrubber and any provider request.
+  def self.coppa_blocks_ai_for?(user)
+    return false unless coppa_ai_hard_gate_enabled?
+    return false unless user
+    return false unless user.respond_to?(:coppa_parental_consent_pending?)
+    user.coppa_parental_consent_pending?
   end
 end

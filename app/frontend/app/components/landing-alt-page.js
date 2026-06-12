@@ -49,6 +49,28 @@ export default Component.extend({
       }
       this._ctaSectionObserver = null;
     }
+    if (this._spaceKeyHandler) {
+      document.removeEventListener('keydown', this._spaceKeyHandler);
+      this._spaceKeyHandler = null;
+    }
+  },
+
+  _setupSpaceKeyActivation() {
+    var handler = function(e) {
+      if (e.key !== ' ' && e.code !== 'Space') { return; }
+      var target = e.target;
+      if (!target || typeof target.closest !== 'function') { return; }
+      var actionable = target.closest('a[href], [role="button"], [role="link"]');
+      if (!actionable) { return; }
+      if (actionable.tagName === 'BUTTON' || actionable.tagName === 'INPUT' ||
+          actionable.tagName === 'SELECT' || actionable.tagName === 'TEXTAREA') {
+        return;
+      }
+      e.preventDefault();
+      actionable.click();
+    };
+    document.addEventListener('keydown', handler);
+    this._spaceKeyHandler = handler;
   },
 
   _setupPlanScrollObserver() {

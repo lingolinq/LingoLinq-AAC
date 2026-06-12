@@ -19,13 +19,13 @@
             </h1>
           </span>
           <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key="fsa_page_sections"}}>
+            <LinkTo @route="demo.speak" @query={{hash board=null source=null}} class="la-topbar-link" role="menuitem">{{t "Try a Demo" key="demo_try_speak_mode"}}</LinkTo>
             <LinkTo @route="features" class="la-topbar-link" role="menuitem">{{t "Features" key="fsa_nav_features"}}</LinkTo>
             {{!-- <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
             <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key="fsa_nav_about"}}</LinkTo>
             <LinkTo @route="beta-feedback" class="la-topbar-link" role="menuitem">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
           </div>
           <div class="la-topbar-right header-unauth-right">
-            <LinkTo @route="login" class="la-topbar-sign-in">{{t "Sign In" key="login"}}</LinkTo>
             <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key="fsa_try_free"}}</LinkTo>
             <span id="identity" class="advanced_selection app-navbar-auth-nav--desktop identity-with-dark-toggle">
               <span style="display: inline-block;" class="dropdown">
@@ -59,6 +59,7 @@
             </button>
           </div>
           <LaMobileDrawer @isOpen={{this.isLandingDrawerOpen}} @onClose={{action "closeLandingDrawer"}}>
+            <LinkTo @route="demo.speak" @query={{hash board=null source=null}} class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Try a Demo" key="demo_try_speak_mode"}}</LinkTo>
             <LinkTo @route="features" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Features" key="fsa_nav_features"}}</LinkTo>
             {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
             <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "About" key="fsa_nav_about"}}</LinkTo>
@@ -71,5 +72,12 @@
         {{/unless}}
       {{/unless}}
     {{/unless}}
+  {{/if}}
+  {{#if this.showBetaFeedbackDrawerTab}}
+    <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--navbar {{if this.application.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{action "toggleBetaFeedbackDrawer"}} aria-expanded={{if this.application.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>{{t "Beta feedback" key="beta_feedback_nav"}}</span>
+      <svg class="beta-feedback-drawer-tab__caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
   {{/if}}
 </div>

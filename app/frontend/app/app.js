@@ -245,8 +245,20 @@ DS.Model.reopen({
 });
 
 Route.reopen({
+  // Loading and error substates (e.g. `index_loading`) often have no
+  // controller. `controllerFor` throws an assertion in that case. Guarding
+  // both call sites lets those substates activate cleanly — visible only
+  // under SPA route transitions where the substate's lifecycle completes
+  // (under full page reload, the browser tore down Ember before this fired).
+  _safe_controller_for_self: function() {
+    try {
+      return this.controllerFor(this.routeName);
+    } catch (e) {
+      return null;
+    }
+  },
   update_title_if_present: function() {
-    var controller = this.controllerFor(this.routeName);
+    var controller = this._safe_controller_for_self();
     var title = this.get('title') || (controller && controller.get('title'));
     if(title) {
       LingoLinq.controller.updateTitle(title.toString());
@@ -254,7 +266,7 @@ Route.reopen({
   },
   activate: function() {
     this.update_title_if_present();
-    var controller = this.controllerFor(this.routeName);
+    var controller = this._safe_controller_for_self();
     if(controller) {
       controller.addObserver('title', this, function() {
         this.update_title_if_present();
@@ -292,15 +304,41 @@ LingoLinq.board_categories = [
   {name: i18n.t('phrase_based', "Phrase-Based"), id: 'phrases'},
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
+// Five simplified registration types + an empty placeholder. The IDs are
+// load-bearing: external_tracker.rb maps them to HubSpot Account Type
+// categories, user.rb#supporter_registration? gates FERPA/COPPA/GDPR
+// tracking on anything-not-communicator-or-unspecified, and the
+// backend now also maps these IDs to preferences.role on first save
+// (communicator → 'communicator'; therapist/parent/teacher/other →
+// 'supporter'). DO NOT change the IDs without updating those mappings.
+//
+// Two values removed from the user-facing dropdown:
+// - The duplicate "A parent and communicator" row (also id='communicator')
+// - 'eval' (evaluation/assessment device — typically org-administered,
+//   not self-registered). Both values remain valid backend-side for
+//   org workflows and historical user records.
 LingoLinq.registrationTypes = [
   {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
-  {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_slp', "A therapist"), id: 'therapist'},
-  {name: i18n.t('registration_type_parent', "A supervising parent"), id: 'parent'},
-  {name: i18n.t('registration_type_eval', "An evaluation/assessment device"), id: 'eval'},
-  {name: i18n.t('registration_type_teacher', "A teacher"), id: 'teacher'},
-  {name: i18n.t('registration_type_other', "An aide, caregiver or other supporter"), id: 'other'}
+  {name: i18n.t('registration_type_communicator', "Communicator (AAC user)"), id: 'communicator'},
+  {name: i18n.t('registration_type_slp', "Therapist / SLP"), id: 'therapist'},
+  {name: i18n.t('registration_type_parent', "Parent Supporter"), id: 'parent'},
+  {name: i18n.t('registration_type_teacher', "Teacher / Educator"), id: 'teacher'},
+  {name: i18n.t('registration_type_other', "Other Supporter"), id: 'other'}
+];
+// Two-tier registration role: a simple top-level choice (Communicator vs
+// Supporter), then a supporter sub-type. The STORED registration_type stays one
+// of communicator/therapist/parent/teacher/other (see user.rb role mapping) —
+// 'supporter' is only the UI grouping, never persisted as the registration_type.
+LingoLinq.roleCategories = [
+  {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
+  {name: i18n.t('registration_type_communicator', "Communicator (AAC user)"), id: 'communicator'},
+  {name: i18n.t('registration_role_supporter', "Supporter"), id: 'supporter'}
+];
+LingoLinq.supporterTypes = [
+  {name: i18n.t('supporter_type_therapist', "Therapist"), id: 'therapist'},
+  {name: i18n.t('supporter_type_parent', "Parent"), id: 'parent'},
+  {name: i18n.t('supporter_type_teacher', "Teacher"), id: 'teacher'},
+  {name: i18n.t('supporter_type_other', "Other"), id: 'other'}
 ];
 LingoLinq.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},
@@ -383,22 +421,113 @@ LingoLinq.keyed_colors = [
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
-// Board-detail page uses its own color palette (more muted/pastel, split preposition/social)
-LingoLinq.board_detail_keyed_colors = [
-  {fill: "#FAFAAA", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
-  {fill: "#C0E8C8", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
-  {fill: "#B9D0F6", color: i18n.t('blue', "Blue"), hint: i18n.t('describing_words', "describing"), types: ['adjective']},
-  {fill: "#FDCF98", color: i18n.t('orange', "Orange"), hint: i18n.t('nouns', "nouns"), types: ['noun', 'nominative']},
-  {fill: "#E8B5DC", color: i18n.t('pink', "Pink"), hint: i18n.t('social_words', "social words"), types: ['social', 'social_phrase']},
-  {fill: "#F5A0A0", color: i18n.t('red', "Red"), hint: i18n.t('negations', "negations"), types: ['negation', 'expletive', 'interjection']},
-  {fill: "#D0B8E8", color: i18n.t('purple', "Purple"), hint: i18n.t('questions', "questions"), types: ['question']},
-  {fill: "#F5DCEA", color: i18n.t('rose', "Rose"), hint: i18n.t('prepositions', "prepositions"), types: ['preposition']},
-  {fill: "#D4B896", color: i18n.t('brown', "Brown"), hint: i18n.t('adverbs', "adverbs"), types: ['adverb']},
-  {fill: "#DCDCDC", color: i18n.t('gray', "Gray"), hint: i18n.t('determiners', "determiners"), types: ['article', 'determiner']},
-  {fill: "#fff", border: "#ccc", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
-  {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
-  {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
-];
+// Board-detail palette — the SINGLE SOURCE OF TRUTH for these colors is
+// styles/_variables.scss (the $fitzgerald-* SCSS variables). Those vars
+// drive the rendered cell backgrounds via the .md-board-detail-symbol-card--<pos>
+// rules at compile time, and are also emitted as --fitzgerald-* CSS
+// custom properties on :root so this JS palette can read them at runtime.
+//
+// Edit a Fitzgerald color in ONE place (_variables.scss); the rendered
+// live cards, the create-board-new preview, the part-of-speech color
+// legend, and any other JS lookups all update on rebuild.
+//
+// Lazy getter caches the built array on first access since
+// getComputedStyle is non-trivial and pos_class lookups happen often.
+// Call LingoLinq.refresh_fitzgerald_colors() to invalidate the cache.
+// Fallbacks (used when document isn't yet available — e.g. tests, SSR)
+// mirror the SCSS variable defaults so behavior matches.
+(function() {
+  var _bd_cache = null;
+  var FALLBACKS = {
+    'pronoun-yellow':    '#FAFAAA',
+    'verb-green':        '#C0E8C8',
+    'adjective-blue':    '#B9D0F6',
+    'noun-orange':       '#FDCF98',
+    'social-pink':       '#E8B5DC',
+    'negation-red':      '#F5A0A0',
+    'question-purple':   '#D0B8E8',
+    'preposition-pink':  '#F5DCEA',
+    'adverb-brown':      '#D4B896',
+    'determiner-gray':   '#DCDCDC',
+    'conjunction-white': '#FFFFFF',
+    'other-blue':        '#73CCFF',
+    'contrast-black':    '#000000'
+  };
+  function readVar(suffix) {
+    if(typeof document === 'undefined' || !document.documentElement) {
+      return FALLBACKS[suffix];
+    }
+    var v = getComputedStyle(document.documentElement).getPropertyValue('--fitzgerald-' + suffix);
+    return (v && v.trim()) || FALLBACKS[suffix];
+  }
+  // 20%-darker variant of the fill, matching the legacy LingoLinq
+  // convention used by board_detail and bound_classes for inline
+  // outline-color on rendered cards. Falls back to the fill when
+  // tinycolor isn't loaded yet.
+  function darken20(fill) {
+    if(typeof window === 'undefined' || !window.tinycolor) { return fill; }
+    return window.tinycolor(fill).darken(20).toRgbString();
+  }
+  function entry(pos_class, fill_suffix, color_label, color_default, hint_label, hint_default, types, opts) {
+    var fill = readVar(fill_suffix);
+    var ent = {
+      pos_class: pos_class,
+      fill: fill,
+      border: (opts && opts.border) || darken20(fill),
+      color: i18n.t(color_label, color_default),
+      types: types
+    };
+    if(hint_label) { ent.hint = i18n.t(hint_label, hint_default); }
+    return ent;
+  }
+  function build() {
+    return [
+      entry('pronoun',     'pronoun-yellow',    'yellow', "Yellow",  'people',            "people",        ['pronoun']),
+      entry('verb',        'verb-green',        'green',  "Green",   'actions_lower',     "actions",       ['verb']),
+      entry('adjective',   'adjective-blue',    'blue',   "Blue",    'describing_words',  "describing",    ['adjective']),
+      entry('noun',        'noun-orange',       'orange', "Orange",  'nouns',             "nouns",         ['noun', 'nominative']),
+      entry('social',      'social-pink',       'pink',   "Pink",    'social_words',      "social words",  ['social', 'social_phrase']),
+      entry('negation',    'negation-red',      'red',    "Red",     'negations',         "negations",     ['negation', 'expletive', 'interjection']),
+      entry('question',    'question-purple',   'purple', "Purple",  'questions',         "questions",     ['question']),
+      entry('preposition', 'preposition-pink',  'rose',   "Rose",    'prepositions',      "prepositions",  ['preposition']),
+      entry('adverb',      'adverb-brown',      'brown',  "Brown",   'adverbs',           "adverbs",       ['adverb']),
+      entry('determiner',  'determiner-gray',   'gray',   "Gray",    'determiners',       "determiners",   ['article', 'determiner']),
+      // White card uses a fixed light-gray border rather than darken(white) which yields gray.
+      entry('conjunction', 'conjunction-white', 'white',  "White",   null,                null,            ['conjunction', 'number'], {border: '#ccc'}),
+      entry('other',       'other-blue',        'bluish', "Bluish",  'other_lower',       "other",         []),
+      entry('contrast',    'contrast-black',    'black',  "Black",   'contrast_lower',    "contrast",      [])
+    ];
+  }
+  Object.defineProperty(LingoLinq, 'board_detail_keyed_colors', {
+    get: function() {
+      if(!_bd_cache) { _bd_cache = build(); }
+      return _bd_cache;
+    },
+    configurable: true
+  });
+  LingoLinq.refresh_fitzgerald_colors = function() {
+    _bd_cache = null;
+  };
+
+  // Toggle the .fitzgerald-soft class on <html> based on the user's
+  // symbol_background preference. Applying at the document level
+  // (rather than the grid) means :root has the override — so
+  // getComputedStyle() reads the muted CSS custom property values, and
+  // inline styles built from LingoLinq.board_detail_keyed_colors
+  // (preview cells, button auto-coloring) get the muted hues too.
+  // Pass the symbol_background id ('clear' | 'clear_soft' | 'white' |
+  // 'black') — anything other than 'clear_soft' clears the class.
+  // Defensively also strips a legacy 'fitzgerald-faded' class in case
+  // an older session still has it on the element.
+  LingoLinq.set_fitzgerald_scope = function(symbol_background_id) {
+    if(typeof document === 'undefined' || !document.documentElement) { return; }
+    var cl = document.documentElement.classList;
+    cl.remove('fitzgerald-soft');
+    cl.remove('fitzgerald-faded');
+    if(symbol_background_id === 'clear_soft') { cl.add('fitzgerald-soft'); }
+    _bd_cache = null;
+  };
+})();
 LingoLinq.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
   {border: '#0069e7', fill: '#e0edf9', label: 'adj2'},

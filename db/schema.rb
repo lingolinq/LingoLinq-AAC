@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_06_04_193000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -51,6 +51,38 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.index ["user_global_id"], name: "index_ai_api_logs_on_user_global_id"
   end
 
+  create_table "ai_focus_word_sets", id: :serial, force: :cascade do |t|
+    t.text "scrubbed_prompt", null: false
+    t.text "normalized_prompt", null: false
+    t.string "prompt_hash", null: false
+    t.string "locale", default: "en", null: false
+    t.boolean "include_core_words", default: true, null: false
+    t.string "title"
+    t.text "words"
+    t.text "applied_words"
+    t.integer "word_count", default: 0, null: false
+    t.string "source", default: "ai", null: false
+    t.string "status", default: "generated", null: false
+    t.float "quality_score"
+    t.integer "generated_count", default: 0, null: false
+    t.integer "applied_count", default: 0, null: false
+    t.integer "analysis_count", default: 0, null: false
+    t.integer "cache_hit_count", default: 0, null: false
+    t.datetime "last_generated_at", precision: nil
+    t.datetime "last_applied_at", precision: nil
+    t.datetime "last_analyzed_at", precision: nil
+    t.string "seed_user_global_id"
+    t.string "seed_organization_global_id"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["last_applied_at"], name: "index_ai_focus_word_sets_on_last_applied_at"
+    t.index ["locale"], name: "index_ai_focus_word_sets_on_locale"
+    t.index ["prompt_hash"], name: "index_ai_focus_word_sets_on_prompt_hash", unique: true
+    t.index ["source"], name: "index_ai_focus_word_sets_on_source"
+    t.index ["status"], name: "index_ai_focus_word_sets_on_status"
+    t.index ["word_count"], name: "index_ai_focus_word_sets_on_word_count"
+  end
+
   create_table "api_calls", id: :serial, force: :cascade do |t|
     t.integer "user_id"
     t.text "data"
@@ -69,6 +101,24 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.index ["event_type", "created_at"], name: "index_audit_events_on_event_type_and_created_at"
     t.index ["event_type", "record_id"], name: "index_audit_events_on_event_type_and_record_id"
     t.index ["user_key", "created_at"], name: "index_audit_events_on_user_key_and_created_at"
+  end
+
+  create_table "beta_feedback_recordings", force: :cascade do |t|
+    t.integer "contact_message_id"
+    t.string "status", default: "pending", null: false
+    t.string "upload_key", null: false
+    t.string "content_type", null: false
+    t.integer "byte_size", default: 0, null: false
+    t.string "token", null: false
+    t.datetime "confirmed_at"
+    t.datetime "expires_at"
+    t.datetime "deleted_at"
+    t.text "settings"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contact_message_id"], name: "index_beta_feedback_recordings_on_contact_message_id"
+    t.index ["status", "expires_at"], name: "index_beta_feedback_recordings_on_status_and_expires_at"
+    t.index ["token"], name: "index_beta_feedback_recordings_on_token", unique: true
   end
 
   create_table "board_button_images", id: :serial, force: :cascade do |t|
@@ -201,6 +251,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.string "beta_submitter_name"
     t.string "beta_feedback_type"
     t.string "beta_severity"
+    t.string "beta_priority"
+    t.index ["recipient", "beta_priority", "created_at"], name: "index_contact_messages_on_recipient_priority_created_at"
     t.index ["recipient", "created_at"], name: "index_contact_messages_on_recipient_and_created_at"
     t.index ["recipient", "hidden", "created_at"], name: "index_contact_messages_on_recipient_hidden_created_at"
   end
@@ -239,6 +291,21 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.integer "developer_key_id"
     t.integer "user_integration_id"
     t.index ["user_id"], name: "index_devices_on_user_id"
+  end
+
+  create_table "eval_protocols", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "organization_id"
+    t.integer "parent_id"
+    t.string "public_protocol_id"
+    t.string "protocol_version", default: "1.0"
+    t.string "population_profile"
+    t.text "settings"
+    t.boolean "communicator"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["population_profile"], name: "index_eval_protocols_on_population_profile"
+    t.index ["public_protocol_id"], name: "index_eval_protocols_on_public_protocol_id"
   end
 
   create_table "external_nonces", id: :serial, force: :cascade do |t|
@@ -289,6 +356,22 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["library", "locale"], name: "index_library_caches_on_library_and_locale", unique: true
+  end
+
+  create_table "licenses", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.integer "user_id"
+    t.string "seat_type", default: "student"
+    t.string "status", default: "active"
+    t.datetime "granted_at"
+    t.datetime "expires_at"
+    t.string "external_reference"
+    t.text "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "status"], name: "index_licenses_on_organization_id_and_status"
+    t.index ["organization_id"], name: "index_licenses_on_organization_id"
+    t.index ["user_id"], name: "index_licenses_on_user_id"
   end
 
   create_table "log_mergers", id: :serial, force: :cascade do |t|
@@ -396,6 +479,19 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.index ["parent_organization_id"], name: "index_organizations_on_parent_organization_id"
   end
 
+  create_table "prediction_entries", id: :serial, force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "locale", default: "en", null: false
+    t.string "prefix", default: "", null: false
+    t.string "next_word", null: false
+    t.float "score", default: 1.0, null: false
+    t.string "source", default: "selection", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["user_id", "locale", "prefix", "next_word"], name: "idx_prediction_entries_unique", unique: true
+    t.index ["user_id", "locale", "prefix"], name: "idx_prediction_entries_prefix"
+  end
+
   create_table "profile_templates", id: :serial, force: :cascade do |t|
     t.integer "user_id"
     t.integer "organization_id"
@@ -489,6 +585,23 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.index ["consent_token_expires_at"], name: "index_supervisor_rel_pending_expiry", where: "((status)::text = 'pending'::text)"
     t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying])::text[]))"
     t.index ["supervisor_user_id"], name: "index_supervisor_relationships_on_supervisor_user_id"
+  end
+
+  create_table "telemetry_events", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "organization_id"
+    t.integer "device_id"
+    t.string "event_type"
+    t.string "route"
+    t.string "feature_area"
+    t.datetime "occurred_at", precision: nil
+    t.text "data"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["event_type", "occurred_at"], name: "index_telemetry_events_on_event_type_and_occurred_at"
+    t.index ["organization_id", "occurred_at"], name: "index_telemetry_events_on_organization_id_and_occurred_at"
+    t.index ["route", "occurred_at"], name: "index_telemetry_events_on_route_and_occurred_at"
+    t.index ["user_id", "occurred_at"], name: "index_telemetry_events_on_user_id_and_occurred_at"
   end
 
   create_table "user_badges", id: :serial, force: :cascade do |t|

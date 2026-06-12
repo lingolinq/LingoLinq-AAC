@@ -1,4 +1,6 @@
 class AiApiLog < ApplicationRecord
+  REDACTED_PLACEHOLDER = '[REDACTED]'.freeze
+
   # Validations
   validates :ai_provider, presence: true
   validates :request_type, presence: true
@@ -7,6 +9,37 @@ class AiApiLog < ApplicationRecord
     allow_blank: false,
     message: "%{value} is not a recognized AI provider"
   }
+
+  # Scrub PII out of free-form summary columns before persistence. Request
+  # summaries are usually built from already-scrubbed prompts, but model
+  # responses are raw model output and frequently echo names / emails from
+  # the prompt or hallucinate new ones. Audit-reports/security-review-2026-05-04
+  # finding #3 flagged response_summary as a latent PII reservoir, one new
+  # SQL caller away from leakage. Scrub on assignment so no future caller
+  # can store raw output even by accident.
+  before_validation :scrub_summary_columns
+
+  def scrub_summary_columns
+    self.response_summary = pii_scrub(response_summary)
+    self.request_summary = pii_scrub(request_summary)
+    nil
+  end
+
+  def pii_scrub(value)
+    return value unless value.is_a?(String) && !value.empty?
+    result = PiiScrubber.redact_for_ai(value)
+    return result if result.is_a?(String)
+
+    if result.is_a?(Hash)
+      payload = result[:payload]
+      return payload if payload.is_a?(String)
+    end
+
+    REDACTED_PLACEHOLDER
+  rescue StandardError => e
+    Rails.logger.error("AiApiLog: pii_scrub failed: #{e.message}") if defined?(Rails)
+    REDACTED_PLACEHOLDER
+  end
 
   # Scopes
   scope :by_provider, ->(provider) { where(ai_provider: provider) }
@@ -100,6 +133,58 @@ class AiApiLog < ApplicationRecord
     }
   end
 
+  # Returns a single-day rollup suitable for the daily AI cost + PII digest
+  # consumed by the n8n daily-ai-cost-pii-digest workflow.
+  #
+  # Provider breakdowns include token totals so n8n can cross-check against
+  # the upstream Anthropic / OpenAI / Gemini billing APIs and flag drift.
+  # PII findings are already redacted by PiiScrubber before persistence, so
+  # surfacing them here is safe.
+  def self.daily_summary(date = Date.current - 1)
+    day_start = date.beginning_of_day
+    day_end = date.end_of_day
+    scope = where(created_at: day_start..day_end)
+
+    pii_rows = scope.with_pii_detected.order(created_at: :asc).limit(50)
+
+    {
+      date: date.iso8601,
+      total_calls: scope.count,
+      total_failures: scope.where(success: false).count,
+      total_pii_detected: scope.where(pii_detected: true).count,
+      total_tokens_sent: scope.sum(:tokens_sent).to_i,
+      total_tokens_received: scope.sum(:tokens_received).to_i,
+      avg_duration_ms: scope.average(:duration_ms).to_f.round(1),
+      by_provider: scope.group(:ai_provider).pluck(
+        :ai_provider,
+        Arel.sql('COUNT(*)'),
+        Arel.sql('COALESCE(SUM(tokens_sent), 0)'),
+        Arel.sql('COALESCE(SUM(tokens_received), 0)'),
+        Arel.sql('SUM(CASE WHEN success = false THEN 1 ELSE 0 END)'),
+        Arel.sql('SUM(CASE WHEN pii_detected = true THEN 1 ELSE 0 END)')
+      ).map { |provider, calls, sent, received, failures, pii|
+        {
+          provider: provider,
+          calls: calls,
+          tokens_sent: sent.to_i,
+          tokens_received: received.to_i,
+          failures: failures.to_i,
+          pii_detected: pii.to_i
+        }
+      },
+      by_request_type: scope.group(:request_type).count,
+      pii_samples: pii_rows.map { |row|
+        {
+          id: row.id,
+          provider: row.ai_provider,
+          request_type: row.request_type,
+          findings: row.safe_pii_findings_for_digest,
+          created_at: row.created_at.iso8601
+        }
+      }
+    }
+  end
+
   # Redacts IP addresses on records older than the specified number of days.
   # Supports data minimization requirements (e.g., GDPR, COPPA).
   # Records whose ip_address is already nil or '[REDACTED]' are skipped.
@@ -134,6 +219,24 @@ class AiApiLog < ApplicationRecord
       created_at: created_at&.iso8601,
       updated_at: updated_at&.iso8601
     }
+  end
+
+  # Public, defensively-scrubbed view of pii_findings for the n8n daily
+  # digest endpoint. Strips any field that could carry a raw PII value if a
+  # future PiiScrubber change started storing it. Whitelist of allowed
+  # finding keys: type, position. The :value preview field is dropped
+  # entirely; consumers do not need it for digest aggregation.
+  def safe_pii_findings_for_digest
+    findings = parsed_pii_findings
+    return [] unless findings.is_a?(Array)
+
+    findings.filter_map do |f|
+      next unless f.is_a?(Hash)
+      {
+        'type' => f['type'] || f[:type],
+        'position' => f['position'] || f[:position]
+      }.compact
+    end
   end
 
   private

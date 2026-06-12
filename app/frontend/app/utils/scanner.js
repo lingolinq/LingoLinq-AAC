@@ -1202,8 +1202,9 @@ var scanner = EmberObject.extend({
         var alt_voice = !!(speecher.alternate_voice && speecher.alternate_voice.enabled && speecher.alternate_voice.for_scanning !== false);
         if(elem && elem.sound) {
           speecher.speak_audio(elem.sound, 'text', false, {alternate_voice: alt_voice, interrupt: false});
-        } else if(elem && elem.label) {
-          var clean_label = (elem.label || "").replace(/^[\+\:]/, '');
+        } else if(elem && (elem.vocalization || elem.label)) {
+          var speak_text = elem.vocalization || elem.label;
+          var clean_label = (speak_text || "").replace(/^[\+\:]/, '');
           speecher.speak_text(clean_label, false, {alternate_voice: alt_voice, interrupt: false});
         }
       }

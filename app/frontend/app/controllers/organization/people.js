@@ -2,16 +2,13 @@ import Controller from '@ember/controller';
 import { later as runLater } from '@ember/runloop';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
-import Utils from '../../utils/misc';
 import i18n from '../../utils/i18n';
-import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
   refresh_lists: function() {
-    this.set('orgs', {});
     this.set('users', {});
     this.set('evals', {});
     this.set('org_extras', {});
@@ -23,61 +20,7 @@ export default Controller.extend({
     this.refresh_extras();
     this.refresh_managers();
     this.refresh_supervisors();
-    this.refresh_orgs();
   },
-  refresh_orgs: function() {
-    var _this = this;
-    if(this.get('model.admin')) {
-      this.set('orgs.loading', true);
-      Utils.all_pages('organization', {q: 'all'}).then(function(res) {
-        _this.set('orgs.loading', null);
-        _this.set('orgs.data', res);
-      }, function() {
-        _this.set('orgs.loading', null);
-        _this.set('orgs.data', null);
-      });
-    }
-  },
-  sorted_orgs: computed('orgs.data', function() {
-    return this.get('orgs.data').map(function(o) { return o; }).sort(function(a, b) {
-        if(a.get('name').toLowerCase() < b.get('name').toLowerCase()) {
-          return -1;
-        } else if(a.get('name').toLowerCase() > b.get('name').toLowerCase()) {
-          return 1;
-        } else {
-          return 0;
-        }
-    });
-  }),
-  alphabetized_orgs: computed('sorted_orgs', function() {
-    var orgs = this.get('sorted_orgs') || [];
-    var letters = [];
-    orgs.forEach(function(org) {
-      var letter_string = org.get('name').substring(0, 1).toUpperCase();
-      var letter = letters[letters.length - 1];
-      if((letter || {}).letter != letter_string) {
-        letter = {letter: letter_string, orgs: []};
-        letters.push(letter);
-      }
-      letter.orgs.push(org);
-      letter.expanded = (letter.orgs.length <= 5);
-    });
-    return letters;
-  }),
-  filtered_orgs: computed('sorted_orgs', 'org_filter', function() {
-    var filter = this.get('org_filter');
-    if(!filter || filter == '') { return null; }
-    var res = [];
-    try {
-      var re = new RegExp(filter, 'i');
-      (this.get('sorted_orgs') || []).forEach(function(org) {
-        if(org.get('name').match(re)) {
-          res.push(org);
-        }
-      });
-    } catch(e) { }
-    return res.slice(0, 10);
-  }),
   refresh_users: function() {
     var _this = this;
     this.set('users.loading', true);
@@ -143,24 +86,15 @@ export default Controller.extend({
   },
   shown_view: computed(
     'selected_view',
-    'model.admin',
     'managers',
-    'model.children_orgs',
     function() {
       if(this.get('selected_view')) {
         return this.get('selected_view');
-      } else if(this.get('model.admin')) {
-        return 'organizations';
-      } else if(!this.get('managers.length') && this.get('model.children_orgs.length')) {
-        return 'organizations';
       } else {
         return 'managers';
       }
     }
   ),
-  show_organizations: computed('shown_view', function() {
-    return this.get('shown_view') == 'organizations';
-  }),
   show_managers: computed('shown_view', function() {
     return this.get('shown_view') == 'managers';
   }),
@@ -235,7 +169,7 @@ export default Controller.extend({
         modal.open('modals/confirm-org-action', {action: 'add_home', for_supervisor: !!action.match(/supervisor/), org: _this.get('model'), user_name: user_name}).then(function(res) {
           if(res && res.home) {
             if(res.extras) {
-              action = action + "-plus_extras";
+              action = action + '-plus_extras';
             }
             _this.send('management_action', action, user_name, true, res.home, res.symbols);
           }
@@ -320,54 +254,6 @@ export default Controller.extend({
           modal.error(i18n.t('management_action_failed', "Management action failed unexpectedly"));
         }
       });
-    },
-    add_org: function() {
-      if(this.get('model.admin') && this.get('model.permissions.manage')) {
-        var _this = this;
-        var user_name = this.get('org_user_name');
-        var org = this.store.createRecord('organization');
-        org.set('name', this.get('org_org_name'));
-        org.set('org_access', true);
-        org.set('premium', true);
-        org.save().then(function() {
-          if(user_name) {
-            org.set('management_action', 'add_manager-' + user_name);
-          }
-          org.save().then(function() {
-            _this.refresh_orgs();
-            _this.transitionToRoute('organization', org.get('id'));
-          }, function(err) {
-            console.log(err);
-            modal.error(i18n.t('add_org_manager_failed', 'Adding organization manager failed unexpectedly'));
-          });
-        }, function(err) {
-          console.log(err);
-          modal.error(i18n.t('add_org_failed', 'Adding organization failed unexpectedly'));
-        });
-      }
-    },
-    remove_org: function(org, decision) {
-      var _this = this;
-      if(!decision) {
-        modal.open('modals/confirm-org-action', {action: 'remove_org', org_name: org.get('name')}).then(function(res) {
-          if(res && res.confirmed) {
-            _this.send('remove_org', org, true);
-          }
-        });
-        return;
-      }
-      if(this.get('model.admin') && this.get('model.permissions.manage')) {
-        org.deleteRecord();
-        org.save().then(function() {
-          _this.refresh_orgs();
-        }, function(err) {
-          console.log(err);
-          modal.error(i18n.t('remove_org_failed', 'Removing organization failed unexpectedly'));
-        });
-      }
-    },
-    toggle_letter: function(letter) {
-      emberSet(letter, 'expanded', !emberGet(letter, 'expanded'));
     }
   }
 });

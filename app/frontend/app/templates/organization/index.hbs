@@ -1,14 +1,18 @@
 {{#if this.model.permissions.edit}}
-  {{#if this.model.parent_org}}
-    <div class="md-org-parent-badge">
-      {{t "Parent Organization: " key="parent_org_colon"}}
-      {{#if this.model.parent_org.permissions.view}}
-        <LinkTo @route="organization" @model={{this.model.parent_org.id}}>{{this.model.parent_org.name}}</LinkTo>
-      {{else}}
-        {{this.model.parent_org.name}}
-      {{/if}}
-    </div>
-  {{/if}}
+  <div class="md-org-context-actions">
+    <LinkTo @route="organizations" class="md-org-context-actions__link">{{t "All Organizations" key="all_organizations"}}</LinkTo>
+    {{#if this.model.parent_org}}
+      <span class="md-org-context-actions__divider" aria-hidden="true">/</span>
+      <span class="md-org-parent-badge">
+        {{t "Parent Organization: " key="parent_org_colon"}}
+        {{#if this.model.parent_org.permissions.view}}
+          <LinkTo @route="organization" @model={{this.model.parent_org.id}}>{{this.model.parent_org.name}}</LinkTo>
+        {{else}}
+          {{this.model.parent_org.name}}
+        {{/if}}
+      </span>
+    {{/if}}
+  </div>
 
   {{!-- Link to Caseload --}}
   {{#if this.app_state.currentUser.supporter_role}}
@@ -26,6 +30,46 @@
         <svg class="md-org-supervisees-link__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
       </LinkTo>
     </div>
+  {{/if}}
+
+  {{#if (or this.model.parent_org this.model.children_orgs.length)}}
+    <section class="md-org-section md-org-structure" aria-label={{t "Organization structure" key="org_structure"}}>
+      <div class="md-org-section-head">
+        <div>
+          <h3 class="md-org-section-title">{{t "Organization structure" key="org_structure"}}</h3>
+          <p class="md-org-section-desc">{{t "Use this section to see where this organization sits and open related organizations." key="org_structure_desc"}}</p>
+        </div>
+        <LinkTo @route="organizations" class="md-org-see-all">{{t "Switch organization" key="switch_organization"}}</LinkTo>
+      </div>
+      <div class="md-org-user-list">
+        {{#if this.model.parent_org}}
+          <div class="md-org-user-row md-org-user-row--parent">
+            <span class="md-org-user-row__org-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/><path d="M9 17h.01"/></svg>
+            </span>
+            <span class="md-org-user-row__name">
+              {{t "Parent:" key="parent_colon"}}
+              {{#if this.model.parent_org.permissions.view}}
+                <LinkTo @route="organization" @model={{this.model.parent_org.id}}>{{this.model.parent_org.name}}</LinkTo>
+              {{else}}
+                {{this.model.parent_org.name}}
+              {{/if}}
+            </span>
+          </div>
+        {{/if}}
+        {{#each this.model.children_orgs as |org|}}
+          <div class="md-org-user-row md-org-user-row--child">
+            <LinkTo @route="organization" @model={{org.id}} class="md-org-user-row__main">
+              <span class="md-org-user-row__org-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M10 22v-4h4v4"/><line x1="9" y1="6" x2="9" y2="6.01" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke-width="2"/></svg>
+              </span>
+              <span class="md-org-user-row__name">{{org.name}}</span>
+              <span class="md-chip md-chip--soft">{{t "sub-organization" key="sub_organization"}}</span>
+            </LinkTo>
+          </div>
+        {{/each}}
+      </div>
+    </section>
   {{/if}}
 
   {{!-- ═══════════════ Dashboard Stats (visible to managing users) ═══════════════ --}}

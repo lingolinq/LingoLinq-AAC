@@ -10,8 +10,8 @@ describe Api::ButtonSetsController, :type => :controller do
   
   describe "show" do
     it "should not require api token" do
-      get :show, params: {:id => 'asdf'}
-      assert_not_found('asdf')
+      get :show, params: {:id => '1_19999'}
+      assert_not_found('1_19999')
     end
     
     it "should require existing object" do
@@ -77,14 +77,14 @@ describe Api::ButtonSetsController, :type => :controller do
 
   describe "generate" do
     it "should require an api token" do
-      post :generate, params: {'id' => 'asdf'}
+      post :generate, params: {'id' => '1_19999'}
       assert_missing_token
     end
 
     it "should require a valid board" do
       token_user
-      post :generate, params: {'id' => 'asdf'}
-      assert_not_found('asdf')
+      post :generate, params: {'id' => '1_19999'}
+      assert_not_found('1_19999')
     end
 
     it "should require permissions" do

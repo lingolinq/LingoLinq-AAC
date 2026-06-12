@@ -51,6 +51,7 @@ export default Component.extend({
     this.set('model', button);
     button.set('translations_hash', this.get('board').translations_for_button(button.id));
     this.set('handle_updates', true);
+    this.set('fresh_picture_url', null);
     contentGrabbers.setup(button, this);
     var _this = this;
 

@@ -1,4 +1,4 @@
-class Progress < ActiveRecord::Base
+class Progress < ApplicationRecord
   include GlobalId
   include SecureSerialize
   protect_global_id
@@ -6,7 +6,18 @@ class Progress < ActiveRecord::Base
   before_save :generate_defaults
   
   include Permissions
-  add_permissions('view' ,['*']) { true }
+  # Restrict 'view' to the user who scheduled the progress (recorded via
+  # `for_user:` keyword on Progress.schedule). Legacy progresses without an
+  # owner remain world-readable for backward-compat with in-flight records;
+  # all new sensitive callers (downloads, exports, billing) now pass for_user.
+  add_permissions('view', ['*']) do |user|
+    owner = settings.is_a?(Hash) ? settings['for_user_global_id'] : nil
+    if owner.nil?
+      true
+    else
+      user && user.respond_to?(:global_id) && user.global_id == owner
+    end
+  end
   
   
   def generate_defaults
@@ -73,21 +84,48 @@ class Progress < ActiveRecord::Base
     @@progress_error = str
   end
   
-  def self.schedule(obj, method, *args)
+  # `for_user:` records the user who initiated the progress so:
+  #   1. Idempotency does NOT pool work across users (User B is not handed
+  #      User A's progress with its result hash + presigned download_url).
+  #   2. The 'view' permission can scope to that owner.
+  # Legacy callers that pass nil keep the pre-2026-05-04 permissive behavior.
+  def self.schedule(obj, method, *args, for_user: nil)
     # TODO: this (clear_old_progresses) should probably be more of a cron task
     clear_old_progresses
-    
+
     id = nil
     if obj.is_a?(ActiveRecord::Base)
       id = obj.id
       obj = obj.class
     end
+
+    for_user_global_id = if for_user.respond_to?(:global_id)
+      for_user.global_id
+    else
+      for_user.to_s.presence
+    end
+
+    # Check for existing pending or started progress for the same operation
+    # AND the same initiating user. Mismatched user means we create a new
+    # record so each user gets their own result hash.
+    existing = Progress.where("started_at > ? OR (started_at IS NULL AND created_at > ?)", 4.hours.ago, 1.hour.ago)
+                       .where(finished_at: nil)
+                       .find do |p|
+      p.settings['class'] == obj.to_s &&
+      p.settings['id'] == id &&
+      p.settings['method'].to_s == method.to_s &&
+      p.settings['arguments'] == args &&
+      p.settings['for_user_global_id'] == for_user_global_id
+    end
+    return existing if existing
+
     progress = Progress.new
     progress.settings = {
       'class' => obj.to_s,
       'id' => id,
       'method' => method,
-      'arguments' => args
+      'arguments' => args,
+      'for_user_global_id' => for_user_global_id
     }
     progress.save!
     Worker.schedule_for(:priority, Progress, :perform_action, progress.id)

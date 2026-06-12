@@ -365,6 +365,102 @@ describe Api::SearchController, :type => :controller do
       expect(json['content_type']).to eq('image/png')
       expect(json['data']).to eq('data:image/png;base64,MTIzNDU=')
     end
+
+    it "should regenerate and retry when a button_set_cache URL misses" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      bs.data['remote_paths'] = {'h1' => {'path' => "button_set_cache/#{bs.global_id}/h1.json", 'generated' => Time.now.to_i}}
+      bs.save
+      stale_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      fresh_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/chksm12345/h1.json"
+
+      # First fetch (stale URL) raises BadFileError; retry (fresh URL) succeeds
+      call_count = 0
+      expect(controller).to receive(:get_url_in_chunks).twice do |req|
+        call_count += 1
+        if call_count == 1
+          raise Api::SearchController::BadFileError, "File not retrieved, status 403 for #{req.url}"
+        else
+          expect(req.url).to eq(fresh_url)
+          ['text/json', '{"buttons":[]}']
+        end
+      end
+      expect(BoardDownstreamButtonSet).to receive(:generate_for).with(b.global_id, @user.global_id).and_return({success: true, state: 'uploaded', url: fresh_url})
+
+      get :proxy, params: {:url => stale_url}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['content_type']).to eq('text/json')
+      expect(json['data']).to eq("data:text/json;base64,#{Base64.strict_encode64('{"buttons":[]}')}")
+
+      # Stale remote_paths entry is cleared
+      bs.reload
+      expect(bs.data['remote_paths']['h1']).to be_nil
+    end
+
+    it "should return original error if button_set_cache URL miss cannot be regenerated" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      stale_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'File not retrieved, status 403')
+      expect(BoardDownstreamButtonSet).to receive(:generate_for).and_return({success: false, error: 'whatever'})
+
+      get :proxy, params: {:url => stale_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('File not retrieved, status 403')
+    end
+
+    it "should NOT attempt regenerate for non-cache URLs" do
+      token_user
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'something bad')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => 'http://www.example.com/pic.png'}
+      expect(response).not_to be_successful
+    end
+
+    it "should NOT attempt regenerate for cache URL errors that are not 403/404" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      cache_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'Invalid file type, text/html')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => cache_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Invalid file type, text/html')
+    end
+
+    it "should NOT attempt regenerate for generic cache URL exceptions" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      cache_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Timeout::Error, 'request timed out')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => cache_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Failed to fetch URL: request timed out')
+    end
+
+    it "should NOT attempt regenerate if user does not have view permission on the board" do
+      token_user
+      other_user = User.create
+      b = Board.create(user: other_user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      stale_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'File not retrieved, status 403')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => stale_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('File not retrieved, status 403')
+    end
   end
   
   describe "apps" do
@@ -630,7 +726,7 @@ describe Api::SearchController, :type => :controller do
       expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: [
         {a: 1}, {b: 2}
       ].to_json))
-      post 'focuses', params: {q: 'bacon'}
+      get 'focuses', params: {q: 'bacon'}
       json = assert_success_json
       expect(json).to eq([{'a' => 1}, {'b' => 2}])
     end
@@ -639,9 +735,41 @@ describe Api::SearchController, :type => :controller do
       expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=es&q=bacon&category=chocolate&type=cool&sort=popularity", timeout: 10).and_return(OpenStruct.new(body: [
         {a: 1}, {b: 2}
       ].to_json))
-      post 'focuses', params: {q: 'bacon', locale: 'es', category: 'chocolate', type: 'cool', sort: 'popularity', limit: 10}
+      get 'focuses', params: {q: 'bacon', locale: 'es', category: 'chocolate', type: 'cool', sort: 'popularity', limit: 10}
       json = assert_success_json
       expect(json).to eq([{'a' => 1}, {'b' => 2}])
+    end
+
+    it "should return an empty array from a successful empty remote response" do
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=missing&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: [].to_json))
+      get 'focuses', params: {q: 'missing'}
+      json = assert_success_json
+      expect(json).to eq([])
+    end
+
+    it "should error predictably on invalid remote JSON" do
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: '<html>nope</html>'))
+      get 'focuses', params: {q: 'bacon'}
+      expect(response).to have_http_status(502)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid focus search response')
+    end
+
+    it "should error predictably on a failed remote response" do
+      failed = double('workshop_response', body: '', success?: false)
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(failed)
+      get 'focuses', params: {q: 'bacon'}
+      expect(response).to have_http_status(502)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('focus search unavailable')
+    end
+
+    it "should error predictably on a non-array remote JSON response" do
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: {error: 'bad'}.to_json))
+      get 'focuses', params: {q: 'bacon'}
+      expect(response).to have_http_status(502)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid focus search response')
     end
   end
 

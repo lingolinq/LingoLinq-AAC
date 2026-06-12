@@ -39,6 +39,26 @@ var modal = EmberObject.extend({
     }
     return null;
   },
+
+  // Looks up the app-state service so simple flash notifications can be routed
+  // through the modern ll-toast component instead of the legacy flash-message
+  // outlet. Sticky / action-bearing flashes still use the legacy path.
+  _getAppState: function() {
+    try {
+      if (this.route) {
+        var owner = getOwner(this.route);
+        if (owner) {
+          var service = owner.lookup('service:app-state');
+          if (service) { return service; }
+        }
+      }
+      if (typeof window !== 'undefined' && window.LingoLinq) {
+        var owner = getOwner(window.LingoLinq);
+        if (owner) { return owner.lookup('service:app-state'); }
+      }
+    } catch(e) {}
+    return null;
+  },
   
   setup: function(route) {
     if(this.last_promise) { this.last_promise.reject('closing due to setup'); }
@@ -202,15 +222,20 @@ var modal = EmberObject.extend({
     });
   },
   is_open: function(template) {
+    var service = this._getService();
     if(template == 'highlight') {
       return !!this.highlight_controller;
     } else if(template == 'highlight-secondary') {
       return !!this.highlight2_controller;
     } else if(template) {
-      // Check both outlet-based and component-based modals
-      return this.last_template == template || this._component_based_template == template;
+      // Outlet-based, legacy component flag, and service-backed modals
+      return this.last_template == template ||
+        this._component_based_template == template ||
+        !!(service && service.get('currentTemplate') === template);
     } else {
-      return !!this.last_template || !!this._component_based_template;
+      return !!this.last_template ||
+        !!this._component_based_template ||
+        !!(service && service.get('currentTemplate'));
     }
   },
   is_closeable: function() {
@@ -307,9 +332,12 @@ var modal = EmberObject.extend({
   },
   close: function(success, outlet) {
     outlet = outlet || 'modal';
-    if(!this.route) { return; }
-    
     var service = this._getService();
+    // Component-based modals run through the modal service; allow closing even if
+    // the legacy route hook is missing so we still resolve promises and clear state.
+    if (!this.route && !service) {
+      return;
+    }
     
     if(this.last_promise && outlet != 'highlight' && outlet != 'highlight-secondary') {
       // Treat null, undefined, or any truthy value as success
@@ -333,6 +361,16 @@ var modal = EmberObject.extend({
         service.set('currentComponent', null);
         service.set('currentController', null);
         service.set('currentPromise', null);
+      }
+    } else if (service && outlet != 'highlight' && outlet != 'highlight-secondary' && (outlet === 'modal' || !outlet)) {
+      // Service-backed modal is open but legacy last_promise was cleared (race / partial
+      // migration). Still resolve so modal.open() callers and the service unmount cleanly.
+      if (service.get('currentTemplate') && service.get('currentPromise')) {
+        service._resolveCurrentPromise(success === false ? false : success);
+        service.set('currentPromise', null);
+        service.set('currentOptions', null);
+        service.set('currentComponent', null);
+        service.set('currentController', null);
       }
     }
     if(this.highlight_promise && outlet == 'highlight') {
@@ -411,6 +449,20 @@ var modal = EmberObject.extend({
     if(!this.route) { throw "must call setup before trying to show a flash message"; }
     type = type || 'notice';
     opts = opts || {};
+    // Route simple (non-sticky, no-action, no-redirect) flashes through the
+    // modern ll-toast component so every lightweight "Saved!" / "Failed" /
+    // "Heads up!" notice matches the logging-enabled toast style.
+    if(!sticky && !opts.action && !opts.redirect) {
+      var appState = this._getAppState();
+      if(appState && typeof appState.show_toast === 'function') {
+        // Map legacy flash type → toast kind.
+        var kind = type;
+        if(kind === 'notice') { kind = 'info'; }
+        var duration = opts.timeout || (below_header ? 3500 : 3000);
+        appState.show_toast(text, kind, duration);
+        return;
+      }
+    }
     this.settings_for['flash'] = {type: type, text: text, sticky: sticky, action: opts.action};
     if(below_header) {
       this.settings_for['flash'].below_header = below_header;
@@ -463,16 +515,18 @@ var modal = EmberObject.extend({
   },
   board_preview: function(board, locale, allow_style, callback) {
     var service = this._getService();
+    var remove = (board && board.preview_remove) || null;
     if (service) {
       service.open('board-preview', {
         board: board,
         locale: locale || (board.get ? board.get('preview_locale') : board.preview_locale),
         option: board.preview_option || board.get ? board.get('preview_option') : undefined,
         allow_style: allow_style,
-        callback: callback
+        callback: callback,
+        remove: remove
       });
     } else if (this.route) {
-      this.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback}});
+      this.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback, remove: remove}});
     }
   },
   cancel_auto_close: function() {

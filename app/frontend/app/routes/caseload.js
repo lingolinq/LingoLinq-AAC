@@ -4,6 +4,7 @@ import i18n from '../utils/i18n';
 
 export default Route.extend({
   appState: service('app-state'),
+  router: service(),
 
   model() {
     return this.get('appState.currentUser');
@@ -11,7 +12,7 @@ export default Route.extend({
 
   afterModel(model) {
     if (!model || !model.get('supporter_role')) {
-      this.transitionTo('index');
+      this.get('router').transitionTo('index');
     }
   },
 

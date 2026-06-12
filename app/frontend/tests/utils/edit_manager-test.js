@@ -85,6 +85,28 @@ describe('editManager', function() {
     });
   });
 
+  describe("preview levels", function() {
+    it("should ignore plain button objects that do not implement apply_level", function() {
+      var applied = null;
+      editManager.controller = EmberObject.create({
+        ordered_buttons: [[
+          {id: 'plain-button'},
+          {
+            id: 'ember-button',
+            apply_level: function(level) {
+              applied = level;
+            }
+          }
+        ]]
+      });
+      stub(editManager, 'update_color_key_id', function() { });
+      expect(function() {
+        editManager.apply_preview_level(10);
+      }).not.toThrow();
+      expect(applied).toEqual(10);
+    });
+  });
+
   describe("state", function() {
     it("should create a deep copy of state on clone_state", function() {
       expect(editManager.clone_state()).toEqual(undefined);
@@ -332,6 +354,26 @@ describe('editManager', function() {
       expect(button.get('label')).toEqual('square');
       expect(button.get('horse')).toEqual('radish');
       expect(editManager.lastChange).toEqual({button_id: 123, changes: ['label', 'horse']});
+    });
+    it("should mirror image.best_url to image_url and local_image_url", function() {
+      editManager.setup(board);
+      board.set('ordered_buttons', [[]]);
+      var button = Button.create({
+        id: 123, label: 'wipe',
+        image_url: 'https://example.com/old.png',
+        image_id: 1
+      });
+      board.set('ordered_buttons', [[button]]);
+      var image = EmberObject.create({
+        url: 'https://example.com/new.png',
+        best_url: 'https://example.com/new.png'
+      });
+      image.get = function(key) { return this[key]; };
+      editManager.change_button(123, { image: image, image_id: 456 });
+      expect(button.get('local_image_url')).toEqual('https://example.com/new.png');
+      expect(button.get('image_url')).toEqual('https://example.com/new.png');
+      expect(button.get('image_id')).toEqual(456);
+      expect(button.get('image')).toEqual(image);
     });
     it("should add the prior state to the edit history", function() {
       editManager.setup(board);
@@ -2305,6 +2347,31 @@ describe('editManager', function() {
       runs();
     });
 
+    it("should create a copy using the source board global id as parent", function() {
+      stub(modal, 'flash', function() { });
+      var b = LingoLinq.store.createRecord('board', {
+        id: 'example/fred',
+        _actual_id: '1_1',
+        key: 'example/fred',
+        buttons: [],
+        grid: {}
+      });
+      var found = false;
+      queryLog.defineFixture({
+        method: 'POST',
+        type: 'board',
+        response: RSVP.reject({stub: true}),
+        compare: function(object) {
+          found = true;
+          expect(object.get('parent_board_id')).toEqual('1_1');
+          return true;
+        }
+      });
+      editManager.copy_board(b).then(null, function() { });
+      waitsFor(function() { return found; });
+      runs();
+    });
+
     it("should preserve existing links if specified", function() {
       stub(modal, 'flash', function() { });
       var model = {
@@ -2571,8 +2638,15 @@ describe('editManager', function() {
             new_board_id: '1_2',
             old_board_id: '1_1',
             update_inline: false,
+            old_default_locale: undefined,
+            new_default_locale: undefined,
+            swap_library: undefined,
             make_public: undefined,
-            ids_to_copy: ""
+            ids_to_copy: "",
+            expand_selected_board_ids: undefined,
+            new_owner: undefined,
+            disconnect: undefined,
+            copy_prefix: undefined
           }
         });
       });
@@ -2869,7 +2943,7 @@ describe('editManager', function() {
       });
     });
 
-    it("should allow trying to copy for someone else", function() {
+    it("should call copy_board_links when copying linked boards for someone else", function() {
       app_state.set('currentBoardState', {id: '1_1'});
       stub(modal, 'flash', function() { });
       var user = EmberObject.create({
@@ -2916,8 +2990,15 @@ describe('editManager', function() {
             new_board_id: '1_2',
             old_board_id: '1_1',
             update_inline: false,
+            old_default_locale: undefined,
+            new_default_locale: undefined,
+            swap_library: undefined,
             make_public: undefined,
-            ids_to_copy: ""
+            ids_to_copy: "",
+            expand_selected_board_ids: undefined,
+            new_owner: undefined,
+            disconnect: undefined,
+            copy_prefix: undefined
           }
         });
       });

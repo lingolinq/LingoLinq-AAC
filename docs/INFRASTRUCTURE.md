@@ -59,18 +59,11 @@ env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake envi
 |---------|-----|------|-------|
 | lingolinq-n8n | srv-d4kbjqc9c44c73erql8g | Web (Docker) | n8n automation, https://lingolinq-n8n.onrender.com |
 
-### Legacy Services (TO BE SUSPENDED)
-| Service | ID | Type | Notes |
-|---------|-----|------|-------|
-| LingoLinq-AAC (original web) | srv-d473l8s9c44c73dkg2u0 | Web | Replaced by prod/dev/staging. Environment group: evm-d46rgc63jp1c73aorv6g |
-| LingoLinq-AAC (original worker) | srv-d4ocpnje5dus73c5itlg | Worker | Connected to wrong DB (lingolinq-db). Replaced by per-env workers |
-
 ### Databases
 | Database | ID | Used By |
 |----------|----|---------|
 | lingolinq-prod-db | dpg-d64c5i1r0fns73c5jcp0-a | lingolinq-prod + prod-worker |
 | lingolinq-dev-staging-db | dpg-d64c53v5r7bs73acj600-a | lingolinq-dev + lingolinq-staging + dev-worker |
-| lingolinq-db (legacy) | dpg-d46rdsi4d50c7392jsn0-a | Original services only (legacy) |
 
 ### Redis
 | Instance | ID | Plan | Notes |

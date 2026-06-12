@@ -220,7 +220,7 @@
             <div class="form-group">
               <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
               <div class="col-sm-10">
-                {{video-recorder user=this.model.user video_ready="video_ready" video_not_ready="video_not_ready"}}
+                {{video-recorder user=this.model.user video_ready=(action "video_ready") video_not_ready=(action "video_not_ready")}}
               </div>
             </div>
           {{/if}}
@@ -332,8 +332,14 @@
       <button {{action "browse_goals"}} class='btn btn-default'>{{t "Create My Own Goal" key="create_own_goal"}}</button>
     {{/if}}
     <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
-    {{#if this.error}}
-      <p class='text-danger'>{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
+    {{#if this.save_error_key}}
+      {{#if (is-equal this.save_error_key "device_scopes_none")}}
+        <p class='text-danger'>{{t "This session cannot save goals until you finish signing in (for example, complete two-factor verification for this browser) or your account uses a device that is not disabled. Try signing out and back in; contact support if the problem continues." key="goal_save_device_scopes_none"}}</p>
+      {{else if (is-equal this.save_error_key "valet_blocked")}}
+        <p class='text-danger'>{{t "Goals cannot be saved while using a limited valet session. Sign in with your full password to add or change goals." key="goal_save_valet_blocked"}}</p>
+      {{else}}
+        <p class='text-danger'>{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
+      {{/if}}
     {{/if}}
   </div>
 {{/modal-dialog}}

@@ -17,6 +17,7 @@ import contentGrabbers from './content_grabbers';
 import Utils from './misc';
 import modal from './modal';
 import capabilities from './capabilities';
+import boardPrefetchPlanner from './board_prefetch_planner';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -1103,7 +1104,40 @@ var persistence = EmberObject.extend({
     var message_id = Math.random() + "." + (new Date()).getTime();
     persistence.bg_parser.callbacks[message_id] = defer;
     if(persistence.bg_parser.worker && persistence.bg_parser.worker.postMessage) {
-      persistence.bg_parser.worker.postMessage({id: message_id, str: str});
+      // Fallback in case worker crashes or hangs for a very long time
+      var fallbackTimeout = setTimeout(function() {
+        if(persistence.bg_parser.callbacks[message_id]) {
+          console.warn("Worker JSON parse timed out, falling back to sync parse.");
+          delete persistence.bg_parser.callbacks[message_id];
+          try {
+            var json = JSON.parse(str);
+            defer.resolve(json);
+          } catch(e) {
+            defer.reject({error: "exception parsing JSON on async timeout fallback", details: e});
+          }
+        }
+      }, 15000); // 15 seconds
+
+      var originalResolve = defer.resolve;
+      var originalReject = defer.reject;
+      defer.resolve = function(res) {
+        clearTimeout(fallbackTimeout);
+        delete persistence.bg_parser.callbacks[message_id];
+        originalResolve.call(defer, res);
+      };
+      defer.reject = function(err) {
+        clearTimeout(fallbackTimeout);
+        delete persistence.bg_parser.callbacks[message_id];
+        originalReject.call(defer, err);
+      };
+
+      try {
+        persistence.bg_parser.worker.postMessage({id: message_id, str: str});
+      } catch(e) {
+        clearTimeout(fallbackTimeout);
+        delete persistence.bg_parser.callbacks[message_id];
+        try { defer.resolve(JSON.parse(str)); } catch(ee) { defer.reject(ee); }
+      }
       return defer.promise;  
     } else {
       try {
@@ -1118,11 +1152,21 @@ var persistence = EmberObject.extend({
     // TODO: replace JSON.parse with webworker if too big:
     // https://stackoverflow.com/questions/10494285/is-delegating-json-parse-to-web-worker-worthwile-in-chrome-extension-ff-addon
     var _this = this;
+    var decode_data_uri = function(data_uri) {
+      var decoded = atob(data_uri.split(/,/)[1]);
+      try {
+        return decodeURIComponent(escape(decoded));
+      } catch(e) {
+        return decoded;
+      }
+    };
     return new RSVP.Promise(function(resolve, reject) {
       _this.find_url(url, 'json').then(function(uri) {
-        if(typeof(uri) == 'string' && uri.match(/^data:/)) {
+        if(uri && uri.json_payload) {
+          resolve(uri.json_payload);
+        } else if(typeof(uri) == 'string' && uri.match(/^data:/)) {
           try {
-            persistence.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
+            persistence.bg_parse_json(decode_data_uri(uri)).then(function(json) {
               resolve(json);
             }, function(err) {
               LingoLinq.track_error("No JSON dataURI");
@@ -1136,7 +1180,7 @@ var persistence = EmberObject.extend({
           var filename = uri.split(/\//).pop();
           capabilities.storage.get_file_url('json', filename, true).then(function(data_uri) {
             try {
-              persistence.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+              persistence.bg_parse_json(decode_data_uri(data_uri)).then(function(result) {
                 resolve(result || []);
               });
             } catch(e) {
@@ -1184,11 +1228,18 @@ var persistence = EmberObject.extend({
       persistence.json_cache[url] = json;
     }
     return _this.store_url(url, 'json', encryption_settings).then(function(storage) {
-      var data_uri = storage.data_uri || storage;
+      if(storage && storage.json_payload) {
+        return RSVP.resolve(storage.json_payload);
+      }
+      var data_uri = storage && storage.data_uri ? storage.data_uri : storage;
       var result = undefined;
       var parse_uri = function(data_uri) {
         try {
-          return persistence.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+          var decoded = atob(data_uri.split(/,/)[1]);
+          try {
+            decoded = decodeURIComponent(escape(decoded));
+          } catch(e) { }
+          return persistence.bg_parse_json(decoded).then(function(result) {
             return result || [];
           });
         } catch(e) {
@@ -1224,7 +1275,7 @@ var persistence = EmberObject.extend({
           });  
         }
       } else {
-        if(data_uri || result !== undefined) {
+        if(typeof(data_uri) == 'string' || result !== undefined) {
           return result || json;
         } else {
           console.error("nothing", url, json);
@@ -1264,7 +1315,9 @@ var persistence = EmberObject.extend({
       return find.then(function(data) {
         _this.url_cache = _this.url_cache || {};
         var file_missing = _this.url_cache[url] === false;
-        if(data.local_url) {
+        if(type == 'json' && data.json_payload) {
+          return data.json_payload;
+        } else if(data.local_url) {
           if(data.local_filename) {
             if(type == 'image' && _this.image_filename_cache && _this.image_filename_cache[data.local_filename]) {
               _this.url_cache[url] = capabilities.storage.fix_url(data.local_url, true);
@@ -1558,13 +1611,14 @@ var persistence = EmberObject.extend({
     var _this = persistence;
     return new RSVP.Promise(function(resolve, reject) {
       var lookup = RSVP.reject();
+      var parsed_json_payload = null;
 
       if(url && url.match(/^cache:/) && persistence.json_cache && persistence.json_cache[url]) {
         lookup = RSVP.resolve({
           url: url,
           type: type,
           content_type: 'text/json',
-          data_uri: "data:text/json;base64," + btoa(JSON.stringify(persistence.json_cache[url])),
+          data_uri: "data:text/json;base64," + btoa(unescape(encodeURIComponent(JSON.stringify(persistence.json_cache[url])))),
           local_filename: persistence.json_cache[url].filename
         });
       }
@@ -1572,7 +1626,10 @@ var persistence = EmberObject.extend({
       var trusted_not_to_change = url.match(/opensymbols\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/opensymbols/) ||
                   url.match(/lingolinq-usercontent\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/lingolinq-usercontent/) ||
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
-      var cors_match = trusted_not_to_change || url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
+      var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
+        url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
+      var cors_match = trusted_not_to_change || uploads_bucket ||
+        url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
@@ -1624,6 +1681,7 @@ var persistence = EmberObject.extend({
               xhr_reject({e:e, cors: true, error: 'URL lookup error'});
             });
             xhr.addEventListener('abort', function() { xhr_reject({cors: true, error: 'URL lookup aborted'}); });
+            xhr.addEventListener('timeout', function() { xhr_reject({cors: true, error: 'URL lookup timeout'}); });
 //            console.log("trying CORS request for " + url);
             // Adding the query parameter because I suspect that if a URL has already
             // been retrieved by the browser, it's not sending CORS headers on the
@@ -1632,6 +1690,7 @@ var persistence = EmberObject.extend({
             // TODO: xhr.open('GET', encodeURI(url) + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.open('GET', url + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.responseType = 'blob';
+            xhr.timeout = 45000;
             xhr.send(null);
           });
         });
@@ -1669,14 +1728,20 @@ var persistence = EmberObject.extend({
       });
 
       var decrypt = fallback.then(function(object) {
-        if(encryption_settings && object.content_type.match(/json/)) {
-          var str = object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
+        if(encryption_settings && (object.content_type || '').match(/json/)) {
+          var str = object.data_uri && object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
           if(str && str.match(/^aes256-/)) {
             // if it's encrypted, try decrypting it and generating a
             // new data-uri before continuing
             return persistence.decrypt_json(str, encryption_settings).then(function(res) {
-              var json_str = JSON.stringify(res);
-              object.data_uri = "data:application/json," + btoa(json_str);
+              parsed_json_payload = res;
+              object.json_payload = res;
+              try {
+                var json_str = JSON.stringify(res);
+                object.data_uri = "data:application/json;base64," + btoa(unescape(encodeURIComponent(json_str)));
+              } catch(e) {
+                object.data_uri = null;
+              }
               return object;
             });
           } else {
@@ -1707,6 +1772,18 @@ var persistence = EmberObject.extend({
       size_image.then(function(object) {
         // remember: persisted objects will not have a data_uri attribute, so this will be skipped for them
         if(safeGet(getPersistence(), 'local_system.available') && safeGet(getPersistence(), 'local_system.allowed') && safeGet(getStashes(), 'auth_settings')) {
+          // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
+          // is sufficient. FileSystem writes for large JSON blobs often fail
+          // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
+          if(type == 'json' && (object.data_uri || object.json_payload)) {
+            if(!object.persisted) {
+              object.persisted = true;
+              object.url = url_id;
+            }
+            return persistence.store('dataCache', object, object.url).then(function() {
+              return object;
+            });
+          }
           if(object.data_uri) {
             var local_system_filename = object.local_filename;
             if(!local_system_filename) {
@@ -1789,6 +1866,12 @@ var persistence = EmberObject.extend({
       }, function(err) {
         persistence.url_uncache = persistence.url_uncache || {};
         persistence.url_uncache[url_id] = true;
+        if(type == 'json' && parsed_json_payload) {
+          persistence.url_cache = persistence.url_cache || {};
+          persistence.url_cache[url_id] = null;
+          resolve({url: url_id, type: 'json', json_payload: parsed_json_payload});
+          return;
+        }
         var error = {error: "saving to data cache failed for " + url_id};
         if(err && err.name == "QuotaExceededError") {
           capabilities.storage.already_limited_size = true;
@@ -1797,13 +1880,17 @@ var persistence = EmberObject.extend({
           persistence.url_cache[url_id] = null;
           error.quota_maxed = true;
           safeSet(getPersistence(), 'local_system.allowed', false);
-        } else if(err.error == 'rejected' || err.error == 'already_rejected') {
-          capabilities.storage.already_limited_size = true;
-          stashes.persist('allow_local_filesystem_request', false);
-          persistence.url_cache = persistence.url_cache || {};
-          persistence.url_cache[url_id] = null;
-          error.quota_maxed = true;
-          safeSet(getPersistence(), 'local_system.allowed', false);
+        } else if(err && (err.error == 'rejected' || err.error == 'already_rejected')) {
+          // UI feedback sounds (beep, click, etc.) are optional; don't disable the
+          // whole local cache path when filesystem quota is denied on a small mp3.
+          if(type != 'sound') {
+            capabilities.storage.already_limited_size = true;
+            stashes.persist('allow_local_filesystem_request', false);
+            persistence.url_cache = persistence.url_cache || {};
+            persistence.url_cache[url_id] = null;
+            error.quota_maxed = true;
+            safeSet(getPersistence(), 'local_system.allowed', false);
+          }
         }
         reject(error);
       });
@@ -1900,6 +1987,69 @@ var persistence = EmberObject.extend({
     if(safeGet(getPersistence(), 'sync_progress')) {
       safeSet(getPersistence(), 'sync_progress.canceled', true);
     }
+  },
+  // SPEC R5 / plan 03 audit (2026-04-25): clears in-memory user-scoped caches on
+  // sign-out. Called from services/session.js#invalidate when the
+  // auth_spa_transition feature flag is enabled (plan 05 wires the call). SAFE
+  // to call with no logged-in user. In-memory only — does NOT wipe IndexedDB /
+  // SQLite (persistent offline cache survives sign-out by design, matching the
+  // pre-SPA reload behavior).
+  //
+  // What is cleared:
+  //   - sync_progress (root_user-keyed in-flight sync state)
+  //   - last_sync_at, last_sync_stamp, last_sync_event_at, sync_stamps,
+  //     sync_status (per-user sync metadata)
+  //   - sync_actions queue + syncing_action_watchers counter
+  //   - known_missing (per-user 404 cache; user B may see records user A could not)
+  //   - urls_to_store queue + storing_url_watchers counter
+  //   - eventual_store queue + its runLater timer
+  //   - removals, stores, log, errors operation logs
+  //
+  // What is intentionally NOT cleared:
+  //   - online, auto_sync, local_system, app_needs_update, primed (app/device-scoped)
+  //   - url_cache / url_uncache (content-addressed; same URL = same local file
+  //     regardless of user)
+  //   - db_name and any IndexedDB / SQLite content (persistent — out of scope)
+  //   - storing_urls function reference (it's logic, not state)
+  clear_user_state: function() {
+    var inst = getPersistence();
+    // First cancel any in-flight sync so workers see canceled and exit cleanly.
+    if(safeGet(inst, 'sync_progress')) {
+      safeSet(inst, 'sync_progress.canceled', true);
+    }
+    // Per-user sync state.
+    safeSet(inst, 'sync_progress', null);
+    safeSet(inst, 'sync_status', null);
+    safeSet(inst, 'last_sync_at', null);
+    safeSet(inst, 'last_sync_stamp', null);
+    safeSet(inst, 'last_sync_event_at', null);
+    safeSet(inst, 'sync_stamps', {});
+
+    // Per-user queues + paired worker counters. These are direct properties
+    // on the persistence module object (not Ember-observed fields).
+    persistence.sync_actions = [];
+    persistence.syncing_action_watchers = 0;
+    persistence.urls_to_store = [];
+    persistence.storing_url_watchers = 0;
+    persistence.eventual_store = [];
+    if(persistence.eventual_store_timer) {
+      try { runCancel(persistence.eventual_store_timer); } catch(e) { }
+      persistence.eventual_store_timer = null;
+    }
+    if(persistence.refresh_after_eventual_stores) {
+      persistence.refresh_after_eventual_stores.waiting = false;
+    }
+
+    // Per-user permission/visibility cache — must clear because user B may have
+    // access to records that returned 404 for user A.
+    persistence.known_missing = {};
+
+    // Per-user operation logs. These are diagnostic and should not leak across
+    // sessions.
+    persistence.removals = [];
+    persistence.stores = [];
+    persistence.log = [];
+    persistence.errors = [];
   },
   time_promise: function(promise, msg, ms) {
     var promise = new RSVP.Promise(function(resolve, reject) {
@@ -2047,7 +2197,7 @@ var persistence = EmberObject.extend({
         eventuallies.push(function() {
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
-          persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png', 'image', false, false).then(null, function() { });
+          persistence.store_url('/images/lingolinq-board-icon.png', 'image', false, false).then(null, function() { });
           persistence.store_url('https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/274c.svg', 'image', false, false).then(null, function() { });
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg', 'image', false, false).then(null, function() { });
         });
@@ -2132,7 +2282,8 @@ var persistence = EmberObject.extend({
             });
           }
         }
-        // TODO: also download all the user's personally-created boards
+        // Phased board sync (owned + public roots) handled in sync_boards
+        // when background_board_prefetch is enabled.
 
         var sync_log = [];
 
@@ -2935,8 +3086,10 @@ var persistence = EmberObject.extend({
     });
 
     var sync_all_boards = get_sounds.then(function() {
-      return new RSVP.Promise(function(resolve, reject) {
+      var startBoardSync = function(listData) {
+        return new RSVP.Promise(function(resolve, reject) {
         var to_visit_boards = [];
+        var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
         if(user.get('preferences.home_board.id')) {
           var board = user.get('preferences.home_board');
           board.depth = 0;
@@ -2950,8 +3103,25 @@ var persistence = EmberObject.extend({
             }
           });
         }
-        // A user without a home board should also sync starred boards, by default
-        if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
+        if(backgroundPrefetch) {
+          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
+            ownedBoards: listData && listData.ownedBoards,
+            catalogBoards: listData && listData.catalogBoards,
+            globalBoards: listData && listData.globalBoards,
+            includeLiked: true
+          });
+          to_visit_boards = to_visit_boards.concat(
+            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase2, 'starred board', 0)
+          );
+          to_visit_boards = to_visit_boards.concat(
+            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase3, 'owned root', 0)
+          );
+          if(boardPrefetchPlanner.publicPrefetchEnabled(user)) {
+            to_visit_boards = to_visit_boards.concat(
+              boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase4, 'public root', 0)
+            );
+          }
+        } else if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
           var sync_all = user.get('preferences.sync_starred_boards') === true;
           user.get('stats.starred_board_refs').forEach(function(ref) {
             if(sync_all || !ref.suggested) {
@@ -3013,7 +3183,7 @@ var persistence = EmberObject.extend({
               var content_promises = 0;
               var safely_cached = !!safely_cached_boards[board.id];
               // force a reload of the buttonset if the board changed
-              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board')) {
+              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board') || (next.depth == 0 && next.visit_source == 'owned root') || (next.depth == 0 && next.visit_source == 'public root')) {
                 // Confirm if the button set is stored locally
                 persistence.find('buttonset', board.get('id')).then(function(bs) {
                   if(bs.full_set_revision != local_full_set_revision && !bs.buttons && !safely_cached) {
@@ -3338,6 +3508,23 @@ var persistence = EmberObject.extend({
           reject.apply(null, arguments);
         });
       });
+      };
+
+      if(user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user)) {
+        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+          persistence.ajax.bind(persistence),
+          user,
+          {
+            includeOwned: true,
+            includePublic: boardPrefetchPlanner.publicPrefetchEnabled(user)
+          }
+        ).then(function(listData) {
+          return startBoardSync(listData);
+        }, function() {
+          return startBoardSync(null);
+        });
+      }
+      return startBoardSync(null);
     });
 
     return sync_all_boards.then(function(full_set_revisions) {
@@ -3715,6 +3902,11 @@ var persistence = EmberObject.extend({
   },
   ajax: function() {
     var ajax_args = arguments;
+    if (ajax_args.length === 2 && typeof ajax_args[1] === 'object' && !ajax_args[1].timeout) {
+      ajax_args[1].timeout = 45000;
+    } else if (ajax_args.length === 1 && typeof ajax_args[0] === 'object' && !ajax_args[0].timeout) {
+      ajax_args[0].timeout = 45000;
+    }
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
     if(this.get('online') || local_request) {
       // TODO: is this wrapper necessary? what's it for? maybe can just listen on

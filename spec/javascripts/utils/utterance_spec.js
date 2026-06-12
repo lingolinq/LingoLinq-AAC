@@ -172,6 +172,19 @@ describe('utterance', function() {
       res = utterance.add_button(b);
       res.label.should == "tries";
     });
+
+    it("should capitalize keyboard letters and complete them with space", function() {
+      app_state.set('shift', true);
+      utterance.add_button({label: "a", vocalization: "+a"});
+      expect(app_state.get('button_list')[0].label).toEqual("A");
+      expect(app_state.get('button_list')[0].vocalization).toEqual("A");
+
+      utterance.add_button({label: "space", vocalization: ":space"});
+      expect(app_state.get('button_list').length).toEqual(1);
+      expect(app_state.get('button_list')[0].label).toEqual("A ");
+      expect(app_state.get('button_list')[0].vocalization).toEqual("A ");
+      expect(app_state.get('button_list')[0].in_progress).toEqual(false);
+    });
   });
   
   describe("speak_button", function() {

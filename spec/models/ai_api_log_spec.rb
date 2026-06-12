@@ -215,6 +215,153 @@ describe AiApiLog, :type => :model do
       expect(log.feature_flag).to eq('ai_board_gen_v2')
     end
 
+    # Audit-reports/security-review-2026-05-04 finding #3: response_summary
+    # was a latent PII reservoir because raw model output landed verbatim in
+    # the DB. The model now scrubs both summary columns on save.
+    describe "summary column scrubbing" do
+      it "redacts an email address from response_summary" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'Welcome jane.doe@example.com to the board'
+        )
+        expect(log.response_summary).not_to include('jane.doe@example.com')
+        expect(log.response_summary).to include('[REDACTED_EMAIL]')
+      end
+
+      it "redacts an SSN from response_summary" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'Confirm number 123-45-6789 in your records'
+        )
+        expect(log.response_summary).not_to include('123-45-6789')
+        expect(log.response_summary).to include('[REDACTED_SSN]')
+      end
+
+      it "redacts an email address from request_summary too" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'word_suggestion',
+          request_summary: 'Suggest words for kid@example.com',
+          response_summary: 'cat dog tree'
+        )
+        expect(log.request_summary).not_to include('kid@example.com')
+      end
+
+      it "leaves a clean response_summary unchanged" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'Returned 12 buttons with symbols'
+        )
+        expect(log.response_summary).to eq('Returned 12 buttons with symbols')
+      end
+
+      it "is idempotent on already-redacted text" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'See [REDACTED_EMAIL] for details'
+        )
+        expect(log.response_summary).to eq('See [REDACTED_EMAIL] for details')
+      end
+
+      it "passes nil and empty values through unchanged" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: nil
+        )
+        expect(log.response_summary).to be_nil
+
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: ''
+        )
+        expect(log.response_summary).to eq('')
+      end
+
+      it "uses scrubber result directly when scrubber returns a string" do
+        allow(PiiScrubber).to receive(:redact_for_ai).and_return('[REDACTED_EMAIL]')
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'contact me at test@example.com'
+        )
+        expect(log.response_summary).to eq('[REDACTED_EMAIL]')
+      end
+
+      it "falls back to [REDACTED] on non-hash non-string scrubber return" do
+        allow(PiiScrubber).to receive(:redact_for_ai).and_return(['unexpected'])
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'contact me at test@example.com'
+        )
+        expect(log.response_summary).to eq('[REDACTED]')
+      end
+
+      it "falls back to [REDACTED] when scrubber hash has no payload" do
+        allow(PiiScrubber).to receive(:redact_for_ai).and_return({})
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'contact me at test@example.com'
+        )
+        expect(log.response_summary).to eq('[REDACTED]')
+      end
+    end
+
+    describe "safe_pii_findings_for_digest" do
+      it "returns only type and position, not value/preview" do
+        findings = [
+          { type: 'email', position: 5, value: 'jane@example.com', preview: 'j***m' },
+          { type: 'ssn', position: 30, value: '123-45-6789' }
+        ]
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          pii_detected: true,
+          pii_findings: findings
+        )
+
+        result = log.safe_pii_findings_for_digest
+        expect(result.length).to eq(2)
+        expect(result.first.keys).to contain_exactly('type', 'position')
+        expect(result.first['type']).to eq('email')
+        expect(result.first['position']).to eq(5)
+        expect(result.first.values.join).not_to include('jane@example.com')
+        expect(result.first.values.join).not_to include('j***m')
+      end
+
+      it "returns an empty array when there are no findings" do
+        log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
+        expect(log.safe_pii_findings_for_digest).to eq([])
+      end
+
+      it "returns an empty array when parsed findings are not an array" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          pii_detected: true,
+          pii_findings: { type: 'email', value: 'raw@example.com', position: 1 }.to_json
+        )
+        expect(log.safe_pii_findings_for_digest).to eq([])
+      end
+
+      it "drops non-hash entries from parsed findings" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          pii_detected: true,
+          pii_findings: [{ type: 'email', position: 2 }, 'raw@example.com'].to_json
+        )
+        expect(log.safe_pii_findings_for_digest).to eq([{ 'type' => 'email', 'position' => 2 }])
+      end
+    end
+
     it "should store the request payload hash" do
       log = AiApiLog.log_ai_call(
         provider: 'claude',
@@ -222,6 +369,130 @@ describe AiApiLog, :type => :model do
         request_payload_hash: 'sha256_abc123def45'
       )
       expect(log.request_payload_hash).to eq('sha256_abc123def45')
+    end
+  end
+
+  describe "daily_summary" do
+    let(:target_date) { Date.current - 1 }
+
+    def make_log(attrs = {})
+      log = AiApiLog.create!({
+        ai_provider: 'claude',
+        request_type: 'board_generation',
+        tokens_sent: 50,
+        tokens_received: 75,
+        duration_ms: 1000,
+        success: true
+      }.merge(attrs))
+      log.update_column(:created_at, target_date.beginning_of_day + 4.hours)
+      log
+    end
+
+    it "returns the date as an ISO string" do
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:date]).to eq(target_date.iso8601)
+    end
+
+    it "totals calls, tokens, and failures for the day" do
+      make_log(tokens_sent: 100, tokens_received: 200, success: true)
+      make_log(tokens_sent: 50, tokens_received: 75, success: false)
+
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:total_calls]).to eq(2)
+      expect(summary[:total_failures]).to eq(1)
+      expect(summary[:total_tokens_sent]).to eq(150)
+      expect(summary[:total_tokens_received]).to eq(275)
+    end
+
+    it "groups token usage by provider" do
+      make_log(ai_provider: 'claude', tokens_sent: 100, tokens_received: 200)
+      make_log(ai_provider: 'gemini', tokens_sent: 30, tokens_received: 40)
+
+      summary = AiApiLog.daily_summary(target_date)
+      providers = summary[:by_provider].index_by { |row| row[:provider] }
+      expect(providers['claude'][:tokens_sent]).to eq(100)
+      expect(providers['gemini'][:tokens_received]).to eq(40)
+    end
+
+    it "counts pii_detected rows and includes findings samples" do
+      make_log(pii_detected: false)
+      make_log(
+        pii_detected: true,
+        pii_findings: [{ type: 'email', value: 'a****m', position: 5 }].to_json
+      )
+
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:total_pii_detected]).to eq(1)
+      expect(summary[:pii_samples].length).to eq(1)
+      expect(summary[:pii_samples].first[:findings].first['type']).to eq('email')
+    end
+
+    it "ignores rows from other days" do
+      log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation')
+      log.update_column(:created_at, (target_date - 3).beginning_of_day)
+
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:total_calls]).to eq(0)
+    end
+
+    it "defaults to yesterday when no date is given" do
+      summary = AiApiLog.daily_summary
+      expect(summary[:date]).to eq((Date.current - 1).iso8601)
+    end
+  end
+
+  describe "redact_old_ip_addresses!" do
+    it "should replace ip_address on records older than 90 days with [REDACTED]" do
+      old_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.1')
+      old_log.update_column(:created_at, 100.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(1)
+      expect(old_log.reload.ip_address).to eq('[REDACTED]')
+    end
+
+    it "should leave records newer than 90 days alone" do
+      recent_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.2')
+      recent_log.update_column(:created_at, 30.days.ago)
+
+      AiApiLog.redact_old_ip_addresses!
+      expect(recent_log.reload.ip_address).to eq('10.0.0.2')
+    end
+
+    it "should skip records that are already redacted" do
+      already_redacted = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '[REDACTED]')
+      already_redacted.update_column(:created_at, 200.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(0)
+    end
+
+    it "should skip records with a nil ip_address" do
+      nil_ip_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: nil)
+      nil_ip_log.update_column(:created_at, 200.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(0)
+    end
+
+    it "should accept a custom days argument" do
+      mid_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.3')
+      mid_log.update_column(:created_at, 45.days.ago)
+
+      AiApiLog.redact_old_ip_addresses!(days: 30)
+      expect(mid_log.reload.ip_address).to eq('[REDACTED]')
+    end
+
+    it "should redact multiple eligible records in one call" do
+      log1 = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.4')
+      log2 = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.5')
+      log1.update_column(:created_at, 120.days.ago)
+      log2.update_column(:created_at, 150.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(2)
+      expect(log1.reload.ip_address).to eq('[REDACTED]')
+      expect(log2.reload.ip_address).to eq('[REDACTED]')
     end
   end
 end

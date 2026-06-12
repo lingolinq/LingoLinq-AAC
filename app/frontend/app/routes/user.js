@@ -11,11 +11,12 @@ export default Route.extend({
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque, 'cache' for the cache iframe) would
     // otherwise be caught by the Ember router and cause 400/404 when loading as users
-    var reserved_paths = ['jobby', 'cache'];
+    var reserved_paths = ['jobby', 'cache', 'auth'];
     if(reserved_paths.indexOf(params.user_id) >= 0) {
       // Don't try to load these as users (cache = offline endpoint, jobby = Resque).
       // Redirect cache to home so we don't request api/v1/users/cache (400); jobby to /jobby.
-      var target = params.user_id === 'cache' ? '/' : '/' + params.user_id;
+      // /auth is not a user profile — redirect to login (avoid /auth -> /auth reload loop).
+      var target = params.user_id === 'cache' ? '/' : (params.user_id === 'auth' ? '/login' : '/' + params.user_id);
       window.location.href = target;
       return RSVP.reject({status: 404, reserved_path: true});
     }

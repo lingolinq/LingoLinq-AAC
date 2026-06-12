@@ -4,6 +4,7 @@ import { set as emberSet } from '@ember/object';
 import LingoLinq from '../../app';
 import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+import boardDetailCache from '../../utils/board_detail_cache';
 
 export default Route.extend({
   store: service('store'),
@@ -36,6 +37,27 @@ export default Route.extend({
         if (lastSegment && lastSegment.match(/^\d+_\d+/)) {
           lookupKey = lastSegment;
         }
+      }
+      // Cache-first: reuse JSON prefetched by board-detail / session
+      // prefetch so classic view skips a network roundtrip when possible.
+      var raw_cached = boardDetailCache.get(key) || boardDetailCache.get(lookupKey);
+      if (raw_cached) {
+        try {
+          var from_cache = _this.store.normalize('board', JSON.parse(JSON.stringify(raw_cached)));
+          var cache_record = _this.store.push(from_cache);
+          if (cache_record && !cache_record.get('should_reload')) {
+            try {
+              emberSet(cache_record, 'lookup_key', key);
+            } catch (e) {
+              runLater(function() {
+                if (cache_record && !cache_record.get('isDestroyed') && !cache_record.get('isDestroying')) {
+                  try { emberSet(cache_record, 'lookup_key', key); } catch (e2) { }
+                }
+              }, 100);
+            }
+            return RSVP.resolve(cache_record);
+          }
+        } catch (e) { /* fall through to identity-map peek / findRecord */ }
       }
       var cached = _this.store.peekAll('board').find(function(b) {
         if (!b) { return false; }

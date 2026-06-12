@@ -6,8 +6,6 @@
     {{about-lingolinq}}
   {{else if (is-equal this.currentTemplate "support")}}
     {{support}}
-  {{else if (is-equal this.currentTemplate "limit-skin-tones")}}
-    {{limit-skin-tones}}
   {{else if (is-equal this.currentTemplate "intro")}}
     {{intro}}
   {{else if (is-equal this.currentTemplate "terms-agree")}}
@@ -38,6 +36,8 @@
     {{switch-languages}}
   {{else if (is-equal this.currentTemplate "badge-awarded")}}
     {{badge-awarded}}
+  {{else if (is-equal this.currentTemplate "badge-image")}}
+    {{badge-image}}
   {{else if (is-equal this.currentTemplate "getting-started")}}
     {{getting-started}}
   {{else if (is-equal this.currentTemplate "cloud-extras")}}
@@ -82,6 +82,8 @@
     {{importing-recordings}}
   {{else if (is-equal this.currentTemplate "importing-boards")}}
     {{importing-boards}}
+  {{else if (is-equal this.currentTemplate "import-board-recipients")}}
+    {{import-board-recipients}}
   {{else if (is-equal this.currentTemplate "confirm-remove-board")}}
     {{confirm-remove-board}}
   {{else if (is-equal this.currentTemplate "modeling-intro")}}
@@ -156,6 +158,8 @@
     {{confirm-delete-board}}
   {{else if (is-equal this.currentTemplate "confirm-discard-changes")}}
     {{confirm-discard-changes}}
+  {{else if (is-equal this.currentTemplate "confirm-leave-edit")}}
+    {{confirm-leave-edit}}
   {{else if (is-equal this.currentTemplate "confirm-recolor-board")}}
     {{confirm-recolor-board}}
   {{else if (is-equal this.currentTemplate "speak-menu")}}
@@ -242,6 +246,8 @@
     {{edit-unit}}
   {{else if (is-equal this.currentTemplate "save-snapshot")}}
     {{save-snapshot}}
+  {{else if (is-equal this.currentTemplate "beta-feedback-modal")}}
+    {{beta-feedback-modal}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

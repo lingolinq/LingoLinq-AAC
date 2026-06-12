@@ -2,17 +2,485 @@
 
 <div id="ember-application-root"></div>
 
+<%# ── Bootstrap loader: modern skeleton + premium progress card ────────
+    Renders BEFORE the Ember bundle loads, so all styling is inline.
+    The skeleton mirrors the actual dashboard 2-column layout (Caseload +
+    Speak on row 1, Boards + Extras on row 2). A centered frosted-glass
+    progress card sits on top with a verdigris→denim gradient bar and
+    primary/secondary text. Text dynamically switches at 3s for slower
+    loads ("Still working… Large board sets…"). When Ember boots,
+    app-state.js:586 removes this #loading_box element. %>
 <div id="loading_box" <% if crawler? %>style="display: none;"<% end %>>
-  <h2 id="loading">
-    <img src="<%= (@domain_overrides['settings']['logo_url']) || '/images/LL_Logo_Line_Bright.png' %>"/>
-    Loading <%= app_name %><%= " Demo" if params['embed'] %>...
-    <span id="loading_message" style="display: none; font-size: 14px; font-weight: normal;">(this may take a little while...)</span>
-  </h2>
+  <style>
+    /* All inline — the Ember CSS bundle hasn't loaded yet. Brand palette
+       hardcoded as hex/rgba so we don't depend on any @import or
+       custom properties from app.scss. */
+    #loading_box {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: linear-gradient(180deg, #F8F9FA 0%, #F0F4F8 100%);
+      color: #1B365D;
+      font-family: 'Lexend', 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      opacity: 1;
+      transition: opacity 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+    }
+    #loading_box.is-fading { opacity: 0; pointer-events: none; }
+
+    /* Logout context — uses the EXACT compiled values from the
+       landing-alt page styles:
+       - Page gradient: `#within_ember:has(#la-main) .la-wrapper`
+         compiles to white → white → #F5F5F3 (the first two stones
+         clamp to white at L>100% per Sass color.adjust).
+       - Glows: same rgba/opacity as `.la-hero-card-inner::before/after`
+         (0.12 honey-bronze, 0.09 teal). Positioned relative to the
+         viewport center (where the progress card sits) so they read
+         the same way as the hero card's glows on landing-alt. */
+    #loading_box.is-logout-context {
+      background:
+        radial-gradient(circle 420px at 75% 20%, rgba(242, 185, 90, 0.12) 0%, transparent 55%),
+        radial-gradient(circle 360px at 25% 75%, rgba(78, 205, 196, 0.09) 0%, transparent 55%),
+        linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, #F5F5F3 100%);
+    }
+    #loading_box.is-logout-context .ll-skel-navbar,
+    #loading_box.is-logout-context .ll-skel-pillnav,
+    #loading_box.is-logout-context .ll-skel-hero,
+    #loading_box.is-logout-context .ll-skel-grid {
+      display: none;
+    }
+
+    /* — Top navbar — */
+    .ll-skel-navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 28px;
+      background: #fff;
+      border-bottom: 1px solid rgba(17, 26, 46, 0.06);
+      flex-shrink: 0;
+    }
+    .ll-skel-navbar__logo img {
+      height: 28px;
+      width: auto;
+      opacity: 0.95;
+    }
+    .ll-skel-navbar__icons {
+      display: flex;
+      gap: 10px;
+    }
+    .ll-skel-chip {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(27, 54, 93, 0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* — Pillnav — */
+    .ll-skel-pillnav {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      padding: 24px 22px 8px;
+      flex-wrap: wrap;
+    }
+    .ll-skel-pillnav__pill {
+      height: 38px;
+      min-width: 96px;
+      border-radius: 999px;
+      background: rgba(27, 54, 93, 0.06);
+      position: relative;
+      overflow: hidden;
+    }
+    .ll-skel-pillnav__pill--active {
+      background: #1B365D;
+    }
+
+    /* — Hero — */
+    .ll-skel-hero {
+      padding: 16px 24px 24px;
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .ll-skel-line {
+      height: 14px;
+      border-radius: 8px;
+      background: rgba(27, 54, 93, 0.07);
+      position: relative;
+      overflow: hidden;
+      margin: 0 auto 10px;
+    }
+    .ll-skel-line--xl { height: 32px; width: 65%; border-radius: 10px; }
+    .ll-skel-line--md { width: 45%; }
+    .ll-skel-line--title { width: 50%; height: 18px; margin: 0 0 8px; border-radius: 6px; }
+    .ll-skel-line--card-sub { width: 75%; height: 11px; margin: 0; border-radius: 6px; opacity: 0.7; }
+
+    /* — Card grid (mirrors .md-grid--dashboard 2-column layout) — */
+    .ll-skel-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      padding: 0 24px 28px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      align-content: start;
+    }
+    @media (max-width: 720px) {
+      .ll-skel-grid { grid-template-columns: 1fr; gap: 14px; }
+    }
+    .ll-skel-card {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 24px 24px 26px;
+      min-height: 200px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 244, 248, 0.94));
+      border: 1px solid rgba(17, 26, 46, 0.06);
+      border-bottom: 2px solid rgba(27, 54, 93, 0.08);
+      box-shadow: 0 8px 28px rgba(27, 54, 93, 0.06), 0 1px 3px rgba(27, 54, 93, 0.04);
+      position: relative;
+      overflow: hidden;
+    }
+    .ll-skel-card__head {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .ll-skel-card__icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: rgba(76, 134, 216, 0.10);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .ll-skel-card__titles {
+      flex: 1;
+      min-width: 0;
+      padding-top: 4px;
+    }
+    .ll-skel-card__cta {
+      margin-top: auto;
+      align-self: flex-end;
+      height: 42px;
+      min-width: 160px;
+      border-radius: 999px;
+      background: rgba(76, 134, 216, 0.18);
+      position: relative;
+      overflow: hidden;
+    }
+    /* Boards card tile strip */
+    .ll-skel-card--boards .ll-skel-tiles {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .ll-skel-tile {
+      aspect-ratio: 1;
+      border-radius: 14px;
+      background: rgba(27, 54, 93, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* — Shimmer sweep — */
+    .ll-skel-shimmer::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        100deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.55) 50%,
+        transparent 70%
+      );
+      transform: translateX(-100%);
+      animation: ll-skel-shimmer 1.8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+    }
+    @keyframes ll-skel-shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .ll-skel-card:nth-child(1) .ll-skel-shimmer::after,
+    .ll-skel-card:nth-child(1).ll-skel-shimmer::after { animation-delay: 0s; }
+    .ll-skel-card:nth-child(2) .ll-skel-shimmer::after,
+    .ll-skel-card:nth-child(2).ll-skel-shimmer::after { animation-delay: 0.12s; }
+    .ll-skel-card:nth-child(3) .ll-skel-shimmer::after,
+    .ll-skel-card:nth-child(3).ll-skel-shimmer::after { animation-delay: 0.24s; }
+    .ll-skel-card:nth-child(4) .ll-skel-shimmer::after,
+    .ll-skel-card:nth-child(4).ll-skel-shimmer::after { animation-delay: 0.36s; }
+    @media (prefers-reduced-motion: reduce) {
+      .ll-skel-shimmer::after { animation: none; opacity: 0.5; }
+    }
+
+    /* — Premium progress card — frosted glass, centered. Verdigris→denim
+       gradient bar with slow shimmer sweep. — */
+    .ll-skel-progress {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: calc(100% - 32px);
+      max-width: 480px;
+      padding: 36px 40px 32px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(20px) saturate(140%);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow:
+        0 1px 3px rgba(15, 23, 42, 0.04),
+        0 12px 32px rgba(15, 23, 42, 0.10),
+        0 32px 64px rgba(15, 23, 42, 0.08);
+      z-index: 2;
+      text-align: center;
+    }
+    .ll-skel-progress__title {
+      margin: 0 0 8px;
+      font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+      font-size: 19px;
+      font-weight: 500;
+      letter-spacing: 0.005em;
+      color: #1B365D;
+      line-height: 1.3;
+      transition: opacity 0.3s ease;
+    }
+    .ll-skel-progress__sub {
+      margin: 0 0 22px;
+      font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: rgba(27, 54, 93, 0.65);
+      line-height: 1.5;
+      transition: opacity 0.3s ease;
+    }
+    .ll-skel-progress__bar {
+      position: relative;
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(27, 54, 93, 0.08);
+      overflow: hidden;
+    }
+    .ll-skel-progress__bar::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg,
+        rgba(42, 157, 143, 0) 0%,
+        #2A9D8F 25%,
+        #4C86D8 75%,
+        rgba(76, 134, 216, 0) 100%
+      );
+      transform: translateX(-100%);
+      animation: ll-skel-progress-sweep 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+    }
+    @keyframes ll-skel-progress-sweep {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ll-skel-progress__bar::after {
+        animation: none;
+        transform: translateX(0);
+        opacity: 0.6;
+      }
+    }
+
+    /* Toast: legacy `loading_message` element — surfaces on production
+       error states (browser-out-of-date / contact-support). Renders as a
+       discreet bottom-anchored pill so it doesn't compete with the
+       progress card. */
+    #loading_message {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      display: none;
+      max-width: calc(100% - 32px);
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(27, 54, 93, 0.92);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+      box-shadow: 0 8px 24px rgba(27, 54, 93, 0.22);
+      text-align: center;
+      z-index: 3;
+    }
+    #loading_message a { color: #ffd089; text-decoration: underline; }
+
+    .ll-skel-demo-badge {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(76, 134, 216, 0.16);
+      color: #1B365D;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      z-index: 4;
+    }
+  </style>
+
+  <%# Navbar shell %>
+  <div class="ll-skel-navbar" role="presentation" aria-hidden="true">
+    <div class="ll-skel-navbar__logo">
+      <img src="<%= (@domain_overrides['settings']['logo_url']) || '/images/LL_Logo_Line_Bright.png' %>" alt=""/>
+    </div>
+    <div class="ll-skel-navbar__icons">
+      <div class="ll-skel-chip ll-skel-shimmer"></div>
+      <div class="ll-skel-chip ll-skel-shimmer"></div>
+      <div class="ll-skel-chip ll-skel-shimmer"></div>
+    </div>
+  </div>
+
+  <% if params['embed'] %>
+    <div class="ll-skel-demo-badge">Demo</div>
+  <% end %>
+
+  <%# Pillnav — Home active filled, then Boards / Reports / Extras %>
+  <nav class="ll-skel-pillnav" role="presentation" aria-hidden="true">
+    <div class="ll-skel-pillnav__pill ll-skel-pillnav__pill--active"></div>
+    <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+    <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+    <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+  </nav>
+
+  <%# Hero — greeting + subtitle %>
+  <div class="ll-skel-hero" role="presentation" aria-hidden="true">
+    <div class="ll-skel-line ll-skel-line--xl ll-skel-shimmer"></div>
+    <div class="ll-skel-line ll-skel-line--md ll-skel-shimmer"></div>
+  </div>
+
+  <%# 2-column card grid — Caseload + Speak / Boards + Extras %>
+  <div class="ll-skel-grid" role="presentation" aria-hidden="true">
+    <%# Caseload card %>
+    <div class="ll-skel-card">
+      <div class="ll-skel-card__head">
+        <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+        <div class="ll-skel-card__titles">
+          <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+          <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+        </div>
+      </div>
+      <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+    </div>
+    <%# Speak Mode card %>
+    <div class="ll-skel-card">
+      <div class="ll-skel-card__head">
+        <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+        <div class="ll-skel-card__titles">
+          <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+          <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+        </div>
+      </div>
+      <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+    </div>
+    <%# Boards card with tile strip %>
+    <div class="ll-skel-card ll-skel-card--boards">
+      <div class="ll-skel-card__head">
+        <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+        <div class="ll-skel-card__titles">
+          <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+          <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+        </div>
+      </div>
+      <div class="ll-skel-tiles">
+        <div class="ll-skel-tile ll-skel-shimmer"></div>
+        <div class="ll-skel-tile ll-skel-shimmer"></div>
+        <div class="ll-skel-tile ll-skel-shimmer"></div>
+      </div>
+      <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+    </div>
+    <%# Extras card %>
+    <div class="ll-skel-card">
+      <div class="ll-skel-card__head">
+        <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+        <div class="ll-skel-card__titles">
+          <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+          <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+        </div>
+      </div>
+      <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+    </div>
+  </div>
+
+  <%# Premium progress card — frosted glass center overlay %>
+  <div class="ll-skel-progress" role="status" aria-live="polite" aria-busy="true">
+    <h2 id="ll-skel-progress-title" class="ll-skel-progress__title">Preparing your workspace</h2>
+    <p id="ll-skel-progress-sub" class="ll-skel-progress__sub">Loading boards and communication resources</p>
+    <div class="ll-skel-progress__bar" aria-hidden="true"></div>
+  </div>
+
+  <span id="loading_message"></span>
+
   <% unless params['embed'] %>
     <%= render 'shared/footer' %>
   <% end %>
 </div>
-<!-- TODO: i18n this ^ ERB-style -->
+
+<%# Context-aware progress card copy + 3s slow-load swap. Runs inline
+    so it executes immediately, before the Ember bundle. The
+    `lingolinq_auth_intent` flag is set by session.invalidate() right
+    before reload — when present, the card shows logout-appropriate
+    copy ("Signing you out…" / "See you soon") instead of the default
+    login copy. Flag is cleared after first read. %>
+<script>
+  (function() {
+    var t = document.getElementById('ll-skel-progress-title');
+    var s = document.getElementById('ll-skel-progress-sub');
+    var loggingOut = false;
+    try {
+      if (window.localStorage && window.localStorage.getItem('lingolinq_auth_intent') === 'logging_out') {
+        loggingOut = true;
+        window.localStorage.removeItem('lingolinq_auth_intent');
+      }
+    } catch (e) {}
+
+    if (loggingOut) {
+      if (t) { t.textContent = 'Signing you out…'; }
+      if (s) { s.textContent = 'See you soon'; }
+      // Apply the landing-context background — hides the dashboard
+      // skeleton (which made users think logout was bringing them back
+      // to the dashboard) and replaces it with a landing-alt-style
+      // warm stone gradient + radial blobs that signals "leaving the
+      // app", not "loading the dashboard".
+      var box = document.getElementById('loading_box');
+      if (box) { box.classList.add('is-logout-context'); }
+      // No 3s "still working" swap for logout — the flow is fast (no
+      // user fetch, no board data) so the initial copy carries the
+      // user through to the login page.
+    } else {
+      // 3s slow-load swap softens perceived frustration when the
+      // login → dashboard chain is taking a while (large board sets,
+      // slow networks, etc.).
+      setTimeout(function() {
+        if (t) { t.textContent = 'Still working…'; }
+        if (s) { s.textContent = 'Large board sets can take a little longer to prepare.'; }
+      }, 3000);
+    }
+  })();
+</script>
 
 <!-- ignore below this when generating -->
 <% if Rails.env.production? %>
@@ -86,11 +554,11 @@
   })();
   </script>
   <% if ENV['TRACK_JS_TOKEN'] %>
-    <script type="text/javascript">window._trackJs = { 
-      token: "<%= ENV['TRACK_JS_TOKEN'] %>", 
+    <script type="text/javascript">window._trackJs = {
+      token: "<%= ENV['TRACK_JS_TOKEN'] %>",
       onError: function(payload, error) {
         return !!(window._trackJs && !window._trackJs.disabled);
-      } 
+      }
     };
     setTimeout(function() {
       window._trackJs.track = function(data) {

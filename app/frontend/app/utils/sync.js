@@ -911,8 +911,9 @@ var sync = EmberObject.extend({
                   }
                   if(message.data.board_state.focus_words) {
                     if(message.data.board_state.focus_words.length > 0) {
-                      sync.get_app_state().set('focus_words', {list: message.data.board_state.focus_words, focus_id: Math.random()});
-                      editManager.controller.model.set('focus_id', 'force_refresh');
+                      var boardStateFocusRevision = Math.random();
+                      sync.get_app_state().set('focus_words', {list: message.data.board_state.focus_words, focus_id: boardStateFocusRevision});
+                      editManager.controller.model.set('focus_id', boardStateFocusRevision);
                       update_render = true;
                     } else {
                       sync.get_app_state().set('focus_words', null);
@@ -931,8 +932,9 @@ var sync = EmberObject.extend({
                   update_render = true;
                 } else if(message.data.assertion.focus_words != null) {
                   if(message.data.assertion.focus_words.length > 0) {
-                    sync.get_app_state().set('focus_words', {list: message.data.assertion.focus_words, focus_id: Math.random()});
-                    editManager.controller.model.set('focus_id', 'force_refresh');
+                    var assertionFocusRevision = Math.random();
+                    sync.get_app_state().set('focus_words', {list: message.data.assertion.focus_words, focus_id: assertionFocusRevision});
+                    editManager.controller.model.set('focus_id', assertionFocusRevision);
                     update_render = true;
                   } else {
                     sync.get_app_state().set('focus_words', null);

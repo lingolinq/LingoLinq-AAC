@@ -706,6 +706,116 @@ describe('app_state', function() {
       expect(found_template).toEqual(null);
       expect(toggle_called).toEqual(true);
     });
+
+    it("should copy before editing when the board cannot be edited directly", function() {
+      var board = EmberObject.create({
+        permissions: {edit: false}
+      });
+      app_state.controller.set('board', EmberObject.create({
+        model: board
+      }));
+      var found_template = null;
+      var found_settings = null;
+      stub(modal, 'open', function(template, settings) {
+        found_template = template;
+        found_settings = settings;
+        return RSVP.resolve('confirm');
+      });
+      var copy_and_edit_called = false;
+      var copy_and_edit_board = null;
+      var skip_source_resolution = null;
+      app_state.controller.send = function(action, board_to_copy, skip_resolution) {
+        copy_and_edit_called = action == 'copy_and_edit_board';
+        copy_and_edit_board = board_to_copy;
+        skip_source_resolution = skip_resolution;
+      };
+      var toggle_called = false;
+      stub(app_state, 'toggle_mode', function() {
+        toggle_called = true;
+      });
+      stub(editManager, 'clear_history', function() { });
+
+      app_state.toggle_edit_mode();
+
+      waitsFor(function() { return copy_and_edit_called; });
+      runs(function() {
+        expect(found_template).toEqual('confirm-needs-copying');
+        expect(found_settings.board).toEqual(board);
+        expect(copy_and_edit_called).toEqual(true);
+        expect(copy_and_edit_board).toEqual(board);
+        expect(skip_source_resolution).toEqual(false);
+        expect(toggle_called).toEqual(false);
+      });
+    });
+
+    it("should copy the resolved board instead of a stale application board", function() {
+      var staleBoard = EmberObject.create({
+        key: 'template/quick-core-think',
+        permissions: {edit: false}
+      });
+      var detailBoard = EmberObject.create({
+        key: 'marcus_williams_slp/communikate-top-page',
+        permissions: {edit: false}
+      });
+      app_state.controller.set('board', EmberObject.create({
+        model: staleBoard
+      }));
+      stub(app_state, 'assert_source', function() {
+        return RSVP.resolve(detailBoard);
+      });
+      var found_settings = null;
+      stub(modal, 'open', function(template, settings) {
+        found_settings = settings;
+        return RSVP.resolve('confirm');
+      });
+      var copy_and_edit_board = null;
+      app_state.controller.send = function(action, board_to_copy) {
+        if(action == 'copy_and_edit_board') {
+          copy_and_edit_board = board_to_copy;
+        }
+      };
+      stub(editManager, 'clear_history', function() { });
+      app_state.set('current_route', 'user.board-detail.index');
+
+      app_state.toggle_edit_mode();
+
+      waitsFor(function() { return copy_and_edit_board; });
+      runs(function() {
+        expect(found_settings.board).toEqual(detailBoard);
+        expect(copy_and_edit_board).toEqual(detailBoard);
+      });
+    });
+
+    it("should skip source re-resolution when copying from board-detail", function() {
+      var detailBoard = EmberObject.create({
+        key: 'marcus_williams_slp/communikate-top-page',
+        permissions: {edit: false}
+      });
+      app_state.controller.set('board', EmberObject.create({
+        model: detailBoard
+      }));
+      app_state.set('current_route', 'user.board-detail.index');
+      stub(app_state, 'assert_source', function() {
+        return RSVP.resolve(detailBoard);
+      });
+      stub(modal, 'open', function() {
+        return RSVP.resolve('confirm');
+      });
+      var skip_source_resolution = null;
+      app_state.controller.send = function(action, board_to_copy, skip_resolution) {
+        if(action == 'copy_and_edit_board') {
+          skip_source_resolution = skip_resolution;
+        }
+      };
+      stub(editManager, 'clear_history', function() { });
+
+      app_state.toggle_edit_mode();
+
+      waitsFor(function() { return skip_source_resolution !== null; });
+      runs(function() {
+        expect(skip_source_resolution).toEqual(true);
+      });
+    });
   });
 
   describe('toggle_mode', function() {
@@ -901,6 +1011,11 @@ describe('app_state', function() {
     it("should call toggle_mode", function() {
       var found_mode = null;
       var found_options = null;
+      app_state.set('sessionUser', EmberObject.create({
+        preferences: {
+          home_board: {key: 'lingolinq/yesno'}
+        }
+      }));
       stub(app_state, 'toggle_mode', function(mode, options) {
         found_mode = mode;
         found_options = options;
@@ -908,10 +1023,15 @@ describe('app_state', function() {
       stub(app_state.controller, 'transitionToRoute', function() { });
       app_state.home_in_speak_mode();
       expect(found_mode).toEqual('speak');
-      expect(found_options).toEqual({force: true, override_state: {key: 'example/yesno'}});
+      expect(found_options).toEqual({force: true, override_state: {key: 'lingolinq/yesno'}});
     });
 
     it("should transition to the right route", function() {
+      app_state.set('sessionUser', EmberObject.create({
+        preferences: {
+          home_board: {key: 'lingolinq/yesno'}
+        }
+      }));
       stub(app_state, 'toggle_mode', function(mode, options) {
       });
       var route = null;
@@ -922,7 +1042,7 @@ describe('app_state', function() {
       });
       app_state.home_in_speak_mode();
       expect(route).toEqual('board');
-      expect(key).toEqual('example/yesno');
+      expect(key).toEqual('lingolinq/yesno');
     });
 
     it("should use the current user's home board", function() {
@@ -932,7 +1052,7 @@ describe('app_state', function() {
       var key = null;
       app_state.set('sessionUser', EmberObject.create({
         preferences: {
-          home_board: {key: 'example/inflections'}
+          home_board: {key: 'lingolinq/inflections'}
         }
       }));
       stub(app_state.controller, 'transitionToRoute', function(r, k) {
@@ -941,29 +1061,35 @@ describe('app_state', function() {
       });
       app_state.home_in_speak_mode();
       expect(route).toEqual('board');
-      expect(key).toEqual('example/inflections');
+      expect(key).toEqual('lingolinq/inflections');
     });
 
-    it("should fall back to a stashed board, or a hard-coded board", function() {
+    it("should fall back to a stashed board when no home board is set", function() {
       stub(app_state, 'toggle_mode', function(mode, options) {
       });
       var route = null;
       var key = null;
+      var warned = false;
+      stub(modal, 'warning', function() {
+        warned = true;
+      });
       stub(app_state.controller, 'transitionToRoute', function(r, k) {
         route = r;
         key = k;
       });
       stashes.set('root_board_state', null);
       app_state.set('sessionUser', null);
+      app_state.set('currentUser', null);
 
       app_state.home_in_speak_mode();
-      expect(route).toEqual('board');
-      expect(key).toEqual('example/yesno');
+      expect(warned).toEqual(true);
+      expect(route).toEqual(null);
+      expect(key).toEqual(null);
 
-      stashes.set('root_board_state', {key: 'example/keyboard'});
+      stashes.set('root_board_state', {key: 'lingolinq/keyboard'});
       app_state.home_in_speak_mode();
       expect(route).toEqual('board');
-      expect(key).toEqual('example/keyboard');
+      expect(key).toEqual('lingolinq/keyboard');
     });
   });
 

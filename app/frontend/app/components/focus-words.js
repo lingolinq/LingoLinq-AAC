@@ -24,7 +24,10 @@ import sync from '../utils/sync';
 export default Component.extend({
   modal: service('modal'),
   router: service('router'),
+  appState: service('app-state'),
   tagName: '',
+  ai_word_count: 20,
+  ai_generating: false,
 
   init() {
     this._super(...arguments);
@@ -180,11 +183,24 @@ export default Component.extend({
     return this.get('search') || this.get('browse');
   }),
 
+  ai_focus_generation_enabled: computed('appState.feature_flags.focus_word_highlighting', 'appState.feature_flags.ai_board_generation', function() {
+    return !!(this.get('appState.feature_flags.focus_word_highlighting') && this.get('appState.feature_flags.ai_board_generation'));
+  }),
+
+  ai_generate_disabled: computed('ai_generating', 'ai_prompt', 'ai_word_count', function() {
+    const count = parseInt(this.get('ai_word_count'), 10);
+    return !!this.get('ai_generating') ||
+      !(this.get('ai_prompt') || '').trim() ||
+      count < 5 ||
+      count > 50 ||
+      (persistence && persistence.get && !persistence.get('online'));
+  }),
+
   // Split on whitespace, strip punctuation per token. Use \p{L}\p{N} so non-ASCII words count
   // (ASCII-only \w left "Set Focus Words" permanently disabled for many locales).
   words_list: computed('words', function() {
     return (this.get('words') || '')
-      .split(/[\n\s]+/)
+      .split(/[,\n\s]+/)
       .map(function(s) { return s.replace(/[^\p{L}\p{N}_]/gu, ''); })
       .filter(function(s) { return s.length > 0; });
   }),
@@ -229,6 +245,21 @@ export default Component.extend({
     });
   },
 
+  record_ai_focus_usage(action) {
+    const libraryId = this.get('ai_focus_word_set_id');
+    if (!libraryId) { return; }
+    persistence.ajax('/api/v1/focus/generated_words_usage', {
+      type: 'POST',
+      contentType: 'application/json',
+      dataType: 'json',
+      data: JSON.stringify({
+        library_id: libraryId,
+        words: this.get('words') || '',
+        action: action
+      })
+    }).then(function() {}, function() {});
+  },
+
   actions: {
     close() {
       this.get('modal').close();
@@ -245,6 +276,12 @@ export default Component.extend({
       this.set('browse', null);
       this.set('existing', null);
       this.set('reuse', null);
+      this.set('title', null);
+      this.set('ai_prompt', null);
+      this.set('ai_word_count', 20);
+      this.set('ai_generating', false);
+      this.set('ai_generate_error', null);
+      this.set('ai_focus_word_set_id', null);
       if (window.webkitSpeechRecognition) {
         const speech = new window.webkitSpeechRecognition();
         if (speech) {
@@ -328,10 +365,61 @@ export default Component.extend({
       this.set('words', set.words);
       this.set('focus_id', set.id);
       this.set('title', set.tmp ? null : set.title);
+      this.set('ai_focus_word_set_id', null);
       this.set('existing', true);
       this.set('browse', null);
       this.set('search', null);
       this.set('analysis', null);
+    },
+    generate_focus_words_with_ai() {
+      const _this = this;
+      if (this.get('ai_generating')) { return; }
+      if (persistence && persistence.get && !persistence.get('online')) {
+        this.set('ai_generate_error', i18n.t('ai_focus_words_requires_online', "AI focus word generation requires an Internet connection."));
+        return;
+      }
+      const prompt = (this.get('ai_prompt') || '').trim();
+      if (!prompt) {
+        this.set('ai_generate_error', i18n.t('ai_focus_description_required', "Add a description so AI can generate focus words."));
+        return;
+      }
+      const count = parseInt(this.get('ai_word_count'), 10) || 20;
+      if (count < 5 || count > 50) {
+        this.set('ai_generate_error', i18n.t('ai_focus_word_count_invalid', "Choose between 5 and 50 focus words."));
+        return;
+      }
+
+      this.set('ai_generate_error', null);
+      this.set('ai_generating', true);
+      persistence.ajax('/api/v1/focus/generate_words', {
+        type: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({
+          prompt: prompt,
+          word_count: count,
+          include_core_words: true,
+          locale: app_state.get('label_locale') || 'en'
+        })
+      }).then(function(res) {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('ai_generating', false);
+        _this.set('words', (res && res.words) || '');
+        _this.set('ai_focus_word_set_id', res && res.library_id);
+        if (res && res.title && !(_this.get('title') || '').trim()) {
+          _this.set('title', res.title);
+        }
+      }, function(err) {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        let msg = i18n.t('generate_failed', "Generation failed");
+        const resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
+        if (resp && resp.error) {
+          msg = resp.error;
+          if (resp.error_detail) { msg += ' - ' + resp.error_detail; }
+        }
+        _this.set('ai_generating', false);
+        _this.set('ai_generate_error', msg);
+      });
     },
     set_focus_words() {
       const _this = this;
@@ -345,6 +433,7 @@ export default Component.extend({
       if (_this.get('focus_id') && app_state.get('currentUser')) {
         persistence.ajax('/api/v1/focus/usage', { type: 'POST', data: { focus_id: _this.get('focus_id') } }).then(function() {}, function() {});
       }
+      _this.record_ai_focus_usage('set_focus_words');
       // Same focus_id on app_state and board so contextualized_buttons / fast_html caches invalidate.
       // A constant 'force_refresh' on the board matched fast_html.focus_id and caused process_for_displaying
       // to return early without refreshing board-detail's ordered_buttons or focus dim/highlight.
@@ -379,6 +468,7 @@ export default Component.extend({
       } else {
         _this.stash_set();
       }
+      _this.record_ai_focus_usage('analyze_focus_words');
       const locale = app_state.get('label_locale');
       _this.set('analysis', { loading: true });
       let board = null;
@@ -395,7 +485,7 @@ export default Component.extend({
           const last_button = btn;
           [btn].concat(btn.sequence.buttons || []).forEach(function(b) {
             const last = (last_button === b);
-            let style = "position: relative; display: inline-block; border-radius: 5px; height: 70px; text-align: center; min-width: 75px; max-width: 100px; overflow: hidden; font-size: 12px;";
+            let style = "position: relative; display: inline-block; border-radius: 5px; height: 70px; text-align: center; min-width: 75px; max-width: 100px; overflow: hidden; font-size: 14px;";
             let big_style = "vertical-align: middle; position: relative; display: inline-block; border-radius: 5px; height: 100px; text-align: center; min-width: 100px; max-width: 120px; overflow: hidden; font-size: 16px;";
             let mini_style = "display: inline-block; padding: 5px 10px; border: 1px solid #888; border-radius: 5px; font-weight: bold; margin-right: 5px; min-width: 30px; text-align: center;";
             let print_style = "position: absolute; top: 0; left: 0; width: 100%;";

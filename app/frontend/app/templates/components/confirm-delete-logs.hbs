@@ -23,8 +23,8 @@
     </div>
   </div>
   <div class="modal-header md-modal-header">
-    <button class='btn btn-primary btn-lg' {{action "delete_logs"}}>{{t "Delete Logs" key="delete_logs"}}</button>
     <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-primary btn-lg' {{action "delete_logs"}} disabled={{this.deleting}}>{{t "Delete Logs" key="delete_logs"}}</button>
     {{#if this.error}}
       <p class='text-danger'>{{this.error}}</p>
     {{/if}}

@@ -1,4 +1,4 @@
-class ContactMessage < ActiveRecord::Base
+class ContactMessage < ApplicationRecord
   include GlobalId
   include Processable
   include SecureSerialize
@@ -6,8 +6,12 @@ class ContactMessage < ActiveRecord::Base
   secure_serialize :settings
   include Replicate
 
-  BETA_FEEDBACK_ALLOWED_TYPES = %w[crash speak_mode boards sync account performance accessibility feature other].freeze
+  has_one :beta_feedback_recording
+
+  BETA_FEEDBACK_ALLOWED_TYPES = %w[crash speak_mode boards editing sync account performance accessibility feature other].freeze
   BETA_FEEDBACK_ALLOWED_SEVERITIES = %w[blocker major minor suggestion].freeze
+  BETA_FEEDBACK_ALLOWED_REACTIONS = %w[great okay frustrating].freeze
+  BETA_FEEDBACK_ALLOWED_PRIORITIES = %w[high medium low].freeze
   BETA_FIELD_MAX_LENGTHS = {
     'subject' => 500,
     'name' => 255,
@@ -15,10 +19,12 @@ class ContactMessage < ActiveRecord::Base
     'expected_result' => 10_000,
     'actual_result' => 10_000,
     'general_feedback' => 20_000,
+    'workflow_context' => 10_000,
     'device_context' => 2_000
   }.freeze
   
   after_create :deliver_message
+  after_create :attach_beta_feedback_recording
   
   def deliver_message
     if @deliver_remotely
@@ -66,10 +72,20 @@ class ContactMessage < ActiveRecord::Base
       @deliver_remotely = true
     end
     if params['recipient'].to_s == 'beta_feedback'
-      ['feedback_type', 'severity', 'steps_to_reproduce', 'expected_result', 'actual_result', 'general_feedback', 'device_context'].each do |key|
+      ['feedback_type', 'severity', 'reaction', 'steps_to_reproduce', 'expected_result', 'actual_result', 'general_feedback', 'workflow_context', 'device_context'].each do |key|
         self.settings[key] = process_string(params[key]) if params[key].present?
       end
+      if ActiveModel::Type::Boolean.new.cast(params['recording_saved_locally'])
+        self.settings['recording_saved_locally'] = true
+        self.settings['recording_byte_size'] = params['recording_size'].to_i if params['recording_size'].present?
+      end
+      if ActiveModel::Type::Boolean.new.cast(params['recording_save_attempted'])
+        self.settings['recording_save_attempted'] = true
+      end
       unless process_beta_feedback_screenshot(params['screenshot_data'])
+        return false
+      end
+      unless process_beta_feedback_recording(params)
         return false
       end
       if self.settings['subject'].blank?
@@ -88,6 +104,11 @@ class ContactMessage < ActiveRecord::Base
         add_processing_error("Invalid feedback type")
         return false
       end
+      reaction = self.settings['reaction'].to_s
+      if reaction.present? && !BETA_FEEDBACK_ALLOWED_REACTIONS.include?(reaction)
+        add_processing_error("Invalid feedback reaction")
+        return false
+      end
       sev = self.settings['severity'].to_s
       unless BETA_FEEDBACK_ALLOWED_SEVERITIES.include?(sev)
         add_processing_error("Invalid severity")
@@ -103,8 +124,54 @@ class ContactMessage < ActiveRecord::Base
       self.beta_subject = self.settings['subject']
       self.beta_submitter_name = self.settings['name'].presence
       self.beta_feedback_type = self.settings['feedback_type']
+      self.settings['request_virtual_meeting'] = ActiveModel::Type::Boolean.new.cast(params['request_virtual_meeting'])
       self.beta_severity = self.settings['severity']
       self.recipient = 'beta_feedback'
+    end
+    true
+  end
+
+  def process_beta_feedback_recording(params)
+    recording_id = params['recording_id'].presence
+    return true unless recording_id
+
+    unless ActiveModel::Type::Boolean.new.cast(params['recording_consent'])
+      add_processing_error("Recording consent is required")
+      return false
+    end
+
+    rec = BetaFeedbackRecording.find_confirmed(recording_id, params['recording_token'])
+    unless rec
+      add_processing_error("Invalid recording upload")
+      return false
+    end
+    if rec.contact_message_id.present?
+      add_processing_error("Recording upload was already used")
+      return false
+    end
+
+    @beta_feedback_recording = rec
+    self.settings['recording_id'] = rec.global_id
+    self.settings['recording_content_type'] = rec.content_type
+    self.settings['recording_byte_size'] = rec.byte_size
+    self.settings['recording_expires_at'] = rec.expires_at && rec.expires_at.utc.iso8601
+    self.settings['recording_consent'] = true
+    self.settings['recording_consent_accepted_at'] = params['recording_consent_accepted_at'].presence || Time.now.utc.iso8601
+    true
+  end
+  private :process_beta_feedback_recording
+
+  def attach_beta_feedback_recording
+    return true unless @beta_feedback_recording
+
+    @beta_feedback_recording.with_lock do
+      @beta_feedback_recording.reload
+
+      if @beta_feedback_recording.contact_message_id.present? && @beta_feedback_recording.contact_message_id != self.id
+        raise ActiveRecord::RecordNotSaved, "Recording upload was already used"
+      end
+
+      @beta_feedback_recording.attach_to!(self) unless @beta_feedback_recording.contact_message_id == self.id
     end
     true
   end

@@ -5,6 +5,7 @@ import modalUtil from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import RSVP from 'rsvp';
 import { later as runLater } from '@ember/runloop';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Delete Board Modal Component
@@ -91,72 +92,76 @@ export default Component.extend({
     },
     deleteBoard(decision) {
       const board = this.get('model.board');
-      this.set('deleting', { deleting: true });
-      const load_promises = [];
-      let other_board_ids = [];
-      if (this.get('delete_downstream')) {
-        if (this.get('model.orphans')) {
-          other_board_ids = (this.get('model.board.children') || []).map(function(b) { return b.board; });
-        } else {
-          other_board_ids = board.downstream_board_ids;
-          const hierarchy = this.get('hierarchy');
-          if (hierarchy && !hierarchy.error && hierarchy.selected_board_ids) {
-            other_board_ids = hierarchy.selected_board_ids();
+      const action_key = 'delete-board:' + ((board && (board.id || board.key)) || 'orphans');
+      return actionLock.run(action_key, () => {
+        this.set('deleting', { deleting: true });
+        let other_board_ids = [];
+        if (this.get('delete_downstream')) {
+          if (this.get('model.orphans')) {
+            other_board_ids = (this.get('model.board.children') || []).map(function(b) { return b.board; });
+          } else {
+            other_board_ids = board.downstream_board_ids;
+            const hierarchy = this.get('hierarchy');
+            if (hierarchy && !hierarchy.error && hierarchy.selected_board_ids) {
+              other_board_ids = hierarchy.selected_board_ids();
+            }
           }
         }
-      }
-      let save = RSVP.resolve();
-      const deleted_ids = [];
-      if (!this.get('model.orphans')) {
-        save = (function waitThenDelete(retryCount) {
-          if (retryCount > 20) {
-            return RSVP.reject(new Error('Board save timed out'));
-          }
-          return board.save().catch(function() { return RSVP.resolve(); }).then(function() {
-            try {
-              board.deleteRecord();
-              deleted_ids.push(board.id);
-              return board.save();
-            } catch (e) {
-              const errMsg = (e && (e.message || String(e))) || '';
-              if (errMsg.indexOf('inFlight') !== -1 && retryCount < 20) {
-                return new RSVP.Promise(function(resolve, reject) {
-                  runLater(function() {
-                    waitThenDelete(retryCount + 1).then(resolve, reject);
-                  }, 100);
-                });
-              }
-              return RSVP.reject(e);
+        let save = RSVP.resolve();
+        const deleted_ids = [];
+        if (!this.get('model.orphans')) {
+          save = (function waitThenDelete(retryCount) {
+            if (retryCount > 20) {
+              return RSVP.reject(new Error('Board save timed out'));
             }
-          });
-        })(0);
-      }
-
-      const other_defers = [];
-      const _this = this;
-      const next_defer = () => {
-        const d = other_defers.shift();
-        if (d) { d.start_delete(); }
-      };
-      other_board_ids.forEach((id) => {
-        const defer = RSVP.defer();
-        defer.start_delete = () => {
-          let find = RSVP.resolve(id);
-          if (typeof id === 'string') {
-            if (deleted_ids.indexOf(id) === -1) {
+            return board.save().catch(function() { return RSVP.resolve(); }).then(function() {
               try {
-                find = _this.store.findRecord('board', id);
+                board.deleteRecord();
+                deleted_ids.push(board.id);
+                return board.save();
               } catch (e) {
-                defer.reject({ error: 'find_error', e: e });
+                const errMsg = (e && (e.message || String(e))) || '';
+                if (errMsg.indexOf('inFlight') !== -1 && retryCount < 20) {
+                  return new RSVP.Promise(function(resolve, reject) {
+                    runLater(function() {
+                      waitThenDelete(retryCount + 1).then(resolve, reject);
+                    }, 100);
+                  });
+                }
+                return RSVP.reject(e);
+              }
+            });
+          })(0);
+        }
+
+        const other_defers = [];
+        const _this = this;
+        const next_defer = () => {
+          const d = other_defers.shift();
+          if (d) { d.start_delete(); }
+        };
+        other_board_ids.forEach((id) => {
+          const defer = RSVP.defer();
+          defer.start_delete = () => {
+            let find = RSVP.resolve(id);
+            if (typeof id === 'string') {
+              if (deleted_ids.indexOf(id) === -1) {
+                try {
+                  find = _this.store.findRecord('board', id);
+                } catch (e) {
+                  defer.reject({ error: 'find_error', e: e });
+                  return;
+                }
+              } else {
+                defer.resolve(id);
                 return;
               }
-            } else {
-              defer.resolve(id);
-              return;
             }
-          }
-          find.then((b) => {
-            if (board.orphan || b.user_name === board.user_name) {
+            find.then((b) => {
+              if (!b || !(board.orphan || b.user_name === board.user_name)) {
+                defer.resolve(b);
+                return;
+              }
               runLater(() => {
                 if (_this.get('deleting')) {
                   _this.set('deleting', { deleting: true, board_key: b.key });
@@ -179,35 +184,35 @@ export default Component.extend({
                   });
                 })(0);
               });
-            }
-          }, (err) => { defer.reject(err); });
-        };
-        defer.promise.then(() => {
-          next_defer();
-        }, () => {
-          next_defer();
+            }, (err) => { defer.reject(err); });
+          };
+          defer.promise.then(() => {
+            next_defer();
+          }, () => {
+            next_defer();
+          });
+          other_defers.push(defer);
         });
-        other_defers.push(defer);
-      });
 
-      const wait_for_deletes = save.then(function() {
-        return RSVP.all_wait(other_defers.map(function(d) { return d.promise; }));
-      });
+        const wait_for_deletes = save.then(function() {
+          return RSVP.all_wait(other_defers.map(function(d) { return d.promise; }));
+        });
 
-      const concurrent_deletes = 5;
-      for (let idx = 0; idx < concurrent_deletes; idx++) {
-        next_defer();
-      }
-
-      wait_for_deletes.then(() => {
-        if (_this.get('model.redirect')) {
-          _this.appState.return_to_index();
+        const concurrent_deletes = 5;
+        for (let idx = 0; idx < concurrent_deletes; idx++) {
+          next_defer();
         }
-        modalUtil.close({ update: true });
-      }, () => {
-        _this.set('deleting', false);
-        _this.set('error', true);
-      });
+
+        return wait_for_deletes.then(() => {
+          if (_this.get('model.redirect')) {
+            _this.appState.return_to_index();
+          }
+          modalUtil.close({ update: true });
+        }, () => {
+          _this.set('deleting', false);
+          _this.set('error', true);
+        });
+      }, {timeout: 300000});
     }
   }
 });

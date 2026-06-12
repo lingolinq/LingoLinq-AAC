@@ -18,6 +18,7 @@ import contentGrabbers from '../utils/content_grabbers';
 import Utils from '../utils/misc';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
+import boardPrefetchPlanner from '../utils/board_prefetch_planner';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -84,7 +85,6 @@ var persistence = Service.extend({
       
       
       // Initialize online property immediately - this is critical for early requests
-      // Using a direct property assignment to avoid triggering observers
       try {
         this.online = navigator.onLine !== false;
         if (_vb) { console.log('[PERSISTENCE INIT] online set to:', this.online); }
@@ -129,6 +129,18 @@ var persistence = Service.extend({
         }
       }, 0);
       */
+      // Deferred hooks (post-login sync, online listeners) without calling full setup().
+      var _this = this;
+      runLater(function() {
+        if(!_this || _this.isDestroyed || _this.isDestroying) { return; }
+        if(typeof _this._setupOnlineListeners === 'function' && !_this._online_listeners_ready) {
+          _this._online_listeners_ready = true;
+          _this._setupOnlineListeners();
+        }
+        if(typeof _this.schedulePostLoginSyncIfNeeded === 'function') {
+          _this.schedulePostLoginSyncIfNeeded();
+        }
+      }, 0);
       if (_vb) {
         console.log('[PERSISTENCE INIT] Skipping setup() call to prevent observer firing');
         console.log('[PERSISTENCE INIT] ========== init() END ==========');
@@ -1031,6 +1043,7 @@ var persistence = Service.extend({
     return token;
   },
   decrypt_json: function(str, encryption_settings) {
+    var _this = this;
     if(str.match(/^aes256-/)) {
       var te = new TextEncoder();
       str = str.replace(/^aes256-/, '');
@@ -1054,7 +1067,7 @@ var persistence = Service.extend({
           var buff = new Uint8Array(res);
           var str = buff.reduce((acc, i) => acc += String.fromCharCode.apply(null, [i]), '')
           try {
-            return this.bg_parse_json(str);
+            return _this.bg_parse_json(str);
           } catch(e) {
             return RSVP.reject({error: 'JSON parse failed on decrypted content', err: e});
           }
@@ -1062,7 +1075,7 @@ var persistence = Service.extend({
       });
     } else {
       try {
-        return this.bg_parse_json(str);
+        return _this.bg_parse_json(str);
       } catch(e) {
         return RSVP.reject({error: 'JSON parse failed', err: e});
       }
@@ -1130,11 +1143,21 @@ var persistence = Service.extend({
     // TODO: replace JSON.parse with webworker if too big:
     // https://stackoverflow.com/questions/10494285/is-delegating-json-parse-to-web-worker-worthwile-in-chrome-extension-ff-addon
     var _this = this;
+    var decode_data_uri = function(data_uri) {
+      var decoded = atob(data_uri.split(/,/)[1]);
+      try {
+        return decodeURIComponent(escape(decoded));
+      } catch(e) {
+        return decoded;
+      }
+    };
     return new RSVP.Promise(function(resolve, reject) {
       _this.find_url(url, 'json').then(function(uri) {
-        if(typeof(uri) == 'string' && uri.match(/^data:/)) {
+        if(uri && uri.json_payload) {
+          resolve(uri.json_payload);
+        } else if(typeof(uri) == 'string' && uri.match(/^data:/)) {
           try {
-            this.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
+            _this.bg_parse_json(decode_data_uri(uri)).then(function(json) {
               resolve(json);
             }, function(err) {
               LingoLinq.track_error("No JSON dataURI");
@@ -1148,7 +1171,7 @@ var persistence = Service.extend({
           var filename = uri.split(/\//).pop();
           capabilities.storage.get_file_url('json', filename, true).then(function(data_uri) {
             try {
-              this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+              _this.bg_parse_json(decode_data_uri(data_uri)).then(function(result) {
                 resolve(result || []);
               });
             } catch(e) {
@@ -1161,14 +1184,14 @@ var persistence = Service.extend({
         } else if(typeof(uri) == 'string') {
           var res = _this.ajax(uri + "?cr=" + Math.random(), {type: 'GET', dataType: 'text'});
           res.then(function(res) {
-            this.bg_parse_json(res.text).then(function(json) { 
+            _this.bg_parse_json(res.text).then(function(json) { 
               resolve(json);
             }, function(err) {
               reject(err);
             });
           }, function(err) {
             if(err && err.message == 'error' && err.fakeXHR && err.fakeXHR.status == 0) {
-              this.remove('dataCache', url);
+              _this.remove('dataCache', url);
               persistence.url_cache[url] = null;
             }
             LingoLinq.track_error("JSON data retrieval error", (err || {}).error || err);
@@ -1196,11 +1219,18 @@ var persistence = Service.extend({
       persistence.json_cache[url] = json;
     }
     return _this.store_url(url, 'json', encryption_settings).then(function(storage) {
-      var data_uri = storage.data_uri || storage;
+      if(storage && storage.json_payload) {
+        return RSVP.resolve(storage.json_payload);
+      }
+      var data_uri = storage && storage.data_uri ? storage.data_uri : storage;
       var result = undefined;
       var parse_uri = function(data_uri) {
         try {
-          return _this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+          var decoded = atob(data_uri.split(/,/)[1]);
+          try {
+            decoded = decodeURIComponent(escape(decoded));
+          } catch(e) { }
+          return _this.bg_parse_json(decoded).then(function(result) {
             return result || [];
           });
         } catch(e) {
@@ -1236,7 +1266,7 @@ var persistence = Service.extend({
           });  
         }
       } else {
-        if(data_uri || result !== undefined) {
+        if(typeof(data_uri) == 'string' || result !== undefined) {
           return result || json;
         } else {
           console.error("nothing", url, json);
@@ -1280,7 +1310,9 @@ var persistence = Service.extend({
       return find.then(function(data) {
         _this.url_cache = _this.url_cache || {};
         var file_missing = _this.url_cache[url] === false;
-        if(data.local_url) {
+        if(type == 'json' && data.json_payload) {
+          return data.json_payload;
+        } else if(data.local_url) {
           if(data.local_filename) {
             if(type == 'image' && _this.image_filename_cache && _this.image_filename_cache[data.local_filename]) {
               _this.url_cache[url] = capabilities.storage.fix_url(data.local_url, true);
@@ -1576,13 +1608,14 @@ var persistence = Service.extend({
     var _this = this;
     return new RSVP.Promise(function(resolve, reject) {
       var lookup = RSVP.reject();
+      var parsed_json_payload = null;
 
       if(url && url.match(/^cache:/) && persistence.json_cache && persistence.json_cache[url]) {
         lookup = RSVP.resolve({
           url: url,
           type: type,
           content_type: 'text/json',
-          data_uri: "data:text/json;base64," + btoa(JSON.stringify(persistence.json_cache[url])),
+          data_uri: "data:text/json;base64," + btoa(unescape(encodeURIComponent(JSON.stringify(persistence.json_cache[url])))),
           local_filename: persistence.json_cache[url].filename
         });
       }
@@ -1590,7 +1623,10 @@ var persistence = Service.extend({
       var trusted_not_to_change = url.match(/opensymbols\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/opensymbols/) ||
                   url.match(/lingolinq-usercontent\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/lingolinq-usercontent/) ||
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
-      var cors_match = trusted_not_to_change || url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
+      var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
+        url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
+      var cors_match = trusted_not_to_change || uploads_bucket ||
+        url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
@@ -1687,14 +1723,20 @@ var persistence = Service.extend({
       });
 
       var decrypt = fallback.then(function(object) {
-        if(encryption_settings && object.content_type.match(/json/)) {
-          var str = object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
+        if(encryption_settings && (object.content_type || '').match(/json/)) {
+          var str = object.data_uri && object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
           if(str && str.match(/^aes256-/)) {
             // if it's encrypted, try decrypting it and generating a
             // new data-uri before continuing
             return _this.decrypt_json(str, encryption_settings).then(function(res) {
-              var json_str = JSON.stringify(res);
-              object.data_uri = "data:application/json," + btoa(json_str);
+              parsed_json_payload = res;
+              object.json_payload = res;
+              try {
+                var json_str = JSON.stringify(res);
+                object.data_uri = "data:application/json;base64," + btoa(unescape(encodeURIComponent(json_str)));
+              } catch(e) {
+                object.data_uri = null;
+              }
               return object;
             });
           } else {
@@ -1725,6 +1767,18 @@ var persistence = Service.extend({
       size_image.then(function(object) {
         // remember: persisted objects will not have a data_uri attribute, so this will be skipped for them
         if(_this.get('local_system.available') && _this.get('local_system.allowed') && _this.stashes && _this.stashes.get && _this.stashes.get('auth_settings')) {
+          // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
+          // is sufficient. FileSystem writes for large JSON blobs often fail
+          // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
+          if(type == 'json' && (object.data_uri || object.json_payload)) {
+            if(!object.persisted) {
+              object.persisted = true;
+              object.url = url_id;
+            }
+            return _this.store('dataCache', object, object.url).then(function() {
+              return object;
+            });
+          }
           if(object.data_uri) {
             var local_system_filename = object.local_filename;
             if(!local_system_filename) {
@@ -1807,6 +1861,12 @@ var persistence = Service.extend({
       }, function(err) {
         persistence.url_uncache = persistence.url_uncache || {};
         persistence.url_uncache[url_id] = true;
+        if(type == 'json' && parsed_json_payload) {
+          persistence.url_cache = persistence.url_cache || {};
+          persistence.url_cache[url_id] = null;
+          resolve({url: url_id, type: 'json', json_payload: parsed_json_payload});
+          return;
+        }
         var error = {error: "saving to data cache failed for " + url_id};
         if(err && err.name == "QuotaExceededError") {
           capabilities.storage.already_limited_size = true;
@@ -1817,15 +1877,19 @@ var persistence = Service.extend({
           persistence.url_cache[url_id] = null;
           error.quota_maxed = true;
           _this.set('local_system.allowed', false);
-        } else if(err.error == 'rejected' || err.error == 'already_rejected') {
-          capabilities.storage.already_limited_size = true;
-          if(_this.stashes && _this.stashes.persist) {
-            _this.stashes.persist('allow_local_filesystem_request', false);
+        } else if(err && (err.error == 'rejected' || err.error == 'already_rejected')) {
+          // UI feedback sounds (beep, click, etc.) are optional; don't disable the
+          // whole local cache path when filesystem quota is denied on a small mp3.
+          if(type != 'sound') {
+            capabilities.storage.already_limited_size = true;
+            if(_this.stashes && _this.stashes.persist) {
+              _this.stashes.persist('allow_local_filesystem_request', false);
+            }
+            persistence.url_cache = persistence.url_cache || {};
+            persistence.url_cache[url_id] = null;
+            error.quota_maxed = true;
+            _this.set('local_system.allowed', false);
           }
-          persistence.url_cache = persistence.url_cache || {};
-          persistence.url_cache[url_id] = null;
-          error.quota_maxed = true;
-          _this.set('local_system.allowed', false);
         }
         reject(error);
       });
@@ -2139,7 +2203,7 @@ var persistence = Service.extend({
         eventuallies.push(function() {
           _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
           _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
-          _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png', 'image', false, false).then(null, function() { });
+          _this_sync.store_url('/images/lingolinq-board-icon.png', 'image', false, false).then(null, function() { });
           _this_sync.store_url('https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/274c.svg', 'image', false, false).then(null, function() { });
           _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg', 'image', false, false).then(null, function() { });
         });
@@ -2221,7 +2285,8 @@ var persistence = Service.extend({
             });
           }
         }
-        // TODO: also download all the user's personally-created boards
+        // Phased board sync (owned + public roots) handled in sync_boards
+        // when background_board_prefetch is enabled.
 
         var sync_log = [];
 
@@ -3048,8 +3113,10 @@ var persistence = Service.extend({
 
     var sync_all_boards = get_sounds.then(function(soundRes) {
       var _sync = _this;
+      var startBoardSync = function(listData) {
       return new RSVP.Promise(function(resolve, reject) {
         var to_visit_boards = [];
+        var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
         if(user.get('preferences.home_board.id')) {
           var board = user.get('preferences.home_board');
           board.depth = 0;
@@ -3063,8 +3130,25 @@ var persistence = Service.extend({
             }
           });
         }
-        // A user without a home board should also sync starred boards, by default
-        if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
+        if(backgroundPrefetch) {
+          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
+            ownedBoards: listData && listData.ownedBoards,
+            catalogBoards: listData && listData.catalogBoards,
+            globalBoards: listData && listData.globalBoards,
+            includeLiked: true
+          });
+          to_visit_boards = to_visit_boards.concat(
+            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase2, 'starred board', 0)
+          );
+          to_visit_boards = to_visit_boards.concat(
+            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase3, 'owned root', 0)
+          );
+          if(boardPrefetchPlanner.publicPrefetchEnabled(user)) {
+            to_visit_boards = to_visit_boards.concat(
+              boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase4, 'public root', 0)
+            );
+          }
+        } else if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
           var sync_all = user.get('preferences.sync_starred_boards') === true;
           user.get('stats.starred_board_refs').forEach(function(ref) {
             if(sync_all || !ref.suggested) {
@@ -3126,7 +3210,7 @@ var persistence = Service.extend({
               var content_promises = 0;
               var safely_cached = !!safely_cached_boards[board.id];
               // force a reload of the buttonset if the board changed
-              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board')) {
+              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board') || (next.depth == 0 && next.visit_source == 'owned root') || (next.depth == 0 && next.visit_source == 'public root')) {
                 // Confirm if the button set is stored locally
                 _sync.find('buttonset', board.get('id')).then(function(bs) {
                   if(bs.full_set_revision != local_full_set_revision && !bs.buttons && !safely_cached) {
@@ -3452,6 +3536,23 @@ var persistence = Service.extend({
           reject.apply(null, arguments);
         });
       });
+      };
+
+      if(user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user)) {
+        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+          _this.ajax.bind(_this),
+          user,
+          {
+            includeOwned: true,
+            includePublic: boardPrefetchPlanner.publicPrefetchEnabled(user)
+          }
+        ).then(function(listData) {
+          return startBoardSync(listData);
+        }, function() {
+          return startBoardSync(null);
+        });
+      }
+      return startBoardSync(null);
     });
 
     return sync_all_boards.then(function(full_set_revisions) {
@@ -3832,7 +3933,17 @@ var persistence = Service.extend({
   ajax: function() {
     var ajax_args = arguments;
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
-    if(this.get('online') || local_request) {
+    var is_online = this.get('online');
+    if (is_online === false) {
+      var override = navigator.online_override;
+      var nav_online = (override !== undefined && override !== null) ? !!override : navigator.onLine;
+      if (nav_online === true) {
+        console.log('[PERSISTENCE AJAX] Service reported offline but navigator indicates online. Overriding.');
+        this.set('online', true);
+        is_online = true;
+      }
+    }
+    if(is_online || local_request) {
       // TODO: is this wrapper necessary? what's it for? maybe can just listen on
       // global ajax for errors instead...
       return new RSVP.Promise(function(resolve, reject) {
@@ -3863,30 +3974,22 @@ var persistence = Service.extend({
       return RSVP.reject({offline: true, error: "not online", short_circuit: true});
     }
   },
-  // TEMPORARILY COMMENTED OUT TO TEST
-  /*
   on_connect: observer('online', function() {
-    // Guard: check this before assigning to _this
-    if(!this || typeof this !== 'object') {
-      console.warn('on_connect observer: this is invalid', this);
+    if(!this || typeof this !== 'object' || typeof this.get !== 'function' || !this.stashes) {
       return;
     }
     var _this = this;
-    // Guard: ensure service is fully initialized before accessing anything
-    if(typeof _this.get !== 'function' || !_this.stashes) {
-      return;
-    }
     try {
       if(_this.stashes && typeof _this.stashes.set === 'function') {
         _this.stashes.set('online', _this.get('online'));
       }
       if(_this.get('online') && (!LingoLinq.testing || LingoLinq.sync_testing)) {
         runLater(function() {
-          // TODO: maybe do a quick xhr to a static asset to make sure we're for reals online?
-          if(_this && _this.stashes && typeof _this.stashes.get === 'function' && _this.stashes.get('auth_settings')) {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(_this.stashes && typeof _this.stashes.get === 'function' && _this.stashes.get('auth_settings')) {
             _this.check_for_needs_sync(true);
           }
-          if(_this && typeof _this.getBrowserToken === 'function') {
+          if(typeof _this.getBrowserToken === 'function') {
             _this.tokens = {};
             if(LingoLinq.session) {
               LingoLinq.session.restore(!_this.getBrowserToken());
@@ -3898,7 +4001,118 @@ var persistence = Service.extend({
       console.warn('Error in on_connect observer:', e);
     }
   }),
-  */
+  // After login, schedule a background sync check (10s delay so the UI can settle).
+  schedulePostLoginSyncIfNeeded: function() {
+    var _this = this;
+    if(isTesting()) { return; }
+    runLater(function() {
+      try {
+        var svc = _this || window.persistence;
+        if(!svc || typeof svc.get !== 'function' || svc.isDestroyed || svc.isDestroying) { return; }
+        var stashesSvc = svc.stashes;
+        if(!stashesSvc || typeof stashesSvc.get !== 'function') { return; }
+        if(stashesSvc.get('allow_local_filesystem_request') === false) {
+          capabilities.storage.already_limited_size = true;
+        }
+        if(!stashesSvc.get_object || typeof stashesSvc.get_object !== 'function') { return; }
+        if(!stashesSvc.get_object('just_logged_in', false)) { return; }
+        if(!stashesSvc.get('auth_settings')) { return; }
+        stashesSvc.persist_object('just_logged_in', null, false);
+        runLater(function() {
+          if(svc.isDestroyed || svc.isDestroying) { return; }
+          if(typeof svc.check_for_needs_sync === 'function') {
+            svc.check_for_needs_sync(true);
+          }
+        }, 10 * 1000);
+      } catch(e) {
+        console.warn('schedulePostLoginSyncIfNeeded:', e);
+      }
+    }, 0);
+  },
+
+  check_for_needs_sync: function(force) {
+    try {
+      var _this = this;
+      if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+        _this = window.persistence;
+        if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+          return false;
+        }
+      }
+      force = (force === true);
+      if(!_this.stashes || typeof _this.stashes.get !== 'function') {
+        return false;
+      }
+
+      if(_this.stashes.get('auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
+        var synced = _this.get('last_sync_at') || 0;
+        var syncable = _this.get('online') && !isTesting() && !_this.get('syncing');
+        var interval = _this.get('last_sync_stamp_interval') || (5 * 60 * 1000);
+        interval = interval + (0.2 * interval * Math.random());
+        if(_this.get('last_sync_event_at')) {
+          syncable = syncable && (_this.get('last_sync_event_at') < ((new Date()).getTime() - interval));
+        }
+        var now = (new Date()).getTime() / 1000;
+        if(!isTesting() && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
+          return false;
+        } else if(_this.get('auto_sync') === false || _this.get('auto_sync') == null) {
+          return false;
+        } else if(synced > 0 && (now - synced) > (48 * 60 * 60) && syncable) {
+          console.debug('syncing because it has been more than 48 hours');
+          _this.sync('self', null, null, 'long_time_since_sync:' + synced + ":" + now).then(null, function() { });
+          return true;
+        } else if(force || (syncable && _this.get('last_sync_stamp'))) {
+          var last_check = _this.get('last_sync_stamp_check');
+          if(force || !last_check || (last_check < (new Date()).getTime() - interval)) {
+            _this.set('last_sync_stamp_check', (new Date()).getTime());
+            _this.ajax('/api/v1/users/self/sync_stamp', {type: 'GET'}).then(function(res) {
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(!_this.get('last_sync_stamp') || res.sync_stamp != _this.get('last_sync_stamp')) {
+                var not_still_changing = false;
+                var cutoff = window.moment && window.moment(res.sync_stamp).add(5, 'minutes');
+                var now_m = window.moment && window.moment();
+                if(now_m && now_m.toISOString().substring(0, 10) != res.sync_stamp.substring(0, 10)) {
+                  not_still_changing = true;
+                } else if(cutoff) {
+                  not_still_changing = cutoff < window.moment();
+                } else {
+                  not_still_changing = true;
+                }
+                if(not_still_changing) {
+                  console.debug('syncing because sync_stamp has changed');
+                  _this.sync('self', null, null, 'sync_stamp_changed:' + res.sync_stamp + ":" + _this.get('last_sync_stamp')).then(null, function() { });
+                }
+              }
+              if(window.app_state && window.app_state.get('currentUser')) {
+                window.app_state.set('currentUser.last_sync_stamp_check', (new Date()).getTime());
+                if(res.unread_messages != null) {
+                  window.app_state.set('currentUser.unread_messages', res.unread_messages);
+                }
+                if(res.unread_alerts != null) {
+                  window.app_state.set('currentUser.unread_alerts', res.unread_alerts);
+                }
+              }
+            }, function(err) {
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(err && err.result && err.result.invalid_token) {
+                if(_this.stashes && _this.stashes.get && _this.stashes.get('auth_settings') && !isTesting()) {
+                  if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
+                    LingoLinq.session.check_token(false);
+                  }
+                }
+              }
+            });
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch(e) {
+      console.warn('Error in check_for_needs_sync:', e);
+      return false;
+    }
+  },
+
   // TEMPORARILY DISABLED TO DEBUG INITIALIZATION ERROR
   /*
   check_for_needs_sync: observer('refresh_stamp', 'last_sync_at', function(ref) {
@@ -4060,7 +4274,9 @@ var persistence = Service.extend({
   _setupOnlineListeners: function() {
     var _this = this;
     this.set('online', navigator.onLine);
-    
+
+    // Sync/token restore on reconnect is handled by the on_connect observer
+    // when online flips to true; only update state here to avoid duplicate work.
     window.addEventListener('online', function() {
       _this.set('online', true);
     });

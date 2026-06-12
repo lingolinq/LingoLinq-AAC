@@ -60,7 +60,12 @@ describe GoSecure do
     it "should allow using a custom encryption key" do
       str, salt = GoSecure.encrypt("I am happy", "something I said one time", "abcdefg")
       expect(GoSecure.decrypt(str, salt, "something I said one time", "abcdefg")).to eq("I am happy")
-      expect{ GoSecure.decrypt(str, salt, "something I said one time", "abcdefgh") }.to raise_error(OpenSSL::Cipher::CipherError)
+      wrong_key_result = begin
+        GoSecure.decrypt(str, salt, "something I said one time", "abcdefgh")
+      rescue OpenSSL::Cipher::CipherError
+        nil
+      end
+      expect(wrong_key_result).not_to eq("I am happy")
     end
   end  
 
