@@ -1,7 +1,8 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { observer } from '@ember/object';
 import i18n from '../utils/i18n';
-import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, gridLayoutState, AREA, boardsCells } from '../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, gridLayoutState, reorderInsert, reorderForFocused, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER } from '../utils/dashboard_sections';
 
 // Centered-step show hook — toggles the body flag the CSS uses to scope the
 // "paused" backdrop blur to centered (non-anchored) modal steps, mirroring
@@ -48,118 +49,26 @@ function _clearCentered() {
   // The Getting Started series cleared the page chrome via `md-gst-active` —
   // restore it when the series ends (Finish / Skip / Esc / close).
   try { document.body.classList.remove('md-gst-active'); } catch (e) { /* noop */ }
-  // Clear the modal-open flag so the dashboard can now apply the Focused layout if
-  // the user selected it (module fn → reach appState via the global).
-  try { if (window.LingoLinq && window.LingoLinq.appState) { window.LingoLinq.appState.set('gettingStartedActive', false); } } catch (e) { /* noop */ }
 }
 
-// Show hook for the welcome (first) page: run the shared centered-step setup, then
-// wire the two showcase cards so clicking either advances into the flow (the same
-// as the footer "Get started"). `this` is the active Shepherd Step.
+// Show hook for the welcome (first) page: just the shared centered-step setup.
+// The welcome cards are now non-actionable labels, so the footer "Get started"
+// is the only way forward. `this` is the active Shepherd Step.
 function _onWelcomeShow() {
-  var step = this;
-  try { _onShow.call(step); } catch (e) { /* shared setup is decorative */ }
-  try {
-    var el = step.el;
-    if (!el) { return; }
-    Array.prototype.forEach.call(el.querySelectorAll('[data-gst-welcome-target]'), function(card) {
-      if (card._gstWired) { return; }
-      card._gstWired = true;
-      card.addEventListener('click', function() {
-        // Jump to the card's target step by id (display vs. customize), so clicking
-        // "Customize your home page" skips straight to that step. Falls back to the
-        // next step if the id can't be resolved.
-        var target = card.getAttribute('data-gst-welcome-target');
-        try {
-          if (target && step.tour && step.tour.show) { step.tour.show(target); }
-          else if (step.tour && step.tour.next) { step.tour.next(); }
-        } catch (e2) { /* never block the step */ }
-      });
-    });
-  } catch (e) { /* wiring is an enhancement — never block the step */ }
+  try { _onShow.call(this); } catch (e) { /* shared setup is decorative */ }
 }
 
-// Swap the two cards' CURRENTLY-DISPLAYED cells so that ONLY a and b move — a pure
-// pairwise swap. `positions[X]` = the card shown in base-cell X (default X). A card
-// that's already been rearranged no longer sits in its own base-cell, so we must
-// find the base-cell each card currently occupies and swap THOSE cells' owners —
-// swapping `positions[a]`/`positions[b]` directly would target the base-cells named
-// a/b (where other cards may now sit) and cascade into a 3-cycle that wrongly
-// displaces a third card. Keeps the map a closed permutation; identity entries are
-// dropped so an unchanged map round-trips as {}.
-function _swapPositions(positions, a, b) {
-  var cellA = a, cellB = b;
-  Object.keys(positions).forEach(function(x) {
-    if (positions[x] === a) { cellA = x; }
-    if (positions[x] === b) { cellB = x; }
-  });
-  positions[cellA] = b;
-  positions[cellB] = a;
-  if (positions[cellA] === cellA) { delete positions[cellA]; }
-  if (positions[cellB] === cellB) { delete positions[cellB]; }
-}
-
-// Compute the next Boards placement descriptor when Boards is dropped onto a target
-// card. Locates Boards' current column + the target's column in the rendered layout:
-// dropping on a card in BOARDS' OWN column → vertical swap (toggle `raised`); dropping
-// on a card in the OTHER column → mirror (flip `side`, which swaps the column widths).
-// Returns null if either column can't be resolved (safe no-op).
-function _boardsDropPlacement(vis, positions, boards, targetKey) {
-  var areas = gridLayoutState(vis, positions, boards).areas;
-  var bc = boardsCells(areas);
-  if (bc.col < 0) { return null; }
-  var tArea = AREA[targetKey];
-  var tcol = -1;
-  areas.forEach(function(row) {
-    var t = row.split(' ');
-    if (t[0] === tArea) { tcol = 0; } else if (t[1] === tArea) { tcol = 1; }
-  });
-  if (tcol < 0) { return null; }
-  var next = { side: (boards && boards.side === 'right') ? 'right' : 'left', raised: !!(boards && boards.raised) };
-  if (tcol === bc.col) { next.raised = !next.raised; }
-  else { next.side = next.side === 'right' ? 'left' : 'right'; }
-  return next;
-}
-
-// Cell id ("rowIndex,col") where a given grid-area name sits in an areas array —
-// i.e. where the card with that grid-area is displayed.
-function _cellOf(areas, areaName) {
-  for (var i = 0; i < areas.length; i++) {
-    var t = areas[i].split(' ');
-    if (t[0] === areaName) { return i + ',0'; }
-    if (t[1] === areaName) { return i + ',1'; }
-  }
-  return null;
-}
-
-// The areas that WOULD result if srcKey were dropped on dstKey — used to preview
-// which cards move. Returns null for a no-op drop (small card onto Boards).
-function _nextAreas(vis, positions, boards, srcKey, dstKey) {
-  if (srcKey === 'boards') {
-    var np = _boardsDropPlacement(vis, positions, boards, dstKey);
-    return np ? gridLayoutState(vis, positions, np).areas : null;
-  }
-  if (dstKey === 'boards') { return null; }
-  var copy = {};
-  Object.keys(positions).forEach(function(k) { copy[k] = positions[k]; });
-  _swapPositions(copy, srcKey, dstKey);
-  return gridLayoutState(vis, copy, boards).areas;
-}
-
-// Keys of every card that would change cells (be "swapped out") if srcKey were
-// dropped on dstKey — excluding the dragged source itself. Drives the drop-target
-// highlight so ALL displaced cards light up (e.g. the two cards a Boards mirror
-// covers), not just the one under the pointer.
-function _displacedKeys(vis, positions, boards, srcKey, dstKey) {
-  var current = gridLayoutState(vis, positions, boards).areas;
-  var next = _nextAreas(vis, positions, boards, srcKey, dstKey);
-  if (!next) { return []; }
-  var out = [];
-  Object.keys(AREA).forEach(function(key) {
-    if (key === srcKey) { return; }
-    if (_cellOf(current, AREA[key]) !== _cellOf(next, AREA[key])) { out.push(key); }
-  });
-  return out;
+// Reorder model: the layout is a single ORDERED LIST of section keys (see
+// dashboard_sections.reorderInsert). Dragging a card INSERTS it before/after the
+// card it's dropped on; Boards reorders like any other block. `_dropAfter` decides
+// the insert side from the pointer position over the target: below the target's
+// vertical midpoint → after; within its row → break the tie by the horizontal half.
+function _dropAfter(targetCard, x, y) {
+  var r = targetCard.getBoundingClientRect();
+  var dy = y - (r.top + r.height / 2);
+  if (dy < -2) { return false; }
+  if (dy > 2) { return true; }
+  return x > r.left + r.width / 2;
 }
 
 // Wire pointer-based drag-to-swap on the preview clone's cards (flagged feature).
@@ -172,13 +81,23 @@ function _displacedKeys(vis, positions, boards, srcKey, dstKey) {
 // their slots and call onChange() to re-render. No ghost — the source dims, the
 // hovered target highlights, release commits — which avoids self-hit-testing math.
 function _wirePreviewDrag(liveEl, ctx) {
-  var positions = ctx.positions, boards = ctx.boards, onChange = ctx.onChange;
+  var onChange = ctx.onChange;
   // The preview is rendered at a CSS zoom; a CSS translate on a card inside it
   // renders at translate × zoom on screen. Divide the screen-space cursor delta by
   // the zoom so the dragged ghost tracks the pointer 1:1 (defaults to 1 / no zoom).
   var scale = ctx.scale || 1;
   var cards = [];
   var state = null;
+  // Whether dropping src onto dst is allowed under the ACTIVE layout. Gentle View
+  // allows any insert (free reorder); Focused View defers to reorderForFocused
+  // (utility cards reorder within their row; a utility card can't leave its row).
+  var acceptsDrop = function(srcKey, dstKey) {
+    if (!srcKey || !dstKey || srcKey === dstKey) { return false; }
+    var layout = ctx.getLayout ? ctx.getLayout() : 'gentle';
+    if (layout !== 'focused') { return true; }
+    var def = ctx.getDefaultOrder ? ctx.getDefaultOrder() : null;
+    return reorderForFocused(ctx.getOrder(), srcKey, dstKey, true, def) !== null;
+  };
   // Resolve the (key, card) under a viewport point, SKIPPING the dragged card (which
   // is translated under the cursor). We walk elementsFromPoint top→bottom rather than
   // toggling pointer-events on the captured overlay (which could drop the capture
@@ -225,23 +144,30 @@ function _wirePreviewDrag(liveEl, ctx) {
       if (hitKey !== state.lastHit) {
         state.lastHit = hitKey;
         clearTargets();
-        if (hitKey) { highlight(_displacedKeys(ctx.getVis(), positions, boards, state.key, hitKey)); }
+        // Only highlight a target the drop would actually accept, so a disallowed
+        // drop (a utility card over a full-width row) gives no false affordance.
+        if (hitKey && acceptsDrop(state.key, hitKey)) { highlight([hitKey]); }
       }
     });
   };
-  // Apply a completed drop. Boards (the hero) moves structurally — dropped on a
-  // card it computes a new placement; everything else is an equal small-card swap.
-  // A small card dropped on Boards is a no-op (Boards only moves when itself dragged).
-  var commitDrop = function(srcKey, dstKey) {
-    if (srcKey === 'boards') {
-      var np = _boardsDropPlacement(ctx.getVis(), positions, boards, dstKey);
-      if (np) { boards.side = np.side; boards.raised = np.raised; onChange(); }
-    } else if (dstKey === 'boards') {
-      /* small card onto Boards — no-op */
-    } else {
-      _swapPositions(positions, srcKey, dstKey);
-      onChange();
-    }
+  // Apply a completed drop: INSERT the dragged card before/after the target in the
+  // saved order (Boards included — it reorders like any block). `after` comes from
+  // the pointer position over the target (_dropAfter).
+  var commitDrop = function(srcKey, dstKey, after) {
+    if (srcKey === dstKey) { return; }
+    // Seed an as-yet-uncustomized order from the ACTIVE layout's default (Focused
+    // View has its own), so dragging a card doesn't reflow the untouched cards to
+    // the other layout's default arrangement.
+    var def = ctx.getDefaultOrder ? ctx.getDefaultOrder() : null;
+    var layout = ctx.getLayout ? ctx.getLayout() : 'gentle';
+    // Focused View constrains the drop (utility cards reorder within their row;
+    // whole rows reposition between rows); Gentle View is a free insert.
+    var next = (layout === 'focused')
+      ? reorderForFocused(ctx.getOrder(), srcKey, dstKey, after, def)
+      : reorderInsert(ctx.getOrder(), srcKey, dstKey, after, def);
+    if (!next) { return; } // disallowed drop — leave the order untouched
+    ctx.setOrder(next);
+    onChange();
   };
   HOME_SECTIONS.forEach(function(s) {
     Array.prototype.forEach.call(liveEl.querySelectorAll('.' + s.cardClass), function(card) {
@@ -303,7 +229,7 @@ function _wirePreviewDrag(liveEl, ctx) {
         clearTargets();
         try { src.ov.releasePointerCapture(e.pointerId); } catch (e2) { /* noop */ }
         if (hit && hit.key !== src.key) {
-          commitDrop(src.key, hit.key);
+          commitDrop(src.key, hit.key, _dropAfter(hit.card, e.clientX, e.clientY));
         }
       };
       ov.addEventListener('pointerup', finish);
@@ -313,17 +239,28 @@ function _wirePreviewDrag(liveEl, ctx) {
 }
 
 // ── Layout-aware preview content ────────────────────────────────────────────
-// The read-only preview shows what the SELECTED layout looks like. Dynamic/Balanced
-// clone the user's real dashboard; Focused builds the focused-home structure (the
-// SAME md-focused-* markup/CSS the live focused view uses) so the preview visibly
-// matches the layout the user picks. Both live inside `.md-gst-preview__live` as a
-// single `.md-gst-preview__page`, swapped wholesale when the layout changes.
-function _buildDynamicClone(live) {
+// The read-only preview shows what the SELECTED layout looks like by cloning the
+// user's real dashboard grid into a single `.md-gst-preview__page`, swapped
+// wholesale when the layout changes (Gentle View vs Focused View).
+function _buildGentleViewClone(live) {
   var src = document.querySelector('.md-grid--dashboard:not(.md-gst-preview__clone)');
   if (!src) { return; }
   var page = document.createElement('div');
   page.className = 'md-gst-preview__page';
   page.setAttribute('aria-hidden', 'true');
+  // The welcome hero banner is a sibling ABOVE the grid (in .md-main), so clone it
+  // into the page too — otherwise the hero toggle saves + reflows the real page but
+  // never shows in the preview. Its show/hide is then driven by syncState's
+  // EXTRA_HOME_TOGGLES loop (setCardDisplay on .md-hero--dashboard), which also
+  // forces it off under Focused View — exactly like the real page.
+  var heroSrc = document.querySelector('.md-hero--dashboard');
+  if (heroSrc) {
+    var heroClone = heroSrc.cloneNode(true);
+    heroClone.removeAttribute('id');
+    Array.prototype.forEach.call(heroClone.querySelectorAll('[id]'), function(n) { n.removeAttribute('id'); });
+    heroClone.classList.add('md-gst-preview__hero');
+    page.appendChild(heroClone);
+  }
   var clone = src.cloneNode(true);
   clone.removeAttribute('id');
   Array.prototype.forEach.call(clone.querySelectorAll('[id]'), function(n) { n.removeAttribute('id'); });
@@ -341,46 +278,14 @@ function _buildDynamicClone(live) {
   live.appendChild(page);
 }
 
-// Build the Focused-home preview: greeting + full-width Talk hero + boards grid. The
-// board tiles are cloned from the user's REAL dashboard board strip (present behind
-// the modal), rebuilt as md-focused-board tiles so the preview matches the live view.
-function _buildFocusedPreview(live) {
-  // Clone the LIVE focused-home markup that Dashboard::FocusedHome renders off-screen
-  // (.md-gst-focused-source) — the SAME component the real focused view uses — so the
-  // preview can never drift from the real view (any future markup change shows here
-  // automatically). The real focused view isn't rendered while the modal is open, so
-  // this hidden source is the clone target; bail gracefully if it isn't mounted.
-  var src = document.querySelector('.md-gst-focused-source .md-main--focused');
-  if (!src) { return; }
-  var page = document.createElement('div');
-  page.className = 'md-gst-preview__page';
-  page.setAttribute('aria-hidden', 'true');
-  var clone = src.cloneNode(true);
-  clone.classList.add('md-main--focused-preview');
-  // Make the clone INERT (strip ids, tabindex, hrefs, Ember action attrs) so a stray
-  // click can't navigate / tear down the modal — mirrors _buildDynamicClone.
-  clone.removeAttribute('id');
-  Array.prototype.forEach.call(clone.querySelectorAll('[id]'), function(n) { n.removeAttribute('id'); });
-  Array.prototype.forEach.call(clone.querySelectorAll('a, button, input, [tabindex]'), function(n) { n.setAttribute('tabindex', '-1'); });
-  Array.prototype.forEach.call(clone.querySelectorAll('a[href]'), function(n) { n.removeAttribute('href'); });
-  Array.prototype.forEach.call(clone.querySelectorAll('[data-ember-action]'), function(n) {
-    Array.prototype.slice.call(n.attributes).forEach(function(attr) {
-      if (attr.name.indexOf('data-ember-action') === 0) { n.removeAttribute(attr.name); }
-    });
-  });
-  page.appendChild(clone);
-  live.appendChild(page);
-}
-
-// Swap the preview content to match `layout`. Removes the existing page first so
-// switching layouts (re-clicking a style card) re-renders cleanly.
-function _buildPreviewContent(live, layout) {
+// Swap the preview content. Removes the existing page first so switching styles
+// (re-clicking a style card) re-renders cleanly.
+function _buildPreviewContent(live) {
   if (!live) { return; }
   try {
     var existing = live.querySelector('.md-gst-preview__page');
     if (existing && existing.parentNode) { existing.parentNode.removeChild(existing); }
-    if (layout === 'focused') { _buildFocusedPreview(live); }
-    else { _buildDynamicClone(live); }
+    _buildGentleViewClone(live);
   } catch (e) { /* preview is decorative — never block the step */ }
 }
 
@@ -413,19 +318,13 @@ function _onDisplayShow(component) {
     saveTimer = setTimeout(function() { saveTimer = null; persist(); }, 180);
   };
 
-  // Build the preview content for the user's SELECTED layout — Dynamic/Balanced clone
-  // the real dashboard, Focused builds the focused-home structure (see
-  // _buildPreviewContent). Uses the saved layout at show time; the layout-card click
-  // handler rebuilds it when the choice changes so the preview always matches.
+  // Build the preview content — a clone of the user's real dashboard (see
+  // _buildPreviewContent). The layout-card click handler rebuilds it when the choice
+  // changes so the preview always matches.
   try {
     var live = el.querySelector('.md-gst-preview__live');
     if (live && !live.querySelector('.md-gst-preview__page')) {
-      var initialLayout = 'dynamic';
-      try {
-        var _as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
-        initialLayout = (_as && _as.get('currentUser.preferences.dashboard_layout')) || 'dynamic';
-      } catch (e) { initialLayout = 'dynamic'; }
-      _buildPreviewContent(live, initialLayout);
+      _buildPreviewContent(live);
     }
   } catch (e) { /* preview is decorative — never block the step */ }
 
@@ -443,9 +342,8 @@ function _onDisplayShow(component) {
     // function with no component `this`). Updated on show (re-seed) and on each
     // style-card click so "Preview — X Layout" always names the current choice.
     var previewLabelFor = function(layout) {
-      if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused Layout"); }
-      if (layout === 'balanced') { return i18n.t('getting_started_tour_preview_label_balanced', "Preview — Balanced Layout"); }
-      return i18n.t('getting_started_tour_preview_label', "Preview — Dynamic Layout");
+      if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused View"); }
+      return i18n.t('getting_started_tour_preview_label', "Preview — Gentle View");
     };
     var setPreviewLabel = function(layout) {
       var tag = el.querySelector('.md-gst-preview__legend-tag');
@@ -462,8 +360,8 @@ function _onDisplayShow(component) {
       var _appState = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
       var _seedUser = _appState && _appState.get('currentUser');
       if (_seedUser && liveEl) {
-        var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'dynamic';
-        if (['dynamic', 'focused', 'balanced'].indexOf(_savedLayout) === -1) { _savedLayout = 'dynamic'; }
+        var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'focused';
+        if (['gentle', 'focused'].indexOf(_savedLayout) === -1) { _savedLayout = 'focused'; }
         Array.prototype.forEach.call(el.querySelectorAll('.md-gst-option'), function(opt) {
           var on = opt.getAttribute('data-gst-layout') === _savedLayout;
           opt.classList.toggle('is-selected', on);
@@ -473,22 +371,18 @@ function _onDisplayShow(component) {
         Array.prototype.forEach.call(el.querySelectorAll('.md-gst-section__input'), function(box) {
           box.checked = !sectionHidden(_seedUser, box.getAttribute('data-gst-section'));
         });
-        var _sp = _seedUser.get('preferences.dashboard_positions');
-        var _sb = _seedUser.get('preferences.dashboard_boards');
-        liveEl.setAttribute('data-gst-positions', JSON.stringify((_sp && typeof _sp === 'object') ? _sp : {}));
-        liveEl.setAttribute('data-gst-boards', JSON.stringify((_sb && typeof _sb === 'object') ? _sb : {}));
+        var _so = _seedUser.get('preferences.dashboard_order');
+        liveEl.setAttribute('data-gst-order', JSON.stringify((_so && _so.length) ? _so : []));
       }
     } catch (e) { /* re-seed is best-effort — falls back to the stamped HTML */ }
-    // Drag-to-swap state (flagged): the saved arrangement + whether the flag is
-    // on are stamped onto the live element by _dynamicPreviewHtml. We mutate this
-    // `positions` map on each swap and stamp it back onto the live element so
+    // Drag-to-reorder state (flagged): the saved order + whether the flag is on are
+    // stamped onto the live element by _gentlePreviewHtml. We replace this `order`
+    // array on each insert and stamp it back onto the live element so
     // _persistDisplaySelection can read the final arrangement to save.
-    var positions = {};
-    var boards = {};
+    var order = [];
     var dragEnabled = false;
     if (liveEl) {
-      try { positions = JSON.parse(liveEl.getAttribute('data-gst-positions') || '{}') || {}; } catch (e) { positions = {}; }
-      try { boards = JSON.parse(liveEl.getAttribute('data-gst-boards') || '{}') || {}; } catch (e) { boards = {}; }
+      try { order = JSON.parse(liveEl.getAttribute('data-gst-order') || '[]') || []; } catch (e) { order = []; }
       dragEnabled = liveEl.getAttribute('data-gst-drag') === '1';
     }
     // The saved arrangement is applied to the preview whenever the feature flag is
@@ -507,8 +401,8 @@ function _onDisplayShow(component) {
     var boxes = el.querySelectorAll('.md-gst-section__input');
     var options = el.querySelectorAll('.md-gst-option');
     var nextBtn = el.querySelector('.shepherd-footer .md-tour__btn--primary');
+    var cancelBtn = el.querySelector('.shepherd-cancel-icon');
     var overlay = el.querySelector('.md-gst-empty');
-    var STYLE_CLASSES = ['md-grid--with-caseload', 'md-grid--with-org-mgmt', 'md-grid--boards-right', 'md-grid--boards-full'];
     var readVis = function() {
       var vis = {};
       // Pages WITH toggles (home-layout) read live checkbox state. Pages WITHOUT
@@ -520,6 +414,9 @@ function _onDisplayShow(component) {
         availableHomeSections(previewUser).forEach(function(s) {
           vis[s.key] = !sectionHidden(previewUser, s.key);
         });
+        EXTRA_HOME_TOGGLES.forEach(function(t) {
+          vis[t.key] = !sectionHidden(previewUser, t.key);
+        });
         return vis;
       }
       Array.prototype.forEach.call(boxes, function(box) {
@@ -528,19 +425,30 @@ function _onDisplayShow(component) {
       return vis;
     };
 
+    // Only toggles APPLICABLE to the active layout count toward "is anything
+    // selected?". Focused View hides the Extras + Welcome-banner toggles
+    // (applyLayoutSections sets their row to display:none) but leaves them CHECKED,
+    // so counting every box would mask an otherwise-empty selection — wrongly
+    // keeping Done/close enabled and the empty overlay hidden when the user has
+    // unchecked all the VISIBLE elements.
+    var applicableBoxes = function() {
+      return Array.prototype.filter.call(boxes, function(b) {
+        var row = b.closest('.md-gst-section');
+        return row && row.style.display !== 'none';
+      });
+    };
     var anyChecked = function() {
-      var any = false;
-      Array.prototype.forEach.call(boxes, function(b) { if (b.checked) { any = true; } });
-      return any;
+      return applicableBoxes().some(function(b) { return b.checked; });
     };
     // Next requires a layout choice AND at least one display element; the empty
-    // overlay appears whenever zero elements are selected.
+    // overlay appears whenever zero applicable elements are selected.
     // Gate adapts to whichever controls THIS page has: the display-style page has
     // style cards but no toggles (require a layout); the home-layout page has
     // toggles but no cards (require at least one section). A control type that's
     // absent on a page is treated as satisfied so it never blocks Next.
     var refreshGate = function() {
-      var hasSection = (boxes.length === 0) ? true : anyChecked();
+      var applicable = applicableBoxes();
+      var hasSection = (applicable.length === 0) ? true : anyChecked();
       var hasLayout = (options.length === 0) ? true : !!el.querySelector('.md-gst-option.is-selected');
       var disabled = !(hasSection && hasLayout);
       if (nextBtn) {
@@ -548,8 +456,16 @@ function _onDisplayShow(component) {
         nextBtn.classList.toggle('md-tour__btn--disabled', disabled);
         nextBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
       }
-      // The empty-state overlay only applies where the toggles live (home-layout page).
-      if (overlay) { overlay.classList.toggle('is-visible', boxes.length > 0 && !hasSection); }
+      // Gate the close (X) the same way — the user must keep at least one element
+      // for the chosen layout, so they can't dismiss the modal with an empty
+      // dashboard. (Back is still available to return to the display-style page.)
+      if (cancelBtn) {
+        cancelBtn.disabled = disabled;
+        cancelBtn.classList.toggle('md-gst-cancel--blocked', disabled);
+        cancelBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      }
+      // The empty-state overlay only applies where the toggles live (customize page).
+      if (overlay) { overlay.classList.toggle('is-visible', applicable.length > 0 && !hasSection); }
     };
     var setCardDisplay = function(cls, visible) {
       Array.prototype.forEach.call(liveEl.querySelectorAll('.' + cls), function(card) {
@@ -561,85 +477,119 @@ function _onDisplayShow(component) {
         else { card.style.setProperty('display', 'none', 'important'); }
       });
     };
-    // ── Focused-layout customization ─────────────────────────────────────────
-    // The Focused layout renders ONLY the Talk hero + "My boards" (no Extras /
-    // Caseload / Org cards). So in focused mode the section checklist should offer
-    // just those two toggles, and the Speak chip reads "Talk" to match the hero.
-    // For Dynamic / Balanced the full checklist + labels are restored.
-    var FOCUSED_TOGGLE_KEYS = { boards: true, speak: true };
-    // Map a focused-preview section → its element in the (clone-less) focused
-    // structure: Boards = the "My boards" grid, Speak = the Talk hero.
-    var FOCUSED_SECTION_EL = { boards: '.md-focused-boards', speak: '.md-focused-talk' };
     var currentLayout = function() {
       var sel = el.querySelector('.md-gst-option.is-selected');
-      if (sel) { return sel.getAttribute('data-gst-layout') || 'dynamic'; }
+      if (sel) { return sel.getAttribute('data-gst-layout') || 'focused'; }
       try {
         var as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
-        return (as && as.get('currentUser.preferences.dashboard_layout')) || 'dynamic';
-      } catch (e) { return 'dynamic'; }
+        return (as && as.get('currentUser.preferences.dashboard_layout')) || 'focused';
+      } catch (e) { return 'focused'; }
     };
     var applyLayoutSections = function(layout) {
       var focused = (layout === 'focused');
-      var balanced = (layout === 'balanced');
       Array.prototype.forEach.call(boxes, function(box) {
         var key = box.getAttribute('data-gst-section');
         var row = box.closest('.md-gst-section');
         if (!row) { return; }
-        // Focused offers only Boards + Talk; Balanced offers everything EXCEPT
-        // Extras (Speak becomes the full-width hero, Extras never shows); Dynamic
-        // offers the full checklist.
-        var show = true;
-        if (focused) { show = !!FOCUSED_TOGGLE_KEYS[key]; }
-        else if (balanced) { show = (key !== 'extras'); }
-        row.style.display = show ? '' : 'none';
-        if (key === 'speak') {
-          var lbl = row.querySelector('.md-gst-section__label');
-          if (lbl) { lbl.textContent = focused ? i18n.t('focused_talk', "Talk") : i18n.t('speak_mode', "Speak Mode"); }
-        }
+        // Focused View offers everything EXCEPT Extras (Speak becomes the full-width
+        // hero, Extras never shows) and the gentle-only non-grid toggles (the
+        // welcome hero, which Focused View hides); Gentle View offers the full checklist.
+        var gentleOnly = row.classList.contains('md-gst-section--gentle-only');
+        row.style.display = (focused && (key === 'extras' || gentleOnly)) ? 'none' : '';
       });
+      updateSpeakLabel(layout);
+    };
+    // The Speak checklist item reads as "Let's Communicate" on Focused View (where
+    // Speak is the full-width hero) and "Speak Mode" on Gentle View. Kept in sync
+    // here so switching the layout on the style page updates the label live.
+    var updateSpeakLabel = function(layout) {
+      var input = el.querySelector('.md-gst-section__input[data-gst-section="speak"]');
+      var row = input && input.closest('.md-gst-section');
+      var labelEl = row && row.querySelector('.md-gst-section__label');
+      if (labelEl) {
+        labelEl.textContent = (layout === 'focused')
+          ? i18n.t('lets_communicate', "Let's Communicate")
+          : i18n.t('speak_mode', "Speak Mode");
+      }
+    };
+    // Keep the right-panel checklist in the SAME order as the live preview cards:
+    // a drag reorders the cards (and the `order` array), so re-sort the section rows
+    // to match. The list is built once at open, so without this it would stay frozen
+    // in its initial order while the preview moves.
+    var reorderSectionList = function() {
+      var listEl = el.querySelector('.md-gst-sections__list');
+      if (!listEl) { return; }
+      var layout = currentLayout();
+      var base = (layout === 'focused') ? FOCUSED_DEFAULT_ORDER : DEFAULT_ORDER;
+      var ord = (order && order.length) ? order.slice() : base.slice();
+      base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
+      var rank = function(row) {
+        var input = row.querySelector('.md-gst-section__input');
+        var key = input && input.getAttribute('data-gst-section');
+        // Focused View pins Speak as the always-top hero (its order slot is ignored
+        // by focusedLayout), so pin "Let's Communicate" first to match the preview.
+        if (layout === 'focused' && key === 'speak') { return -1; }
+        // Gentle View renders the Welcome banner ABOVE the grid, so list it first
+        // there too (it's a non-grid toggle, absent from the order array).
+        if (layout !== 'focused' && key === 'hero') { return -2; }
+        var i = ord.indexOf(key);
+        return i === -1 ? 999 : i; // any other non-grid toggle keeps its trailing slot
+      };
+      Array.prototype.slice.call(listEl.querySelectorAll('.md-gst-section'))
+        .sort(function(a, b) { return rank(a) - rank(b); })
+        .forEach(function(row) { listEl.appendChild(row); });
     };
     var syncState = function() {
       // Re-query the clone each call — the preview content is rebuilt when the layout
-      // changes (focused has NO clone), so a captured reference would go stale.
+      // changes, so a captured reference would go stale.
       gridEl = liveEl && liveEl.querySelector('.md-gst-preview__clone');
       var layout = currentLayout();
       var vis = readVis();
-      // Balanced never shows Extras — Speak becomes the full-width hero instead.
+      // Focused View never shows Extras — Speak becomes the full-width hero instead.
       // Force it off before card-hide + layout so the clone matches the real page.
-      if (layout === 'balanced') { vis.extras = false; }
+      if (layout === 'focused') { vis.extras = false; }
       if (liveEl && gridEl) {
         // Reflect the selected display style on the clone so layout-scoped CSS
-        // (e.g. the Balanced full-width Speak hero's doubled height) applies to
+        // (e.g. the Focused View full-width Speak hero's doubled height) applies to
         // the preview too — the clone inherits the live grid's layout class, so
         // it must be re-stamped when the user switches styles.
-        ['dynamic', 'focused', 'balanced'].forEach(function(name) {
+        ['gentle', 'focused'].forEach(function(name) {
           gridEl.classList.toggle('md-grid--layout-' + name, layout === name);
         });
         HOME_SECTIONS.forEach(function(s) {
           if (vis[s.key] === undefined) { return; }
           setCardDisplay(s.cardClass, vis[s.key]);
         });
-        var state = gridLayoutState(vis, flagOn ? positions : null, flagOn ? boards : null, layout);
-        STYLE_CLASSES.forEach(function(c) {
-          gridEl.classList.toggle(c, state.classes.indexOf(c) !== -1);
+        // Non-grid toggles (welcome hero): gentleOnly ones never show on Focused View.
+        EXTRA_HOME_TOGGLES.forEach(function(t) {
+          if (vis[t.key] === undefined) { return; }
+          var on = vis[t.key] && !(t.gentleOnly && layout === 'focused');
+          setCardDisplay(t.cardClass, on);
         });
+        var state = gridLayoutState(vis, flagOn ? order : null, layout);
+        // Reconcile ALL engine-driven state classes (boards-full + the gentle
+        // per-card md-grid--fullspan-<key>) so the preview matches the real grid:
+        // strip the current set, then add the computed one.
+        Array.prototype.slice.call(gridEl.classList).forEach(function(c) {
+          if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-)/.test(c)) { gridEl.classList.remove(c); }
+        });
+        state.classes.forEach(function(c) { gridEl.classList.add(c); });
         gridEl.style.setProperty('grid-template-areas', state.areasValue, 'important');
         gridEl.style.setProperty('grid-template-rows', state.rows, 'important');
-        // Stamp the live arrangement back so the persist step can read it.
-        liveEl.setAttribute('data-gst-positions', JSON.stringify(positions));
-        liveEl.setAttribute('data-gst-boards', JSON.stringify(boards));
-      } else if (liveEl) {
-        // Focused layout (no clone): drive the focused structure's sections from the
-        // Boards / Talk toggles, mirroring how the clone-based previews respond.
-        Object.keys(FOCUSED_SECTION_EL).forEach(function(key) {
-          if (vis[key] === undefined) { return; }
-          Array.prototype.forEach.call(liveEl.querySelectorAll(FOCUSED_SECTION_EL[key]), function(node) {
-            if (vis[key]) { node.style.removeProperty('display'); }
-            else { node.style.setProperty('display', 'none', 'important'); }
-          });
-        });
+        // Focused View pins the column count to the visible utility-card count so
+        // the utility row fills evenly; Gentle View hands columns back to the CSS.
+        if (state.columns) { gridEl.style.setProperty('grid-template-columns', state.columns, 'important'); }
+        else { gridEl.style.removeProperty('grid-template-columns'); }
+        // Mirror the reading-order vars so the clone's small-screen fallback orders
+        // cards the same as the real grid (inert above 950px).
+        var _oi = state.orderIndices || {};
+        Object.keys(_oi).forEach(function(k) { gridEl.style.setProperty('--ord-' + k, _oi[k]); });
+        // Stamp the live order back so the persist step can read it.
+        liveEl.setAttribute('data-gst-order', JSON.stringify(order));
       }
       refreshGate();
+      // Mirror the new card order into the right-panel checklist.
+      reorderSectionList();
     };
     // A user-initiated change: re-render the preview IMMEDIATELY (the snap stays
     // instant) then queue a DEBOUNCED save (off the animation frame). The initial
@@ -663,10 +613,10 @@ function _onDisplayShow(component) {
         opt.setAttribute('aria-pressed', 'true');
         var chosen = opt.getAttribute('data-gst-layout');
         // Reflect the chosen style in the preview: update the legend label AND rebuild
-        // the preview content to match (Focused → focused-home structure; Dynamic/
-        // Balanced → dashboard clone), then re-apply the arrangement via syncState.
+        // the preview content (the dashboard clone), then re-apply the arrangement
+        // via syncState.
         setPreviewLabel(chosen);
-        _buildPreviewContent(liveEl, chosen);
+        _buildPreviewContent(liveEl);
         applyLayoutSections(chosen);
         syncState();
         refreshGate();
@@ -688,7 +638,7 @@ function _onDisplayShow(component) {
       // divides by it to keep the ghost 1:1 under the cursor.
       var previewZoom = 1;
       try { previewZoom = parseFloat(window.getComputedStyle(liveEl).getPropertyValue('--md-gst-preview-zoom')) || 1; } catch (e) { previewZoom = 1; }
-      try { _wirePreviewDrag(liveEl, { positions: positions, boards: boards, getVis: readVis, onChange: onUserChange, scale: previewZoom }); } catch (e) { /* drag is an enhancement — never block the step */ }
+      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return currentLayout() === 'focused' ? FOCUSED_DEFAULT_ORDER : null; }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom }); } catch (e) { /* drag is an enhancement — never block the step */ }
     }
   } catch (e) { /* preview + gating are decorative — never block the step */ }
 
@@ -733,6 +683,26 @@ export default Component.extend({
   tour: service('tour'),
   appState: service('app-state'),
 
+  // Register a DIRECT opener on the shared app-state service so any component
+  // (e.g. the home "Edit Dashboard" card) can open this tour at a specific step
+  // by CALLING it — rather than relying on the `_dashboardDesignTrigger` observer
+  // below firing across components. A cross-component observer used as a one-shot
+  // event bus is fragile (it won't re-fire for an unchanged value, and home-tour
+  // hit the same class of issue — see its didInsert/sessionStorage fallbacks), so
+  // the direct call is the reliable path and the observer is a belt-and-suspenders
+  // fallback for callers that only set the signal.
+  init: function() {
+    this._super(...arguments);
+    this.set('appState.dashboard_design_opener', this._startGettingStarted.bind(this));
+  },
+
+  willDestroy: function() {
+    if (this.get('appState.dashboard_design_opener')) {
+      this.set('appState.dashboard_design_opener', null);
+    }
+    this._super.apply(this, arguments);
+  },
+
   // Persist the chosen display layout + per-section visibility/positions/boards to
   // the user's preferences. Called on Next from the "choose your display style" step.
   //
@@ -755,11 +725,6 @@ export default Component.extend({
     if (!root) { return; }
     var prefs = Object.assign({}, user.get('preferences') || {});
     var changed = false;
-    var norm = function(o) {
-      var out = {};
-      Object.keys(o || {}).sort().forEach(function(k) { out[k] = o[k]; });
-      return JSON.stringify(out);
-    };
 
     // Layout choice
     var sel = root.querySelector('.md-gst-option.is-selected');
@@ -778,6 +743,11 @@ export default Component.extend({
         if (box.checked) { visibleKeys.push(box.getAttribute('data-gst-section')); }
       });
       var map = sectionsMapFor(user, visibleKeys);
+      // Non-grid toggles (welcome hero) aren't in availableHomeSections, so
+      // sectionsMapFor drops them — carry their checkbox state into the map.
+      EXTRA_HOME_TOGGLES.forEach(function(t) {
+        map[t.key] = visibleKeys.indexOf(t.key) !== -1;
+      });
       var current = prefs.dashboard_sections || {};
       var differs = Object.keys(map).some(function(k) {
         var cur = current[k];
@@ -790,21 +760,14 @@ export default Component.extend({
       }
     }
 
-    // Per-section drag-to-swap positions + Boards placement (flagged) — read the final
-    // arrangement the show hook stamped onto the live element. Compared with sorted
-    // keys so key ordering alone never triggers a needless save.
+    // Drag-to-reorder order (flagged) — read the final order the show hook stamped
+    // onto the live element. Order is a SEQUENCE, so compare the arrays directly.
     var live = root.querySelector('.md-gst-preview__live');
     if (live && live.getAttribute('data-gst-drag') === '1') {
-      var positions = {};
-      try { positions = JSON.parse(live.getAttribute('data-gst-positions') || '{}') || {}; } catch (e) { positions = {}; }
-      if (norm(positions) !== norm(prefs.dashboard_positions || {})) {
-        prefs.dashboard_positions = positions;
-        changed = true;
-      }
-      var boards = {};
-      try { boards = JSON.parse(live.getAttribute('data-gst-boards') || '{}') || {}; } catch (e) { boards = {}; }
-      if (norm(boards) !== norm(prefs.dashboard_boards || {})) {
-        prefs.dashboard_boards = boards;
+      var order = [];
+      try { order = JSON.parse(live.getAttribute('data-gst-order') || '[]') || []; } catch (e) { order = []; }
+      if (JSON.stringify(order) !== JSON.stringify(prefs.dashboard_order || [])) {
+        prefs.dashboard_order = order;
         changed = true;
       }
     }
@@ -821,36 +784,21 @@ export default Component.extend({
 
   // Welcome (first) page content (HTML string — Shepherd renders `text` via
   // innerHTML). A short lead, a horizontal 1→2 progress stepper (reusing the
-  // .beta-welcome-steps__num glass badges + a connecting line), and two button
-  // cards that preview the next two steps as mini-mockups. Every string is static
-  // i18n.t (generator-friendly); the layout-chooser + customize step titles are
-  // reused so the cards name exactly what's coming. `data-gst-welcome-next` cards
-  // advance the tour (wired in _onWelcomeShow).
+  // .beta-welcome-steps__num glass badges + a connecting line), and two
+  // NON-actionable label cards sitting under their numbers that just name the
+  // two steps to come. Every string is static i18n.t (generator-friendly); the
+  // display-style + customize step titles are reused so the labels match what's
+  // next. The footer "Get started" advances the tour.
   _welcomeContentHtml: function() {
-    var lead = i18n.t('getting_started_tour_welcome_text', "Let's get you set up. We'll walk through a few quick steps to get your account ready to go.");
+    var lead = i18n.t('getting_started_tour_welcome_text', "Design your dashboard in two quick steps: choose a display style, then pick what appears on your dashboard.");
     var t1 = i18n.t('getting_started_tour_display_title', "Choose your display style");
-    var d1 = i18n.t('getting_started_tour_welcome_card1_desc', "Pick the home-page layout that fits how you like to work.");
-    var t2 = i18n.t('getting_started_tour_layout_title', "Customize your home page");
-    var d2 = i18n.t('getting_started_tour_welcome_card2_desc', "Choose what appears and arrange it your way.");
-    // Decorative mini-mockup of the layout chooser: three stacked option rows, the
-    // first one "selected".
-    var mock1 = '<span class="md-gst-wc-mock md-gst-wc-mock--layouts" aria-hidden="true">' +
-        '<span class="md-gst-wc-opt is-active"></span>' +
-        '<span class="md-gst-wc-opt"></span>' +
-        '<span class="md-gst-wc-opt"></span>' +
-      '</span>';
-    // Decorative mini-mockup of a home dashboard: a wide hero tile + a 2-up row.
-    var mock2 = '<span class="md-gst-wc-mock md-gst-wc-mock--grid" aria-hidden="true">' +
-        '<span class="md-gst-wc-tile md-gst-wc-tile--hero"></span>' +
-        '<span class="md-gst-wc-tile"></span>' +
-        '<span class="md-gst-wc-tile"></span>' +
-      '</span>';
-    var card = function(target, mock, title, desc) {
-      return '<button type="button" class="md-gst-welcome-card" data-gst-welcome-target="' + target + '">' +
-          mock +
+    var t2 = i18n.t('getting_started_tour_layout_title', "Customize your dashboard");
+    // Non-actionable label cards (no mockup, no click-to-jump) — each just names a
+    // step and sits under its number. The footer "Get started" advances the tour.
+    var card = function(title) {
+      return '<div class="md-gst-welcome-card">' +
           '<span class="md-gst-welcome-card__title">' + title + '</span>' +
-          '<span class="md-gst-welcome-card__desc">' + desc + '</span>' +
-        '</button>';
+        '</div>';
     };
     return '' +
       '<div class="md-gst-welcome">' +
@@ -861,10 +809,8 @@ export default Component.extend({
           '<span class="md-gst-welcome__num beta-welcome-steps__num">2</span>' +
         '</div>' +
         '<div class="md-gst-welcome__cards">' +
-          // Card 1 → the display-style step; card 2 jumps straight to the
-          // customize step (skipping style selection) — see _onWelcomeShow.
-          card('getting_started_tour_display', mock1, t1, d1) +
-          card('getting_started_tour_layout', mock2, t2, d2) +
+          card(t1) +
+          card(t2) +
         '</div>' +
       '</div>';
   },
@@ -873,7 +819,7 @@ export default Component.extend({
   // renders `title` via innerHTML, so an HTML string is the supported approach;
   // every piece comes from i18n, never user input.
   _decoratedTitle: function(headingKey, headingDefault) {
-    var eyebrow = i18n.t('getting_started_tour_eyebrow', "Getting Started");
+    var eyebrow = i18n.t('getting_started_tour_eyebrow', "Dashboard Design");
     var heading = i18n.t(headingKey, headingDefault);
     var spark = '<svg class="md-tour__eyebrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.1 5.1 1.7-5.1 1.7L12 16.1l-1.7-5.1L5.2 9.3l5.1-1.7z"/><path d="M19 13.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" opacity="0.7"/></svg>';
     return '<span class="md-tour__eyebrow">' + spark +
@@ -889,25 +835,53 @@ export default Component.extend({
   // content toggles + drag now live on page 2 (the home-layout step); page 1 pairs
   // these cards with a READ-ONLY preview (see _buildSteps).
   _styleCardsHtml: function() {
-    // Pre-select the user's SAVED layout (default dynamic) so re-opening the
+    // Pre-select the user's SAVED layout (default focused) so re-opening the
     // modal reflects what's stored, not a fixed default.
-    var saved = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
-    if (['dynamic', 'focused', 'balanced'].indexOf(saved) === -1) { saved = 'dynamic'; }
-    var option = function(key, num, label, desc) {
+    var saved = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
+    if (['gentle', 'focused'].indexOf(saved) === -1) { saved = 'focused'; }
+    var option = function(key, label, desc) {
       var sel = key === saved;
       return '<button type="button" class="md-gst-option' + (sel ? ' is-selected' : '') + '" data-gst-layout="' + key + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
-        '<span class="md-gst-option__num beta-welcome-steps__num">' + num + '</span>' +
         '<span class="md-gst-option__text">' +
           '<span class="md-gst-option__label">' + label + '</span>' +
-          '<span class="md-gst-option__desc">' + desc + '</span>' +
+          // desc is a <div> (not a <span>) so it can hold block content — both
+          // cards pass a "may be a good fit if you:" lead + bracketed bullet list.
+          '<div class="md-gst-option__desc">' + desc + '</div>' +
         '</span>' +
       '</button>';
     };
+    // Each layout card's description is a lead line + a bracketed 3-item bullet
+    // list ("May be a good fit if you:"). Kept inline with LITERAL i18n.t calls
+    // (not a shared helper with dynamic keys) so i18n_generator's static parser
+    // can extract every key. The repurposed _desc keys carry the lead; item1-3
+    // carry the bullets.
+    var gentleDesc =
+      '<span class="md-gst-option__desc-lead">' + i18n.t('getting_started_tour_layout_gentle_desc', "May be a good fit if you:") + '</span>' +
+      '<div class="md-gst-option__bracket">' +
+        '<ul class="md-gst-option__list">' +
+          '<li>' + i18n.t('getting_started_tour_layout_gentle_item1', "Are sensitive to bold elements") + '</li>' +
+          '<li>' + i18n.t('getting_started_tour_layout_gentle_item3', "Prefer a softer, more relaxed interface") + '</li>' +
+        '</ul>' +
+      '</div>';
+    var focusedDesc =
+      '<span class="md-gst-option__desc-lead">' + i18n.t('getting_started_tour_layout_focused_desc', "May be a good fit if you:") + '</span>' +
+      '<div class="md-gst-option__bracket">' +
+        '<ul class="md-gst-option__list">' +
+          '<li>' + i18n.t('getting_started_tour_layout_focused_item1', "Benefit from stronger visual cues") + '</li>' +
+          '<li>' + i18n.t('getting_started_tour_layout_focused_item3', "Prefer a bolder, more direct interface") + '</li>' +
+        '</ul>' +
+      '</div>';
     return '' +
       '<div class="md-gst-options">' +
-        option('dynamic', '1', i18n.t('getting_started_tour_layout_dynamic', "Dynamic Layout"), i18n.t('getting_started_tour_layout_dynamic_desc', "Flexible multi-card organization")) +
-        option('focused', '2', i18n.t('getting_started_tour_layout_focused', "Focused Layout"), i18n.t('getting_started_tour_layout_focused_desc', "Simplified top-down experience")) +
-        option('balanced', '3', i18n.t('getting_started_tour_layout_balanced', "Balanced Layout"), i18n.t('getting_started_tour_layout_balanced_desc', "Blend of structure and focus")) +
+        // The layout KEY is 'focused' — the layout engine selects on
+        // `layout === 'focused'` and it's the value persisted in
+        // preferences.dashboard_layout. The user-facing LABEL is "Focused View".
+        option('focused', i18n.t('getting_started_tour_layout_focused', "Focused View"), focusedDesc) +
+        '<span class="md-gst-options__or" aria-hidden="true">' + i18n.t('getting_started_or_divider', "OR") + '</span>' +
+        // The other KEY is 'gentle' — the value persisted in
+        // preferences.dashboard_layout (and allow-listed below). The user-facing
+        // LABEL is "Gentle View".
+        option('gentle', i18n.t('getting_started_tour_layout_gentle', "Gentle View"), gentleDesc) +
       '</div>';
   },
 
@@ -946,20 +920,19 @@ export default Component.extend({
       '</div>';
   },
 
-  // Compact, professional miniature of the Dynamic Layout (the current home
+  // Compact, professional miniature of the Gentle View layout (the current home
   // dashboard) shown below the options. Decorative (aria-hidden); the live
   // per-option preview swap is wired later. Built as an HTML string for the
   // Shepherd step text. The grid areas mirror the real home layout:
   // Caseload + Speak on top, Boards (tall) on the left, Extras + Org stacked
   // on the right.
   // Preview legend tag, labeled with the user's selected layout so the preview
-  // reads as "this is the [Dynamic/Focused/Balanced] layout you picked". Three
+  // reads as "this is the [Gentle View/Focused View] layout you picked". Three
   // static i18n.t calls (generator-friendly); _onDisplayShow updates the tag live
   // when the layout selection changes.
   _previewLabel: function(layout) {
-    if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused Layout"); }
-    if (layout === 'balanced') { return i18n.t('getting_started_tour_preview_label_balanced', "Preview — Balanced Layout"); }
-    return i18n.t('getting_started_tour_preview_label', "Preview — Dynamic Layout");
+    if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused View"); }
+    return i18n.t('getting_started_tour_preview_label', "Preview — Gentle View");
   },
 
   // Live, scaled-down copy of THIS user's real home dashboard — _onDisplayShow
@@ -971,31 +944,45 @@ export default Component.extend({
   // `opts.drag` (default true) is ANDed with the feature flag; pass false to force
   // a static preview. Section keys are fixed identifiers, so the JSON is safe in a
   // single-quoted attribute.
-  _dynamicPreviewHtml: function(opts) {
+  _gentlePreviewHtml: function(opts) {
     opts = opts || {};
     var withToggles = opts.toggles !== false;
     var dragOn = (opts.drag !== false) && !!this.get('appState.feature_flags.dashboard_drag_layout');
-    var savedLayout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
-    var saved = this.get('appState.currentUser.preferences.dashboard_positions');
-    var savedJson = JSON.stringify((saved && typeof saved === 'object') ? saved : {});
-    var savedBoards = this.get('appState.currentUser.preferences.dashboard_boards');
-    var savedBoardsJson = JSON.stringify((savedBoards && typeof savedBoards === 'object') ? savedBoards : {});
+    var savedLayout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
+    var savedOrder = this.get('appState.currentUser.preferences.dashboard_order');
+    var savedOrderJson = JSON.stringify((savedOrder && savedOrder.length) ? savedOrder : []);
     // Combined legend: the bracketed preview tag and (when dragging is enabled) the
-    // swap instruction read as one modern, professional line directly above the live
-    // preview — instead of two competing labels above and below the controls.
+    // reorder instruction read as one modern, professional line directly above the
+    // live preview — instead of two competing labels above and below the controls.
     var legend = '' +
       '<div class="md-gst-preview__legend">' +
         '<span class="md-gst-preview__legend-tag">' + this._previewLabel(savedLayout) + '</span>' +
         (dragOn ?
           '<span class="md-gst-preview__legend-dot" aria-hidden="true"></span>' +
-          '<span class="md-gst-preview__legend-hint">' + i18n.t('getting_started_tour_drag_hint', "Drag a card onto another to swap their positions") + '</span>'
+          '<span class="md-gst-preview__legend-hint">' + i18n.t('getting_started_tour_drag_hint', "Drag rows to change row position or drag the smaller buttons on the same row to reorder them on the row") + '</span>'
           : '') +
       '</div>';
+    // Two modern checklist items below the step header (customize step only),
+    // joined by an "and/or" divider — a quick "here's what you can do" summary of
+    // the page's two actions (reorder by dragging, toggle visibility).
+    var howtoBullet = '<span class="md-gst-howto__bullet" aria-hidden="true"></span>';
+    var howto = withToggles ? (
+      '<div class="md-gst-howto">' +
+        '<span class="md-gst-howto__item">' + howtoBullet +
+          '<span class="md-gst-howto__label">' + i18n.t('getting_started_tour_howto_drag', "Drag cards to move them around") + '</span>' +
+        '</span>' +
+        '<span class="md-gst-howto__sep">' + i18n.t('getting_started_tour_howto_andor', "and/or") + '</span>' +
+        '<span class="md-gst-howto__item">' + howtoBullet +
+          '<span class="md-gst-howto__label">' + i18n.t('getting_started_tour_howto_toggle', "Choose what appears on your dashboard") + '</span>' +
+        '</span>' +
+      '</div>'
+    ) : '';
     return '' +
+      howto +
       '<div class="md-gst-preview' + (withToggles ? ' md-gst-preview--with-toggles' : '') + '">' +
         (withToggles ? this._sectionTogglesHtml() : '') +
         legend +
-        '<div class="md-gst-preview__live" data-gst-drag="' + (dragOn ? '1' : '') + '" data-gst-positions=\'' + savedJson + '\' data-gst-boards=\'' + savedBoardsJson + '\'>' +
+        '<div class="md-gst-preview__live" data-gst-drag="' + (dragOn ? '1' : '') + '" data-gst-order=\'' + savedOrderJson + '\'>' +
           this._emptyOverlayHtml() +
         '</div>' +
       '</div>';
@@ -1023,22 +1010,43 @@ export default Component.extend({
   // saved to preferences.dashboard_sections on Next.
   _sectionTogglesHtml: function() {
     var user = this.get('appState.currentUser');
-    // Display the checklist alphabetically by (localized) label. `.slice()` so we
-    // never reorder the array availableHomeSections returns — this is purely the
-    // checklist's presentation order; the real dashboard order is unaffected.
+    // Order the checklist to MATCH the live preview / dashboard order (was an
+    // alphabetical sort): rank each available section by its index in the active
+    // layout's saved order so the list reads top-to-bottom the way the cards lay
+    // out. `.slice()` so we never mutate the array availableHomeSections returns.
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
+    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'focused'; }
+    var base = (layout === 'focused') ? FOCUSED_DEFAULT_ORDER : DEFAULT_ORDER;
+    var savedOrder = this.get('appState.currentUser.preferences.dashboard_order');
+    var ord = (savedOrder && savedOrder.length) ? savedOrder.slice() : base.slice();
+    base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
+    var rank = function(s) { var i = ord.indexOf(s.key); return i === -1 ? 999 : i; };
     var sections = availableHomeSections(user).slice().sort(function(a, b) {
-      return sectionLabel(a).localeCompare(sectionLabel(b));
+      return rank(a) - rank(b);
     });
-    var items = sections.map(function(s) {
-      var checked = sectionHidden(user, s.key) ? '' : ' checked';
+    var toggleItem = function(key, label, gentleOnly) {
+      var checked = sectionHidden(user, key) ? '' : ' checked';
+      // `gentleOnly` rows are hidden when Focused View is selected (applyLayoutSections).
+      var extraClass = gentleOnly ? ' md-gst-section--gentle-only' : '';
       return '' +
-        '<label class="md-gst-section">' +
-          '<input type="checkbox" class="md-gst-section__input" data-gst-section="' + s.key + '"' + checked + '>' +
+        '<label class="md-gst-section' + extraClass + '">' +
+          '<input type="checkbox" class="md-gst-section__input" data-gst-section="' + key + '"' + checked + '>' +
           '<span class="md-gst-section__box" aria-hidden="true">' +
             '<svg class="md-gst-section__check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
           '</span>' +
-          '<span class="md-gst-section__label">' + sectionLabel(s) + '</span>' +
+          '<span class="md-gst-section__label">' + label + '</span>' +
         '</label>';
+    };
+    var items = sections.map(function(s) {
+      // In THIS list the Speak section reads as "Let's Communicate" on Focused View
+      // (where it's the full-width hero) but as its normal "Speak Mode" on Gentle
+      // View. _onDisplayShow.updateSpeakLabel keeps it in sync if the layout changes.
+      var label = (s.key === 'speak' && layout === 'focused') ? i18n.t('lets_communicate', "Let's Communicate") : sectionLabel(s);
+      return toggleItem(s.key, label, false);
+    }).join('');
+    // Non-grid toggles (e.g. the welcome hero banner) — rendered after the cards.
+    items += EXTRA_HOME_TOGGLES.map(function(t) {
+      return toggleItem(t.key, i18n.t(t.labelKey, t.labelDefault), t.gentleOnly);
     }).join('');
     return '' +
       '<div class="md-gst-sections">' +
@@ -1056,7 +1064,7 @@ export default Component.extend({
       // Step 1 — welcome (centered intro)
       {
         id: 'getting_started_tour_welcome',
-        title: this._decoratedTitle('getting_started_tour_welcome_title', "Welcome to LingoLinq"),
+        title: this._decoratedTitle('getting_started_tour_welcome_title', "Customize your dashboard"),
         // Roomier welcome page: a short lead, a 1→2 progress stepper, and two
         // mini-mockup cards previewing the next two steps (see _welcomeContentHtml).
         text: this._welcomeContentHtml(),
@@ -1091,7 +1099,7 @@ export default Component.extend({
       {
         id: 'getting_started_tour_display',
         title: this._decoratedTitle('getting_started_tour_display_title', "Choose your display style"),
-        text: this._styleCardsHtml() + this._dynamicPreviewHtml({ toggles: false, drag: false }) + this._orientationOverlayHtml(),
+        text: this._styleCardsHtml() + this._gentlePreviewHtml({ toggles: false, drag: false }) + this._orientationOverlayHtml(),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           // Persist whenever this step is HIDDEN — Next, Back, OR closing the modal
@@ -1122,8 +1130,8 @@ export default Component.extend({
       // wires it — here there are no style cards, so it wires the toggles + drag + gate.
       {
         id: 'getting_started_tour_layout',
-        title: this._decoratedTitle('getting_started_tour_layout_title', "Customize your home page"),
-        text: this._dynamicPreviewHtml({ toggles: true }) + this._orientationOverlayHtml(),
+        title: this._decoratedTitle('getting_started_tour_layout_title', "Customize your dashboard"),
+        text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml(),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           hide: function() { try { component._persistDisplaySelection(this.el); } catch (e) { /* never block close */ } }
@@ -1146,7 +1154,18 @@ export default Component.extend({
     ];
   },
 
-  _startGettingStarted: function() {
+  // Another component can open the Dashboard Design modal at a specific step by
+  // setting appState.open_dashboard_design (e.g. the home "Edit Dashboard" button
+  // sets 'display' to land on the "choose your display style" page). We consume the
+  // signal, reset it, and start the tour at the matching step.
+  _dashboardDesignTrigger: observer('appState.open_dashboard_design', function() {
+    var step = this.get('appState.open_dashboard_design');
+    if (!step) { return; }
+    this.set('appState.open_dashboard_design', null);
+    this._startGettingStarted(step === 'display' ? 'getting_started_tour_display' : null);
+  }),
+
+  _startGettingStarted: function(startStepId) {
     var tour = this.get('tour');
     if (!tour) { return; }
     // defaultStepOptions MUST be set before addSteps() (ember-shepherd reads
@@ -1163,18 +1182,19 @@ export default Component.extend({
     });
     // Clear the page down to brand + identity + dimmed bg while the series runs.
     try { document.body.classList.add('md-gst-active'); } catch (e) { /* noop */ }
-    // Reactive signal that the Getting Started modal is OPEN. The dashboard gates the
-    // Focused home layout on this so a communicator picking 'focused' mid-modal
-    // doesn't flip the home behind the modal (which would unmount the dashboard grid
-    // the modal's preview clones). The home flips only once the modal closes
-    // (_clearCentered clears the flag on complete/cancel).
-    try { this.set('appState.gettingStartedActive', true); } catch (e) { /* noop */ }
     tour.addSteps(this._buildSteps()).then(function() {
       if (tour.tourObject) {
         tour.tourObject.on('complete', _clearCentered);
         tour.tourObject.on('cancel', _clearCentered);
       }
+      // Start at a specific step when requested (e.g. the home "Edit Dashboard"
+      // button jumps straight to the display-style page); otherwise begin at the
+      // welcome step. Activate via start() then jump in the SAME tick (the browser
+      // paints only after the callback, so the welcome step never flashes).
       tour.start();
+      if (startStepId && tour.tourObject) {
+        try { tour.tourObject.show(startStepId); } catch (e) { /* stay on welcome */ }
+      }
     });
   },
 

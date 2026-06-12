@@ -80,6 +80,11 @@ file (see [README.md](README.md)).
 - [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
 - [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
 - [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
+- [Gotcha: `ember test` here runs only lint + 3 acceptance tests — the unit suite is NOT wired in](#gotcha-ember-test-here-runs-only-lint--3-acceptance-tests--the-unit-suite-is-not-wired-in)
+- [Pattern: dashboard "fill the row" needs an inline grid-template-columns = visible-item count](#pattern-dashboard-fill-the-row-needs-an-inline-grid-template-columns--visible-item-count)
+- [Fact: the two dashboard layout keys are `focused` + `gentle` (renamed from `balanced`/`dynamic` 2026-06-11)](#fact-the-two-dashboard-layout-keys-are-focused--gentle-renamed-from-balanceddynamic-2026-06-11)
+- [Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state](#gotcha-dashboard-preview-tiles--selection-gates-leak-hidden-but-present-state)
+- [Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`](#gotcha-a-saved-frontend-preference-silently-vanishes-if-its-not-in-userpreference_params)
 
 ---
 
@@ -2211,6 +2216,25 @@ query.
 
 **First seen in:** [2026-05-27-home-board-count-roots-only.md](./2026-05-27-home-board-count-roots-only.md)
 
+**Extension (2026-06-11):** It's not just *counts* — any TILE-LIST surface
+leaks sub-boards the same way. Two that did:
+- Home Boards-div preview (`previewBoards` on authenticated-view.js) built
+  its 5 tiles straight off `_fetchedPreviewBoards` (raw `store.query`) with
+  no clustering — only the sibling `boardCount` filtered. Wrap the pool in
+  `filterRootBoards` inside the computed.
+- Board-detail "My Board Collection" (`board-collection.js`) trusted the
+  server `root: true` param.
+
+**Do NOT trust server `root: true`.** In `app/controllers/api/boards_controller.rb`
+(~L299) the real copy_id filter is COMMENTED OUT (since 2020) and replaced
+with `boards.where(['search_string ILIKE ?', "%root%"])` — a text match on
+the word "root", which leaks sub-boards AND drops legit roots. Until that's
+fixed server-side, do client-side clustering: drop the param, paginate the
+full owned set via `meta.more`, then `filterRootBoards` the accumulation
+(it's first-page-sensitive, so cluster the WHOLE set, not page 1).
+
+**First seen in:** [2026-06-11-subboards-leaking-preview-and-collection.md](./2026-06-11-subboards-leaking-preview-and-collection.md)
+
 ---
 
 ## Pattern: create-board-new preview URLs stripped by process_buttons whitelist
@@ -3685,6 +3709,412 @@ first run and left the file untouched.
 
 ---
 
+## Pattern: triaging PR-review "security findings" — read the real guard, not the flagged line
+
+Automated/LLM PR reviewers flag plausible-but-already-mitigated issues, hedged with
+"may / could / potentially / if the template uses X incorrectly". Each hedge is a tell:
+resolve it against the ACTUAL code path before changing anything (RULE #0 — diagnose with
+evidence; don't apply theatrical fixes that add dead code and risk regressions). In one
+sweep, 5/5 dashboard findings were false positives (`2026-06-10-pr-security-findings-triage.md`):
+
+- **"XSS via interpolated user string"** → the custom i18n `t` helper already HTML-escapes
+  EVERY interpolated value (`escapeHtmlForInterpolation`, `i18n.js:18-22,73,84`), the source
+  computed returns a plain string (not `htmlSafe`), and `{{t}}` auto-escapes. Check the
+  helper's escaping before assuming a raw-input sink.
+- **"Client accepts arbitrary `for_user_id` / no permission check"** → board-creation auth
+  is SERVER-side: `boards_controller.rb:600-606` validates the target exists (400) AND
+  `allowed?(user,'edit')`. The client sentinel (`'self'`) isn't the boundary; the API is.
+  FERPA/data-isolation checks live in Rails, never the Ember form.
+- **"Missing permission lets user bypass restricted view"** → the flagged flag
+  (`caregiverUnlocked`) was a transient, non-persisted DISPLAY toggle (focused↔balanced
+  layout), not an access gate; the "unlocked" view shows the same-or-fewer sections
+  (`sectionVisibility` still runs `availableHomeSections` + forces Extras hidden). A layout
+  toggle on a user's OWN dashboard is not a security boundary.
+- **"Cross-account leak from shared collection"** → `appState.sidebar_boards` is the current
+  user's OWN sidebar state; appending a system board from it touches no other account.
+- **"Race condition in runLater timer"** → already guarded: cancel-existing-before-start in
+  the start handler, cancel+null in the end handler, and `runCancel` in `willDestroyElement`.
+
+**Rule of thumb:** for a flagged finding, locate (a) the escaping/sanitization layer, (b) the
+server-side authorization, and (c) the resource lifecycle (timer/teardown) — the mitigation
+is usually already there. Reply to the PR with file:line evidence instead of patching.
+**Evidence:** task log `2026-06-10-pr-security-findings-triage.md`.
+
+---
+
+## Pattern: removing a dashboard display-layout variant is a coordinated multi-touch change + graceful pref coercion
+
+Removing one `dashboard_layout` variant (e.g. 'focused', 2026-06-10) touches a fixed set of
+layers — miss one and you leave dead code or a broken state:
+
+1. **Layout engine** — `utils/dashboard_sections.js` (`gridLayoutState`, the per-variant
+   transform like `balancedLayout`/`focusedLayout`, any `FOCUSED_*` maps).
+2. **Real render** — `components/dashboard/authenticated-view.js` (the `effectiveLayout`/
+   `*HomeLayout` computeds, body-class observers, lock/exit actions, lifecycle calls) AND
+   its `.hbs` (`{{#if thatLayout}}…{{else}}…{{/if}}` — keep the else as unconditional).
+3. **The "Dashboard Design" modal** — `components/getting-started-tour.js` (the style option
+   card + renumber the survivors, the preview builder branch, validation arrays
+   `['dynamic','focused','balanced']` → `['dynamic','balanced']`, label maps).
+4. **Any dedicated component** — delete `dashboard/focused-home.{js,hbs}` once unreferenced.
+5. **SCSS** — delete the whole `Focused Layout` section + the stray `body.md-home-focused`
+   rule (grep every `md-focused`/`md-home-focused`/`md-main--focused`/`md-back-to-focused`/
+   `md-gst-focused`/`layout-focused` selector).
+6. **Backend** — update the `User.preference_defaults` comment; do NOT migrate the column.
+
+**Graceful coercion is the load-bearing safety net.** Existing users may have the removed
+value stored. Make `effectiveLayout` (real render) AND the modal's `['dynamic','balanced']`
+validation **coerce an unknown/legacy value to the default ('dynamic')** so those users
+silently fall back instead of hitting a now-missing branch. No DB migration required.
+
+**Watch for shared symbols misattributed to the removed variant.** `greetingFirstName` and
+the `focused_talk` i18n key looked focused-only but are used by the BALANCED hero —
+keep them. Always grep each candidate symbol's *callers* before deleting.
+
+**First seen in:** [2026-06-10-dashboard-design-rename-and-focused-removal.md](./2026-06-10-dashboard-design-rename-and-focused-removal.md)
+
+## Gotcha: `grep … | head -N` can hide later usages — verify import/symbol safety with an UNtruncated grep
+
+While removing dead code, a `grep -n "runLater\|runCancel" file.js | head -40` showed only the
+focused-code usage, so the `@ember/runloop` import was removed as "unused" — but `runLater`
+was still used at lines 1295/1372, **past the 40-line truncation**. The broken import was
+caught only by the post-edit residue grep (run without `head`). **Before deleting any import
+or shared symbol, grep for ALL its usages with no `head`/pager truncation** (or `grep -c`),
+then confirm zero remain. Truncated search output is a silent source of "removed something
+still in use" regressions.
+
+**First seen in:** [2026-06-10-dashboard-design-rename-and-focused-removal.md](./2026-06-10-dashboard-design-rename-and-focused-removal.md)
+
+---
+
+## Pattern: replace a combinatorial layout matrix with a packer+overrides engine, proven byte-identical
+
+The dashboard grid (`utils/dashboard_sections.js#dashboardLayout`) was a ~20-branch
+matrix enumerating `grid-template-areas` per visibility combination of 5 cards — it
+doesn't scale to "add more home items." Replaced (2026-06-10) with a **generic 2-column
+packer + a small `LAYOUT_OVERRIDES` table** for the few hand-curated/legacy arrangements
+the packer doesn't reproduce. Adding a card is now a `LAYOUT_PRIORITY` + `AREA` entry
+(the packer places it generically); you only add an override to hand-tune a specific
+combo. Balanced stays a thin transform (`balancedLayout`) over the same engine.
+
+**The safety mechanism that made this shippable without a browser: byte-parity.**
+`grid-template-areas`/`-rows` are deterministic strings → identical strings render
+identically, no visual ambiguity. Proven across all 32 combos by a tiny **node harness**
+([docs/spikes/engine-verify.js](../spikes/engine-verify.js)) that diffs engine vs. the
+verbatim matrix, plus a golden-table unit test
+([tests/unit/utils/dashboard-sections-test.js](../../app/frontend/tests/unit/utils/dashboard-sections-test.js)).
+Approach: dump the matrix's 32 outputs first (the golden table), THEN write the engine to
+reproduce them — don't hand-derive rules and hope.
+
+## Gotcha: verify a transcription against the REAL file, not a hand-retyped copy
+
+While byte-diffing the engine I "found a bug" (matrix emitting `auto auto 0` for 4 rows,
+collapsing the Org row). It was a **typo in my throwaway harness's copy of the matrix** —
+the real `dashboard_sections.js:130` was `auto auto auto 0` (correct). Re-reading the
+actual file before editing (Rule #0.5) caught it before I shipped a false "bug-fix" +
+misleading comment. When a refactor seems to reveal a latent bug in code that's been in
+production, first re-read the real source — suspect your transcription before the original.
+
+## Gotcha: `ember test --filter <substring>` runs only ESLint tests in the headless WSL env
+
+In this repo's headless `ember test --filter X` invocation, the ONLY tests that load are
+the synthetic `ESLint | ...` ones; real QUnit assertion tests are never matched — confirmed
+by filtering an existing known-good test ("it blocks duplicate calls" in
+`action-lock-test.js`) which also returned "No tests matched." So a `--filter` returning
+"No tests matched" does NOT mean your test is broken or missing. Don't burn rebuilds
+chasing it: verify pure-function logic with a node harness, lint the files, and (if needed)
+run the full suite via the proper dev/CI path rather than `--filter`.
+
+## Pattern: adding a NON-grid toggle (the welcome hero) to the dashboard engine
+
+The dashboard visibility system (`dashboard_sections` pref + `sectionHidden`) was built for
+grid CARDS (`HOME_SECTIONS`, placed by the layout engine). To make a NON-grid element (the
+`header.md-hero--dashboard` greeting) toggleable WITHOUT shoving it through the grid packer,
+add a parallel registry `EXTRA_HOME_TOGGLES` (key + cardClass + labelKey + `dynamicOnly`)
+and reuse the SAME persistence: `sectionHidden(user, key)` is generic, so it governs the
+hero with zero new storage. Touch points (all small, all reusing existing seams):
+`dashboard_sections.js` (registry + export), `getting-started-tour.js` (render the extra
+toggle after the card toggles via a shared `toggleItem()` helper; carry its checkbox state
+into the saved map AFTER `sectionsMapFor` since that scopes to grid sections and drops it;
+hide its row on Balanced via a `md-gst-section--dynamic-only` class; seed it in the
+no-checkbox preview branch), `authenticated-view.js` (`heroHideStyle` computed — gate on
+`activeTab !== 'extras'` because that same `<header>` is the Extras page header), and the
+template (`style={{this.heroHideStyle}}`). NOTE the modal preview clones only `.md-grid`
+(`getting-started-tour.js:317`), so a non-grid toggle persists + reflows the REAL page but
+won't animate in the mini-preview — acceptable, not a bug.
+
+## Gotcha: a `<button>` card can render its background unlike an `<a>` card — reset `appearance`
+
+The Account card is a `<LinkTo>` (`<a>`); Create-a-Board / Reports are `<button>`s. All share
+`.md-grid .md-card { background: <gradient> !important }`, yet a native `<button>` without an
+`appearance` reset can have its surface tinted by native chrome (engine-dependent), making
+"same CSS background" look different from the anchor. Fix is hygiene, not a new bg rule
+(Rule #0.7): add `appearance/-webkit-/-moz-appearance: none !important` to the shared
+`.md-card--as-button` base so every button card paints the `.md-card` gradient identically to
+the anchor. Diagnose first: the backgrounds were already CSS-identical (grouped selectors +
+base `.md-card`), so stacking a redundant `background:` on create-board would have been a
+no-op — the real difference was the element type.
+
+## Pattern: full-width (column-spanning) small card → engine-flagged, page-gradient surface
+
+When the packer emits a lone trailing small card as a full-width `'X X'` row, the card spans
+both columns and visually wants to read differently from a half-width button. `gridLayoutState`
+scans the final `areas` for any `'X X'` row that isn't Boards, maps the area token back to its
+section key (reverse `AREA`), and pushes a `md-grid--fullspan-<key>` class. CSS (scoped to the
+>950px two-col width) then gives that card the page (`md-shell`) gradient + a soft white CENTRE
+glow and centres its `.md-card__head` cluster (`justify-content: center`) while the titles keep
+`text-align:left` — so the image-to-text alignment is preserved, just centred as a group. This
+keeps the "spanning card looks intentional" styling data-driven off the engine instead of
+hard-coding which section is wide.
+
+## Pattern: an A/B style toggle that reuses the Dashboard Design modal's save+preview seams
+
+To let users flip every dashboard button between badge IMAGES and former SVG ICONS, the
+cheapest robust design renders BOTH in each card (`<img class="md-card__icon-img">` +
+`<svg class="md-card__icon-glyph">`) and switches with ONE grid class
+(`md-grid--badges-icons`) driven by a pref (`dashboard_badge_style`). Why render-both +
+class-toggle (not `{{if}}`): the Dashboard Design modal preview is a static
+`cloneNode(true)` of `.md-grid`, so a class toggle flips the clone instantly with no
+re-render — same trick the layout/section-hide classes already use. The modal control
+piggybacks every existing seam: render the segmented control in `_dynamicPreviewHtml`
+(toggles page), re-seed it in the show hook's re-seed block, toggle the clone class in
+`syncState` via a `currentBadgeStyle()` that falls back to the saved pref when the control
+isn't on the page (so the read-only display-style page's preview still reflects the pref),
+and persist in `_persistDisplaySelection` next to the layout choice. The home page just
+reads the pref into a `badgeStyleClass` computed bound on the grid. Net: one new pref, one
+CSS mode block, zero new storage/preview plumbing.
+
+## Gotcha: icons-mode "restore the tile box" is a NEW state, not a cascade override
+
+The image cards run their `.md-card__icon` box transparent (4-class `!important` rules). Icons
+mode must put the 46×46 tinted tile back. That's not a Rule #0.7 violation (don't stack a
+competing rule for the same state) — `md-grid--badges-icons` is a genuinely DIFFERENT state,
+so a mode-scoped block is correct. Match the transparent overrides' 4-class specificity and
+place the block AFTER them so it wins on source order; new image-only cards (account/
+create-board/reports) never had icon tints, so define theirs in this block too.
+
+## Pattern: ordered-list reorder model replaces swap + special-case placement
+
+The dashboard drag started as TWO models — small cards did a pairwise swap
+(`_swapPositions`, a closed-permutation `dashboard_positions` map) and Boards had its own
+`side/raised` placement (`applyBoardsPlacement`, gated on a 2-row single-column block via
+`boardsMovable`). Two failures fell out of one earlier change: making Boards FULL-WIDTH set
+`boardsMovable`→false (Boards stopped moving entirely), and a swap model fundamentally can't
+"insert between rows." Both dissolve under a single **ordered list** of section keys
+(`dashboard_order`): `packOrder` lays the visible keys out (smalls two-per-row, Boards a
+full-width row, a lone small spanning full width); dragging INSERTS the dragged key
+before/after the drop target (`reorderInsert` + a `_dropAfter` pointer test). Boards is just
+another block in the order — it moves like any card, for free. The whole `applyPositions` /
+`boardsCells` / `boardsMovable` / `_boardsDropPlacement` / `_displacedKeys` apparatus deleted;
+`gridLayoutState(vis, order, layout)` is the new signature. Lesson: when a feature needs two
+parallel special-case models to express one user intent ("arrange my cards"), the unifying
+data model (here: an order) is usually simpler than patching either model.
+
+## Gotcha: the modal preview only reconciles a FIXED class list — dynamic classes get dropped
+
+`syncState` toggled a hard-coded `STYLE_CLASSES` array onto the preview clone, so the
+engine's DYNAMIC `md-grid--fullspan-<key>` classes never reached the preview (fullspan styling
+silently missing in the modal only). Fix: reconcile by REGEX — strip every
+`md-grid--(boards-full|boards-right|with-*|fullspan-)` class, then add exactly the set
+`gridLayoutState` returned. When an engine can emit an open-ended set of state classes, the
+preview must mirror by pattern, not by a frozen allow-list.
+
+## Decision log: deferring a card that needs ~15 shared-rule touches
+
+Adding an "Edit Dashboard" badge-action card meant threading `md-card--edit-dashboard` into
+~15 grouped CSS rules that account/create-board/reports share (several with descendant
+selectors, so neither `replace_all` nor one consolidated block does it cleanly). Rather than
+rush that at the tail of a large change and risk regressing the existing cards, it was backed
+fully out of the engine (HOME_SECTIONS/AREA/DEFAULT_ORDER/test) so nothing ships half-wired.
+The real fix is a small refactor first: extract a shared `md-card--badge-action` class so the
+4th (and Nth) card is one selector, not fifteen — THEN add Edit Dashboard. Half-adding a card
+to the engine leaves an empty named grid-area (reserved blank space), so it's all-or-nothing.
+
+## i18n_generator.rb workflow: three gotchas that block or silently skip keys
+
+Running `ruby i18n_generator.rb --merge` (which does `--generate` THEN merges into the 12
+non-English locales) to register new keys surfaced three traps:
+
+1. **Duplicate keys hard-block ALL generation.** If any single key maps to two different
+   strings across source, the script prints `DUPLICATE <key> <file>` and writes NOTHING
+   (`TOTAL DUPS > 0` → "FOUND ISSUES, SO NO GENERATION"). So one stray conflict anywhere in
+   the repo blocks your unrelated keys. Run with NO args first (safe dry run — only writes
+   under `--generate`/`--merge`/`--confirm`) and read the `TOTAL DUPS` line. Reusing one key
+   for two strings is the usual cause — e.g. `create_a_board` for both "Create a Board →" and
+   "Create a Board"; fix by moving the trailing arrow into a separate `<span>` so the key's
+   string is identical at both sites (no visual change), or split into two keys.
+
+2. **`--generate` DELETES keys no longer referenced in CURRENT frontend source.** It rebuilds
+   en.json from a fresh scan, so orphaned keys (removed from templates but left in en.json)
+   are dropped — legit cleanup, but a broader diff than "just my keys." Before trusting it,
+   confirm the dropped keys are truly dead: no exact `key="X"` / `i18n.t('X'` in
+   `app/frontend/app/`, AND no dynamic `'prefix_' + var` construction. (Watch out for grep
+   substring false-positives: `allow_cookies` "matched" only because `allow_cookies_checkbox`
+   exists.)
+
+3. **The scanner is LITERAL-ONLY — dynamically-referenced keys land in 0/13 locales.** A key
+   rendered via `i18n.t(someVar.labelKey, someVar.labelDefault)` (e.g. the EXTRA_HOME_TOGGLES
+   registry) is invisible to the parser, so it never reaches the locale files (it still WORKS
+   at runtime via the inline default — it's just untranslatable). Register it with a literal
+   the scanner CAN see — even inside a `//` comment, since the parser reads every line for
+   `i18n.t('...`: `// i18n.t('home_welcome_banner', "Welcome banner")`. Then re-run.
+
+---
+
+## Pattern: Dashboard card icons — color lives in the CHIP, glyph stays monochrome
+
+**Surface:** `templates/components/dashboard/authenticated-view.hbs` `.md-card__icon`
+chips (home-tab cards: Speak, Extras, Account, Create-a-Board, Reports, Edit
+Dashboard, Caseload, Org).
+
+**What read as "juvenile clipart":** each inline SVG glyph baked in 2–3 stroke
+colors (blue #4C86D8 + teal #2A9D8F + slate #46505F) **plus** semi-transparent
+`fill="#..." fill-opacity` rainbow fills. Per current icon practice (Lucide,
+Linear/Geist, designsystems.com) that multicolor+filled look = "an illustration,
+not an icon."
+
+**The fix that works:** keep the tinted gradient chip tiles (already the modern
+Stripe/Untitled-UI "Featured Icon" pattern — `app.scss:47216+`, 47265–47310) and
+redesign each glyph as **single-hue duotone line art** (one hue = the chip's tint).
+Two things both matter — don't skip the second:
+1. **New SHAPE, not just new color.** Recoloring the old shapes was rejected
+   ("you just kept exactly the same shape"). Pick a more distinctive/elegant
+   metaphor: sparkles (extras), area-trend chart (reports), layout tiles (edit
+   dashboard), speech-bubble+waveform (speak), avatar-in-ring (account),
+   board-cells+plus (create), people-pair (caseload), building skyline (org).
+2. **Refined duotone, ONE hue.** The body shape gets a soft same-hue fill
+   (`fill="#hue" fill-opacity="0.10–0.13"`) UNDER a `stroke="#hue"` outline;
+   detail strokes inherit root `fill="none"`. This is the Phosphor/Untitled-UI
+   premium look — depth without the rainbow. The original read as clipart from
+   MULTIPLE clashing hues + baked fills, not from fills per se. Never use a
+   per-path SECOND hue.
+- Keep the set-wide 1.5px stroke + round caps/joins (matches navbar dropdown
+  icons → don't introduce a second stroke weight).
+- Hue map (matches existing chip tints): speak/create-board/caseload → teal
+  #2A9D8F; account/reports/edit/org → blue #4C86D8; extras → coral **#D9573F**
+  (deepened from the chip's #F06A5B so it clears ~3:1 on the light coral tile).
+
+**Gotchas:**
+- Speak & Caseload each render TWO sibling variants (wide-only + narrow-as-button)
+  with duplicated SVG — edit both (replace_all works for the identical caseload pair).
+- The wide-Speak/Caseload svgs are 24px in a 46px base chip and **lack**
+  `.md-card__icon-glyph` (which forces 34px); do NOT add that class to them or they
+  blow up. Only the as-button variants carry it.
+- getting-started-tour clones the live home DOM for its preview, so glyph edits
+  propagate to the Dashboard Design modal for free — no second edit site.
+
+---
+
+## Pattern: Don't use a cross-component Ember observer as a one-shot EVENT bus — register a direct opener
+
+**Surface:** opening a navbar-mounted component's flow (e.g. `getting-started-tour`
+Dashboard Design tour) from a sibling component (the home "Edit Dashboard" card).
+
+**What failed:** the trigger set `appState.open_dashboard_design='display'` and the
+tour component had `observer('appState.open_dashboard_design', …)` to react. The
+observer never reliably fired → button did nothing. Observers-as-events are
+fragile: they won't re-fire for an UNCHANGED value, and registration can race the
+signal. Tell: `home-tour.js` uses the same pattern but bolts on a
+`didInsertElement` + `sessionStorage` fallback ("a route transition raced the
+observer registration") — a sign the team already learned the observer alone
+isn't trustworthy here.
+
+**Reliable fix:** have the receiving component **register a bound opener on the
+shared service** in `init` (`appState.set('dashboard_design_opener',
+this._open.bind(this))`, cleared in `willDestroy`), and have the caller CALL it
+directly (`appState.dashboard_design_opener(arg)`), falling back to the old signal
+only if no opener is registered. The navbar component is always mounted, so the
+opener is present before any click. Deterministic, no observer timing.
+
+**Diagnostic shortcut:** when a NEW trigger "does nothing," `git show HEAD:<file>`
+to check whether the wiring is uncommitted/never-worked (vs a regression). And if
+two entry points share one opener function, a working second entry point (here the
+navbar "Get Started" badge → same `_startGettingStarted`) proves the machinery is
+fine and isolates the bug to the trigger.
+
+**Ember-rule gotcha:** `ember/require-super-in-init` wants `this._super(...arguments)`
+(spread), NOT `this._super.apply(this, arguments)`, specifically in `init`.
+
+## Gotcha: `ember test` here runs only lint + 3 acceptance tests — the unit suite is NOT wired in
+
+A full `ember test` in this repo executes **1402 tests that are all ESLint / TemplateLint
+wrappers + a smoke test + 2 acceptance tests** — **zero** of the `tests/unit/**` QUnit modules
+run (verified 2026-06-11 by grepping the TAP output: 0 lines match `Utility`/any unit module). So
+adding `tests/unit/...-test.js` gives you a lint-checked file that is **never executed** by the
+default command, and `--filter="<module name>"` returns *"No tests matched"* because the module
+never loads. Two consequences: (1) `ember test --filter` matches **test NAMES**, not module names
+(`--filter="dashboard"` only hit lint wrappers whose names contain the filename); (2) for pure
+util logic, verify by **exhaustive manual trace + eslint + `ember build`** (which still compiles
+SCSS/templates/JS), not by trying to run the QUnit file. Still write the `-test.js` — it documents
+intent and will run if/when the unit suite is wired into CI — just don't expect it to gate here.
+
+## Pattern: dashboard "fill the row" needs an inline grid-template-columns = visible-item count
+
+To make N cards in a CSS-grid row **expand to fill** when some are hidden (no empty cells), you
+cannot keep a fixed column count and pad with `.` — and you cannot evenly distribute, say, 3 cards
+across 4 fixed columns (4∤3). The fix in `utils/dashboard_sections.js` `focusedLayout`: set the
+column count to **exactly the number of visible cards** (`cols = max(1, visibleUtilityCount)`),
+express every full-width row as that many repeats of its name (so `grid-template-areas` rows stay
+rectangular — required), and emit `grid-template-columns: repeat(N, 1fr)` **inline** (returned as
+`gridLayoutState().columns`, applied with `!important` in `authenticated-view.gridStyle` AND the
+modal preview `syncState`). Gentle View returns `columns: null` so the stylesheet's 2-col rule
+governs. The ≤1024px flex fallback ignores grid-template entirely, so it's unaffected.
+
+## Fact: the two dashboard layout keys are `focused` + `gentle` (renamed from `balanced`/`dynamic` 2026-06-11)
+
+`preferences.dashboard_layout` is `'focused'` (default) or `'gentle'`. **Both were renamed on
+2026-06-11, no backward-compat (pre-production):** Focused View was `'balanced'` (a separate
+earlier `'focused'` value had been removed), Gentle View was `'dynamic'`. Renamed across the
+persisted value (`user.rb` default), JS (`FOCUSED_DEFAULT_ORDER`, `FOCUSED_ACTION_KEYS`,
+`focusedLayout`, `reorderForFocused`, `_gentlePreviewHtml`, `gentleOnly`, `=== 'focused'`,
+`['gentle','focused']`), CSS (`md-grid--layout-focused`/`-gentle`, `md-shell--layout-focused`,
+`ll-layout-focused`, `md-card--speak-focused*`, `md-gst-section--gentle-only`), `data-gst-layout`,
+and i18n key names (`getting_started_tour_layout_focused*`/`_gentle*`). The engine branches on
+`=== 'focused'` only (everything else → the gentle `dashboardLayout`). **Do not reintroduce
+`'balanced'` or `'dynamic'`.**
+
+**Rename technique — and why the two words differ:** `balanced` is a rare word, so a word-boundary
+blanket `s/\bbalanced\b/focused/g` was safe (it can't touch `unbalanced`). `dynamic` is a COMMON
+word with real false-positives that must be preserved — `dynamic viewport`, `100dvh`,
+a `…dynamic-width-css-fluid-layout` SO URL, "rendered via a **dynamic** i18n.t" (runtime sense),
+"shared helper with **dynamic** keys". So `dynamic`→`gentle` used ONLY explicit-token seds
+(`md-grid--layout-dynamic`, `dynamicOnly`, `_dynamicPreviewHtml`, `getting_started_tour_layout_dynamic`,
+quoted `'dynamic'`/`"dynamic"`, the `Dynamic` layout comments) — NEVER `\bdynamic\b`. Lesson: gauge
+the word's commonness first (`grep -rl <word> | wc -l`); rare → word-boundary blanket ok, common →
+explicit tokens + a hand-audited residual grep.
+
+## Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state
+
+Two distinct bugs, same shape — a computed/gate reading state that's present in the DOM/data but
+not actually applicable:
+
+1. **`filterRootBoards` is first-page-sensitive — cluster the FULL library, not a page.** The
+   dashboard Boards strip (`previewBoards`) showed sub-board copies of a copied set because it ran
+   `filterRootBoards(_fetchedPreviewBoards)` over only the first 20 fetched records. The filter's
+   shallow-root map needs the WHOLE owned library to collapse a set to its root tile (the root and
+   its sub-boards must be in the same list). `boardCount` already used the full `_fetchedBoards`;
+   the strip must too (fall back to the first page until pagination completes). Don't reach for a
+   server `root` param — boards-controller `params['root']` is a `search_string ILIKE '%root%'`
+   text search, NOT a roots filter.
+
+2. **Selection gates must ignore layout-hidden-but-checked toggles.** The Dashboard Design modal's
+   "Nothing to display" overlay + Done/close disabling stopped firing once Focused View became the
+   default: Focused View hides the Extras + Welcome-banner toggles (`applyLayoutSections` sets their
+   row `display:none`) but leaves them CHECKED, so `anyChecked()` over *all* inputs always returned
+   true. Fix: gate on `applicableBoxes()` = inputs whose `.md-gst-section` row isn't `display:none`.
+   General rule: when a layout can hide a control while preserving its value, any "is anything
+   selected?" check must filter to the controls actually applicable to that layout.
+
+## Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`
+
+`User#process_params` only copies preference keys listed in `PREFERENCE_PARAMS` (`app/models/user.rb`,
+iterated ~line 1287) from the request into `settings['preferences']`. Any pref the frontend sends
+that ISN'T whitelisted is silently dropped on save, and the save *response* (which lacks it) resets
+the in-memory model — so the value "works locally, reverts on close/reload." This bit the dashboard
+drag-reorder: the frontend layout engine was migrated from a `dashboard_positions`/`dashboard_boards`
+model to a single ordered list `dashboard_order`, but the whitelist still listed the old two keys
+and not `dashboard_order`. **When you add/rename a persisted user preference on the frontend, add it
+to `PREFERENCE_PARAMS` in the SAME change** (the FE save path and `gridLayoutState` can all be
+correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/models/user.rb`.
 ## PHI/PII in logs: PiiScrubber and filter_parameters do NOT cover explicit logger calls (2026-06-10)
 
 **Surface:** Cloud Run migration log hygiene (Phase 2.7); any `Rails.logger.*` / `puts` that interpolates user data.
@@ -3754,3 +4184,13 @@ the example txn, restored on rollback) for a deterministic baseline. Mirror
 `AuditEvent.delete_all` was shown to perturb counts. See
 [[reference_auditevent_escapes_rspec_txn]] and task log
 `2026-06-11-log-session-spec-isolation.md`.
+
+---
+
+## Pattern: client-supplied preferences that drive computed inline styles/classes need write-time shape coercion
+
+**Surface:** `User#process_params` `PREFERENCE_PARAMS` loop, dashboard_* prefs, `components/dashboard/authenticated-view.js`, `utils/dashboard_sections.js`.
+
+**Approach:** `PREFERENCE_PARAMS` assigns whitelisted prefs **verbatim** — no type/shape check. When a pref feeds a computed `htmlSafe` inline style or a CSS class name (the `dashboard_layout`/`dashboard_sections`/`dashboard_order`/`dashboard_positions`/`dashboard_boards` set), validate it server-side against a known-keys whitelist on write (`sanitize_dashboard_preferences!`), dropping invalid values so the client falls back to defaults. The frontend already filters unknown keys (`orderedVisible` keeps only `vis[k]`-truthy keys; `effectiveLayout` whitelists `gentle`/`focused`) and builds styles only from the `AREA` map — so this is defense-in-depth, not the sole guard. Key list source of truth is `dashboard_sections.js`; duplicate it in `User::DASHBOARD_SECTION_KEYS` with a sync comment (Ruby can't import the JS).
+
+**Evidence:** `app/models/user.rb` (`DASHBOARD_SECTION_KEYS`, `sanitize_dashboard_preferences!`); triage of 6 merge findings in task log `2026-06-12-dashboard-merge-security-findings.md`. Note: board enumeration via `user_id` is already blocked by `boards_controller#index` `allowed?(user, 'view_detailed')` — not a gap.

@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
-import { dedupeByName } from '../utils/board-roots';
+import { filterRootBoards, dedupeByName } from '../utils/board-roots';
 /* Brand families (CommuniKate / Quick Core / Sequoia / Vocal Flair) — the
    `query`/`root_re`/`test` metadata now lives in the shared util so the
    Find Boards grid grouping and this panel classify brands identically.
@@ -138,17 +138,17 @@ export default Component.extend({
           the account has many sub-board copies in the same page.
 
        2. `?user_id=X` returns owned boards INCLUDING every sub-board
-          copy in a copied set. Client-side `filterRootBoards` works
-          but is sensitive to which records landed on the first
-          page. The boards page sidesteps both by paginating through
-          `meta.more` / `meta.next_offset` and accumulating.
+          copy in a copied set. The server `root: true` param is NOT a
+          reliable filter — its real copy_id clustering has been
+          commented out since 2020 (boards_controller.rb:299, replaced
+          with a `search_string ILIKE '%root%'` text match that leaks
+          sub-boards and drops real roots). So we do the clustering
+          client-side with `filterRootBoards` instead.
 
-       Simpler approach: ask the server to return ROOTS ONLY via
-       `root: true` (same param the boards page's "Root" tab uses).
-       That eliminates the need for client-side clustering AND keeps
-       the page count tiny — a user with 8 root tiles fits in one
-       page regardless of how many sub-board copies they have. We
-       still paginate to be safe against extreme cases. */
+       `filterRootBoards` is first-page-sensitive, so we paginate
+       through `meta.more` / `meta.next_offset` and accumulate the FULL
+       owned set before clustering (see `_sortMyBoards`) — the same
+       approach the boards page uses. */
     var _this = this;
     var userId = _this._subjectUserId();
     if (!userId) {
@@ -160,7 +160,7 @@ export default Component.extend({
 
   _loadMyBoardsPage: function(userId, offset, accumulated) {
     var _this = this;
-    var args = { user_id: userId, root: true, sort: 'home_popularity', per_page: 50 };
+    var args = { user_id: userId, sort: 'home_popularity', per_page: 50 };
     if (offset != null) { args.offset = offset; }
     LingoLinq.store.query('board', args).then(function(data) {
       if (_this.isDestroyed || _this.isDestroying) { return; }
@@ -208,6 +208,11 @@ export default Component.extend({
      so users who organize via the heart icon there get the same
      prioritization here automatically. */
   _sortMyBoards: function(boards) {
+    /* Cluster to root tiles first — the `?user_id=X` query returns the
+       full owned library including sub-board copies (the server `root`
+       param is broken; see `_loadMyBoards`). Applied to the FULLY
+       accumulated set so it isn't first-page-sensitive. */
+    boards = filterRootBoards(boards || [], this._subjectUserId());
     var homeKey = this._subjectHomeKey();
     var home = null;
     var starred = [];

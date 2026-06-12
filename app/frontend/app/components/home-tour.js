@@ -264,7 +264,10 @@ export default Component.extend({
       id: 'home_tour_welcome',
       title: this._decoratedTitle('home_tour_welcome_title', "Welcome to LingoLinq"),
       text: i18n.t('home_tour_welcome_text', "Explore your dashboard and learn where your tools, boards, and communication features live."),
-      classes: 'md-tour__step md-tour__step--intro',
+      // --welcome carries an extra class so ONLY the first (welcome) page can
+      // be nudged higher than the shared intro/outro offset (the outro reuses
+      // --intro but should stay at the default position). See app.scss.
+      classes: 'md-tour__step md-tour__step--intro md-tour__step--welcome',
       buttons: [
         {
           text: i18n.t('home_tour_skip', "Skip tour"),

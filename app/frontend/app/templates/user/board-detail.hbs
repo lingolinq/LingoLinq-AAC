@@ -2955,7 +2955,7 @@
                 <span class="md-board-edit-right-panel__section-icon" data-section="board-symbols" aria-hidden="true">
                   {{!-- 2x2 grid of distinct shapes — each in its
                        own quadrant with matched visual weight, so
-                       the icon reads as a balanced "set of symbols"
+                       the icon reads as a focused "set of symbols"
                        (was a scattered circle/square/tri + tiny
                        extra circle that looked off). --}}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -3421,7 +3421,7 @@
                   {{!-- Placement (only when on) — dropdown mirroring Sentence Bar size. --}}
                   {{#if this.word_suggestions_enabled}}
                     <div class="md-board-edit-right-panel__row-pair">
-                      <span class="md-board-edit-right-panel__row-pair-label">{{t "Position" key="word_prediction_position"}}</span>
+                      <span class="md-board-edit-right-panel__row-pair-label">{{t "Position" key="word_prediction_position_short"}}</span>
                       <div class="md-settings-dropdown-wrap">
                         <button type="button" class="md-settings-select md-settings-select--trigger {{if this.word_prediction_position_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.word_prediction_position_dropdown_open "true" "false"}} aria-label={{t "Word prediction position" key="word_prediction_position"}} {{action "toggle_word_prediction_position_dropdown"}}>
                           <span class="md-settings-select__value">{{this.word_prediction_position_label}}</span>
