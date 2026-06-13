@@ -4376,6 +4376,18 @@ export default Service.extend({
       window.LingoLinq.set_fitzgerald_scope(bg);
     }
   }),
+  /** Mirror the user's dashboard_layout pref onto <body> via the
+   *  `.ll-layout-focused` class so the Focused View styling overlay applies
+   *  app-wide, gated on the saved preference. Fires on sessionUser change
+   *  (initial load / login, i.e. the per-page-load check) and on every
+   *  dashboard_layout change. LingoLinq.set_layout_scope lives in app.js and
+   *  treats anything other than 'gentle' as the 'focused' default. */
+  sync_layout_scope: observer('sessionUser', 'sessionUser.preferences.dashboard_layout', function() {
+    var layout = this.get('sessionUser.preferences.dashboard_layout');
+    if(window.LingoLinq && window.LingoLinq.set_layout_scope) {
+      window.LingoLinq.set_layout_scope(layout);
+    }
+  }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {
     if(change == 'sessionUser.preferences.cookies') {
       state = !!this.get('sessionUser.preferences.cookies');

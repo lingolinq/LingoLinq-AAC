@@ -47,15 +47,12 @@ export default Component.extend({
     return 'md-grid--layout-' + this.get('effectiveLayout');
   }),
 
-  // Whether "Reports" appears in the primary pill-nav. It stays there only for
-  // SUPPORTERS on a non-Focused View layout. Communicators get Reports moved to an
-  // Extras card link instead (so it's out of their nav); Focused View hides it for
-  // everyone. The Extras "Reports" card shows precisely when this is false (see
-  // extrasItems).
-  showReportsPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
-    if (!this.get('appState.currentUser.supporter_role')) { return false; }
-    return this.get('effectiveLayout') !== 'focused';
-  }),
+  // "Reports" appears in the primary pill-nav (and its responsive dropdown) for
+  // EVERYONE — supporters and communicators alike, on every layout including Focused
+  // View. Communicators ALSO keep a Reports card in Extras (see extrasItems), so for
+  // them it's reachable from both places. Constant for now; left as a named hook so
+  // the template guards stay in place if visibility ever needs gating again.
+  showReportsPill: true,
 
   // Communicators get a far-right "Account" pill in the nav — but NOT on Focused View
   // (its nav is the minimal centered bar). Supporters never get it (they use the
@@ -209,25 +206,12 @@ export default Component.extend({
   didInsertElement() {
     this._super(...arguments);
     this._loadPreviewBoards();
-    this._syncLayoutBodyClass();
   },
 
-  willDestroyElement() {
-    try { document.body.classList.remove('ll-layout-focused'); } catch (e) { /* noop */ }
-    this._super(...arguments);
-  },
-
-  // Reflect the active dashboard layout on <body> so chrome OUTSIDE the layout
-  // shell — e.g. the global navbar's circle buttons — can scope styling to
-  // Focused View. Toggled on render and whenever the layout changes.
-  _syncLayoutBodyClass: function() {
-    try {
-      document.body.classList.toggle('ll-layout-focused', this.get('effectiveLayout') === 'focused');
-    } catch (e) { /* noop */ }
-  },
-  _layoutBodyClassWatcher: observer('effectiveLayout', function() {
-    this._syncLayoutBodyClass();
-  }),
+  // NOTE: the `body.ll-layout-focused` class is now set globally (on every page,
+  // not just the dashboard) by sync_layout_scope in services/app-state.js, which
+  // mirrors the dashboard_layout pref onto <body>. The component no longer toggles
+  // it here so the Focused View overlay survives navigation away from the dashboard.
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
     return this.get('extras.ready') && !this.appState.get('currentUser.external_device');
@@ -1035,16 +1019,17 @@ export default Component.extend({
     if (!boards || !boards.forEach) { return 0; }
     return filterRootBoards(boards, userId).length;
   }),
-  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.currentUser.supporter_role', 'showReportsPill', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
+  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.currentUser.supporter_role', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
     var user = appState.get('currentUser');
     var perms = user && user.get('permissions.delete');
     var modelingOnly = user && user.get('modeling_only');
     var externalDevice = user && user.get('external_device');
     var supporterRole = user && user.get('supporter_role');
-    // Reports moves into Extras exactly when it's NOT in the pill-nav (communicators
-    // on any layout; everyone on Focused View) — see showReportsPill.
-    var showReports = !this.get('showReportsPill');
+    // Communicators keep a Reports card in Extras IN ADDITION to the pill-nav (which
+    // now shows Reports for everyone — see showReportsPill), so they can reach it from
+    // either place. Supporters get Reports in the pill only, not duplicated in Extras.
+    var showReports = !supporterRole;
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
     return [

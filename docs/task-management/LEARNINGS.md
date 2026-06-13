@@ -45,6 +45,7 @@ file (see [README.md](README.md)).
 - [Pattern: Touch-device parity for hover-only affordances — thread context through the existing modal path](#pattern-touch-device-parity-for-hover-only-affordances--thread-context-through-the-existing-modal-path)
 - [Pattern: Pass-through actions silently truncate args when the wrapper's signature has fewer named params](#pattern-pass-through-actions-silently-truncate-args-when-the-wrappers-signature-has-fewer-named-params)
 - [Pattern: Custom-JS drag works on desktop but not in touch emulation — root cause is `touch-action`, not the JS](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
+- [Pattern: Preview-clone pointer-drag — hit-test by geometry (not elementsFromPoint) and re-wire after every clone rebuild](#pattern-preview-clone-pointer-drag--hit-test-by-geometry-not-elementsfrompoint-and-re-wire-after-every-clone-rebuild)
 - [Pattern: `!supporter_role` is the canonical communicator gate — never invent a `communicator_role` boolean](#pattern-supporter_role-is-the-canonical-communicator-gate--never-invent-a-communicator_role-boolean)
 - [Pattern: Removing a UI feature is incomplete until every coupled site is removed](#pattern-removing-a-ui-feature-is-incomplete-until-every-coupled-site-is-removed)
 - [Pattern: "Silent wrong behavior" is the modal failure mode in this codebase — assume it, probe for it](#pattern-silent-wrong-behavior-is-the-modal-failure-mode-in-this-codebase--assume-it-probe-for-it)
@@ -59,6 +60,8 @@ file (see [README.md](README.md)).
 - [Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim](#pattern-installing-a-v2-format-ember-addon-on-ember-328-requires-ember-auto-import--a-jquery-externals-shim)
 - [Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence](#pattern-same-named-computeds-defined-across-modelcomponentcontroller-are-widespread-and-often-diverge--gate-visibility-dependent-code-on-dom-presence)
 - [Pattern: `!important` does not beat source order at equal specificity — bump specificity with a compound selector instead](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead)
+- [Pattern: layout-variant selectors that SWAP a base class have EQUAL specificity — they can't be relocated to a partial](#pattern-layout-variant-selectors-that-swap-a-base-class-have-equal-specificity--they-cant-be-relocated-to-a-partial)
+- [Pattern: app-wide pref→root-class overlays belong in app-state, mirroring `set_fitzgerald_scope`](#pattern-app-wide-prefroot-class-overlays-belong-in-app-state-mirroring-set_fitzgerald_scope)
 - [Pattern: Third-party CSS — import the default first, then override; the structural rules and the decorative ones ship together](#pattern-third-party-css--import-the-default-first-then-override-the-structural-rules-and-the-decorative-ones-ship-together)
 - [Pattern: `session.override()` does a full page reload — in-memory appState set in register flow doesn't survive](#pattern-sessionoverride-does-a-full-page-reload--in-memory-appstate-set-in-register-flow-doesnt-survive)
 - [Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations](#pattern-this-codebase-ships-and-and-or-template-helpers-but-not-not--pre-compute-negations)
@@ -4290,3 +4293,118 @@ correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/mode
 **Lesson:** a client-side "unsafe upload" finding usually resolves at a server chokepoint, not in the UI component — same as the SSRF→`sanitize_url` fix. Trace content_type all the way to what the CDN serves before judging exploitability; `<img src>` rendering neutralizes most stored-image XSS, leaving SVG-served-inline as the real residual.
 
 **Evidence:** task log `2026-06-12-pr-security-review-response.md`; tests in `spec/models/button_image_spec.rb` "process_params".
+
+## Pattern: layout-variant selectors that SWAP a base class have EQUAL specificity — they can't be relocated to a partial
+
+**Surface:** the Focused View overlay rules in `app.scss` (`.md-grid--layout-focused …`, scattered
+~29407, 41313, 46922-47229, 47584-47835, 52753, 56373+). Tried to consolidate them into a
+`_focused-view.scss` partial imported via `@use` (which forces the rules to the TOP of the compiled
+output).
+
+**Gotcha:** a focused selector like `.md-grid--layout-focused .md-card--badge-action.md-card--as-button .md-card__sub`
+does NOT add a class to the gentle base — it SWAPS `.md-grid` → `.md-grid--layout-focused`. Same class
+count → **equal specificity** (0,5,0) to the gentle `.md-grid .md-card--badge-action… .md-card__sub`. So
+the focused rule wins ONLY because it sits LATER in source order. The code documents this in its own
+comments ("Placed AFTER the badge-action text rules so … colours win the equal-specificity source-order
+tie", `app.scss:47582`; "beats … #5C6470 by source order", `:47615`, competitor at `:47564`). Move such a
+rule to the top of the file (or into a `@use`'d partial) and the GENTLE rule wins → silently broken
+focused cards. Rules are HETEROGENEOUS: a few genuinely win by specificity (`.md-grid.md-grid--layout-focused`,
+TWO classes on the grid = 0,6,0, e.g. `:47816`) and ARE relocatable; most are not. A blanket relocation
+can't tell them apart.
+
+**Verification trap:** a pre/post dart-sass **compile diff does NOT catch this** — the declarations are
+byte-identical; only the winning rule flips. Detecting an order-induced regression needs computed-style /
+browser checking, not a CSS text diff. So "the SCSS still compiles" and "the declaration set is unchanged"
+are NOT proof the cascade is unchanged.
+
+**Lesson:** before relocating any variant-scoped CSS (layout/theme/mode overlays), check whether each
+selector ADDS a qualifying class (→ higher specificity, order-independent, safe to move) or SWAPS the base
+class (→ equal specificity, order-dependent, NOT safe to move). If you must consolidate order-dependent
+rules, first convert each source-order win into a specificity win (add a `body.<mode>` ancestor or a
+double-class `.md-grid.md-grid--<mode>`) — a separate, riskier refactor — THEN relocate. For a NEW overlay,
+prefer wiring the runtime body-class globally (see next pattern) + a scoped partial as the home for NEW
+rules, and leave battle-tested inline rules in place. Relates to
+[`!important` does not beat source order at equal specificity](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead).
+
+**Evidence:** task log `2026-06-12-focused-view-global-overlay.md`.
+
+## Pattern: app-wide pref→root-class overlays belong in app-state, mirroring `set_fitzgerald_scope`
+
+**Surface:** the Focused View overlay needs `body.ll-layout-focused` present on EVERY page (gated on
+`preferences.dashboard_layout === 'focused'`, the default). It was originally toggled inside
+`components/dashboard/authenticated-view.js` (`_syncLayoutBodyClass`, added on `didInsertElement`, REMOVED
+on `willDestroyElement`) — so the class only existed while the dashboard was mounted and vanished on
+navigation, making an app-wide overlay impossible.
+
+**Fix shape (the established pattern):** there is already an idiomatic pref→root-class sync to copy —
+`set_fitzgerald_scope`. (1) a `LingoLinq.set_<x>_scope(value)` helper in `app/app.js` toggles the class on
+`document.body`/`documentElement`; (2) a `sync_<x>_scope: observer('sessionUser', 'sessionUser.preferences.<key>', …)`
+in `services/app-state.js` calls it — firing on `sessionUser` change (initial load / login = the per-page-load
+check) AND on the specific pref change. `sessionUser` (the logged-in account holder, set on auth) is the right
+source for chrome prefs, not `currentUser` (which can be a "speak-as" target). Remove the component-local
+toggle so there is a single authority.
+
+**Lesson:** for any "apply X app-wide based on a saved user preference" need, don't add a body-class toggle in
+a page component (dies on navigation) — put it in `app-state` as a `sessionUser`-driven observer mirroring
+`set_fitzgerald_scope`, and keep the variant CSS in an ancestor-scoped partial so the baseline (e.g. Gentle
+View) is untouched. See [layout-variant selectors that SWAP a base class](#pattern-layout-variant-selectors-that-swap-a-base-class-have-equal-specificity--they-cant-be-relocated-to-a-partial)
+for why the EXISTING inline rules can't simply be moved into that partial.
+
+**Evidence:** task log `2026-06-12-focused-view-global-overlay.md`.
+
+---
+
+## Pattern: Preview-clone pointer-drag — hit-test by geometry (not elementsFromPoint) and re-wire after every clone rebuild
+
+**Surface:** the Dashboard Design modal's drag-to-reorder
+(`getting-started-tour.js` `_wirePreviewDrag`), and any pointer-drag built
+over a CSS-`zoom`ed CLONE of a grid where the clone is
+`pointer-events:none` except for per-item drag overlays.
+
+**Symptom:** drag-to-swap "doesn't work every time" — drops miss or land
+on the wrong slot, and (the bigger one) drag stops working entirely after
+the user switches a setting that re-renders the preview. Smoothness also
+suffers. Multiple prior fixes that tweaked the commit/hit-test math did
+not resolve it.
+
+**Two independent root causes — both must be fixed:**
+
+1. **Target detection via `elementsFromPoint` is unreliable here.** The
+   clone forces `pointer-events:none` on everything but the overlays, and
+   the dragged card is pinned `z-index:999` and translated to sit directly
+   under the cursor. So the lookup must peer THROUGH that ghost to find the
+   occluded target overlay — sensitive to stacking, sub-pixel position,
+   overlay border-box vs grid gap, so it intermittently returns no target.
+   **Fix: detect by GEOMETRY.** A CSS `transform` on the dragged item is
+   visual-only and never reflows its siblings, so every OTHER item's
+   `getBoundingClientRect()` is its true on-screen cell. Scan those rects
+   (excluding the dragged item; skip zero-rect = display:none) for the one
+   containing the cursor. Deterministic, independent of stacking/pointer-
+   events/the ghost, valid under CSS `zoom` (rect and `clientX/Y` share
+   screen space on current Chrome), and cheap (no forced hit-test → also
+   fixes per-frame jank). Use the SAME scan at release instead of a cached
+   "last highlighted" target — a cached target goes stale when the final
+   pointermove's rAF frame is cancelled on pointerup.
+
+2. **Drag wired once, but the preview is REBUILT on settings change.** The
+   wiring (`_wirePreviewDrag`) ran a single time on modal-open, but picking
+   a display style calls `_buildPreviewContent`, which REMOVES and re-clones
+   the preview DOM. The fresh items have no overlays/listeners and the old
+   `cards`/closure point at detached nodes → drag silently dead until the
+   modal is reopened. **Fix: wrap the wiring in a function and re-call it
+   after every rebuild.** A per-item `_gstDragWired` expando guards against
+   double-wiring (expandos are NOT copied by `cloneNode`, so fresh clones
+   re-wire correctly).
+
+**General lesson:** when a feature is wired imperatively onto cloned/
+rendered DOM, audit EVERY path that re-renders that DOM and confirm the
+wiring re-runs — "works on open, dead after interaction X" is the tell.
+And prefer geometry (rect containment) over `elementsFromPoint` whenever a
+moving/occluding element sits between the cursor and the target.
+
+**Evidence:** task log `2026-06-12-dashboard-drag-reliability.md` (the
+"deeper" + adversarial-review sections). User-verified working after the
+geometry + re-wire fixes.
+
+**Related:** [Custom-JS drag works on desktop but not in touch emulation](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
+(touch-action), [Dashboard card order is driven by grid-template-areas](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom).

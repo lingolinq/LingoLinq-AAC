@@ -153,7 +153,7 @@
       {{/if}}
     {{/if}}
     <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
-    <button class="btn btn-default" {{action "clearLogs"}}>{{t "Clear All Logs" key="clear_all_logs"}}</button>
+    <button class="btn btn-default md-logs__danger-btn" {{action "clearLogs"}}>{{t "Clear All Logs" key="clear_all_logs"}}</button>
   {{else}}
     {{#if this.messages_only}}
       {{#if this.model.permissions.edit}}

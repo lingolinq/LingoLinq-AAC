@@ -2317,6 +2317,7 @@
   "focus_words_analyze_needs_home_board": "Set or open a home board first. Analysis looks up each word on that board.",
   "generate_board_labels_placeholder": "Generate with AI",
   "labels_required": "Generate with AI",
+  "gst_drag_blocked_row": "Action buttons can only be reordered within their own row. To move the actions row, drag one of the other buttons over it instead",
   "getting_started_tour_preview_label_focused": "Preview — Focused View",
   "getting_started_tour_preview_label": "Preview — Gentle View",
   "lets_communicate": "Let's Communicate",

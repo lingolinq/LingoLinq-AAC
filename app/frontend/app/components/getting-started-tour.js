@@ -88,6 +88,28 @@ function _wirePreviewDrag(liveEl, ctx) {
   var scale = ctx.scale || 1;
   var cards = [];
   var state = null;
+  // R2 affordance: when the user hovers a drop the ACTIVE layout forbids (a Focused-View
+  // action button dragged out onto a full-width row), don't stay silent. Flip the dragged
+  // ghost to a "not allowed" cue (cursor + warning outline) and briefly swap the legend
+  // hint to say what IS allowed, then restore it. `hintEl` is the existing reorder-
+  // instruction line above the preview; remember its default text to put back.
+  var hintEl = ctx.hintEl || null;
+  var defaultHint = hintEl ? hintEl.textContent : '';
+  var setBlocked = function(card, blocked) {
+    if (card) { card.classList.toggle('md-gst-drag-blocked', blocked); }
+    if (hintEl) {
+      hintEl.textContent = blocked
+        ? i18n.t('gst_drag_blocked_row', "Action buttons can only be reordered within their own row. To move the actions row, drag one of the other buttons over it instead")
+        : defaultHint;
+      hintEl.classList.toggle('md-gst-preview__legend-hint--blocked', blocked);
+    }
+  };
+  // The drag "lift" shadow, set inline on the dragged card (overriding its pinned resting
+  // box-shadow) on grab instead of a CSS `filter: drop-shadow` — the filter forced a
+  // render pass that re-rasterized the large gradient card as it moved. A box-shadow on
+  // the will-change:transform layer is painted once and just composited, so the drag stays
+  // smooth. Restored to the resting shadow on drop.
+  var LIFT_SHADOW = '0 18px 34px rgba(20, 30, 50, 0.30)';
   // Whether dropping src onto dst is allowed under the ACTIVE layout. Gentle View
   // allows any insert (free reorder); Focused View defers to reorderForFocused
   // (utility cards reorder within their row; a utility card can't leave its row).
@@ -98,22 +120,28 @@ function _wirePreviewDrag(liveEl, ctx) {
     var def = ctx.getDefaultOrder ? ctx.getDefaultOrder() : null;
     return reorderForFocused(ctx.getOrder(), srcKey, dstKey, true, def) !== null;
   };
-  // Resolve the (key, card) under a viewport point, SKIPPING the dragged card (which
-  // is translated under the cursor). We walk elementsFromPoint top→bottom rather than
-  // toggling pointer-events on the captured overlay (which could drop the capture
-  // mid-drag): for each stacked element we climb to its host card; the dragged card
-  // is skipped so we land on the target beneath it.
+  // Resolve the (key, card) under a viewport point by GEOMETRY — test the cursor against
+  // each card's screen rect, SKIPPING the dragged card. Deterministic: a CSS transform on
+  // the dragged card is visual-only and never reflows its siblings, so every other card's
+  // getBoundingClientRect() is its true on-screen cell, and the grid tiles them without
+  // overlap (the cursor sits inside at most one non-dragged card; a grid gap → null).
+  //
+  // This replaced an elementsFromPoint walk: the clone forces pointer-events:none on
+  // everything but the overlays, so elementsFromPoint could only see overlays and had to
+  // peer THROUGH the z-index:999 ghost sitting under the cursor to reach the target's
+  // overlay — an occluded lookup that intermittently returned no target (the drag's
+  // "doesn't work every time" root cause). Rect-containment can't be fooled by stacking,
+  // pointer-events, or the ghost. (Valid under the preview's CSS zoom: getBoundingClientRect
+  // and clientX/Y share the same screen space.)
   var keyAt = function(x, y, excludeCard) {
-    var stack = document.elementsFromPoint(x, y);
-    for (var i = 0; i < stack.length; i++) {
-      var el = stack[i];
-      while (el && el !== liveEl) {
-        if (el.getAttribute && el.hasAttribute('data-gst-key')) {
-          var card = el.classList.contains('md-gst-draggable') ? el : el.parentNode;
-          if (card !== excludeCard) { return { key: el.getAttribute('data-gst-key'), card: card }; }
-          break; // this stacked hit is the dragged card — try the next element down
-        }
-        el = el.parentNode;
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      if (card === excludeCard) { continue; }
+      var r = card.getBoundingClientRect();
+      // Hidden cards (display:none via setCardDisplay) report a zero rect — skip them.
+      if (r.width === 0 && r.height === 0) { continue; }
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return { key: card.getAttribute('data-gst-key'), card: card };
       }
     }
     return null;
@@ -127,10 +155,10 @@ function _wirePreviewDrag(liveEl, ctx) {
       if (keys.indexOf(c.getAttribute('data-gst-key')) !== -1) { c.classList.add('md-gst-drop-target'); }
     });
   };
-  // One rAF per frame coalesces the (many) pointermove events: we move the ghost with
-  // a GPU translate3d every frame, but only re-hit-test + recompute the displaced
-  // highlight when the hovered target actually CHANGES — so dragging stays smooth
-  // instead of thrashing layout on every event.
+  // One rAF per frame coalesces the (many) pointermove events: we move the ghost with a
+  // GPU translate3d and run the (now cheap) geometry hit-test every frame, but only touch
+  // the DOM (recompute the displaced-target highlight) when the hovered target actually
+  // CHANGES — so dragging stays smooth instead of thrashing layout on every event.
   var raf = (typeof window !== 'undefined' && window.requestAnimationFrame) ? window.requestAnimationFrame.bind(window) : function(cb) { return setTimeout(cb, 16); };
   var caf = (typeof window !== 'undefined' && window.cancelAnimationFrame) ? window.cancelAnimationFrame.bind(window) : clearTimeout;
   var scheduleFrame = function() {
@@ -140,16 +168,18 @@ function _wirePreviewDrag(liveEl, ctx) {
       state.frame = 0;
       state.card.style.setProperty('transform', 'translate3d(' + ((state.x - state.startX) / scale) + 'px,' + ((state.y - state.startY) / scale) + 'px,0)', 'important');
       var hit = keyAt(state.x, state.y, state.card);
-      var hitKey = (hit && hit.key !== state.key && acceptsDrop(state.key, hit.key)) ? hit.key : null;
-      if (hitKey !== state.lastHit) {
+      var over = (hit && hit.key !== state.key) ? hit.key : null;
+      var hitKey = (over && acceptsDrop(state.key, over)) ? over : null;
+      // Hovering a real card the drop FORBIDS (Focused: an action button over a
+      // full-width row) → show the not-allowed cue instead of dead silence.
+      var blocked = !!(over && !hitKey);
+      if (hitKey !== state.lastHit || blocked !== state.lastBlocked) {
         state.lastHit = hitKey;
-        // Remember the card we highlighted so the DROP commits to exactly what the
-        // user saw, instead of re-hit-testing at release (the dragged card sits
-        // under the cursor and made elementsFromPoint miss — drops took 2-3 tries).
-        state.lastHitCard = hitKey && hit ? hit.card : null;
+        state.lastBlocked = blocked;
         clearTargets();
+        setBlocked(state.card, blocked);
         // Only highlight a target the drop would actually accept, so a disallowed
-        // drop (a utility card over a full-width row) gives no false affordance.
+        // drop gives no false "this will move here" affordance.
         if (hitKey) { highlight([hitKey]); }
       }
     });
@@ -187,7 +217,8 @@ function _wirePreviewDrag(liveEl, ctx) {
       // card stays visually static. Resting box-shadow is read now (pre-hover).
       card.style.setProperty('transform', 'none', 'important');
       var restShadow = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(card).boxShadow : '';
-      if (restShadow && restShadow !== 'none') { card.style.setProperty('box-shadow', restShadow, 'important'); }
+      card._gstRestShadow = (restShadow && restShadow !== 'none') ? restShadow : '';
+      if (card._gstRestShadow) { card.style.setProperty('box-shadow', card._gstRestShadow, 'important'); }
       var ov = document.createElement('div');
       ov.className = 'md-gst-drag-overlay';
       ov.setAttribute('aria-hidden', 'true');
@@ -207,8 +238,9 @@ function _wirePreviewDrag(liveEl, ctx) {
         if (e.button != null && e.button > 0) { return; }
         // Ghost: lift the card out (dimmed via .md-gst-dragging) and let it follow
         // the cursor by translating it — z-index above its siblings.
-        state = { key: s.key, card: card, ov: ov, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, lastHit: null, lastHitCard: null, frame: 0 };
+        state = { key: s.key, card: card, ov: ov, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, lastHit: null, lastBlocked: false, frame: 0 };
         card.classList.add('md-gst-dragging');
+        card.style.setProperty('box-shadow', LIFT_SHADOW, 'important');
         card.style.setProperty('z-index', '999', 'important');
         try { ov.setPointerCapture(e.pointerId); } catch (e2) { /* unsupported — drag still works without capture */ }
         e.preventDefault();
@@ -224,26 +256,27 @@ function _wirePreviewDrag(liveEl, ctx) {
         var src = state;
         state = null;
         if (src.frame) { caf(src.frame); }
-        // Commit to the target highlighted during the drag (what the user saw),
-        // NOT a fresh hit-test at release: the dragged card (z-index 999, under
-        // the cursor) made elementsFromPoint intermittently miss the target, so
-        // drops needed 2-3 tries even with the outline showing. Fall back to a
-        // hit-test only when no target was highlighted (e.g. a flick with no
-        // intervening move frame).
-        var hitKey = src.lastHit;
-        var hitCard = src.lastHitCard;
-        if (!hitKey) {
-          var h = keyAt(e.clientX, e.clientY, src.card);
-          if (h && h.key !== src.key && acceptsDrop(src.key, h.key)) { hitKey = h.key; hitCard = h.card; }
-        }
+        // Re-derive the drop target by GEOMETRY at the ACTUAL release point (see keyAt),
+        // NOT a cached lastHit. lastHit can be a stale frame — the final pointermove's
+        // frame is cancelled just above, so a fast release would otherwise commit to the
+        // slot the cursor had already left. Hit-testing the release coords is
+        // deterministic (rect containment, ghost excluded), which removes that race and
+        // the old elementsFromPoint misses in one step.
+        var h = keyAt(e.clientX, e.clientY, src.card);
+        var hitKey = (h && h.key !== src.key && acceptsDrop(src.key, h.key)) ? h.key : null;
+        var hitCard = hitKey ? h.card : null;
         // Drop the ghost back into the grid (transform pinned to none keeps hover
         // suppressed); a re-render after commit snaps it to its new cell.
         src.card.classList.remove('md-gst-dragging');
         src.card.style.setProperty('transform', 'none', 'important');
         src.card.style.removeProperty('z-index');
+        // Restore the resting (pinned) shadow — the lift box-shadow was inline-set on grab.
+        if (src.card._gstRestShadow) { src.card.style.setProperty('box-shadow', src.card._gstRestShadow, 'important'); }
+        else { src.card.style.removeProperty('box-shadow'); }
         clearTargets();
+        setBlocked(src.card, false); // clear the not-allowed cue + restore the hint text
         try { src.ov.releasePointerCapture(e.pointerId); } catch (e2) { /* noop */ }
-        if (hitKey && hitKey !== src.key && hitCard) {
+        if (hitKey && hitCard) {
           commitDrop(src.key, hitKey, _dropAfter(hitCard, e.clientX, e.clientY));
         }
       };
@@ -634,6 +667,7 @@ function _onDisplayShow(component) {
         _buildPreviewContent(liveEl);
         applyLayoutSections(chosen);
         syncState();
+        wireDrag(); // the clone was rebuilt above — re-wire drag onto the fresh cards
         refreshGate();
         // Save the chosen layout IMMEDIATELY (not debounced) — picking a style is a
         // discrete click, so the user's dashboard_layout pref updates the instant
@@ -643,18 +677,26 @@ function _onDisplayShow(component) {
     });
     applyLayoutSections(currentLayout());
     syncState();
-    // Drag-to-swap (flagged): let the user rearrange cards by dragging one onto
-    // another in the preview. Each swap re-runs syncState (re-rendering the grid
-    // and re-stamping the positions for persistence).
-    if (dragEnabled && liveEl) {
+    // Drag-to-swap (flagged): let the user rearrange cards by dragging one onto another
+    // in the preview. Each swap re-runs syncState (re-rendering the grid + re-stamping the
+    // positions for persistence). Wrapped in a function because the preview clone is
+    // REBUILT whenever the display style changes (_buildPreviewContent removes + re-clones
+    // it), which discards the wired cards/overlays — so the drag MUST be re-wired onto the
+    // fresh clone each time (the layout-switch handler calls wireDrag() again). Without
+    // this, drag was silently dead after any Gentle↔Focused switch. _wirePreviewDrag
+    // guards each card with _gstDragWired (not copied by cloneNode), so re-calling on the
+    // same clone never double-wires.
+    var wireDrag = function() {
+      if (!dragEnabled || !liveEl) { return; }
       // The preview is rendered at a CSS `zoom` (single source of truth: the
       // --md-gst-preview-zoom custom property). A child's CSS translate renders at
       // translate × zoom on screen, so pass the zoom factor through — the drag math
       // divides by it to keep the ghost 1:1 under the cursor.
       var previewZoom = 1;
       try { previewZoom = parseFloat(window.getComputedStyle(liveEl).getPropertyValue('--md-gst-preview-zoom')) || 1; } catch (e) { previewZoom = 1; }
-      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return currentLayout() === 'focused' ? FOCUSED_DEFAULT_ORDER : null; }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom }); } catch (e) { /* drag is an enhancement — never block the step */ }
-    }
+      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return currentLayout() === 'focused' ? FOCUSED_DEFAULT_ORDER : null; }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom, hintEl: el.querySelector('.md-gst-preview__legend-hint') }); } catch (e) { /* drag is an enhancement — never block the step */ }
+    };
+    wireDrag();
   } catch (e) { /* preview + gating are decorative — never block the step */ }
 
   // Orientation overlay (shown by CSS at ≤640px): Rotate tries a native
