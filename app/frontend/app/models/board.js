@@ -24,6 +24,7 @@ import { set as emberSet } from '@ember/object';
 import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 import { inject as service } from '@ember/service';
+import rewriteBrokenSymbolUrl from '../utils/symbol-url';
 
 // Curated vocab boards (Quick Core / Vocal Flair / Sequoia) ship with our
 // own branded tile art under /images/. The board records still carry the
@@ -199,9 +200,9 @@ LingoLinq.Board = DS.Model.extend({
       return this && (this.get('image_data_uri') || this.fallback_image_url) || '';
     }
     if(this.persistence.get('online')) {
-      return this.get('image_data_uri') || this.get('image_url') || this.fallback_image_url;
+      return rewriteBrokenSymbolUrl(this.get('image_data_uri') || this.get('image_url') || this.fallback_image_url);
     } else {
-      return this.get('image_data_uri') || this.fallback_image_url;
+      return rewriteBrokenSymbolUrl(this.get('image_data_uri') || this.fallback_image_url);
     }
   }),
   // True when this board uses one of our shipped vocab tile icons

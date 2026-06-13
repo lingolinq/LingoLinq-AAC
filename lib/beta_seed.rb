@@ -233,7 +233,7 @@ module BetaSeed
           {
             id: 2,
             label: 'No',
-            image_url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no_2.png'
+            image_url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no.png'
           }
         ],
         grid: {

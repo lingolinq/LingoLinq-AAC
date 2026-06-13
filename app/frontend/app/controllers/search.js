@@ -8,7 +8,7 @@ import { computed } from '@ember/object';
 import { debounce } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import progress_tracker from '../utils/progress_tracker';
-import { filterRootBoards, dedupeByName, sortByNameNatural } from '../utils/board-roots';
+import { filterRootBoards, dedupeByName, sortByNameNatural, boardsPagePreferUserNames } from '../utils/board-roots';
 import { groupBoardsByBrand } from '../utils/board-brands';
 
 export default Controller.extend({
@@ -56,12 +56,13 @@ export default Controller.extend({
   jump_sections: computed('online_results', function() {
     var userId = app_state.get('currentUser.id');
     var online = this.get('online_results');
+    var preferOwners = boardsPagePreferUserNames(app_state);
     return [{
       id: 'boards',
       label_key: 'boards',
       default_label: 'Boards',
       state: online ? (online.loading ? 'loading' : 'loaded') : 'loading',
-      boards: sortByNameNatural(dedupeByName(filterRootBoards((online && online.results) || [], userId)))
+      boards: sortByNameNatural(dedupeByName(filterRootBoards((online && online.results) || [], userId), { preferUserNames: preferOwners }))
     }];
   }),
   // Natural (numeric-aware) sort by display name, so "Quick Core 84" sorts
@@ -100,7 +101,7 @@ export default Controller.extend({
              (e.g. "Vocal Flair 84" by several users). Collapse exact-name
              duplicates, keeping the first — server popularity order means
              that's the most-prominent one. */
-          _this.set('online_results', {results: dedupeByName(_this.sort_boards_by_name(res.map(function(i) { return i; })))});
+          _this.set('online_results', {results: dedupeByName(_this.sort_boards_by_name(res.map(function(i) { return i; })), { preferUserNames: boardsPagePreferUserNames(app_state) })});
         }, function() {
           _this.set('search_promise', null);
           _this.set('online_results', {results: []});

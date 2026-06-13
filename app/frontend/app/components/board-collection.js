@@ -4,7 +4,7 @@ import { computed } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
-import { filterRootBoards, dedupeByName } from '../utils/board-roots';
+import { filterRootBoards, dedupeByName, boardsPagePreferUserNames } from '../utils/board-roots';
 import { filterBrandRoots } from '../utils/board-brands';
 /* Brand families (CommuniKate / Quick Core / Sequoia / Vocal Flair) — the
    `query`/`root_re`/`test` metadata now lives in the shared util so the
@@ -267,7 +267,7 @@ export default Component.extend({
            AFTER dedup so the final order is name-A→Z but the chosen
            representative is the popular one. Empty / missing names
            pass through unchanged (each gets its own row). */
-        _this._setBrandResult(family.id, { state: 'loaded', boards: _alphaByName(dedupeByName(matched)) });
+        _this._setBrandResult(family.id, { state: 'loaded', boards: _alphaByName(dedupeByName(matched, { preferUserNames: boardsPagePreferUserNames(_this.get('appState')) })) });
       }).catch(function() {
         _this._setBrandResult(family.id, { state: 'error' });
       });

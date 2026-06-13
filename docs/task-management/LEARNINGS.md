@@ -3153,6 +3153,8 @@ so most app pages ARE `:has(.page-footer)` and can use this.
 
 **Evidence:** `app/controllers/api/boards_controller.rb:299-301`; `app/models/board.rb:899`; `app/frontend/app/components/board-collection.js` (BRAND_FAMILIES `root_re` + `_loadAllBrands` filter).
 
+**Boards page (`user/index` `board_list`):** apply the same client-side cleanup to the default grid only — `filterBrandSetRootBoards` + `dedupeBoardRows` on Public tab, and `filterBoardsPageTopLevelRoots` (= `filterRootBoards` then `filterBrandSetRootBoards`) + `dedupeBoardRows` on Mine tab, with `boardsPagePreferUserNames` (signed-in user, then `lingolinq`). Name dedup is case-insensitive. Leave `boards_page_raw_list` untouched so Boards Filter search still returns sub-board matches. Shared helpers live in `utils/board-roots.js`.
+
 ---
 
 ## Pattern: to match prediction-word font to board-button labels, use the board's `cqw` clamp inside a tile-as-container — NOT `vw`

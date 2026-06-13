@@ -1,6 +1,7 @@
 import RSVP from 'rsvp';
 import DS from 'ember-data';
 import LingoLinq from '../app';
+import rewriteBrokenSymbolUrl from '../utils/symbol-url';
 import i18n from '../utils/i18n';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
@@ -108,13 +109,13 @@ LingoLinq.Image = DS.Model.extend({
   personalizing_url: function(skip_alternates) {
     LingoLinq.Image.unskins = LingoLinq.Image.unskins || {};
     var preferred_symbols = this.get('appState.referenced_user.preferences.preferred_symbols') || 'original';
-    var url = this.get('url');
+    var url = rewriteBrokenSymbolUrl(this.get('url'));
     if(skip_alternates) {
       preferred_symbols = 'original';
     }
     if(this.get('alternates') && this.get('alternates').find) {
       var alternate = (this.get('alternates') || []).find(function(a) { return a.library == preferred_symbols; });
-      if(alternate) { url = alternate.url; }
+      if(alternate) { url = rewriteBrokenSymbolUrl(alternate.url); }
     }
     return LingoLinq.Image.personalize_url(url, this.get('appState.currentUser.user_token'), this.get('appState.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
   },

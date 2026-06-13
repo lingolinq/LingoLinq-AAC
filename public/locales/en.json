@@ -4059,6 +4059,7 @@
   "home_board_count_info_body": "Your home board stays visible in this section even when it's organized into a folder, so you can always reach it from the boards page. That's why it appears in both the folder count and the count here.",
   "boards_filter": "Boards Filter",
   "filter_results": "Filter boards...",
+  "boards_filter_truncated_hint": "Showing the first %{count} matches. Keep typing to narrow results.",
   "boards_section_picker": "Boards section",
   "no_boards_yet": "You don't have any boards yet",
   "boards_empty_subtitle": "Create your first board and it'll appear here.",

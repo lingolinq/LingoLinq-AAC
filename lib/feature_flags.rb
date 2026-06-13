@@ -28,7 +28,7 @@ module FeatureFlags
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
-              'dashboard_drag_layout']
+              'dashboard_drag_layout', 'boards_page_owner_dedup']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
