@@ -52,10 +52,21 @@
 # audit subtree below can be re-included. Re-including a child of a fully-excluded
 # directory is impossible in git, hence /.claude/* rather than /.claude.
 /.claude/*
-# Shared, version-controlled audit/compliance system (Phase 2 agent migration):
+# Shared, version-controlled audit/compliance system (Phase 2 agent migration).
+# Re-include ONLY the specific tracked file types, not whole directories, so future local junk
+# dropped under these dirs (scratch logs, finder temp JSON, editor swap files) stays ignored.
+# Idiom: re-include dir, re-exclude its contents, re-include the wanted files.
 !/.claude/agents/
+/.claude/agents/*
+!/.claude/agents/*.md
 !/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/*/
+/.claude/skills/*/*
+!/.claude/skills/*/SKILL.md
 !/.claude/hooks/
+/.claude/hooks/*
+!/.claude/hooks/*.sh
 !/.claude/settings.json
 # Everything else under /.claude stays local and ignored: settings.local.json, worktrees/,
 # and agent-memory/ (finder `memory: project` accrues per-machine; not shared to avoid pulling

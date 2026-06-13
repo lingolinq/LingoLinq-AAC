@@ -70,5 +70,6 @@ their statuses as current.
 - Plans and strategy docs live in `ai-company-brain/outputs/`, not here.
 - Only Scot closes a finding, downgrades severity, or accepts risk; `closureEvidence.attestation` stays empty until he signs.
 
-_Phase 1 "Foundation" of the Audit/Compliance System Modernization. Agents, the `/audit-run`
-orchestrator, and the one-way Notion publish are Phases 2-3 and are not present yet._
+_Phase 1 "Foundation" + Phase 2 "Agent migration" of the Audit/Compliance System Modernization.
+The read-only finder agents and the `/audit-run` orchestrator ship in Phase 2 (see "How findings
+are generated" above and the repo CLAUDE.md). The one-way Notion publish remains Phase 3._

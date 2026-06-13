@@ -37,6 +37,7 @@ require 'json'
 require 'digest'
 require 'date'
 require 'optparse'
+require 'open3'
 
 SEVERITY_ENUM = %w[critical high medium low].freeze
 FRAMEWORK_ENUM = %w[FERPA COPPA HIPAA GDPR WCAG SOC2].freeze
@@ -78,9 +79,29 @@ findings = register['findings'] || []
 by_id = {}
 findings.each { |f| by_id[f['id']] = f }
 
-def finding_id(rule_key, file)
-  'LL-' + Digest::SHA256.hexdigest("#{rule_key}|#{file}")[0, 10]
+def finding_id(rule_key, path)
+  'LL-' + Digest::SHA256.hexdigest("#{rule_key}|#{path}")[0, 10]
 end
+
+# True if `snippet` (whitespace-normalized) appears in `file` at `sha`. Mirrors the matching
+# scripts/citation-check.rb uses, so a finding this script accepts is one citation-check will
+# pass. Used to refuse evidence that would redden the register on the next /audit-run.
+def snippet_present?(file, snippet, sha)
+  return false if file.to_s.empty? || snippet.to_s.strip.empty?
+  out, _err, status =
+    if sha.to_s.empty?
+      File.file?(file) ? [File.read(file), nil, nil] : [nil, nil, nil]
+    else
+      Open3.capture3('git', 'show', "#{sha}:#{file}")
+    end
+  content = out
+  content = nil if !sha.to_s.empty? && !(status && status.success?)
+  return false if content.nil?
+  norm = ->(s) { s.to_s.gsub(/\s+/, ' ').strip }
+  norm.call(content).include?(norm.call(snippet))
+end
+
+CHECKABLE_TYPES = %w[code doc].freeze
 
 summary = { 'auditedSha' => run_sha, 'auditedDate' => run_date,
             'new' => [], 'reseen' => [], 'regressions' => [],
@@ -88,7 +109,15 @@ summary = { 'auditedSha' => run_sha, 'auditedDate' => run_date,
 
 opts[:ins].each do |path|
   die("input not found: #{path}") unless File.file?(path)
-  doc = JSON.parse(File.read(path))
+  # Finders are LLMs; truncated/garbled JSON is a when-not-if. Skip a bad input file and keep
+  # the other finders' valid output rather than aborting the whole reconcile.
+  doc =
+    begin
+      JSON.parse(File.read(path))
+    rescue JSON::ParserError => e
+      summary['skipped'] << { 'input' => path, 'reason' => "unparseable JSON: #{e.message[0, 120]}" }
+      next
+    end
   domain = doc.is_a?(Hash) ? (doc['domain'] || 'unknown') : 'unknown'
   incoming = doc.is_a?(Hash) ? (doc['findings'] || []) : Array(doc)
 
@@ -96,17 +125,28 @@ opts[:ins].each do |path|
     rule_key = raw['ruleKey'].to_s
     ev = raw['evidence'] || {}
     file = ev['file'].to_s
-    # A finding must have a ruleKey. It must also have a file UNLESS it is a non-code-anchored
-    # runtime/attestation observation (those are keyed by ruleKey + the source label instead).
+    type = ev['type'] || (file.empty? ? 'runtime' : 'code')
+    snippet = ev['snippet'].to_s
     if rule_key.empty?
       summary['skipped'] << { 'domain' => domain, 'reason' => 'missing ruleKey', 'title' => raw['title'] }
       next
     end
-    anchor = file.empty? ? "runtime:#{ev['source']}" : file
+    # id anchor MUST match scripts/citation-check.rb#expected_id: the evidence file, or the
+    # ruleKey itself when there is no file anchor. (Previously used "runtime:<source>", which
+    # produced ids citation-check rejected as mismatched, reddening the register.)
+    anchor = file.empty? ? rule_key : file
     id = finding_id(rule_key, anchor)
 
-    sev = SEVERITY_ENUM.include?(raw['severity']) ? raw['severity'] : 'medium'
+    # Severity/confidence: downcase before the enum check so a finder emitting "CRITICAL" is not
+    # silently buried as "medium" (that would corrupt the open-Critical/High headline downward).
+    sev = SEVERITY_ENUM.include?(raw['severity'].to_s.downcase) ? raw['severity'].to_s.downcase : 'medium'
+    conf = %w[high medium low].include?(raw['confidence'].to_s.downcase) ? raw['confidence'].to_s.downcase : 'medium'
     frameworks = Array(raw['frameworks']).select { |x| FRAMEWORK_ENUM.include?(x) }
+
+    # For a checkable (code/doc) finding with a file, the snippet MUST resolve at run_sha or it
+    # would fail citation-check. Verify up front; used to gate evidence writes below.
+    checkable = !file.empty? && CHECKABLE_TYPES.include?(type)
+    snippet_ok = checkable ? snippet_present?(file, snippet, run_sha) : true
 
     if (existing = by_id[id])
       existing['lastSeen'] = run_date
@@ -117,38 +157,49 @@ opts[:ins].each do |path|
 
       if SCOT_OWNED_CLOSED.include?(existing['status'])
         # Regression: a previously closed/accepted/superseded finding re-surfaced. Do NOT flip
-        # the Scot-owned status; flag it loudly for the adversary + Scot.
+        # the Scot-owned status and do NOT touch its (still-valid) evidence; flag it loudly.
         existing['regression'] = true
         note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (status was #{existing['status']}). Needs adversary verification + Scot decision to reopen."
         existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
                                     'severity' => existing['severity'], 'domain' => domain, 'file' => anchor }
       else
-        # Active finding still present: refresh evidence to the new SHA so citation-check stays
-        # green at the new auditedSha. Keep Scot-owned status/severity/owner/firstSeen.
-        if !file.empty?
-          existing['evidence'] = {
-            'type' => ev['type'] || 'code', 'file' => file,
-            'line' => ev['line'], 'snippet' => ev['snippet'].to_s, 'sha' => run_sha
-          }
-        elsif ev['source']
-          existing['evidence'] = { 'type' => ev['type'] || 'runtime', 'source' => ev['source'],
-                                   'snippet' => ev['snippet'].to_s }
+        # Active finding still present. Re-anchor evidence to the new SHA ONLY if the new snippet
+        # actually verifies there; otherwise keep the prior (valid) evidence so a stale or
+        # hallucinated finder snippet cannot redden a finding that was green before this run.
+        if checkable && snippet_ok
+          existing['evidence'] = { 'type' => type, 'file' => file, 'line' => ev['line'],
+                                   'snippet' => snippet, 'sha' => run_sha }
+          summary['reseen'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => existing['severity'], 'domain' => domain }
+        elsif checkable && !snippet_ok
+          existing['notes'] = [existing['notes'],
+            "#{domain} finder re-reported on #{run_date} but its snippet did not resolve at #{run_sha}; evidence left as prior."].compact.reject(&:empty?).join(' | ')
+          summary['reseen'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => existing['severity'],
+                                 'domain' => domain, 'snippetUnverified' => true }
+        elsif file.empty? && ev['source']
+          existing['evidence'] = { 'type' => type, 'source' => ev['source'], 'snippet' => snippet }
+          summary['reseen'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => existing['severity'], 'domain' => domain }
+        else
+          summary['reseen'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => existing['severity'], 'domain' => domain }
         end
-        summary['reseen'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => existing['severity'], 'domain' => domain }
       end
     else
-      # Brand new finding. Build a full register record as status "open".
+      # Brand new finding. Refuse a checkable one whose snippet does not resolve at run_sha (it
+      # would redden citation-check); record it as skipped for re-run rather than poisoning the register.
+      if checkable && !snippet_ok
+        summary['skipped'] << { 'domain' => domain, 'ruleKey' => rule_key, 'file' => file,
+                                'reason' => "snippet not found at #{run_sha}; finding not added" }
+        next
+      end
       evidence =
         if !file.empty?
-          { 'type' => ev['type'] || 'code', 'file' => file, 'line' => ev['line'],
-            'snippet' => ev['snippet'].to_s, 'sha' => run_sha }
+          { 'type' => type, 'file' => file, 'line' => ev['line'], 'snippet' => snippet, 'sha' => run_sha }
         else
-          { 'type' => ev['type'] || 'runtime', 'source' => ev['source'].to_s, 'snippet' => ev['snippet'].to_s }
+          { 'type' => type, 'source' => ev['source'].to_s, 'snippet' => snippet }
         end
       record = {
         'id' => id, 'ruleKey' => rule_key, 'title' => raw['title'].to_s,
-        'severity' => sev, 'confidence' => (%w[high medium low].include?(raw['confidence']) ? raw['confidence'] : 'medium'),
+        'severity' => sev, 'confidence' => conf,
         'frameworks' => frameworks, 'status' => ASSIGNABLE_STATUS, 'evidence' => evidence,
         'firstSeen' => run_date, 'lastSeen' => run_date, 'owner' => 'unassigned',
         'remediation' => (raw['remediation'] || { 'options' => '', 'timeframe' => '' }),
