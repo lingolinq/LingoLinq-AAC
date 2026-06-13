@@ -47,8 +47,19 @@
 # Cursor IDE debug session logs (NDJSON)
 .cursor/debug*.log
 
-# Ignore local settings for claude
-/.claude
+# Ignore local Claude Code settings + worktrees, but TRACK the shared audit system.
+# Pattern note: exclude the CONTENTS of /.claude (not the dir itself) so the
+# audit subtree below can be re-included. Re-including a child of a fully-excluded
+# directory is impossible in git, hence /.claude/* rather than /.claude.
+/.claude/*
+# Shared, version-controlled audit/compliance system (Phase 2 agent migration):
+!/.claude/agents/
+!/.claude/skills/
+!/.claude/hooks/
+!/.claude/settings.json
+# Everything else under /.claude stays local and ignored: settings.local.json, worktrees/,
+# and agent-memory/ (finder `memory: project` accrues per-machine; not shared to avoid pulling
+# unrelated local agents' memory into git).
 
 # Python bytecode
 __pycache__/

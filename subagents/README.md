@@ -1,3 +1,12 @@
+> **DEPRECATED (2026-06, Audit/Compliance Modernization Phase 2).** These plain-prompt
+> subagents are replaced by real Claude Code agents at `.claude/agents/*-auditor.md`
+> (privacy-auditor, infra-auditor, api-auditor, dependency-auditor), which are read-only by
+> construction (`tools: Read, Grep, Glob, Bash` + a PreToolUse write-blocker hook) and are
+> spawned by the `/audit-run` orchestrator. `ember-auditor`, `rails-auditor`, and
+> `mvp-readiness-auditor` were retired (migration-era / score replaced by open Critical/High
+> counts). This folder is kept for history only. See the repo CLAUDE.md "Audit Orchestration
+> System" section.
+
 # LingoLinq Audit Subagents
 
 Subagents are isolated audit workers launched via Claude Code's `Task` tool. Each runs in its own context window, scans only its domain, and returns structured findings.
