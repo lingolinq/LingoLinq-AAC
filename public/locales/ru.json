@@ -7479,6 +7479,8 @@
   "system_settings_tab_app_defaults": "*** App defaults",
   "system_settings_tab_features": "*** Features",
   "opening_your_board": "*** Opening your board",
+  "gst_drag_blocked_row": "*** Action buttons can only be reordered within their own row. To move the actions row, drag one of the other buttons over it instead",
+  "boards_filter_truncated_hint": "*** 0 Showing the first %{count} matches. Keep typing to narrow results.s || 1 Showing the first %{count} matches. Keep typing to narrow results. || %{n} Showing the first %{count} matches. Keep typing to narrow results.s",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "По истечении времени [[ After Time",
