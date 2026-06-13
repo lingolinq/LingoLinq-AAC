@@ -235,7 +235,7 @@ class ButtonSound < ApplicationRecord
           end
           bs.settings['data_uri'] = zipper.read_as_data(sound_to_upload[:filename])['data']
           bs.save
-          bs.upload_to_remote('data_uri')
+          bs.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
           sounds << bs
         end
       end

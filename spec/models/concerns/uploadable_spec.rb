@@ -140,7 +140,7 @@ describe Uploadable, :type => :model do
       i.instance_variable_set('@remote_upload_possible', true)
       i.check_for_pending
       expect(i.settings['pending']).to eq(false)
-      expect(i.instance_variable_get('@upload_to_remote_arg')).to eq('data_uri')
+      expect(i.instance_variable_get('@upload_to_remote_arg')).to eq(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
     end
   end
 
@@ -289,7 +289,7 @@ describe Uploadable, :type => :model do
         expect(f.size).to eq(6)
       }.and_return(res)
       
-      s.upload_to_remote('data_uri')
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
       expect(s.url).not_to eq(nil)
       expect(s.settings['pending']).to eq(false)
       expect(s.settings['content_type']).to eq('image/png')
@@ -339,13 +339,28 @@ describe Uploadable, :type => :model do
         args[:body][:file].rewind
         uploaded_body = args[:body][:file].read
       }.and_return(OpenStruct.new(success?: true))
-      s.upload_to_remote('data_uri')
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
       expect(uploaded_body).to include('<circle')
+    end
+
+    it "should sanitize SVG even when HTTP Content-Type is spoofed as image/png" do
+      evil_svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="4"/></svg>'
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png', 'width' => 100, 'height' => 100 })
+      res = OpenStruct.new(success?: true, headers: { 'Content-Type' => 'image/png' }, body: evil_svg)
+      expect(Typhoeus).to receive(:get).and_return(res)
+      uploaded_body = nil
+      expect(Typhoeus).to receive(:post) { |url, args|
+        args[:body][:file].rewind
+        uploaded_body = args[:body][:file].read
+      }.and_return(OpenStruct.new(success?: true))
+      s.upload_to_remote('http://pic.com/spoofed.png')
+      expect(s.settings['content_type']).to eq('image/svg+xml')
+      expect(uploaded_body).not_to include('<script')
     end
 
     it "should reject unsalvageable SVG uploads" do
       s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml', 'data_uri' => 'data:image/svg+xml,not-valid' })
-      s.upload_to_remote('data_uri')
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
       expect(s.url).to eq(nil)
       expect(s.settings['errored_pending_url']).to eq('data:image/svg+xml,not-valid')
     end

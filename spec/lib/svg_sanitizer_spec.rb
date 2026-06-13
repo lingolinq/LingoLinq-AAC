@@ -1,10 +1,12 @@
 require 'spec_helper'
 
 describe SvgSanitizer do
-  SVG_FIXTURES_DIR = Rails.root.join('spec/fixtures/svg')
+  def svg_fixtures_dir
+    Rails.root.join('spec/fixtures/svg')
+  end
 
   def read_svg_fixture(name)
-    File.read(SVG_FIXTURES_DIR.join(name))
+    File.read(svg_fixtures_dir.join(name))
   end
 
   describe '.svg_content_type?' do
@@ -115,6 +117,33 @@ describe SvgSanitizer do
       expect(result[:bytes]).not_to include('<script')
     end
 
+    it 'strips external href on use elements' do
+      input = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="https://evil.example/bad.svg"/></svg>'
+      result = described_class.sanitize(input)
+      expect(result[:ok]).to eq(true)
+      expect(result[:bytes]).not_to include('evil.example')
+    end
+
+    it 'preserves fragment-only use references' do
+      input = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#symbol"/></svg>'
+      result = described_class.sanitize(input)
+      expect(result[:ok]).to eq(true)
+      expect(result[:bytes]).to include('#symbol')
+    end
+
+    it 'blocks nested svg data URIs in href' do
+      input = '<svg xmlns="http://www.w3.org/2000/svg"><a href="data:image/svg+xml,%3Csvg%3E%3Cscript%3Ealert(1)%3C/script%3E%3C/svg%3E"/></svg>'
+      result = described_class.sanitize(input)
+      expect(result[:ok]).to eq(true)
+      expect(result[:bytes]).not_to match(/href=/i)
+    end
+
+    it 'rejects html documents' do
+      result = described_class.sanitize('<html><body><svg></svg></body></html>')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq('html_document')
+    end
+
     it 'rejects empty input' do
       result = described_class.sanitize('')
       expect(result[:ok]).to eq(false)
@@ -124,13 +153,13 @@ describe SvgSanitizer do
     it 'rejects non-svg root' do
       result = described_class.sanitize('<html><body>x</body></html>')
       expect(result[:ok]).to eq(false)
-      expect(result[:error]).to eq('no_svg_root')
+      expect(result[:error]).to eq('html_document')
     end
 
     it 'rejects unparseable content without svg root' do
       result = described_class.sanitize('not xml at all')
       expect(result[:ok]).to eq(false)
-      expect(result[:error]).to eq('no_svg_root')
+      expect(result[:error]).to match(/invalid_xml|no_svg_root/)
     end
   end
 

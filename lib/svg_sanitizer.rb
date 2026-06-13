@@ -1,15 +1,23 @@
+require 'uri'
 require 'loofah'
 require 'nokogiri'
 require 'base64'
 require 'cgi'
+require 'erb'
 
 # Sanitizes SVG uploads by stripping scriptable elements and attributes.
 # Uses a Loofah scrubber on XML (not the sanitize gem — SVG is unsupported there).
 class SvgSanitizer
   MAX_BYTES = 5 * 1024 * 1024
+  MAX_NODES = 10_000
+  SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
 
   DANGEROUS_ELEMENTS = %w[
     script foreignobject iframe object embed handler listener
+  ].freeze
+
+  EXTERNAL_REFERENCE_ELEMENTS = %w[
+    use image
   ].freeze
 
   ANIMATION_ELEMENTS = %w[
@@ -24,6 +32,18 @@ class SvgSanitizer
     href xlink:href src formaction data srcdoc
   ].freeze
 
+  BLOCKED_URL_SCHEMES = /
+    \A(?:javascript|vbscript|livescript|mocha|ecmascript):
+  /ix.freeze
+
+  ALLOWED_DATA_IMAGE_PREFIXES = [
+    'data:image/png',
+    'data:image/jpeg',
+    'data:image/jpg',
+    'data:image/gif',
+    'data:image/webp'
+  ].freeze
+
   DANGEROUS_STYLE_PATTERN = /
     javascript: |
     expression\( |
@@ -32,12 +52,18 @@ class SvgSanitizer
   /ix.freeze
 
   class SvgScrubber < Loofah::Scrubber
+    attr_reader :node_count
+
     def initialize
       @direction = :top_down
+      @node_count = 0
     end
 
     def scrub(node)
       return CONTINUE unless node.element?
+
+      @node_count += 1
+      return STOP if @node_count > SvgSanitizer::MAX_NODES
 
       name = node.name.to_s
       lname = name.downcase
@@ -47,8 +73,12 @@ class SvgSanitizer
         return STOP
       end
 
+      if SvgSanitizer::EXTERNAL_REFERENCE_ELEMENTS.include?(lname)
+        SvgSanitizer.strip_external_reference_attributes(node)
+      end
+
       if SvgSanitizer::ANIMATION_ELEMENTS.include?(lname)
-        target = (node['attributeName'] || node['attributename']).to_s.downcase
+        target = SvgSanitizer.attribute_value(node, 'attributeName').downcase
         if SvgSanitizer::DANGEROUS_ANIMATION_TARGETS.include?(target)
           node.remove
           return STOP
@@ -81,36 +111,67 @@ class SvgSanitizer
     end
   end
 
+  def self.attribute_value(node, name)
+    node.attribute_nodes.each do |attr|
+      return attr.value.to_s if attr.name.to_s.downcase == name.downcase
+    end
+    ''
+  end
+
+  def self.strip_external_reference_attributes(node)
+    URL_ATTRIBUTES.each do |attr_name|
+      value = attribute_value(node, attr_name)
+      next if value.empty?
+      next if value.start_with?('#')
+
+      if value.match?(/\A(?:https?:)?\/\//i) || value.match?(/\Ahttps?:/i)
+        node.attribute_nodes.each do |attr|
+          node.remove_attribute(attr.name) if attr.name.to_s.downcase == attr_name
+        end
+      end
+    end
+  end
+
   def self.safe_url?(value)
     return true if value.empty?
-    return false if value.match?(/\A(?:javascript|vbscript):/i)
-    return false if value.match?(/\Adata:text\/html/i)
+    return false if value.match?(BLOCKED_URL_SCHEMES)
+    return false if value.match?(/\Adata:/i) && !allowed_data_image_url?(value)
 
     true
+  end
+
+  def self.allowed_data_image_url?(value)
+    ALLOWED_DATA_IMAGE_PREFIXES.any? { |prefix| value.downcase.start_with?(prefix) }
   end
 
   def self.svg_content_type?(content_type)
     content_type.to_s.match?(/\Aimage\/svg/i)
   end
 
+  def self.looks_like_svg?(bytes)
+    sample = bytes.to_s.lstrip.byteslice(0, 4096).to_s.downcase
+    sample.include?('<svg') && !sample.match?(/<!doctype\s+html|<html[\s>]/)
+  end
+
   def self.sanitize(input)
     bytes = input.to_s.b
     return failure('empty') if bytes.empty?
     return failure('too_large') if bytes.bytesize > MAX_BYTES
+    return failure('html_document') if bytes.lstrip.match?(/\A(?:<!doctype\s+html|<html[\s>])/i)
 
-    doc = Loofah.xml_document(bytes)
+    doc = parse_svg_document(bytes)
+    return doc if doc.is_a?(Hash)
+
     root = doc.root
-    return failure('no_svg_root') unless root && root.name.to_s.downcase == 'svg'
+    return failure('no_svg_root') unless svg_root?(root)
 
-    original = doc.to_xml(
-      save_with: Nokogiri::XML::Node::SaveOptions::AS_XML |
-                 Nokogiri::XML::Node::SaveOptions::NO_DECLARATION
-    ).rstrip
-    doc.scrub!(SvgScrubber.new)
-    sanitized = doc.to_xml(
-      save_with: Nokogiri::XML::Node::SaveOptions::AS_XML |
-                 Nokogiri::XML::Node::SaveOptions::NO_DECLARATION
-    ).rstrip
+    loofah_doc = Loofah.xml_document(serialize_document(doc))
+    original = serialize_loofah_document(loofah_doc)
+    scrubber = SvgScrubber.new
+    loofah_doc.scrub!(scrubber)
+    return failure('too_many_nodes') if scrubber.node_count > MAX_NODES
+
+    sanitized = serialize_loofah_document(loofah_doc)
 
     {
       ok: true,
@@ -122,15 +183,62 @@ class SvgSanitizer
     failure("invalid_xml: #{e.message}")
   end
 
+  def self.parse_svg_document(bytes)
+    doc = Nokogiri::XML(bytes) do |config|
+      config.nonet.noent.strict
+    end
+    if doc.errors.any? { |err| err.fatal? || err.error? }
+      return failure('invalid_xml')
+    end
+    doc
+  end
+
+  def self.svg_root?(node)
+    return false unless node && node.name.to_s.downcase == 'svg'
+
+    ns = node.namespace&.href
+    ns.nil? || ns == SVG_NAMESPACE
+  end
+
+  def self.serialize_loofah_document(doc)
+    doc.to_xml(
+      save_with: Nokogiri::XML::Node::SaveOptions::AS_XML |
+                 Nokogiri::XML::Node::SaveOptions::NO_DECLARATION
+    ).rstrip
+  end
+
+  def self.serialize_document(doc)
+    doc.to_xml(
+      save_with: Nokogiri::XML::Node::SaveOptions::AS_XML |
+                 Nokogiri::XML::Node::SaveOptions::NO_DECLARATION
+    ).rstrip
+  end
+
   def self.decode_data_uri_payload(data_uri)
     str = data_uri.to_s
     return nil unless str.match?(/\Adata:image\/svg\+xml/i)
 
     payload = str.sub(/\Adata:[^,]*,/, '')
     if str.match?(/;base64,/i)
-      Base64.decode64(payload)
+      Base64.strict_decode64(payload)
     else
-      CGI.unescape(payload)
+      URI.decode_www_form_component(payload)
+    end
+  rescue StandardError
+    nil
+  end
+
+  def self.decode_image_data_uri_payload(data_uri)
+    str = data_uri.to_s
+    return nil unless str.match?(/\Adata:image\//i)
+
+    return decode_data_uri_payload(str) if str.match?(/\Adata:image\/svg\+xml/i)
+
+    payload = str.sub(/\Adata:[^,]*,/, '')
+    if str.match?(/;base64,/i)
+      Base64.strict_decode64(payload)
+    else
+      URI.decode_www_form_component(payload)
     end
   rescue StandardError
     nil
@@ -140,7 +248,7 @@ class SvgSanitizer
     if base64
       "data:image/svg+xml;base64,#{Base64.strict_encode64(bytes)}"
     else
-      "data:image/svg+xml,#{CGI.escape(bytes)}"
+      "data:image/svg+xml,#{ERB::Util.url_encode(bytes)}"
     end
   end
 

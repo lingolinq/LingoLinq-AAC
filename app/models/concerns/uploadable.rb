@@ -4,6 +4,9 @@ require 'uri'
 module Uploadable
   extend ActiveSupport::Concern
 
+  # Worker/job argument: upload bytes from settings['data_uri'] instead of fetching a URL.
+  UPLOAD_FROM_STORED_DATA_URI = '__upload_stored_data_uri__'
+
   # Max size for data URIs stored in DB when S3 upload fails. Prevents DB bloat from large images.
   # 512KB is enough for typical button images (400x400) but blocks oversized photos.
   DATA_URI_STORE_MAX_BYTES = 512 * 1024
@@ -93,13 +96,13 @@ module Uploadable
     # If there's no client to handle remote upload, go ahead and unmark it as
     # pending and schedule a bg job to download server-side
     if !remote_upload_possible && self.settings['pending']
-      if self.settings['pending_url']
+      if self.settings['pending_url'].present?
         self.settings['pending'] = false
-        self.url = self.settings['pending_url']
-        @upload_to_remote_arg = self.settings['pending_url']
-      elsif self.settings['data_uri'] && requires_server_sanitized_upload?
+        self.url = self.settings['pending_url'].to_s
+        @upload_to_remote_arg = self.settings['pending_url'].to_s
+      elsif !self.url && self.settings['data_uri'].present? && requires_server_sanitized_upload?
         self.settings['pending'] = false
-        @upload_to_remote_arg = 'data_uri'
+        @upload_to_remote_arg = UPLOAD_FROM_STORED_DATA_URI
       end
     end
     # TODO: check if it's a protected image (i.e. lessonpix) and download a cached
@@ -109,7 +112,12 @@ module Uploadable
   end
 
   def requires_server_sanitized_upload?
-    file_type == 'images' && SvgSanitizer.svg_content_type?(self.settings['content_type'])
+    return false unless file_type == 'images'
+    return true if SvgSanitizer.svg_content_type?(self.settings['content_type'])
+    return true if self.settings['data_uri'].to_s.match?(/\Adata:image\/svg\+xml/i)
+
+    stored = self.data if respond_to?(:data)
+    stored.to_s.match?(/\Adata:image\/svg\+xml/i)
   end
   
   def check_for_removable
@@ -220,17 +228,25 @@ module Uploadable
     res  
   end
   
-  def upload_to_remote(url, rasterize=false)
+  def upload_to_remote(source, rasterize=false)
     raise "must have id first" unless self.id
     self.settings['pending_url'] = nil
-    url = self.settings['data_uri'] if url == 'data_uri'
+    url = resolve_upload_source(source)
+    unless url
+      record_upload_rejection(source, 'missing_upload_source')
+      return
+    end
     file = Tempfile.new(["stash", rasterize ? ".svg" : ""])
     file.binmode
     if url.match(/^data:/)
       self.settings['content_type'] = url.split(/;/)[0].split(/:/)[1]
       payload = decode_data_uri_body(url)
       if payload.nil?
-        reject_svg_upload(url, 'invalid_data_uri')
+        record_upload_rejection(url, 'invalid_data_uri')
+        return
+      end
+      if payload.bytesize > SvgSanitizer::MAX_BYTES
+        record_upload_rejection(url, 'too_large')
         return
       end
       file.write(payload)
@@ -241,8 +257,17 @@ module Uploadable
       re = /^image/ if file_type == 'images'
       re = /^video/ if file_type == 'videos'
       if res.success? && res.headers['Content-Type'].match(re)
-        self.settings['content_type'] = res.headers['Content-Type']
-        file.write(res.body)
+        body = res.body.to_s
+        if body.bytesize > SvgSanitizer::MAX_BYTES
+          record_upload_rejection(url, 'too_large')
+          return
+        end
+        if file_type == 'images' && SvgSanitizer.looks_like_svg?(body)
+          self.settings['content_type'] = 'image/svg+xml'
+        else
+          self.settings['content_type'] = res.headers['Content-Type']
+        end
+        file.write(body)
 
         if file_type == 'images' && !self.settings['width']
           identify_data = `identify -verbose #{file.path}`
@@ -258,8 +283,7 @@ module Uploadable
           end
         end
       else
-        self.settings['errored_pending_url'] = url
-        self.save
+        record_upload_rejection(url, 'fetch_failed')
         return
       end
     end
@@ -330,25 +354,35 @@ module Uploadable
   end
 
   def decode_data_uri_body(data_uri)
-    content_type = data_uri.split(/;/)[0].split(/:/)[1]
-    if SvgSanitizer.svg_content_type?(content_type)
-      SvgSanitizer.decode_data_uri_payload(data_uri)
+    SvgSanitizer.decode_image_data_uri_payload(data_uri)
+  end
+
+  def resolve_upload_source(source)
+    if source == UPLOAD_FROM_STORED_DATA_URI
+      stored = self.settings['data_uri'].presence
+      stored ||= (respond_to?(:data) ? self.data : nil)
+      return stored if stored.to_s.match?(/\Adata:/)
+
+      nil
     else
-      data = data_uri.split(/,/)[1]
-      Base64.strict_decode64(data)
+      source.to_s
     end
-  rescue StandardError
-    nil
   end
 
   def sanitize_stored_image_file!(file, source_url)
     return true unless file_type == 'images'
-    return true unless SvgSanitizer.svg_content_type?(self.settings['content_type'])
 
     file.rewind
-    result = SvgSanitizer.sanitize(file.read)
+    body = file.read
+    file.rewind
+    svg = SvgSanitizer.svg_content_type?(self.settings['content_type']) || SvgSanitizer.looks_like_svg?(body)
+    return true unless svg
+
+    self.settings['content_type'] = 'image/svg+xml' if SvgSanitizer.looks_like_svg?(body)
+
+    result = SvgSanitizer.sanitize(body)
     unless result[:ok]
-      reject_svg_upload(source_url, result[:error])
+      record_upload_rejection(source_url, result[:error])
       return false
     end
 
@@ -363,11 +397,68 @@ module Uploadable
     true
   end
 
-  def reject_svg_upload(source_url, reason=nil)
-    self.settings['errored_pending_url'] = source_url
-    Rails.logger.warn("SvgSanitizer rejected upload for #{self.class.name} #{self.global_id}: #{reason}")
-    self.save
+  def verify_stored_s3_upload!(s3_url)
+    return true unless file_type == 'images'
+
+    body = fetch_uploaded_object_body(s3_url)
+    return true if body.nil? || body.empty?
+    return true unless SvgSanitizer.looks_like_svg?(body)
+
+    result = SvgSanitizer.sanitize(body)
+    unless result[:ok]
+      Rails.logger.warn("Rejected stored SVG upload for #{self.class.name} #{self.global_id}: #{result[:error]}")
+      return false
+    end
+
+    self.settings['content_type'] = 'image/svg+xml'
+    return true unless result[:changed]
+
+    replace_stored_upload_body!(result[:bytes], 'image/svg+xml')
   end
+
+  def fetch_uploaded_object_body(s3_url)
+    res = Typhoeus.get(s3_url)
+    return nil unless res.success?
+
+    body = res.body.to_s
+    return nil if body.bytesize > SvgSanitizer::MAX_BYTES
+
+    body
+  end
+
+  def replace_stored_upload_body!(bytes, content_type)
+    file = Tempfile.new(['stash', '.svg'])
+    file.binmode
+    file.write(bytes)
+    file.rewind
+    params = remote_upload_params(false)
+    post_params = params[:upload_params]
+    post_params['Content-Type'] = content_type
+    post_params[:file] = file
+    res = Typhoeus.post(params[:upload_url], body: post_params)
+    file.close
+    unless res.success?
+      Rails.logger.warn("Failed to replace sanitized SVG for #{self.class.name} #{self.global_id}")
+      return false
+    end
+    true
+  ensure
+    file.unlink if file
+  end
+
+  def record_upload_rejection(source_url, reason=nil)
+    safe_source = source_url.to_s.gsub(/[\r\n]/, '')[0, 500]
+    safe_reason = reason.to_s.gsub(/[\r\n]/, '')[0, 200]
+    self.settings['errored_pending_url'] = safe_source unless safe_source == UPLOAD_FROM_STORED_DATA_URI
+    self.settings['errored_pending_url'] ||= self.settings['data_uri']
+    Rails.logger.warn("Upload rejected for #{self.class.name} #{self.global_id}: #{safe_reason}")
+    save(validate: false)
+  rescue StandardError => e
+    Rails.logger.error("Upload rejection save failed for #{self.class.name} #{self.global_id}: #{e.class}: #{e.message}")
+  end
+
+  # Backward-compatible alias for callers/tests.
+  alias_method :reject_svg_upload, :record_upload_rejection
 
   module ClassMethods
     def assert_cached_copies(urls)

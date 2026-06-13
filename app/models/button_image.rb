@@ -166,11 +166,19 @@ class ButtonImage < ApplicationRecord
     lib
   end
   
-  # Sanitize an `image/svg+xml` data: URI payload. Returns a cleaned data URI,
-  # or nil when the payload cannot be sanitized.
-  def self.sanitize_svg_data_uri(data_uri)
-    result = SvgSanitizer.sanitize_data_uri(data_uri)
-    result[:ok] ? result[:data_uri] : nil
+  # Sanitize a stored image data: URL (including content-type spoofing).
+  def self.sanitize_stored_data_url(data_url)
+    payload = SvgSanitizer.decode_image_data_uri_payload(data_url)
+    return nil unless payload
+    return data_url unless data_url.to_s.match?(/\Adata:image\/svg\+xml/i) || SvgSanitizer.looks_like_svg?(payload)
+
+    result = SvgSanitizer.sanitize(payload)
+    return nil unless result[:ok]
+
+    base64 = data_url.to_s.match?(/;base64,/i)
+    return data_url if !result[:changed] && data_url.to_s.match?(/\Adata:image\/svg\+xml/i)
+
+    SvgSanitizer.encode_data_uri_payload(result[:bytes], base64: base64)
   end
 
   def process_params(params, non_user_params)
@@ -200,8 +208,8 @@ class ButtonImage < ApplicationRecord
       # ever served / opened as a document) so it's never stored.
       data_url = nil if data_url.to_s.match(/\Adata:/i) && !data_url.to_s.match(/\Adata:image\//i)
       # Sanitize SVG data: URIs — strip scriptable content while keeping static symbols.
-      if data_url.present? && data_url.to_s.match(/\Adata:image\/svg\+xml/i)
-        data_url = ButtonImage.sanitize_svg_data_uri(data_url)
+      if data_url.present?
+        data_url = ButtonImage.sanitize_stored_data_url(data_url)
       end
       if data_url.present?
         self.data = data_url

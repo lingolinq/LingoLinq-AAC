@@ -344,7 +344,7 @@ describe ButtonImage, :type => :model do
       data_url = 'data:image/svg+xml,' + CGI.escape('<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>')
       i = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml', 'data_uri' => data_url, 'license' => { 'type' => 'private' } })
       expect(i.settings['pending']).to eq(false)
-      expect(Worker.scheduled?(ButtonImage, 'perform_action', { 'id' => i.id, 'method' => 'upload_to_remote', 'arguments' => ['data_uri'] })).to eq(true)
+      expect(Worker.scheduled?(ButtonImage, 'perform_action', { 'id' => i.id, 'method' => 'upload_to_remote', 'arguments' => [Uploadable::UPLOAD_FROM_STORED_DATA_URI] })).to eq(true)
     end
   end
    
