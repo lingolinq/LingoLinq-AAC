@@ -715,7 +715,7 @@
       "lastSeen": "2026-06-12",
       "owner": "unassigned",
       "remediation": {
-        "options": "Migrate remaining call sites to explicit permit(:fields). Do not refactor working code wholesale.",
+        "options": "Migrate call sites to explicit permit(:fields) in new code; do not refactor working code wholesale (April guidance).",
         "timeframe": "90d"
       },
       "closureEvidence": {
@@ -723,7 +723,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Largely remediated 2026-06-12: down from the April '40+ occurrences' to 2 call sites (organizations_controller.rb:866, supervisor_relationships_controller.rb:37); application_controller.rb:91 now carries an explicit do-not-use note. Severity reduced to low."
+      "notes": "Verified still open 2026-06-12: the guarded idiom `X.permit! if X.is_a?(ActionController::Parameters)` remains widespread (~43 call sites across API controllers; the April '40+ occurrences' characterization still holds and is NOT reduced). Rated low on impact, not prevalence: models do their own input filtering so this is a defense-in-depth gap, and application_controller.rb:91 now carries an explicit do-not-globally-permit note. Anchored at organizations_controller.rb:866 as one representative unguarded `.permit!.to_h`."
     },
     {
       "id": "LL-ce00c8d3ad",

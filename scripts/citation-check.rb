@@ -59,6 +59,7 @@ register = JSON.parse(File.read(register_path))
 meta = register['meta'] || {}
 findings = register['findings'] || []
 audited_sha = meta['auditedSha']
+$audited_sha = audited_sha
 
 # Normalize whitespace so snippet matching survives reindentation: trim ends and
 # collapse internal runs of whitespace to a single space.
@@ -109,6 +110,13 @@ def check_finding(finding)
     return result.merge(verdict: 'FAIL', reason: 'active code/doc finding is missing evidence.file or evidence.snippet')
   end
 
+  # The register pins evidence to a commit. If meta.auditedSha is set, an active finding
+  # MUST carry a non-empty evidence.sha; otherwise file_at_sha would silently validate
+  # against the working tree / HEAD instead of the audited commit.
+  if !$audited_sha.to_s.empty? && ev['sha'].to_s.empty?
+    return result.merge(verdict: 'FAIL', reason: "active finding has empty evidence.sha but meta.auditedSha is set (#{$audited_sha})")
+  end
+
   contents = file_at_sha(file, ev['sha'])
   return result.merge(verdict: 'FAIL', reason: "file not found at sha: #{file}@#{ev['sha']}") if contents.nil?
 
@@ -123,16 +131,26 @@ def check_finding(finding)
   end
 
   recorded = ev['line']
-  # A snippet may legitimately occur more than once (e.g. the same env-var key under
-  # both the web and worker services). Anchor to the occurrence nearest the recorded
-  # line so an ambiguous one-line snippet does not read as drift.
-  matched_line = recorded ? matches.min_by { |m| (m - recorded).abs } : matches.first
-
-  if recorded && (matched_line - recorded).abs > LINE_DRIFT_TOLERANCE
-    return result.merge(verdict: 'PASS', warning: "line drift: recorded #{recorded}, found at #{matched_line}", matchedLine: matched_line)
+  # When a line is recorded, the snippet MUST appear within tolerance of it. A snippet can
+  # legitimately occur more than once (e.g. the same env-var key under the web and worker
+  # services), so we anchor to the nearest occurrence and require that occurrence to be at
+  # the cited line; an occurrence that is far away means the citation points at the wrong
+  # instance (or the code moved), which is a FAIL, not a pass-with-warning. This is the
+  # guarantee the register's README makes: the snippet is really at the cited file:line.
+  if recorded
+    matched_line = matches.min_by { |m| (m - recorded).abs }
+    if (matched_line - recorded).abs > LINE_DRIFT_TOLERANCE
+      occ = matches.size > 1 ? " (snippet occurs at lines #{matches.join(', ')})" : ''
+      return result.merge(verdict: 'FAIL', matchedLine: matched_line,
+                          reason: "snippet not at cited line #{recorded}; nearest occurrence is line #{matched_line}#{occ}")
+    end
+    res = result.merge(verdict: 'PASS', matchedLine: matched_line)
+    # Ambiguity is acceptable only because the recorded line disambiguates; surface it.
+    res = res.merge(warning: "snippet is non-unique (lines #{matches.join(', ')}); anchored by cited line #{recorded}") if matches.size > 1
+    return res
   end
 
-  result.merge(verdict: 'PASS', matchedLine: matched_line)
+  result.merge(verdict: 'PASS', matchedLine: matches.first)
 end
 
 # ---- render mode: FINDINGS.md from the JSON --------------------------------------
