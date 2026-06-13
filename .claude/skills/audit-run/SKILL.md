@@ -48,7 +48,8 @@ duplicating." Collect each finder's JSON `{domain, auditedSha, findings:[...]}`.
 > RETIRED from the fan-out (Phase 2): `ember-stabilization` and `rails-upgrade` (migration-era,
 > shipped) and the 0-100 `mvp-readiness` score (decision 5.9.2: the headline is now the count of
 > open Critical/High findings, not a synthetic score). The legacy top-level
-> `skills/`, `subagents/`, `workflows/` dirs are deprecated; see their READMEs.
+> `skills/`, `subagents/`, `workflows/` dirs were removed in Phase 2; their content was
+> migrated into this `.claude/` layout.
 
 ## Step 3: Reconcile into the register (deterministic)
 Write each finder's output to a temp JSON file, then run the merge helper. It computes the

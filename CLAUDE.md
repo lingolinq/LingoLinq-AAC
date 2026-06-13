@@ -408,8 +408,8 @@ See docs/CODE_INVESTIGATION.md for detailed debugging guidance on common problem
 This repo includes an audit orchestration system for continuous code quality, compliance, and
 security-posture assessment. As of the Audit/Compliance Modernization (Phase 2, 2026-06), it
 lives in the supported Claude Code layout under `.claude/` and is driven by the findings
-register. The legacy top-level `skills/`, `subagents/`, and `workflows/` dirs are DEPRECATED
-(see their READMEs) and retained only for history.
+register. The legacy top-level `skills/`, `subagents/`, and `workflows/` dirs were removed in
+Phase 2; their content was migrated into the `.claude/` layout below.
 
 ### Directory Layout (current)
 | Path | Purpose |
@@ -421,7 +421,6 @@ register. The legacy top-level `skills/`, `subagents/`, and `workflows/` dirs ar
 | `audit-reports/FINDINGS.json` + `FINDINGS.md` | The findings register: single source of truth |
 | `scripts/citation-check.rb` | Mechanical evidence validator (snippet exists at SHA) |
 | `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
-| `skills/`, `subagents/`, `workflows/` (top-level) | DEPRECATED legacy system; do not use |
 
 ### Running a Full Audit
 1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the four
