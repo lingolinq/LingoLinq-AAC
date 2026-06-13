@@ -24,6 +24,19 @@ is a dated snapshot of what was true on its date. Do **not** treat a finding lis
 older report as live without checking the register; statuses there were verified against
 live code at the register's `auditedSha`, the older prose was not.
 
+## How findings are generated (Phase 2)
+
+The register is fed by the `/audit-run` orchestrator skill (`.claude/skills/audit-run/`), not
+by hand. It stamps the audited commit SHA, fans out the read-only finder agents
+(`.claude/agents/{privacy,infra,api,dependency}-auditor.md`), reconciles their output into this
+register via `scripts/audit-merge.rb`, runs the `adversary` agent as an independent verifier,
+and validates every citation with `scripts/citation-check.rb`. Governance is enforced
+mechanically: `audit-merge.rb` only ever ADDS findings or marks them `open`; it never closes,
+downgrades, or accepts risk. **Only Scot** moves a finding to `verified-closed`/`accepted-risk`
+(and `closureEvidence.attestation` stays empty until he signs). A previously-closed finding that
+a finder re-surfaces is flagged `regression: true` for adversary review and a Scot decision,
+never silently reopened or reclosed.
+
 ## Seed (folded into the register)
 
 | File | Status |
@@ -57,5 +70,6 @@ their statuses as current.
 - Plans and strategy docs live in `ai-company-brain/outputs/`, not here.
 - Only Scot closes a finding, downgrades severity, or accepts risk; `closureEvidence.attestation` stays empty until he signs.
 
-_Phase 1 "Foundation" of the Audit/Compliance System Modernization. Agents, the `/audit-run`
-orchestrator, and the one-way Notion publish are Phases 2-3 and are not present yet._
+_Phase 1 "Foundation" + Phase 2 "Agent migration" of the Audit/Compliance System Modernization.
+The read-only finder agents and the `/audit-run` orchestrator ship in Phase 2 (see "How findings
+are generated" above and the repo CLAUDE.md). The one-way Notion publish remains Phase 3._
