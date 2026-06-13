@@ -1,7 +1,7 @@
 ---
 name: dependency-auditor
 description: Read-only dependency freshness and vulnerability finder for LingoLinq-AAC. Audits Gemfile/Gemfile.lock and package.json/package-lock.json for outdated, vulnerable, abandoned, and lockfile-drifted dependencies; emits register-shaped findings. Never edits code or installs anything. Spawned by the /audit-run orchestrator.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: sonnet
 memory: project
 skills:

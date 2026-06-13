@@ -78,17 +78,29 @@ exec ruby -rjson -e '
     [ /(?<![\w\/-])(python3?|node|nodejs|ruby|perl|php|deno|bun|Rscript)\b[^|]*(\s-(?:\s|$)|<<)/, "interpreter stdin/heredoc can write files" ],
     [ /(?<![\w\/-])(npx|bunx|pnpx|make|just|task|gulp|grunt|mvn|gradle|rake)\b/, "task runner / npx can run arbitrary writes" ],
     [ /(?<![\w\/-])(deno|bun)\s+(eval|run|repl|install|add|task)\b/, "deno/bun eval/run can write files" ],
+    # Pipe-to-shell / fetch-and-exec is the dominant remaining denylist bypass
+    # (`curl ... | bash`, `base64 -d | sh`, `... | python`). Catch a pipe into any shell or
+    # interpreter, plus `eval`/`source` and `sh -c`/`bash -c` which run an arbitrary string.
+    [ /\|\s*(sudo\s+)?(sh|bash|zsh|dash|ksh|fish|python3?|node|nodejs|ruby|perl|php|deno|bun)\b/, "pipe into a shell/interpreter can execute fetched code" ],
+    [ /(?<![\w-])(eval|source)\s/, "eval/source executes arbitrary code" ],
+    [ /(?<![\w\/-])(sh|bash|zsh|dash|ksh)\s+-[a-z]*c\b/, "shell -c executes an arbitrary command string" ],
     # Negative lookbehind for [\w-] so command flags like `docker run --rm` or
     # `--install` are not mistaken for the `rm`/`install` commands themselves.
     [ /(?<![\w-])(rm|rmdir|unlink|shred|truncate|dd)\b/,"file deletion/truncation" ],
     [ /(?<![\w-])(mv|cp|install|ln)\b/,         "moves/copies/links write the target" ],
     [ /(?<![\w-])(mkdir|touch|mktemp)\b/,       "creates files/directories" ],
     [ /(?<![\w-])(chmod|chown|chgrp|chflags)\b/,"changes file permissions/ownership" ],
-    [ /\bfind\b[^|]*\s-(delete|exec|execdir|fprint|fprintf)\b/, "find with a mutating action" ],
+    # find: block the mutating actions, but allow a read-only `-exec grep/cat {} +`. Only deny
+    # -exec when it runs a known mutating command (so finders can still fan grep/cat over results).
+    [ /\bfind\b[^|]*\s-(delete|fprint|fprintf)\b/, "find with a mutating action (-delete/-fprint)" ],
+    [ /\bfind\b[^|]*-exec(dir)?\s+(rm|rmdir|mv|cp|tee|truncate|dd|sed|chmod|chown|ln|sh|bash|python3?|ruby|perl)\b/, "find -exec runs a mutating command" ],
     [ /\bxargs\b[^|]*\s(rm|mv|cp|tee|sed|truncate|dd)\b/, "xargs into a mutating command" ],
     # git: mutating subcommands only (read subcommands like log/show/diff/status/grep/ls-files
     # stay allowed). git_pre tolerates global options (`git -c k=v commit`, `git --no-pager push`).
-    [ /\bgit\s+#{git_pre}(add|commit|push|reset|checkout|restore|switch|rm|mv|merge|rebase|cherry-pick|clean|stash|revert|apply|am|tag|branch|fetch|pull|remote|config|init|worktree|gc|prune|filter-branch|update-ref|notes)\b/, "mutating git subcommand" ],
+    # `fetch` is intentionally NOT denied: it only downloads objects (no working-tree/index
+    # change) and finders legitimately need it for remote-ref drift checks. `pull` stays denied
+    # (it merges into the working tree).
+    [ /\bgit\s+#{git_pre}(add|commit|push|reset|checkout|restore|switch|rm|mv|merge|rebase|cherry-pick|clean|stash|revert|apply|am|tag|branch|pull|remote|config|init|worktree|gc|prune|filter-branch|update-ref|notes)\b/, "mutating git subcommand" ],
     # gh: mutating subcommands and non-GET api calls (tolerate global opts too)
     [ /\bgh\s+#{git_pre}(pr|issue|release|repo|gist|secret|workflow|run|label|api)\b.*\b(create|merge|close|edit|comment|delete|review|reopen|lock|unlock|rerun|cancel|dispatch|sync|set|add|remove)\b/, "mutating gh command" ],
     [ /\bgh\s+api\b[^|]*-X\s*(POST|PUT|PATCH|DELETE)/i, "gh api non-GET write" ],

@@ -1,7 +1,7 @@
 ---
 name: privacy-auditor
 description: Read-only GDPR/FERPA/COPPA/HIPAA privacy finder for LingoLinq-AAC. Scans code for PII handling, access control, retention, export/deletion, and consent gaps; emits register-shaped findings. Never edits code or data. Spawned by the /audit-run orchestrator.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: opus
 memory: project
 skills:

@@ -1,7 +1,7 @@
 ---
 name: api-auditor
 description: Read-only API contract finder for LingoLinq-AAC. Verifies Ember Data models, adapters, and serializers agree with Rails serializers, controllers, and routes on payload shape, casing, pagination, and error format; emits register-shaped findings. Never edits code. Spawned by the /audit-run orchestrator.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: sonnet
 memory: project
 skills:
