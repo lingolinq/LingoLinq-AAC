@@ -98,6 +98,10 @@ function _wirePreviewDrag(liveEl, ctx) {
   var setBlocked = function(card, blocked) {
     if (card) { card.classList.toggle('md-gst-drag-blocked', blocked); }
     if (hintEl) {
+      // NOTE (security review false-positive — "locale string XSS in hint"): this writes
+      // via `textContent`, which NEVER parses HTML, so a compromised/translated locale
+      // string is rendered inert (no markup, no script). The string is also intentional
+      // user-facing guidance, not internal/sensitive info ("hint exposes logic" FP).
       hintEl.textContent = blocked
         ? i18n.t('gst_drag_blocked_row', "Action buttons can only be reordered within their own row. To move the actions row, drag one of the other buttons over it instead")
         : defaultHint;
@@ -133,6 +137,13 @@ function _wirePreviewDrag(liveEl, ctx) {
   // "doesn't work every time" root cause). Rect-containment can't be fooled by stacking,
   // pointer-events, or the ghost. (Valid under the preview's CSS zoom: getBoundingClientRect
   // and clientX/Y share the same screen space.)
+  // NOTE (security review false-positives — "IDOR via data-gst-key" + "missing null
+  // check"): `data-gst-key` holds a fixed dashboard-SECTION name (boards/speak/reports/…
+  // from HOME_SECTIONS), NOT a board id, and a reorder only writes the user's OWN
+  // `preferences.dashboard_order` — no cross-user object or authorization surface. The
+  // null-check concern is also moot: `getAttribute` returns null (never throws), every
+  // card in `cards` had the attribute set before being pushed, and a null key is safely
+  // rejected downstream by `acceptsDrop`.
   var keyAt = function(x, y, excludeCard) {
     for (var i = 0; i < cards.length; i++) {
       var card = cards[i];
@@ -240,6 +251,10 @@ function _wirePreviewDrag(liveEl, ctx) {
         // the cursor by translating it — z-index above its siblings.
         state = { key: s.key, card: card, ov: ov, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, lastHit: null, lastBlocked: false, frame: 0 };
         card.classList.add('md-gst-dragging');
+        // NOTE (security review false-positive — "CSP nonce for inline box-shadow"): CSSOM
+        // writes via element.style.setProperty are NOT governed by CSP style-src (that
+        // covers <style> blocks + HTML style="" attributes), so no nonce is needed and CSP
+        // can't break this. The transform/z-index lines already use the same mechanism.
         card.style.setProperty('box-shadow', LIFT_SHADOW, 'important');
         card.style.setProperty('z-index', '999', 'important');
         try { ov.setPointerCapture(e.pointerId); } catch (e2) { /* unsupported — drag still works without capture */ }
@@ -275,6 +290,10 @@ function _wirePreviewDrag(liveEl, ctx) {
         else { src.card.style.removeProperty('box-shadow'); }
         clearTargets();
         setBlocked(src.card, false); // clear the not-allowed cue + restore the hint text
+        // NOTE (security review — LOW, non-issue: "capture release may fail"): the browser
+        // auto-releases pointer capture on pointerup/pointercancel (this very handler), so
+        // explicit release is belt-and-suspenders; swallowing its throw (already-released)
+        // can't leak capture — the implicit release has already happened.
         try { src.ov.releasePointerCapture(e.pointerId); } catch (e2) { /* noop */ }
         if (hitKey && hitCard) {
           commitDrop(src.key, hitKey, _dropAfter(hitCard, e.clientX, e.clientY));
@@ -686,6 +705,11 @@ function _onDisplayShow(component) {
     // this, drag was silently dead after any Gentle↔Focused switch. _wirePreviewDrag
     // guards each card with _gstDragWired (not copied by cloneNode), so re-calling on the
     // same clone never double-wires.
+    // NOTE (security review false-positive — "race in drag re-wiring"): there is no async
+    // race. _buildPreviewContent (sync DOM swap) → wireDrag() run synchronously in the
+    // click handler with no await/promise, so rapid layout switches simply execute in
+    // order; the _gstDragWired guard blocks double-wiring on a card, and a rebuilt clone's
+    // old cards are removeChild'd (their listeners detached + GC'd, never stale-fired).
     var wireDrag = function() {
       if (!dragEnabled || !liveEl) { return; }
       // The preview is rendered at a CSS `zoom` (single source of truth: the

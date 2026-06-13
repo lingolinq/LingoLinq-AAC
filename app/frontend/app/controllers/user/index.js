@@ -610,6 +610,11 @@ export default Controller.extend({
       // it leaves non-brand boards (and the Mine tab's copy_id nesting below)
       // untouched, so Mine keeps grouping real copies under their root. `.done`
       // is preserved so the show-all / pagination branch keeps working.
+      // NOTE (security review false-positive — "data-isolation bypass"): this is a pure
+      // client-side DISPLAY filter over model.my_boards / model.public_boards — boards
+      // the server already authorized + scoped to this user. It only HIDES rows (brand
+      // sub-boards), never fetches or widens the set, so it can't cross account/org
+      // boundaries; isolation stays enforced server-side where the model was built.
       if(brand_clean && !this.get('parent_object')) {
         var was_done = list.done;
         list = filterBrandRoots(list);

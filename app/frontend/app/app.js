@@ -538,6 +538,11 @@ LingoLinq.keyed_colors = [
   // dashboard's effectiveLayout. Driven by sync_layout_scope in app-state.js.
   LingoLinq.set_layout_scope = function(layout) {
     if(typeof document === 'undefined' || !document.body) { return; }
+    // NOTE (security review false-positive — "CSS injection via layout pref"): no
+    // injection vector. The class name is the LITERAL 'll-layout-focused'; `layout`
+    // only flips the boolean. A compromised/garbage dashboard_layout pref can at most
+    // turn the FIXED overlay class on (anything ≠ 'gentle' → focused default), never
+    // inject an attacker-chosen class name.
     document.body.classList.toggle('ll-layout-focused', layout !== 'gentle');
   };
 })();

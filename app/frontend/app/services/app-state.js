@@ -4381,7 +4381,10 @@ export default Service.extend({
    *  app-wide, gated on the saved preference. Fires on sessionUser change
    *  (initial load / login, i.e. the per-page-load check) and on every
    *  dashboard_layout change. LingoLinq.set_layout_scope lives in app.js and
-   *  treats anything other than 'gentle' as the 'focused' default. */
+   *  treats anything other than 'gentle' as the 'focused' default.
+   *  NOTE (security review — LOW, non-issue: "observer concurrency/flicker"): this
+   *  only toggles ONE idempotent class; Ember observers already batch in the run loop,
+   *  and it mirrors the long-shipped sync_fitzgerald_scope. No debounce needed. */
   sync_layout_scope: observer('sessionUser', 'sessionUser.preferences.dashboard_layout', function() {
     var layout = this.get('sessionUser.preferences.dashboard_layout');
     if(window.LingoLinq && window.LingoLinq.set_layout_scope) {

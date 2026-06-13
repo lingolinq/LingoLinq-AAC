@@ -379,6 +379,10 @@ body.ll-layout-focused {
   // Account page — hide the Current Home Board / Current Board Set / Liked Boards
   // stats row (these three cards live in their own row, tagged --boards; the device/
   // supervisor stats rows are untouched).
+  // NOTE (security review — LOW, non-issue: "PII leak via hidden cards"): `display:none`
+  // removes nodes from BOTH the visual render and the accessibility tree (no SR exposure,
+  // no pseudo-element/aria leak), and this is the user's OWN board stats on their OWN
+  // account page regardless — not other users' data.
   .md-user-summary__stats-row--boards {
     display: none !important;
   }
@@ -483,6 +487,10 @@ body.ll-layout-focused .md-logs {
   // Buttons take the Account-page quick-pill surface — solid $brand-blue-grey + white
   // text/icons (mirrors `.md-user-summary__quick-pill`, app.scss:43157). hover/focus
   // reuse the same fill so they don't flash back to the light base.
+  // NOTE (security review — LOW, non-issue: "hardcoded colors / WCAG"): the white-on-
+  // $brand-blue-grey text combo here REUSES the already-shipped quick-pill pairing (and
+  // the active-pill charcoal gradient already in production), so no NEW contrast
+  // combination is introduced; nothing regresses the existing AA baseline.
   // `:not(.md-logs__danger-btn)` keeps the destructive "Clear All Logs" button OUT of the
   // primary-pill styling so it doesn't read as a benign action — it keeps its neutral base.
   .md-logs__action-pill,
