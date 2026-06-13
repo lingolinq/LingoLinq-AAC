@@ -184,12 +184,18 @@
   </span>
   <LaMobileDrawer @isOpen={{this.isDrawerOpen}} @onClose={{action "closeDrawer"}}>
     <div class="la-mobile-drawer__header">{{this.appState.currentUser.name}}</div>
-    <div class="la-mobile-drawer__divider"></div>
     {{#if @showModernDashboardLink}}
       {{#if this.appState.currentUser.user_name}}
-        <LinkTo @route="user.home" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Modern Dashboard" key="modern_dashboard"}}</LinkTo>
+        <LinkTo @route="user.home" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Home Page" key="home_page"}}</LinkTo>
       {{/if}}
     {{/if}}
+    <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Account" key="my_account"}}</LinkTo>
+    <LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Boards" key="my_boards"}}</LinkTo>
+    <LinkTo @route="search" @models={{array "any" "_"}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Find Board" key="find_board"}}</LinkTo>
+    {{#if this.appState.currentUser.permissions.delete}}
+      <a href="#" class="la-mobile-drawer__link" {{action "closeDrawerAndSend" "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
+    {{/if}}
+    <div class="la-mobile-drawer__divider la-mobile-drawer__divider--modern"></div>
     {{#unless this.appState.currentBoardState.id}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "goUpgrade"}}>{{t "Upgrade" key="upgrade"}}</button>
     {{/unless}}
@@ -215,13 +221,6 @@
          the option doesn't surface in the hamburger menu. The
          `toggleThemePicker` / `selectThemeMode` actions stay on
          the application controller for the desktop picker. --}}
-    <div class="la-mobile-drawer__divider"></div>
-    <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Account" key="my_account"}}</LinkTo>
-    <LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Boards" key="my_boards"}}</LinkTo>
-    <LinkTo @route="search" @models={{array "any" "_"}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Find Board" key="find_board"}}</LinkTo>
-    {{#if this.appState.currentUser.permissions.delete}}
-      <a href="#" class="la-mobile-drawer__link" {{action "closeDrawerAndSend" "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
-    {{/if}}
     <a href="#" class="la-mobile-drawer__link" {{action "closeDrawerAndSend" "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a>
   </LaMobileDrawer>
   {{#if this.isCompanySidebarOpen}}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'frontend/tests/helpers/jasmine';
-import rewriteBrokenSymbolUrl from '../../app/utils/symbol-url';
+import rewriteBrokenSymbolUrl from '../../utils/symbol-url';
 
 describe('symbol-url', function() {
   describe('rewriteBrokenSymbolUrl', function() {

@@ -4,6 +4,7 @@
 @use "variables" as *;
 @use "focus" as *;
 @use "eval_quick";
+@use "focused-view";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -28393,6 +28394,21 @@ header.header--unauthenticated ~ #content .la-topbar {
   background: rgba($indigo, 0.08);
   margin: 8px 0;
 }
+/* Modern divider — brand verdigris→navy gradient hairline (fades at both ends),
+   matching the app's modern dividers. Used to separate the user's quick links from
+   the rest of the drawer. */
+.la-mobile-drawer__divider--modern {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba($la-navy, 0) 0%,
+    rgba($brand-verdigris-aa, 0.45) 18%,
+    rgba($la-navy, 0.32) 50%,
+    rgba($brand-verdigris-aa, 0.35) 82%,
+    rgba($la-navy, 0) 100%
+  );
+  margin: 12px 0;
+}
 
 .la-mobile-drawer__footer-note {
   display: block;
@@ -30281,12 +30297,30 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    overridden from CSS; filter is free and also softly clips to the card shape. */
 .md-gst-preview__clone .md-gst-draggable.md-gst-dragging {
   opacity: 0.9;
-  filter: drop-shadow(0 18px 34px rgba(20, 30, 50, 0.30));
+  /* Lift shadow is an inline box-shadow set by JS on grab (composites cheaply on the
+     will-change:transform layer) rather than `filter: drop-shadow`, which forced a
+     filter render pass that re-rasterized the large gradient card as it moved. */
   transition: none !important;
   will-change: transform;
 }
 .md-gst-preview__clone .md-gst-draggable.md-gst-dragging .md-gst-drag-overlay {
   cursor: grabbing !important;
+}
+/* R2 — the user is hovering a drop the active layout forbids (Focused View: an action
+   button dragged out onto a full-width row). Warning outline on the ghost + a not-allowed
+   cursor on the captured overlay; the legend hint simultaneously swaps to say what IS
+   allowed (reorder within the row). The denim dashed outline above = a valid target; this
+   red dashed outline = blocked, so the two never read the same. */
+.md-gst-preview__clone .md-gst-draggable.md-gst-dragging.md-gst-drag-blocked {
+  outline: 2px dashed rgba($brand-danger, 0.85);
+  outline-offset: 2px;
+}
+.md-gst-preview__clone .md-gst-draggable.md-gst-dragging.md-gst-drag-blocked .md-gst-drag-overlay {
+  cursor: not-allowed !important;
+}
+.md-gst-preview__legend-hint--blocked {
+  color: $brand-danger;
+  font-weight: 600;
 }
 /* Every card that will be SWAPPED OUT by the current drop lights up — not just the
    one under the cursor (e.g. both cards a Boards mirror displaces). Outline only (no
@@ -41689,7 +41723,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 /* User page: same minimal active pill (LinkTo adds .active) */
-.md-pillnav--user a.md-pillnav__pill.active {
+.md-pillnav--user a.md-pillnav__pill.active,
+.md-pillnav--user a.md-pillnav__pill.is-active {
   background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue) !important;
 
   color: #fff !important;
@@ -41699,12 +41734,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 
 }
-.md-pillnav--user a.md-pillnav__pill.active:not(:first-child) {
+.md-pillnav--user a.md-pillnav__pill.active:not(:first-child),
+.md-pillnav--user a.md-pillnav__pill.is-active:not(:first-child) {
   border-left: none !important;
 
   margin-left: 0 !important;
 
-  padding-left: 16px !important;
+  padding-left: 18px !important;
 
 }
 .md-pillnav--user a.md-pillnav__pill.active .md-pillnav__badge,
@@ -43000,6 +43036,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: var(--md-r-lg, 22px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
 }
+/* Larger screens — more breathing room on the left/right of the user hero card. */
+@media (min-width: 768px) {
+  .md-hero--user {
+    padding-left: 88px !important;
+    padding-right: 88px !important;
+  }
+}
 .md-hero--user__avatar-wrap {
   position: relative;
   flex-shrink: 0;
@@ -43047,10 +43090,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 0;
-  margin: 0 0 2px;
+  /* Larger top gap separating the org info from the username row / divider above. */
+  margin: 16px 0 2px;
 }
 .md-hero--user__location-row {
-  margin: 0 0 4px;
+  /* Pulled up so the location sits closer to the "User in <org>" line above. */
+  margin: -6px 0 4px;
 }
 .md-hero--user__detail-sep {
   display: inline-block;
@@ -43061,6 +43106,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   opacity: 0.65;
   margin: 0 12px;
   vertical-align: middle;
+}
+/* Username-row divider — the focused badge-action card's title underline gradient
+   (denim → verdigris, fading off to the right via the mask), shown under the
+   name/username row on the account page. */
+.md-hero--user__name-divider {
+  display: block;
+  width: 260px;
+  max-width: 100%;
+  height: 3px;
+  margin-top: 8px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, $brand-dusty-denim, $brand-verdigris);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 75%, transparent 100%);
 }
 .md-hero--user__username {
   font-size: 18px;
@@ -45491,18 +45550,42 @@ a.md-goal-nav-action:hover,
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+/* Status pill — moved beneath the org info; shows only the status value (public/
+   private) as a globe/lock + capitalized label in a soft pill. */
+.md-hero--user__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba($brand-blue-black, 0.04);
+  border: 1px solid rgba($brand-blue-black, 0.08);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--md-muted);
+  text-transform: capitalize;
+}
+.md-hero--user__status--public::before { content: "🌐"; }
+.md-hero--user__status--private::before { content: "🔒"; }
 /* ~6% larger than base (25% up then 15% down) for user summary stat cards */
 .md-user-summary__stats-row .ub-boards-page__stat-label {
   font-size: 14px;
 }
 .md-user-summary__stats-row .ub-boards-page__stat-value {
   font-size: 1.5rem;
+  /* Long board keys (e.g. user/board paths) have no spaces — let them break so they
+     wrap inside the stat card instead of overflowing its edge. */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .md-user-summary__stats-row .ub-boards-page__badge {
   font-size: 14px;
 }
 .md-user-summary__stats-row .ub-boards-page__stat-link {
   font-size: 14px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .md-user-summary__sub-link .ub-boards-page__stat-link {
   font-size: 14px;
@@ -47044,9 +47127,9 @@ a.md-goal-nav-action:hover,
    stays visible ABOVE the bar (the nav the user navigates with). */
 .md-shell--home:has(.md-grid--layout-focused) .md-hero--dashboard { display: none !important; }
 
-/* (Reports is now removed from the pill-nav in the template via `showReportsPill`
-   — communicators on any layout + everyone on Focused — and surfaced as an Extras
-   card instead, so the old CSS hide here was retired.) */
+/* (Reports now shows in the pill-nav for everyone via `showReportsPill` (always
+   true), on every layout. Communicators ALSO keep a Reports card in Extras, so the
+   old CSS pill-hide stays retired.) */
 
 /* Focused — the Boards card actions: "View All Boards" takes the SAME navy
    `$indigo` OKLAB gradient as the "Hey <name>" bar (white text — its default navy
@@ -58368,6 +58451,14 @@ a.md-goal-nav-action:hover,
     0 12px 28px rgba($la-navy, 0.16),
     0 2px 6px rgba($la-navy, 0.08) !important;
 }
+/* When the "More" dropdown is OPEN, raise its <li> above the board content below.
+   The menu itself is z-index:1080, but the `> li { z-index: 1 }` rule above makes
+   each tab its own stacking context — so without this the menu is capped to that
+   level and the board grid (a later sibling) paints over it. Scoped to `.open`
+   (Bootstrap toggles it on the li) so the closed pills never sit above the navbar. */
+.ub-boards-page__tabs li.dropdown.open {
+  z-index: 1080 !important;
+}
 
 /* Boards-page tab variant — segmented "chip" tabs that read as
    clearly tappable controls (vs. the prior underline-only treatment
@@ -58400,14 +58491,15 @@ a.md-goal-nav-action:hover,
   border: none;
   border-radius: 0;
   box-shadow: none;
-  padding: 0;
+  /* Bottom padding lifts the pills off the row's gradient divider for breathing room. */
+  padding: 0 0 8px;
   /* Tabs no longer carry the row margin — the parent .tabs-row
      does. Allow the tab strip to grow so it occupies all the width
      left of the trailing button. */
   margin: 0;
   flex: 1 1 auto;
   min-width: 0;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 6px;
   position: relative;
 }
@@ -58607,14 +58699,15 @@ a.md-goal-nav-action:hover,
   margin: 0;
   position: relative;
   z-index: 1;
+  /* Each tab shrinks to fit its own content width (not stretched). */
+  flex: 0 0 auto;
 }
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li > a,
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li > .dropdown-toggle {
-  /* File-folder shape — rounded top corners, squared bottom — so
-     tabs read as paper-folder tabs sitting on top of the content
-     area below. Distinct family from the navbar pills (999px) and
-     from rounded-rectangle chip controls. Larger touch targets
-     per AAC accessibility baseline. */
+  /* Pill BUTTONS — matches the board-picker page's board-option pills
+     (rounded 999px, soft white gradient, verdigris glow on hover/active).
+     Replaced the former file-folder tabs. Padding/font kept slightly larger
+     than the picker's for the AAC touch-target baseline. */
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -58622,65 +58715,49 @@ a.md-goal-nav-action:hover,
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.005em;
-  border-radius: 10px 10px 0 0 !important;
-  background: rgba(255, 255, 255, 0.55) !important;
-  border: 1px solid rgba($la-navy, 0.12) !important;
-  /* Bottom border transparent — inactive tabs still get the
-     impression of an open bottom (file-folder look). The active
-     tab will set this to white to "erase" the divider behind it. */
-  border-bottom-color: transparent !important;
-  color: rgba($brand-charcoal-blue, 0.80) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, #fff, rgba(245, 247, 250, 0.9)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  color: $la-navy !important;
   text-decoration: none;
   cursor: pointer;
   text-transform: none;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset !important;
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li > a:hover,
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li > a:focus-visible,
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li > .dropdown-toggle:hover,
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li > .dropdown-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.88) !important;
-  border-color: rgba($la-navy, 0.22) !important;
-  border-bottom-color: transparent !important;
-  color: $brand-charcoal-blue !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
+  color: $la-navy !important;
+  box-shadow:
+    0 0 14px rgba($brand-verdigris, 0.22),
+    0 6px 16px rgba($brand-verdigris-aa, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   outline: none;
 }
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > a,
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > .dropdown-toggle {
-  /* Active tab — white interior with a verdigris "filler" on the
-     top edge (the brand accent banner that signals "selected"
-     without painting the entire tab). The active tab visually
-     overlaps the layered divider beneath: a 1px white bottom
-     border "erases" the hairline directly under this tab, and the
-     box-shadow paints a soft halo that fades into the body so the
-     active tab reads as connected to the content below. */
-  background: #fff !important;
-  border-color: rgba($la-navy, 0.18) !important;
-  border-top: 3px solid $brand-verdigris-aa !important;
-  border-bottom-color: #fff !important;
+  /* Active pill — same soft white pill as the board-picker's selected
+     option, lifted with the verdigris glow (no top accent bar / folder
+     overlap tricks; this is a free-floating pill, not a folder tab). */
+  background: linear-gradient(180deg, #fff, rgba(245, 247, 250, 0.92)) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
   color: $la-navy !important;
   font-weight: 700;
-  /* Pull text up 2px to compensate for the thicker (3px) top
-     accent so the label visually centers like the inactive tabs. */
-  padding-top: 8px;
-  /* Lifted shadow on the sides + lighter top — gives the active
-     tab a sense of elevation over its neighbors without using a
-     bottom shadow (which would conflict with the divider below). */
   box-shadow:
-    0 -2px 4px rgba($la-navy, 0.06),
-    -2px 0 6px rgba($la-navy, 0.05),
-    2px 0 6px rgba($la-navy, 0.05) !important;
-  /* z-index above the divider so the white bottom border can
-     "punch through" the layered hairline beneath the row. */
+    0 0 14px rgba($brand-verdigris, 0.22),
+    0 6px 16px rgba($brand-verdigris-aa, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   z-index: 2;
 }
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > a:hover,
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > .dropdown-toggle:hover {
-  background: #fff !important;
-  border-color: rgba($la-navy, 0.18) !important;
-  border-top-color: $brand-verdigris !important;
-  border-bottom-color: #fff !important;
+  background: linear-gradient(180deg, #fff, rgba(245, 247, 250, 0.92)) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
   color: $la-navy !important;
 }
 .ub-boards-page__tabs.ub-boards-page__tabs--boards > li.dropdown > .dropdown-menu {
@@ -62752,11 +62829,11 @@ a.md-goal-nav-action:hover,
     gap: 0;
     opacity: 0.75;
 
-    .glyphicon {
-      font-size: 14px;
-      line-height: 0.6;
+    /* Thin SVG chevrons (replaced the heavier glyphicon glyphs); stacked tight for the
+       double-down-chevron look. */
+    svg {
       display: block;
-      margin: -2px 0;
+      margin: -4px 0;
     }
   }
   &__loading { color: #8a9ab8; font-size: 14px; padding: 12px 0; }
@@ -63096,6 +63173,11 @@ a.md-goal-nav-action:hover,
     padding-right: 0.5rem !important;
 
   }
+  /* Stacked here (column), the period bar is tall — the base 999px pill radius then
+     reads as an oversized pill. Use a card radius so it reads as a panel. */
+  .md-stats-filter__period-bar {
+    border-radius: 24px !important;
+  }
   .md-hero--reports-dashboard {
     height: auto !important;
     min-height: auto !important;
@@ -63122,6 +63204,17 @@ a.md-goal-nav-action:hover,
     width: 100%;
     justify-content: center;
     box-sizing: border-box;
+  }
+  /* Joined / Last active are non-interactive info <div>s. At full width they read as
+     buttons/inputs — so size them to their CONTENT instead (compact centered pills,
+     the parent .md-user-meta is a centered column here) and drop the raised shadow so
+     they read as static info badges, not clicked buttons. They keep the base 999px
+     pill shape. The interactive Reset <button> (--reset) stays full-width + raised. */
+  .md-user-meta__chip--joined,
+  .md-user-meta__chip--active {
+    width: auto !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
   }
   .md-shell--user > .md-workspace,
   .md-user-layout > .md-shell > .md-workspace {

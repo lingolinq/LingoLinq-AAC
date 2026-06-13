@@ -9,14 +9,6 @@
       {{#if this.model.online}}
         <div title={{t "currently online" key="currently_online"}} class="online_marker"></div>
       {{/if}}
-      <div class="md-hero--user__status-card">
-        <span class="md-hero--user__status-label">{{t "Status" key="status"}}</span>
-        {{#if this.model.public}}
-          <span class="ub-boards-page__badge ub-boards-page__badge--public">{{t "public" key="public_lower"}}</span>
-        {{else}}
-          <span class="ub-boards-page__badge ub-boards-page__badge--private">{{t "private" key="private_lower"}}</span>
-        {{/if}}
-      </div>
     </div>
     <div class="md-hero--user__body">
       <div class="md-hero--user__name-row">
@@ -24,6 +16,7 @@
         <span class="md-hero--user__detail-sep" aria-hidden="true"></span>
         <span class="md-hero--user__username">{{this.model.user_name}}</span>
       </div>
+      <div class="md-hero--user__name-divider" aria-hidden="true"></div>
       <div class="md-hero--user__details">
         {{#if this.model.description}}
           <span class="md-hero--user__meta">{{this.model.description}}</span>
@@ -33,6 +26,11 @@
         <div class="md-hero--user__location-row">
           <span class="md-hero--user__meta">{{this.model.location}}</span>
         </div>
+      {{/if}}
+      {{#if this.model.public}}
+        <span class="md-hero--user__status md-hero--user__status--public">{{t "public" key="public_lower"}}</span>
+      {{else}}
+        <span class="md-hero--user__status md-hero--user__status--private">{{t "private" key="private_lower"}}</span>
       {{/if}}
       {{!-- Bottom divider + "Launch the Getting Started Wizard Again"
            button DISABLED: the onboarding flow is being evaluated for
@@ -59,6 +57,7 @@
     <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Subscription" key="my_subscription"}}</LinkTo>
     <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "Recordings" key="recordings"}}</LinkTo>
     <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Goals" key="goals"}}</LinkTo>
+    <LinkTo @route="user.stats" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "Reports" key="reports"}}</LinkTo>
   </div>
 {{#if this.model.permissions.view_detailed}}
   {{#if this.model.permissions.delete}}
@@ -280,7 +279,7 @@
         {{/unless}}
       {{/if}}
     {{else}}
-      <div class="ub-boards-page__stats-row md-user-summary__stats-row">
+      <div class="ub-boards-page__stats-row md-user-summary__stats-row md-user-summary__stats-row--boards">
         <div class="ub-boards-page__stat-card">
           <div class="ub-boards-page__stat-label">{{t "Current home board" key="current_home_board_cap"}}</div>
           <div class="ub-boards-page__stat-value">
@@ -301,7 +300,7 @@
         </div>
       </div>
       {{#if this.model.permissions.supervise}}
-        <div class="ub-boards-page__stats-row md-user-summary__stats-row">
+        <div class="ub-boards-page__stats-row md-user-summary__stats-row md-user-summary__stats-row--supervise">
           <div class="ub-boards-page__stat-card md-user-summary__actions-card">
             <button class="md-user-summary__action-btn" {{action "recordNote" "text"}}>{{t "New Note" key="text_note"}}</button>
             <button class="md-user-summary__action-btn" {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>

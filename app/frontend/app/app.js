@@ -527,6 +527,24 @@ LingoLinq.keyed_colors = [
     if(symbol_background_id === 'clear_soft') { cl.add('fitzgerald-soft'); }
     _bd_cache = null;
   };
+
+  // Mirror the user's dashboard_layout pref onto <body> via the
+  // `.ll-layout-focused` class so the Focused View styling overlay can be
+  // scoped app-wide (every page), not just the dashboard. Gentle View is the
+  // untouched baseline (no class). Applying at <body> means every page's chrome
+  // and content can opt in via `body.ll-layout-focused .foo` selectors. The
+  // class is present unless the layout is explicitly 'gentle' — an unset pref
+  // or any legacy/invalid value resolves to the 'focused' default, matching the
+  // dashboard's effectiveLayout. Driven by sync_layout_scope in app-state.js.
+  LingoLinq.set_layout_scope = function(layout) {
+    if(typeof document === 'undefined' || !document.body) { return; }
+    // NOTE (security review false-positive — "CSS injection via layout pref"): no
+    // injection vector. The class name is the LITERAL 'll-layout-focused'; `layout`
+    // only flips the boolean. A compromised/garbage dashboard_layout pref can at most
+    // turn the FIXED overlay class on (anything ≠ 'gentle' → focused default), never
+    // inject an attacker-chosen class name.
+    document.body.classList.toggle('ll-layout-focused', layout !== 'gentle');
+  };
 })();
 LingoLinq.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},

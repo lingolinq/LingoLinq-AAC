@@ -1,0 +1,516 @@
+// =============================================================================
+// Focused View — app-wide styling overlay
+// =============================================================================
+//
+// SINGLE HOME for every style that should apply ONLY when the user has selected
+// the "Focused View" dashboard style (`preferences.dashboard_layout === 'focused'`,
+// which is the default). The overlay is gated at runtime by the `ll-layout-focused`
+// class that `sync_layout_scope` (services/app-state.js) mirrors onto <body> on
+// each load — see `LingoLinq.set_layout_scope` in app.js.
+//
+// SCOPING CONTRACT — read before adding rules:
+//   • Gentle View is the UNTOUCHED baseline. Every rule here MUST be scoped to an
+//     ancestor that can never match Gentle View.
+//   • WIN BY SPECIFICITY, NOT SOURCE ORDER. This partial is pulled in via `@use`,
+//     so its CSS is emitted at the TOP of the compiled output (verified: @use'd
+//     partials land near line 800 of a 98k-line build, ABOVE app.scss's own body
+//     rules). At EQUAL specificity a baseline rule emitted later therefore WINS —
+//     position will not save an overlay rule. So scope every rule so it is
+//     STRICTLY HIGHER specificity than the baseline rule it overrides:
+//       ✅ `body.ll-layout-focused .foo { … }`   ← DEFAULT. Adds a tag + a class on
+//          top of the base selector → always outranks the gentle `.foo`. Wins from
+//          anywhere. Use this form for page-wide chrome AND dashboard content.
+//       ⚠️  `.md-grid--layout-focused .foo`       ← SWAPS `.md-grid` → the layout
+//          class: SAME class count = EQUAL specificity to gentle `.md-grid .foo`.
+//          Emitted first here, it LOSES the tie. Only safe when it genuinely ADDS
+//          specificity — e.g. the double-class `.md-grid.md-grid--layout-focused`
+//          (0,2,x) — or when paired with the `body.ll-layout-focused` ancestor.
+//          (This swap-vs-add trap is exactly why the legacy inline focused rules
+//          in app.scss could NOT be relocated here — see the task LEARNINGS doc.)
+//   • NEVER add an unscoped selector here — it would leak into Gentle View.
+//   • Editing an existing focused rule? Edit it IN PLACE here (Rule #0.7) — do not
+//     stack a competing rule or reach for `!important` just to win the cascade.
+//
+// Dart Sass module: pull in design tokens explicitly (variables are not global
+// under @use). Reuse the `$focus-*` tokens in _variables.scss:483-526 — do not
+// invent new focused colors here.
+
+@use "variables" as *;
+@use "sass:color";
+
+// Shared focused "card" surface — the home page's badge-action card fill (white sheen
+// top-left + a verdigris bottom-right corner over a light dusty-denim gradient; mirrors
+// `.md-grid--layout-focused .md-card--badge-action` in app.scss:47584). Reused by the
+// Boards-page section icons AND the count badges so they read as one family.
+$focus-card-surface:
+  radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 48%),
+  radial-gradient(28% 40% at 100% 100%, color-mix(in oklch, $brand-verdigris 24%, white) 0%, transparent 46%),
+  linear-gradient(140deg,
+    color-mix(in oklch, $brand-dusty-denim 13%, white) 0%,
+    color-mix(in oklch, $brand-dusty-denim 22%, white) 100%);
+
+// The focused Boards CARD background — the frosted two-layer gradient from
+// `.md-grid--layout-focused .md-card--boards`. Reused by the Boards section panel and
+// the account page's user hero so their surfaces match.
+$focus-boards-bg:
+  linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.12) 20%, rgba(255, 255, 255, 0) 42%),
+  linear-gradient(180deg, rgba($focus-surface-top, 0.60) 0%, rgba($focus-surface-bottom, 0.55) 100%);
+
+// The Boards/Folders section panel surface, darkened ~10%. Reused by those sections
+// AND the focused Profile page's section cards so they share one surface.
+$focus-section-bg-darkened:
+  linear-gradient(180deg,
+    rgba(color.scale(rgb(242, 246, 250), $lightness: -10%), 0.94) 0%,
+    rgba(color.scale(rgb(252, 253, 254), $lightness: -10%), 0.95) 45%,
+    rgba(color.scale(rgb(255, 255, 255), $lightness: -10%), 0.96) 100%);
+
+// Varied bright glyph colours for the focused Extras icons (legible on the dark slate
+// tile), curated so no hue repeats more than twice: teal ×2, blue ×2, green, honey ×2,
+// lavender, coral, fawn. ("new" uses an <img>, not an SVG, so it's not mapped.)
+$focus-extras-icon-colors: (
+  "intro": #4FD1C5,          // teal
+  "lessons": #4FD1C5,        // teal
+  "sync_details": #7FB0F0,   // blue
+  "account": #7FB0F0,        // blue
+  "goals": #68D391,          // green
+  "reports": #F6C453,        // honey
+  "run_eval": #F6C453,       // honey
+  "record_note": #B3A9F0,    // lavender
+  "supervisors": #FC8181,    // coral
+  "offline_boards": #E0B97D, // fawn
+);
+
+// -----------------------------------------------------------------------------
+// Global chrome (navbar / header / footer) — body.ll-layout-focused …
+// -----------------------------------------------------------------------------
+// (focused-only chrome overrides go here)
+
+// -----------------------------------------------------------------------------
+// Dashboard (home) — .md-shell--layout-focused / .md-grid--layout-focused …
+// -----------------------------------------------------------------------------
+// (focused dashboard shell + grid + card overrides go here)
+
+// -----------------------------------------------------------------------------
+// Standalone pages — pill-nav (Boards = user/boards, Reports = user/stats)
+// -----------------------------------------------------------------------------
+// These pages carry the global `ll-layout-focused` body class in Focused View, but
+// their pill-nav lives under `.md-shell--reports-view` (NOT the dashboard's
+// `.md-shell--layout-focused`), so without this their active pill kept the gentle
+// charcoal-blue gradient — out of step with the focused dashboard pill-nav. Give the
+// active pill the Focused View treatment: the 135deg blue-grey → dusty-denim gradient
+// (mirrors `.md-shell--layout-focused .md-pillnav__pill.is-active`). Scoping to
+// `body.ll-layout-focused …` makes this (0,4,1) + !important, beating the gentle base
+// `.md-pillnav__pill.is-active` (0,2,0) by specificity regardless of source order.
+// `.md-shell--reports-view` is used only by these two pages + the dashboard's own
+// reports tab (already focused-styled, so a harmless match) — org/system-settings use
+// different shells and are untouched.
+body.ll-layout-focused {
+  .md-shell--reports-view .md-pillnav__pill.active,
+  .md-shell--reports-view .md-pillnav__pill.is-active {
+    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    border-color: rgba($focus-pill-accent-to, 0.3) !important;
+  }
+  // Page layout — these standalone pages otherwise keep the base 40px-all-around
+  // workspace padding, which doesn't match the focused dashboard's tighter top. Set
+  // the workspace to 16px top / 16px sides / 0 bottom in Focused View (the boards
+  // section carries its own 16px top margin, so the workspace top stays tight).
+  // (`.md-shell--reports-view` only matches the standalone Boards (user/boards) +
+  // Reports (user/stats) routes — goTab transitions there — so the dashboard, with its
+  // own `.md-shell--layout-focused` workspace rules, is untouched.)
+  // (0,3,1) + !important beats the base `.md-workspace` padding (0,1,0 + !important).
+  .md-shell--reports-view > .md-workspace {
+    padding: 16px 16px 0px !important;
+    // Smaller screens get more top room (the navbar/pill-nav stack tighter up top).
+    @media (max-width: 1024px) {
+      padding: 58px 16px 0px !important;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Extras / Supervisors page — md-workspace padding
+// -----------------------------------------------------------------------------
+// The Extras page (and the Supervisors tab) render the DASHBOARD component
+// (user/extras.hbs → <Dashboard::AuthenticatedView @initialActiveTab="extras">), so the
+// shell carries BOTH `.md-shell--layout-focused` AND `.md-shell--extras-view`. Requiring
+// both classes scopes this to the focused dashboard's extras-view ONLY — the caseload
+// page also uses `.md-shell--extras-view` but is a static template WITHOUT
+// `.md-shell--layout-focused`, so it's excluded. `.md-shell--layout-focused` is itself a
+// focused-only class, so this can never match Gentle View. Sets the workspace padding to
+// 32px top / 40px sides / 0 bottom in Focused View. (0,3,0) + !important beats the base
+// `.md-workspace` padding (0,1,0) and the existing `.md-shell--layout-focused > .md-workspace`
+// (0,2,0). NOTE: this is unscoped by width, so it also overrides the ≤375px focused rule
+// (app.scss:56433) that pulls side padding to 6px — the Extras page keeps 40px sides on
+// very small screens too.
+.md-shell--layout-focused.md-shell--extras-view > .md-workspace {
+  padding: 32px 40px 0px !important;
+}
+
+// Focused Extras page — hide the hero and restyle the setup cards + their icons to
+// match the home page's badge-action cards (light denim card surface; dark slate icon
+// tile with light glyphs). `.md-shell--layout-focused` is focused-only, so Gentle View
+// is untouched. NOTE: `.md-shell--extras-view` also covers the Supervisors tab — the
+// hero-hide affects it too, but the `.md-extras-card` rules only render on Extras.
+.md-shell--layout-focused.md-shell--extras-view {
+  // Hide the "More Tools & Resources" header + subheader.
+  .md-hero--dashboard {
+    display: none !important;
+  }
+  // Setup cards take the badge-action card surface.
+  .md-extras-card {
+    background: $focus-card-surface !important;
+    border: 1px solid rgba($brand-dusty-denim, 0.22) !important;
+  }
+  // Icon tiles take the dark slate badge-action icon tile (overrides the per-action
+  // tint variants — those are !important, beaten here by specificity). Mirrors
+  // `.md-grid--layout-focused .md-card--badge-action … .md-card__icon` (app.scss:47768).
+  .md-extras-card__icon-wrap {
+    background: radial-gradient(circle at 50% 46%, #262d3a 0%, #333c4a 48%, #515d70 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.10),
+      0 2px 5px rgba(0, 0, 0, 0.16) !important;
+  }
+  // Glyphs get a VARIED bright colour per card (no hue more than twice) so the icons
+  // read as the extras palette, not a flat white. CSS `stroke` overrides the SVG
+  // presentation attribute; `[stroke]` catches the per-path hardcoded strokes too.
+  @each $action, $color in $focus-extras-icon-colors {
+    .md-extras-card__icon-wrap--#{$action} .md-extras-card__svg-icon,
+    .md-extras-card__icon-wrap--#{$action} .md-extras-card__svg-icon [stroke]:not([stroke="none"]) {
+      stroke: $color !important;
+    }
+  }
+  // ≤460px — strip the grid + main horizontal padding so the cards use the full width,
+  // and collapse the extras grid to a single full-width column so each card stretches
+  // to md-main's width (the base `minmax(260px, 1fr)` can't shrink below 260px).
+  @media (max-width: 460px) {
+    .md-grid--dashboard,
+    .md-main {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    .md-extras-page__grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Standalone Boards page (user/boards) — Focused View
+// -----------------------------------------------------------------------------
+// Bring the Boards page in line with the focused HOME dashboard: hide the page hero,
+// give the boards panel the same frosted-glass surface as the home Boards card, and
+// give its New Board / Change Home Board buttons the home "View All Boards" button
+// surface. Scoped to BOTH the boards/reports shell (`.md-shell--reports-view`) AND the
+// account page (`.md-user-summary`), which embeds the SAME reusable boards insert
+// (boards-browser) — so the insert looks identical in both places. The `.ub-boards-page__*`
+// targets only exist inside that insert, so nothing else (incl. the Reports page, which
+// has no boards insert) is affected. Reuses the home focused tokens.
+body.ll-layout-focused .md-shell--reports-view,
+body.ll-layout-focused .md-user-summary {
+  // 1) Hide the "Let's Communicate" header + subtitle. !important is required to beat
+  //    the element's inline `style="display: block"`.
+  .ub-boards-page__page-header {
+    display: none !important;
+  }
+
+  // 2) The whole boards section (header + New Board + boards body) becomes ONE card
+  //    with the SAME frosted-glass surface as the focused home Boards card (mirrors
+  //    `.md-grid.md-grid--layout-focused .md-card--boards`), plus a 16px top margin.
+  //    This is the OUTER `.ub-boards-page__boards-section` (boards-browser.hbs) — the
+  //    home card holds its header + boards together, so the outer section is the match,
+  //    not the inner summary panel.
+  .ub-boards-page__boards-section {
+    margin-top: 16px !important;
+    // Smaller screens get a larger top gap and flush sides.
+    @media (max-width: 1024px) {
+      margin: 32px 0px 0px !important;
+    }
+    background: $focus-boards-bg !important;
+    border: 1px solid rgba($focus-shadow-ink, 0.07) !important;
+    border-radius: 20px !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      inset 0 9px 18px rgba($focus-accent, 0.07),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.45),
+      0 1px 3px rgba($focus-shadow-ink, 0.05),
+      0 6px 16px rgba($focus-shadow-ink, 0.08) !important;
+    backdrop-filter: blur(14px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  }
+
+  // 3) New Board + Change Home Board buttons take the focused home "View All Boards"
+  //    button surface — desaturated dusty-denim glossy gradient + white text/icons
+  //    (mirrors `.md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide`).
+  //    hover/focus reuse the same fill so they don't flash back to the light base.
+  .ub-boards-page__boards-summary-new-btn,
+  .ub-boards-page__new-board-btn,
+  .ub-boards-page__set-home-btn,
+  .ub-boards-page__show-more-btn,
+  .ub-boards-page__boards-summary-new-btn:hover,
+  .ub-boards-page__new-board-btn:hover,
+  .ub-boards-page__set-home-btn:hover,
+  .ub-boards-page__show-more-btn:hover,
+  .ub-boards-page__boards-summary-new-btn:focus-visible,
+  .ub-boards-page__new-board-btn:focus-visible,
+  .ub-boards-page__set-home-btn:focus-visible,
+  .ub-boards-page__show-more-btn:focus-visible {
+    color: $focus-on-dark !important;
+    border-color: rgba($focus-on-dark, 0.18) !important;
+    background: linear-gradient(160deg in oklab,
+      #{$focus-btn-base} 0%,
+      #{$focus-btn-edge} 100%) !important;
+  }
+  // The Change Home Board glyph has its OWN verdigris `color` (app.scss:60930) and its
+  // SVG paints with fill=currentColor, so it doesn't inherit the white button text —
+  // force it white to match the dark button surface.
+  .ub-boards-page__set-home-btn-icon {
+    color: $focus-on-dark !important;
+  }
+  // Remove the redundant SECOND New Board button — the "+ New Board" pinned in the
+  // tabs row. The New Board button in the section header (.ub-boards-page__new-board-btn)
+  // stays as the single Boards-page CTA in Focused View.
+  .ub-boards-page__boards-summary-new-btn {
+    display: none !important;
+  }
+
+  // Tab pills (My Boards / Public Boards / More — all role="presentation" tabs) share
+  // the INACTIVE bg: the focused pill-nav active gradient 20% lighter. The ACTIVE
+  // My/Public pill gets the full (darker) gradient; the More toggle is excluded from
+  // the active rule, so it always stays on the inactive bg. White label on the fill.
+  .ub-boards-page__tabs--boards > li > a {
+    color: $focus-on-dark !important;
+    border-color: rgba($focus-on-dark, 0.18) !important;
+    background: linear-gradient(135deg,
+      color.scale($focus-accent-from, $lightness: 20%),
+      color.scale($focus-pill-accent-to, $lightness: 20%)) !important;
+    box-shadow: none !important;
+  }
+  .ub-boards-page__tabs--boards > li.is-active:not(.dropdown) > a {
+    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+  }
+  // The "More" toggle is never a "selected" filter, so pin it to the INACTIVE bg in
+  // EVERY state — resting, when a More option is selected (li.is-active), and on
+  // hover/focus. Including the plain resting `> li.dropdown > .dropdown-toggle` here
+  // (specificity 0,5,2) makes it beat the general `.dropdown-toggle` pill rules in
+  // app.scss (≤0,4,1) that were keeping it on the white pill.
+  .ub-boards-page__tabs--boards > li.dropdown > .dropdown-toggle,
+  .ub-boards-page__tabs--boards > li.dropdown.is-active > .dropdown-toggle,
+  .ub-boards-page__tabs--boards > li.dropdown > .dropdown-toggle:hover,
+  .ub-boards-page__tabs--boards > li.dropdown > .dropdown-toggle:focus-visible {
+    color: $focus-on-dark !important;
+    border-color: rgba($focus-on-dark, 0.18) !important;
+    background: linear-gradient(135deg,
+      color.scale($focus-accent-from, $lightness: 20%),
+      color.scale($focus-pill-accent-to, $lightness: 20%)) !important;
+    box-shadow: none !important;
+  }
+
+  // Folders + Boards section PANELS — the light sunken gradient darkened ~10%. The
+  // folders/summary headers are transparent, so they ride on this darker surface too.
+  .ub-boards-page__folders-section,
+  .ub-boards-page__boards-summary-section {
+    background: $focus-section-bg-darkened !important;
+  }
+
+  // Folders + Boards header chips (.ub-boards-page__section-icon) — match the home
+  // page's focused badge-action card surface (white sheen top-left + a verdigris
+  // bottom-right corner over a light dusty-denim gradient). Mirrors
+  // `.md-grid--layout-focused .md-card--badge-action.md-card--as-button` (app.scss:47584).
+  .ub-boards-page__section-icon {
+    background: $focus-card-surface !important;
+    border: 1px solid rgba($brand-dusty-denim, 0.22) !important;
+  }
+
+  // Count badges (in folders / in this section / the folder count "10") take the SAME
+  // surface as the section icons so the section headers read as one family. (Text
+  // colours are left as-is; flag if the verdigris labels need adjusting on the denim.)
+  .ub-boards-page__boards-summary-stat--in-folders,
+  .ub-boards-page__boards-summary-stat--unfiled,
+  .ub-boards-page__folders-count {
+    background: $focus-card-surface !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Standalone Reports page (user/stats) — Focused View
+// -----------------------------------------------------------------------------
+// `.md-hero--reports-dashboard` and `.md-user-meta` only exist on the Reports page,
+// so `.md-shell--reports-view` (shared with Boards) scopes safely to Reports here.
+body.ll-layout-focused .md-shell--reports-view {
+  // Hide the "Reports for <user>" header + subheader.
+  .md-hero--reports-dashboard {
+    display: none !important;
+  }
+  // Joined + Last active info pills inline on one row — overrides the ≤1024px column
+  // stack. They're compact (width:auto) so two sit side by side (base flex-wrap still
+  // lets them wrap on very narrow screens).
+  .md-user-meta {
+    flex-direction: row !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Account page pill-nav (.md-pillnav--user) — Focused View
+// -----------------------------------------------------------------------------
+// It already matches the home pill-nav in Gentle View (same charcoal-blue active
+// pill); in Focused View the home pill-nav's active pill switches to the dusty-denim
+// gradient (`.md-shell--layout-focused .md-pillnav__pill.is-active`), so mirror that
+// here. (0,4,2) beats the base `.md-pillnav--user a.md-pillnav__pill.active` (0,3,1).
+body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.active,
+body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.is-active {
+  background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+  border-color: rgba($focus-pill-accent-to, 0.3) !important;
+}
+
+// -----------------------------------------------------------------------------
+// User account section pages — hide the page header/subheader in Focused View
+// -----------------------------------------------------------------------------
+// Each wrapper holds only the icon + title (+ subtitle on Account); no action
+// controls, so hiding the whole header is safe. All are page-specific classes.
+body.ll-layout-focused {
+  .md-hero--dashboard-user,   // Account  (user/index)
+  .md-edit-profile__header,   // Profile  (user/edit)
+  .md-preferences__header,    // Settings (user/preferences)
+  .md-logs__header {          // Logs     (user/logs)
+    display: none !important;
+  }
+
+  // Account page — hide the Current Home Board / Current Board Set / Liked Boards
+  // stats row (these three cards live in their own row, tagged --boards; the device/
+  // supervisor stats rows are untouched).
+  // NOTE (security review — LOW, non-issue: "PII leak via hidden cards"): `display:none`
+  // removes nodes from BOTH the visual render and the accessibility tree (no SR exposure,
+  // no pseudo-element/aria leak), and this is the user's OWN board stats on their OWN
+  // account page regardless — not other users' data.
+  .md-user-summary__stats-row--boards {
+    display: none !important;
+  }
+
+  // Account page — swap the New Note / Quick Assessment (actions) card with the My
+  // Supervisors card. The row is a grid; `order` reorders auto-placed grid items.
+  // Children in source order: 1 Actions, 2 My device, 3 My supervisors, 4 People.
+  .md-user-summary__stats-row--supervise {
+    > :nth-child(1) { order: 3 !important; }  // Actions → 3rd slot
+    > :nth-child(2) { display: none !important; }  // My device — hidden in Focused View
+    > :nth-child(3) { order: 1 !important; }  // My supervisors → 1st slot
+    > :nth-child(4) { order: 4 !important; }  // People I supervise (unchanged)
+  }
+
+  // Account page user hero — same frosted-glass surface as the focused Boards card.
+  .md-hero--user {
+    background: $focus-boards-bg !important;
+    backdrop-filter: blur(14px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  }
+  // The avatar tile takes the boards-page section-icon surface (badge-action card).
+  .md-hero--user__avatar {
+    background: $focus-card-surface !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Profile (user/edit) + Settings (user/preferences) — section cards
+// -----------------------------------------------------------------------------
+// Both pages use the same `preference-box` component (.md-pref-box), so they share one
+// block. Each section card takes the lighter boards-body surface; its header takes the
+// darker section gradient; the icon tile takes the home action-card dark slate with a
+// brightened glyph whose neutral GRAY stroke is lifted to a soft off-white; the chevron
+// tile takes the account-avatar surface. (Profile = .md-edit-profile, Settings =
+// .md-preferences — listed as sibling ancestors so the nested rules apply to both.)
+body.ll-layout-focused .md-edit-profile,
+body.ll-layout-focused .md-preferences {
+  .md-pref-box {
+    border-radius: 22px !important;
+    border: 1px solid rgba(13, 36, 56, 0.07) !important;
+    /* BODY surface — the lighter boards-body look: white + verdigris radial blooms over
+       the LIGHT (non-darkened) section gradient, so the body is clearly lighter than the
+       darkened header. Plus the body inset glow. */
+    background:
+      radial-gradient(ellipse 80% 70% at 30% 10%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.35) 45%, rgba(255, 255, 255, 0) 75%),
+      radial-gradient(ellipse 60% 60% at 80% 90%, rgba(44, 183, 176, 0.10) 0%, rgba(44, 183, 176, 0.04) 50%, rgba(44, 183, 176, 0) 80%),
+      linear-gradient(180deg, rgba(242, 246, 250, 0.94) 0%, rgba(252, 253, 254, 0.95) 45%, rgba(255, 255, 255, 0.96) 100%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 2px 4px -1px rgba($la-navy, 0.16),
+      inset 0 8px 14px -8px rgba($la-navy, 0.12) !important;
+  }
+  .md-pref-box__header {
+    /* HEADER surface — the darker sunken section gradient (no blooms), with a hairline
+       separating it from the lighter body, mirroring the boards section's header/body. */
+    background: $focus-section-bg-darkened !important;
+    border-bottom: 1px solid rgba(13, 36, 56, 0.12) !important;
+  }
+  // Section icon + its tile ("badge") match the home page's focused action-card icons:
+  // dark slate tile with a brightened glyph. Mirrors
+  // `.md-grid--layout-focused .md-card--badge-action … .md-card__icon` (app.scss:47768).
+  .md-pref-box__icon {
+    background: radial-gradient(circle at 50% 46%, #262d3a 0%, #333c4a 48%, #515d70 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.10),
+      0 2px 5px rgba(0, 0, 0, 0.16) !important;
+  }
+  .md-pref-box__icon svg {
+    filter: brightness(1.4) saturate(1.05);
+  }
+  // The glyphs are two-toned: a COLOUR stroke (teal/blue) + a neutral GRAY stroke
+  // (#46505F). On the dark slate tile the gray reads muddy, so lift JUST the gray
+  // strokes to a soft off-white for each icon — the coloured strokes are untouched.
+  // NB: the parent svg carries `brightness(1.4)`, which clamps anything above ~#b6 to
+  // pure white; this light-gray value lands at a soft off-white (~rgb 232,239,249)
+  // after the lift. CSS `stroke` overrides the inline `stroke="#46505F"` attribute.
+  .md-pref-box__icon svg [stroke="#46505F"] {
+    stroke: #a6abb2 !important;
+  }
+  // The collapse chevron's tile takes the same surface as the Account hero avatar
+  // (the boards-page section-icon / badge-action card fill, $focus-card-surface),
+  // so the two chrome tiles read as one family. Hover keeps the same surface.
+  .md-pref-box__chevron,
+  .md-pref-box__header:hover .md-pref-box__chevron {
+    background: $focus-card-surface !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Logs page (user/logs) — card + buttons match the focused Boards page
+// -----------------------------------------------------------------------------
+body.ll-layout-focused .md-logs {
+  // Card surface = the focused Boards CARD background (frosted two-layer gradient),
+  // paired with the same backdrop blur the Boards card/section uses so the
+  // semi-transparent fill reads as frosted glass rather than washing out.
+  .md-logs__card {
+    background: $focus-boards-bg !important;
+    backdrop-filter: blur(14px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  }
+  // Buttons take the Account-page quick-pill surface — solid $brand-blue-grey + white
+  // text/icons (mirrors `.md-user-summary__quick-pill`, app.scss:43157). hover/focus
+  // reuse the same fill so they don't flash back to the light base.
+  // NOTE (security review — LOW, non-issue: "hardcoded colors / WCAG"): the white-on-
+  // $brand-blue-grey text combo here REUSES the already-shipped quick-pill pairing (and
+  // the active-pill charcoal gradient already in production), so no NEW contrast
+  // combination is introduced; nothing regresses the existing AA baseline.
+  // `:not(.md-logs__danger-btn)` keeps the destructive "Clear All Logs" button OUT of the
+  // primary-pill styling so it doesn't read as a benign action — it keeps its neutral base.
+  .md-logs__action-pill,
+  .md-logs__action-pill:hover,
+  .md-logs__action-pill:focus-visible,
+  .btn.btn-default:not(.md-logs__danger-btn),
+  .btn.btn-default:not(.md-logs__danger-btn):hover,
+  .btn.btn-default:not(.md-logs__danger-btn):focus-visible {
+    color: $focus-on-dark !important;
+    border-color: rgba($brand-charcoal-blue, 0.3) !important;
+    background: $brand-blue-grey !important;
+  }
+  // The two action-pill icons paint via stroke="currentColor", but the base sets
+  // `.md-logs__action-pill svg { color: $brand-slate-blue }` (app.scss:44484), pinning
+  // them dark on the denim button. Force them to the light button text colour.
+  .md-logs__action-pill svg {
+    color: $focus-on-dark !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Board view, modals, … (added as the overlay rolls out page-by-page)
+// -----------------------------------------------------------------------------
