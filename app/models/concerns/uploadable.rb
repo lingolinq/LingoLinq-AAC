@@ -86,18 +86,30 @@ module Uploadable
   def check_for_pending
     self.settings ||= {}
     self.settings['pending'] = !!(!self.url || self.settings['pending_url'])
-    
+
+    remote_upload_possible = @remote_upload_possible
+    remote_upload_possible = false if requires_server_sanitized_upload?
+
     # If there's no client to handle remote upload, go ahead and unmark it as
     # pending and schedule a bg job to download server-side
-    if !@remote_upload_possible && self.settings['pending'] && self.settings['pending_url']
-      self.settings['pending'] = false
-      self.url = self.settings['pending_url']
-      @schedule_upload_to_remote = true
+    if !remote_upload_possible && self.settings['pending']
+      if self.settings['pending_url']
+        self.settings['pending'] = false
+        self.url = self.settings['pending_url']
+        @upload_to_remote_arg = self.settings['pending_url']
+      elsif self.settings['data_uri'] && requires_server_sanitized_upload?
+        self.settings['pending'] = false
+        @upload_to_remote_arg = 'data_uri'
+      end
     end
     # TODO: check if it's a protected image (i.e. lessonpix) and download a cached
     # copy according. Keep the link pointing to our API for permission checks,
     # but store somewhere and allow for redirects
     true
+  end
+
+  def requires_server_sanitized_upload?
+    file_type == 'images' && SvgSanitizer.svg_content_type?(self.settings['content_type'])
   end
   
   def check_for_removable
@@ -132,9 +144,9 @@ module Uploadable
   end
     
   def upload_after_save
-    if @schedule_upload_to_remote
-      self.schedule(:upload_to_remote, self.settings['pending_url'])
-      @schedule_upload_to_remote = false
+    if @upload_to_remote_arg
+      self.schedule(:upload_to_remote, @upload_to_remote_arg)
+      @upload_to_remote_arg = nil
     end
     if self.url && Uploader.protected_remote_url?(self.url) && self.settings && !self.settings['cached_copy_url']
       if !self.settings['cached_copy_url']
@@ -216,8 +228,12 @@ module Uploadable
     file.binmode
     if url.match(/^data:/)
       self.settings['content_type'] = url.split(/;/)[0].split(/:/)[1]
-      data = url.split(/,/)[1]
-      file.write(Base64.strict_decode64(data))
+      payload = decode_data_uri_body(url)
+      if payload.nil?
+        reject_svg_upload(url, 'invalid_data_uri')
+        return
+      end
+      file.write(payload)
     else
       self.settings['source_url'] = url if !rasterize
       res = SafeHttp.get(URI.escape(url))
@@ -246,6 +262,9 @@ module Uploadable
         self.save
         return
       end
+    end
+    unless sanitize_stored_image_file!(file, url)
+      return
     end
     file.rewind
     if rasterize
@@ -308,6 +327,46 @@ module Uploadable
     # server-side convert, other SVGs probably have problems too
     # TODO: remove font-family from svg's as a tag attribute, it causes problems with rendering
     `convert -background none -density 300 -resize 400x400 -gravity center -extent 400x400 #{path} #{path}.raster.png`
+  end
+
+  def decode_data_uri_body(data_uri)
+    content_type = data_uri.split(/;/)[0].split(/:/)[1]
+    if SvgSanitizer.svg_content_type?(content_type)
+      SvgSanitizer.decode_data_uri_payload(data_uri)
+    else
+      data = data_uri.split(/,/)[1]
+      Base64.strict_decode64(data)
+    end
+  rescue StandardError
+    nil
+  end
+
+  def sanitize_stored_image_file!(file, source_url)
+    return true unless file_type == 'images'
+    return true unless SvgSanitizer.svg_content_type?(self.settings['content_type'])
+
+    file.rewind
+    result = SvgSanitizer.sanitize(file.read)
+    unless result[:ok]
+      reject_svg_upload(source_url, result[:error])
+      return false
+    end
+
+    if result[:changed]
+      Rails.logger.info("SvgSanitizer stripped active content from #{self.class.name} #{self.global_id}")
+    end
+
+    file.rewind
+    file.truncate(0)
+    file.write(result[:bytes])
+    file.rewind
+    true
+  end
+
+  def reject_svg_upload(source_url, reason=nil)
+    self.settings['errored_pending_url'] = source_url
+    Rails.logger.warn("SvgSanitizer rejected upload for #{self.class.name} #{self.global_id}: #{reason}")
+    self.save
   end
 
   module ClassMethods
