@@ -29,6 +29,7 @@ namespace :openaac do
 
   desc 'Download OBZ files from openboards.s3.amazonaws.com and import via Converters::LingoLinq.from_obz()'
   task import_vocabularies: :environment do
+    require 'safe_http'
     require Rails.root.join('lib', 'converters', 'lingo_linq')
     user_name = ENV['VOCABULARY_USER_NAME'] || 'lingolinq'
     user = User.find_by(user_name: user_name)

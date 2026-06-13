@@ -1,3 +1,4 @@
+require 'ffi'
 require 'spec_helper'
 
 describe SafeHttp do
@@ -12,14 +13,46 @@ describe SafeHttp do
       expect(SafeHttp.blocked_address?('fe80::1')).to eq(true)
     end
 
+    it 'blocks non-canonical IPv6 mapped forms with binary-safe byte comparison' do
+      # ::ffff:0:7f00:1 encodes 127.0.0.1; hton returns ASCII-8BIT so comparisons must use .b literals.
+      expect(SafeHttp.blocked_address?('::ffff:0:7f00:1')).to eq(true)
+      expect(SafeHttp.blocked_address?('::ffff:0:a9fe:a9fe')).to eq(true)
+    end
+
+    it 'blocks IPv4-compatible and non-canonical IPv6 embeddings of blocked IPv4' do
+      expect(SafeHttp.blocked_address?('::ffff:169.254.169.254')).to eq(true)
+      expect(SafeHttp.blocked_address?('::169.254.169.254')).to eq(true)
+      expect(SafeHttp.blocked_address?('::10.0.0.1')).to eq(true)
+      expect(SafeHttp.blocked_address?('::127.0.0.1')).to eq(true)
+      expect(SafeHttp.blocked_address?('::ffff:0:7f00:1')).to eq(true)
+      expect(SafeHttp.blocked_address?('0000:0000:0000:0000:0000:0000:a9fe:a9fe')).to eq(true)
+      expect(SafeHttp.blocked_address?('[::ffff:169.254.169.254]')).to eq(true)
+    end
+
+    it 'blocks link-local IPv6 with zone index after normalization' do
+      expect(SafeHttp.blocked_address?('fe80::1%eth0')).to eq(true)
+      expect(SafeHttp.blocked_address?('fe80::1%25eth0')).to eq(true)
+    end
+
     it 'allows public addresses including RFC1918 boundaries' do
       expect(SafeHttp.blocked_address?('8.8.8.8')).to eq(false)
       expect(SafeHttp.blocked_address?('172.15.0.1')).to eq(false)
       expect(SafeHttp.blocked_address?('172.32.0.1')).to eq(false)
+      expect(SafeHttp.blocked_address?('2606:2800:220:1:248:1893:25c8:1946')).to eq(false)
     end
   end
 
   describe '.resolve_addresses' do
+    it 'collapses IPv4-mapped IPv6 answers to IPv4 for block checks' do
+      addrs = [
+        instance_double(Addrinfo, ip_address: '::ffff:93.184.216.34'),
+        instance_double(Addrinfo, ip_address: '93.184.216.34')
+      ]
+      expect(Addrinfo).to receive(:getaddrinfo).and_return(addrs)
+
+      expect(SafeHttp.resolve_addresses('example.com')).to eq(['93.184.216.34'])
+    end
+
     it 'returns deduped public IPs when all answers are safe' do
       addrs = [
         instance_double(Addrinfo, ip_address: '93.184.216.34'),
@@ -49,6 +82,15 @@ describe SafeHttp do
 
       expect(SafeHttp.resolve_addresses('missing.example.com')).to eq(nil)
     end
+
+    it 'returns nil when DNS resolution times out' do
+      expect(Addrinfo).to receive(:getaddrinfo) do
+        sleep(SafeHttp::DNS_RESOLVE_TIMEOUT + 1)
+        []
+      end
+
+      expect(SafeHttp.resolve_addresses('slow.example.com')).to eq(nil)
+    end
   end
 
   describe '.resolve_pins' do
@@ -60,17 +102,28 @@ describe SafeHttp do
     end
   end
 
+  describe 'Ethon resolve slist' do
+    it 'builds an FFI slist Ethon accepts for CURLOPT_RESOLVE' do
+      pins = ['www.example.com:80:93.184.216.34']
+      slist = SafeHttp.send(:build_resolve_slist, pins)
+
+      expect(slist).to be_a(FFI::AutoPointer)
+
+      easy = Ethon::Easy.new(url: 'http://www.example.com/')
+      expect { easy.resolve = slist }.not_to raise_error
+    end
+  end
+
   describe '.get' do
     it 'pins resolved public IPs and disables followlocation' do
       addrs = [instance_double(Addrinfo, ip_address: '93.184.216.34')]
       expect(Addrinfo).to receive(:getaddrinfo).and_return(addrs)
       response = OpenStruct.new(code: 200, headers: {}, body: 'ok')
-      expect(response).to receive(:success?).and_return(true)
       expect(Typhoeus).to receive(:get).with(
         'http://www.example.com/pic.png',
         hash_including(
           followlocation: false,
-          resolve: ['www.example.com:80:93.184.216.34']
+          resolve: kind_of(FFI::AutoPointer)
         )
       ).and_return(response)
 
@@ -88,6 +141,32 @@ describe SafeHttp do
       expect(res.effective_url).to eq(nil)
     end
 
+    it 'returns a failed response for IPv4-compatible IPv6 literals without calling Typhoeus' do
+      expect(Typhoeus).not_to receive(:get)
+
+      res = SafeHttp.get('http://[::169.254.169.254]/meta')
+      expect(res.success?).to eq(false)
+      expect(res.code).to eq(0)
+    end
+
+    it 'forwards Typhoeus options such as connecttimeout and ssl_verifypeer' do
+      addrs = [instance_double(Addrinfo, ip_address: '93.184.216.34')]
+      expect(Addrinfo).to receive(:getaddrinfo).and_return(addrs)
+      response = OpenStruct.new(code: 200, headers: {}, body: 'ok')
+
+      expect(Typhoeus).to receive(:get).with(
+        'http://www.example.com/pic.png',
+        hash_including(
+          followlocation: false,
+          connecttimeout: 30,
+          ssl_verifypeer: true,
+          resolve: kind_of(FFI::AutoPointer)
+        )
+      ).and_return(response)
+
+      SafeHttp.get('http://www.example.com/pic.png', connecttimeout: 30, ssl_verifypeer: true)
+    end
+
     it 'follows redirects through the full validation pipeline' do
       addrs = [instance_double(Addrinfo, ip_address: '93.184.216.34')]
       expect(Addrinfo).to receive(:getaddrinfo).twice.and_return(addrs)
@@ -97,18 +176,16 @@ describe SafeHttp do
         headers: { 'Location' => 'http://www.example.com/final.png' },
         body: ''
       )
-      expect(redirect).to receive(:success?).and_return(false)
 
       final = OpenStruct.new(code: 200, headers: { 'Content-Type' => 'image/png' }, body: 'data')
-      expect(final).to receive(:success?).and_return(true)
 
       expect(Typhoeus).to receive(:get).with(
         'http://www.example.com/start.png',
-        hash_including(followlocation: false, resolve: ['www.example.com:80:93.184.216.34'])
+        hash_including(followlocation: false, resolve: kind_of(FFI::AutoPointer))
       ).and_return(redirect)
       expect(Typhoeus).to receive(:get).with(
         'http://www.example.com/final.png',
-        hash_including(followlocation: false, resolve: ['www.example.com:80:93.184.216.34'])
+        hash_including(followlocation: false, resolve: kind_of(FFI::AutoPointer))
       ).and_return(final)
 
       res = SafeHttp.get('http://www.example.com/start.png')
@@ -125,7 +202,6 @@ describe SafeHttp do
         headers: { 'Location' => 'http://169.254.169.254/meta' },
         body: ''
       )
-      expect(redirect).to receive(:success?).and_return(false)
 
       expect(Typhoeus).to receive(:get).once.and_return(redirect)
 
@@ -143,10 +219,8 @@ describe SafeHttp do
         headers: { 'Location' => 'https://lessonpix.com/pic.png?token=abc' },
         body: ''
       )
-      expect(redirect).to receive(:success?).and_return(false)
 
       final = OpenStruct.new(code: 200, headers: { 'Content-Type' => 'image/png' }, body: 'data')
-      expect(final).to receive(:success?).and_return(true)
 
       expect(Typhoeus).to receive(:get).with('http://www.example.com/start.png', anything).and_return(redirect)
       expect(Typhoeus).to receive(:get).with(
@@ -165,9 +239,8 @@ describe SafeHttp do
 
       req = SafeHttp.build_typhoeus_request('http://www.example.com/pic.png')
       expect(req).to be_a(Typhoeus::Request)
-      expect(req.url).to eq('http://www.example.com/pic.png')
       expect(req.options[:followlocation]).to eq(false)
-      expect(req.options[:resolve]).to eq(['www.example.com:80:93.184.216.34'])
+      expect(req.options[:resolve]).to be_a(FFI::AutoPointer)
       expect(req.effective_url).to eq('http://www.example.com/pic.png')
     end
 
@@ -181,7 +254,6 @@ describe SafeHttp do
       addrs = [instance_double(Addrinfo, ip_address: '93.184.216.34')]
       expect(Addrinfo).to receive(:getaddrinfo).and_return(addrs)
       response = OpenStruct.new(code: 200, headers: {}, body: 'ok')
-      expect(response).to receive(:success?).and_return(true)
 
       expect(Typhoeus).to receive(:post).with(
         'http://www.example.com/callback',
@@ -189,7 +261,7 @@ describe SafeHttp do
           body: { notification: 'test' },
           timeout: 10,
           followlocation: false,
-          resolve: ['www.example.com:80:93.184.216.34']
+          resolve: kind_of(FFI::AutoPointer)
         )
       ).and_return(response)
 

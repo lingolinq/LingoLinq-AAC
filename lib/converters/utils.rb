@@ -1,3 +1,5 @@
+require 'safe_http'
+
 module Converters::Utils
   require_relative 'lingo_linq'
 

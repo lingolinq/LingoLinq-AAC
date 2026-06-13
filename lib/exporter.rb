@@ -1,3 +1,5 @@
+require 'safe_http'
+
 module Exporter
   LOG_DIVIDER = 'quarter' # quarter, week, doy
   LOG_CUTOFF = 500

@@ -4300,13 +4300,19 @@ the example txn, restored on rollback) for a deterministic baseline. Mirror
 
 **Fix shape:** two layers — (1) `sanitize_url` for fast string-level checks (scheme, IP literals, encodings); (2) `lib/safe_http.rb` for every user-supplied fetch: resolve hostname via `Addrinfo.getaddrinfo`, reject if **any** A/AAAA answer is in a blocked range, then pin validated IPs into libcurl via `CURLOPT_RESOLVE` (`resolve:` in Typhoeus) so connect-time DNS cannot rebind. Redirects are followed manually (max 5 hops) with full re-validation per hop; `followlocation` is always false. Shared IP classification lives in `SafeHttp.blocked_address?` (also used by `sanitize_url` for literals).
 
-**Call sites:** `SafeHttp.get/head/post` replaces `Typhoeus.*(Uploader.sanitize_url(...))` in uploadable, uploader `remote_zip`, converters, exporter, openaac.rake, and webhook callbacks. Streaming proxy fetches use `SafeHttp.build_typhoeus_request` in `api/search_controller.rb#proxy`.
+## Ethon 0.15 resolve runtime (2026-06-12 follow-up)
+
+Ethon 0.15 rejects `resolve:` as a Ruby Array at **run** time (`Ethon::Errors::InvalidValue`); Typhoeus::Request.new accepts it but `request.run` fails. Convert pin strings to `Ethon::Curl.slist_append` + `FFI::AutoPointer` before passing to Typhoeus. Specs that mock Typhoeus should expect `kind_of(FFI::AutoPointer)` for `:resolve`, not a string array.
+
+**Proxy controller gotcha:** `ActionController::Metal` delegates `content_type` to `response`. A local assignment like `content_type, body = get_url_in_chunks(...)` inside `proxy` does **not** bind a local — it calls the reader. Use distinct names (e.g. `fetched_content_type`) in controller actions that shadow response helpers.
 
 **Test:** `spec/lib/uploader_spec.rb` "sanitize_url" stays network-free (adversarial string cases). DNS/pin behavior in `spec/lib/safe_http_spec.rb` with stubbed `Addrinfo.getaddrinfo`. Proxy SSRF rejection in `spec/controllers/api/search_controller_spec.rb`.
 
 **Lesson:** before "fixing" a client-side upload finding, trace to the server fetch — the create-board drag-drop "SSRF" finding was really a gap in the shared `sanitize_url`, fixed once at the chokepoint, not in the UI component. Also: client supplied image URLs are baked as `<img src>` (no HTML execution sink), and `data:` URLs are stored, never fetched — so "stored XSS via data: URL" doesn't apply here.
 
-**Evidence:** task logs `2026-06-12-pr-security-review-response.md`, `2026-06-12-ssrf-dns-rebinding-fix.md`.
+**IPv6 gotcha:** `IPAddr#private?` / `#link_local?` miss IPv4-compatible (`::169.254.169.254`) and non-canonical mapped forms (`::ffff:0:7f00:1`). `SafeHttp#embedded_ipv4` must peel these via raw `hton` bytes — and comparisons must use `.b` literals because `hton` returns ASCII-8BIT while `"\xff\xff"` is UTF-8 in Ruby 3 (`==` fails on encoding even when bytes match). Strip zone index (`fe80::1%eth0`) before parse.
+
+**Evidence:** task logs `2026-06-12-pr-security-review-response.md`, `2026-06-12-ssrf-dns-rebinding-fix.md`, `2026-06-12-safe-http-adversarial-fixes.md`.
 
 ## Pattern: ButtonImage content_type is the image-type allowlist chokepoint (stored-XSS defense)
 

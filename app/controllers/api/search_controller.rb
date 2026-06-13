@@ -226,12 +226,19 @@ class Api::SearchController < ApplicationController
     
     error = nil
     s3_cache_miss = false
+    fetched_content_type = nil
+    fetched_body = nil
     begin
       request = safe_proxy_request(uri.to_s)
-      content_type, body = get_url_in_chunks(request)
-      if content_type == 'redirect'
-        request = safe_proxy_request(body)
-        content_type, body = get_url_in_chunks(request)
+      redirects = 0
+      loop do
+        fetched_content_type, fetched_body = get_url_in_chunks(request)
+        break unless fetched_content_type == 'redirect'
+
+        redirects += 1
+        raise BadFileError, 'too many redirects' if redirects > SafeHttp::MAX_REDIRECTS
+
+        request = safe_proxy_request(fetched_body)
       end
     rescue BadFileError => e
       error = e.message
@@ -252,16 +259,16 @@ class Api::SearchController < ApplicationController
     if s3_cache_miss && @api_user
       retried = attempt_button_set_regenerate(url)
       if retried
-        content_type, body = retried
+        fetched_content_type, fetched_body = retried
         error = nil
       end
     end
 
     if !error
-      str = "data:" + content_type
-      str += ";base64," + Base64.strict_encode64(body)
+      str = "data:" + fetched_content_type
+      str += ";base64," + Base64.strict_encode64(fetched_body)
       # Rails 7: render json: expects a hash, not a pre-encoded string
-      render json: {content_type: content_type, data: str}
+      render json: {content_type: fetched_content_type, data: str}
     else
       api_error 400, {error: error}
     end
