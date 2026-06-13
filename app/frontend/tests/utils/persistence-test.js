@@ -783,6 +783,14 @@ describe("persistence", function() {
       });
     });
   });
+  describe("normalize_url", function() {
+    it('rewrites removed OpenSymbols arasaac/no_2.png to no.png', function() {
+      var broken = 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no_2.png';
+      var fixed = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/no_2.png';
+      expect(persistence.normalize_url(broken)).toEqual('https://opensymbols.s3.amazonaws.com/libraries/arasaac/no.png');
+      expect(persistence.normalize_url(fixed)).toEqual('https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/no.png');
+    });
+  });
   describe("find_url", function() {
     it('should normalize a url', function() {
       var url = "http://localhost/api/v1/users/123/protected_image/lessonpix/12345";

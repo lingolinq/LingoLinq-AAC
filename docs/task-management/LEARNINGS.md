@@ -116,6 +116,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
+- [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -3155,6 +3156,8 @@ so most app pages ARE `:has(.page-footer)` and can use this.
 
 **Evidence:** `app/controllers/api/boards_controller.rb:299-301`; `app/models/board.rb:899`; `app/frontend/app/components/board-collection.js` (BRAND_FAMILIES `root_re` + `_loadAllBrands` filter).
 
+**Boards page (`user/index` `board_list`):** apply the same client-side cleanup to the default grid only — `filterBrandSetRootBoards` + `dedupeBoardRows` on Public tab, and `filterBoardsPageTopLevelRoots` (= `filterRootBoards` then `filterBrandSetRootBoards`) + `dedupeBoardRows` on Mine tab, with `boardsPagePreferUserNames` (signed-in user, then `lingolinq`). Name dedup is case-insensitive. Leave `boards_page_raw_list` untouched so Boards Filter search still returns sub-board matches. Shared helpers live in `utils/board-roots.js`.
+
 ---
 
 ## Pattern: to match prediction-word font to board-button labels, use the board's `cqw` clamp inside a tile-as-container — NOT `vw`
@@ -4213,6 +4216,34 @@ correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/mode
 
 **Evidence:** `lib/system_email_template_security.rb`, `app/mailers/concerns/system_email_override.rb`; task log `2026-06-09-system-settings.md`.
 
+
+## Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB
+
+**Symptom:** A spec file fails ~dozens of examples in a full run, all on
+*global* count assertions (`expect(LogSession.count).to eq(2)` -> `got 110`).
+Easy to misread as cross-example state pollution / ordering.
+
+**Reality (log_session_spec.rb, 2026-06-11):** `lingolinq-test` carried ~108
+LogSession + ~95 JobStash + ~171 RemoteAction rows committed days earlier by a
+prior interrupted run. Transactional fixtures were fine (live count held steady
+across full runs = no ongoing leak); the orphans just inflated every unscoped
+count. A counting example fails the *same way in isolation*, which is the tell:
+true order-dependence passes alone, orphan-pollution does not. Examples that
+"pass alone" usually just don't assert a global count.
+
+**Diagnose:** add a throwaway `after(:each)` that logs the count, or
+`DB_USER=scotw RAILS_ENV=test bundle exec rails runner 'puts Model.count'`. If
+count is already nonzero at example #1, it is pre-existing committed data, not a
+leak. Check `Model.order(:id).first.created_at` for an old date.
+
+**Fix:** file-scoped `before(:each)` clearing the affected tables (runs inside
+the example txn, restored on rollback) for a deterministic baseline. Mirror
+`spec_helper`'s `RemoteAction.delete_all` and `log_session_spec`'s
+`JobStash.delete_all`. Keep it file-scoped, NOT global: a global
+`AuditEvent.delete_all` was shown to perturb counts. See
+[[reference_auditevent_escapes_rspec_txn]] and task log
+`2026-06-11-log-session-spec-isolation.md`.
+
 ---
 
 ## Pattern: client-supplied preferences that drive computed inline styles/classes need write-time shape coercion
@@ -4272,15 +4303,21 @@ correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/mode
 
 **Gotcha:** `sanitize_url` is the single SSRF chokepoint, but its original host checks (`^127`, `localhost`, `^0`, decimal-IP) MISSED link-local `169.254.169.254` (cloud metadata) and RFC1918 private ranges (`10/172.16-31/192.168`) — so an authenticated user could point any image-URL flow at internal services. It also didn't restrict the scheme (so `file://`/`gopher://`/`data:` reached the builder, and a nil-host URI could crash the `uri.host.match` line).
 
-**Fix shape:** restrict scheme to http/https; for IP-LITERAL hosts use Ruby `IPAddr` predicates `loopback?`/`private?`/`link_local?` (+ explicit `100.64.0.0/10` CGN) to reject the reserved ranges. `IPAddr.new(host)` raising on a non-literal hostname is the signal to fall through (don't block public hostnames). `require 'ipaddr'` at the top. Keep the existing string/decimal checks — they catch encodings IPAddr won't (`http://0/`, bare-decimal IPv4).
+**Fix shape:** two layers — (1) `sanitize_url` for fast string-level checks (scheme, IP literals, encodings); (2) `lib/safe_http.rb` for every user-supplied fetch: resolve hostname via `Addrinfo.getaddrinfo`, reject if **any** A/AAAA answer is in a blocked range, then pin validated IPs into libcurl via `CURLOPT_RESOLVE` (`resolve:` in Typhoeus) so connect-time DNS cannot rebind. Redirects are followed manually (max 5 hops) with full re-validation per hop; `followlocation` is always false. Shared IP classification lives in `SafeHttp.blocked_address?` (also used by `sanitize_url` for literals).
 
-**Residual (documented, not yet fixed):** a hostname that RESOLVES to an internal IP (DNS rebinding) still passes — IP-literal checks can't see it. The robust fix is resolve-and-pin at the HTTP-client (Typhoeus) layer; adding DNS resolution inside `sanitize_url` was rejected because it makes the (network-free) spec do live lookups and adds latency to the hot fetch path.
+## Ethon 0.15 resolve runtime (2026-06-12 follow-up)
 
-**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" has a thorough adversarial block (header injection, `@`-tricks, tabs, unicode) — extend it, don't replace it. New cases must keep public hosts (`8.8.8.8`, `172.15/172.32` which are OUTSIDE 172.16-31) passing.
+Ethon 0.15 rejects `resolve:` as a Ruby Array at **run** time (`Ethon::Errors::InvalidValue`); Typhoeus::Request.new accepts it but `request.run` fails. Convert pin strings to `Ethon::Curl.slist_append` + `FFI::AutoPointer` before passing to Typhoeus. Specs that mock Typhoeus should expect `kind_of(FFI::AutoPointer)` for `:resolve`, not a string array.
+
+**Proxy controller gotcha:** `ActionController::Metal` delegates `content_type` to `response`. A local assignment like `content_type, body = get_url_in_chunks(...)` inside `proxy` does **not** bind a local — it calls the reader. Use distinct names (e.g. `fetched_content_type`) in controller actions that shadow response helpers.
+
+**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" stays network-free (adversarial string cases). DNS/pin behavior in `spec/lib/safe_http_spec.rb` with stubbed `Addrinfo.getaddrinfo`. Proxy SSRF rejection in `spec/controllers/api/search_controller_spec.rb`.
 
 **Lesson:** before "fixing" a client-side upload finding, trace to the server fetch — the create-board drag-drop "SSRF" finding was really a gap in the shared `sanitize_url`, fixed once at the chokepoint, not in the UI component. Also: client supplied image URLs are baked as `<img src>` (no HTML execution sink), and `data:` URLs are stored, never fetched — so "stored XSS via data: URL" doesn't apply here.
 
-**Evidence:** task log `2026-06-12-pr-security-review-response.md`.
+**IPv6 gotcha:** `IPAddr#private?` / `#link_local?` miss IPv4-compatible (`::169.254.169.254`) and non-canonical mapped forms (`::ffff:0:7f00:1`). `SafeHttp#embedded_ipv4` must peel these via raw `hton` bytes — and comparisons must use `.b` literals because `hton` returns ASCII-8BIT while `"\xff\xff"` is UTF-8 in Ruby 3 (`==` fails on encoding even when bytes match). Strip zone index (`fe80::1%eth0`) before parse.
+
+**Evidence:** task logs `2026-06-12-pr-security-review-response.md`, `2026-06-12-ssrf-dns-rebinding-fix.md`, `2026-06-12-safe-http-adversarial-fixes.md`.
 
 ## Pattern: ButtonImage content_type is the image-type allowlist chokepoint (stored-XSS defense)
 

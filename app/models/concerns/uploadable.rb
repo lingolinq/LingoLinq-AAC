@@ -158,7 +158,7 @@ module Uploadable
     if self.url && self.settings && self.settings['content_type'] && self.settings['content_type'].match(/image\/svg/) && !self.settings['rasterized']
       self.settings['rasterized'] = 'pending'
       self.settings['rasterized_at'] = Time.now.iso8601
-      res = Typhoeus.head(Uploader.sanitize_url(URI.escape("#{self.url}.raster.png")), followlocation: true)
+      res = SafeHttp.head(URI.escape("#{self.url}.raster.png"))
       # check if there's already a .raster.png for the image (i.e. on opensymbols)
       if res.success?
         self.settings['rasterized'] = 'from_url'
@@ -220,12 +220,7 @@ module Uploadable
       file.write(Base64.strict_decode64(data))
     else
       self.settings['source_url'] = url if !rasterize
-      res = Typhoeus.get(Uploader.sanitize_url(URI.escape(url)), followlocation: true)
-      if res.headers['Location']
-        redirect_url = res.headers['Location']
-        redirect_url = redirect_url.sub(/\?/, "%3F") if redirect_url.match(/lessonpix\.com/) && redirect_url.match(/\?.*\.png/)
-        res = Typhoeus.get(Uploader.sanitize_url(URI.escape(redirect_url)))
-      end
+      res = SafeHttp.get(URI.escape(url))
       re = /^audio/
       re = /^image/ if file_type == 'images'
       re = /^video/ if file_type == 'videos'

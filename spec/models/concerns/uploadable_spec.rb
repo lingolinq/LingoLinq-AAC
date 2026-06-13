@@ -905,14 +905,14 @@ describe Uploadable, :type => :model do
   describe "assert_raster" do
     it "should do nothing by default" do
       bi = ButtonImage.new
-      expect(Typhoeus).to_not receive(:head)
+      expect(SafeHttp).to_not receive(:head)
       expect(bi.assert_raster).to eq(nil)
     end
 
     it "should do nothing if already rasterized" do
       bi = ButtonImage.new
       bi.settings = {'content_type' => 'image/svg', 'rasterized' => true}
-      expect(Typhoeus).to_not receive(:head)
+      expect(SafeHttp).to_not receive(:head)
       expect(bi.assert_raster).to eq(nil)
     end
 
@@ -922,7 +922,7 @@ describe Uploadable, :type => :model do
       bi.settings = {'content_type' => 'image/svg'}
       res = OpenStruct.new
       expect(res).to receive(:success?).and_return(false)
-      expect(Typhoeus).to receive(:head).with("http://www.example.com/pic.svg.raster.png", followlocation: true).and_return(res)
+      expect(SafeHttp).to receive(:head).with("http://www.example.com/pic.svg.raster.png").and_return(res)
       bi.assert_raster
     end
 
@@ -932,7 +932,7 @@ describe Uploadable, :type => :model do
       bi.settings = {'content_type' => 'image/svg'}
       res = OpenStruct.new
       expect(res).to receive(:success?).and_return(true)
-      expect(Typhoeus).to receive(:head).with("http://www.example.com/pic.svg.raster.png", followlocation: true).and_return(res)
+      expect(SafeHttp).to receive(:head).with("http://www.example.com/pic.svg.raster.png").and_return(res)
       bi.assert_raster
       expect(bi.settings['rasterized']).to eq('from_url')
     end
@@ -944,7 +944,7 @@ describe Uploadable, :type => :model do
       res = OpenStruct.new
       expect(res).to receive(:success?).and_return(false)
       expect(bi).to receive(:schedule).with(:upload_to_remote, bi.url, true)
-      expect(Typhoeus).to receive(:head).with("http://www.example.com/pic.svg.raster.png", followlocation: true).and_return(res)
+      expect(SafeHttp).to receive(:head).with("http://www.example.com/pic.svg.raster.png").and_return(res)
       bi.assert_raster
     end
   end

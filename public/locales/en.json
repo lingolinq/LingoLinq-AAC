@@ -4051,6 +4051,7 @@
   "delete_folder_explainer": "The boards in this folder won't be deleted. They will be moved back to the main boards view where you can reorganize them.",
   "boards_in_folder": "Boards in folder",
   "folder_empty_hint": "No boards in this folder yet. Drag a board onto a folder, or use \"Tag a board\" to add one.",
+  "boards_filter_truncated_hint": "0 Showing the first %{count} matches. Keep typing to narrow results.s || 1 Showing the first %{count} matches. Keep typing to narrow results. || %{n} Showing the first %{count} matches. Keep typing to narrow results.s",
   "mine_board_folders_label": "Board folders",
   "board_count": "Board count",
   "boards_count_in_folders": "in folders",

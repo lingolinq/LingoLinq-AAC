@@ -1,6 +1,7 @@
 require 'aws-sdk-s3'
 require 'accessible-books'
 require 'ipaddr'
+require_relative 'safe_http'
 
 module Uploader
   S3_EXPIRATION_TIME=60*60
@@ -90,14 +91,10 @@ module Uploader
       # the SSRF targets the string checks above miss: cloud metadata
       # 169.254.169.254 (link-local), RFC1918 10.x / 172.16-31.x / 192.168.x
       # (private), ::1, fe80::, fc00::, and carrier-grade NAT 100.64/10. Only
-      # applies to literal IPs; a hostname that isn't an IP literal fails the
-      # IPAddr parse and falls through (DNS-rebinding to an internal address is a
-      # deeper, HTTP-client-layer concern — see SECURITY note in this method).
+      # applies to literal IPs; hostname DNS-to-internal and rebinding are blocked
+      # at fetch time by SafeHttp (resolve + CURLOPT_RESOLVE pin).
       literal = (IPAddr.new(uri.host.sub(/^\[/, '').sub(/\]$/, '')) rescue nil)
-      if literal && (literal.loopback? || literal.private? || literal.link_local? ||
-                     IPAddr.new('100.64.0.0/10').include?(literal))
-        return nil
-      end
+      return nil if literal && SafeHttp.blocked_address?(literal)
     end
     port_suffix = ""
     port_suffix = ":#{uri.port}" if (uri.scheme == 'http' && uri.port != 80)
@@ -365,7 +362,7 @@ module Uploader
   def self.remote_zip(url, &block)
     result = []
     Progress.update_current_progress(0.1, :downloading_file)
-    response = Typhoeus.get(Uploader.sanitize_url(url))
+    response = SafeHttp.get(url)
     Progress.update_current_progress(0.2, :processing_file)
     file = Tempfile.new('stash')
     file.binmode

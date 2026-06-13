@@ -856,7 +856,7 @@ describe Exporter do
       u = User.create
       d = Device.create(user: u)
       expect(Exporter).to receive(:process_obl).with('asdf', u, u, d).and_return([u, d])
-      expect(Typhoeus).to receive(:get).with('http://www.example.com/file.obl', {timeout: 10}).and_return(OpenStruct.new(body: 'asdf'))
+      expect(SafeHttp).to receive(:get).with('http://www.example.com/file.obl', timeout: 10).and_return(OpenStruct.new(body: 'asdf'))
       res = Exporter.process_log('http://www.example.com/file.obl', 'obl', u.global_id, u.global_id, d.global_id)
       expect(res).to eq([u.global_id, d.global_id])
     end
