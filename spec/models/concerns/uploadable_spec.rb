@@ -366,6 +366,46 @@ describe Uploadable, :type => :model do
     end
   end
 
+  describe "verify_stored_s3_upload!" do
+    let(:s3_url) { 'https://bucket.s3.amazonaws.com/images/test.png' }
+
+    it "should range-fetch raster uploads and skip the full download" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      range_res = OpenStruct.new(code: 206, body: "\x89PNG\r\n\x1a\n")
+      expect(Typhoeus).to receive(:get).once.with(
+        s3_url,
+        headers: { 'Range' => "bytes=0-#{SvgSanitizer::SNIFF_BYTES - 1}" }
+      ).and_return(range_res)
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(true)
+    end
+
+    it "should full-fetch when a range sample looks like SVG" do
+      evil_svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="4"/></svg>'
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      range_res = OpenStruct.new(code: 206, body: evil_svg.byteslice(0, 200))
+      full_res = OpenStruct.new(success?: true, body: evil_svg)
+      expect(Typhoeus).to receive(:get).with(
+        s3_url,
+        headers: { 'Range' => "bytes=0-#{SvgSanitizer::SNIFF_BYTES - 1}" }
+      ).and_return(range_res)
+      expect(Typhoeus).to receive(:get).with(s3_url).and_return(full_res)
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(true)
+      expect(s.settings['content_type']).to eq('image/svg+xml')
+    end
+
+    it "should full-fetch declared SVG uploads without a range request" do
+      svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>'
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml' })
+      full_res = OpenStruct.new(success?: true, body: svg)
+      expect(Typhoeus).to receive(:get).once.with(s3_url).and_return(full_res)
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(true)
+    end
+  end
+
   describe "url_for" do
     it 'should return the correct value' do
       u = User.create

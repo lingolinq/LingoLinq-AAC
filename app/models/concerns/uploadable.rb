@@ -1,5 +1,6 @@
 require 'mime/types'
 require 'uri'
+require Rails.root.join('lib/svg_sanitizer').to_s
 
 module Uploadable
   extend ActiveSupport::Concern
@@ -400,6 +401,13 @@ module Uploadable
   def verify_stored_s3_upload!(s3_url)
     return true unless file_type == 'images'
 
+    unless SvgSanitizer.svg_content_type?(self.settings['content_type'])
+      sample = fetch_uploaded_object_range(s3_url)
+      if sample && !sample.empty?
+        return true unless SvgSanitizer.looks_like_svg?(sample)
+      end
+    end
+
     body = fetch_uploaded_object_body(s3_url)
     return true if body.nil? || body.empty?
     return true unless SvgSanitizer.looks_like_svg?(body)
@@ -414,6 +422,14 @@ module Uploadable
     return true unless result[:changed]
 
     replace_stored_upload_body!(result[:bytes], 'image/svg+xml')
+  end
+
+  def fetch_uploaded_object_range(s3_url)
+    last_byte = SvgSanitizer::SNIFF_BYTES - 1
+    res = Typhoeus.get(s3_url, headers: { 'Range' => "bytes=0-#{last_byte}" })
+    return nil unless res.code == 206 || res.code == 200
+
+    res.body.to_s.b.byteslice(0, SvgSanitizer::SNIFF_BYTES)
   end
 
   def fetch_uploaded_object_body(s3_url)

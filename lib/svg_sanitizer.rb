@@ -8,6 +8,7 @@ require 'erb'
 # Sanitizes SVG uploads by stripping scriptable elements and attributes.
 # Uses a Loofah scrubber on XML (not the sanitize gem — SVG is unsupported there).
 class SvgSanitizer
+  SNIFF_BYTES = 4096
   MAX_BYTES = 5 * 1024 * 1024
   MAX_NODES = 10_000
   SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
@@ -149,7 +150,7 @@ class SvgSanitizer
   end
 
   def self.looks_like_svg?(bytes)
-    sample = bytes.to_s.lstrip.byteslice(0, 4096).to_s.downcase
+    sample = bytes.to_s.lstrip.byteslice(0, SNIFF_BYTES).to_s.downcase
     sample.include?('<svg') && !sample.match?(/<!doctype\s+html|<html[\s>]/)
   end
 

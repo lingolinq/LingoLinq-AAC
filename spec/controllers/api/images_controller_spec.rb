@@ -72,10 +72,14 @@ describe Api::ImagesController, :type => :controller do
     
     it "should succeed for valid confirmation key that is found on server" do
       token_user
-      s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
+      s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'image/png'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
+      expect(Typhoeus).to receive(:get).with(
+        config[:upload_url] + s.full_filename,
+        headers: { 'Range' => "bytes=0-#{SvgSanitizer::SNIFF_BYTES - 1}" }
+      ).and_return(OpenStruct.new(code: 206, body: "\x89PNG\r\n\x1a\n"))
       get :upload_success, params: {:image_id => s.global_id, :confirmation => s.confirmation_key}
       json = JSON.parse(response.body)
       expect(response).to be_successful
