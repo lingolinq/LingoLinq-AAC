@@ -1,0 +1,61 @@
+# Audit Reports - Index and Supersession
+
+This directory holds LingoLinq-AAC audit output. It accumulated as a flat archive of
+point-in-time reports from different dates and tools, which made it easy to mistake an
+old finding for a live one. Phase 1 of the Audit/Compliance Modernization fixes that by
+introducing a **findings register** as the single source of truth for finding status.
+
+## The current source of truth
+
+| File | What it is |
+|---|---|
+| **`FINDINGS.json`** | The findings register. Stable IDs, status lifecycle (`open` / `remediated-unverified` / `verified-closed` / `accepted-risk` / `superseded`), per-finding evidence anchored to `file:line@SHA`, framework tags, and closure attestation. **This is the only authoritative record of whether a finding is open or closed.** |
+| **`FINDINGS.md`** | Human-readable render of the register, grouped by status then severity, with the open Critical/High count as the headline. Generated from the JSON; do not hand-edit. |
+
+Regenerate the markdown and validate every citation with the script in `../scripts/`:
+
+```bash
+ruby scripts/citation-check.rb           # validate: every active finding's snippet must exist at its SHA (exit non-zero on failure)
+ruby scripts/citation-check.rb --render  # rebuild audit-reports/FINDINGS.md from FINDINGS.json
+```
+
+**How to read status:** trust `FINDINGS.json` only. Every other report in this directory
+is a dated snapshot of what was true on its date. Do **not** treat a finding listed in an
+older report as live without checking the register; statuses there were verified against
+live code at the register's `auditedSha`, the older prose was not.
+
+## Seed (folded into the register)
+
+| File | Status |
+|---|---|
+| `unified-audit-2026-04-09.md` | **Superseded by the register.** This was the seed: its 6 P0 / 14 P1 / 10 P2 findings were re-verified against live code and migrated into `FINDINGS.json` (with legacy IDs preserved, e.g. `P0-1`). Several of its P0s are now `verified-closed`; several P1/P2s remain `open`. Read the register, not this file's prose, for current status. |
+
+## Superseded point-in-time reports (historical only)
+
+These predate the register and the 2026-04-09 unified audit. Keep for history; do not read
+their statuses as current.
+
+| File(s) | Status |
+|---|---|
+| `audit-2026-02-21.{json,md}`, `audit-2026-02-22.{json,md}` | Superseded. February MVP-readiness snapshots; their P0s (permit_all_parameters, SQL injection, Bugsnag, Rack CVEs, token leakage) were resolved and are reflected as closed/obsolete in the register. |
+| `annual-compliance-audit-2026-02-23.md` | Superseded. Folds into the register (internal findings) and the future Compliance Posture Report (external posture). Annual cadence replaced by quarterly-full + monthly-light. |
+| `ember-audit-2026-02-21.json`, `frontend_audit.json`, `dependency-audit-report.json`, `brakeman_report.json` | Superseded. February point-in-time scan artifacts. Dependency/scan hygiene moves into the recurring codebase-health audit; security-relevant results flow into the register. |
+| `weekly-update-2026-02-24.md` | Historical status note. Not an audit report. |
+
+## Reclassified (not part of the periodic set)
+
+| File(s) | Status |
+|---|---|
+| `security-hotfix-2026-02-22.{json,md}` | Incident-remediation artifact, not a standing report. Linked from `docs/legal/INCIDENT_LOG.md`; out of the periodic audit set. |
+| `wcag-modernized-2026-04-11*.md` (main + `pass3`-`pass8` + `followup`) | Accessibility remediation **working notes**. Not a conformance statement. A standing Accessibility Conformance Report (VPAT/ACR) is a Phase 3 deliverable; these become its working notes. |
+
+## Conventions going forward
+
+- The register (`FINDINGS.json` + `FINDINGS.md`) lives here, in the LingoLinq-AAC repo, git-tracked.
+- Recurrence is a diff of the register between runs (finding IDs are deterministic).
+- Rendered quarterly/periodic reports will read **from** the register, never restate findings independently.
+- Plans and strategy docs live in `ai-company-brain/outputs/`, not here.
+- Only Scot closes a finding, downgrades severity, or accepts risk; `closureEvidence.attestation` stays empty until he signs.
+
+_Phase 1 "Foundation" of the Audit/Compliance System Modernization. Agents, the `/audit-run`
+orchestrator, and the one-way Notion publish are Phases 2-3 and are not present yet._
