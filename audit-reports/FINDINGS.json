@@ -1042,6 +1042,163 @@
         "attestation": ""
       },
       "notes": "Render prod remains the live rollback path until GCP cutover, but carries no PHI under the migration plan."
+    },
+    {
+      "id": "LL-97f9001bb4",
+      "ruleKey": "audit-guard-denylist-residual-bypass",
+      "title": "Audit finder Bash guard is a denylist with residual fetch-and-exec bypass",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".claude/hooks/audit-readonly-guard.sh",
+        "line": 59,
+        "snippet": "a denylist over arbitrary Bash is inherently",
+        "sha": "8c0629583a0f8216e8487305d6c9a5c51d26c8a0"
+      },
+      "firstSeen": "2026-06-13",
+      "lastSeen": "2026-06-13",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Primary read-only control is the no-Edit/Write tools allowlist; the Bash denylist is defense-in-depth and now blocks pipe-to-shell/eval. A determined novel obfuscation can still slip through. Phase 3: consider an allowlist-based command filter or a sandboxed finder shell.",
+        "timeframe": "phase-3"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+    },
+    {
+      "id": "LL-b5c30235d3",
+      "ruleKey": "infra-auditor-runtime-evidence-secret-leak",
+      "title": "infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": ".claude/agents/infra-auditor.md",
+        "line": 31,
+        "snippet": "Never read or echo secret VALUES",
+        "sha": "8c0629583a0f8216e8487305d6c9a5c51d26c8a0"
+      },
+      "firstSeen": "2026-06-13",
+      "lastSeen": "2026-06-13",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Free-text runtime/CLI evidence snippets could carry secret values or PII; today this is enforced only by agent instruction and citation-check skips runtime evidence. Phase 3: schema-restrict or scrub runtime snippets; add a check that rejects secret-shaped strings in findings.",
+        "timeframe": "phase-3"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+    },
+    {
+      "id": "LL-3483c28f3c",
+      "ruleKey": "audit-run-parallel-finder-race",
+      "title": "Parallel finders read live infra without synchronization (possible inconsistent snapshot)",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": ".claude/skills/audit-run/SKILL.md",
+        "line": 33,
+        "snippet": "Spawn the four domain finders concurrently with the Agent tool",
+        "sha": "8c0629583a0f8216e8487305d6c9a5c51d26c8a0"
+      },
+      "firstSeen": "2026-06-13",
+      "lastSeen": "2026-06-13",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Concurrent finders reading live Render/AWS/GCP state may observe a moving target. Phase 3/4: snapshot live infra once in the orchestrator and pass it to finders, or stamp a single read window.",
+        "timeframe": "phase-3"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+    },
+    {
+      "id": "LL-a2b45c2bcb",
+      "ruleKey": "finder-agent-memory-cross-run-state",
+      "title": "Finder agent-memory (memory: project) may carry process state across audit runs",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": ".claude/agents/infra-auditor.md",
+        "line": 7,
+        "snippet": "memory: project",
+        "sha": "8c0629583a0f8216e8487305d6c9a5c51d26c8a0"
+      },
+      "firstSeen": "2026-06-13",
+      "lastSeen": "2026-06-13",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "memory: project persists across invocations; confirm it holds process knowledge only (never findings/PII/snippets). Phase 3: document the memory policy, consider memory: local or a periodic reset.",
+        "timeframe": "phase-3"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+    },
+    {
+      "id": "LL-5f0f4f52f8",
+      "ruleKey": "audit-system-not-self-audited",
+      "title": "Audit system files (.claude/) are not in any finder scan scope (no self-audit)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": ".claude/agents/infra-auditor.md",
+        "line": 62,
+        "snippet": "Access control (CC6): auth enforcement",
+        "sha": "8c0629583a0f8216e8487305d6c9a5c51d26c8a0"
+      },
+      "firstSeen": "2026-06-13",
+      "lastSeen": "2026-06-13",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The finder scan scopes cover app code/config/infra but not the audit system itself (.claude/agents, .claude/skills, .claude/hooks). Phase 3: add a meta-audit pass so the audit system is reviewed by its own discipline.",
+        "timeframe": "phase-3"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
     }
   ]
 }
