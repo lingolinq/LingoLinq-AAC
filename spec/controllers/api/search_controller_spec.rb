@@ -316,6 +316,45 @@ describe Api::SearchController, :type => :controller do
   end
   
   describe "proxy" do
+    class ProxyFakeRequest
+      attr_reader :url
+
+      def initialize(content_type: 'image/png', body: '12345', url: 'http://www.example.com/pic.png')
+        @content_type = content_type
+        @body = body
+        @url = url
+      end
+
+      def headers
+        { 'Content-Type' => @content_type }
+      end
+
+      def on_headers(&block)
+        @header_block = block
+      end
+
+      def on_body(&block)
+        @body_block = block
+      end
+
+      def on_complete(&block)
+        @complete_block = block
+      end
+
+      def run
+        res = OpenStruct.new(success?: true, code: 200, headers: { 'Content-Type' => @content_type })
+        @header_block.call(res)
+        @body_block.call(@body)
+        @complete_block.call(res)
+      end
+    end
+
+    def stub_proxy_request(content_type: 'image/png', body: '12345', url: 'http://www.example.com/pic.png')
+      req = ProxyFakeRequest.new(content_type: content_type, body: body, url: url)
+      allow(SafeHttp).to receive(:build_typhoeus_request).and_return(req)
+      req
+    end
+
     it "should require api token" do
       get :proxy, params: {:url => 'http://www.example.com/pic.png'}
       assert_missing_token
@@ -323,7 +362,7 @@ describe Api::SearchController, :type => :controller do
     
     it "should return content type and data-uri" do
       token_user
-      expect(controller).to receive(:get_url_in_chunks).and_return(['image/png', '12345'])
+      stub_proxy_request
       get :proxy, params: {:url => 'http://www.example.com/pic.png'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -339,13 +378,21 @@ describe Api::SearchController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('something bad')
     end
+
+    it "should reject SSRF targets before fetching" do
+      token_user
+      expect(controller).not_to receive(:get_url_in_chunks)
+      get :proxy, params: {:url => 'http://169.254.169.254/latest/meta-data/'}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('blocked or invalid URL')
+    end
     
     it "should escape the URI if needed" do
       token_user
-      expect(controller).to receive(:get_url_in_chunks) { |req|
-        expect(req.url).to eq("http://www.example.com/a%20good%20pic.png")
-        true
-      }.and_return(['image/png', '12345'])
+      expect(SafeHttp).to receive(:build_typhoeus_request).with('http://www.example.com/a%20good%20pic.png').and_return(
+        ProxyFakeRequest.new(url: 'http://www.example.com/a%20good%20pic.png')
+      )
       get :proxy, params: {:url => 'http://www.example.com/a good pic.png'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -355,10 +402,9 @@ describe Api::SearchController, :type => :controller do
 
     it "should not re-escape the URI if not needed" do
       token_user
-      expect(controller).to receive(:get_url_in_chunks) { |req|
-        expect(req.url).to eq("http://www.example.com/a%20good%20pic.png")
-        true
-      }.and_return(['image/png', '12345'])
+      expect(SafeHttp).to receive(:build_typhoeus_request).with('http://www.example.com/a%20good%20pic.png').and_return(
+        ProxyFakeRequest.new(url: 'http://www.example.com/a%20good%20pic.png')
+      )
       get :proxy, params: {:url => 'http://www.example.com/a%20good%20pic.png'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -376,16 +422,14 @@ describe Api::SearchController, :type => :controller do
       fresh_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/chksm12345/h1.json"
 
       # First fetch (stale URL) raises BadFileError; retry (fresh URL) succeeds
-      call_count = 0
-      expect(controller).to receive(:get_url_in_chunks).twice do |req|
-        call_count += 1
-        if call_count == 1
-          raise Api::SearchController::BadFileError, "File not retrieved, status 403 for #{req.url}"
-        else
-          expect(req.url).to eq(fresh_url)
-          ['text/json', '{"buttons":[]}']
-        end
-      end
+      stale_req = ProxyFakeRequest.new(content_type: 'text/json', body: '{"buttons":[]}', url: stale_url)
+      fresh_req = ProxyFakeRequest.new(content_type: 'text/json', body: '{"buttons":[]}', url: fresh_url)
+      expect(SafeHttp).to receive(:build_typhoeus_request).with(stale_url).and_return(stale_req)
+      expect(SafeHttp).to receive(:build_typhoeus_request).with(fresh_url).and_return(fresh_req)
+      expect(controller).to receive(:get_url_in_chunks).with(stale_req).and_raise(
+        Api::SearchController::BadFileError, "File not retrieved, status 403 for #{stale_url}"
+      )
+      expect(controller).to receive(:get_url_in_chunks).with(fresh_req).and_return(['text/json', '{"buttons":[]}'])
       expect(BoardDownstreamButtonSet).to receive(:generate_for).with(b.global_id, @user.global_id).and_return({success: true, state: 'uploaded', url: fresh_url})
 
       get :proxy, params: {:url => stale_url}

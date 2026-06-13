@@ -1,5 +1,7 @@
 require 'timeout'
 
+require 'safe_http'
+
 class Webhook < ApplicationRecord
   include Async
   include SecureSerialize
@@ -152,17 +154,23 @@ class Webhook < ApplicationRecord
           end
         end
         res = nil
+        log_url = url
         s = 10
         begin
           Timeout::timeout(s + 1) do
-            url = Uploader.sanitize_url(url)
-            res = Typhoeus.post(url, body: body, timeout: s)
+            sanitized = Uploader.sanitize_url(url)
+            if sanitized
+              res = SafeHttp.post(sanitized, body: body, timeout: s)
+              log_url = res.effective_url || sanitized
+            else
+              res = OpenStruct.new(code: 0, body: 'blocked or invalid URL')
+            end
           end
         rescue Timeout::Error => e
           res = OpenStruct.new(:code => 0, :body => "Timeout, request took more than #{s} seconds")
         end
         results << {
-          url: url,
+          url: log_url,
           response_code: res.code,
           response_body: res.body
         }
@@ -170,7 +178,7 @@ class Webhook < ApplicationRecord
         self.settings['callback_attempts'] << {
           'timestamp' => Time.now.to_i,
           'code' => res.code,
-          'url' => url
+          'url' => log_url
         }
         self.settings['callback_attempts'] = self.settings['callback_attempts'].last(20)
         self.save

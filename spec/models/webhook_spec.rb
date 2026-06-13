@@ -231,10 +231,10 @@ describe Webhook, :type => :model do
       
       token = 'abcdefg'
       res = OpenStruct.new(code: 200, body: 'asdf')
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/1', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10).and_return(res)
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/2', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10).and_return(res)
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/4', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10).and_return(res)
-      expect(Typhoeus).to_not receive(:post).with('http://www.example.com/3', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/1', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/2', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/4', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10).and_return(res)
+      expect(SafeHttp).to_not receive(:post).with('http://www.example.com/3', body: {token: token, notification: 'friend', record: h.record_code}, timeout: 10)
       res = h.notify('friend', h, {})
       expect(res.length).to eq(3)
       expect(res[0]).to eq({:url => 'http://www.example.com/4', :response_code => 200, :response_body => 'asdf'})
@@ -268,7 +268,7 @@ describe Webhook, :type => :model do
       
       token = 'abcdefg'
       res = OpenStruct.new
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/3', body: {token: token, notification: 'bacon', record: h.record_code, content: h.webhook_content(nil, nil, nil)}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/3', body: {token: token, notification: 'bacon', record: h.record_code, content: h.webhook_content(nil, nil, nil)}, timeout: 10).and_return(res)
       h.notify('bacon', h, {})
     end
 
@@ -291,7 +291,7 @@ describe Webhook, :type => :model do
       
       token = 'abcdefg'
       res = OpenStruct.new
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/baconator/3', body: {token: token, notification: 'bacon', record: h.record_code, content: json}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/baconator/3', body: {token: token, notification: 'bacon', record: h.record_code, content: json}, timeout: 10).and_return(res)
       h.notify('bacon', h, {})
     end
     
@@ -310,7 +310,7 @@ describe Webhook, :type => :model do
       
       token = 'abcdefg'
       res = OpenStruct.new
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/4', body: {token: token, notification: 'friend', record: h.record_code, url: "http://www.example.com/record/1"}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/4', body: {token: token, notification: 'friend', record: h.record_code, url: "http://www.example.com/record/1"}, timeout: 10).and_return(res)
       h.notify('friend', h, {})
     end
     
@@ -335,10 +335,10 @@ describe Webhook, :type => :model do
       
       token = 'abcdefg'
       res = OpenStruct.new
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/1', body: {token: token, notification: 'test', record: h.record_code}, timeout: 10).and_return(res)
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/2', body: {token: token, notification: 'test', record: h.record_code}, timeout: 10).and_return(res)
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/4', body: {token: token, notification: 'test', record: h.record_code}, timeout: 10).and_return(res)
-      expect(Typhoeus).to receive(:post).with('http://www.example.com/3', body: {token: token, notification: 'test', record: h.record_code, content: h.webhook_content(nil, nil, nil)}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/1', body: {token: token, notification: 'test', record: h.record_code}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/2', body: {token: token, notification: 'test', record: h.record_code}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/4', body: {token: token, notification: 'test', record: h.record_code}, timeout: 10).and_return(res)
+      expect(SafeHttp).to receive(:post).with('http://www.example.com/3', body: {token: token, notification: 'test', record: h.record_code, content: h.webhook_content(nil, nil, nil)}, timeout: 10).and_return(res)
       h.notify('test', h, {})
     end
   end
