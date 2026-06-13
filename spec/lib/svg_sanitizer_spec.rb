@@ -117,6 +117,15 @@ describe SvgSanitizer do
       expect(result[:bytes]).not_to include('<script')
     end
 
+    it 'continues scrubbing after removing an early dangerous element' do
+      input = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle onclick="x" cx="5" cy="5" r="4"/></svg>'
+      result = described_class.sanitize(input)
+      expect(result[:ok]).to eq(true)
+      expect(result[:bytes]).not_to include('<script')
+      expect(result[:bytes]).not_to match(/onclick/i)
+      expect(result[:bytes]).to include('<circle')
+    end
+
     it 'strips external href on use elements' do
       input = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="https://evil.example/bad.svg"/></svg>'
       result = described_class.sanitize(input)
@@ -160,6 +169,18 @@ describe SvgSanitizer do
       result = described_class.sanitize('not xml at all')
       expect(result[:ok]).to eq(false)
       expect(result[:error]).to match(/invalid_xml|no_svg_root/)
+    end
+  end
+
+  describe '.data_uri_content_type' do
+    it 'parses percent-encoded SVG data URIs' do
+      uri = 'data:image/svg+xml,' + CGI.escape('<svg/>')
+      expect(described_class.data_uri_content_type(uri)).to eq('image/svg+xml')
+    end
+
+    it 'parses base64 data URIs' do
+      uri = 'data:image/png;base64,abc'
+      expect(described_class.data_uri_content_type(uri)).to eq('image/png')
     end
   end
 

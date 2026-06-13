@@ -240,7 +240,7 @@ module Uploadable
     file = Tempfile.new(["stash", rasterize ? ".svg" : ""])
     file.binmode
     if url.match(/^data:/)
-      self.settings['content_type'] = url.split(/;/)[0].split(/:/)[1]
+      self.settings['content_type'] = SvgSanitizer.data_uri_content_type(url) || self.settings['content_type']
       payload = decode_data_uri_body(url)
       if payload.nil?
         record_upload_rejection(url, 'invalid_data_uri')
@@ -366,7 +366,7 @@ module Uploadable
 
       nil
     else
-      source.to_s
+      source.to_s.presence
     end
   end
 
@@ -415,6 +415,7 @@ module Uploadable
     result = SvgSanitizer.sanitize(body)
     unless result[:ok]
       Rails.logger.warn("Rejected stored SVG upload for #{self.class.name} #{self.global_id}: #{result[:error]}")
+      record_upload_rejection(s3_url, "svg_verification_failed:#{result[:error]}")
       return false
     end
 

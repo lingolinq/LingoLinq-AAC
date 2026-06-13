@@ -71,7 +71,7 @@ class SvgSanitizer
 
       if SvgSanitizer::DANGEROUS_ELEMENTS.include?(lname)
         node.remove
-        return STOP
+        return CONTINUE
       end
 
       if SvgSanitizer::EXTERNAL_REFERENCE_ELEMENTS.include?(lname)
@@ -82,7 +82,7 @@ class SvgSanitizer
         target = SvgSanitizer.attribute_value(node, 'attributeName').downcase
         if SvgSanitizer::DANGEROUS_ANIMATION_TARGETS.include?(target)
           node.remove
-          return STOP
+          return CONTINUE
         end
       end
 
@@ -186,7 +186,7 @@ class SvgSanitizer
 
   def self.parse_svg_document(bytes)
     doc = Nokogiri::XML(bytes) do |config|
-      config.nonet.noent.strict
+      config.nonet.strict
     end
     if doc.errors.any? { |err| err.fatal? || err.error? }
       return failure('invalid_xml')
@@ -213,6 +213,10 @@ class SvgSanitizer
       save_with: Nokogiri::XML::Node::SaveOptions::AS_XML |
                  Nokogiri::XML::Node::SaveOptions::NO_DECLARATION
     ).rstrip
+  end
+
+  def self.data_uri_content_type(data_uri)
+    data_uri.to_s.match(/\Adata:([^;,]+)/i)&.[](1)
   end
 
   def self.decode_data_uri_payload(data_uri)

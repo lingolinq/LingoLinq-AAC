@@ -404,6 +404,37 @@ describe Uploadable, :type => :model do
 
       expect(s.verify_stored_s3_upload!(s3_url)).to eq(true)
     end
+
+    it "should persist rejection state when stored SVG fails verification" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml' })
+      invalid_svg = '<svg xmlns="http://www.w3.org/2000/svg"><unclosed'
+      full_res = OpenStruct.new(success?: true, body: invalid_svg)
+      expect(Typhoeus).to receive(:get).with(s3_url).and_return(full_res)
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(false)
+      expect(s.reload.settings['errored_pending_url']).to eq(s3_url)
+    end
+
+    it "should reject blank upload sources without fetching" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      expect(SafeHttp).not_to receive(:get)
+      s.upload_to_remote(nil)
+      expect(s.url).to eq(nil)
+    end
+
+    it "should parse content_type from percent-encoded SVG data URIs" do
+      svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>'
+      data_uri = 'data:image/svg+xml,' + CGI.escape(svg)
+      s = ButtonImage.create(user: u, settings: { 'data_uri' => data_uri })
+      uploaded_body = nil
+      expect(Typhoeus).to receive(:post) { |url, args|
+        args[:body][:file].rewind
+        uploaded_body = args[:body][:file].read
+      }.and_return(OpenStruct.new(success?: true))
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(s.settings['content_type']).to eq('image/svg+xml')
+      expect(uploaded_body).to include('<circle')
+    end
   end
 
   describe "url_for" do
