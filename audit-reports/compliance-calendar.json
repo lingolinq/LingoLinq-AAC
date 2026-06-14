@@ -2,7 +2,7 @@
   "meta": {
     "schemaVersion": "1.0",
     "artifact": "LingoLinq-AAC compliance calendar",
-    "description": "Source of truth for recurring compliance review cadences and fixed regulatory dates. Owned by the compliance-officer agent, surfaced at /compliance-status. The officer DRAFTS and SURFACES; only Scot attests that a review was completed. Regenerate compliance-calendar.md from this file; do not hand-edit the render.",
+    "description": "Source of truth for recurring compliance review cadences and fixed regulatory dates. Owned by the compliance-officer agent, surfaced at /compliance-status. The officer DRAFTS and SURFACES; only Scot attests that a review was completed. Regenerate compliance-calendar.md with `ruby scripts/compliance-calendar-render.rb`; do not hand-edit the render.",
     "generatedDate": "2026-06-13",
     "owner": "compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)",
     "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 6; fresh regulatory lookups 2026-06-13",
@@ -99,6 +99,28 @@
       "basis": "plan 1.8, 2.4; ZDR verification SOP (Phase 1)"
     },
     {
+      "id": "rev-gemini-baa-annual",
+      "framework": "HIPAA",
+      "title": "Google Gemini API fallback path BAA/DPA verification",
+      "cadence": "annual",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "Confirm Gemini API data-handling terms and whether any Google BAA covers the runtime fallback in lib/ai_word_predictor.rb; document result in AI Governance Memo section 7",
+      "watch": "Until resolved, PiiScrubber remains the controlling backstop for the Gemini path",
+      "basis": "docs/legal/AI_GOVERNANCE_MEMO.md section 7; lib/ai_word_predictor.rb Gemini fallback"
+    },
+    {
+      "id": "gov-secret-rejector-build",
+      "framework": "SOC2",
+      "title": "Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3)",
+      "cadence": "one-time",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "Build scripts/audit-merge.rb or scripts/citation-check.rb rejector for secret/PII-shaped runtime evidence snippets",
+      "watch": "Instruction-only control on infra-auditor until this ships; tagged HIPAA/FERPA in register",
+      "basis": "audit-reports/self-findings-triage-2026-06-13.md; LL-b5c30235d3"
+    },
+    {
       "id": "rev-dpa-ndpa-renewals",
       "framework": "FERPA",
       "title": "District DPA / SDPC NDPA renewals + registry listing",
@@ -116,6 +138,8 @@
       "framework": "COPPA",
       "date": "2026-04-22",
       "status": "passed-enforceable",
+      "nextDue": "2026-07-26",
+      "linkedReview": "rev-coppa-retention-quarterly",
       "title": "Amended COPPA Rule compliance deadline",
       "obligation": "Written data-retention policy with enforced deletion; written information security program; expanded PI (voiceprints, audio); separate verifiable parental consent for disclosure not integral to the service, explicitly including using children's data to train AI.",
       "action": "Verify ongoing compliance each quarter (rev-coppa-retention-quarterly). Penalties up to ~$51,744/incident/day.",
@@ -124,7 +148,7 @@
     },
     {
       "id": "fix-euaiact-art50-2026-08-02",
-      "framework": "GDPR",
+      "framework": "EU_AI_Act",
       "date": "2026-08-02",
       "status": "upcoming",
       "title": "EU AI Act Article 50 transparency obligations apply",
@@ -135,7 +159,7 @@
     },
     {
       "id": "fix-euaiact-art50-2-2026-12-02",
-      "framework": "GDPR",
+      "framework": "EU_AI_Act",
       "date": "2026-12-02",
       "status": "upcoming",
       "title": "EU AI Act Article 50(2) machine-readable marking grace ends",
@@ -157,7 +181,7 @@
     },
     {
       "id": "fix-euaiact-annexiii-2027-12-02",
-      "framework": "GDPR",
+      "framework": "EU_AI_Act",
       "date": "2027-12-02",
       "status": "upcoming",
       "title": "EU AI Act Annex III high-risk obligations apply",
@@ -168,7 +192,7 @@
     },
     {
       "id": "watch-eaa-microenterprise",
-      "framework": "GDPR",
+      "framework": "EAA",
       "date": null,
       "status": "conditional",
       "title": "European Accessibility Act microenterprise exemption threshold",

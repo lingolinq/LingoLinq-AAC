@@ -31,9 +31,25 @@ Verified against code at draft time. Re-verify before publishing.
 
 Notes:
 - The runtime path can call **Google Gemini** as a fallback. Gemini API data-handling terms and
-  any Google BAA coverage for that path are an open item (section 7).
+  any Google BAA coverage for that path are tracked on the compliance calendar
+  (`rev-gemini-baa-annual`; section 7).
 - No persistent or autonomous AI agent runs against production user data. Prediction is
   request-scoped and stateless beyond logging.
+
+### 2.1 COPPA and under-13 AI training disclosure
+
+LingoLinq serves under-13 users. The amended COPPA Rule (compliance deadline **2026-04-22**,
+now passed and enforceable) requires **separate verifiable parental consent** for any disclosure
+of children's personal information that is not integral to the service, **explicitly including
+using children's data to train AI models**.
+
+Current posture (verify at publish time):
+- Runtime word prediction is feature-flag gated with a **COPPA hard block for under-13** in
+  `lib/ai_word_predictor.rb`, so the external-model path should not run for child accounts.
+- Any future change that sends children's data to an external model for training, fine-tuning, or
+  feedback loops requires a new consent flow and a calendar update before shipping.
+- Quarterly verification is tracked as `rev-coppa-retention-quarterly` and linked from fixed date
+  `fix-coppa-2026-04-22`.
 
 ## 3. The data-handling backstop: no identifiable data to external models
 
@@ -110,7 +126,8 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
 ## 7. Open governance items (to resolve)
 
 - [ ] Confirm Google Gemini API data-handling terms for the runtime fallback path, and whether
-      any Google BAA covers it. Until resolved, the PiiScrubber is the controlling backstop.
+      any Google BAA covers it (`rev-gemini-baa-annual` on the compliance calendar). Until
+      resolved, the PiiScrubber is the controlling backstop.
 - [ ] Per-feature data-flow documentation for each of the AI-gated features (feature flags
       enumerate the surface; the data-flow docs are the gap).
 - [ ] Vendor terms on file for every model provider in the inventory (Anthropic, Google,

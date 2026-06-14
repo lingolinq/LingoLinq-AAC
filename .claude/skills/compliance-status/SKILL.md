@@ -14,11 +14,7 @@ findings register (`audit-reports/FINDINGS.json`) is the single source of truth 
 only Scot moves a finding to `verified-closed`/`accepted-risk`.
 
 ## Run context (dynamic injection)
-- Audited commit:  !`git rev-parse HEAD`
-- Audited ref:     !`git rev-parse --abbrev-ref HEAD`
-- Register present?  !`test -f audit-reports/FINDINGS.json && echo yes || echo "NO - run Phase 1 first"`
-- Open Critical/High (register):  !`ruby -rjson -e 'd=JSON.parse(File.read("audit-reports/FINDINGS.json")); o=d["findings"].select{|f| %w[open remediated-unverified].include?(f["status"])}; c=o.count{|f| f["severity"]=="critical"}; h=o.count{|f| f["severity"]=="high"}; puts "critical=#{c} high=#{h}"' 2>/dev/null || echo "unavailable"`
-- Calendar present?  !`test -f audit-reports/compliance-calendar.json && echo yes || echo "no (Phase 3 deliverable)"`
+!`ruby scripts/compliance-status-context.rb`
 
 ## Step 1: Preflight
 Confirm the register exists and citations are green (`ruby scripts/citation-check.rb`, expect
@@ -44,8 +40,9 @@ Present the officer's report to Scot:
   without his sign-off; the Notion publish is a separate human-initiated one-way step.
 
 ## Guardrails (always)
-- Read-mostly: the officer drafts only under `audit-reports/` and `docs/legal/`; a PreToolUse
-  hook enforces it. No application-code edits, no external sends.
+- Read-mostly: the officer drafts only on the compliance artifact allowlist (`audit-reports/compliance-calendar.*`,
+  dated hygiene/regulatory notes, `docs/legal/*.md`); a PreToolUse hook enforces it. Never
+  `audit-reports/FINDINGS.json`. No application-code edits, no external sends.
 - No student/patient data in any output (code-only evidence; public regulation text).
 - Compliance content is Claude-only, never Codex/DeepSeek.
 - The register is the only authoritative status; dated reports are point-in-time snapshots.

@@ -56,6 +56,7 @@
   evidence snippet matches secret/PII shapes (API-key prefixes `ghp_`/`rnd_`/`pplx-`/`eyJh`,
   high-entropy tokens, email/SSN-shaped strings). This touches the Phase-1 audit toolchain and
   deserves its own small security-reviewed change rather than riding on this governance branch.
+  **Tracked on the compliance calendar as `gov-secret-rejector-build` (nextDue 2026-09-01).**
   Until built, the instruction is the control. Stays `open`.
 
 ### LL-97f9001bb4 - audit Bash guard is a denylist with residual fetch-and-exec bypass (low) -> DEFER

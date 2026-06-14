@@ -84,9 +84,14 @@ eye-gaze) and a full-surface (not modernized-only) pass.
 | 1.4.3 Contrast (Minimum) | Partially Supports | 6 contrast failures on modernized surfaces: light accent text (verdigris, dusty-denim) on light backgrounds and white text on light gradients. Worst measured 2.26:1 (`.md-download-card__btn--secondary`, app.scss:3994) vs 4.5:1 required. The Fitzgerald part-of-speech symbol color system passes cleanly (5.7:1 to 21:1). |
 | 1.4.11 Non-text Contrast | Partially Supports | Translucent-background close buttons flagged for in-browser recompute (app.scss:9467, 9693). |
 | 2.4.7 Focus Visible | Partially Supports | Modal close buttons and several controls missing `:focus-visible`; 8 FAIL / 4 RISK in the keyboard/focus pass. |
-| 2.5.5 Target Size (Enhanced, AAA) | Informational | Listed in working notes (AAA, not required at AA); modal close buttons at 34x34px. |
 | 2.5.8 Target Size (Minimum, AA 2.2) | Not Applicable | 2.5.8 is WCAG 2.2; this report targets 2.1 AA. Tracked for a future 2.2 uplift. |
 | 4.1.3 Status Messages | Partially Supports | Status messages ("Loading...", error states, copy-success toasts) missing `aria-live` regions across find-button, eval-status, share-board. |
+
+### Table 3: Level AAA criteria (informational only; not required at AA)
+
+| Criterion | Conformance (DRAFT) | Remarks (evidence: working notes) |
+|---|---|---|
+| 2.5.5 Target Size (Enhanced) | Informational | Modal close buttons at 34x34px in working notes. AAA only; not part of the AA conformance claim. |
 
 > Criteria not listed are **Not Evaluated** in this draft. Completing the full Level A + AA
 > tables (all ~50 criteria) is part of finishing this ACR before publication.
