@@ -3,9 +3,9 @@
     "schemaVersion": "1.0",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
-    "auditedSha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-    "auditedRef": "origin/staging",
-    "auditedDate": "2026-06-12",
+    "auditedSha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c",
+    "auditedRef": "scot/compliance/audit-phase4-cadence",
+    "auditedDate": "2026-06-14",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff",
     "statusEnum": [
@@ -1199,6 +1199,223 @@
         "attestation": ""
       },
       "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+    },
+    {
+      "id": "LL-e573a39d2b",
+      "ruleKey": "eval-narrator-no-pii-scrub-external-model",
+      "title": "Eval narration sends slp_notes/sett (student name + clinical notes) to Anthropic with no PiiScrubber",
+      "severity": "critical",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "COPPA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/eval_narrator.rb",
+        "line": 189,
+        "snippet": "'slp_notes' => payload['slp_notes'],",
+        "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
+      },
+      "firstSeen": "2026-06-14",
+      "lastSeen": "2026-06-14",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "EvalNarrator.draft_via_anthropic is the only external-model call site that does NOT scrub. Unlike ai_board_generator.rb and ai_word_predictor.rb which call PiiScrubber.configure_blocklist(names) + PiiScrubber.redact_for_ai(...) before the Anthropic call, payload_for_prompt (lib/eval_narrator.rb:181-191) serializes intake/recommendation/sett/slp_notes raw and sends it as the user message. sett.student is a free-text student name and slp_notes is free-text clinical narrative, so identifiable student/PHI data reaches Anthropic (no BAA). Run PiiScrubber over payload_for_prompt output before messages(); or hard-disable draft_via_anthropic until scrubbing is wired.",
+        "timeframe": "critical 24-72h"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-06-14. | adversary verifier: CONFIRMED (high) - draft_via_anthropic makes a real ::Anthropic::Client.messages call with raw sett.student name + slp_notes (eval_narrator.rb:181-192); no PiiScrubber/redact_for_ai on the path, unlike ai_board_generator.rb:55 and ai_word_predictor.rb:55; reachable via routes.rb:292 eval_sessions#narrate, gated by require_api_token + beta-opt-in comprehensive_eval_ai flag + ANTHROPIC_API_KEY (both realistic shipped conditions)."
+    },
+    {
+      "id": "LL-ef5ac1b2a5",
+      "ruleKey": "eval-narrator-no-aiapilog-audit-trail",
+      "title": "Eval AI narration creates no AiApiLog entry (no record student eval data was sent to an LLM)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/eval_narrator.rb",
+        "line": 58,
+        "snippet": "{ role: 'user', content: payload_for_prompt(payload) }",
+        "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
+      },
+      "firstSeen": "2026-06-14",
+      "lastSeen": "2026-06-14",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Every other AI call site writes an AiApiLog row with request_summary + pii_findings (see ai_board_generator.rb). The eval narration path (lib/eval_narrator.rb draft_via_anthropic; api/eval_sessions_controller.rb#narrate) has no AiApiLog call, so there is no audit trail that a specific student's evaluation payload was transmitted to an external model. Add AiApiLog.create! around draft_via_anthropic capturing user/org, model, request_summary, pii_findings.",
+        "timeframe": "high 15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-06-14. | adversary verifier: CONFIRMED (high) - the eval narration external call writes no AiApiLog anywhere on the chain (eval_narrator.rb / eval_sessions_controller.rb / application_controller.rb); sibling AI sites do log (ai_board_generator.rb:663, ai_word_predictor.rb:244)."
+    },
+    {
+      "id": "LL-52ff2a9a79",
+      "ruleKey": "ci-security-gates-non-blocking",
+      "title": "CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/ci.yml",
+        "line": 107,
+        "snippet": "continue-on-error: true",
+        "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
+      },
+      "firstSeen": "2026-06-14",
+      "lastSeen": "2026-06-14",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The whole security-scan job is continue-on-error: true (ci.yml:107), and every tool inside also soft-passes (Brakeman '|| true', npm audit '|| true', gitleaks '--exit-code 1 || true'). SAST, dependency-CVE, and secret-detection can never fail a PR, so a regression or a committed secret merges green. Make at least gitleaks secret-detection and high-severity bundle-audit/Brakeman blocking on PRs to staging/main; pair with branch protection requiring the gate.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-06-14. Net-new CC8 change-management finding; April-2026 register seed predates any CI/CD. | adversary verifier: CONFIRMED (high) - ci.yml:107 is the job-level continue-on-error on security-scan, plus per-tool soft-passes (Brakeman 122/124, npm audit 147/148, gitleaks 171 inside continue-on-error secret-detection job 152); no security gate, including the secret scanner, can fail a PR."
+    },
+    {
+      "id": "LL-ba0585ab93",
+      "ruleKey": "db-ssl-require-no-cert-verify",
+      "title": "Production Postgres uses sslmode=require (encrypt only), not verify-ca/verify-full",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "config/database.yml",
+        "line": 26,
+        "snippet": "sslmode: require",
+        "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
+      },
+      "firstSeen": "2026-06-14",
+      "lastSeen": "2026-06-14",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "sslmode=require encrypts but does NOT validate the server certificate/hostname, so it does not defend against an active MITM. For PHI/FERPA in transit, move to sslmode=verify-full (or verify-ca) with the provider CA bundle once the GCP Cloud SQL cutover lands (Cloud SQL connector over VPC already gives a verified path), reconciling with the migration rather than fixing Render twice. Until cutover, set verify-full against Render's Postgres CA if available, else accept-risk with a dated note.",
+        "timeframe": "tracked-with-gcp-migration"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-06-14. Net-new; existing register covers Redis-TLS (LL-6619cc1811) and HSTS (LL-9f83617435) but not DB SSL verification mode. | adversary verifier: CONFIRMED (high) - production.primary sslmode: require (database.yml:20-26) encrypts without server-cert/hostname verification; genuinely distinct from redis-no-tls-shared (LL-6619cc1811) and no-hsts-options (LL-9f83617435)."
+    },
+    {
+      "id": "LL-41d2d553ab",
+      "ruleKey": "integration-json-debug-junk-key",
+      "title": "Integration JSON emits a debug junk key (asdf) consumed by no Ember model",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/json_api/integration.rb",
+        "line": 67,
+        "snippet": "json['asdf'] = 'asdf'",
+        "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
+      },
+      "firstSeen": "2026-06-14",
+      "lastSeen": "2026-06-14",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Rails side: delete the stray json['asdf'] = 'asdf' line in JsonApi::Integration.build_json (left-over debug). No Ember model attribute consumes it, so removal is contract-safe.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-14. Orphaned builder field: integration.js declares no 'asdf' attr; emitted whenever settings['custom_integration'] is set. | adversary verifier: CONFIRMED (high) - json['asdf']='asdf' at integration.rb:67 inside the custom_integration block; no Ember Integration attr consumes it; dead debug junk."
+    },
+    {
+      "id": "LL-27d20047db",
+      "ruleKey": "integration-board-render-url-read-write-asymmetry",
+      "title": "Integration board_render_url is writable but never serialized back (read/write field-name asymmetry)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/integration.js",
+        "line": 24,
+        "snippet": "board_render_url: DS.attr('string'),",
+        "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
+      },
+      "firstSeen": "2026-06-14",
+      "lastSeen": "2026-06-14",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Make the round-trip whole. Rails side (preferred): serialize json['board_render_url'] = obj.settings['board_render_url'] in JsonApi::Integration so the value Ember writes comes back under the same key. Alternatively change the Ember model/template to read from extra_includes' render_url.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-14. Write path stores params['board_render_url'] into settings (user_integration.rb:164); read path emits only render/render_url, never board_render_url, so the edit field (add-integration.hbs:67) is empty on reopen. | adversary verifier: REFUTED (high) - the written value DOES round-trip: serializer emits json['integration']['render_url']=settings['board_render_url'] (integration.rb:88, confirmed at audited SHA), read by integration.js:12 and used at routes/board.js:54-62; add-integration.hbs is a create-only modal and the reopen flow (integration-details.hbs) has no render-url input, so the cited empty-field/overwrite condition does not occur. RECOMMEND Scot drop or accept-as-not-a-defect. Left open pending Scot's decision (only Scot closes/downgrades)."
+    },
+    {
+      "id": "LL-d1ea8659c3",
+      "ruleKey": "outdated-bootstrap-3",
+      "title": "bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 31,
+        "snippet": "\"bootstrap\": \"^3.4.1\",",
+        "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
+      },
+      "firstSeen": "2026-06-14",
+      "lastSeen": "2026-06-14",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Bootstrap 3.x is EOL since 2019 with no security patches; GHSA XSS advisories (Tooltip/Popover sanitizer bypass, data-* injection) have no 3.x backport. The app ships bootstrap.min.js (ember-cli-build.js:109) and calls .tooltip()/.popover() (app-state, utterance, stats components), so the vector is reachable. INDEPENDENT of the pinned Ember 3.28 -> 5.x migration. Options: (1) migrate to Bootstrap 5.x behind a feature flag (AAC UI-disruptive); (2) if deferred, ensure no untrusted HTML reaches title/data-content of tooltip/popover call sites and audit those sites; (3) Scot accepts risk with call sites confirmed to use only app-controlled sanitized strings.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-14. | adversary verifier: CONFIRMED (high); SEVERITY OPINION for Scot = should-be-medium. bootstrap 3.4.1 JS is bundled (ember-cli-build.js:88) and .tooltip()/.popover() are used, but no live untrusted-HTML-into-tooltip sink exists today (all .tooltip() omit html:true; the one html:true popover builds body via escaped innerText), so this is latent supply-chain/XSS hygiene risk, not a currently triggerable XSS. Fix is independent of the pinned Ember 3.28->5 migration. Severity downgrade is Scot's call only."
     }
   ]
 }
