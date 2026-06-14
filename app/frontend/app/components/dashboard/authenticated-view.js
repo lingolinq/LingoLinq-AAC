@@ -701,7 +701,7 @@ export default Component.extend({
         // modal is suppressed so newly-registered users route directly
         // into the home-page tour instead (see routes/register.js
         // `save_done` → appState.auto_open_home_tour = true, which
-        // home-tour.js observes and auto-fires).
+        // guided-tour.js observes and auto-fires).
         //
         // The subscribe modal template, component, SCSS, and the
         // `modal.open('subscribe')` mechanism are all preserved — to
@@ -1049,6 +1049,23 @@ export default Component.extend({
   }),
 
   actions: {
+    // Approve / deny a pending org (or supervision) request from the home page
+    // notice — same supervisor_key save the user/index controller uses, run
+    // against the current user.
+    approve_or_reject_org: function(decision) {
+      var user = this.get('appState.currentUser');
+      if(!user) { return; }
+      if(decision == 'user_approve') {
+        user.set('supervisor_key', 'approve-org');
+      } else if(decision == 'user_reject') {
+        user.set('supervisor_key', 'remove_supervisor-org');
+      } else if(decision == 'supervisor_approve') {
+        user.set('supervisor_key', 'approve_supervision-' + user.get('pending_supervision_org.id'));
+      } else if(decision == 'supervisor_reject') {
+        user.set('supervisor_key', 'remove_supervision-' + user.get('pending_supervision_org.id'));
+      }
+      if(user.save) { user.save().then(function() { }, function() { }); }
+    },
     addOrganization: function() {
       var user_name = this.appState.get('currentUser.user_name');
       if(user_name) {
@@ -1256,7 +1273,7 @@ export default Component.extend({
     getting_started: function() {
       this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
     },
-    // Open the Dashboard Design tour (getting-started-tour, mounted in the navbar)
+    // Open the Dashboard Design tour (display-style, mounted in the navbar)
     // directly on the "choose your display style" page. Prefer the DIRECT opener
     // the tour registers on appState (deterministic — no cross-component observer
     // timing/coalescing), and fall back to the appState signal (which the tour
@@ -1264,7 +1281,7 @@ export default Component.extend({
     editDashboard: function() {
       var opener = this.get('appState.dashboard_design_opener');
       if (opener) {
-        opener('getting_started_tour_display');
+        opener('display_style_display');
       } else {
         this.get('appState').set('open_dashboard_design', 'display');
       }

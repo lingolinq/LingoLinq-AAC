@@ -3,7 +3,7 @@
   {{!-- The "Take a tour" + "Get Started" triggers live in the inner header
        (app-navbar-authenticated-inner → .app-navbar__home-actions) as circle icon
        buttons for EVERY dashboard layout. That navbar is global, so the
-       getting-started-tour component stays mounted across a mid-modal layout flip
+       display-style component stays mounted across a mid-modal layout flip
        (no fixed-corner copy needed). --}}
   {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
@@ -66,6 +66,40 @@
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
       {{/if}}
     </header>
+
+    {{!-- Pending org / supervision approval — moved here from the Boards tab so
+         it surfaces on the HOME page. Modern notice card; the surface + Approve
+         CTA adapt to the active layout (Gentle / Focused) via body.ll-layout-*.
+         Home tab only. --}}
+    {{#if (is-equal this.activeTab "home")}}
+      {{#if this.appState.currentUser.pending_org}}
+      <section class="md-pending-notice" role="status">
+        <span class="md-pending-notice__icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4"/></svg>
+        </span>
+        <div class="md-pending-notice__body">
+          <p class="md-pending-notice__text">{{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete. If approved, the organization will have access to profile information for this user." key="confirm_pending_org2" org=this.appState.currentUser.pending_org.name}}{{#if this.appState.currentUser.pending_org.sponsored}} {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}{{/if}}</p>
+          <div class="md-pending-notice__actions">
+            <button type="button" class="md-btn md-btn--primary" {{action "approve_or_reject_org" "user_approve"}}>{{t "Approve %{org}" org=this.appState.currentUser.pending_org.name}}</button>
+            <button type="button" class="md-btn md-btn--ghost md-pending-notice__deny" {{action "approve_or_reject_org" "user_reject"}}>{{t "Deny Access" key="deny_access"}}</button>
+          </div>
+        </div>
+      </section>
+      {{else if this.appState.currentUser.pending_supervision_org}}
+      <section class="md-pending-notice" role="status">
+        <span class="md-pending-notice__icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+        <div class="md-pending-notice__body">
+          <p class="md-pending-notice__text">{{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=this.appState.currentUser.pending_supervision_org.name}}</p>
+          <div class="md-pending-notice__actions">
+            <button type="button" class="md-btn md-btn--primary" {{action "approve_or_reject_org" "supervisor_approve"}}>{{t "Approve %{org}" org=this.appState.currentUser.pending_supervision_org.name}}</button>
+            <button type="button" class="md-btn md-btn--ghost md-pending-notice__deny" {{action "approve_or_reject_org" "supervisor_reject"}}>{{t "Deny Access" key="deny_access"}}</button>
+          </div>
+        </div>
+      </section>
+      {{/if}}
+    {{/if}}
 
 <section class="md-grid md-grid--dashboard {{this.dashboardLayoutClass}} {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if (is-equal this.activeTab "home") this.gridClassString}}" style={{if (is-equal this.activeTab "home") this.gridStyle}} aria-label={{t "Dashboard" key="dashboard"}}>
       {{!-- Getting Started onboarding card DISABLED — we're evaluating
@@ -489,6 +523,15 @@
 
       {{#if (is-equal this.activeTab "extras")}}
       <section class="md-extras-page" aria-label={{t "Extras" key="extras"}}>
+        {{!-- Focused View header/subheader — shown ONLY in Focused View via CSS (the
+             gentle-view hero above serves that role otherwise). Mirrors the home page
+             Boards card head (title + verdigris accent + sub + gradient divider),
+             top-left of the container, adapted for Extras. --}}
+        <div class="md-extras-page__focus-head">
+          <h3 class="md-card__title">{{t "Extras" key="extras"}} <span class="md-card__title-accent--verdigris">{{t "(Tools & Resources)" key="extras_focus_accent"}}</span></h3>
+          <div class="md-card__sub">{{t "Browse more tools and resources" key="extras_focus_sub"}}</div>
+        </div>
+        <div class="md-extras-page__focus-divider md-card--boards__divider" aria-hidden="true"></div>
         <div class="md-extras-page__grid">
           {{#each this.extrasItems as |item|}}
             {{#if item.show}}

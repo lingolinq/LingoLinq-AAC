@@ -16,6 +16,54 @@
         {{/if}}
         <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all"}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">{{t "Logs" key="logs"}}</LinkTo>
       </nav>
+      {{!-- ≤460px primary nav: the .md-pillnav--user pill row above is hidden at
+           this breakpoint and this dropdown drawer takes its place, mirroring the
+           home page's md-pillnav-dropdown. Native <details>/<summary> so the
+           open/close state needs no controller wiring (same pattern as the
+           caseload page). The trigger label reflects the current section. --}}
+      <details class="md-pillnav-dropdown md-pillnav-dropdown--user" aria-label={{t "User menu" key="user_menu"}}>
+        <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
+          <span class="md-pillnav-dropdown__label">
+            <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            {{#if (is-equal this.app_state.current_route 'user.edit')}}{{t "Profile" key="profile_lower"}}{{else if (is-equal this.app_state.current_route 'user.preferences')}}{{t "Settings" key="preferences_lower"}}{{else if (is-equal this.app_state.current_route 'user.logs')}}{{t "Logs" key="logs"}}{{else}}{{t "Account" key="account_lower"}}{{/if}}
+          </span>
+          <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
+        </summary>
+        <ul class="md-pillnav-dropdown__list">
+          <li>
+            <LinkTo @route="index" class="md-pillnav-dropdown__option">
+              <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+              {{t "Home" key="home"}}
+            </LinkTo>
+          </li>
+          <li>
+            <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-pillnav-dropdown__option {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">
+              <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              {{t "Account" key="account_lower"}}
+            </LinkTo>
+          </li>
+          {{#if this.model.permissions.edit}}
+            <li>
+              <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav-dropdown__option {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">
+                <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                {{t "Profile" key="profile_lower"}}
+              </LinkTo>
+            </li>
+            <li>
+              <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav-dropdown__option {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">
+                <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H1a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V1a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H23a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                {{t "Settings" key="preferences_lower"}}
+              </LinkTo>
+            </li>
+          {{/if}}
+          <li>
+            <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all"}} class="md-pillnav-dropdown__option {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">
+              <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              {{t "Logs" key="logs"}}
+            </LinkTo>
+          </li>
+        </ul>
+      </details>
       <main class="md-main md-main--user">
         {{outlet}}
       </main>
