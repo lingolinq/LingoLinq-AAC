@@ -130,6 +130,16 @@ no secrets:
    `citationCheck` status, and the open Critical/High headline. Recurrence is then a diff over
    `runs.jsonl`. See `audit-reports/run-log/README.md`.
 
+## Step 8 (optional, human-initiated): Publish summary to Notion
+Regenerate the one-way Notion page body from the register:
+`ruby scripts/compliance-notion-publish.rb` (then `--check`). It renders a PII-free summary
+(headline + open-findings table, file:line anchors only) to
+`audit-reports/notion/compliance-audit-page.md`, stamped with the audited SHA + run date and
+marked "generated, do not edit". The actual push to the single Notion "Compliance & Audit" page in
+the Master Inbox is a **human-initiated one-way step** (no audit/compliance surface auto-sends
+externally) - see `audit-reports/notion/README.md`. The unattested Compliance Posture Report is
+never published here; it stays DRAFT until Scot signs.
+
 ## Guardrails (always)
 - Read-only auditors; the register is the single source of truth; no student/patient data in
   findings (snippets are code only); compliance content is Claude-only, never Codex/DeepSeek.
