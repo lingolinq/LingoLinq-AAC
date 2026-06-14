@@ -25,10 +25,11 @@ class AuditEvent < ApplicationRecord
       # a non-echoing placeholder, NOT the raw message: if the scrubber is absent
       # we must not leak the unredacted `e.message` we were trying to scrub. Include
       # only the scrubber exception class (never its message) so ops can distinguish
-      # NameError vs LoadError without echoing the persist error text.
+      # NameError vs LoadError without echoing the persist error text. LoadError is a
+      # ScriptError, not StandardError, so bare `rescue` would not catch it.
       detail = begin
         PiiScrubber.scrub_log_line(e.message.to_s).truncate(300)
-      rescue => scrub_err
+      rescue ScriptError, StandardError => scrub_err
         "[unscrubbable:#{scrub_err.class}]"
       end
       message = '[AuditEvent] failed to persist audit record for ' + user_key.to_s + ': ' + e.class.to_s + ': ' + detail
