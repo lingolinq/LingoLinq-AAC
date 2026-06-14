@@ -1059,10 +1059,16 @@ export default Component.extend({
         user.set('supervisor_key', 'approve-org');
       } else if(decision === 'user_reject') {
         user.set('supervisor_key', 'remove_supervisor-org');
-      } else if(decision === 'supervisor_approve') {
-        user.set('supervisor_key', 'approve_supervision-' + user.get('pending_supervision_org.id'));
-      } else if(decision === 'supervisor_reject') {
-        user.set('supervisor_key', 'remove_supervision-' + user.get('pending_supervision_org.id'));
+      } else if(decision === 'supervisor_approve' || decision === 'supervisor_reject') {
+        // Guard the id: the buttons only render under {{#if pending_supervision_org}},
+        // but bail rather than build a 'remove_supervision-undefined' key the server
+        // would silently reject if the request cleared between render and click.
+        var org_id = user.get('pending_supervision_org.id');
+        if(!org_id) { return; }
+        var prefix = (decision === 'supervisor_approve') ? 'approve_supervision-' : 'remove_supervision-';
+        user.set('supervisor_key', prefix + org_id);
+      } else {
+        return;
       }
       // Don't swallow the result — an org-approval that silently fails would
       // leave the user believing the relationship was approved/denied when it

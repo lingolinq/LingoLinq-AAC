@@ -1245,7 +1245,7 @@ export default Component.extend({
       {
         id: 'display_style_layout',
         title: this._decoratedTitle('display_style_layout_title', "Customize your dashboard"),
-        text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml('-welcome'),
+        text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml('-layout'),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           hide: function() { try { component._persistDisplaySelection(this.el); } catch (e) { /* never block close */ } }
