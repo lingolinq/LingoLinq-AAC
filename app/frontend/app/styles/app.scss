@@ -28266,7 +28266,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   height: 100%;
   background: #fff;
   box-shadow: -4px 0 24px rgba($indigo, 0.15);
-  padding: 72px 40px 32px 32px;
+  padding: 56px 40px 32px 32px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -28393,6 +28393,34 @@ header.header--unauthenticated ~ #content .la-topbar {
   height: 1px;
   background: rgba($indigo, 0.08);
   margin: 8px 0;
+  /* The panel is a flex column with overflow; without this the zero-content
+     divider collapses to 0 height under flex-shrink on tall menus (its margins
+     stay, so a gap shows but no line). Pin its size so the hairline always paints. */
+  flex-shrink: 0;
+}
+/* Modern divider — brand verdigris→navy gradient hairline (fades at both ends),
+   matching the app's modern dividers. Used to separate the user's quick links from
+   the rest of the drawer. */
+.la-mobile-drawer__divider--modern {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba($la-navy, 0) 0%,
+    rgba($brand-verdigris-aa, 0.45) 18%,
+    rgba($la-navy, 0.32) 50%,
+    rgba($brand-verdigris-aa, 0.35) 82%,
+    rgba($la-navy, 0) 100%
+  );
+  margin: 12px 0;
+}
+
+/* Display Style drawer link — the inner-header disc covers this above 640px, so
+   the drawer entry appears ONLY at <=640px (where the disc is hidden). The
+   two-class selector beats the single-class base link rules regardless of source
+   order. */
+.la-mobile-drawer__link.la-mobile-drawer__link--display-style { display: none; }
+@media (max-width: $aac-breakpoint-sm) {
+  .la-mobile-drawer__link.la-mobile-drawer__link--display-style { display: block; }
 }
 /* Modern divider — brand verdigris→navy gradient hairline (fades at both ends),
    matching the app's modern dividers. Used to separate the user's quick links from
@@ -29356,7 +29384,7 @@ header #identity #identity_button.btn::after {
 /* The Getting Started trigger reuses the .beta-welcome-steps__num glass circle
    as an actionable icon button — reset native button chrome, indigo icon
    (currentColor), and a subtle hover lift. */
-.md-getting-started-tour__trigger {
+.md-display-style__trigger {
   /* Always a pill showing the icon + "Get Started" label at EVERY width
      (overrides the .beta-welcome-steps__num fixed 36px circle to an auto-width
      pill). */
@@ -29374,12 +29402,31 @@ header #identity #identity_button.btn::after {
   color: $indigo;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.md-getting-started-tour__trigger:hover {
+.md-display-style__trigger:hover {
   transform: translateY(-1px);
 }
-.md-getting-started-tour__trigger:focus-visible {
+.md-display-style__trigger:focus-visible {
   outline: 2px solid rgba($brand-dusty-denim, 0.55);
   outline-offset: 3px;
+}
+/* Display Style button fill — the glassmorphism disc formerly supplied by
+   `.beta-welcome-steps__num` (renamed off this control so the class reflects its
+   purpose; that class still styles the beta-welcome-message steps list). Size/shape
+   come from `.md-display-style__trigger` + `.app-navbar__home-actions`; this
+   supplies only the translucent denim→verdigris glass fill, rim, and glow for Gentle
+   View (Focused View overrides the background with the nav-pill gradient). */
+.display-style {
+  color: $indigo;
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($brand-dusty-denim, 0.32) 0%, rgba($brand-verdigris, 0.28) 100%);
+  backdrop-filter: blur(8px) saturate(1.4);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 6px 16px rgba($brand-dusty-denim, 0.20),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -4px 8px rgba($brand-verdigris, 0.16);
 }
 
 /* Focused layout — the Take-a-Tour + Get-Started triggers are relocated into the
@@ -29398,7 +29445,7 @@ header #identity #identity_button.btn::after {
   margin-left: 12px;
 }
 .app-navbar__home-actions .md-tour__trigger,
-.app-navbar__home-actions .md-getting-started-tour__trigger {
+.app-navbar__home-actions .md-display-style__trigger {
   position: static !important;
   top: auto !important;
   left: auto !important;
@@ -29414,7 +29461,7 @@ header #identity #identity_button.btn::after {
   justify-content: center !important;
 }
 .app-navbar__home-actions .md-tour__trigger-label,
-.app-navbar__home-actions .md-getting-started-tour__trigger-label {
+.app-navbar__home-actions .md-display-style__trigger-label {
   display: none !important;
 }
 /* Navbar circle buttons (Take a Tour + Get Started / Dashboard Design) — on
@@ -29424,7 +29471,7 @@ header #identity #identity_button.btn::after {
    .beta-welcome-steps__num glass disc. The 40px circle SIZE/shape rule above is
    unscoped so both layouts stay circular. */
 body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger,
-body.ll-layout-focused .app-navbar__home-actions .md-getting-started-tour__trigger {
+body.ll-layout-focused .app-navbar__home-actions .md-display-style__trigger {
   background: linear-gradient(135deg, $focus-accent-from, $focus-nav-accent-to) !important;
   border: 1px solid rgba($focus-on-dark, 0.16) !important;
   color: $focus-on-dark !important;
@@ -29434,8 +29481,18 @@ body.ll-layout-focused .app-navbar__home-actions .md-getting-started-tour__trigg
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+/* The Guided Tour disc on Focused View takes the SAME glossy desaturated-navy
+   surface as the home page "Let's Communicate" hero (.md-card--speak-focused),
+   so the tour entry point echoes the focal communicate button. Only the
+   background changes from the shared focused-disc rule above; the Display Style
+   disc keeps the blue-grey→charcoal-blue gradient. */
+body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger {
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%) !important;
+}
 body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger-icon,
-body.ll-layout-focused .app-navbar__home-actions .md-getting-started-tour__trigger-icon {
+body.ll-layout-focused .app-navbar__home-actions .md-display-style__trigger-icon {
   color: $focus-on-dark !important;
 }
 /* The map (Take a Tour) glyph uses HARDCODED hex strokes (#4C86D8 / #46505F), not
@@ -29444,16 +29501,16 @@ body.ll-layout-focused .app-navbar__home-actions .md-tour__trigger-icon * {
   stroke: $focus-on-dark !important;
 }
 /* While the Getting Started modal series is open the page chrome is dimmed
-   (body.md-gst-active, set by getting-started-tour). Hide the relocated inner-header
+   (body.md-ds-active, set by display-style). Hide the relocated inner-header
    Take-a-Tour + Get-Started discs then, so they don't sit over the modal backdrop. */
-body.md-gst-active .app-navbar__home-actions { display: none !important; }
+body.md-ds-active .app-navbar__home-actions { display: none !important; }
 /* ≤1024px — keep the two discs in the navbar (every layout). Legacy ≤1024
    `.md-tour__trigger` rules try to re-pin the trigger to a fixed corner; re-assert
    the in-navbar circle treatment + visibility here so they stay on the navbar. */
 @media (max-width: 1024px) {
   .app-navbar__home-actions { display: inline-flex !important; }
   .app-navbar__home-actions .md-tour__trigger,
-  .app-navbar__home-actions .md-getting-started-tour__trigger {
+  .app-navbar__home-actions .md-display-style__trigger {
     position: static !important;
     top: auto !important;
     right: auto !important;
@@ -29464,12 +29521,28 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
     border-radius: 50% !important;
     padding: 0 !important;
   }
+  /* Left-align the discs immediately to the right of the brand. At <=1024 the
+     nav-header is `display:contents`, so its children (brand, search, discs)
+     flatten into the inner-header flex row; the brand `h1` is kept content-width
+     (see the nav-header h1 rule below) so the discs tuck in right after it via
+     `order`. `#identity`'s own `margin-left:auto` still pushes the avatar/menu to
+     the far right. */
+  .app-navbar .app-navbar__nav-header:has(.app-navbar__home-actions) .app-navbar__home-actions {
+    order: -1 !important;
+    margin-left: 12px !important;
+  }
 }
-.md-getting-started-tour__trigger-icon {
+/* <=640px: drop the Display Style disc from the inner header — it moves into the
+   mobile drawer (`.la-mobile-drawer__link--display-style`, shown only at this
+   width) instead. The guided-tour disc stays in the navbar. */
+@media (max-width: $aac-breakpoint-sm) {
+  .app-navbar__home-actions .md-display-style__trigger { display: none !important; }
+}
+.md-display-style__trigger-icon {
   display: block;
 }
 /* Trigger label — always shown, to the right of the icon. */
-.md-getting-started-tour__trigger-label {
+.md-display-style__trigger-label {
   display: inline;
   font-size: 14px;
   font-weight: 700;
@@ -29478,12 +29551,12 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   white-space: nowrap;
 }
 /* Getting Started modal — a bit larger and pinned near the top of the
-   viewport. Scoped via the `md-gst-modal` class on its welcome step so the
+   viewport. Scoped via the `md-ds-modal` class on its welcome step so the
    home-tour welcome/outro keep their default size + centering. Shepherd's
    base .shepherd-element has no `position` — floating-ui sets position/top/left
    INLINE at runtime — so these `!important` rules (which beat inline styles)
    take full, explicit control: fixed, horizontally centered, near the top. */
-.shepherd-element.md-gst-modal {
+.shepherd-element.md-ds-modal {
   position: fixed !important;
   top: 6vh !important;
   left: 50% !important;
@@ -29491,12 +29564,12 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   margin: 0 !important;
   max-width: 600px;
 }
-.shepherd-element.md-gst-modal .shepherd-text {
+.shepherd-element.md-ds-modal .shepherd-text {
   max-width: 40ch;
 }
 /* "Choose your display style" step — a WIDER modal to fit the three options
    side-by-side plus the Gentle Layout preview below; text uses full width. */
-.shepherd-element.md-gst-modal--display {
+.shepherd-element.md-ds-modal--display {
   /* Roomy panel for the live home-page preview: 80% of the viewport on larger
      screens (centered, the dimmed page showing at the sides), full-width at
      1024px and below. Full height either way; scrolls vertically. */
@@ -29513,7 +29586,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   overflow-y: auto !important;
 }
 @media (max-width: 1024px) {
-  .shepherd-element.md-gst-modal--display {
+  .shepherd-element.md-ds-modal--display {
     width: 100vw !important;
     max-width: 100vw !important;
     left: 0 !important;
@@ -29524,7 +29597,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    width at all sizes so the preview has room and the toggles sit as a
    content-width side panel. Scoped via :has() to the with-toggles preview, so the
    "choose your display style" step keeps its 80vw panel. */
-.shepherd-element.md-gst-modal--display:has(.md-gst-preview--with-toggles) {
+.shepherd-element.md-ds-modal--display:has(.md-ds-preview--with-toggles) {
   width: 100vw !important;
   max-width: 100vw !important;
   left: 0 !important;
@@ -29537,7 +29610,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    after all content (reached by scrolling) when it's tall. Replaces the old
    sticky footer, which floated up to the content's end and, on small screens,
    stayed pinned over the content. */
-.shepherd-element.md-gst-modal--display .shepherd-content {
+.shepherd-element.md-ds-modal--display .shepherd-content {
   max-width: none !important;
   width: 100% !important;
   display: flex;
@@ -29545,7 +29618,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   min-height: 100%;
   box-sizing: border-box;
 }
-.shepherd-element.md-gst-modal--display .shepherd-text {
+.shepherd-element.md-ds-modal--display .shepherd-text {
   max-width: none !important;
   width: 100% !important;
   margin: 0 !important;
@@ -29554,7 +29627,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   box-sizing: border-box !important;
   flex: 1 0 auto;
 }
-.shepherd-element.md-gst-modal--display .shepherd-footer {
+.shepherd-element.md-ds-modal--display .shepherd-footer {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid rgba($la-navy, 0.08);
@@ -29565,23 +29638,23 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    it ~2× taller too). Content: a short lead, a horizontal 1→2 progress stepper
    (reusing the .beta-welcome-steps__num glass badges + a connecting line), and two
    button cards that preview the next two steps as mini-mockups. */
-.shepherd-element.md-gst-modal--welcome {
+.shepherd-element.md-ds-modal--welcome {
   max-width: 1100px;
   width: 92vw;
   top: 4vh !important;
 }
 /* Override the centered-intro 40ch text cap so the cards use the full width. */
-.shepherd-element.md-gst-modal--welcome .shepherd-text {
+.shepherd-element.md-ds-modal--welcome .shepherd-text {
   max-width: none !important;
 }
-.md-gst-welcome {
+.md-ds-welcome {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 28px;
   padding: 8px 0 4px;
 }
-.md-gst-welcome__lead {
+.md-ds-welcome__lead {
   margin: 0;
   max-width: 60ch;
   text-align: center;
@@ -29591,15 +29664,15 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Horizontal 1 —— 2 stepper. Side padding seats the badge centres over the two
    card columns (25% / 75%); the flexible line connects them. */
-.md-gst-welcome__progress {
+.md-ds-welcome__progress {
   display: flex;
   align-items: center;
   width: 100%;
   padding: 0 calc(25% - 18px);
   box-sizing: border-box;
 }
-.md-gst-welcome__num { font-size: 16px; }
-.md-gst-welcome__line {
+.md-ds-welcome__num { font-size: 16px; }
+.md-ds-welcome__line {
   flex: 1;
   height: 2px;
   margin: 0 12px;
@@ -29607,13 +29680,13 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   background: linear-gradient(90deg, rgba($brand-verdigris, 0.5) 0%, rgba($brand-dusty-denim, 0.5) 100%);
   opacity: 0.5;
 }
-.md-gst-welcome__cards {
+.md-ds-welcome__cards {
   display: flex;
   gap: 24px;
   width: 100%;
 }
 /* Non-actionable label card — just names a step; sits under its number. */
-.md-gst-welcome-card {
+.md-ds-welcome-card {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -29630,16 +29703,16 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
     0 1px 2px rgba($la-navy, 0.04),
     0 10px 28px rgba($la-navy, 0.08);
 }
-.md-gst-welcome-card__title {
+.md-ds-welcome-card__title {
   font-size: 18px;
   font-weight: 700;
   color: $indigo;
 }
 @media (max-width: 720px) {
-  .md-gst-welcome__cards { flex-direction: column; }
-  .md-gst-welcome__progress { padding: 0; justify-content: center; }
+  .md-ds-welcome__cards { flex-direction: column; }
+  .md-ds-welcome__progress { padding: 0; justify-content: center; }
 }
-.md-gst-options {
+.md-ds-options {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -29650,8 +29723,8 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Stylized "— OR —" divider between the two layout-style buttons: the word OR
    flanked by short hairline dashes, so the pair reads as an either/or choice.
-   A flex child of .md-gst-options, vertically centered between the cards. */
-.md-gst-options__or {
+   A flex child of .md-ds-options, vertically centered between the cards. */
+.md-ds-options__or {
   flex: 0 0 auto;
   align-self: center;
   display: inline-flex;
@@ -29663,8 +29736,8 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   text-transform: uppercase;
   color: rgba($la-navy, 0.5);
 }
-.md-gst-options__or::before,
-.md-gst-options__or::after {
+.md-ds-options__or::before,
+.md-ds-options__or::after {
   content: "";
   width: 18px;
   height: 2px;
@@ -29674,7 +29747,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 /* Layout option card — mirrors the dashboard Speak Mode as-button: glassy
    white surface, hairline border, layered raised shadow + hover lift. Number
    badge reuses the .beta-welcome-steps__num glass circle. */
-.md-gst-option {
+.md-ds-option {
   /* Hug the content so there's no dead space to the right of the short bullet
      lines; cards don't grow, can shrink, and still stretch to equal HEIGHT
      (container align-items defaults to stretch). Cap the width so any future
@@ -29703,8 +29776,8 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   transition: box-shadow 180ms ease-out, transform 140ms ease-out;
   -webkit-tap-highlight-color: transparent;
 }
-.md-gst-option:hover,
-.md-gst-option:focus-visible {
+.md-ds-option:hover,
+.md-ds-option:focus-visible {
   transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
@@ -29713,14 +29786,14 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
     0 8px 18px rgba($la-navy, 0.10),
     0 20px 44px rgba($la-navy, 0.14);
 }
-.md-gst-option:active {
+.md-ds-option:active {
   transform: translateY(0.5px);
 }
-.md-gst-option:focus-visible {
+.md-ds-option:focus-visible {
   outline: 2px solid rgba($brand-dusty-denim, 0.55);
   outline-offset: 3px;
 }
-.md-gst-option__label {
+.md-ds-option__label {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -29732,7 +29805,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Thin intentional underline beneath each option, in the brand highlight
    gradient (matches the dashboard card dividers). */
-.md-gst-option__label::after {
+.md-ds-option__label::after {
   content: "";
   /* Extend 4px past the label text (2px each side). Percentages don't feed
      the flex item's intrinsic width, so the label still hugs its text and the
@@ -29745,7 +29818,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   background: $la-highlight-gradient;
 }
 /* Title + one-line descriptor stack to the right of the number circle. */
-.md-gst-option__text {
+.md-ds-option__text {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -29753,7 +29826,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Small, muted one-line descriptor beneath each layout title — adds decision
    clarity without raising visual priority or cognitive load. */
-.md-gst-option__desc {
+.md-ds-option__desc {
   margin-top: 6px;
   font-size: 14px;
   font-weight: 500;
@@ -29768,7 +29841,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Lead line above the Gentle View bullet list ("May be a good fit if you:") —
    a touch stronger/darker than the bullets so it reads as their intro. */
-.md-gst-option__desc-lead {
+.md-ds-option__desc-lead {
   display: block;
   font-weight: 600;
   color: rgba($la-navy, 0.7);
@@ -29776,7 +29849,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 /* Overarching bracket wrapping the bullet group — a modern "[": a soft
    verdigris left rule with short rounded top/bottom ticks, framing the three
    "good fit" items as one set. */
-.md-gst-option__bracket {
+.md-ds-option__bracket {
   position: relative;
   margin-top: 8px;
   padding-left: 13px;
@@ -29784,7 +29857,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
      but the bullets themselves read LEFT-aligned inside it. */
   text-align: left;
 }
-.md-gst-option__bracket::before {
+.md-ds-option__bracket::before {
   content: "";
   position: absolute;
   left: 0;
@@ -29797,7 +29870,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Professional bullet list under the lead — custom verdigris dots (not the
    default browser markers) for a polished, on-brand look. */
-.md-gst-option__list {
+.md-ds-option__list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -29805,14 +29878,14 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   flex-direction: column;
   gap: 5px;
 }
-.md-gst-option__list li {
+.md-ds-option__list li {
   position: relative;
   padding-left: 16px;
   font-size: 14px;
   line-height: 1.3;
   color: rgba($la-navy, 0.55);
 }
-.md-gst-option__list li::before {
+.md-ds-option__list li::before {
   content: "";
   position: absolute;
   left: 2px;
@@ -29823,17 +29896,17 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   background: $brand-verdigris;
 }
 @media (prefers-reduced-motion: reduce) {
-  .md-gst-option {
+  .md-ds-option {
     transition: none;
   }
-  .md-gst-option:hover,
-  .md-gst-option:focus-visible,
-  .md-gst-option:active {
+  .md-ds-option:hover,
+  .md-ds-option:focus-visible,
+  .md-ds-option:active {
     transform: none;
   }
 }
 /* Selected option (set by the show hook on click) — verdigris ring. */
-.md-gst-option.is-selected {
+.md-ds-option.is-selected {
   border-color: rgba($brand-verdigris, 0.6) !important;
   /* Calm verdigris atmospheric tint layered over the white base — instantly
      identifiable at a glance, but no saturated fill or harsh "selected tab" look. */
@@ -29848,7 +29921,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Brighter, slightly thicker divider under the SELECTED layout's title — a small
    accent that reinforces the choice without raising overall visual volume. */
-.md-gst-option.is-selected .md-gst-option__label::after {
+.md-ds-option.is-selected .md-ds-option__label::after {
   height: 3px;
   box-shadow: 0 0 6px rgba($brand-verdigris, 0.3);
 }
@@ -29864,7 +29937,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    actual home dashboard, shown below the options. Cards are placed via inline
    grid-row/column from the component so it mirrors the real (user-type-aware)
    grid, and each is labeled with its real card name. ── */
-.md-gst-preview {
+.md-ds-preview {
   /* Page 1 (display style): clear separation from the style cards above so the
      "[ PREVIEW ]" legend reads as the start of a distinct preview region. */
   margin-top: 28px;
@@ -29872,7 +29945,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 /* Two "what you can do" checklist items below the Customize step header, joined
    by an "— and/or —" divider. Pills mirror the section-toggle chips; the check
    sits in a brand gradient disc. */
-.md-gst-howto {
+.md-ds-howto {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -29880,7 +29953,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   gap: 10px 14px;
   margin: 4px auto 16px;
 }
-.md-gst-howto__item {
+.md-ds-howto__item {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -29895,7 +29968,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* Stylish diamond bullet — a small rounded-corner square rotated 45°, filled with
    the brand denim→verdigris gradient and a soft drop shadow + inner highlight. */
-.md-gst-howto__bullet {
+.md-ds-howto__bullet {
   flex: 0 0 auto;
   width: 9px;
   height: 9px;
@@ -29906,7 +29979,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
     linear-gradient(150deg, $brand-dusty-denim, $brand-verdigris);
   box-shadow: 0 1px 2px rgba($la-navy, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-.md-gst-howto__sep {
+.md-ds-howto__sep {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -29916,24 +29989,35 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   text-transform: uppercase;
   color: rgba($la-navy, 0.5);
 }
-.md-gst-howto__sep::before,
-.md-gst-howto__sep::after {
+.md-ds-howto__sep::before,
+.md-ds-howto__sep::after {
   content: "";
   width: 14px;
   height: 2px;
   border-radius: 2px;
   background: rgba($la-navy, 0.2);
 }
+/* Responsive — once the two how-to pills can't sit side-by-side, stack them into
+   a centered column so the "— AND/OR —" wraps onto its OWN centered row between
+   them (instead of being stranded inline beside a pill). This step's modal is
+   full viewport width and the pills are compact, so they fit side-by-side down
+   to ~md; below that they wrap. (The container already centers via
+   `align-items:center`, so just flipping to column is enough.) */
+@media (max-width: $aac-breakpoint-md) {
+  .md-ds-howto {
+    flex-direction: column;
+  }
+}
 /* Page 2 (Customize your dashboard): two-up layout — the live preview on the LEFT,
    the section-visibility toggles as a PANEL on the RIGHT (was a single centered
    column with the toggles stacked on top). Grid areas put the legend above the
    live preview in the left column; the toggles panel spans both rows on the right. */
-.md-gst-preview--with-toggles {
+.md-ds-preview--with-toggles {
   margin-top: 6px;
   display: grid;
   /* The toggles panel hugs its content (widest pill + padding); the preview takes
      the rest. The long heading is wrapped (not allowed to stretch the panel) by
-     the .md-gst-sections__title rule below. */
+     the .md-ds-sections__title rule below. */
   grid-template-columns: minmax(0, 1fr) max-content;
   grid-template-rows: auto minmax(0, 1fr);
   /* The legend spans BOTH columns so it centers across the full page width (its
@@ -29946,18 +30030,18 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   align-items: start;
   column-gap: 24px;
 }
-.md-gst-preview--with-toggles .md-gst-preview__legend { grid-area: legend; }
-.md-gst-preview--with-toggles .md-gst-preview__live { grid-area: live; }
+.md-ds-preview--with-toggles .md-ds-preview__legend { grid-area: legend; }
+.md-ds-preview--with-toggles .md-ds-preview__live { grid-area: live; }
 /* Toggles become the right-hand panel: drop the centered-top-block max-width +
    auto margins (the inset card treatment is kept and now reads as a side panel),
    sit it at the top of its area, and stack the pills vertically in the column. */
-.md-gst-preview--with-toggles .md-gst-sections {
+.md-ds-preview--with-toggles .md-ds-sections {
   grid-area: sections;
   max-width: none;
   margin: 0;
   align-self: start;
 }
-.md-gst-preview--with-toggles .md-gst-sections__title {
+.md-ds-preview--with-toggles .md-ds-sections__title {
   text-align: left;
   /* Wrap the heading to the pill-stack width instead of letting its long single
      line stretch the whole panel: width:min-content makes it contribute only its
@@ -29966,7 +30050,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   width: min-content;
   min-width: 100%;
 }
-.md-gst-preview--with-toggles .md-gst-sections__list {
+.md-ds-preview--with-toggles .md-ds-sections__list {
   flex-direction: column;
   flex-wrap: nowrap;
   align-items: flex-start;
@@ -29975,7 +30059,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 /* Narrow viewports (small landscape): fall back to the original single column
    with the toggles stacked on top of the preview. */
 @media (max-width: 860px) {
-  .md-gst-preview--with-toggles {
+  .md-ds-preview--with-toggles {
     grid-template-columns: 1fr;
     grid-template-areas:
       "sections"
@@ -29983,14 +30067,14 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
       "live";
     column-gap: 0;
   }
-  .md-gst-preview--with-toggles .md-gst-sections {
+  .md-ds-preview--with-toggles .md-ds-sections {
     max-width: 920px;
     margin: 0 auto 24px;
   }
-  .md-gst-preview--with-toggles .md-gst-sections__title {
+  .md-ds-preview--with-toggles .md-ds-sections__title {
     text-align: center;
   }
-  .md-gst-preview--with-toggles .md-gst-sections__list {
+  .md-ds-preview--with-toggles .md-ds-sections__list {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -30000,7 +30084,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 /* Combined preview legend — one professional line above the live preview that
    reads as a progression: a bracketed preview tag, a dot, then the swap
    instruction. Replaces the separate top caption + bottom drag hint. */
-.md-gst-preview__legend {
+.md-ds-preview__legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -30010,7 +30094,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 }
 /* "Preview — Gentle Layout" framed by thin, modern brackets (drawn via
    ::before/::after in the brand accent) — uppercase, tracked, quietly muted. */
-.md-gst-preview__legend-tag {
+.md-ds-preview__legend-tag {
   position: relative;
   padding: 0 15px;
   font-size: 14px;
@@ -30019,8 +30103,8 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   text-transform: uppercase;
   color: rgba($la-navy, 0.5);
 }
-.md-gst-preview__legend-tag::before,
-.md-gst-preview__legend-tag::after {
+.md-ds-preview__legend-tag::before,
+.md-ds-preview__legend-tag::after {
   position: absolute;
   top: 50%;
   transform: translateY(-52%);
@@ -30029,17 +30113,17 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   line-height: 1;
   color: rgba($brand-dusty-denim, 0.55);
 }
-.md-gst-preview__legend-tag::before { content: "["; left: 0; }
-.md-gst-preview__legend-tag::after  { content: "]"; right: 0; }
+.md-ds-preview__legend-tag::before { content: "["; left: 0; }
+.md-ds-preview__legend-tag::after  { content: "]"; right: 0; }
 /* Dot connector between the tag and the instruction. */
-.md-gst-preview__legend-dot {
+.md-ds-preview__legend-dot {
   width: 4px;
   height: 4px;
   border-radius: 50%;
   background: rgba($la-navy, 0.26);
 }
 /* The swap instruction — calm sentence guidance, sized for the AAC 13px floor. */
-.md-gst-preview__legend-hint {
+.md-ds-preview__legend-hint {
   font-size: 14px;
   font-weight: 500;
   /* A touch more contrast than the bracketed tag's effective weight, so the
@@ -30050,7 +30134,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 /* Section visibility checklist — modern custom checkboxes that toggle which
    home-dashboard cards appear; toggling one also live-hides the matching card
    in the preview clone below. */
-.md-gst-sections {
+.md-ds-sections {
   max-width: 920px;
   /* More space below the section block so it reads as a finished step before the
      "[ PREVIEW ]" legend / live grid begins. */
@@ -30065,7 +30149,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   border: 1px solid rgba($la-navy, 0.05);
   box-shadow: inset 0 1px 4px rgba($la-navy, 0.05), inset 0 -1px 0 rgba(255, 255, 255, 0.3);
 }
-.md-gst-sections__title {
+.md-ds-sections__title {
   font-size: 14px;
   /* Lighter weight + a touch less contrast so this reads as supportive guidance,
      not a heading competing with the layout titles. Size unchanged (AAC). */
@@ -30074,13 +30158,13 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   text-align: center;
   margin-bottom: 10px;
 }
-.md-gst-sections__list {
+.md-ds-sections__list {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px 14px;
 }
-.md-gst-section {
+.md-ds-section {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -30101,13 +30185,13 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   user-select: none;
   transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
 }
-.md-gst-section:hover {
+.md-ds-section:hover {
   border-color: rgba($brand-dusty-denim, 0.45);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba($la-navy, 0.10);
 }
 /* Visually-hidden native input — keeps keyboard focus + a11y semantics while
    the styled box does the visuals. */
-.md-gst-section__input {
+.md-ds-section__input {
   position: absolute;
   opacity: 0;
   width: 1px;
@@ -30115,7 +30199,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   margin: 0;
   pointer-events: none;
 }
-.md-gst-section__box {
+.md-ds-section__box {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -30132,12 +30216,12 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   box-shadow: inset 0 1px 2px rgba($la-navy, 0.14), inset 0 -1px 0 rgba(255, 255, 255, 0.9);
   transition: background 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
 }
-.md-gst-section__check {
+.md-ds-section__check {
   opacity: 0;
   transform: scale(0.6);
   transition: opacity 130ms ease-out, transform 130ms ease-out;
 }
-.md-gst-section__input:checked ~ .md-gst-section__box {
+.md-ds-section__input:checked ~ .md-ds-section__box {
   /* Checked: the circle pops UP — brand gradient fill, an outer drop shadow (raised
      off the pill), a glossy top highlight and a bottom inner shadow for a rounded,
      three-dimensional button feel. */
@@ -30145,29 +30229,29 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   border-color: transparent;
   box-shadow: 0 2px 5px rgba($brand-stormy-teal, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 3px rgba($la-navy, 0.20);
 }
-.md-gst-section__input:checked ~ .md-gst-section__box .md-gst-section__check {
+.md-ds-section__input:checked ~ .md-ds-section__box .md-ds-section__check {
   opacity: 1;
   transform: scale(1);
 }
-.md-gst-section__input:focus-visible ~ .md-gst-section__box {
+.md-ds-section__input:focus-visible ~ .md-ds-section__box {
   outline: 2px solid rgba($brand-dusty-denim, 0.6);
   outline-offset: 2px;
 }
-.md-gst-section__label {
+.md-ds-section__label {
   font-size: 14px;
   font-weight: 600;
   color: $indigo;
 }
 /* The live preview frame holds a 1:1, non-interactive clone of the real home
    dashboard grid, injected by the show hook. */
-.md-gst-preview__live {
+.md-ds-preview__live {
   position: relative;
   /* Single source of truth for the preview's render scale. Applied as a CSS
-     `zoom` on .md-gst-preview__page (below) so the cloned dashboard renders 20%
+     `zoom` on .md-ds-preview__page (below) so the cloned dashboard renders 20%
      smaller WITHOUT a transform's leftover layout gap, and read by JS
      (_onDisplayShow) so the drag-to-swap ghost can divide its cursor delta by the
      same factor and stay 1:1 under the pointer. */
-  --md-gst-preview-zoom: 0.8;
+  --md-ds-preview-zoom: 0.8;
   border-radius: 16px;
   border: 1px solid rgba($la-navy, 0.10);
   background:
@@ -30184,7 +30268,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
 /* Empty-state overlay — shown over the preview when no display elements are
    selected (Next is disabled until at least one is). Frosted scrim + a centered
    glass card, matching the modal's surfaces. */
-.md-gst-empty {
+.md-ds-empty {
   position: absolute;
   inset: 0;
   display: none;
@@ -30196,13 +30280,13 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   backdrop-filter: blur(6px);
   z-index: 2;
 }
-.md-gst-empty.is-visible {
+.md-ds-empty.is-visible {
   display: flex;
 }
 /* Placeholder box — a gray DOUBLE outline (border + offset outline), no fill or
    shadow, so it reads as an empty-state hint and is never mistaken for a
    card/button that will appear on the home page. */
-.md-gst-empty__card {
+.md-ds-empty__card {
   max-width: 440px;
   text-align: center;
   padding: 26px 30px 28px;
@@ -30212,18 +30296,18 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   outline: 2px solid rgba(100, 116, 139, 0.5);
   outline-offset: 5px;
 }
-.md-gst-empty__icon {
+.md-ds-empty__icon {
   color: $brand-dusty-denim;
   margin-bottom: 14px;
 }
-.md-gst-empty__title {
+.md-ds-empty__title {
   font-size: 19px;
   font-weight: 700;
   color: $indigo;
   letter-spacing: 0.01em;
   margin-bottom: 8px;
 }
-.md-gst-empty__text {
+.md-ds-empty__text {
   font-size: 15px;
   line-height: 1.45;
   color: rgba($la-navy, 0.66);
@@ -30232,19 +30316,19 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    board-detail one). Hidden by default; shown at ≤640px — rotating to landscape
    widens past 640px and auto-hides it. Lifted above the Shepherd modal content
    so it gates the step. */
-.md-board-detail-portrait-overlay.md-gst-orientation {
+.md-board-detail-portrait-overlay.md-ds-orientation {
   display: none;
   z-index: 100000;
 }
 @media (max-width: 640px) {
-  .md-board-detail-portrait-overlay.md-gst-orientation {
+  .md-board-detail-portrait-overlay.md-ds-orientation {
     display: flex;
   }
 }
 /* Workspace-like wrapper so the cloned grid lays out at the same width as the
    real home page; the clone is the actual `.md-grid--dashboard`, so its
    responsive (viewport-driven) layout is identical to what the user sees. */
-.md-gst-preview__page {
+.md-ds-preview__page {
   /* Slightly narrower than before (1080 vs 1200, a touch more side inset) so the
      dashboard renders a bit smaller and less dominant — still well above the
      950px viewport breakpoint, so it keeps the real two-column desktop layout. */
@@ -30254,18 +30338,18 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
      shrinks the LAYOUT box too, so there's no leftover empty space below the
      preview the way a transform would leave. Viewport media queries are unaffected,
      so the clone keeps its real two-column desktop layout — just scaled down. The
-     drag math compensates for this factor (see --md-gst-preview-zoom). */
-  zoom: var(--md-gst-preview-zoom, 1);
+     drag math compensates for this factor (see --md-ds-preview-zoom). */
+  zoom: var(--md-ds-preview-zoom, 1);
 }
 /* Welcome-hero banner clone — sits above the grid clone in the preview; inert and
    spaced from the cards below. Hidden/shown by syncState like the section cards. */
-.md-gst-preview__hero {
+.md-ds-preview__hero {
   pointer-events: none;
   margin-bottom: 18px;
 }
 /* The clone is a pure visual preview — never interactive (looks live, isn't). */
-.md-gst-preview__clone,
-.md-gst-preview__clone * {
+.md-ds-preview__clone,
+.md-ds-preview__clone * {
   pointer-events: none !important;
   cursor: default !important;
   -webkit-user-select: none !important;
@@ -30278,11 +30362,11 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    positioning context so the overlay can inset to it; the overlay re-enables
    pointer-events (compound selector 0,2,0 + !important beats the clone's inert
    `*` rule) and sets `touch-action:none` so touch drags aren't hijacked as scrolls. */
-.md-gst-preview__clone .md-gst-draggable {
+.md-ds-preview__clone .md-ds-draggable {
   position: relative;
   transition: opacity 140ms ease-out, outline-color 140ms ease-out;
 }
-.md-gst-preview__clone .md-gst-drag-overlay {
+.md-ds-preview__clone .md-ds-drag-overlay {
   position: absolute;
   inset: 0;
   z-index: 4;
@@ -30295,7 +30379,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    translates it). The lift shadow uses `filter: drop-shadow` rather than
    box-shadow because box-shadow is pinned inline (hover-suppression) and can't be
    overridden from CSS; filter is free and also softly clips to the card shape. */
-.md-gst-preview__clone .md-gst-draggable.md-gst-dragging {
+.md-ds-preview__clone .md-ds-draggable.md-ds-dragging {
   opacity: 0.9;
   /* Lift shadow is an inline box-shadow set by JS on grab (composites cheaply on the
      will-change:transform layer) rather than `filter: drop-shadow`, which forced a
@@ -30303,7 +30387,7 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
   transition: none !important;
   will-change: transform;
 }
-.md-gst-preview__clone .md-gst-draggable.md-gst-dragging .md-gst-drag-overlay {
+.md-ds-preview__clone .md-ds-draggable.md-ds-dragging .md-ds-drag-overlay {
   cursor: grabbing !important;
 }
 /* R2 — the user is hovering a drop the active layout forbids (Focused View: an action
@@ -30311,46 +30395,52 @@ body.md-gst-active .app-navbar__home-actions { display: none !important; }
    cursor on the captured overlay; the legend hint simultaneously swaps to say what IS
    allowed (reorder within the row). The denim dashed outline above = a valid target; this
    red dashed outline = blocked, so the two never read the same. */
-.md-gst-preview__clone .md-gst-draggable.md-gst-dragging.md-gst-drag-blocked {
+.md-ds-preview__clone .md-ds-draggable.md-ds-dragging.md-ds-drag-blocked {
   outline: 2px dashed rgba($brand-danger, 0.85);
   outline-offset: 2px;
 }
-.md-gst-preview__clone .md-gst-draggable.md-gst-dragging.md-gst-drag-blocked .md-gst-drag-overlay {
+.md-ds-preview__clone .md-ds-draggable.md-ds-dragging.md-ds-drag-blocked .md-ds-drag-overlay {
   cursor: not-allowed !important;
 }
-.md-gst-preview__legend-hint--blocked {
+.md-ds-preview__legend-hint--blocked {
   color: $brand-danger;
   font-weight: 600;
 }
 /* Every card that will be SWAPPED OUT by the current drop lights up — not just the
    one under the cursor (e.g. both cards a Boards mirror displaces). Outline only (no
    background) so cards with their own wave/gradient backgrounds aren't clobbered. */
-.md-gst-preview__clone .md-gst-draggable.md-gst-drop-target {
+.md-ds-preview__clone .md-ds-draggable.md-ds-drop-target {
   outline: 3px dashed rgba($brand-dusty-denim, 0.92);
   outline-offset: 2px;
 }
 /* Drag affordance hint shown above the live preview when dragging is enabled. */
-/* ── While the Getting Started series is active (body.md-gst-active): clear
+/* ── While the Getting Started series is active (body.md-ds-active): clear
    the page down to just the brand (logo + name) + the identity avatar dropdown
    in the header, and the dimmed page bg gradient behind the modal. Everything
    else is hidden; the Shepherd modal overlay supplies the dim. ── */
-body.md-gst-active .md-workspace {
+body.md-ds-active .md-workspace {
   visibility: hidden !important;
 }
-body.md-gst-active .header-search-wrap,
-body.md-gst-active .app-navbar__quick-actions,
-body.md-gst-active #identity .md-pillnav__upgrade-nav,
-body.md-gst-active #identity .ll-header-settings-btn,
-body.md-gst-active #identity .ll-bento-help-btn,
-body.md-gst-active .app-navbar__beta-feedback-link {
+body.md-ds-active .header-search-wrap,
+body.md-ds-active .app-navbar__quick-actions,
+body.md-ds-active #identity .md-pillnav__upgrade-nav,
+body.md-ds-active #identity .ll-header-settings-btn,
+body.md-ds-active #identity .ll-bento-help-btn,
+body.md-ds-active .app-navbar__beta-feedback-link {
   display: none !important;
 }
 
-/* Responsive — stack the three options on narrow viewports (this display
-   step's modal caps to the viewport width, so the row gets cramped). */
-@media (max-width: 640px) {
-  .md-gst-options {
+/* Responsive — stack the three options into a centered COLUMN (Focused, then
+   the OR on its OWN centered row, then Gentle) once there isn't room for the two
+   420px cards + the OR to sit side-by-side. The display modal is 80vw (100vw at
+   <=1024), so a full side-by-side row only fits on very wide viewports
+   (>=$aac-breakpoint-xl → 80vw ≈ 1024px of content); below that the row wraps
+   and the OR would otherwise be stranded inline beside a card. `align-items:
+   center` centers both the cards and the OR row horizontally. */
+@media (max-width: $aac-breakpoint-xl) {
+  .md-ds-options {
     flex-direction: column;
+    align-items: center;
   }
 }
 .md-hero--dashboard-user {
@@ -38500,6 +38590,17 @@ a.la-footer-bottom-a11y-wcag {
     min-width: 0 !important;
 
   }
+  /* …EXCEPT on dashboard / empty-header pages (where the Take-a-Tour +
+     Dashboard-Design discs live): don't grow the brand — keep it content-width
+     so the discs tuck in just to its right (left-aligned) instead of the brand's
+     flex:1 pushing them to the far edge onto the identity menu. `:has()` scopes
+     this to headers that actually carry the discs; the `#inner_header` variant
+     gives it the ID specificity needed to beat the grow rule above. */
+  .app-navbar .app-navbar__nav-header:has(.app-navbar__home-actions) h1.app-navbar__brand,
+  #inner_header .app-navbar .app-navbar__nav-header:has(.app-navbar__home-actions) h1.app-navbar__brand {
+    flex: 0 0 auto !important;
+    order: -2 !important;
+  }
   /* Fixed position: search + help + hamburger top-right */
   .app-navbar .app-navbar-auth-nav--mobile,
   #inner_header .app-navbar .app-navbar-auth-nav--mobile {
@@ -38549,9 +38650,16 @@ a.la-footer-bottom-a11y-wcag {
     margin: 0 !important;
     padding: 4px !important;
   }
-  .header-index-with-dark-toggle .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search),
-  #inner_header .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search),
-  .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search) {
+  /* Keep the brand (h1), the search field, AND the home-actions discs (Take a
+     Tour + Dashboard Design) visible at <=1024px — only those discs are the
+     dashboard's guided-tour / display-style entry points, and they're meant to
+     stay in the navbar at every width (see the .app-navbar__home-actions ≤1024
+     block above). Excluding them here is what makes that intent win the cascade;
+     the `:not(#header_search)` id-specificity otherwise defeats a class-only
+     visibility rule. */
+  .header-index-with-dark-toggle .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions),
+  #inner_header .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions),
+  .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions) {
     display: none !important;
   }
   /* Search icon only (hide input) on small screens */
@@ -42446,8 +42554,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__head {
     justify-content: center !important;
   }
-  /* Centre the TITLE/SUB text too — not just the icon+text cluster — when the card
-     spans both columns (per request), overriding their default left alignment. */
+  /* The icon+text CLUSTER is centered on the page (head justify-content above), but the
+     TITLE + STATUS/SUB text stay LEFT-aligned within their titles div (per request) — so
+     a shorter status reads flush under the START of the title rather than centered under
+     it. The titles div is shrink-to-fit to the wider line (the title), so left-align
+     pins the shorter status to that line's left edge. */
   .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-wide-only .md-card__titles,
   .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-as-button .md-card__titles,
   .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button .md-card__titles,
@@ -42456,6 +42567,102 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button .md-card__titles,
   .md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button .md-card__titles,
   .md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__titles {
+    text-align: left !important;
+  }
+  /* Full-span (both-column) action cards get a taller min-height (230px) for a more
+     substantial presence at the wide size. 230px is intentionally taller than BOTH base
+     action-card heights — the 160px Speak card AND the 180px badge-action cards (Account
+     / Create a Board / Reports / Edit Dashboard, see `.md-grid--dashboard
+     .md-card--badge-action`, app.scss ~52887). An earlier 192px barely cleared the 180px
+     badge-action base, so it looked like it wasn't applying to those; 230px applies
+     visibly to every full-span action card. (0,4,0) specificity beats that (0,2,0) base. */
+  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-wide-only,
+  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--speak-as-button,
+  .md-grid--fullspan-speak   .md-card.md-card--speak.md-card--as-button,
+  .md-grid--fullspan-extras  .md-card.md-card--extras.md-card--as-button,
+  .md-grid--fullspan-account .md-card.md-card--account.md-card--as-button,
+  .md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button,
+  .md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button,
+  .md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button {
+    min-height: 230px !important;
+  }
+  /* Full-span action cards: icon TILE (the tinted bg) + GLYPH 50% larger — 64px→96px
+     tile (radius 22px→33px) and 34px→51px glyph — for a stronger presence at the wide
+     size. The visible Speak card is `--speak-as-button` (the `--speak-wide-only` variant
+     is display:none, app.scss ~47799). A leading `.md-grid.md-grid--fullspan-X` (double
+     class) gives (0,6,0), beating the base 64px icon-tile rule (~47875, (0,5,0)) which
+     sits LATER in source. */
+  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon,
+  .md-grid.md-grid--fullspan-extras .md-card.md-card--extras.md-card--as-button .md-card__icon,
+  .md-grid.md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__icon,
+  .md-grid.md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button .md-card__icon,
+  .md-grid.md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button .md-card__icon,
+  .md-grid.md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__icon {
+    width: 96px !important;
+    height: 96px !important;
+    border-radius: 33px !important;
+  }
+  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph,
+  .md-grid.md-grid--fullspan-extras .md-card.md-card--extras.md-card--as-button .md-card__icon-glyph,
+  .md-grid.md-grid--fullspan-account .md-card.md-card--account.md-card--as-button .md-card__icon-glyph,
+  .md-grid.md-grid--fullspan-createboard .md-card.md-card--create-board.md-card--as-button .md-card__icon-glyph,
+  .md-grid.md-grid--fullspan-reports .md-card.md-card--reports.md-card--as-button .md-card__icon-glyph,
+  .md-grid.md-grid--fullspan-editdashboard .md-card.md-card--edit-dashboard.md-card--as-button .md-card__icon-glyph {
+    width: 51px !important;
+    height: 51px !important;
+  }
+  /* Full-span Speak card ONLY: replace the SVG glyph + tinted tile entirely with the
+     speak-circle-light image (the image is itself the icon AND its background). Drop the
+     tile's gradient fill, border, and shadow so just the image shows, and hide the inner
+     SVG glyph. Tile keeps its 96px full-span size from the rule above. (0,6,0) beats the
+     base speak icon-bg rule (~47882, (0,4,0)). */
+  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
+    background: url(../images/speak-circle-light.png) center / contain no-repeat !important;
+    border: none !important;
+    box-shadow: none !important;
+    /* Show the image 50% larger than the shared 96px full-span tile (→ 144px). Overrides
+       the 96px size rule above (same specificity, later in source). */
+    width: 144px !important;
+    height: 144px !important;
+  }
+  .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph {
+    display: none !important;
+  }
+}
+/* ≤950px (Gentle single-column stack) — the full-span treatment above is gated to
+   ≥951px, so at this width the full-span Speak card would otherwise revert to the normal
+   160px height + SVG glyph. The `--fullspan-speak` class is JS-computed (persists at all
+   widths), so re-apply the Speak full-span HEIGHT (230px) + IMAGE replacement (144px
+   speak-circle-light tile, glyph hidden) here. Scoped to Gentle so Focused is untouched. */
+@media (max-width: 950px) {
+  .md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button {
+    min-height: 230px !important;
+  }
+  .md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
+    width: 144px !important;
+    height: 144px !important;
+    background: url(../images/speak-circle-light.png) center / contain no-repeat !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph {
+    display: none !important;
+  }
+}
+/* ≤640px (Gentle single-column) — stack each action card's head: the icon (or the Speak
+   image) sits CENTERED on its own row, and the title + subtitle wrap to a CENTERED row
+   below it (the head is a centered flex row by default; switch it to a centered column).
+   Covers every action card — Speak + the --as-button cards (Extras / Account / Create a
+   Board / Reports / Edit Dashboard). Gentle-scoped so Focused is untouched. */
+@media (max-width: 640px) {
+  .md-grid--layout-gentle .md-card.md-card--as-button .md-card__head,
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__head {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .md-grid--layout-gentle .md-card.md-card--as-button .md-card__titles,
+  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__titles {
     text-align: center !important;
   }
 }
@@ -43036,9 +43243,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: var(--md-r-lg, 22px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
 }
-/* Larger screens — more breathing room on the left/right of the user hero card. */
-@media (min-width: 768px) {
+/* Larger screens — more breathing room on the left/right of the user hero card,
+   and a narrower card (85% width, kept centered by the base auto margins).
+   `!important` is required to beat the shared `.md-hero { width: auto !important }`
+   base rule (app.scss ~42006), which applies to this same element. */
+@media (min-width: 1025px) {
   .md-hero--user {
+    width: 85% !important;
     padding-left: 88px !important;
     padding-right: 88px !important;
   }
@@ -43057,9 +43268,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 16px;
 }
 .md-hero--user__avatar {
-  width: 96px;
-  height: 96px;
-  border-radius: 24px;
+  width: 132px; /* 120px * 1.1 */
+  height: 132px; /* 120px * 1.1 */
+  border-radius: 33px; /* 30px * 1.1 — keep the rounded-square proportion at the larger size */
   object-fit: cover;
   padding: 8px;
   border: 2px solid rgba($brand-verdigris, 0.15);
@@ -43069,6 +43280,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-hero--user__body {
   flex: 1 1 auto;
   min-width: 0;
+}
+/* 1024px and smaller (but still in the row layout, above the 768px mobile-column
+   breakpoint): center the avatar + text group horizontally within the card. The body
+   stops growing to fill the row (flex: 0 1 auto) so the group has a natural width to
+   center; text inside the body keeps its default LEFT alignment beside the avatar.
+   Placed AFTER the base `.md-hero--user__body` rule above so it wins on source order
+   (equal specificity) within the media range. */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .md-hero--user {
+    justify-content: center;
+  }
+  .md-hero--user__body {
+    flex: 0 1 auto;
+  }
 }
 .md-hero--user__name-row {
   display: flex;
@@ -43126,6 +43351,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: var(--md-muted);
   font-weight: 600;
 }
+/* ≤460px — drop the username onto its own row beneath the name and remove the dot
+   separator (which only makes sense between two inline items on one line). Stacking the
+   name-row as a centered column keeps it aligned with the centered mobile hero. */
+@media (max-width: 460px) {
+  .md-hero--user__name-row {
+    flex-direction: column;
+    align-items: center;
+  }
+  .md-hero--user__detail-sep {
+    display: none;
+  }
+}
 .md-hero--user__meta {
   font-size: 17px;
   color: var(--md-muted);
@@ -43168,6 +43405,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-user-summary__quick-pills {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
   margin-bottom: 24px;
@@ -43347,12 +43585,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-user-activity__see-all:hover {
   text-decoration: underline;
 }
-@media (max-width: 640px) {
-  .md-user-activity {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* ── Profile edit page (modern) ── */
 .md-edit-profile {
   max-width: 800px;
@@ -45957,11 +46189,11 @@ a.md-goal-nav-action:hover,
     justify-content: center !important;
 
   }
-  .md-hero--user__name {
-    font-size: 14px !important;
+  .md-hero--user__name,
+  .md-hero--user__username {
+    font-size: 18px !important;
 
   }
-  .md-hero--user__username,
   .md-hero--user__meta {
     font-size: 15.6px; /* 13px * 1.2 */
   }
@@ -45974,6 +46206,12 @@ a.md-goal-nav-action:hover,
     margin-right: -4px;
     display: flex;
     flex-wrap: wrap;
+    /* Center the summary tiles + the nested stat rows (.md-user-summary__stats-row,
+       which are flex ITEMS of this container) on the page. Without this they pack to
+       the left. Centering the CONTAINER — rather than the cards inside each row — is
+       what actually centers them, and being base-level (not Focused-View-scoped) it
+       applies in both Focused and Gentle views. */
+    justify-content: center;
   }
   .md-user-summary .row.big_buttons .big_button_holder,
   .md-user-summary .row.big_buttons .col-xs-6 {
@@ -47284,7 +47522,7 @@ a.md-goal-nav-action:hover,
   top: calc(var(--topbar-height, 16px) + 7.5rem + 48px) !important;
 }
 /* Slightly slimmer Get Started pill on focused — top/bottom padding −2px (7px→5px). */
-.md-shell--layout-focused .md-getting-started-tour__trigger {
+.md-shell--layout-focused .md-display-style__trigger {
   padding-top: 5px !important;
   padding-bottom: 5px !important;
 }
@@ -48053,6 +48291,73 @@ a.md-goal-nav-action:hover,
 }
 
 .md-btn--wide { width: 100%; margin-top: 12px; }
+
+/* ── Pending org / supervision approval notice (home page) ───────────────────
+   Modern card replacing the old Bootstrap `.alert` (moved here from the Boards
+   tab). Gentle View baseline; Focused View override below. */
+.md-pending-notice {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 0 auto 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba($brand-smart-blue, 0.18);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba($brand-smart-blue, 0.10) 0%, rgba($brand-smart-blue, 0) 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.92) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 3px rgba($la-navy, 0.05),
+    0 8px 24px rgba($la-navy, 0.08);
+}
+.md-pending-notice__icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba($brand-smart-blue, 0.12);
+  color: $brand-charcoal-blue;
+}
+.md-pending-notice__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.md-pending-notice__text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: $la-navy;
+}
+.md-pending-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.md-pending-notice__actions .md-btn { width: auto; margin-top: 0; }
+
+/* Focused View — match the focused surface + gradient CTA. */
+body.ll-layout-focused .md-pending-notice {
+  border: 1px solid rgba($focus-shadow-ink, 0.10);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba($focus-accent, 0.10) 0%, rgba($focus-accent, 0) 60%),
+    linear-gradient(180deg, rgba($focus-surface-top, 0.7) 0%, rgba($focus-surface-bottom, 0.6) 100%);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+}
+body.ll-layout-focused .md-pending-notice__icon {
+  background: rgba($focus-accent, 0.16);
+  color: $focus-nav-accent-to;
+}
+body.ll-layout-focused .md-pending-notice .md-btn--primary {
+  background: linear-gradient(135deg, $focus-accent-from, $focus-nav-accent-to) !important;
+  border-color: rgba($focus-on-dark, 0.16) !important;
+  color: $focus-on-dark !important;
+}
 
 .md-card__bg--wave {
   position: absolute !important;
@@ -56001,12 +56306,18 @@ a.md-goal-nav-action:hover,
     white-space: nowrap !important;
   }
   /* At this breakpoint the global "active pill padding-left: 18px"
-     rule (line ~36740) still applies and breaks the symmetry of
-     the tighter 4px 12px padding above — pulling the active pill
-     wider than the inactive one. Force padding-left back to 12px
-     so all four sides match the inactive pill (4/12/4/12). */
+     rules still apply and break the symmetry of the tighter 4px 12px
+     padding above — pulling the active pill wider than the inactive
+     one. Force padding-left back to 12px so all four sides match the
+     inactive pill (4/12/4/12). The `.md-pillnav--user` selectors are
+     listed explicitly because the account-page active-pill rule
+     (app.scss ~41743) is specificity (0,4,1) — higher than the generic
+     fix — so matching that specificity (and winning on source order)
+     is required for the account pills to come out symmetric too. */
   .md-pillnav__pill.is-active:not(:first-child),
-  a.md-pillnav__pill.active:not(:first-child) {
+  a.md-pillnav__pill.active:not(:first-child),
+  .md-pillnav--user a.md-pillnav__pill.is-active:not(:first-child),
+  .md-pillnav--user a.md-pillnav__pill.active:not(:first-child) {
     padding-left: 12px !important;
   }
   .nav-header__brand {
@@ -56417,6 +56728,56 @@ a.md-goal-nav-action:hover,
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   User page (.md-pillnav--user) — collapse the pill row into the shared
+   dropdown drawer at ≤460px, mirroring the home page's md-pillnav-dropdown.
+   Uses native <details>/<summary> (see user.hbs), so the [open] attribute
+   replaces the JS-driven .is-open reveal — same end state, different open
+   signal (identical approach to .md-pillnav-dropdown--caseload). The shared
+   trigger/list/option styling lives in the ≤550px block above and applies
+   here unchanged, so the drawer looks the same as home. This block sits
+   after the ≤375px + ≤550px pillnav blocks so its display swap wins on
+   source order (equal specificity). */
+.md-pillnav-dropdown--user {
+  list-style: none;
+}
+.md-pillnav-dropdown--user > summary {
+  list-style: none;
+}
+.md-pillnav-dropdown--user > summary::-webkit-details-marker {
+  display: none;
+}
+.md-pillnav-dropdown--user > summary::marker {
+  content: '';
+}
+.md-pillnav-dropdown--user[open] .md-pillnav-dropdown__chevron {
+  transform: rotate(180deg) !important;
+}
+.md-pillnav-dropdown--user[open] .md-pillnav-dropdown__trigger {
+  border-color: rgba($brand-slate-blue, 0.65) !important;
+  box-shadow: 0 2px 12px rgba($brand-slate-blue, 0.32) !important;
+}
+.md-pillnav-dropdown--user[open] .md-pillnav-dropdown__list {
+  max-height: 320px !important;
+  opacity: 1 !important;
+}
+/* LinkTo renders <a>; keep the option row clean. */
+.md-pillnav-dropdown--user .md-pillnav-dropdown__option {
+  text-decoration: none;
+}
+/* The swap: hide the pill row, show the dropdown drawer (centered, matching
+   the home drawer's 40%-width centered geometry) at ≤460px. */
+@media (max-width: 460px) {
+  .md-pillnav--user {
+    display: none !important;
+  }
+  .md-pillnav-dropdown--user {
+    display: block !important;
+    width: 40% !important;
+    margin: 20px auto 0 !important;
+  }
+}
+
 @media (max-width: 550px) {
   .md-focusbar__text { display: none; }
   .md-focusbar__item { gap: 0; }
@@ -56464,14 +56825,21 @@ a.md-goal-nav-action:hover,
        and wrap to a single column mid-animation. */
     transition: none !important;
   }
-  .md-grid--layout-focused > .md-card--speak-focused { order: 1 !important; flex: 1 1 100% !important; }
-  .md-grid--layout-focused > .md-card--boards { order: 2 !important; flex: 1 1 100% !important; }
-  .md-grid--layout-focused > .md-card--caseload { order: 3 !important; flex: 1 1 100% !important; }
-  .md-grid--layout-focused > .md-card--org-management { order: 4 !important; flex: 1 1 100% !important; }
-  .md-grid--layout-focused > .md-card--account { order: 5 !important; }
-  .md-grid--layout-focused > .md-card--create-board { order: 6 !important; }
-  .md-grid--layout-focused > .md-card--reports { order: 7 !important; }
-  .md-grid--layout-focused > .md-card--edit-dashboard { order: 8 !important; }
+  /* EVERY card pulls its order from the user's drag-to-reorder preference (`--ord-*`
+     vars emitted by gridStyle, identical to the Gentle ≤950px rule) — never a hardcoded
+     sequence. A mixed system (some cards hardcoded, some preference) sorts the two groups
+     on different scales and mis-places cards (e.g. a Reports action card floating above
+     the Boards card). Fallbacks match the canonical defaults. Flex BASIS still differs
+     per card type (full-width feature cards vs. the 2×2 action tiles); only ORDER is
+     preference-driven. */
+  .md-grid--layout-focused > .md-card--speak-focused { order: var(--ord-speak, 3) !important; flex: 1 1 100% !important; }
+  .md-grid--layout-focused > .md-card--boards { order: var(--ord-boards, 5) !important; flex: 1 1 100% !important; }
+  .md-grid--layout-focused > .md-card--caseload { order: var(--ord-caseload, 1) !important; flex: 1 1 100% !important; }
+  .md-grid--layout-focused > .md-card--org-management { order: var(--ord-org, 4) !important; flex: 1 1 100% !important; }
+  .md-grid--layout-focused > .md-card--account { order: var(--ord-account, 2) !important; }
+  .md-grid--layout-focused > .md-card--create-board { order: var(--ord-createboard, 6) !important; }
+  .md-grid--layout-focused > .md-card--reports { order: var(--ord-reports, 8) !important; }
+  .md-grid--layout-focused > .md-card--edit-dashboard { order: var(--ord-editdashboard, 9) !important; }
   .md-grid--layout-focused > .md-card--account,
   .md-grid--layout-focused > .md-card--create-board,
   .md-grid--layout-focused > .md-card--reports,
@@ -56494,14 +56862,14 @@ a.md-goal-nav-action:hover,
   /* "View All Boards" is pinned to the card's top-right on Focused View
      (absolute, see ~46980). At ≤640px the header row is too cramped for it
      beside the title + "+", so drop it back into normal flow — it wraps down
-     below the header/sub-header but still shrinks to fit its own content
-     (never full-width). */
+     below the header/sub-header, shrinks to fit its own content (never
+     full-width), and centers on the page via auto side margins. */
   .md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide {
     position: static !important;
     top: auto !important;
     right: auto !important;
     width: fit-content !important;
-    margin-top: 12px !important;
+    margin: 12px auto 0 !important;
   }
 }
 /* Focused View — at ≤375px the pill-nav collapses to the dropdown; the 24px top
@@ -58626,9 +58994,12 @@ a.md-goal-nav-action:hover,
     margin-left: 0 !important;
   }
   /* Change Home Board lands on its own row beneath the stats and
-     right-aligns via align-self: flex-end. */
+     centers via align-self: center. The base `--in-header
+     { margin-left: auto }` is overridden with symmetric auto margins
+     in the ≤768px rule below so it stays centered (a single auto
+     margin would pin it to one edge). */
   .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__set-home-btn {
-    align-self: flex-end !important;
+    align-self: center !important;
   }
   /* Hairline ::before was a row-separator between title and stats
      when they shared a row. Stats now sit in their own row, so
@@ -61017,6 +61388,18 @@ a.md-goal-nav-action:hover,
      of the header so it sits opposite the BOARDS title. */
   &__set-home-btn--in-header {
     margin-left: auto;
+  }
+  /* ≤768px — replace the right-pin with symmetric auto margins so the button
+     centers: in the ≤640px column header it sits centered on its own row
+     (with align-self: center above), and in the 641–768px row the equal
+     auto margins center it in the available space rather than pinning it to
+     the far edge. Placed after the base rule so it wins on source order
+     (equal specificity). */
+  @media (max-width: 768px) {
+    &__set-home-btn--in-header {
+      margin-left: auto;
+      margin-right: auto;
+    }
   }
   &__set-home-btn-icon {
     flex-shrink: 0;
@@ -63455,6 +63838,17 @@ a.md-goal-nav-action:hover,
   overflow: hidden;
   min-height: 0;
 }
+/* LIGHT-mode EDIT page: the 15%-darker page surface goes on the LAYOUT (the whole
+   edit canvas), while the centered board panel (.md-board-detail-main) stays at
+   the lighter $surface-200 so it reads as a distinct panel above the canvas.
+   (Speak mode instead darkens .md-board-detail-main — see its base rule above.)
+   Scoped `:not(.md-board-detail--dark)` so dark mode keeps its own treatment. */
+.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-detail-layout {
+  background: color.adjust($surface-200, $lightness: -15%);
+}
+.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-detail-main {
+  background: $surface-200;
+}
 /* Edit page: the board area (.md-board-detail-main) is a fixed-height
    scroll viewport with a 24px radius on ALL corners. The rounded BOTTOM
    on the scroll viewport always shows mid-scroll, which (a) makes the
@@ -63866,9 +64260,15 @@ a.md-goal-nav-action:hover,
   /* Keep the top of the board clear of the scroll-viewport edge so a
      scrolled-to button row is never clipped flush at the top. */
   scroll-padding-top: 16px;
-  /* Soft light-gray from the surface scale instead of pure white —
-     the all-white canvas read as too stark behind the board. */
-  background: $surface-200;
+  /* Soft light-gray from the surface scale instead of pure white — the
+     all-white canvas read as too stark behind the board. Taken 15% darker (per
+     design pass) so the board grid reads with more contrast against its canvas.
+     LIGHT mode only — dark mode overrides this background (see
+     `.md-board-detail--dark .md-board-detail-main`). This is the SPEAK-mode page
+     surface; EDIT mode keeps the centered board panel at $surface-200 and moves
+     the darker surface onto .md-board-detail-layout instead (see the
+     `.md-shell--board-detail-edit:not(.md-board-detail--dark)` rules below). */
+  background: color.adjust($surface-200, $lightness: -15%);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   /* Unified hairline (.06 alpha) matching the rails + toolbar — was
@@ -74089,7 +74489,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      2. Translucent neutral tint below — barely there, just enough
         to read as a cell rather than a hole in the board.
      Both go in one `background:` shorthand so the !important wins
-     against any earlier base rule reliably. */
+     against any earlier base rule reliably.
+     Navy (dark) wash: correct when the cell sits on a LIGHT surface — i.e. EDIT
+     mode (its board panel stays $surface-200) and the default. SPEAK mode
+     darkens the canvas, so it OVERRIDES this with a white wash (rule below) so
+     empty cells don't read as holes; dark mode does likewise. */
   background:
     radial-gradient(circle at 50% 50%, rgba($la-navy, 0.10) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
     rgba($la-navy, 0.04) !important;
@@ -74107,6 +74511,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
     rgba(255, 255, 255, 0.08) !important;
+}
+/* SPEAK mode (light): the board canvas (.md-board-detail-main) is the 15%-darker
+   surface, so the default navy wash would make empty cells read as holes. Lift
+   them with a white wash instead (mirrors dark mode). Scoped to speak +
+   light so EDIT (light board panel) keeps the navy wash and dark mode keeps its
+   own. !important + higher specificity beat the base rule's !important. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-symbol-card--empty {
+  background:
+    radial-gradient(circle at 50% 50%, rgba($la-navy, 0.10) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
+    rgba(255, 255, 255, 0.5) !important;
 }
 .md-board-detail-symbol-card--no-color {
   outline-color: transparent !important;
@@ -90525,6 +90939,37 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
      so the header never paints over the trigger (the cause of it vanishing). */
   z-index: 1001;
 }
+/* "Seen" indicator — once the page+view's tour has been COMPLETED
+   (preferences.progress.guided_tours_completed), a small verdigris check badge
+   sits in the trigger's top-right corner. Make the in-navbar trigger relative to
+   anchor it — there it's `position:static !important`, and this rule comes after
+   those static rules so it wins at equal specificity. */
+.app-navbar__home-actions .md-tour__trigger { position: relative !important; }
+/* Gentle View: the navbar Guided Tour disc matches the Display Style disc exactly
+   (their glass bg/border/shadow are already identical) — suppress the tour's
+   discoverability glow halo, which the Display disc doesn't have, so the two read
+   the same. Scoped to non-focused; the focused disc keeps its own treatment. */
+body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before {
+  display: none !important;
+}
+.md-tour__trigger-seen-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: $brand-verdigris;
+  border: 2px solid #fff;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba($la-navy, 0.3);
+  z-index: 2;
+  pointer-events: none;
+}
+.md-tour__trigger-seen-badge svg { display: block; }
 /* Onboarding discoverability — a soft verdigris glow ring that gently
    pulses behind the chip so new users notice it without it shouting.
    Sits behind the chip's opaque gradient (z-index:-1) and peeks around
@@ -90671,10 +91116,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   background: transparent;
 }
 .shepherd-element.md-tour__step--intro {
-  /* Wider than the prior 436px — the tour now has more steps (a longer
-     progress-dot row), and a roomier welcome card gives the intro/outro
-     more presence. */
-  max-width: 520px;
+  /* Wide enough to hold the (long) progress-dot row + the intro/outro buttons on
+     one line — the tour has many steps now. */
+  max-width: 560px;
   text-align: center;
   /* Hero glow + aurora blend over a lighter white base (the first pass
      read a touch dark): a soft glow behind the title (top-center) plus
@@ -90693,8 +91137,10 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
      of dead-middle. Shepherd centers the element via Popper.js
      inline transform; adding margin-top is purely additive and
      safe (overriding `transform` in CSS would clobber Popper's
-     positioning). Adjust this single value to tune. */
-  margin-top: -20rem;
+     positioning). This governs the OUTRO ("You're all set") — the welcome
+     overrides it below; raised a further 100px per design. (The short-height
+     media query resets this to 0.) */
+  margin-top: calc(-20rem - 100px);
 }
 /* Welcome (first) page only — lift it to roughly eye level (upper third) instead
    of dead-center. Shepherd 14.x centers a no-target step with INLINE
@@ -90708,7 +91154,50 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    base -20rem above; this targets only --welcome. Tune the single % to taste. */
 .shepherd-element.md-tour__step--intro.md-tour__step--welcome {
   top: 23% !important;
+  /* Nudged 32px lower than the 23% line (per design). The short-height media
+     query below resets this to 0 so it stays anchored near the top there. */
+  margin-top: 32px !important;
+  /* 24px wider than the shared intro width (560 → 584) — the welcome page carries
+     the map + checklist + the full progress-dot row, so it gets a touch more room.
+     Overrides the intro max-width (this 3-class selector beats it). */
+  width: 584px;
+  max-width: 92vw;
+}
+/* Short viewports: the centered intro/outro (welcome especially) is positioned
+   by its CENTER (Shepherd's translate(-50%,-50%) on the 23% line / the base
+   -20rem), so on a short screen its TOP is pushed above the viewport and clipped.
+   Anchor it near the top instead (drop the vertical centering) and let it scroll
+   if it's taller than the screen, so the title is never cut off. Tall screens
+   keep the original centered position. */
+@media (max-height: 800px) {
+  .shepherd-element.md-tour__step--intro,
+  .shepherd-element.md-tour__step--intro.md-tour__step--welcome {
+    top: 12px !important;
+    margin-top: 0 !important;
+    transform: translateX(-50%) !important;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+}
+/* Outro ("You're all set") — positioned the SAME reliable way as --welcome.
+   A stylesheet `margin-top` against Shepherd's inline translate(-50%,-50%) is
+   unreliable, AND the short-height media query above zeroes it — so the base
+   intro `margin-top` could never move the outro on short screens. Anchor it by
+   `top` instead. This 3-class selector (0,3,0) outranks both the base intro
+   (0,2,0) and the media-query intro rule (0,2,0) on EVERY viewport height, so it
+   governs the outro everywhere. Anchored by its top edge (translateX only, no
+   vertical centering) so the tall recap card never clips off the top; scrolls if
+   it outgrows the viewport. Tune the single `top` value to move it up/down. */
+.shepherd-element.md-tour__step--intro.md-tour__step--outro {
+  top: 80px !important;
   margin-top: 0 !important;
+  transform: translateX(-50%) !important;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+/* Outro only — extra breathing room above the closing line (card grows ~20px). */
+.shepherd-element.md-tour__step--outro .md-tour__foot {
+  margin-top: 34px;
 }
 /* Orbital accent — one abstract, premium onboarding visual (no
    mascot): a soft cluster of glowing brand-coloured orbs fading into
@@ -90738,6 +91227,12 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   z-index: 0;
   pointer-events: none;
 }
+/* Outro ("You're all set") — drop the top-right decoration (speech bubbles +
+   orb-glow shading) for a cleaner completion card. Scoped to the outro so the
+   welcome keeps its accent (3-class selector beats the base intro ::after). */
+.shepherd-element.md-tour__step--intro.md-tour__step--outro::after {
+  display: none;
+}
 
 /* Header — soft surface tint with hairline bottom rule, matching
    the canonical `.la-features-modal-wrap .la-modal-header` and the
@@ -90750,7 +91245,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
      ::after line. */
   position: relative;
   background: transparent;
-  padding: 22px 28px 8px;
+  /* Larger bottom padding (8 → 18) so the title clears the header hairline with
+     more breathing room before the body — both Gentle and Focused tours. */
+  padding: 22px 28px 18px;
 }
 .shepherd-has-title .shepherd-content .shepherd-header::after {
   content: '';
@@ -90810,10 +91307,10 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 }
 /* The "Choose your display style" step reuses the intro class for its
    eyebrow+heading treatment, but its title is CENTERED on the page rather than
-   left-aligned. Scoped to the display modal (md-gst-modal--display) so the
+   left-aligned. Scoped to the display modal (md-ds-modal--display) so the
    welcome/outro intro steps keep their editorial left alignment; placed after
    the rule above so it wins on equal specificity by source order. */
-.shepherd-element.md-gst-modal--display .shepherd-title {
+.shepherd-element.md-ds-modal--display .shepherd-title {
   align-items: center;
   text-align: center;
 }
@@ -90867,13 +91364,131 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 }
 .shepherd-text p { margin: 0 0 8px; }
 .shepherd-text p:last-child { margin-bottom: 0; }
-/* Centered intro/outro copy: constrain measure + center so the body
-   reads as airy, deliberate onboarding text rather than edge-to-edge. */
+/* ── Modern checklist body (tourChecklist) ───────────────────────────────────
+   Scannable feature lines with a small accent check disc instead of a prose
+   paragraph (modern product-tour pattern). The <ul> is inline-flex so it centers
+   cleanly inside the centered intro body while its items stay left-aligned; on
+   the interior (left-aligned) steps it just sits at the start. */
+.md-tour__lead {
+  margin: 0 0 14px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(70, 80, 95, 0.7);
+}
+/* Closing line below the checklist (e.g. the outro's "return anytime" note). */
+.md-tour__foot {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(70, 80, 95, 0.7);
+}
+/* ── Outro completion animation ──────────────────────────────────────────────
+   Modern "task complete" cue: the circle draws in, the check strokes on, the
+   whole mark pops, and a ring bursts outward — the success pattern modern apps
+   use. Pure CSS; reduced-motion shows the finished checkmark with no animation. */
+.md-tour__done {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 2px 0 18px;
+}
+.md-tour__done-svg {
+  animation: md-tour-done-pop 0.45s cubic-bezier(0.2, 0.85, 0.3, 1.25) both;
+}
+.md-tour__done-circle {
+  fill: rgba($brand-verdigris, 0.10);
+  stroke: $brand-verdigris;
+  stroke-width: 2.5;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: md-tour-done-circle 0.5s ease-out 0.08s forwards;
+}
+.md-tour__done-mark {
+  fill: none;
+  stroke: $brand-verdigris;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: md-tour-done-mark 0.3s ease-out 0.52s forwards;
+}
+/* Ring burst behind the check */
+.md-tour__done::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 2px solid rgba($brand-verdigris, 0.45);
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  pointer-events: none;
+  animation: md-tour-done-ring 0.65s ease-out 0.18s forwards;
+}
+@keyframes md-tour-done-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes md-tour-done-circle { to { stroke-dashoffset: 0; } }
+@keyframes md-tour-done-mark { to { stroke-dashoffset: 0; } }
+@keyframes md-tour-done-ring {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(1.85); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-tour__done-svg,
+  .md-tour__done::after { animation: none; }
+  .md-tour__done-circle,
+  .md-tour__done-mark { animation: none; stroke-dashoffset: 0; }
+  .md-tour__done::after { opacity: 0; }
+}
+.shepherd-text .md-tour__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 11px;
+  text-align: left;
+}
+.shepherd-text .md-tour__li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--md-ink, $brand-blue-black);
+}
+/* Check disc — a soft accent circle holding a check glyph (the svg's stroke is
+   currentColor; padding + radius + bg make the disc). */
+.shepherd-text .md-tour__li-check {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 4px;
+  border-radius: 50%;
+  background: rgba(42, 157, 143, 0.14);
+  color: #2A9D8F;
+  box-sizing: border-box;
+}
+.shepherd-text .md-tour__li-text { flex: 1 1 auto; }
+/* Focused View — check disc in the Focused accent (matches the rest of the
+   Focused skin). */
+.shepherd-element.md-tour__step--focused .shepherd-text .md-tour__li-check {
+  background: rgba($focus-accent, 0.16);
+  color: $focus-accent;
+}
+/* Centered intro/outro copy. The body is now a checklist (welcome + outro), so
+   the old 33ch cap squeezed it into the centre with big ~130px side margins and
+   wrapped the bullet lines — let it use the popover width instead (just the 28px
+   side padding). The list/text are still centred via text-align. */
 .shepherd-element.md-tour__step--intro .shepherd-text {
-  max-width: 33ch;
-  /* Centered body (per request): the constrained measure is centered
-     under the left-aligned header. 33ch keeps the lines a touch
-     shorter for a tighter, more premium editorial rhythm. */
+  max-width: none;
   margin: 0 auto;
   text-align: center;
   /* A touch more breathing room under the heading (was 18px via the
@@ -90886,6 +91501,16 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    and the Back + Next buttons group together on the RIGHT with a tight
    8px gap, reading as a single nav cluster. The dots are injected by
    home-tour.js (`_renderTourProgress` via the `show` step hook). */
+/* Interior (attached) tour steps: a FIXED, modest width so the long progress-dot
+   row + the Back/Next buttons fit on one line — but the popover doesn't balloon.
+   (A min-width let the content stretch the box out toward max-width; a fixed
+   width keeps it tidy.) Excludes the centered intro/outro (its own width) and the
+   Dashboard Design modal (its own width). Capped at 92vw for small screens, where
+   the dot row wraps instead. */
+.shepherd-element.md-tour__step:not(.md-tour__step--intro):not(.md-ds-modal) {
+  width: 504px;
+  max-width: 92vw;
+}
 .shepherd-footer {
   display: flex;
   flex-direction: row;
@@ -90903,15 +91528,18 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .shepherd-footer .md-tour__progress {
   display: inline-flex;
   align-items: center;
-  /* 9px gap: the active dot is 9px with a crisp 3px ring (0 blur),
-     reaching 7.5px from its centre. Neighbour near-edges sit ~13.5px
-     away, so the ring clears them with margin to spare. */
-  gap: 9px;
+  /* Tighter gap so a long tour (many steps → many dots) stays on ONE row inside
+     the widened popover. `flex-wrap` is a safety net: if the count ever exceeds
+     the bar width (smaller screens / even more steps), the dots wrap to a second
+     row instead of spilling off the edge. */
+  gap: 5px;
+  row-gap: 6px;
+  flex-wrap: wrap;
   margin-right: auto;
 }
 .shepherd-footer .md-tour__progress-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: rgba(86, 110, 180, 0.12);
   transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
@@ -90920,19 +91548,15 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   background: rgba(42, 157, 143, 0.45);
 }
 .shepherd-footer .md-tour__progress-dot.is-active {
-  /* Refined active indicator (AAC / low-vision visibility): a solid,
-     fully-opaque dot in a slightly LESS-SATURATED denim (#8C9CC4 vs the
-     base #7E96C8) grown by REAL dimensions (no transform-scale, which
-     softens edges). The "soft glow" is two STACKED rings, BOTH 0-blur:
-     a tighter inner ring + a wider, fainter outer ring. Graduated
-     spread reads as a soft halo while every edge stays razor-sharp —
-     deliberately NOT a blurred shadow (the earlier 0 0 6px read fuzzy). */
+  /* Solid, fully-opaque dot in a slightly less-saturated denim, grown by REAL
+     dimensions (not transform-scale) with two stacked 0-blur rings for a crisp
+     soft halo. */
   background: #8C9CC4;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   box-shadow:
     0 0 0 2px rgba(140, 156, 196, 0.26),
-    0 0 0 4px rgba(140, 156, 196, 0.10);
+    0 0 0 3px rgba(140, 156, 196, 0.10);
 }
 .shepherd-element .shepherd-button {
   flex: 0 0 auto;
@@ -91016,6 +91640,202 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
 }
 
+/* ── Focused View tour skin ──────────────────────────────────────────────────
+   When the home tour runs in Focused View, every step carries
+   `md-tour__step--focused` (added in utils/tours/home.js). Re-skin the popover
+   from the default verdigris→denim→lavender brand ribbon to the Focused View
+   palette: the blue-grey → charcoal-blue accent (its nav pills / navbar circle
+   buttons), the focus-surface tint, and a gradient CTA with white text — so the
+   guide reads as part of the Focused chrome. Each selector adds one class over
+   its base rule, so these win on specificity.
+
+   The SAME skin is applied to the Dashboard Design modal (`.md-ds-modal`) when
+   the user is in Focused View (`body.ll-layout-focused`) — it reuses the same
+   shepherd + md-tour__* structure, so the second selector in each rule below
+   makes that modal match the Focused tour modal. (Styles only — no JS/markup
+   change; the ds modal doesn't carry the --focused class.) */
+.shepherd-element.md-tour__step--focused::before,
+body.ll-layout-focused .shepherd-element.md-ds-modal::before {
+  background: linear-gradient(90deg, $focus-accent-from 0%, $focus-accent 50%, $focus-nav-accent-to 100%);
+}
+.shepherd-element.md-tour__step--focused.md-tour__step--intro,
+body.ll-layout-focused .shepherd-element.md-ds-modal {
+  background:
+    radial-gradient(120% 75% at 50% 0%, rgba($focus-accent, 0.12) 0%, rgba($focus-accent, 0) 62%),
+    radial-gradient(90% 80% at 100% 16%, rgba($focus-nav-accent-to, 0.12) 0%, rgba($focus-nav-accent-to, 0) 55%),
+    linear-gradient(180deg, rgba($focus-surface-top, 0.97) 0%, rgba($focus-surface-bottom, 0.95) 100%);
+}
+.shepherd-element.md-tour__step--focused .shepherd-content .shepherd-header::after,
+body.ll-layout-focused .shepherd-element.md-ds-modal .shepherd-content .shepherd-header::after {
+  background: linear-gradient(90deg,
+    rgba($focus-accent-from, 0) 0%,
+    rgba($focus-accent-from, 0.55) 18%,
+    rgba($focus-accent, 0.85) 50%,
+    rgba($focus-nav-accent-to, 0.55) 82%,
+    rgba($focus-nav-accent-to, 0) 100%);
+}
+/* Eyebrow pill ("GUIDED TOUR" / "DASHBOARD DESIGN") — solid Focused gradient
+   (blue-grey → charcoal-blue, matching the Focused nav pills + navbar discs)
+   with white text + sparkle, so it clearly reads as Focused rather than a faint
+   tint of the default green pill. */
+.shepherd-element.md-tour__step--focused .md-tour__eyebrow,
+body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__eyebrow {
+  background: linear-gradient(135deg, $focus-accent-from, $focus-nav-accent-to);
+  border-color: rgba($focus-on-dark, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba($focus-on-dark, 0.18),
+    0 2px 8px rgba($focus-shadow-ink, 0.20);
+  color: $focus-on-dark;
+}
+.shepherd-element.md-tour__step--focused .md-tour__eyebrow-icon,
+body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__eyebrow-icon {
+  color: $focus-on-dark;
+  filter: drop-shadow(0 0 4px rgba($focus-on-dark, 0.4));
+}
+.shepherd-element.md-tour__step--focused .shepherd-footer .md-tour__progress-dot.is-done,
+body.ll-layout-focused .shepherd-element.md-ds-modal .shepherd-footer .md-tour__progress-dot.is-done {
+  background: rgba($focus-accent, 0.5);
+}
+.shepherd-element.md-tour__step--focused .shepherd-footer .md-tour__progress-dot.is-active,
+body.ll-layout-focused .shepherd-element.md-ds-modal .shepherd-footer .md-tour__progress-dot.is-active {
+  background: $focus-accent;
+  box-shadow:
+    0 0 0 2px rgba($focus-accent, 0.26),
+    0 0 0 4px rgba($focus-accent, 0.10);
+}
+/* Primary CTA — styled like the Focused home page "Let's Communicate" hero
+   (.md-card--speak-focused): the glossy desaturated-navy radial fill with white
+   text + a raised bevel (lit top edge, dark inner bottom lip, drop shadow, faint
+   brand glow), scaled for a button. */
+.shepherd-element.md-tour__step--focused .md-tour__btn--primary,
+body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary {
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  border-color: rgba($focus-on-dark, 0.14);
+  color: $focus-on-dark;
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.34),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.34),
+    0 3px 8px rgba($focus-shadow-ink, 0.28),
+    0 0 18px rgba($focus-hero-glow, 0.10);
+}
+.shepherd-element.md-tour__step--focused .md-tour__btn--primary:not(:disabled):hover,
+body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:not(:disabled):hover {
+  /* Keep the navy radial fill (set explicitly so the base primary-hover's light
+     verdigris bg can't bleed through) and bloom the SAME brand-blue glow the
+     "Let's Communicate" hero uses on hover — but NO lift (override the base
+     hover's translateY). */
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  border-color: rgba($focus-on-dark, 0.2);
+  color: $focus-on-dark;
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.38),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.36),
+    0 4px 12px rgba($focus-shadow-ink, 0.32),
+    0 0 26px rgba($focus-hero-glow-hover, 0.35);
+  transform: none;
+}
+.shepherd-element.md-tour__step--focused .md-tour__btn--primary:focus-visible,
+body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba($focus-accent, 0.45),
+    inset 0 2px 0 rgba($focus-on-dark, 0.34),
+    0 6px 14px rgba($focus-shadow-ink, 0.34);
+}
+/* First (welcome) page of the Focused tour: 25% taller than the natural welcome
+   height so the tour-map image sits comfortably beside the body copy. (Width is
+   the shared intro 520px — the earlier 20%-wider experiment was reverted.) Make
+   the content a column so the extra height flows into the body (which holds the
+   image) and the footer stays pinned to the bottom. Scoped to focused welcome. */
+.shepherd-element.md-tour__step--focused.md-tour__step--welcome .shepherd-content {
+  min-height: 345px;
+  display: flex;
+  flex-direction: column;
+}
+/* The tour-map image moves OUT of the top-right corner accent and BESIDE the
+   body copy (see the .shepherd-text rules below), so suppress the base intro
+   ::after graphic (speech bubbles + orb-glow shading) on the welcome page in
+   BOTH views — focused (map-dark) and gentle (map-light) both carry the map
+   inline instead. */
+.shepherd-element.md-tour__step--welcome::after {
+  display: none;
+}
+/* Tour-map image to the LEFT of the welcome paragraph: a left-anchored
+   background + matching left padding pushes the copy to its right; the row is
+   vertically centred and left-aligned (overriding the intro's centered, narrow
+   body). flex:1 lets the body absorb the extra modal height so the image stays
+   centred. */
+.shepherd-element.md-tour__step--focused.md-tour__step--welcome .shepherd-text {
+  flex: 1 1 auto;
+  /* Column so the lead line + checklist STACK to the right of the map (the body
+     is now a list, not a single paragraph); vertically centred beside the image. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  /* 24px left/right insets on the center content: the map is positioned 24px in
+     from the left edge, the copy is padded 24px from the right edge, and the
+     left padding (24 inset + 120 image + 20 gap = 164) keeps the text clear of
+     the image. */
+  background: url(../images/tour-map-dark.png) no-repeat 24px center / 120px 120px;
+  min-height: 120px;
+  padding-left: 164px;
+  padding-right: 24px;
+  text-align: left;
+  max-width: none;
+  margin: 0;
+}
+/* Gentle welcome — same map-beside-copy layout as Focused above, but with the
+   light map artwork. `:not(.md-tour__step--focused)` scopes it to Gentle and
+   keeps specificity level with the Focused selectors so neither wins by accident.
+   Give the content the extra height + column flow so the body holds the image. */
+.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-content {
+  min-height: 345px;
+  display: flex;
+  flex-direction: column;
+}
+.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text {
+  position: relative; /* anchor the badge pseudo-elements */
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 120px;
+  padding-left: 164px;
+  padding-right: 24px;
+  text-align: left;
+  max-width: none;
+  margin: 0;
+}
+/* Circular teal→blue gradient badge behind the light map. A linear gradient
+   can't be clipped to a circle as a background layer, so the disc is a ::before
+   (border-radius:50%, light teal → light blue) and the map is the ::after on top
+   — both pinned at the 24px-left, vertically-centred 120px spot. ::after is
+   declared last so it paints above the disc. (The welcome's CARD ::after is
+   hidden elsewhere; this is .shepherd-text::after, a separate element.) */
+.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::before,
+.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::after {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  width: 120px;
+  height: 120px;
+  transform: translateY(-50%);
+}
+.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::before {
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.26), rgba($brand-smart-blue, 0.26));
+}
+.shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-text::after {
+  background: url(../images/tour-map-light.png) no-repeat center / 120px 120px;
+}
+
 /* Cancel (X) — canonical light-modal close chip (matches
    .subscribe-modal-header__close): surface-300 circle, navy
    hairline, hover lifts. Smaller than the 48px modal version
@@ -91056,8 +91876,8 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 /* Disabled close (X) — the Dashboard Design modal blocks dismissal until at least
    one element is selected for the chosen layout. Dim + inert; the extra class
    out-specifies the :hover lift above so it can never read as interactive. */
-.shepherd-element .shepherd-cancel-icon.md-gst-cancel--blocked,
-.shepherd-element .shepherd-cancel-icon.md-gst-cancel--blocked:hover {
+.shepherd-element .shepherd-cancel-icon.md-ds-cancel--blocked,
+.shepherd-element .shepherd-cancel-icon.md-ds-cancel--blocked:hover {
   opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;
@@ -91084,15 +91904,25 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .shepherd-element[data-popper-placement^=bottom] > .shepherd-arrow { top: -10px; }
 .shepherd-element[data-popper-placement^=left] > .shepherd-arrow { right: -10px; }
 .shepherd-element[data-popper-placement^=right] > .shepherd-arrow { left: -10px; }
-/* Breathing room between the popover and the element it points at — a 16px
-   gap applied per placement so a clear band of the dark overlay sits between
-   the spotlit target and the popover (element → dark scrim → popover).
-   floating-ui positions the popover's border-box, so a directional margin
-   shifts it away from the target while the arrow stays aligned. */
-.shepherd-element[data-popper-placement^=top]    { margin-bottom: 16px; }
+/* Breathing room between the popover and the element it points at — a 16px gap
+   applied per placement so a clear band of the dark overlay sits between the
+   spotlit target and the popover (element → dark scrim → popover).
+   floating-ui anchors the popover by its computed `top`/`left`, so ONLY a margin
+   on that anchored edge actually shifts it: `bottom`/`right` placements push
+   away with a positive margin-top/-left, while `top`/`left` placements (anchored
+   at the edge NEAREST the target) must pull away with a NEGATIVE margin on the
+   same anchored edge. (A `margin-bottom`/`margin-right` here is a no-op — the
+   opposite edge is `auto` — which is why top/left popovers used to sit tighter
+   than bottom/right. All four now yield the same 16px gap.) */
+.shepherd-element[data-popper-placement^=top]    { margin-top: -16px; }
 .shepherd-element[data-popper-placement^=bottom] { margin-top: 16px; }
-.shepherd-element[data-popper-placement^=left]   { margin-right: 16px; }
+.shepherd-element[data-popper-placement^=left]   { margin-left: -16px; }
 .shepherd-element[data-popper-placement^=right]  { margin-left: 16px; }
+/* Navbar steps (header overview + per-item) sit just under the fixed top bar —
+   drop them lower (16 → 40) so the popover clears the bar with more air. */
+.shepherd-element.md-tour__step--navbar[data-popper-placement^=bottom] { margin-top: 40px; }
+/* The whole-toolbar OVERVIEW card sits 16px higher than the per-item ones. */
+.shepherd-element.md-tour__step--navbar-overview[data-popper-placement^=bottom] { margin-top: 24px; }
 .shepherd-element .shepherd-arrow:before {
   background: rgba(238, 242, 249, 0.95);
   border: 1px solid rgba(86, 110, 180, 0.32);
@@ -91209,7 +92039,7 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    Overriding `fill` on the path is a genuinely new rule (the element
    ships with no fill of its own — browser default black). */
 .shepherd-modal-overlay-container.shepherd-modal-is-visible {
-  opacity: 0.42;
+  opacity: 0.58;
 }
 .shepherd-modal-overlay-container path {
   fill: #111b3a;

@@ -3,14 +3,9 @@
   <div class="ub-boards-page__content">
 
   {{#if this.boardsCtrl.model.permissions.delete}}
-    {{#if this.boardsCtrl.model.pending_org}}
-      <div class='alert alert-info' style="margin-bottom: 16px;">
-        {{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete." key="confirm_pending_org2" org=this.boardsCtrl.model.pending_org.name}}
-        <br><br>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "user_approve" target=this.boardsCtrl}}>{{t "Approve %{org}" org=this.boardsCtrl.model.pending_org.name}}</button>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "user_reject" target=this.boardsCtrl}}>{{t "Deny Access"}}</button>
-      </div>
-    {{else if this.boardsCtrl.show_welcome_notice}}
+    {{!-- Pending-org approval moved to the HOME page (dashboard/authenticated-view)
+         — see .md-pending-notice there. --}}
+    {{#if this.boardsCtrl.show_welcome_notice}}
       <div class="ll-welcome-notice" role="status">
         <span class="ll-welcome-notice__text">{{t "Welcome to %app_name%! Watch for an email from us in your inbox." key="welcome_remember_confirm"}}</span>
         <button type="button" class="ll-welcome-notice__close" {{action "dismiss_welcome_notice" target=this.boardsCtrl}} aria-label={{t "Dismiss" key="dismiss"}}>

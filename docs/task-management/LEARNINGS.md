@@ -80,6 +80,7 @@ file (see [README.md](README.md)).
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
 - [Pattern: Demo speak `board` query param must alias away from loaded board state](#pattern-demo-speak-board-query-param-must-alias-away-from-loaded-board-state)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
+- [Pattern: Shepherd tour steps for a user-reorderable surface must be built from the LIVE DOM, not a fixed list](#pattern-shepherd-tour-steps-for-a-user-reorderable-surface-must-be-built-from-the-live-dom-not-a-fixed-list)
 - [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
 - [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
 - [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
@@ -4446,6 +4447,99 @@ geometry + re-wire fixes.
 **Related:** [Custom-JS drag works on desktop but not in touch emulation](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
 (touch-action), [Dashboard card order is driven by grid-template-areas](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom).
 
+---
+
+## Pattern: "Center the cards" on the account page means centering `.row.big_buttons`, not the stat rows — and it must be base-level, not Focused-View-scoped
+
+**Symptom:** Account-page stat cards (`.md-user-summary__stats-row--boards`,
+`--supervise`) render left-aligned on small screens. Repeated attempts to
+center them by adding `justify-content: center` / a flex-column to the stats
+row *itself* (and verified-correct via compiled-CSS cascade) did not move them.
+
+**Root cause (two compounding mistakes):**
+1. **Wrong element.** Those stat rows are nested **inside** `.row.big_buttons`
+   (`app/templates/user/index.hbs`), which at `@media (max-width:768px)` is
+   `display:flex; flex-wrap:wrap` with **no `justify-content`**. The stat rows
+   are flex *items* of that container, so they pack to the left regardless of
+   how their *internal* cards are aligned. Centering the cards inside a row
+   does nothing when the row itself is a left-packed flex item. Fix: center the
+   **container** → `.md-user-summary .row.big_buttons { justify-content:center }`.
+2. **Wrong scope.** Focused View is `body.ll-layout-focused` (toggled in
+   `app.js` only when layout ≠ 'gentle'). A fix scoped to `body.ll-layout-focused`
+   is a no-op in Gentle View. "Center on small screens regardless of view" ⇒ the
+   rule must live at the **base** level (`.md-user-summary …`), not inside the
+   focused-view block.
+
+**Also burned:** generalizing the (wrong) fix to `.md-user-summary__stats-row`
+re-showed the `--boards` row that Focused View hides — because `display:flex`
+(specificity 0,2,1, later in source) beat the `display:none` hide (also 0,2,1).
+Only set `display` on a row you're sure isn't the hidden one; prefer centering
+the parent (no `display`/`width` touched ⇒ the `--boards` hide stays safe).
+
+**Lesson:** When cards "won't center," check whether they're flex/grid *items*
+of a wrapper and center the **wrapper**. And confirm which view-class
+(`body.ll-layout-focused`) actually applies before scoping a rule to it.
+
+---
+
+## Pattern: A divider/hairline in a flex-column container "has space but no line" → flex-shrink collapsed its height
+
+**Symptom:** A `<div>` divider (e.g. `.la-mobile-drawer__divider`, height 1–2px) renders an
+empty GAP where it should be but no visible line — only on tall/overflowing layouts.
+
+**Cause:** The parent is `display: flex; flex-direction: column` with overflow (e.g. the mobile
+drawer panel). When content exceeds the container, flex shrinks items with the default
+`flex-shrink: 1`. A divider has **no content**, so its min-content height is 0 → it collapses to
+0px. Its `margin` is NOT subject to flex-shrink, so the gap remains while the line vanishes.
+
+**Fix:** Pin the divider's size: `flex-shrink: 0;` on the divider rule. (Same fix applies to any
+fixed-size, zero-content flex child — spacers, rules, thin separators.)
+
+**Lesson:** "Gap shows but the element doesn't paint" inside a flex column = suspect flex-shrink
+collapsing a zero-content child before suspecting the background/color.
+
+## Pattern: Shepherd tour steps for a user-reorderable surface must be built from the LIVE DOM, not a fixed list
+
+The Gentle View home dashboard is now a drag-to-reorder + show/hide grid
+(`utils/dashboard_sections.js` → `dashboard_order` / `dashboard_sections`
+prefs). A guided tour with a hard-coded step list + per-card placement sides
+(`speak`→right, `boards`→left, …) breaks the moment a user moves or hides a
+card: the popover points the wrong way and the tour jumps around instead of
+following what the user sees.
+
+**Fix (the position-independent tour, `app/frontend/app/utils/tours/`):**
+1. **Coverage from the shared registry** — iterate `HOME_SECTIONS` (the same
+   source of truth the renderer uses) so tour coverage can't silently drift
+   when cards are added. Per-card tour *copy* lives in a `cardCopy()` switch.
+2. **Skip hidden cards via `offsetParent`** — cards turned off are
+   `display:none !important` but STAY in the DOM, so a bare `querySelector`
+   still finds them and Shepherd spotlights a zero-size box (popover flies to a
+   corner). `visibleEl(sel)` = first match with `offsetParent !== null` skips
+   hidden cards AND picks the visible variant of a dual-markup card
+   (`-wide-only`/`-narrow-only`) without special-casing. (Same failure family
+   as the dual-markup spotlight bug.)
+3. **Order by live geometry** — sort the resolved elements by
+   `getBoundingClientRect()` top, then left, so steps follow the on-screen
+   reading order whatever the saved arrangement is.
+4. **Placement from geometry, not a fixed side** — `placementForElement(el)`:
+   `<=1024px` or near-full-width → `bottom`; left half → `right`; right half →
+   `left`. Recompute on resize for `home_tour_card_*` steps only and re-show the
+   open step.
+5. **Small screens** — the nav step targets whichever control is visible
+   (`.md-pillnav` vs the collapsed `.md-pillnav-dropdown__trigger`, since
+   `.md-pillnav` is `display:none` at `<=$aac-breakpoint-xs`); per-pill steps
+   gate on the pill row's `offsetParent`.
+
+**Two corollaries:**
+- **Page-specific tours need a dispatcher, not one mega-component.** A
+  `tourBuilderFor(route, layout)` registry maps the page to its step-builder;
+  the trigger button hides (`hasTour`) where no tour exists. The home dashboard
+  renders at BOTH `user.index` and `user.home`; home-only navbar affordances
+  (display-style, the tour button) gate on `current_route == "user.home"`.
+- **Don't lose a side-effect when gating the tour.** The post-registration
+  auto-open also hands the user off to the critical-mode setup wizard. When the
+  current layout has no tour yet (default Focused View), still run the handoff —
+  gate the *tour*, not the *handoff*.
 ## Pattern: compliance-officer write guard uses a file allowlist, not directory prefixes
 
 **Root cause family:** granting `Write` on broad prefixes (`audit-reports/`, `/tmp`) lets a

@@ -46,9 +46,9 @@ function _onShow() {
 }
 function _clearCentered() {
   try { document.body.classList.remove('md-tour--centered-step'); } catch (e) { /* noop */ }
-  // The Getting Started series cleared the page chrome via `md-gst-active` —
+  // The Getting Started series cleared the page chrome via `md-ds-active` —
   // restore it when the series ends (Finish / Skip / Esc / close).
-  try { document.body.classList.remove('md-gst-active'); } catch (e) { /* noop */ }
+  try { document.body.classList.remove('md-ds-active'); } catch (e) { /* noop */ }
 }
 
 // Show hook for the welcome (first) page: just the shared centered-step setup.
@@ -96,16 +96,16 @@ function _wirePreviewDrag(liveEl, ctx) {
   var hintEl = ctx.hintEl || null;
   var defaultHint = hintEl ? hintEl.textContent : '';
   var setBlocked = function(card, blocked) {
-    if (card) { card.classList.toggle('md-gst-drag-blocked', blocked); }
+    if (card) { card.classList.toggle('md-ds-drag-blocked', blocked); }
     if (hintEl) {
       // NOTE (security review false-positive — "locale string XSS in hint"): this writes
       // via `textContent`, which NEVER parses HTML, so a compromised/translated locale
       // string is rendered inert (no markup, no script). The string is also intentional
       // user-facing guidance, not internal/sensitive info ("hint exposes logic" FP).
       hintEl.textContent = blocked
-        ? i18n.t('gst_drag_blocked_row', "Action buttons can only be reordered within their own row. To move the actions row, drag one of the other buttons over it instead")
+        ? i18n.t('display_style_drag_blocked_row', "Action buttons can only be reordered within their own row. To move the actions row, drag one of the other buttons over it instead")
         : defaultHint;
-      hintEl.classList.toggle('md-gst-preview__legend-hint--blocked', blocked);
+      hintEl.classList.toggle('md-ds-preview__legend-hint--blocked', blocked);
     }
   };
   // The drag "lift" shadow, set inline on the dragged card (overriding its pinned resting
@@ -158,12 +158,12 @@ function _wirePreviewDrag(liveEl, ctx) {
     return null;
   };
   var clearTargets = function() {
-    cards.forEach(function(c) { c.classList.remove('md-gst-drop-target'); });
+    cards.forEach(function(c) { c.classList.remove('md-ds-drop-target'); });
   };
   // Highlight every card that would be displaced by this drop (by key).
   var highlight = function(keys) {
     cards.forEach(function(c) {
-      if (keys.indexOf(c.getAttribute('data-gst-key')) !== -1) { c.classList.add('md-gst-drop-target'); }
+      if (keys.indexOf(c.getAttribute('data-gst-key')) !== -1) { c.classList.add('md-ds-drop-target'); }
     });
   };
   // One rAF per frame coalesces the (many) pointermove events: we move the ghost with a
@@ -218,7 +218,7 @@ function _wirePreviewDrag(liveEl, ctx) {
     Array.prototype.forEach.call(liveEl.querySelectorAll('.' + s.cardClass), function(card) {
       if (card._gstDragWired) { return; }
       card._gstDragWired = true;
-      card.classList.add('md-gst-draggable');
+      card.classList.add('md-ds-draggable');
       card.setAttribute('data-gst-key', s.key);
       // Kill the card's hover lift/glow in the preview. The drag overlay below is a
       // DESCENDANT, so hovering it still marks the card :hover (CSS :hover matches the
@@ -231,7 +231,7 @@ function _wirePreviewDrag(liveEl, ctx) {
       card._gstRestShadow = (restShadow && restShadow !== 'none') ? restShadow : '';
       if (card._gstRestShadow) { card.style.setProperty('box-shadow', card._gstRestShadow, 'important'); }
       var ov = document.createElement('div');
-      ov.className = 'md-gst-drag-overlay';
+      ov.className = 'md-ds-drag-overlay';
       ov.setAttribute('aria-hidden', 'true');
       ov.setAttribute('data-gst-key', s.key);
       card.appendChild(ov);
@@ -247,10 +247,10 @@ function _wirePreviewDrag(liveEl, ctx) {
       });
       ov.addEventListener('pointerdown', function(e) {
         if (e.button != null && e.button > 0) { return; }
-        // Ghost: lift the card out (dimmed via .md-gst-dragging) and let it follow
+        // Ghost: lift the card out (dimmed via .md-ds-dragging) and let it follow
         // the cursor by translating it — z-index above its siblings.
         state = { key: s.key, card: card, ov: ov, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, lastHit: null, lastBlocked: false, frame: 0 };
-        card.classList.add('md-gst-dragging');
+        card.classList.add('md-ds-dragging');
         // NOTE (security review false-positive — "CSP nonce for inline box-shadow"): CSSOM
         // writes via element.style.setProperty are NOT governed by CSP style-src (that
         // covers <style> blocks + HTML style="" attributes), so no nonce is needed and CSP
@@ -282,7 +282,7 @@ function _wirePreviewDrag(liveEl, ctx) {
         var hitCard = hitKey ? h.card : null;
         // Drop the ghost back into the grid (transform pinned to none keeps hover
         // suppressed); a re-render after commit snaps it to its new cell.
-        src.card.classList.remove('md-gst-dragging');
+        src.card.classList.remove('md-ds-dragging');
         src.card.style.setProperty('transform', 'none', 'important');
         src.card.style.removeProperty('z-index');
         // Restore the resting (pinned) shadow — the lift box-shadow was inline-set on grab.
@@ -307,13 +307,13 @@ function _wirePreviewDrag(liveEl, ctx) {
 
 // ── Layout-aware preview content ────────────────────────────────────────────
 // The read-only preview shows what the SELECTED layout looks like by cloning the
-// user's real dashboard grid into a single `.md-gst-preview__page`, swapped
+// user's real dashboard grid into a single `.md-ds-preview__page`, swapped
 // wholesale when the layout changes (Gentle View vs Focused View).
 function _buildGentleViewClone(live) {
-  var src = document.querySelector('.md-grid--dashboard:not(.md-gst-preview__clone)');
+  var src = document.querySelector('.md-grid--dashboard:not(.md-ds-preview__clone)');
   if (!src) { return; }
   var page = document.createElement('div');
-  page.className = 'md-gst-preview__page';
+  page.className = 'md-ds-preview__page';
   page.setAttribute('aria-hidden', 'true');
   // The welcome hero banner is a sibling ABOVE the grid (in .md-main), so clone it
   // into the page too — otherwise the hero toggle saves + reflows the real page but
@@ -325,7 +325,7 @@ function _buildGentleViewClone(live) {
     var heroClone = heroSrc.cloneNode(true);
     heroClone.removeAttribute('id');
     Array.prototype.forEach.call(heroClone.querySelectorAll('[id]'), function(n) { n.removeAttribute('id'); });
-    heroClone.classList.add('md-gst-preview__hero');
+    heroClone.classList.add('md-ds-preview__hero');
     page.appendChild(heroClone);
   }
   var clone = src.cloneNode(true);
@@ -340,7 +340,7 @@ function _buildGentleViewClone(live) {
       if (attr.name.indexOf('data-ember-action') === 0) { n.removeAttribute(attr.name); }
     });
   });
-  clone.classList.add('md-gst-preview__clone');
+  clone.classList.add('md-ds-preview__clone');
   page.appendChild(clone);
   live.appendChild(page);
 }
@@ -350,7 +350,7 @@ function _buildGentleViewClone(live) {
 function _buildPreviewContent(live) {
   if (!live) { return; }
   try {
-    var existing = live.querySelector('.md-gst-preview__page');
+    var existing = live.querySelector('.md-ds-preview__page');
     if (existing && existing.parentNode) { existing.parentNode.removeChild(existing); }
     _buildGentleViewClone(live);
   } catch (e) { /* preview is decorative — never block the step */ }
@@ -389,8 +389,8 @@ function _onDisplayShow(component) {
   // _buildPreviewContent). The layout-card click handler rebuilds it when the choice
   // changes so the preview always matches.
   try {
-    var live = el.querySelector('.md-gst-preview__live');
-    if (live && !live.querySelector('.md-gst-preview__page')) {
+    var live = el.querySelector('.md-ds-preview__live');
+    if (live && !live.querySelector('.md-ds-preview__page')) {
       _buildPreviewContent(live);
     }
   } catch (e) { /* preview is decorative — never block the step */ }
@@ -402,18 +402,18 @@ function _onDisplayShow(component) {
   // display element are chosen; with zero elements we also show the empty-state
   // overlay over the preview.
   try {
-    var liveEl = el.querySelector('.md-gst-preview__live');
-    var gridEl = liveEl && liveEl.querySelector('.md-gst-preview__clone');
+    var liveEl = el.querySelector('.md-ds-preview__live');
+    var gridEl = liveEl && liveEl.querySelector('.md-ds-preview__clone');
     // Label the preview legend with the layout the user has selected (mirrors
     // component._previewLabel; defined here because _onDisplayShow is a module
     // function with no component `this`). Updated on show (re-seed) and on each
     // style-card click so "Preview — X Layout" always names the current choice.
     var previewLabelFor = function(layout) {
-      if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused View"); }
-      return i18n.t('getting_started_tour_preview_label', "Preview — Gentle View");
+      if (layout === 'focused') { return i18n.t('display_style_preview_label_focused', "Preview — Focused View"); }
+      return i18n.t('display_style_preview_label', "Preview — Gentle View");
     };
     var setPreviewLabel = function(layout) {
-      var tag = el.querySelector('.md-gst-preview__legend-tag');
+      var tag = el.querySelector('.md-ds-preview__legend-tag');
       if (tag) { tag.textContent = previewLabelFor(layout); }
     };
     // Re-seed THIS page from the CURRENT saved preferences at show time. Shepherd
@@ -429,13 +429,13 @@ function _onDisplayShow(component) {
       if (_seedUser && liveEl) {
         var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'focused';
         if (['gentle', 'focused'].indexOf(_savedLayout) === -1) { _savedLayout = 'focused'; }
-        Array.prototype.forEach.call(el.querySelectorAll('.md-gst-option'), function(opt) {
+        Array.prototype.forEach.call(el.querySelectorAll('.md-ds-option'), function(opt) {
           var on = opt.getAttribute('data-gst-layout') === _savedLayout;
           opt.classList.toggle('is-selected', on);
           opt.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
         setPreviewLabel(_savedLayout);
-        Array.prototype.forEach.call(el.querySelectorAll('.md-gst-section__input'), function(box) {
+        Array.prototype.forEach.call(el.querySelectorAll('.md-ds-section__input'), function(box) {
           box.checked = !sectionHidden(_seedUser, box.getAttribute('data-gst-section'));
         });
         var _so = _seedUser.get('preferences.dashboard_order');
@@ -465,11 +465,11 @@ function _onDisplayShow(component) {
         previewUser = _flagState.get('currentUser');
       }
     } catch (e) { flagOn = dragEnabled; }
-    var boxes = el.querySelectorAll('.md-gst-section__input');
-    var options = el.querySelectorAll('.md-gst-option');
+    var boxes = el.querySelectorAll('.md-ds-section__input');
+    var options = el.querySelectorAll('.md-ds-option');
     var nextBtn = el.querySelector('.shepherd-footer .md-tour__btn--primary');
     var cancelBtn = el.querySelector('.shepherd-cancel-icon');
-    var overlay = el.querySelector('.md-gst-empty');
+    var overlay = el.querySelector('.md-ds-empty');
     var readVis = function() {
       var vis = {};
       // Pages WITH toggles (home-layout) read live checkbox state. Pages WITHOUT
@@ -500,7 +500,7 @@ function _onDisplayShow(component) {
     // unchecked all the VISIBLE elements.
     var applicableBoxes = function() {
       return Array.prototype.filter.call(boxes, function(b) {
-        var row = b.closest('.md-gst-section');
+        var row = b.closest('.md-ds-section');
         return row && row.style.display !== 'none';
       });
     };
@@ -516,7 +516,7 @@ function _onDisplayShow(component) {
     var refreshGate = function() {
       var applicable = applicableBoxes();
       var hasSection = (applicable.length === 0) ? true : anyChecked();
-      var hasLayout = (options.length === 0) ? true : !!el.querySelector('.md-gst-option.is-selected');
+      var hasLayout = (options.length === 0) ? true : !!el.querySelector('.md-ds-option.is-selected');
       var disabled = !(hasSection && hasLayout);
       if (nextBtn) {
         nextBtn.disabled = disabled;
@@ -528,7 +528,7 @@ function _onDisplayShow(component) {
       // dashboard. (Back is still available to return to the display-style page.)
       if (cancelBtn) {
         cancelBtn.disabled = disabled;
-        cancelBtn.classList.toggle('md-gst-cancel--blocked', disabled);
+        cancelBtn.classList.toggle('md-ds-cancel--blocked', disabled);
         cancelBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
       }
       // The empty-state overlay only applies where the toggles live (customize page).
@@ -545,7 +545,7 @@ function _onDisplayShow(component) {
       });
     };
     var currentLayout = function() {
-      var sel = el.querySelector('.md-gst-option.is-selected');
+      var sel = el.querySelector('.md-ds-option.is-selected');
       if (sel) { return sel.getAttribute('data-gst-layout') || 'focused'; }
       try {
         var as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
@@ -556,12 +556,12 @@ function _onDisplayShow(component) {
       var focused = (layout === 'focused');
       Array.prototype.forEach.call(boxes, function(box) {
         var key = box.getAttribute('data-gst-section');
-        var row = box.closest('.md-gst-section');
+        var row = box.closest('.md-ds-section');
         if (!row) { return; }
         // Focused View offers everything EXCEPT Extras (Speak becomes the full-width
         // hero, Extras never shows) and the gentle-only non-grid toggles (the
         // welcome hero, which Focused View hides); Gentle View offers the full checklist.
-        var gentleOnly = row.classList.contains('md-gst-section--gentle-only');
+        var gentleOnly = row.classList.contains('md-ds-section--gentle-only');
         row.style.display = (focused && (key === 'extras' || gentleOnly)) ? 'none' : '';
       });
       updateSpeakLabel(layout);
@@ -570,9 +570,9 @@ function _onDisplayShow(component) {
     // Speak is the full-width hero) and "Speak Mode" on Gentle View. Kept in sync
     // here so switching the layout on the style page updates the label live.
     var updateSpeakLabel = function(layout) {
-      var input = el.querySelector('.md-gst-section__input[data-gst-section="speak"]');
-      var row = input && input.closest('.md-gst-section');
-      var labelEl = row && row.querySelector('.md-gst-section__label');
+      var input = el.querySelector('.md-ds-section__input[data-gst-section="speak"]');
+      var row = input && input.closest('.md-ds-section');
+      var labelEl = row && row.querySelector('.md-ds-section__label');
       if (labelEl) {
         labelEl.textContent = (layout === 'focused')
           ? i18n.t('lets_communicate', "Let's Communicate")
@@ -584,14 +584,14 @@ function _onDisplayShow(component) {
     // to match. The list is built once at open, so without this it would stay frozen
     // in its initial order while the preview moves.
     var reorderSectionList = function() {
-      var listEl = el.querySelector('.md-gst-sections__list');
+      var listEl = el.querySelector('.md-ds-sections__list');
       if (!listEl) { return; }
       var layout = currentLayout();
       var base = (layout === 'focused') ? FOCUSED_DEFAULT_ORDER : DEFAULT_ORDER;
       var ord = (order && order.length) ? order.slice() : base.slice();
       base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
       var rank = function(row) {
-        var input = row.querySelector('.md-gst-section__input');
+        var input = row.querySelector('.md-ds-section__input');
         var key = input && input.getAttribute('data-gst-section');
         // Focused View pins Speak as the always-top hero (its order slot is ignored
         // by focusedLayout), so pin "Let's Communicate" first to match the preview.
@@ -602,14 +602,14 @@ function _onDisplayShow(component) {
         var i = ord.indexOf(key);
         return i === -1 ? 999 : i; // any other non-grid toggle keeps its trailing slot
       };
-      Array.prototype.slice.call(listEl.querySelectorAll('.md-gst-section'))
+      Array.prototype.slice.call(listEl.querySelectorAll('.md-ds-section'))
         .sort(function(a, b) { return rank(a) - rank(b); })
         .forEach(function(row) { listEl.appendChild(row); });
     };
     var syncState = function() {
       // Re-query the clone each call — the preview content is rebuilt when the layout
       // changes, so a captured reference would go stale.
-      gridEl = liveEl && liveEl.querySelector('.md-gst-preview__clone');
+      gridEl = liveEl && liveEl.querySelector('.md-ds-preview__clone');
       var layout = currentLayout();
       var vis = readVis();
       // Focused View never shows Extras — Speak becomes the full-width hero instead.
@@ -713,12 +713,12 @@ function _onDisplayShow(component) {
     var wireDrag = function() {
       if (!dragEnabled || !liveEl) { return; }
       // The preview is rendered at a CSS `zoom` (single source of truth: the
-      // --md-gst-preview-zoom custom property). A child's CSS translate renders at
+      // --md-ds-preview-zoom custom property). A child's CSS translate renders at
       // translate × zoom on screen, so pass the zoom factor through — the drag math
       // divides by it to keep the ghost 1:1 under the cursor.
       var previewZoom = 1;
-      try { previewZoom = parseFloat(window.getComputedStyle(liveEl).getPropertyValue('--md-gst-preview-zoom')) || 1; } catch (e) { previewZoom = 1; }
-      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return currentLayout() === 'focused' ? FOCUSED_DEFAULT_ORDER : null; }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom, hintEl: el.querySelector('.md-gst-preview__legend-hint') }); } catch (e) { /* drag is an enhancement — never block the step */ }
+      try { previewZoom = parseFloat(window.getComputedStyle(liveEl).getPropertyValue('--md-ds-preview-zoom')) || 1; } catch (e) { previewZoom = 1; }
+      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return currentLayout() === 'focused' ? FOCUSED_DEFAULT_ORDER : null; }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom, hintEl: el.querySelector('.md-ds-preview__legend-hint') }); } catch (e) { /* drag is an enhancement — never block the step */ }
     };
     wireDrag();
   } catch (e) { /* preview + gating are decorative — never block the step */ }
@@ -727,7 +727,7 @@ function _onDisplayShow(component) {
   // landscape lock; Continue Anyway hides it so the step stays usable in
   // portrait. Rotating to landscape widens past 640px and auto-hides it.
   try {
-    var orientation = el.querySelector('.md-gst-orientation');
+    var orientation = el.querySelector('.md-ds-orientation');
     var rotateBtn = orientation && orientation.querySelector('[data-gst-rotate]');
     var dismissBtn = orientation && orientation.querySelector('[data-gst-dismiss]');
     if (rotateBtn && !rotateBtn._gstWired) {
@@ -750,14 +750,15 @@ function _onDisplayShow(component) {
   } catch (e) { /* never block the step */ }
 }
 
-// Getting Started tour — a Shepherd-driven, single-page modal that shows
-// progressive steps (starting with just a welcome page), mirroring the
-// home-tour welcome modal's look + behavior. The component renders only the
-// trigger badge; Shepherd portals the modal into <body>. It reuses the shared
-// `tour` service: each addSteps() spins up a FRESH Shepherd.Tour (see
-// ember-shepherd `_initialize`), so this never collides with the home tour.
-// (Distinct from the existing `getting-started` checklist modal, which uses
-// the `modal` service — this is the progressive tour-style experience.)
+// Display Style tour — a Shepherd-driven, single-page modal for choosing the
+// dashboard display style + customizing the dashboard (formerly the
+// "getting-started-tour" component; renamed since it's no longer the
+// getting-started entry point). The component renders only the trigger badge;
+// Shepherd portals the modal into <body>. It reuses the shared `tour` service:
+// each addSteps() spins up a FRESH Shepherd.Tour (see ember-shepherd
+// `_initialize`), so this never collides with the home tour.
+// (Distinct from the legacy `getting-started` checklist modal, which uses the
+// `modal` service — that is a separate, unrelated feature.)
 export default Component.extend({
   tagName: '',
 
@@ -774,7 +775,7 @@ export default Component.extend({
   // fallback for callers that only set the signal.
   init: function() {
     this._super(...arguments);
-    this.set('appState.dashboard_design_opener', this._startGettingStarted.bind(this));
+    this.set('appState.dashboard_design_opener', this._startDisplayStyle.bind(this));
   },
 
   willDestroy: function() {
@@ -802,13 +803,13 @@ export default Component.extend({
     // original config step + the copy that follows it) persist independently and
     // never read each other's controls. Falls back to the first display modal in
     // the DOM when no root is passed (single-step callers).
-    root = root || document.querySelector('.md-gst-modal--display');
+    root = root || document.querySelector('.md-ds-modal--display');
     if (!root) { return; }
     var prefs = Object.assign({}, user.get('preferences') || {});
     var changed = false;
 
     // Layout choice
-    var sel = root.querySelector('.md-gst-option.is-selected');
+    var sel = root.querySelector('.md-ds-option.is-selected');
     var layout = sel && sel.getAttribute('data-gst-layout');
     if (layout && prefs.dashboard_layout !== layout) {
       prefs.dashboard_layout = layout;
@@ -817,7 +818,7 @@ export default Component.extend({
 
     // Per-section visibility — build the map from the checked boxes, scoped to
     // the sections actually available to this user.
-    var boxes = root.querySelectorAll('.md-gst-section__input');
+    var boxes = root.querySelectorAll('.md-ds-section__input');
     if (boxes.length) {
       var visibleKeys = [];
       Array.prototype.forEach.call(boxes, function(box) {
@@ -843,7 +844,7 @@ export default Component.extend({
 
     // Drag-to-reorder order (flagged) — read the final order the show hook stamped
     // onto the live element. Order is a SEQUENCE, so compare the arrays directly.
-    var live = root.querySelector('.md-gst-preview__live');
+    var live = root.querySelector('.md-ds-preview__live');
     if (live && live.getAttribute('data-gst-drag') === '1') {
       var order = [];
       try { order = JSON.parse(live.getAttribute('data-gst-order') || '[]') || []; } catch (e) { order = []; }
@@ -899,25 +900,25 @@ export default Component.extend({
   // display-style + customize step titles are reused so the labels match what's
   // next. The footer "Get started" advances the tour.
   _welcomeContentHtml: function() {
-    var lead = i18n.t('getting_started_tour_welcome_text', "Design your dashboard in two quick steps: choose a display style, then pick what appears on your dashboard.");
-    var t1 = i18n.t('getting_started_tour_display_title', "Choose your display style");
-    var t2 = i18n.t('getting_started_tour_layout_title', "Customize your dashboard");
+    var lead = i18n.t('display_style_welcome_text', "Design your dashboard in two quick steps: choose a display style, then pick what appears on your dashboard.");
+    var t1 = i18n.t('display_style_display_title', "Choose your display style");
+    var t2 = i18n.t('display_style_layout_title', "Customize your dashboard");
     // Non-actionable label cards (no mockup, no click-to-jump) — each just names a
     // step and sits under its number. The footer "Get started" advances the tour.
     var card = function(title) {
-      return '<div class="md-gst-welcome-card">' +
-          '<span class="md-gst-welcome-card__title">' + title + '</span>' +
+      return '<div class="md-ds-welcome-card">' +
+          '<span class="md-ds-welcome-card__title">' + title + '</span>' +
         '</div>';
     };
     return '' +
-      '<div class="md-gst-welcome">' +
-        '<p class="md-gst-welcome__lead">' + lead + '</p>' +
-        '<div class="md-gst-welcome__progress" aria-hidden="true">' +
-          '<span class="md-gst-welcome__num beta-welcome-steps__num">1</span>' +
-          '<span class="md-gst-welcome__line"></span>' +
-          '<span class="md-gst-welcome__num beta-welcome-steps__num">2</span>' +
+      '<div class="md-ds-welcome">' +
+        '<p class="md-ds-welcome__lead">' + lead + '</p>' +
+        '<div class="md-ds-welcome__progress" aria-hidden="true">' +
+          '<span class="md-ds-welcome__num beta-welcome-steps__num">1</span>' +
+          '<span class="md-ds-welcome__line"></span>' +
+          '<span class="md-ds-welcome__num beta-welcome-steps__num">2</span>' +
         '</div>' +
-        '<div class="md-gst-welcome__cards">' +
+        '<div class="md-ds-welcome__cards">' +
           card(t1) +
           card(t2) +
         '</div>' +
@@ -928,7 +929,7 @@ export default Component.extend({
   // renders `title` via innerHTML, so an HTML string is the supported approach;
   // every piece comes from i18n, never user input.
   _decoratedTitle: function(headingKey, headingDefault) {
-    var eyebrow = i18n.t('getting_started_tour_eyebrow', "Dashboard Design");
+    var eyebrow = i18n.t('display_style_eyebrow', "Dashboard Design");
     var heading = i18n.t(headingKey, headingDefault);
     var spark = '<svg class="md-tour__eyebrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.1 5.1 1.7-5.1 1.7L12 16.1l-1.7-5.1L5.2 9.3l5.1-1.7z"/><path d="M19 13.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" opacity="0.7"/></svg>';
     return '<span class="md-tour__eyebrow">' + spark +
@@ -950,12 +951,12 @@ export default Component.extend({
     if (['gentle', 'focused'].indexOf(saved) === -1) { saved = 'focused'; }
     var option = function(key, label, desc) {
       var sel = key === saved;
-      return '<button type="button" class="md-gst-option' + (sel ? ' is-selected' : '') + '" data-gst-layout="' + key + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
-        '<span class="md-gst-option__text">' +
-          '<span class="md-gst-option__label">' + label + '</span>' +
+      return '<button type="button" class="md-ds-option' + (sel ? ' is-selected' : '') + '" data-gst-layout="' + key + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
+        '<span class="md-ds-option__text">' +
+          '<span class="md-ds-option__label">' + label + '</span>' +
           // desc is a <div> (not a <span>) so it can hold block content — both
           // cards pass a "may be a good fit if you:" lead + bracketed bullet list.
-          '<div class="md-gst-option__desc">' + desc + '</div>' +
+          '<div class="md-ds-option__desc">' + desc + '</div>' +
         '</span>' +
       '</button>';
     };
@@ -965,32 +966,32 @@ export default Component.extend({
     // can extract every key. The repurposed _desc keys carry the lead; item1-3
     // carry the bullets.
     var gentleDesc =
-      '<span class="md-gst-option__desc-lead">' + i18n.t('getting_started_tour_layout_gentle_desc', "May be a good fit if you:") + '</span>' +
-      '<div class="md-gst-option__bracket">' +
-        '<ul class="md-gst-option__list">' +
-          '<li>' + i18n.t('getting_started_tour_layout_gentle_item1', "Are sensitive to bold elements") + '</li>' +
-          '<li>' + i18n.t('getting_started_tour_layout_gentle_item3', "Prefer a softer, more relaxed interface") + '</li>' +
+      '<span class="md-ds-option__desc-lead">' + i18n.t('display_style_layout_gentle_desc', "May be a good fit if you:") + '</span>' +
+      '<div class="md-ds-option__bracket">' +
+        '<ul class="md-ds-option__list">' +
+          '<li>' + i18n.t('display_style_layout_gentle_item1', "Are sensitive to bold elements") + '</li>' +
+          '<li>' + i18n.t('display_style_layout_gentle_item3', "Prefer a softer, more relaxed interface") + '</li>' +
         '</ul>' +
       '</div>';
     var focusedDesc =
-      '<span class="md-gst-option__desc-lead">' + i18n.t('getting_started_tour_layout_focused_desc', "May be a good fit if you:") + '</span>' +
-      '<div class="md-gst-option__bracket">' +
-        '<ul class="md-gst-option__list">' +
-          '<li>' + i18n.t('getting_started_tour_layout_focused_item1', "Benefit from stronger visual cues") + '</li>' +
-          '<li>' + i18n.t('getting_started_tour_layout_focused_item3', "Prefer a bolder, more direct interface") + '</li>' +
+      '<span class="md-ds-option__desc-lead">' + i18n.t('display_style_layout_focused_desc', "May be a good fit if you:") + '</span>' +
+      '<div class="md-ds-option__bracket">' +
+        '<ul class="md-ds-option__list">' +
+          '<li>' + i18n.t('display_style_layout_focused_item1', "Benefit from stronger visual cues") + '</li>' +
+          '<li>' + i18n.t('display_style_layout_focused_item3', "Prefer a bolder, more direct interface") + '</li>' +
         '</ul>' +
       '</div>';
     return '' +
-      '<div class="md-gst-options">' +
+      '<div class="md-ds-options">' +
         // The layout KEY is 'focused' — the layout engine selects on
         // `layout === 'focused'` and it's the value persisted in
         // preferences.dashboard_layout. The user-facing LABEL is "Focused View".
-        option('focused', i18n.t('getting_started_tour_layout_focused', "Focused View"), focusedDesc) +
-        '<span class="md-gst-options__or" aria-hidden="true">' + i18n.t('getting_started_or_divider', "OR") + '</span>' +
+        option('focused', i18n.t('display_style_layout_focused', "Focused View"), focusedDesc) +
+        '<span class="md-ds-options__or" aria-hidden="true">' + i18n.t('display_style_or_divider', "OR") + '</span>' +
         // The other KEY is 'gentle' — the value persisted in
         // preferences.dashboard_layout (and allow-listed below). The user-facing
         // LABEL is "Gentle View".
-        option('gentle', i18n.t('getting_started_tour_layout_gentle', "Gentle View"), gentleDesc) +
+        option('gentle', i18n.t('display_style_layout_gentle', "Gentle View"), gentleDesc) +
       '</div>';
   },
 
@@ -998,21 +999,25 @@ export default Component.extend({
   // rotate animation) on this step. Always in the DOM; a ≤640px media query
   // shows it (and rotating to landscape widens past 640px, auto-hiding it).
   // IDs are namespaced so they never collide with the board-detail instance.
-  _orientationOverlayHtml: function() {
+  _orientationOverlayHtml: function(idSuffix) {
+    // The overlay is emitted by more than one step; suffix the SVG def IDs so two
+    // rendered step panels never share an id (duplicate ids are invalid and make
+    // url(#id) refs resolve to the first match). Callers pass a per-step suffix.
+    idSuffix = idSuffix || '';
     return '' +
-      '<div class="md-board-detail-portrait-overlay md-gst-orientation" role="dialog" aria-label="' + i18n.t('board_detail_landscape_recommended', "Landscape mode recommended") + '">' +
+      '<div class="md-board-detail-portrait-overlay md-ds-orientation" role="dialog" aria-label="' + i18n.t('board_detail_landscape_recommended', "Landscape mode recommended") + '">' +
         '<div class="md-board-detail-portrait-overlay__card">' +
           '<span class="md-board-detail-portrait-overlay__accent" aria-hidden="true"></span>' +
           '<div class="md-board-detail-portrait-overlay__phone" aria-hidden="true">' +
             '<svg class="md-board-detail-portrait-overlay__phone-arc" width="76" height="76" viewBox="0 0 76 76" fill="none" aria-hidden="true">' +
               '<defs>' +
-                '<linearGradient id="md-gst-rot-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED0C0"/><stop offset="100%" stop-color="#1C7E72"/></linearGradient>' +
-                '<filter id="md-gst-rot-shadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2A9D8F" flood-opacity="0.5"/></filter>' +
+                '<linearGradient id="md-ds-rot-grad' + idSuffix + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED0C0"/><stop offset="100%" stop-color="#1C7E72"/></linearGradient>' +
+                '<filter id="md-ds-rot-shadow' + idSuffix + '" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2A9D8F" flood-opacity="0.5"/></filter>' +
               '</defs>' +
-              '<g filter="url(#md-gst-rot-shadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+              '<g filter="url(#md-ds-rot-shadow' + idSuffix + ')" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
                 '<path class="md-board-detail-portrait-overlay__arc-track" d="M34 14 C62 8 75 34 65 48" stroke="currentColor" stroke-width="3" stroke-opacity="0.20"/>' +
-                '<path class="md-board-detail-portrait-overlay__arc-comet" d="M34 14 C62 8 75 34 65 48" pathLength="100" stroke="url(#md-gst-rot-grad)" stroke-width="3.5"/>' +
-                '<polyline class="md-board-detail-portrait-overlay__arc-head" points="59 42 65 48 71 42" stroke="url(#md-gst-rot-grad)" stroke-width="3.5"/>' +
+                '<path class="md-board-detail-portrait-overlay__arc-comet" d="M34 14 C62 8 75 34 65 48" pathLength="100" stroke="url(#md-ds-rot-grad' + idSuffix + ')" stroke-width="3.5"/>' +
+                '<polyline class="md-board-detail-portrait-overlay__arc-head" points="59 42 65 48 71 42" stroke="url(#md-ds-rot-grad' + idSuffix + ')" stroke-width="3.5"/>' +
               '</g>' +
             '</svg>' +
             '<svg class="md-board-detail-portrait-overlay__phone-svg" width="76" height="76" viewBox="0 0 76 76" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
@@ -1020,7 +1025,7 @@ export default Component.extend({
             '</svg>' +
           '</div>' +
           '<h2 class="md-board-detail-portrait-overlay__title">' + i18n.t('board_detail_landscape_recommended', "Landscape mode recommended") + '</h2>' +
-          '<p class="md-board-detail-portrait-overlay__desc">' + i18n.t('getting_started_tour_landscape_explanation', "Rotate your device to landscape to see the full preview and choose your home page layout.") + '</p>' +
+          '<p class="md-board-detail-portrait-overlay__desc">' + i18n.t('display_style_landscape_explanation', "Rotate your device to landscape to see the full preview and choose your home page layout.") + '</p>' +
           '<div class="md-board-detail-portrait-overlay__actions">' +
             '<button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--primary" data-gst-rotate>' + i18n.t('board_detail_rotate_device', "Rotate Device") + '</button>' +
             '<button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--secondary" data-gst-dismiss>' + i18n.t('board_detail_continue_anyway', "Continue Anyway") + '</button>' +
@@ -1040,12 +1045,12 @@ export default Component.extend({
   // static i18n.t calls (generator-friendly); _onDisplayShow updates the tag live
   // when the layout selection changes.
   _previewLabel: function(layout) {
-    if (layout === 'focused') { return i18n.t('getting_started_tour_preview_label_focused', "Preview — Focused View"); }
-    return i18n.t('getting_started_tour_preview_label', "Preview — Gentle View");
+    if (layout === 'focused') { return i18n.t('display_style_preview_label_focused', "Preview — Focused View"); }
+    return i18n.t('display_style_preview_label', "Preview — Gentle View");
   },
 
   // Live, scaled-down copy of THIS user's real home dashboard — _onDisplayShow
-  // clones the actual `.md-grid--dashboard` into `.md-gst-preview__live` so the
+  // clones the actual `.md-grid--dashboard` into `.md-ds-preview__live` so the
   // user sees their exact home page. Parameterized so the same builder serves both
   // modal pages:
   //   { toggles: true }  → page 2 (home layout): content checkboxes + drag-to-swap
@@ -1064,34 +1069,34 @@ export default Component.extend({
     // reorder instruction read as one modern, professional line directly above the
     // live preview — instead of two competing labels above and below the controls.
     var legend = '' +
-      '<div class="md-gst-preview__legend">' +
-        '<span class="md-gst-preview__legend-tag">' + this._previewLabel(savedLayout) + '</span>' +
+      '<div class="md-ds-preview__legend">' +
+        '<span class="md-ds-preview__legend-tag">' + this._previewLabel(savedLayout) + '</span>' +
         (dragOn ?
-          '<span class="md-gst-preview__legend-dot" aria-hidden="true"></span>' +
-          '<span class="md-gst-preview__legend-hint">' + i18n.t('getting_started_tour_drag_hint', "Drag rows to change row position or drag the smaller buttons on the same row to reorder them on the row") + '</span>'
+          '<span class="md-ds-preview__legend-dot" aria-hidden="true"></span>' +
+          '<span class="md-ds-preview__legend-hint">' + i18n.t('display_style_drag_hint', "Drag rows to change row position or drag the smaller buttons on the same row to reorder them on the row") + '</span>'
           : '') +
       '</div>';
     // Two modern checklist items below the step header (customize step only),
     // joined by an "and/or" divider — a quick "here's what you can do" summary of
     // the page's two actions (reorder by dragging, toggle visibility).
-    var howtoBullet = '<span class="md-gst-howto__bullet" aria-hidden="true"></span>';
+    var howtoBullet = '<span class="md-ds-howto__bullet" aria-hidden="true"></span>';
     var howto = withToggles ? (
-      '<div class="md-gst-howto">' +
-        '<span class="md-gst-howto__item">' + howtoBullet +
-          '<span class="md-gst-howto__label">' + i18n.t('getting_started_tour_howto_drag', "Drag cards to move them around") + '</span>' +
+      '<div class="md-ds-howto">' +
+        '<span class="md-ds-howto__item">' + howtoBullet +
+          '<span class="md-ds-howto__label">' + i18n.t('display_style_howto_drag', "Drag cards to move them around") + '</span>' +
         '</span>' +
-        '<span class="md-gst-howto__sep">' + i18n.t('getting_started_tour_howto_andor', "and/or") + '</span>' +
-        '<span class="md-gst-howto__item">' + howtoBullet +
-          '<span class="md-gst-howto__label">' + i18n.t('getting_started_tour_howto_toggle', "Choose what appears on your dashboard") + '</span>' +
+        '<span class="md-ds-howto__sep">' + i18n.t('display_style_howto_andor', "and/or") + '</span>' +
+        '<span class="md-ds-howto__item">' + howtoBullet +
+          '<span class="md-ds-howto__label">' + i18n.t('display_style_howto_toggle', "Choose what appears on your dashboard") + '</span>' +
         '</span>' +
       '</div>'
     ) : '';
     return '' +
       howto +
-      '<div class="md-gst-preview' + (withToggles ? ' md-gst-preview--with-toggles' : '') + '">' +
+      '<div class="md-ds-preview' + (withToggles ? ' md-ds-preview--with-toggles' : '') + '">' +
         (withToggles ? this._sectionTogglesHtml() : '') +
         legend +
-        '<div class="md-gst-preview__live" data-gst-drag="' + (dragOn ? '1' : '') + '" data-gst-order=\'' + savedOrderJson + '\'>' +
+        '<div class="md-ds-preview__live" data-gst-drag="' + (dragOn ? '1' : '') + '" data-gst-order=\'' + savedOrderJson + '\'>' +
           this._emptyOverlayHtml() +
         '</div>' +
       '</div>';
@@ -1103,11 +1108,11 @@ export default Component.extend({
   // carries the accessible status message.
   _emptyOverlayHtml: function() {
     return '' +
-      '<div class="md-gst-empty" role="status" aria-live="polite">' +
-        '<div class="md-gst-empty__card">' +
-          '<svg class="md-gst-empty__icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>' +
-          '<div class="md-gst-empty__title">' + i18n.t('getting_started_tour_empty_title', "Nothing to display") + '</div>' +
-          '<div class="md-gst-empty__text">' + i18n.t('getting_started_tour_empty_text', "Select at least one element to display on your home page.") + '</div>' +
+      '<div class="md-ds-empty" role="status" aria-live="polite">' +
+        '<div class="md-ds-empty__card">' +
+          '<svg class="md-ds-empty__icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>' +
+          '<div class="md-ds-empty__title">' + i18n.t('display_style_empty_title', "Nothing to display") + '</div>' +
+          '<div class="md-ds-empty__text">' + i18n.t('display_style_empty_text', "Select at least one element to display on your home page.") + '</div>' +
         '</div>' +
       '</div>';
   },
@@ -1136,14 +1141,14 @@ export default Component.extend({
     var toggleItem = function(key, label, gentleOnly) {
       var checked = sectionHidden(user, key) ? '' : ' checked';
       // `gentleOnly` rows are hidden when Focused View is selected (applyLayoutSections).
-      var extraClass = gentleOnly ? ' md-gst-section--gentle-only' : '';
+      var extraClass = gentleOnly ? ' md-ds-section--gentle-only' : '';
       return '' +
-        '<label class="md-gst-section' + extraClass + '">' +
-          '<input type="checkbox" class="md-gst-section__input" data-gst-section="' + key + '"' + checked + '>' +
-          '<span class="md-gst-section__box" aria-hidden="true">' +
-            '<svg class="md-gst-section__check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+        '<label class="md-ds-section' + extraClass + '">' +
+          '<input type="checkbox" class="md-ds-section__input" data-gst-section="' + key + '"' + checked + '>' +
+          '<span class="md-ds-section__box" aria-hidden="true">' +
+            '<svg class="md-ds-section__check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
           '</span>' +
-          '<span class="md-gst-section__label">' + label + '</span>' +
+          '<span class="md-ds-section__label">' + label + '</span>' +
         '</label>';
     };
     var items = sections.map(function(s) {
@@ -1158,9 +1163,9 @@ export default Component.extend({
       return toggleItem(t.key, i18n.t(t.labelKey, t.labelDefault), t.gentleOnly);
     }).join('');
     return '' +
-      '<div class="md-gst-sections">' +
-        '<div class="md-gst-sections__title">' + i18n.t('getting_started_tour_sections_label', "Choose what appears on your home page") + '</div>' +
-        '<div class="md-gst-sections__list">' + items + '</div>' +
+      '<div class="md-ds-sections">' +
+        '<div class="md-ds-sections__title">' + i18n.t('display_style_sections_label', "Choose what appears on your home page") + '</div>' +
+        '<div class="md-ds-sections__list">' + items + '</div>' +
       '</div>';
   },
 
@@ -1172,15 +1177,15 @@ export default Component.extend({
     return [
       // Step 1 — welcome (centered intro)
       {
-        id: 'getting_started_tour_welcome',
-        title: this._decoratedTitle('getting_started_tour_welcome_title', "Customize your dashboard"),
+        id: 'display_style_welcome',
+        title: this._decoratedTitle('display_style_welcome_title', "Customize your dashboard"),
         // Roomier welcome page: a short lead, a 1→2 progress stepper, and two
         // mini-mockup cards previewing the next two steps (see _welcomeContentHtml).
         text: this._welcomeContentHtml(),
-        // md-gst-modal scopes the size/position overrides to THIS modal so the
+        // md-ds-modal scopes the size/position overrides to THIS modal so the
         // home-tour welcome/outro keep the shared intro default; --welcome doubles
         // its size for the stepper + preview cards.
-        classes: 'md-tour__step md-tour__step--intro md-gst-modal md-gst-modal--welcome',
+        classes: 'md-tour__step md-tour__step--intro md-ds-modal md-ds-modal--welcome',
         when: {
           // Step-level show OVERRIDES the default (_onShow from defaultStepOptions),
           // so _onWelcomeShow re-runs the shared centered-step setup AND wires the
@@ -1189,12 +1194,12 @@ export default Component.extend({
         },
         buttons: [
           {
-            text: i18n.t('getting_started_tour_skip', "Maybe later"),
+            text: i18n.t('display_style_skip', "Maybe later"),
             type: 'cancel',
             classes: 'md-tour__btn md-tour__btn--ghost'
           },
           {
-            text: i18n.t('getting_started_tour_begin', "Get started"),
+            text: i18n.t('display_style_begin', "Get started"),
             type: 'next',
             classes: 'md-tour__btn md-tour__btn--primary'
           }
@@ -1206,9 +1211,9 @@ export default Component.extend({
       // on the next page. The same _onDisplayShow hook wires both pages — on this one
       // there are no toggles and drag is off, so it only wires the style cards + gate.
       {
-        id: 'getting_started_tour_display',
-        title: this._decoratedTitle('getting_started_tour_display_title', "Choose your display style"),
-        text: this._styleCardsHtml() + this._gentlePreviewHtml({ toggles: false, drag: false }) + this._orientationOverlayHtml(),
+        id: 'display_style_display',
+        title: this._decoratedTitle('display_style_display_title', "Choose your display style"),
+        text: this._styleCardsHtml() + this._gentlePreviewHtml({ toggles: false, drag: false }) + this._orientationOverlayHtml('-display'),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           // Persist whenever this step is HIDDEN — Next, Back, OR closing the modal
@@ -1217,15 +1222,15 @@ export default Component.extend({
           // (`this.el`) so the two display pages never read each other's controls.
           hide: function() { try { component._persistDisplaySelection(this.el); } catch (e) { /* never block close */ } }
         },
-        classes: 'md-tour__step md-tour__step--intro md-gst-modal md-gst-modal--display',
+        classes: 'md-tour__step md-tour__step--intro md-ds-modal md-ds-modal--display',
         buttons: [
           {
-            text: i18n.t('getting_started_tour_back', "Back"),
+            text: i18n.t('display_style_back', "Back"),
             type: 'back',
             classes: 'md-tour__btn md-tour__btn--ghost'
           },
           {
-            text: i18n.t('getting_started_tour_select', "Select"),
+            text: i18n.t('display_style_select', "Select"),
             // Advance to the home-layout page; the `hide` hook above saves the chosen
             // style. (Gate: the show hook keeps it disabled until a style is picked.)
             type: 'next',
@@ -1238,22 +1243,22 @@ export default Component.extend({
       // on your home page" toggles, and drag-to-swap. The same _onDisplayShow hook
       // wires it — here there are no style cards, so it wires the toggles + drag + gate.
       {
-        id: 'getting_started_tour_layout',
-        title: this._decoratedTitle('getting_started_tour_layout_title', "Customize your dashboard"),
-        text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml(),
+        id: 'display_style_layout',
+        title: this._decoratedTitle('display_style_layout_title', "Customize your dashboard"),
+        text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml('-layout'),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           hide: function() { try { component._persistDisplaySelection(this.el); } catch (e) { /* never block close */ } }
         },
-        classes: 'md-tour__step md-tour__step--intro md-gst-modal md-gst-modal--display',
+        classes: 'md-tour__step md-tour__step--intro md-ds-modal md-ds-modal--display',
         buttons: [
           {
-            text: i18n.t('getting_started_tour_back', "Back"),
+            text: i18n.t('display_style_back', "Back"),
             type: 'back',
             classes: 'md-tour__btn md-tour__btn--ghost'
           },
           {
-            text: i18n.t('getting_started_tour_done', "Done"),
+            text: i18n.t('display_style_done', "Done"),
             // Last step — completes the tour; the `hide` hook saves this page.
             type: 'next',
             classes: 'md-tour__btn md-tour__btn--primary'
@@ -1268,13 +1273,16 @@ export default Component.extend({
   // sets 'display' to land on the "choose your display style" page). We consume the
   // signal, reset it, and start the tour at the matching step.
   _dashboardDesignTrigger: observer('appState.open_dashboard_design', function() {
+    // The signal can fire while this component is mid-teardown (route change);
+    // don't start a tour against a destroyed component.
+    if (this.isDestroyed || this.isDestroying) { return; }
     var step = this.get('appState.open_dashboard_design');
     if (!step) { return; }
     this.set('appState.open_dashboard_design', null);
-    this._startGettingStarted(step === 'display' ? 'getting_started_tour_display' : null);
+    this._startDisplayStyle(step === 'display' ? 'display_style_display' : null);
   }),
 
-  _startGettingStarted: function(startStepId) {
+  _startDisplayStyle: function(startStepId) {
     var tour = this.get('tour');
     if (!tour) { return; }
     // defaultStepOptions MUST be set before addSteps() (ember-shepherd reads
@@ -1290,7 +1298,7 @@ export default Component.extend({
       when: { show: _onShow }
     });
     // Clear the page down to brand + identity + dimmed bg while the series runs.
-    try { document.body.classList.add('md-gst-active'); } catch (e) { /* noop */ }
+    try { document.body.classList.add('md-ds-active'); } catch (e) { /* noop */ }
     var _this = this;
     tour.addSteps(this._buildSteps()).then(function() {
       if (tour.tourObject) {
@@ -1316,8 +1324,8 @@ export default Component.extend({
   },
 
   actions: {
-    startGettingStarted: function() {
-      this._startGettingStarted();
+    startDisplayStyle: function() {
+      this._startDisplayStyle();
     }
   }
 });

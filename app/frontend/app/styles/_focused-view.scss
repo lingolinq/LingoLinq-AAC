@@ -151,10 +151,45 @@ body.ll-layout-focused {
 // tile with light glyphs). `.md-shell--layout-focused` is focused-only, so Gentle View
 // is untouched. NOTE: `.md-shell--extras-view` also covers the Supervisors tab — the
 // hero-hide affects it too, but the `.md-extras-card` rules only render on Extras.
+// The Extras focused-view header/subheader belong to Focused View only — hidden by
+// default (gentle view uses the dashboard hero).
+.md-extras-page__focus-head,
+.md-extras-page__focus-divider {
+  display: none;
+}
 .md-shell--layout-focused.md-shell--extras-view {
   // Hide the "More Tools & Resources" header + subheader.
   .md-hero--dashboard {
     display: none !important;
+  }
+  // Wrap the extras buttons in the SAME frosted-glass surface as the focused home page
+  // Boards card (`.md-grid--layout-focused .md-card--boards`, via `$focus-boards-bg`) —
+  // reusing the exact card chrome (border / radius / inset+drop shadow / backdrop blur)
+  // already shared by the Boards section panel. `.md-extras-page` is the existing outer
+  // container around `.md-extras-page__grid`, so it becomes that card; padding gives the
+  // buttons breathing room inside it.
+  .md-extras-page {
+    margin-top: 32px !important;
+    padding: 24px !important;
+    background: $focus-boards-bg !important;
+    border: 1px solid rgba($focus-shadow-ink, 0.07) !important;
+    border-radius: 20px !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      inset 0 9px 18px rgba($focus-accent, 0.07),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.45),
+      0 1px 3px rgba($focus-shadow-ink, 0.05),
+      0 6px 16px rgba($focus-shadow-ink, 0.08) !important;
+    backdrop-filter: blur(14px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  }
+  // Reveal the Extras focused header + subheader (boards-card style) at the top-left of
+  // the container; hidden by default (see base rule below).
+  .md-extras-page__focus-head {
+    display: block !important;
+  }
+  .md-extras-page__focus-divider {
+    display: block !important;
   }
   // Setup cards take the badge-action card surface.
   .md-extras-card {
@@ -267,6 +302,22 @@ body.ll-layout-focused .md-user-summary {
   .ub-boards-page__set-home-btn-icon {
     color: $focus-on-dark !important;
   }
+  // New Board button — make it the EXACT same style as the Change Home Board button in
+  // Focused View. They already share the dark gradient surface + white text/border above;
+  // these override the props that still differ (set-home's base is app.scss ~61057):
+  // padding, min-height, font-weight, box-shadow, and dropping the new-board backdrop blur
+  // (set-home has none). border-radius/font-size/gap already match.
+  .ub-boards-page__new-board-btn {
+    min-height: 44px !important;
+    padding: 8px 14px !important;
+    font-weight: 600 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 2px rgba($la-navy, 0.12),
+      0 6px 14px rgba($la-navy, 0.22) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
   // Remove the redundant SECOND New Board button — the "+ New Board" pinned in the
   // tabs row. The New Board button in the section header (.ub-boards-page__new-board-btn)
   // stays as the single Boards-page CTA in Focused View.
@@ -337,6 +388,12 @@ body.ll-layout-focused .md-user-summary {
 // -----------------------------------------------------------------------------
 // `.md-hero--reports-dashboard` and `.md-user-meta` only exist on the Reports page,
 // so `.md-shell--reports-view` (shared with Boards) scopes safely to Reports here.
+// The Reports focused-view header/subheader belong to Focused View only — hidden by
+// default (gentle view uses its own hero + .md-stats-hero-card).
+.md-stats-main__focus-head,
+.md-stats-main__focus-divider {
+  display: none;
+}
 body.ll-layout-focused .md-shell--reports-view {
   // Hide the "Reports for <user>" header + subheader.
   .md-hero--reports-dashboard {
@@ -347,6 +404,36 @@ body.ll-layout-focused .md-shell--reports-view {
   // lets them wrap on very narrow screens).
   .md-user-meta {
     flex-direction: row !important;
+  }
+  // The "before hero" meta row (Joined / Last active pills) — explicit margin so it sits
+  // clear of the focused header/divider above and the hero card below.
+  .md-user-meta--before-hero {
+    margin: 32px 0px 12px !important;
+  }
+  // Wrap the reports content in the SAME frosted-glass surface as the focused home page
+  // Boards card (`$focus-boards-bg` + the shared card chrome) — matching the extras page
+  // and the Boards section panel. `.md-stats-main` is already a centered max-width
+  // container with padding, so it becomes that card directly.
+  .md-stats-main {
+    margin-top: 38px !important;
+    background: $focus-boards-bg !important;
+    border: 1px solid rgba($focus-shadow-ink, 0.07) !important;
+    border-radius: 20px !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      inset 0 9px 18px rgba($focus-accent, 0.07),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.45),
+      0 1px 3px rgba($focus-shadow-ink, 0.05),
+      0 6px 16px rgba($focus-shadow-ink, 0.08) !important;
+    backdrop-filter: blur(14px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  }
+  // Reveal the Reports focused header + subheader (boards-card style).
+  .md-stats-main__focus-head {
+    display: block !important;
+  }
+  .md-stats-main__focus-divider {
+    display: block !important;
   }
 }
 
@@ -396,6 +483,13 @@ body.ll-layout-focused {
     > :nth-child(3) { order: 1 !important; }  // My supervisors → 1st slot
     > :nth-child(4) { order: 4 !important; }  // People I supervise (unchanged)
   }
+
+  // NOTE: centering of the account stat cards on small screens is handled at the BASE
+  // level (not Focused-View-scoped) by centering their `.row.big_buttons` flex container
+  // — see `.md-user-summary .row.big_buttons { justify-content: center }` in the ≤768px
+  // block in app.scss. The stat rows are flex ITEMS of that container, so centering the
+  // container centers them in BOTH Focused and Gentle views. The --boards row stays
+  // hidden in Focused View via the `display: none` rule above (untouched here).
 
   // Account page user hero — same frosted-glass surface as the focused Boards card.
   .md-hero--user {

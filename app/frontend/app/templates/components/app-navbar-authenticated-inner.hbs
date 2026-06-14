@@ -34,8 +34,12 @@
          appear on board pages. --}}
     {{#if this.appState.empty_header}}
       <span class="app-navbar__home-actions">
-        {{#if this.appState.feature_flags.home_tour}}{{home-tour}}{{/if}}
-        {{getting-started-tour}}
+        {{#if this.appState.feature_flags.home_tour}}{{guided-tour}}{{/if}}
+        {{!-- Display Style button — home page ONLY. `empty_header` is true on every
+             default-mode page (boards / reports / extras / account, etc.), so it must
+             be further gated to the home dashboard route so the button doesn't leak
+             onto those pages. View-independent (applies in both Focused and Gentle). --}}
+        {{#if (is-equal this.appState.current_route "user.home")}}{{display-style}}{{/if}}
       </span>
     {{/if}}
   </span>
@@ -202,6 +206,13 @@
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "openBetaFeedback"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</button>
+    {{!-- Display Style — drawer replacement for the inner-header disc, which is
+         hidden at <=640px (see app.scss). Only relevant on the home page (where
+         the display-style component is mounted); shown only <=640px via
+         `--display-style` CSS so it never duplicates the still-visible disc. --}}
+    {{#if (is-equal this.appState.current_route "user.home")}}
+    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button la-mobile-drawer__link--display-style" {{action "closeDrawerAndDisplayStyle"}}>{{t "Display Style" key="display_style"}}</button>
+    {{/if}}
     {{!-- Language picker — mirrors the desktop dropdown's
          `openLanguage` link (which sends `language` to the
          application controller). Surfaces the user's current
@@ -213,6 +224,9 @@
     {{#if this.application.showDatabaseExplorerLink}}
     <LinkTo @route="database" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Database" key="database_explorer_nav"}}</LinkTo>
     {{/if}}
+    {{!-- Separate Sign Out from the Help / Beta / Language group. Mirrors the
+         --modern gradient divider used above the user's quick links. --}}
+    <div class="la-mobile-drawer__divider la-mobile-drawer__divider--modern"></div>
     {{/unless}}
     {{!-- Theme picker removed from the mobile drawer per design
          request — the persistent navbar theme switcher (visible on

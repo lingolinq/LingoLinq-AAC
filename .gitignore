@@ -68,6 +68,12 @@
 /.claude/hooks/*
 !/.claude/hooks/*.sh
 !/.claude/settings.json
+# GSD toolkit (locally-installed planning/workflow tooling) is NOT part of the
+# product — keep its agent + hook definitions out of the repo. These re-exclude
+# patterns come AFTER the broad *.md / *.sh re-includes above, so they win and
+# only the gsd-* subset is ignored (the audit/compliance agents + hooks stay tracked).
+/.claude/agents/gsd-*.md
+/.claude/hooks/gsd-*.sh
 # Everything else under /.claude stays local and ignored: settings.local.json, worktrees/,
 # and agent-memory/ (finder `memory: project` accrues per-machine; not shared to avoid pulling
 # unrelated local agents' memory into git).
