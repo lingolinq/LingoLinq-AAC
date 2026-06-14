@@ -1055,16 +1055,25 @@ export default Component.extend({
     approve_or_reject_org: function(decision) {
       var user = this.get('appState.currentUser');
       if(!user) { return; }
-      if(decision == 'user_approve') {
+      if(decision === 'user_approve') {
         user.set('supervisor_key', 'approve-org');
-      } else if(decision == 'user_reject') {
+      } else if(decision === 'user_reject') {
         user.set('supervisor_key', 'remove_supervisor-org');
-      } else if(decision == 'supervisor_approve') {
+      } else if(decision === 'supervisor_approve') {
         user.set('supervisor_key', 'approve_supervision-' + user.get('pending_supervision_org.id'));
-      } else if(decision == 'supervisor_reject') {
+      } else if(decision === 'supervisor_reject') {
         user.set('supervisor_key', 'remove_supervision-' + user.get('pending_supervision_org.id'));
       }
-      if(user.save) { user.save().then(function() { }, function() { }); }
+      // Don't swallow the result — an org-approval that silently fails would
+      // leave the user believing the relationship was approved/denied when it
+      // wasn't. Confirm success and surface failure so they can retry.
+      if(user.save) {
+        user.save().then(function() {
+          modal.success(i18n.t('org_response_saved', "Your response was saved."));
+        }, function() {
+          modal.error(i18n.t('error_saving_org_response', "There was a problem saving your response. Please try again."));
+        });
+      }
     },
     addOrganization: function() {
       var user_name = this.appState.get('currentUser.user_name');

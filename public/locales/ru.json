@@ -7567,6 +7567,8 @@
   "extras_focus_accent": "*** (Tools & Resources)",
   "extras_focus_sub": "*** Browse more tools and resources",
   "home_tour_seen_sr": "*** Tour completed",
+  "org_response_saved": "*** Your response was saved.",
+  "error_saving_org_response": "*** There was a problem saving your response. Please try again.",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "По истечении времени [[ After Time",

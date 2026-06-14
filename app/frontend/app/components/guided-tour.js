@@ -270,6 +270,9 @@ export default Component.extend({
     });
 
     tour.addSteps(builder()).then(function() {
+      // If the component (or tour) was torn down while addSteps was resolving,
+      // don't wire handlers / start against a dead instance.
+      if (_this.isDestroyed || _this.isDestroying) { return; }
       // After addSteps resolves, `tour.tourObject` is the actual shepherd Tour
       // instance. The ember-shepherd service's own Evented forwards
       // method-triggered events (back, next) but NOT shepherd-native lifecycle

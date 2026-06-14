@@ -2158,6 +2158,8 @@
   "speech_error_network": "Speech recognition service is unavailable. Check your internet connection and try again.",
   "speech_error_generic": "Speech recognition stopped. Please try again.",
   "crisis_vocabulary": "Crisis Vocabulary",
+  "org_response_saved": "Your response was saved.",
+  "error_saving_org_response": "There was a problem saving your response. Please try again.",
   "select_user_to_review_lessons": "Select User to Review Trainings",
   "select_user_for_eval": "Select User for Evaluation",
   "setup_which_user": "Select User to Run Setup",

@@ -999,7 +999,11 @@ export default Component.extend({
   // rotate animation) on this step. Always in the DOM; a ≤640px media query
   // shows it (and rotating to landscape widens past 640px, auto-hiding it).
   // IDs are namespaced so they never collide with the board-detail instance.
-  _orientationOverlayHtml: function() {
+  _orientationOverlayHtml: function(idSuffix) {
+    // The overlay is emitted by more than one step; suffix the SVG def IDs so two
+    // rendered step panels never share an id (duplicate ids are invalid and make
+    // url(#id) refs resolve to the first match). Callers pass a per-step suffix.
+    idSuffix = idSuffix || '';
     return '' +
       '<div class="md-board-detail-portrait-overlay md-ds-orientation" role="dialog" aria-label="' + i18n.t('board_detail_landscape_recommended', "Landscape mode recommended") + '">' +
         '<div class="md-board-detail-portrait-overlay__card">' +
@@ -1007,13 +1011,13 @@ export default Component.extend({
           '<div class="md-board-detail-portrait-overlay__phone" aria-hidden="true">' +
             '<svg class="md-board-detail-portrait-overlay__phone-arc" width="76" height="76" viewBox="0 0 76 76" fill="none" aria-hidden="true">' +
               '<defs>' +
-                '<linearGradient id="md-ds-rot-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED0C0"/><stop offset="100%" stop-color="#1C7E72"/></linearGradient>' +
-                '<filter id="md-ds-rot-shadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2A9D8F" flood-opacity="0.5"/></filter>' +
+                '<linearGradient id="md-ds-rot-grad' + idSuffix + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED0C0"/><stop offset="100%" stop-color="#1C7E72"/></linearGradient>' +
+                '<filter id="md-ds-rot-shadow' + idSuffix + '" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2A9D8F" flood-opacity="0.5"/></filter>' +
               '</defs>' +
-              '<g filter="url(#md-ds-rot-shadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+              '<g filter="url(#md-ds-rot-shadow' + idSuffix + ')" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
                 '<path class="md-board-detail-portrait-overlay__arc-track" d="M34 14 C62 8 75 34 65 48" stroke="currentColor" stroke-width="3" stroke-opacity="0.20"/>' +
-                '<path class="md-board-detail-portrait-overlay__arc-comet" d="M34 14 C62 8 75 34 65 48" pathLength="100" stroke="url(#md-ds-rot-grad)" stroke-width="3.5"/>' +
-                '<polyline class="md-board-detail-portrait-overlay__arc-head" points="59 42 65 48 71 42" stroke="url(#md-ds-rot-grad)" stroke-width="3.5"/>' +
+                '<path class="md-board-detail-portrait-overlay__arc-comet" d="M34 14 C62 8 75 34 65 48" pathLength="100" stroke="url(#md-ds-rot-grad' + idSuffix + ')" stroke-width="3.5"/>' +
+                '<polyline class="md-board-detail-portrait-overlay__arc-head" points="59 42 65 48 71 42" stroke="url(#md-ds-rot-grad' + idSuffix + ')" stroke-width="3.5"/>' +
               '</g>' +
             '</svg>' +
             '<svg class="md-board-detail-portrait-overlay__phone-svg" width="76" height="76" viewBox="0 0 76 76" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
@@ -1209,7 +1213,7 @@ export default Component.extend({
       {
         id: 'display_style_display',
         title: this._decoratedTitle('display_style_display_title', "Choose your display style"),
-        text: this._styleCardsHtml() + this._gentlePreviewHtml({ toggles: false, drag: false }) + this._orientationOverlayHtml(),
+        text: this._styleCardsHtml() + this._gentlePreviewHtml({ toggles: false, drag: false }) + this._orientationOverlayHtml('-display'),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           // Persist whenever this step is HIDDEN — Next, Back, OR closing the modal
@@ -1241,7 +1245,7 @@ export default Component.extend({
       {
         id: 'display_style_layout',
         title: this._decoratedTitle('display_style_layout_title', "Customize your dashboard"),
-        text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml(),
+        text: this._gentlePreviewHtml({ toggles: true }) + this._orientationOverlayHtml('-welcome'),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           hide: function() { try { component._persistDisplaySelection(this.el); } catch (e) { /* never block close */ } }
