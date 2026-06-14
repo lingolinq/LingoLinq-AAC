@@ -116,6 +116,9 @@ jobs:
           ruby-version: "3.4"
           bundler-cache: true
 
+      - name: Verify compliance calendar render matches JSON
+        run: ruby scripts/compliance-calendar-render.rb --check
+
       - name: Run Brakeman (Rails SAST)
         run: |
           gem install brakeman

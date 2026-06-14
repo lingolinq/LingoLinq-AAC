@@ -28422,6 +28422,21 @@ header.header--unauthenticated ~ #content .la-topbar {
 @media (max-width: $aac-breakpoint-sm) {
   .la-mobile-drawer__link.la-mobile-drawer__link--display-style { display: block; }
 }
+/* Modern divider — brand verdigris→navy gradient hairline (fades at both ends),
+   matching the app's modern dividers. Used to separate the user's quick links from
+   the rest of the drawer. */
+.la-mobile-drawer__divider--modern {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba($la-navy, 0) 0%,
+    rgba($brand-verdigris-aa, 0.45) 18%,
+    rgba($la-navy, 0.32) 50%,
+    rgba($brand-verdigris-aa, 0.35) 82%,
+    rgba($la-navy, 0) 100%
+  );
+  margin: 12px 0;
+}
 
 .la-mobile-drawer__footer-note {
   display: block;

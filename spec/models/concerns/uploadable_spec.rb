@@ -132,7 +132,15 @@ describe Uploadable, :type => :model do
       i.check_for_pending
       expect(i.settings['pending']).to eq(false)
       expect(i.url).to eq("http://www.example.com")
-      expect(i.instance_variable_get('@schedule_upload_to_remote')).to eq(true)
+      expect(i.instance_variable_get('@upload_to_remote_arg')).to eq('http://www.example.com')
+    end
+
+    it "should schedule server-side upload for SVG data URIs even when client upload is possible" do
+      i = ButtonImage.new(settings: { 'content_type' => 'image/svg+xml', 'data_uri' => 'data:image/svg+xml,<svg/>' })
+      i.instance_variable_set('@remote_upload_possible', true)
+      i.check_for_pending
+      expect(i.settings['pending']).to eq(false)
+      expect(i.instance_variable_get('@upload_to_remote_arg')).to eq(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
     end
   end
 
@@ -140,11 +148,11 @@ describe Uploadable, :type => :model do
     it "should schedule an upload only if set" do
       s = ButtonSound.create(user: u, :settings => {})
       s.settings['pending_url'] = 'http://www.example.com/pic.png'
-      s.instance_variable_set('@schedule_upload_to_remote', false)
+      s.instance_variable_set('@upload_to_remote_arg', nil)
       s.upload_after_save
       expect(Worker.scheduled?(ButtonSound, 'perform_action', {'id' => s.id, 'method' => 'upload_to_remote', 'arguments' => ['http://www.example.com/pic.png']})).to eq(false)
 
-      s.instance_variable_set('@schedule_upload_to_remote', true)
+      s.instance_variable_set('@upload_to_remote_arg', 'http://www.example.com/pic.png')
       s.upload_after_save
       expect(Worker.scheduled?(ButtonSound, 'perform_action', {'id' => s.id, 'method' => 'upload_to_remote', 'arguments' => ['http://www.example.com/pic.png']})).to eq(true)
     end
@@ -281,7 +289,7 @@ describe Uploadable, :type => :model do
         expect(f.size).to eq(6)
       }.and_return(res)
       
-      s.upload_to_remote('data_uri')
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
       expect(s.url).not_to eq(nil)
       expect(s.settings['pending']).to eq(false)
       expect(s.settings['content_type']).to eq('image/png')
@@ -305,8 +313,130 @@ describe Uploadable, :type => :model do
       expect(s.settings['content_type']).to eq('image/png')
       expect(s.settings['data_uri']).to eq(nil)
     end
+
+    it "should sanitize SVG fetched over http before uploading" do
+      evil_svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="4"/></svg>'
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml', 'width' => 100, 'height' => 100 })
+      res = OpenStruct.new(success?: true, headers: { 'Content-Type' => 'image/svg+xml' }, body: evil_svg)
+      expect(Typhoeus).to receive(:get).and_return(res)
+      uploaded_body = nil
+      expect(Typhoeus).to receive(:post) { |url, args|
+        args[:body][:file].rewind
+        uploaded_body = args[:body][:file].read
+      }.and_return(OpenStruct.new(success?: true))
+      s.upload_to_remote('http://pic.com/evil.svg')
+      expect(s.url).not_to eq(nil)
+      expect(uploaded_body).not_to include('<script')
+      expect(uploaded_body).to include('<circle')
+    end
+
+    it "should decode percent-encoded SVG data URIs" do
+      svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>'
+      data_uri = 'data:image/svg+xml,' + CGI.escape(svg)
+      s = ButtonImage.create(user: u, settings: { 'data_uri' => data_uri, 'content_type' => 'image/svg+xml' })
+      uploaded_body = nil
+      expect(Typhoeus).to receive(:post) { |url, args|
+        args[:body][:file].rewind
+        uploaded_body = args[:body][:file].read
+      }.and_return(OpenStruct.new(success?: true))
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(uploaded_body).to include('<circle')
+    end
+
+    it "should sanitize SVG even when HTTP Content-Type is spoofed as image/png" do
+      evil_svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="4"/></svg>'
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png', 'width' => 100, 'height' => 100 })
+      res = OpenStruct.new(success?: true, headers: { 'Content-Type' => 'image/png' }, body: evil_svg)
+      expect(Typhoeus).to receive(:get).and_return(res)
+      uploaded_body = nil
+      expect(Typhoeus).to receive(:post) { |url, args|
+        args[:body][:file].rewind
+        uploaded_body = args[:body][:file].read
+      }.and_return(OpenStruct.new(success?: true))
+      s.upload_to_remote('http://pic.com/spoofed.png')
+      expect(s.settings['content_type']).to eq('image/svg+xml')
+      expect(uploaded_body).not_to include('<script')
+    end
+
+    it "should reject unsalvageable SVG uploads" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml', 'data_uri' => 'data:image/svg+xml,not-valid' })
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(s.url).to eq(nil)
+      expect(s.settings['errored_pending_url']).to eq('data:image/svg+xml,not-valid')
+    end
   end
-  
+
+  describe "verify_stored_s3_upload!" do
+    let(:s3_url) { 'https://bucket.s3.amazonaws.com/images/test.png' }
+
+    it "should range-fetch raster uploads and skip the full download" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      range_res = OpenStruct.new(code: 206, body: "\x89PNG\r\n\x1a\n")
+      expect(Typhoeus).to receive(:get).once.with(
+        s3_url,
+        headers: { 'Range' => "bytes=0-#{SvgSanitizer::SNIFF_BYTES - 1}" }
+      ).and_return(range_res)
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(true)
+    end
+
+    it "should full-fetch when a range sample looks like SVG" do
+      evil_svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="4"/></svg>'
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      range_res = OpenStruct.new(code: 206, body: evil_svg.byteslice(0, 200))
+      full_res = OpenStruct.new(success?: true, body: evil_svg)
+      expect(Typhoeus).to receive(:get).with(
+        s3_url,
+        headers: { 'Range' => "bytes=0-#{SvgSanitizer::SNIFF_BYTES - 1}" }
+      ).and_return(range_res)
+      expect(Typhoeus).to receive(:get).with(s3_url).and_return(full_res)
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(true)
+      expect(s.settings['content_type']).to eq('image/svg+xml')
+    end
+
+    it "should full-fetch declared SVG uploads without a range request" do
+      svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>'
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml' })
+      full_res = OpenStruct.new(success?: true, body: svg)
+      expect(Typhoeus).to receive(:get).once.with(s3_url).and_return(full_res)
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(true)
+    end
+
+    it "should persist rejection state when stored SVG fails verification" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml' })
+      invalid_svg = '<svg xmlns="http://www.w3.org/2000/svg"><unclosed'
+      full_res = OpenStruct.new(success?: true, body: invalid_svg)
+      expect(Typhoeus).to receive(:get).with(s3_url).and_return(full_res)
+
+      expect(s.verify_stored_s3_upload!(s3_url)).to eq(false)
+      expect(s.reload.settings['errored_pending_url']).to eq(s3_url)
+    end
+
+    it "should reject blank upload sources without fetching" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      expect(SafeHttp).not_to receive(:get)
+      s.upload_to_remote(nil)
+      expect(s.url).to eq(nil)
+    end
+
+    it "should parse content_type from percent-encoded SVG data URIs" do
+      svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>'
+      data_uri = 'data:image/svg+xml,' + CGI.escape(svg)
+      s = ButtonImage.create(user: u, settings: { 'data_uri' => data_uri })
+      uploaded_body = nil
+      expect(Typhoeus).to receive(:post) { |url, args|
+        args[:body][:file].rewind
+        uploaded_body = args[:body][:file].read
+      }.and_return(OpenStruct.new(success?: true))
+      s.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(s.settings['content_type']).to eq('image/svg+xml')
+      expect(uploaded_body).to include('<circle')
+    end
+  end
+
   describe "url_for" do
     it 'should return the correct value' do
       u = User.create

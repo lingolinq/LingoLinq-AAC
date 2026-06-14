@@ -1437,7 +1437,7 @@ class Board < ApplicationRecord
         bs.settings['suggestion'] = true
         bs.settings['data_uri'] = "data:#{bs.settings['content_type']};base64,#{Base64.strict_encode64(audio[:body])}"
         bs.save
-        bs.upload_to_remote('data_uri')
+        bs.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
         next unless bs.url.present?
 
         button['sound_id'] = bs.global_id

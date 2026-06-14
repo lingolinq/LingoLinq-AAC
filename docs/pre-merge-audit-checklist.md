@@ -7,11 +7,11 @@ gaps, orphan refs after removals, dynamic i18n keys, missing tests,
 N+1 regressions, role-gate omissions, accessibility regressions) so
 they get fixed by the author rather than caught by the reviewer.
 
-> **This is NOT the full audit.** The full audit lives at
-> [`workflows/full-audit.md`](../workflows/full-audit.md) and runs
-> the 6-subagent parallel domain sweep producing a scored MVP
-> readiness report — that's for periodic/release-prep cycles. This
-> doc is the per-PR smoke test that complements it.
+> **This is NOT the full audit.** The full audit is the `/audit-run`
+> skill ([`.claude/skills/audit-run/SKILL.md`](../.claude/skills/audit-run/SKILL.md)),
+> which fans out the read-only domain finders and reconciles results
+> into the findings register; that's for periodic/release-prep cycles.
+> This doc is the per-PR smoke test that complements it.
 
 > **Adversarial framing.** Per Scot's governance note, sensitive-path
 > PRs go through `/review-pr + /adversary-review` (Phase 1 dual
@@ -72,7 +72,7 @@ they get fixed by the author rather than caught by the reviewer.
 | Before opening any PR ≥ 10 files | Tier 1 + Tier 2 + **Tier 3** + Tier 4 | Large PRs have more attack surface than the author can comprehensively self-audit; Tier 3 is the methodology that catches what skimming misses |
 | After every round of review fixes | Re-run whichever tier(s) the review touched | Fixes can introduce new debris, and a fix to a Tier 3 finding can introduce a Tier 2 regression |
 | Before committing a hotfix to a release branch | Tier 1 + Tier 2.1 (flags) + Tier 2.6 (N+1 if touching list endpoints) + Tier 3.6 (removed-code guarantees) | Hotfix scope is narrower but Tier 3.6 is non-negotiable — hotfixes that delete code are the highest-risk class |
-| Periodic / release prep | Run [`workflows/full-audit.md`](../workflows/full-audit.md) instead | This checklist is per-PR scope; the full audit is repo-wide |
+| Periodic / release prep | Run the `/audit-run` skill instead | This checklist is per-PR scope; the full audit is repo-wide |
 
 ## How to use this doc
 
@@ -540,7 +540,7 @@ LingoLinq depends on Postgres, Redis, S3 (extra_data, file uploads), SES (email)
 
 **🔴 BLOCK — For each new data flow, verify it does not regress GDPR or FERPA compliance.**
 
-Per CLAUDE.md "Security" section, user data is privacy-regulated. Per the existing audit infrastructure ([`skills/gdpr-ferpa-compliance/`](../skills/gdpr-ferpa-compliance/)), compliance is one of the six audit domains.
+Per CLAUDE.md "Security" section, user data is privacy-regulated. Per the existing audit infrastructure (the `privacy-auditor` finder and its [`gdpr-ferpa-audit`](../.claude/skills/gdpr-ferpa-audit/SKILL.md) skill), compliance is one of the audit domains.
 
 | Probe | Question |
 |---|---|
@@ -878,7 +878,7 @@ This doc is intended as a **living artifact**. Update it when:
 
 **Where the doc lives:** `docs/pre-merge-audit-checklist.md` (this file). Linked from:
 - CLAUDE.md (the codebase contract) — to be added as part of the "Doing tasks" section
-- [`workflows/full-audit.md`](../workflows/full-audit.md) — as the lightweight per-PR sibling
+- The `/audit-run` skill ([`.claude/skills/audit-run/SKILL.md`](../.claude/skills/audit-run/SKILL.md)) - as the lightweight per-PR sibling
 - PR template (if/when one is added to `.github/pull_request_template.md`)
 
 **Authority:** This doc represents accumulated team knowledge from the LingoLinq-AAC review process; it is binding for branches targeting `staging` and `main`. Disagreements with a specific check → raise on the PR with rationale; consensus updates land here.
@@ -908,5 +908,5 @@ Internal references:
 
 - [CLAUDE.md](../CLAUDE.md) — codebase contract, Rule #0 + branching + i18n + feature flag rules
 - [LEARNINGS.md](task-management/LEARNINGS.md) — durable patterns distilled from past tasks
-- [`workflows/full-audit.md`](../workflows/full-audit.md) — full multi-agent audit (periodic; complements this per-PR sweep)
-- [`subagents/`](../subagents/) — domain auditor prompts used by the full audit
+- The `/audit-run` skill ([`.claude/skills/audit-run/SKILL.md`](../.claude/skills/audit-run/SKILL.md)) - full multi-agent audit (periodic; complements this per-PR sweep)
+- [`.claude/agents/`](../.claude/agents/) - read-only domain finder agents used by the full audit
