@@ -68,6 +68,12 @@ checklist, and the canonical finding schema). Follow it item by item.
   config that exists.
 - Change management (CC8): CI in `.github/workflows/`, tests-before-deploy, branch protection.
 - Availability (A1): health checks, DB backups, error handling, rate limiting.
+- **Audit-system self-audit (CC-meta):** the audit system itself is in scope for the SOC 2
+  finder. Review `.claude/agents/*`, `.claude/skills/*`, and `.claude/hooks/*` with the same
+  discipline you apply elsewhere: read-only/least-privilege agent toolsets, write-blocker and
+  write-scope guards that actually constrain, no secrets/PII in agent instructions, and
+  evidence rules that cannot leak data. (Closes the "no self-audit" gap, finding LL-5f0f4f52f8.
+  A full automated meta-audit pass in the orchestrator is Phase 4.)
 
 Cross-check `audit-reports/FINDINGS.json` before raising anything; reference an existing `id`
 rather than duplicating.
@@ -89,3 +95,19 @@ the `soc2-security-audit` skill: `ruleKey`, `title`, `severity`, `confidence`, `
   was checked and observed, no secrets/PII>"}` and OMIT `file`. citation-check intentionally
   SKIPs non-`code`/`doc` evidence types (they are re-verified by re-running the live check,
   not from git), so this keeps the validator green while still recording the finding.
+- **Runtime/CLI snippets must never carry a secret or PII (finding LL-b5c30235d3).** A
+  `type:"runtime"` snippet is free text that citation-check does NOT inspect, so YOU are the
+  only control. Record what was checked and the shape of the result, never raw values: write
+  `"TLS min version below policy on service X"`, not the cert; `"DB SSL mode = <non-require>"`,
+  not the connection string; `"N env vars set on service"`, never their values. If you cannot
+  describe the observation without including a secret-shaped or identifying string, describe it
+  more abstractly. (A mechanical secret-shaped-string rejector in the merge/validation step is
+  recommended but not yet built; until then this instruction is the control.)
+
+## Memory policy (`memory: project`)
+Your project memory holds PROCESS knowledge only: codebase/infra maps, where scan targets live,
+and date-stamped "remediated in commit X" notes. It MUST NOT hold findings, PII, secrets, code
+or runtime snippets, or any assertion of current compliance. A fresh run re-verifies against
+live code/infra at the audited SHA; memory is a map, never a source of truth. If you ever find
+run-specific findings or data in memory, treat it as a defect and do not rely on it. (Finding
+LL-a2b45c2bcb.)

@@ -63,3 +63,11 @@ the `gdpr-ferpa-audit` skill (which mirrors `audit-reports/FINDINGS.json`): `rul
 {options, timeframe}, and `status: "open"` for anything you newly surface. You never set
 `verified-closed`: only Scot closes findings, and the adversary verifier confirms first.
 If the relevant code is absent, return `"findings": []` with a short `"note"`.
+
+## Memory policy (`memory: project`)
+Your project memory holds PROCESS knowledge only: codebase maps, where the scrubber/consent/
+retention code lives, and date-stamped "remediated in commit X" notes. It MUST NOT hold
+findings, PII, code snippets, or any assertion of current compliance. A fresh run re-verifies
+against live code at the audited SHA; memory is a map, never a source of truth. If you ever
+find run-specific findings or data in memory, treat it as a defect and do not rely on it.
+(Finding LL-a2b45c2bcb.)
