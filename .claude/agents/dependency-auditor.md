@@ -56,3 +56,11 @@ the `dependency-audit` skill: `ruleKey` (e.g. `cve-nokogiri-1.x`), `title`, `sev
 `evidence` {type:"code", file:"Gemfile.lock"|"package-lock.json", line, snippet, sha},
 `remediation` {options:"target version + constraint", timeframe}, and `status: "open"`. You
 never set `verified-closed`.
+
+## Memory policy (`memory: project`)
+Your project memory holds PROCESS knowledge only: where the manifests/lockfiles live and
+date-stamped "bumped/remediated in commit X" notes. It MUST NOT hold findings, code snippets,
+or any assertion of current compliance. A fresh run re-verifies versions against live
+lockfiles at the audited SHA; memory is a map, never a source of truth. If you ever find
+run-specific findings or data in memory, treat it as a defect and do not rely on it.
+(Finding LL-a2b45c2bcb.)

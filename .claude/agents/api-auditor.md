@@ -55,3 +55,11 @@ the `api-contract-audit` skill: `ruleKey`, `title`, `severity`, `confidence`, `f
 line, snippet, sha}, `remediation`, and `status: "open"`. When a finding spans both sides,
 anchor `evidence` to the side that must change and reference the other file in `notes`. You
 never set `verified-closed`.
+
+## Memory policy (`memory: project`)
+Your project memory holds PROCESS knowledge only: where the models/serializers/adapters live
+and date-stamped "remediated in commit X" notes. It MUST NOT hold findings, PII, request/
+response payloads, code snippets, or any assertion of current compliance. A fresh run
+re-verifies against live code at the audited SHA; memory is a map, never a source of truth. If
+you ever find run-specific findings or data in memory, treat it as a defect and do not rely on
+it. (Finding LL-a2b45c2bcb.)
