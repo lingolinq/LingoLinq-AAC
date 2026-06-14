@@ -2351,6 +2351,7 @@
   "focus_words_analyze_needs_home_board": "Set or open a home board first. Analysis looks up each word on that board.",
   "generate_board_labels_placeholder": "Generate with AI",
   "labels_required": "Generate with AI",
+  "home_tour_step_counter": "Step %{n} of %{total}",
   "import_recipients_required": "Please select at least one user to import boards for.",
   "html_required": "Please paste the board HTML.",
   "import_failed": "Import failed",

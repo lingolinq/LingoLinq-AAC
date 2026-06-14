@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { observer, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
+import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen } from '../utils/tours/shared';
 
@@ -36,6 +37,14 @@ function _renderTourProgress(step) {
     wrap.appendChild(dot);
   }
   footer.insertBefore(wrap, footer.firstChild);
+  // The dots are aria-hidden (decorative); give screen-reader users the same
+  // orientation with an sr-only "Step X of Y" read when the popover gains focus.
+  if (!footer.querySelector('.md-tour__progress-sr')) {
+    var srCount = document.createElement('span');
+    srCount.className = 'sr-only md-tour__progress-sr';
+    srCount.textContent = i18n.t('home_tour_step_counter', "Step %{n} of %{total}", { n: idx + 1, total: total });
+    footer.insertBefore(srCount, footer.firstChild);
+  }
 }
 
 // Toggle a body-level flag for the centered (intro/outro) steps so the "paused"

@@ -7949,5 +7949,6 @@
   "extras_focus_sub": "*** Browse more tools and resources",
   "home_tour_seen_sr": "*** Tour completed",
   "org_response_saved": "*** Your response was saved.",
-  "error_saving_org_response": "*** There was a problem saving your response. Please try again."
+  "error_saving_org_response": "*** There was a problem saving your response. Please try again.",
+  "home_tour_step_counter": "*** Step %{n} of %{total}"
 }

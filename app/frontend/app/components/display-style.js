@@ -1273,6 +1273,9 @@ export default Component.extend({
   // sets 'display' to land on the "choose your display style" page). We consume the
   // signal, reset it, and start the tour at the matching step.
   _dashboardDesignTrigger: observer('appState.open_dashboard_design', function() {
+    // The signal can fire while this component is mid-teardown (route change);
+    // don't start a tour against a destroyed component.
+    if (this.isDestroyed || this.isDestroying) { return; }
     var step = this.get('appState.open_dashboard_design');
     if (!step) { return; }
     this.set('appState.open_dashboard_design', null);

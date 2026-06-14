@@ -7567,6 +7567,7 @@
   "home_tour_seen_sr": "*** Tour completed",
   "org_response_saved": "*** Your response was saved.",
   "error_saving_org_response": "*** There was a problem saving your response. Please try again.",
+  "home_tour_step_counter": "*** Step %{n} of %{total}",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "Am Datum [[ On the Date",
   "after_time": "Nach der Zeit [[ After Time",

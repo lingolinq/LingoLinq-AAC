@@ -1053,16 +1053,22 @@ export default Component.extend({
     // notice — same supervisor_key save the user/index controller uses, run
     // against the current user.
     approve_or_reject_org: function(decision) {
+      // Acts ONLY on the session's own currentUser: pending_org /
+      // pending_supervision_org are computeds on that user, so the action can
+      // never target another user's relationship (ownership is enforced by
+      // construction; the server re-authorizes the supervisor_key on save).
       var user = this.get('appState.currentUser');
       if(!user) { return; }
-      if(decision === 'user_approve') {
-        user.set('supervisor_key', 'approve-org');
-      } else if(decision === 'user_reject') {
-        user.set('supervisor_key', 'remove_supervisor-org');
+      // Prevent a double-save race from rapid clicks (Approve/Deny tapped twice).
+      if(user.get('isSaving')) { return; }
+      if(decision === 'user_approve' || decision === 'user_reject') {
+        // Bail if the pending org cleared (e.g. resolved elsewhere) between render
+        // and click, rather than firing a no-op key.
+        if(!user.get('pending_org')) { return; }
+        user.set('supervisor_key', decision === 'user_approve' ? 'approve-org' : 'remove_supervisor-org');
       } else if(decision === 'supervisor_approve' || decision === 'supervisor_reject') {
-        // Guard the id: the buttons only render under {{#if pending_supervision_org}},
-        // but bail rather than build a 'remove_supervision-undefined' key the server
-        // would silently reject if the request cleared between render and click.
+        // Same guard for the supervision id: bail rather than build a
+        // 'remove_supervision-undefined' key the server would silently reject.
         var org_id = user.get('pending_supervision_org.id');
         if(!org_id) { return; }
         var prefix = (decision === 'supervisor_approve') ? 'approve_supervision-' : 'remove_supervision-';
