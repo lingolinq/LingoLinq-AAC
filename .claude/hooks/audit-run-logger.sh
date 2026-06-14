@@ -52,30 +52,35 @@ exec ruby -rjson -rtime -rfileutils -e '
     root = (`git rev-parse --show-toplevel 2>/dev/null`.strip rescue "")
 
     # Strip the repo root prefix so logged paths are repo-relative, never absolute
-    # machine paths. Returns nil for anything that is not a string path.
+    # machine paths. Deny-by-default: anything still absolute after the strip, or
+    # containing a parent-escape, is out-of-repo; record the FACT, not the name (a
+    # path like /home/x/.aws/credentials is itself low-grade disclosure). Returns
+    # nil only for a non-string/empty input.
     rel = lambda do |p|
       s = p.to_s
       return nil if s.empty?
       s = s.sub(/\A#{Regexp.escape(root)}\/?/, "") unless root.empty?
-      # Allowlist shape: a plausible repo path/glob. Drop anything weird.
+      return "<non-repo-path>" if s.start_with?("/") || s.include?("..")
       s.length > 300 ? s[0, 300] : s
     end
 
-    # Redact secret/PII-shaped substrings from a Bash command, then truncate. This
-    # is the "shape not values" discipline (finding LL-b5c30235d3) applied to the
-    # one logged field that could carry a value. Conservative: over-redacts.
-    redact = lambda do |cmd|
-      c = cmd.to_s.gsub(/\s+/, " ").strip
-      return "" if c.empty?
-      # token prefixes (api keys), JWT-ish, long hex/base64 blobs, emails, and the
-      # value side of KEY=VALUE / --password X / -p X.
-      c = c.gsub(/\b(ghp|gho|ghs|ghu|ghr|rnd|pplx|sk|xoxb|xoxp|AKIA|eyJ)[-_A-Za-z0-9]{6,}/, "<redacted>")
-      c = c.gsub(/\b[0-9a-fA-F]{32,}\b/, "<redacted>")
-      c = c.gsub(%r{\b[A-Za-z0-9+/]{40,}={0,2}\b}, "<redacted>")
-      c = c.gsub(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/, "<redacted-email>")
-      c = c.gsub(/([A-Z][A-Z0-9_]{3,}=)\S+/, "\\1<redacted>")
-      c = c.gsub(/(--?(?:password|pass|pwd|token|secret|key|api[-_]?key)\s+)\S+/i, "\\1<redacted>")
-      c.length > 200 ? c[0, 200] + "..." : c
+    # Bash is the one field that could carry a secret VALUE or PII: a finder may
+    # `grep "<student name>" app/`, `psql --password=... `, or `curl ...?key=...`.
+    # A shape-based redactor cannot reliably catch an arbitrary student/patient
+    # NAME, so we do not try: we log ONLY the leading command-word run (the "verb",
+    # e.g. "git log", "bundle list", "npm audit", "grep", "cat") and DROP every
+    # operand - paths, search patterns, flags, values. Bare command words cannot be
+    # a secret or PII. The Read/Grep/Glob TOOLS still record their path operands
+    # above, so path evidence is not lost for the normal examination path.
+    # (Hardens findings LL-b5c30235d3 and the Phase-4 review High.)
+    cmd_verb = lambda do |cmd|
+      verb = []
+      cmd.to_s.strip.split(/\s+/).each do |t|
+        break unless t.match?(/\A[A-Za-z][A-Za-z0-9_-]*\z/)
+        verb << t
+        break if verb.length >= 3
+      end
+      verb.empty? ? "<redacted-cmd>" : verb.join(" ")
     end
 
     rec = { "ts" => Time.now.utc.iso8601, "sha" => sha, "agent" => agent, "tool" => tool }
@@ -91,7 +96,7 @@ exec ruby -rjson -rtime -rfileutils -e '
       g = rel.call(input["pattern"]); rec["glob"] = g if g
       p = rel.call(input["path"]); rec["path"] = p if p
     when "Bash"
-      rec["cmd"] = redact.call(input["command"])
+      rec["cmd"] = cmd_verb.call(input["command"])
     end
 
     dir  = File.join(root.empty? ? "." : root, "audit-reports", "run-log")

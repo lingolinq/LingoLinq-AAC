@@ -102,6 +102,30 @@ jobs:
         working-directory: app/frontend
         run: npx ember test
 
+  # Blocking gate for the audit/compliance system's own generated artifacts. These
+  # are deterministic, stdlib-only render checks (no gems, no network, no git
+  # history) that fail ONLY if a generated markdown drifts from its JSON source of
+  # truth - so making them blocking is low-friction and keeps the register's
+  # human-readable mirrors honest. (citation-check.rb is intentionally NOT gated
+  # here: a repo-wide blocking citation check is a broader policy decision.)
+  audit-artifacts-integrity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Verify compliance calendar render matches JSON
+        run: ruby scripts/compliance-calendar-render.rb --check
+
+      - name: Verify Notion compliance page matches register
+        run: ruby scripts/compliance-notion-publish.rb --check
+
   security-scan:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -115,9 +139,6 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
-
-      - name: Verify compliance calendar render matches JSON
-        run: ruby scripts/compliance-calendar-render.rb --check
 
       - name: Run Brakeman (Rails SAST)
         run: |

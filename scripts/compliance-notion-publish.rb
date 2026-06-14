@@ -112,7 +112,10 @@ if options[:mode] == :check
     warn "compliance-notion-publish: missing render #{render_path}"
     exit 1
   end
-  # The generated-timestamp line changes every run; compare everything else.
+  # Only the "Page generated:" line is volatile-by-design (wall-clock at render time), so it is
+  # masked before comparing. The "Audited commit / ref / Run date" header lines come straight from
+  # the register meta and ARE part of the compared body on purpose - a register/page SHA or date
+  # mismatch is real drift and SHOULD fail --check.
   strip_ts = ->(s) { s.sub(/^\*\*Page generated:\*\* .*$/, '**Page generated:** <ts>') }
   if strip_ts.call(File.read(render_path)) == strip_ts.call(out)
     puts 'compliance-notion-publish: OK (page matches register, ignoring timestamp)'
