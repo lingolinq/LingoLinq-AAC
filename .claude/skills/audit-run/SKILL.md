@@ -116,10 +116,19 @@ Present to Scot:
 - Remind: only Scot closes, downgrades, or accepts risk. Nothing customer-facing leaves without
   his sign-off (plan section 5.6).
 
-## Step 7 (optional): Run log
-Append a one-line JSONL record of this run (audited SHA, date, finder set, counts) to
-`audit-reports/run-log.jsonl` so recurrence is a diff over time. (Full hook-based per-tool run
-logging is Phase 4.)
+## Step 7: Run log (built in Phase 4)
+Two layers, both code/path evidence only - no student/patient data, no finding bodies with PII,
+no secrets:
+1. **Per-tool examination log (automatic).** Each finder has a PostToolUse hook
+   (`.claude/hooks/audit-run-logger.sh <agent>`) that appends one line per examined path/command
+   to `audit-reports/run-log/examined-<sha8>.jsonl` (LOCAL/gitignored). Nothing to do here; it
+   captures "what each agent examined" as the finders run. Bash commands are redacted for
+   secret/PII shapes; Grep patterns and all tool RESULTS are never logged.
+2. **Per-run summary (you append).** Add one JSONL line to `audit-reports/run-log/runs.jsonl`
+   (committed, safe) recording: `ts`, `auditedSha`, `auditedRef`, `type` (full|light), `finders`,
+   `new`/`reseen`/`regressions`/`skipped` counts, `newIds`, the adversary verdict tally,
+   `citationCheck` status, and the open Critical/High headline. Recurrence is then a diff over
+   `runs.jsonl`. See `audit-reports/run-log/README.md`.
 
 ## Guardrails (always)
 - Read-only auditors; the register is the single source of truth; no student/patient data in

@@ -14,6 +14,11 @@ hooks:
       hooks:
         - type: command
           command: bash "$CLAUDE_PROJECT_DIR/.claude/hooks/audit-readonly-guard.sh"
+  PostToolUse:
+    - matcher: "Read|Grep|Glob|Bash"
+      hooks:
+        - type: command
+          command: bash "$CLAUDE_PROJECT_DIR/.claude/hooks/audit-run-logger.sh" privacy-auditor
 ---
 
 # Privacy Auditor (read-only)
