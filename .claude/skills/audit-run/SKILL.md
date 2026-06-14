@@ -13,6 +13,23 @@ read-only by construction. The register `audit-reports/FINDINGS.json` is the sin
 truth and must never regress: this runbook only ever ADDS findings or marks them `open`. Only
 Scot closes a finding, downgrades severity, or accepts risk (plan section 5.6, checkpoint 1).
 
+## Cadence (quarterly full / monthly light)
+Recorded decision (plan section 9.1): a **quarterly full run** plus a **monthly diff-scoped
+light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
+(`rev-audit-run-quarterly-full`, `rev-audit-run-monthly-light`) and surfaced by
+`/compliance-status`. Cadence dates are advisory scheduling, NOT a compliance claim.
+
+- **Quarterly full:** run all steps below (1-7). Finders scan their full scope; the run renders
+  the quarterly unified report. Schedule early in the weekly Pro/Max plan window (heavy parallel
+  Opus consumes weekly caps).
+- **Monthly light:** run steps 0-5 ONLY, with the **diff since the last run** as the finder
+  scope (pass each finder the `git diff --stat origin/staging...HEAD` paths below). No quarterly
+  report render unless something material surfaces. This catches regressions between heavy runs
+  without burning plan-cap headroom.
+
+Either way the register `FINDINGS.json` is updated mechanically and citation-check must stay
+green; only Scot closes, downgrades, or accepts risk.
+
 ## Run context (dynamic injection)
 - Audited commit:  !`git rev-parse HEAD`
 - Audited ref:     !`git rev-parse --abbrev-ref HEAD`
