@@ -87,8 +87,9 @@ module ExternalTracker
     if source.present?
       json[:properties] << {property: 'lingolinq_referrer', value: source}
     end
-    if user.settings['ad_referrer'].present?
-      json[:properties] << {property: 'lingolinq_ad_referrer', value: user.settings['ad_referrer']}
+    ad_key = ad_key_clean(user.settings['ad_referrer'])
+    if ad_key.present?
+      json[:properties] << {property: 'lingolinq_ad_referrer', value: ad_key}
     end
     if user && (user.settings['activations'] || []).length > 0
       json[:properties] << {
@@ -113,17 +114,29 @@ module ExternalTracker
   end
 
   # Reduce a referring URL to just its scheme+host (origin) so any PII in the
-  # path or query string is dropped before the value is sent to HubSpot.
-  # Returns nil when the value is blank or cannot be parsed into an http(s)
-  # origin, so the caller drops it rather than leaking an unparseable string.
+  # path, query string, or userinfo is dropped before the value is sent to
+  # HubSpot. Restricted to http(s) with a present host; returns nil for blank,
+  # non-web, hostless, or unparseable values so the caller drops it rather than
+  # leaking or polluting attribution with a non-origin string.
   def self.referrer_origin(referrer)
     return nil if referrer.blank?
     begin
-      uri = URI.parse(referrer)
-      return nil unless uri.scheme && uri.host
+      uri = URI.parse(referrer.to_s)
+      return nil unless ['http', 'https'].include?(uri.scheme) && uri.host.present?
       "#{uri.scheme}://#{uri.host}"
-    rescue URI::InvalidURIError
+    rescue URI::Error
       nil
     end
+  end
+
+  # The ad key comes straight from the ?ref= URL param (app.js), so it is fully
+  # attacker-controllable and unbounded. Only let through a short campaign-token
+  # shape (letters/digits/._-); anything else (URLs, PII, CSV/formula-injection
+  # payloads, oversized blobs) is dropped rather than egressed to HubSpot.
+  def self.ad_key_clean(ad_referrer)
+    return nil if ad_referrer.blank?
+    value = ad_referrer.to_s
+    return nil unless value.match?(/\A[A-Za-z0-9._\-]{1,64}\z/)
+    value
   end
 end

@@ -269,6 +269,34 @@ describe ExternalTracker do
       res = ExternalTracker.persist_new_user(u.global_id)
       expect(res).to eq('201')
     end
+
+    it "should drop a hostile ad_referrer but still send a valid source" do
+      u = User.create
+      u.settings['email'] = 'testing@example.com'
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['referrer'] = 'https://www.bing.com/search?q=aac'
+      u.settings['ad_referrer'] = "=cmd|'/c calc'!A1"
+      u.save
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
+      expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
+        body: {properties: [
+          {property: 'email', value: 'testing@example.com' },
+          {property: 'firstname', value: 'No'},
+          {property: 'lastname', value: 'name'},
+          {property: 'city', value: nil},
+          {property: 'username', value: u.user_name},
+          {property: 'state', value: nil},
+          {property: 'country', value: nil},
+          {property: 'account_type', value: 'Therapist'},
+          {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'},
+          {property: 'lingolinq_referrer', value: 'https://www.bing.com'}
+        ]}.to_json,
+        headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
+      }).and_return(OpenStruct.new(code: '201'))
+      res = ExternalTracker.persist_new_user(u.global_id)
+      expect(res).to eq('201')
+    end
   end
 
   describe "referrer_origin" do
@@ -286,6 +314,38 @@ describe ExternalTracker do
       expect(ExternalTracker.referrer_origin('')).to eq(nil)
       expect(ExternalTracker.referrer_origin('not a url')).to eq(nil)
       expect(ExternalTracker.referrer_origin('javascript:alert(1)')).to eq(nil)
+    end
+
+    it "should reject non-http(s) schemes and empty hosts" do
+      expect(ExternalTracker.referrer_origin('ftp://host.example.com/x')).to eq(nil)
+      expect(ExternalTracker.referrer_origin('https:///path')).to eq(nil)
+      expect(ExternalTracker.referrer_origin('app://capacitor/index')).to eq(nil)
+    end
+
+    it "should not raise on non-string values" do
+      expect(ExternalTracker.referrer_origin({'a' => 1})).to eq(nil)
+      expect(ExternalTracker.referrer_origin(12345)).to eq(nil)
+    end
+  end
+
+  describe "ad_key_clean" do
+    it "should allow a short campaign-token shape" do
+      expect(ExternalTracker.ad_key_clean('fb-spring-2026')).to eq('fb-spring-2026')
+      expect(ExternalTracker.ad_key_clean('google_cpc.v2')).to eq('google_cpc.v2')
+    end
+
+    it "should drop URLs, PII, and injection payloads" do
+      expect(ExternalTracker.ad_key_clean("=cmd|'/c calc'!A1")).to eq(nil)
+      expect(ExternalTracker.ad_key_clean('https://x.com/?email=foo@bar.com')).to eq(nil)
+      expect(ExternalTracker.ad_key_clean('a,b,c')).to eq(nil)
+      expect(ExternalTracker.ad_key_clean('with space')).to eq(nil)
+    end
+
+    it "should drop oversized, blank, and non-string values" do
+      expect(ExternalTracker.ad_key_clean('a' * 65)).to eq(nil)
+      expect(ExternalTracker.ad_key_clean(nil)).to eq(nil)
+      expect(ExternalTracker.ad_key_clean('')).to eq(nil)
+      expect(ExternalTracker.ad_key_clean({'a' => 1})).to eq(nil)
     end
   end
 end
