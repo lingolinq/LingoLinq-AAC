@@ -13,6 +13,23 @@ read-only by construction. The register `audit-reports/FINDINGS.json` is the sin
 truth and must never regress: this runbook only ever ADDS findings or marks them `open`. Only
 Scot closes a finding, downgrades severity, or accepts risk (plan section 5.6, checkpoint 1).
 
+## Cadence (quarterly full / monthly light)
+Recorded decision (plan section 9.1): a **quarterly full run** plus a **monthly diff-scoped
+light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
+(`rev-audit-run-quarterly-full`, `rev-audit-run-monthly-light`) and surfaced by
+`/compliance-status`. Cadence dates are advisory scheduling, NOT a compliance claim.
+
+- **Quarterly full:** run all steps below (1-7). Finders scan their full scope; the run renders
+  the quarterly unified report. Schedule early in the weekly Pro/Max plan window (heavy parallel
+  Opus consumes weekly caps).
+- **Monthly light:** run steps 0-5 ONLY, with the **diff since the last run** as the finder
+  scope (pass each finder the `git diff --stat origin/staging...HEAD` paths below). No quarterly
+  report render unless something material surfaces. This catches regressions between heavy runs
+  without burning plan-cap headroom.
+
+Either way the register `FINDINGS.json` is updated mechanically and citation-check must stay
+green; only Scot closes, downgrades, or accepts risk.
+
 ## Run context (dynamic injection)
 - Audited commit:  !`git rev-parse HEAD`
 - Audited ref:     !`git rev-parse --abbrev-ref HEAD`
@@ -33,6 +50,21 @@ SHA so `scripts/citation-check.rb` can validate snippets against the exact tree 
 Spawn the four domain finders concurrently with the Agent tool, passing each the `auditedSha`.
 They are read-only (no Edit/Write; a PreToolUse guard blocks mutating Bash) and emit
 register-shaped findings with `status: "open"`.
+
+> **Anchor every finder to `auditedSha`, and snapshot live infra ONCE (finding LL-3483c28f3c).**
+> Two things the first full run (2026-06-14) surfaced:
+> 1. A spawned finder reads whatever tree its working directory is on, which is not guaranteed to
+>    be the orchestrator's `auditedSha` (e.g. a finder spawned from a worktree may read the primary
+>    checkout's HEAD). Code findings are protected mechanically - `audit-merge.rb` + `citation-check.rb`
+>    drop any snippet that does not resolve at `auditedSha` - but TELL each finder the `auditedSha`
+>    and have it cite snippets that exist there, and confirm in Step 5 that citation-check is green
+>    (a finder that audited the wrong tree shows up as dropped/`skipped` findings).
+> 2. For LIVE-infra checks there is no citation gate (runtime evidence is SKIPped). To avoid
+>    concurrent finders observing a moving target, the orchestrator (trusted main session) should
+>    pull the live Render/AWS/GCP read-state ONCE and pass that snapshot to the infra finder, rather
+>    than letting parallel finders hit live APIs independently. The first run emitted no runtime
+>    findings (all 7 were committed-file `type:"code"`), so the race did not bite - keep this as the
+>    standing instruction until/unless a snapshot mechanism is built.
 
 | Agent | Domain | Skill it loads |
 |-------|--------|----------------|
@@ -99,10 +131,29 @@ Present to Scot:
 - Remind: only Scot closes, downgrades, or accepts risk. Nothing customer-facing leaves without
   his sign-off (plan section 5.6).
 
-## Step 7 (optional): Run log
-Append a one-line JSONL record of this run (audited SHA, date, finder set, counts) to
-`audit-reports/run-log.jsonl` so recurrence is a diff over time. (Full hook-based per-tool run
-logging is Phase 4.)
+## Step 7: Run log (built in Phase 4)
+Two layers, both code/path evidence only - no student/patient data, no finding bodies with PII,
+no secrets:
+1. **Per-tool examination log (automatic).** Each finder has a PostToolUse hook
+   (`.claude/hooks/audit-run-logger.sh <agent>`) that appends one line per examined path/command
+   to `audit-reports/run-log/examined-<sha8>.jsonl` (LOCAL/gitignored). Nothing to do here; it
+   captures "what each agent examined" as the finders run. Bash commands are redacted for
+   secret/PII shapes; Grep patterns and all tool RESULTS are never logged.
+2. **Per-run summary (you append).** Add one JSONL line to `audit-reports/run-log/runs.jsonl`
+   (committed, safe) recording: `ts`, `auditedSha`, `auditedRef`, `type` (full|light), `finders`,
+   `new`/`reseen`/`regressions`/`skipped` counts, `newIds`, the adversary verdict tally,
+   `citationCheck` status, and the open Critical/High headline. Recurrence is then a diff over
+   `runs.jsonl`. See `audit-reports/run-log/README.md`.
+
+## Step 8 (optional, human-initiated): Publish summary to Notion
+Regenerate the one-way Notion page body from the register:
+`ruby scripts/compliance-notion-publish.rb` (then `--check`). It renders a PII-free summary
+(headline + open-findings table, file:line anchors only) to
+`audit-reports/notion/compliance-audit-page.md`, stamped with the audited SHA + run date and
+marked "generated, do not edit". The actual push to the single Notion "Compliance & Audit" page in
+the Master Inbox is a **human-initiated one-way step** (no audit/compliance surface auto-sends
+externally) - see `audit-reports/notion/README.md`. The unattested Compliance Posture Report is
+never published here; it stays DRAFT until Scot signs.
 
 ## Guardrails (always)
 - Read-only auditors; the register is the single source of truth; no student/patient data in

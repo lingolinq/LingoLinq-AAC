@@ -3,13 +3,35 @@
     "schemaVersion": "1.0",
     "artifact": "LingoLinq-AAC compliance calendar",
     "description": "Source of truth for recurring compliance review cadences and fixed regulatory dates. Owned by the compliance-officer agent, surfaced at /compliance-status. The officer DRAFTS and SURFACES; only Scot attests that a review was completed. Regenerate compliance-calendar.md with `ruby scripts/compliance-calendar-render.rb`; do not hand-edit the render.",
-    "generatedDate": "2026-06-13",
+    "generatedDate": "2026-06-14",
     "owner": "compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)",
-    "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 6; fresh regulatory lookups 2026-06-13",
+    "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 5.1, 6, 9.1; fresh regulatory lookups 2026-06-13; Phase 4 audit-run cadence added 2026-06-14",
     "dateConvention": "ISO-8601 absolute dates. All cached regulatory dates are 'verify before relying'; regulation is fast-moving.",
     "governance": "A review is only 'done' when Scot attests. nextDue is advisory scheduling, not a compliance claim. No student/patient data in this file."
   },
   "recurringReviews": [
+    {
+      "id": "rev-audit-run-quarterly-full",
+      "framework": "SOC2",
+      "title": "Full /audit-run (4 finders, full scope) + adversary verify - all frameworks",
+      "cadence": "quarterly",
+      "lastDone": "2026-06-14",
+      "nextDue": "2026-09-14",
+      "drafts": "Full fan-out: privacy/infra/api/dependency finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).",
+      "watch": "Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db).",
+      "basis": "plan 5.1, 9.1 (decision: quarterly full + monthly light); .claude/skills/audit-run cadence section"
+    },
+    {
+      "id": "rev-audit-run-monthly-light",
+      "framework": "SOC2",
+      "title": "Monthly light /audit-run (diff-since-last-run scope, no full re-scan)",
+      "cadence": "monthly",
+      "lastDone": "2026-06-14",
+      "nextDue": "2026-07-14",
+      "drafts": "Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.",
+      "watch": "Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim.",
+      "basis": "plan 5.1, 9.1; .claude/skills/audit-run cadence section"
+    },
     {
       "id": "rev-ferpa-annual",
       "framework": "FERPA",

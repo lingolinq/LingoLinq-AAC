@@ -70,6 +70,10 @@ their statuses as current.
 - Plans and strategy docs live in `ai-company-brain/outputs/`, not here.
 - Only Scot closes a finding, downgrades severity, or accepts risk; `closureEvidence.attestation` stays empty until he signs.
 
-_Phase 1 "Foundation" + Phase 2 "Agent migration" of the Audit/Compliance System Modernization.
-The read-only finder agents and the `/audit-run` orchestrator ship in Phase 2 (see "How findings
-are generated" above and the repo CLAUDE.md). The one-way Notion publish remains Phase 3._
+_Phases 1-4 of the Audit/Compliance System Modernization. The read-only finder agents and the
+`/audit-run` orchestrator shipped in Phase 2; the compliance-officer, calendar, and customer-facing
+artifact skeletons in Phase 3. Phase 4 "Cadence" added the first full run, the quarterly-full +
+monthly-light cadence (`compliance-calendar.json`), hook-based per-run logging (`run-log/`), and
+the one-way Notion publish generator (`scripts/compliance-notion-publish.rb` ->
+`notion/compliance-audit-page.md`; see `notion/README.md`). The actual push to Notion is a
+human-initiated one-way step._
