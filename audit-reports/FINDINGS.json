@@ -1072,7 +1072,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening. | Phase 4 revisit (2026-06-14, first full run): KEEP-DEFERRED, unchanged. The guard was not exercised this run (the run used registered stand-in agents that lack the wired hook); no bypass occurred. The primary read-only control remains the no-Edit/Write tools allowlist, not the Bash denylist. The Phase-4 PostToolUse logger hook added to the finders is read-only (append-only, always exits 0) and does not widen the residual-bypass exposure. A true fix (allowlist command filter or sandboxed finder shell) is a meaningful build, not warranted by first-run evidence. Stays open until Scot attests."
     },
     {
       "id": "LL-b5c30235d3",
@@ -1136,7 +1136,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening. | Phase 4 revisit (2026-06-14, first full run): DEFER held, with instruction-only hardening applied. The real fan-out emitted zero type:runtime/live-infra findings (all 7 new findings were committed-file type:code anchored to one SHA), so the race did not bite. Added a standing orchestrator instruction (audit-run SKILL Step 2): anchor each finder to auditedSha and snapshot live infra ONCE in the trusted main session rather than letting parallel finders hit live APIs independently. A full snapshot mechanism is still deferred. Related first-run note: Agent-tool subagents read their own cwd HEAD, not the orchestrator worktree SHA - code findings stay protected by the citation gate (audit-merge + citation-check drop non-resolving snippets); verify in a real interactive Claude Code run where the project finder subagents resolve and inherit cwd. Stays open until Scot attests."
     },
     {
       "id": "LL-a2b45c2bcb",

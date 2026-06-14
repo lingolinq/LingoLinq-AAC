@@ -51,6 +51,21 @@ Spawn the four domain finders concurrently with the Agent tool, passing each the
 They are read-only (no Edit/Write; a PreToolUse guard blocks mutating Bash) and emit
 register-shaped findings with `status: "open"`.
 
+> **Anchor every finder to `auditedSha`, and snapshot live infra ONCE (finding LL-3483c28f3c).**
+> Two things the first full run (2026-06-14) surfaced:
+> 1. A spawned finder reads whatever tree its working directory is on, which is not guaranteed to
+>    be the orchestrator's `auditedSha` (e.g. a finder spawned from a worktree may read the primary
+>    checkout's HEAD). Code findings are protected mechanically - `audit-merge.rb` + `citation-check.rb`
+>    drop any snippet that does not resolve at `auditedSha` - but TELL each finder the `auditedSha`
+>    and have it cite snippets that exist there, and confirm in Step 5 that citation-check is green
+>    (a finder that audited the wrong tree shows up as dropped/`skipped` findings).
+> 2. For LIVE-infra checks there is no citation gate (runtime evidence is SKIPped). To avoid
+>    concurrent finders observing a moving target, the orchestrator (trusted main session) should
+>    pull the live Render/AWS/GCP read-state ONCE and pass that snapshot to the infra finder, rather
+>    than letting parallel finders hit live APIs independently. The first run emitted no runtime
+>    findings (all 7 were committed-file `type:"code"`), so the race did not bite - keep this as the
+>    standing instruction until/unless a snapshot mechanism is built.
+
 | Agent | Domain | Skill it loads |
 |-------|--------|----------------|
 | `privacy-auditor`    | privacy    | gdpr-ferpa-audit |
