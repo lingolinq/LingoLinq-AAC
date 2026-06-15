@@ -72,6 +72,11 @@ namespace :openaac do
           boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => user, 'boards' => {})
         end
 
+        if boards.blank?
+          puts "  WARN: #{filename} downloaded but produced no boards (parse returned nothing); skipping."
+          next
+        end
+
         puts "  OK: imported #{boards.size} board(s). Configuring settings..."
         
         boards.each_with_index do |board, idx|

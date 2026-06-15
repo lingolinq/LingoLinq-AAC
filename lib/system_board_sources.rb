@@ -116,5 +116,11 @@ module SystemBoardSources
     root.save!
 
     Board.find_by_path(key) || root
+  rescue ActiveRecord::RecordNotUnique => e
+    # A board already occupies <user>/senner-baud (e.g. a partial prior run
+    # that imported then died before this re-key). Don't abort the whole seed;
+    # surface the existing board so callers stay idempotent.
+    Rails.logger.warn("[SystemBoardSources] Senner-Baud re-key collided on #{key} (#{e.message}); returning existing board")
+    Board.find_by_path(key)
   end
 end

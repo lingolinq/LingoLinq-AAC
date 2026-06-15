@@ -26,7 +26,10 @@ class SystemSidebarBoards
 
     if spec[:obz_source]
       board = import_obz_utility(user, spec)
-      return board if board
+      # Normalize via the same repair pass the existing-board path uses (e.g.
+      # the keyboard OBF ships locale 'en_US'; the utility contract is 'en'),
+      # so a fresh import matches a re-run and stays idempotent.
+      return repair_utility_board(board, spec) if board
     end
 
     legacy = Board.find_by_path(spec[:legacy_source])
@@ -76,6 +79,11 @@ class SystemSidebarBoards
     root.save!
 
     Board.find_by_path(key) || root
+  rescue ActiveRecord::RecordNotUnique => e
+    # A board already occupies <user>/<slug>. Return it rather than aborting so
+    # the sidebar setup stays idempotent and we don't double-create utilities.
+    Rails.logger.warn("[SystemSidebarBoards] re-key collided on #{key} (#{e.message}); returning existing board")
+    Board.find_by_path(key)
   end
 
   def self.repair_utility_board(board, spec)
