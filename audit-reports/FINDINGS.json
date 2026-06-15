@@ -1,6 +1,6 @@
 {
   "meta": {
-    "schemaVersion": "1.0",
+    "schemaVersion": "1.1",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
     "auditedSha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c",
@@ -29,7 +29,19 @@
       "WCAG",
       "SOC2"
     ],
-    "governance": "Only Scot closes a finding, downgrades severity, or accepts risk. closureEvidence.attestation stays empty until Scot signs. No student/patient data ever appears here; evidence snippets are code only.",
+    "dispositionEnum": [
+      "untriaged",
+      "accepted",
+      "fixed",
+      "dismissed-false-positive",
+      "wontfix"
+    ],
+    "sourceEnum": [
+      "audit-run",
+      "pr-review"
+    ],
+    "governance": "Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition (accepted/fixed/dismissed-false-positive/wontfix). closureEvidence.attestation and disposition.decidedBy stay empty until Scot signs. Findings are added mechanically (scripts/audit-merge.rb from /audit-run, scripts/promote-finding.rb from PR-time reviews) and only ever land as status 'open' with disposition 'untriaged'; the adding scripts never close, downgrade, or triage. No student/patient data ever appears here; evidence snippets are code only and any PII/secret-bearing finding is refused at promotion, never redacted-in.",
+    "disposition": "Optional per-finding triage state, orthogonal to status. status answers 'does the issue still exist in code' (lifecycle, citation-validated); disposition answers 'what did we decide to do about it' (untriaged/accepted/fixed/dismissed-false-positive/wontfix). A finding with no disposition object is treated as untriaged. Set only by Scot.",
     "remediationSLA": "critical 24-72h, high 15-30d, medium 60d, low 90d (advisory; from plan section 1.1)"
   },
   "findings": [
