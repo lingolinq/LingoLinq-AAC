@@ -111,6 +111,8 @@ SECRET_PATTERNS = {
   openai_key: /\bsk-[A-Za-z0-9]{20,}\b/,
   google_api_key: /\bAIza[0-9A-Za-z\-_]{35}\b/,
   stripe_key: /\b(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{16,}\b/,
+  jwt: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
+  db_url_with_credentials: %r{\b[a-z][a-z0-9+.\-]*://[^:@/\s]+:[^@/\s]+@},
   bearer_secret: /\b(?:bearer|token|secret|password|passwd|api[_-]?key)\b\s*[:=]\s*["']?[A-Za-z0-9\/+_=\-]{12,}/i
 }.freeze
 
@@ -164,7 +166,12 @@ def snippet_present?(file, snippet, sha)
   content = nil if !sha.to_s.empty? && !(status && status.success?)
   return false if content.nil?
   norm = ->(s) { s.to_s.gsub(/\s+/, ' ').strip }
-  norm.call(content).include?(norm.call(snippet))
+  needle = norm.call(snippet)
+  return false if needle.empty?
+  # Match citation-check.rb's per-LINE semantics exactly: it normalizes each source line and
+  # checks include() on that line. A multi-line snippet would pass a whole-file include() here but
+  # FAIL citation-check (no single line contains it), reddening the register. So gate per-line too.
+  content.each_line.any? { |line| norm.call(line).include?(needle) }
 end
 
 # Scan all of a finding's free text for PII/secret shapes. Returns the list of matched categories
@@ -261,7 +268,9 @@ opts[:ins].each do |path|
 
     conf = %w[high medium low].include?(raw['confidence'].to_s.downcase) ? raw['confidence'].to_s.downcase : 'medium'
     frameworks = Array(raw['frameworks']).select { |x| FRAMEWORK_ENUM.include?(x) }
-    id = finding_id(rule_key, file)
+    # id anchor identical to audit-merge.rb / citation-check.rb: evidence file, or ruleKey if none.
+    # (file is guaranteed non-empty by the checkable gate above; kept explicit for textual parity.)
+    id = finding_id(rule_key, file.empty? ? rule_key : file)
 
     if (existing = by_id[id])
       existing['lastSeen'] = run_date
@@ -274,10 +283,12 @@ opts[:ins].each do |path|
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
                                     'severity' => existing['severity'], 'reviewer' => reviewer, 'pr' => pr }
       else
-        # Active finding already tracked; record that a PR reviewer re-found it. Re-anchor evidence
-        # to the PR sha only if the snippet still verifies there (else keep the prior valid anchor).
+        # Active finding already tracked. Record that a PR reviewer re-found it (lastSeen + note),
+        # but do NOT re-anchor evidence to the PR sha: a PR-branch sha can be unreachable when
+        # citation-check later runs in CI (branch rebased/deleted), which would redden a finding
+        # that was green before. The existing evidence already anchors to a durable validated sha;
+        # leave it. (snippet_present? above already confirmed the issue is still live in the PR.)
         existing['notes'] = [existing['notes'], "Re-found by #{reviewer} on PR ##{pr} (#{run_date})."].compact.reject(&:empty?).join(' | ')
-        existing['evidence'] = { 'type' => type, 'file' => file, 'line' => ev['line'], 'snippet' => snippet, 'sha' => sha }
         summary['reseen'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => existing['severity'], 'reviewer' => reviewer, 'pr' => pr }
       end
       next
@@ -302,9 +313,11 @@ opts[:ins].each do |path|
 end
 
 # Invariant: this script must never have produced a Scot-owned status or a non-untriaged
-# disposition on a finding it just created this run.
+# disposition on a finding it just created this run. Scope by source.promotedDate == run_date so
+# the check covers everything THIS script created this run (source-value-agnostic) and never
+# touches a pre-existing finding that happens to share today's firstSeen.
 findings.each do |f|
-  next unless f['firstSeen'] == run_date && f.dig('source', 'kind') == 'pr-review'
+  next unless f.dig('source', 'promotedDate') == run_date
   if SCOT_OWNED_CLOSED.include?(f['status'])
     die("invariant violation: assigned a Scot-owned status to #{f['id']}")
   end

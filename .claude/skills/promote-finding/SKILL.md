@@ -66,8 +66,12 @@ flags it `regression: true` for your review and Scot's decision (it is NOT reope
 ## Step 3: Build the promotion input (code/path evidence only)
 
 For each finding to promote, capture the exact `file`, `line`, and a verbatim `snippet` from the
-code AT a real commit SHA (the PR head sha, or staging after merge). The sha must be reachable in
-the local git repo so `git show <sha>:<file>` works. Write a JSON file:
+code AT a real commit SHA. The sha must be reachable in the local git repo so
+`git show <sha>:<file>` works, AND it must stay reachable when citation-check later runs in CI.
+**Prefer the post-merge `staging` sha** for durability; a PR-branch head sha works at promotion
+time but can be orphaned by a later rebase/force-push or branch deletion, which would redden
+citation-check. The `snippet` must be a SINGLE source line (citation-check matches per line; a
+multi-line snippet is refused). Write a JSON file:
 
 ```json
 {
@@ -104,10 +108,18 @@ ruby scripts/promote-finding.rb \
 ```
 
 The script: promotes Critical/High only; refuses any finding carrying PII/secret shapes; refuses
-any finding whose snippet does not resolve at its sha (would redden citation-check); adds new
-findings as `open` / `untriaged` with PR provenance (`source` + a notes line); flags regressions;
-and asserts it never wrote a Scot-owned status or a non-untriaged disposition. Read the summary:
-`new`, `reseen`, `regressions`, `skipped` (with the reason each was skipped/refused).
+any finding whose snippet does not resolve (per-line) at its sha (would redden citation-check);
+adds new findings as `open` / `untriaged` with PR provenance (`source` + a notes line); flags
+regressions; and asserts it never wrote a Scot-owned status or a non-untriaged disposition. Read
+the summary: `new`, `reseen`, `regressions`, `skipped` (with the reason each was skipped/refused).
+
+**Expect some conservative false refusals.** The PII/secret gate errs on the safe side (refuse,
+never redact-in). A snippet line containing a numeric literal with underscores (`30_000`), a
+dotted version (`1.2.3.4`), or a `password =`/`token =`/`secret:` assignment can match the
+PII/secret shapes and be refused even when it is not real PII. If a legitimate finding is refused
+for this reason, cite a different (cleaner) line of the same issue, or paraphrase the surrounding
+line; do not fight the gate. This in-script gate is redundant with the n8n bot's upstream
+pre-scrub, so conservative is correct.
 
 ## Step 5: Validate + render
 
