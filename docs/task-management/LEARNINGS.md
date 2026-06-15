@@ -4621,3 +4621,39 @@ two-model output (workflow `lbyA52atQjQ8MCqy`).
 
 **Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md` follow-on section;
 workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)`, `Claude PII Gate`, `Format Output`.
+
+## Pattern: register governance has TWO Scot-owned axes (status AND disposition) - guard both
+
+When schema 1.1 added a `disposition` block (`untriaged`/`accepted`/`fixed`/`dismissed-false-positive`/
+`wontfix`) orthogonal to `status`, every place that protected a Scot decision by checking `status`
+alone silently regressed: a finding can be `status: open` yet `disposition: dismissed-false-positive`,
+and a re-find guarded only on `SCOT_OWNED_CLOSED` statuses sailed through as a routine `reseen`,
+quietly re-validating something Scot dismissed. **Rule:** any "is this Scot's decision?" check on a
+finding must test BOTH `status` (in `SCOT_OWNED_CLOSED`) and `disposition.state` (in
+`SCOT_OWNED_DISPOSITIONS` = every value except `untriaged`). Fixed in both `scripts/promote-finding.rb`
+and `scripts/audit-merge.rb` (the hand-synced sibling - when you fix governance in one, grep the other
+for the same guard). Reproduce a governance gap before fixing: build a register finding in the missed
+state, run the script against a COPY, assert the summary bucket (regressions vs reseen). Evidence:
+2026-06-15 review round 2 in `docs/task-management/2026-06-14-operationalize-review-findings.md`.
+
+## Pattern: refuse/scrub on a DEEP walk of the whole record, never a named-field allowlist
+
+`sensitive_hits` scanned a hand-picked list of fields (`title`, `snippet`, `remediation.options`...),
+so PII in a `remediation` subkey - or any reviewer-added key - bypassed refusal and a student email
+reached the git-tracked register. A code/path-evidence-only or no-PII guarantee that scans a SUBSET of
+a structure is a guarantee in name only: the whole object gets persisted/sent, so the whole object must
+be scanned. Replaced with a recursive `deep_strings(node)` that collects every key AND value, then
+matches the PII/secret patterns against the join. Same principle for the n8n pre-scrub (scrub the
+message content, not a curated slice). Evidence: H2, `scripts/promote-finding.rb#deep_strings`.
+
+## Pattern: redact-and-proceed vs skip on the no-BAA AI path - decide by confidence, not category
+
+The PR-bot scrub (`lbyA52atQjQ8MCqy`) and `promote-finding.rb` are a hand-synced secret/PII pair, but
+their CONSEQUENCE differs and should: distinctive live-credential shapes (AWS `AKIA`, GitHub `ghp_`,
+`Bearer <20+>`, Google `ya29.`) SKIP the model call entirely (a credentialed diff is never sent to a
+no-BAA endpoint even redacted); ambiguous shapes (a `password = "..."` assignment that is usually a
+test fixture) REDACT-and-proceed so the review still runs. The trap to avoid: a broad pattern that
+SKIPS on `token = SecureRandom.hex` disables review on a large fraction of normal PRs. Mitigations that
+worked: require a QUOTED value for generic credential assignments (`["'][^"'\s]{8,}["']`), and require
+20+ token chars after `Bearer`. Always test a new scrub regex for BOTH catch and no-false-trip on
+ordinary code before shipping. Evidence: H4, node `PII Pre-Scrub (DeepSeek)` SECRETS/PII arrays.
