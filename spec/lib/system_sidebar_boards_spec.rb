@@ -13,10 +13,23 @@ describe SystemSidebarBoards do
       expect(Board.find_by_path('lingolinq/inflections').public).to eq(true)
     end
 
-    it "copies from legacy example boards when present" do
+    it "imports the committed Vocal Flair keyboard OBZ in preference to legacy/generator" do
+      example_user = User.create(user_name: 'example')
+      Board.process_new({name: 'Keyboard', public: true}, {user: example_user, key: 'keyboard'})
+      user = User.create(user_name: 'lingolinq')
+      board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
+      expect(board.user_id).to eq(user.id)
+      # imported, not copied from the legacy example board
+      expect(board.parent_board_id).to eq(nil)
+      expect(board.settings['name']).to eq('Vocal Flair 84 - Keyboard')
+    end
+
+    it "falls back to copying the legacy example board when the OBZ is missing" do
       example_user = User.create(user_name: 'example')
       source = Board.process_new({name: 'Keyboard', public: true}, {user: example_user, key: 'keyboard'})
       user = User.create(user_name: 'lingolinq')
+      allow(File).to receive(:exist?).and_call_original
+      allow(File).to receive(:exist?).with(SystemSidebarBoards::SYSTEM_BOARDS_DIR.join('keyboard.obz')).and_return(false)
       board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
       expect(board.user_id).to eq(user.id)
       expect(board.parent_board_id).to eq(source.id)
