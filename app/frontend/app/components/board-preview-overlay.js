@@ -192,6 +192,33 @@ export default Component.extend({
       } else if (preview && preview.callback && typeof preview.callback === 'function') {
         preview.callback();
       }
+    },
+    // Board-picker TOUR mode "Pick this Board": persist this board as the user's
+    // HOME board, then open it in speak mode. Navigating into speak mode tears
+    // down both this preview overlay and the tour modal underneath
+    // (app_state.global_transition closes both), ending the tour flow.
+    pick_for_home() {
+      var preview = this.get('modal.boardPreview');
+      var board = preview && preview.board;
+      app_state.set('tour_board_picker_active', false);
+      if (!board) { this.send('select'); return; }
+      var locale = (preview && preview.locale) || app_state.get('label_locale');
+      var boardState = {
+        key: (board.get ? board.get('key') : board.key),
+        id: (board.get ? board.get('id') : board.id),
+        locale: locale
+      };
+      var user = app_state.get('currentUser');
+      if (user && user.set && user.save) {
+        user.set('preferences.home_board', { id: boardState.id, key: boardState.key, locale: locale });
+        user.save().then(null, function() { /* best-effort persist */ });
+      }
+      // Carry a flag into speak mode marking that we arrived here from the
+      // board-picker TOUR (via this board preview). The board-detail speak-mode
+      // tour (NOT built yet) will read this to auto-start itself, then clear it.
+      // Wired now so that future tour has its trigger; nothing consumes it yet.
+      app_state.set('board_detail_tour_pending', true);
+      app_state.home_in_speak_mode({ force_board_state: boardState });
     }
   }
 });

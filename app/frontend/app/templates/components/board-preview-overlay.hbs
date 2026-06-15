@@ -44,7 +44,7 @@
               </div>
             </div>
           {{/if}}
-          {{board-preview key=this.model_key back=this.back_func option=this.modal.boardPreview.option locale=this.modal.boardPreview.locale onSelect=(action "select") dark_mode=true onLoadingChange=(action "set_preview_loading")}}
+          {{board-preview key=this.model_key back=this.back_func option=this.modal.boardPreview.option locale=this.modal.boardPreview.locale onSelect=(action "select") onPickForHome=(action "pick_for_home") dark_mode=true onLoadingChange=(action "set_preview_loading")}}
         </div>
       {{/if}}
     </div>

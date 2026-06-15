@@ -1290,12 +1290,29 @@ must be a literal `key='...'` or `key="..."`.
    in CLAUDE.md / PR description: "if you touch SOME_ITEMS, touch
    the extractor too."
 
+**Same trap in `.js`, via WRAPPER HELPERS — not just `.hbs` bound keys.**
+The generator's `.js` scanner (`i18n_generator.rb:84`) only matches a
+LITERAL `i18n.t(` token. A key passed through a wrapper — e.g.
+`decoratedTitle('home_tour_welcome_title', "Welcome")` in the Shepherd
+tours (`utils/tours/*.js`), where `decoratedTitle` internally calls
+`i18n.t(headingKey, ...)` with a VARIABLE — is invisible to the scanner.
+Result: the key never reaches `en.json` and falls back to its English
+default in every locale, even though it renders fine in English. (Verified
+2026-06-14: `home_tour_welcome_title` / `home_tour_done_title` are absent
+from `en.json` for exactly this reason.) The remedy is identical — a
+`_<feature>_i18n_extractor_no_op()` function in the same file listing each
+wrapped key as a literal `i18n.t('key', "Default")`; see
+[`utils/tours/board-picker.js`](../app/frontend/app/utils/tours/board-picker.js)
+(`_board_picker_tour_i18n_extractor_no_op`). Rule: any key you hand to a
+wrapper that calls `i18n.t` with a non-literal needs an extractor line.
+
 **Diagnostic shortcut:** if a catalog-driven UI works fine in
 English but a non-English locale shows the English default-label
 string instead of the localized one, suspect the dynamic-key
 extraction failure first. Run `ruby i18n_generator.rb` and check
 its output for missing strings — TOTAL MISSING is the parser's
-own count of keys it found but couldn't pair with a string.
+own count of keys it found but couldn't pair with a string. (Or just
+`grep -c your_key public/locales/en.json` — 0 means it wasn't extracted.)
 
 **Important: `ruby i18n_generator.rb` without `--generate` only
 scans and reports; it does NOT modify `en.json`.** To actually
@@ -2469,6 +2486,138 @@ for restyling it (`components/home-tour.js` + the `.shepherd-*` /
   Fix: toggle a `body.md-tour--centered-step` class from the `show` hook
   for intro/outro (no `attachTo`) steps and scope the blur to that class
   — attached steps keep a crisp spotlight (RULE #0.3).
+- **A CENTERED step (welcome/outro, no `attachTo`) tags `<body>` with
+  `.shepherd-target`.** Shepherd uses `target = this.target || document.body`
+  (shepherd.cjs `setupTooltip` ~L2343 + `showStep` ~L4780), so any styling on
+  the `.shepherd-target` class lands on `<body>` for those steps. Our spotlight
+  GLOW is `.shepherd-target { filter: drop-shadow(...) }` — a `filter` on
+  `<body>` BLANKS the whole viewport white on any route whose body has an opaque
+  background (e.g. `/board-picker`): Chrome stops propagating the body
+  background to the canvas and the white body box paints over everything. The
+  home/dashboard route survives only because its body background isn't opaque
+  white — a latent trap that a new route trips. **Durable rule: scope target-only
+  decoration as `.shepherd-target:not(body)`** (the glow on body is invisible
+  anyway — it sits behind the dark modal overlay). Symptom to recognise: tour
+  opens with correct content in the DOM (steps present, `current_route` right),
+  but the page paints pure white and `elementFromPoint(center)` returns only
+  `<html>`. Check `getComputedStyle(document.body).filter` ≠ `none`. First seen:
+  board-picker tour, 2026-06-14 (`2026-06-14-board-picker-tour.md`).
+- **A step attached to a target TALLER than the viewport makes the popover
+  "bounce" + the page "freeze" on scroll.** floating-ui's `flip()` switches the
+  popover between `top`/`bottom` as the scroll changes how much room is above vs.
+  below a near-viewport-height reference — a ~500px jump per flip. The modal
+  overlay also swallows wheel events (the "freeze"). Fix (applied in
+  guided-tour.js `_lockTourScroll`/`_unlockTourScroll`): LOCK page scroll while
+  the tour runs — `overflow:hidden` on `#content` + `body` + `documentElement`,
+  restored on complete/cancel/destroy. A modal tour drives the view itself, and
+  crucially `overflow:hidden` blocks user wheel/scrollbar but NOT programmatic
+  scroll, so Shepherd's per-step `scrollIntoView` still centers each target
+  (verified: scrollIntoView scrolls an overflow:hidden `#content`, 0→712). This
+  is the standard modal-tour behavior and fixes every tour, not just the one with
+  the tall target. First seen: board-picker grid step, 2026-06-14.
+- **Step-to-step "jump" that disorients users = inconsistent placement + instant
+  scroll.** When popovers land on different SIDES per step (bottom→right→top) and
+  the page scroll is `behavior:'auto'` (instant), users lose track of where they
+  are (a tester nearly abandoned the board-picker tour over this). Fix: (a) give
+  every interior step the SAME placement (`on:'bottom'` — popover always directly
+  below the spotlight, tour reads straight down the page); (b) `scrollTo:
+  {behavior:'smooth', ...}` per-step so the spotlight glides — and because
+  floating-ui `autoUpdate` repositions during the animated scroll, the popover
+  GLIDES with it. Uniform placement also KILLS the smooth-scroll flip-flash (the
+  original reason for instant scroll) because a locked placement never flips, so
+  smooth + consistent can coexist. Scope smooth to the one tour via per-step
+  `scrollTo` if other tours rely on instant. Tall targets need `block:'start'`
+  for the below-popover to fit; pair with `el.style.scrollMarginTop = navBottom +
+  gap` (measure the fixed header live) so the scroll doesn't tuck the target under
+  the navbar. First seen: board-picker tour, 2026-06-14.
+- **Smooth scroll re-introduces the flip-FLASH (popover flashes top→bottom);
+  fix = scroll BEFORE show, not after.** Shepherd's `scrollTo` runs AFTER the
+  step shows, so the popover is positioned mid-animation and floating-ui `flip()`
+  re-picks the side each frame as the target moves (low→centered) = visible
+  flash. You CANNOT remove `flip()` via `floatingUIOptions.middleware`: Shepherd
+  merges it with **deepmerge-ts**, which CONCATENATES arrays, so your list
+  appends to `[flip(), shift(), arrow()]` instead of replacing. Instead set the
+  step's `scrollTo:false` and do the scroll in `beforeShowPromise`, resolving
+  once motion settles (poll the target's `getBoundingClientRect().top` until
+  steady). `Tour._updateStateBeforeShow()` hides the previous step before
+  `beforeShowPromise` runs, so during the scroll no popover is positioned and the
+  new one is placed ONCE at the final spot — smooth scroll, zero flash. Detect a
+  flash in tests by sampling the visible `.shepherd-element[data-popper-placement]`
+  every ~30ms across a transition: it should go `none…` (scrolling) → final side,
+  never the opposite side first. First seen: board-picker tabs step, 2026-06-14.
+  PROMOTED to the runner (`guided-tour.js _applySmoothScroll`) so EVERY tour gets
+  scroll-then-show from one place: before `addSteps`, each attached step gets
+  `scrollTo:false` + an injected `beforeShowPromise` (composed with any existing
+  one, e.g. home's dropdown-open) that calls the shared `scrollIntoViewSettled`.
+  That helper has a fast-path (already fully on-screen → resolve now, no dead
+  time) — but a fast-path SKIP means no centering, so a target whose preferred
+  side only fits when centered will flip to the other side. If a tour needs a
+  uniform placement, set `step.scrollBlock` to FORCE the scroll (board-picker sets
+  it on every step for uniform 'bottom'); leave it off (home) to let the fast-path
+  trim motion where placements are mixed anyway.
+- **"Scroll then show" makes the screen FLASH BRIGHT between steps** — fix by
+  keeping the scrim up during the scroll. `Tour.show()` hides the old step first,
+  and `Step.hide()` calls `modal.hide()`, so the dark overlay is gone for the whole
+  `beforeShowPromise` scroll → the page shows at full brightness until the next
+  step re-darkens it. In the injected beforeShowPromise (runs right after the old
+  step hid), re-show a FLAT scrim before scrolling: `modal.closeModalOpening()`
+  (zero the opening) + `modal.show()`; the incoming step's `setupForStep` re-cuts
+  the spotlight on show. Get the modal via a captured `tour.tourObject.modal` —
+  Shepherd invokes `beforeShowPromise` with `this` = the step OPTIONS object, not
+  the Step, so `this.tour` is undefined. Verify by sampling
+  `.shepherd-modal-overlay-container.shepherd-modal-is-visible` (+ opacity>0) every
+  ~30ms across a transition: should be visible 100% of frames, no gap. First seen:
+  2026-06-14.
+- **FINAL tour-transition model (supersedes "scroll then show"): "show then scroll,
+  spotlight visible, popover hidden."** The modern feel users expect = the dimmed
+  page + its spotlight stay VISIBLE and the next item GLIDES into the highlight
+  (page = constant spatial reference). "Scroll then show" (scroll with the spotlight
+  gone, reveal after) is the opposite and feels disorienting. Implement at the
+  runner: (1) `step.scrollTo=false`; do the smooth scroll in the `when.show` hook
+  AFTER the step shows, so Shepherd's translucent overlay + rAF-tracked spotlight
+  follow the target as it scrolls in. (2) Hide ONLY the popover card during that
+  motion via a class — `visibility:hidden; opacity:0; transition:none` (visibility,
+  not just opacity, else Shepherd's opacity transition fades it visible mid-scroll);
+  remove on settle to fade it in. This dodges floating-ui's flip-flash while keeping
+  the page in view. (3) Keep the scrim continuous across hide→show: `beforeShowPromise`
+  calls `modal.show()` (NOT closeModalOpening) before Svelte flushes, so it never
+  blinks bright. Verify: overlay opacity steady; popover visibility:hidden every
+  scrolling frame then visible; cutout path varies (tracking). First seen: 2026-06-14.
+- **A keyframe ENTRANCE animation silently blocks opacity fades (and is the hidden
+  "slide-in").** Symptom: a plain inline `opacity:0` computes to `1`, but
+  `opacity:0 !important` computes to `0`, AND no `!important` rule matches the
+  element. That's an `@keyframes` with `animation-fill-mode: both/forwards` holding
+  the property — animations outrank regular inline styles but lose to `!important`
+  inline. The LingoLinq tour card had `md-tour-step-in` (`opacity 0→1` + `translate`
+  + `scale`, fill:both): the translate/scale was the unwanted slide-in, and the
+  held opacity:1 made fade-out impossible. Fix for "gentle cross-fade, no slide":
+  DELETE the keyframe entrance and drive opacity with transitions only —
+  `.shepherd-element { transition: opacity .45s }`, fade-in by toggling a
+  visibility:hidden→visible "revealing" class on a double-rAF (so opacity:0 paints
+  before transitioning to 1), fade-out by inline opacity on the step `hide` hook.
+  For a slow/visible AAC scroll, replace `scrollIntoView({behavior:'smooth'})`
+  (browser-paced, ~300ms) with a custom eased rAF scroll (~900ms) on the app's
+  scroll pane — detect it by scrollability (scrollHeight>clientHeight), NOT
+  overflow, since the tour locks it to overflow:hidden; respect
+  prefers-reduced-motion (jump instantly). Headless gotcha: puppeteer defaults to
+  prefers-reduced-motion:reduce, so emulate `no-preference` to test animated paths
+  — otherwise fades/scrolls read as instant and look "broken." First seen: 2026-06-14.
+- **Need a LIVE/interactive Ember component inside a tour "card"? Use an app modal,
+  not Shepherd.** Shepherd renders a step's `text` as innerHTML or a detached
+  HTMLElement, and Ember 3.28 has no imperative `renderComponent`, so you can't
+  embed a reactive component in a popover. Instead, the final/interactive step's
+  button does `this.complete(); modal.open('your-modal', {})` — complete FIRST so
+  the Shepherd overlay tears down before the app modal opens (two body-level
+  overlays otherwise collide). App modals here: build a `components/<name>.{js,hbs}`
+  (wrap body in `{{#modal-dialog dialogClass=...}}`, read opts via
+  `modal.getSettingsFor('<name>')`), add a `{{else if (is-equal this.currentTemplate
+  "<name>")}} {{<name>}}` branch in `templates/components/modal-container.hbs`, open
+  with `modal.open('<name>', opts)`. To "carry context across a navigation" (e.g.
+  tour modal → create-board-new), set a one-shot flag on `app-state`
+  (`appState.set('from_tour_board_picker', true)`), read it in the destination
+  component's `init`, and clear it in the destination ROUTE's `deactivate` so it
+  can't leak to a later non-tour visit. First seen: board-picker tour final step,
+  2026-06-14.
 - **CTA contrast (AAC = no compromise):** white text on a premium-looking
   *light* lavender-denim gradient is marginal (~2.8:1) and even deepened
   white-on-denim only reaches AA (~4.77:1 at `#4A6BCB`). Durable rule:
@@ -4553,3 +4702,71 @@ are hard-denied. `/tmp` is not allowed. Calendar `.md` is generated by
 
 **Evidence:** `docs/task-management/2026-06-13-pr-review-phase3-fixes.md`; hook at
 `.claude/hooks/compliance-officer-write-scope.sh`.
+
+## Guided tours: handoff-driven outro + unregistered title keys
+
+**Tour-step `title` keys are NOT statically registered by `i18n_generator.rb`.**
+Titles go through `decoratedTitle(headingKey, headingDefault)` (utils/tours/shared.js),
+which calls `i18n.t(key, default)` with *variable* args — the generator only scans
+literal `i18n.t('lit', "lit")` calls, so it never sees them. `home_tour_welcome_title`,
+`home_tour_done_title`, `home_tour_next_title` are absent from `en.json` by design and
+render via the runtime default. Don't "fix" their absence; keep a good English default in
+code. Body/button keys passed straight to `i18n.t` DO get registered.
+
+**Outro variant is driven by the handoff, not by `tourSeen`.** The home tour's final step
+previews "pick your communication board (page-set)" only when `_startTour` got an
+`afterComplete` board-picker handoff (auto-open / first-time flow). Manual replays
+("Take a tour") have no handoff → keep the celebratory "You're all set / Finish" outro.
+Keying the copy off the *actual* navigation avoids promising a board pick we won't deliver.
+Threaded: guided-tour `_startTour` → registry thunk `(options)` →
+`buildHomeSteps(layout, options)` → `doneStep(options.handoff)`.
+Evidence: `docs/task-management/2026-06-14-home-tour-board-picker-handoff.md`.
+
+## Shepherd tours: hub-and-spoke "menu mode" via tour.show()
+
+**Button `action` is bound to the Tour, and `Tour.show(id)` jumps anywhere.**
+In shepherd.js 14.5.1, `action = config.action.bind(step.tour)` (dist/cjs line
+3284), so inside a button `action` callback `this` is the Tour instance —
+`this.show('<step-id>')`, `this.complete()`, `this.cancel()` all work. `Tour.show`
+takes a step id OR index. That makes a non-linear MENU possible over a single
+linear `steps` array: a centered hub step whose footer buttons each
+`this.show(topicId)`, topic steps with a "Back to menu" button
+(`action: () => this.show('home_tour_menu')`), and `type:next` still walks the
+array by index (so topics flow in order into the done step). No need for a
+separate state machine.
+
+**Pattern:** build menu-mode as its own step list (`buildHomeMenuSteps`) chosen by
+an `options.menu` flag threaded component → registry thunk → builder. Decide the
+flag in the component: `menuMode = tourSeen && !afterComplete` (returning user,
+NOT the first-time handoff). Resolve topic spotlight elements from the DOM and
+skip absent ones; if none resolve, return null and fall back to the linear tour.
+Progress dots imply 1..N order, so suppress them in menu mode (detect a
+`home_tour_menu` step in `_renderTourProgress`). Navigation that needs the router
+(e.g. a "go to board picker" link in the outro) can't live in step data (action's
+`this` is the Tour, not the component) — pass an `onPickBoard` callback down from
+the component and call it from the button action after `this.complete()`.
+Evidence: `docs/task-management/2026-06-14-home-tour-board-picker-handoff.md`.
+
+## Shepherd intro title cut off / popover off-screen = flex min-width:auto
+
+A long centered-tour heading (e.g. "Next: pick your communication board
+(page-set)") pushed the intro/outro popover past its `max-width:560px` and off the
+left edge, clipping the title. Cause: `.shepherd-title` is a flex ITEM of
+Shepherd's flex `.shepherd-header`, and flex items default to `min-width:auto`, so
+they won't shrink below their content — a title wider than the cap forces the box
+wider instead of wrapping. Short titles fit under the cap so they never exposed it.
+Two compounding causes — fixing only the first did NOT work:
+1. `.shepherd-title` is a flex ITEM of Shepherd's flex `.shepherd-header` with the
+   default `min-width:auto`, so it won't shrink below content. (`min-width:0` here.)
+2. THE REAL BLOCKER: the heading is `display:inline-block` (in the
+   `prefers-reduced-motion: no-preference` block, app.scss ~92185, for its
+   slide-in animation). inline-block sizes to its content (one line) and never
+   wraps regardless of the parent's `min-width:0` — so the long title still forced
+   the card wider than its `max-width:560px` cap and off-screen.
+Fix that shipped (per user "widen the modal"): give the long-title outro variant
+(it carries a distinct `md-tour__step--next` class) a wider cap clamped to the
+viewport — `max-width: min(720px, 94vw)` — so it fits on one line on desktop and
+can never run off-screen; PLUS `max-width:100%` on the inline-block heading so it
+wraps as a fallback on narrow screens. General rule: a long heading that won't wrap
+inside a max-width'd card — check BOTH flex `min-width:auto` AND a
+`display:inline-block`/`white-space:nowrap` on the heading itself.

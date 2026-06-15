@@ -38,6 +38,13 @@ export default Component.extend({
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
 
+    // Did we arrive here from the board-picker guided-tour modal? The tour modal
+    // sets appState.from_tour_board_picker before navigating; capture it here so
+    // this page can adapt (e.g. return the user to the tour/dashboard on finish).
+    // The route clears the appState flag on deactivate so it never leaks to a
+    // normal (non-tour) visit.
+    this.set('from_tour', !!this.get('appState.from_tour_board_picker'));
+
     // Initialize model; for_user_id 'self' ensures create payload includes owner for API
     var currentUserId = this.appState.get('currentUser.id') || this.appState.get('sessionUser.id');
     this.set('model', LingoLinq.store.createRecord('board', {

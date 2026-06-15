@@ -1,26 +1,46 @@
 <div class='row md-board-preview'>
   <div class="{{if this.include_canvas "col-sm-4" "col-sm-8 col-sm-offset-2"}} md-board-preview__info">
     <div class='md-board-preview__actions'>
-      <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "select"}}>
-        {{#if this.select_option}}
-          {{t "Choose This Board" key="choose_this_board"}}
-        {{else}}
-          {{t "Try This Board" key="try_this_board"}}
+      {{#if this.tour_pick}}
+        {{!-- Board-picker TOUR mode: a single "Pick this Board" CTA replaces
+             "Try This Board" + "Board Actions" — it sets this board as the home
+             board and opens it in speak mode (board-preview-overlay#pick_for_home).
+             Closing the preview (overlay X) returns to the live tour modal. --}}
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "pick_for_home"}}>
+          {{t "Pick this Board" key="pick_this_board"}}
+        </button>
+        {{!-- Back to the live board-picker tour modal (closing this preview
+             overlay reveals the tour modal, which stays mounted underneath). --}}
+        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "close"}}>
+          {{t "Back" key="board_picker_back"}}
+        </button>
+        {{#if this.back}}
+          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
+            {{t "Back to List" key="back_to_list"}}
+          </button>
         {{/if}}
-      </button>
-      {{#if this.back}}
-        <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
-          {{t "Back to List" key="back_to_list"}}
-        </button>
-      {{/if}}
-      {{#if this.select_option}}
-        <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{action "close"}}>
-          {{t "Cancel" key="cancel"}}
-        </button>
       {{else}}
-        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "visit"}}>
-          {{t "Board Actions" key="board_actions"}}
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "select"}}>
+          {{#if this.select_option}}
+            {{t "Choose This Board" key="choose_this_board"}}
+          {{else}}
+            {{t "Try This Board" key="try_this_board"}}
+          {{/if}}
         </button>
+        {{#if this.back}}
+          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
+            {{t "Back to List" key="back_to_list"}}
+          </button>
+        {{/if}}
+        {{#if this.select_option}}
+          <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{action "close"}}>
+            {{t "Cancel" key="cancel"}}
+          </button>
+        {{else}}
+          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "visit"}}>
+            {{t "Board Actions" key="board_actions"}}
+          </button>
+        {{/if}}
       {{/if}}
       {{#if this.app_state.currentUser.supervisees}}
         <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "copy"}}>

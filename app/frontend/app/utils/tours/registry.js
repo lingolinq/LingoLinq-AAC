@@ -11,11 +11,18 @@
 // Adding another page's tour: write a builder module under utils/tours/ and
 // register its route here.
 import { buildHomeSteps } from './home';
+import { buildBoardPickerSteps } from './board-picker';
 
 function tourBuilderFor(route, layout) {
   if (route === 'user.home') {
     var view = (layout === 'focused') ? 'focused' : 'gentle';
-    return function() { return buildHomeSteps(view); };
+    // The thunk forwards caller options (e.g. { handoff: true } when the tour
+    // will hand off to the board picker) through to the step builder.
+    return function(options) { return buildHomeSteps(view, options); };
+  }
+  if (route === 'board-picker') {
+    var bpView = (layout === 'focused') ? 'focused' : 'gentle';
+    return function(options) { return buildBoardPickerSteps(bpView, options); };
   }
   return null;
 }
@@ -27,6 +34,9 @@ function tourBuilderFor(route, layout) {
 function tourKeyFor(route, layout) {
   if (route === 'user.home') {
     return 'home_' + ((layout === 'focused') ? 'focused' : 'gentle');
+  }
+  if (route === 'board-picker') {
+    return 'board_picker_' + ((layout === 'focused') ? 'focused' : 'gentle');
   }
   return null;
 }
