@@ -752,7 +752,57 @@ describe Converters::LingoLinq do
       expect(button['url']).to eq(nil)
       expect(button['apps']).to eq({'a' => 1})
     end
-    
+
+    it "should accept the ext_coughdrop_* namespace on import (CoughDrop/OpenBoards origin)" do
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = '3001'
+      shell['name'] = "Cool Board"
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'hardly',
+        'url' => 'http://www.example.com',
+        'ext_coughdrop_apps' => {'a' => 1}
+      }]
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      button = b.settings['buttons'][0]
+      expect(button['url']).to eq(nil)
+      expect(button['apps']).to eq({'a' => 1})
+    end
+
+    it "should prefer ext_lingolinq_* over ext_coughdrop_* when both are present" do
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = '3002'
+      shell['name'] = "Cool Board"
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'hardly',
+        'url' => 'http://www.example.com',
+        'ext_lingolinq_apps' => {'a' => 'lingo'},
+        'ext_coughdrop_apps' => {'a' => 'cough'}
+      }]
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      expect(b.settings['buttons'][0]['apps']).to eq({'a' => 'lingo'})
+    end
+
+    it "should preserve an explicit boolean false button setting on import" do
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = '3003'
+      shell['name'] = "Cool Board"
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'go',
+        'ext_coughdrop_hide_label' => false
+      }]
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      button = b.settings['buttons'][0]
+      # Before the fix this dropped to nil (the old `if val` guard skipped
+      # false); now an explicit false survives import.
+      expect(button['hide_label']).to eq(false)
+    end
+
     it "should not allow importing a protected board for a different user than the original user" do
       u = User.create
       u.settings['email'] = 'fred@example.com'

@@ -432,7 +432,10 @@ module Converters::LingoLinq
       end
       EXT_PARAMS.each do |param|
         val = Converters::LingoLinq.ext_attr(button, param)
-        new_button[param] = val if val
+        # Set on presence, not truthiness, so an explicit boolean false
+        # (e.g. hide_label: false) is preserved rather than dropped to the
+        # LingoLinq default. Several EXT_PARAMS are booleans.
+        new_button[param] = val unless val.nil?
       end
 
       if button['translations']
