@@ -1677,6 +1677,25 @@ export default Component.extend({
   actions: {
     close: function() {
       if(this.get('standalone')) {
+        // Arrived from the board-picker guided-tour modal? Return the user to
+        // that modal instead of just the page underneath it. The modal can't be
+        // kept open "behind" this page — app_state.global_transition closes every
+        // open modal on each route change — so we go back to the board-picker
+        // page and RE-OPEN the tour modal. It hosts a fresh live picker (no
+        // per-session state), so re-opening lands the user right back where they
+        // left off. Captured at init as `from_tour`; the route clears the
+        // appState flag on deactivate so a normal (non-tour) visit is unaffected.
+        if(this.get('from_tour')) {
+          var r = this.get('router');
+          var reopen = function() { modalUtil.open('tour-board-picker', {}); };
+          var t = r.transitionTo('board-picker');
+          if(t && typeof t.then === 'function') {
+            t.then(reopen, reopen);
+          } else {
+            reopen();
+          }
+          return;
+        }
         var onClose = this.get('onClose');
         if (onClose && typeof onClose === 'function') {
           onClose();

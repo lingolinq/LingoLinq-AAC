@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { observer, computed } from '@ember/object';
-import { scheduleOnce } from '@ember/runloop';
+import { scheduleOnce, later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
@@ -228,8 +228,8 @@ export default Component.extend({
 
   // The step-builder for the current page/layout, or null when no tour exists
   // here. Drives both the trigger visibility (hasTour) and _startTour.
-  tourBuilder: computed('appState.current_route', 'effectiveLayout', function() {
-    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'));
+  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
+    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
   }),
 
   // Only show the trigger when the current page actually has a tour.
@@ -240,8 +240,8 @@ export default Component.extend({
   // Stable completion-flag key for the current page + layout (e.g. 'home_gentle',
   // 'home_focused'), or null. Persisted under
   // preferences.progress.guided_tours_completed once the tour is COMPLETED.
-  tourKey: computed('appState.current_route', 'effectiveLayout', function() {
-    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'));
+  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
+    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
   }),
 
   // Whether THIS page+view's tour has been completed at least once — drives the
@@ -271,6 +271,73 @@ export default Component.extend({
     }
   }),
 
+  // True only when THIS instance is the board-detail EDIT tour (edit mode on a
+  // board-detail route → tourKey 'board_detail_edit_*'). The auto-start guard must
+  // use this, NOT a bare `tourBuilder` truthy check: `board_detail_tour_pending`
+  // is flipped during "Pick this Board" while the user is STILL on /board-picker,
+  // where the navbar guided-tour instance has a (board-PICKER) tourBuilder — a
+  // truthy check would let it consume the flag and fire the WRONG tour. Gating on
+  // the board-detail-edit tourKey makes only the edit-chrome instance respond.
+  _isBoardDetailEditTour: function() {
+    return (this.get('tourKey') || '').indexOf('board_detail_edit') === 0;
+  },
+
+  // Auto-fire the board-detail EDIT tour when `appState.board_detail_tour_pending`
+  // is set — flipped by board-preview "Pick this Board" (and, eventually, the
+  // create-board path) right before routing into board-detail edit mode. All three
+  // entry points (init, this observer, didInsertElement) funnel into the single
+  // poll-based consumer below, which clears the flag once and only on the
+  // board-detail edit instance.
+  _boardDetailTourWatcher: observer('appState.board_detail_tour_pending', 'tourKey', function() {
+    this._consumePendingBoardDetailTour();
+  }),
+
+  // This component is `tagName: ''` (tagless), so `didInsertElement` does NOT fire,
+  // and the observer above only fires on CHANGE — but `board_detail_tour_pending`
+  // is already true (set during "Pick this Board", BEFORE this edit-chrome instance
+  // mounts). So init is the reliable entry. init DOES run for tagless components.
+  init: function() {
+    this._super(...arguments);
+    this._consumePendingBoardDetailTour();
+  },
+
+  // Consume the pending-edit-tour flag and auto-open the board-detail EDIT tour.
+  // ROBUST to timing: the edit-tour condition (appState.edit_mode → tourKey)
+  // depends on the .edit route's check_for_needing_purchase() PROMISE resolving —
+  // which persists current_mode='edit' (board-detail/edit.js) — and on
+  // currentBoardState. Both can land a microtask or two AFTER this tagless
+  // instance's init/first afterRender. A single afterRender check therefore often
+  // runs before the page is recognizably "board-detail edit" and misses, after
+  // which nothing re-triggers — the tour silently never opens (the reported bug).
+  // So poll on a bounded schedule until _isBoardDetailEditTour() holds, then
+  // consume the flag ONCE and start. The `_bdTourConsuming` guard stops the init +
+  // observer triggers from stacking parallel polls.
+  _consumePendingBoardDetailTour: function() {
+    var _this = this;
+    if (this.isDestroyed || this.isDestroying) { return; }
+    if (!this.get('appState.board_detail_tour_pending')) { return; }
+    if (this._bdTourConsuming) { return; }
+    this._bdTourConsuming = true;
+    var attempts = 0;
+    var tryConsume = function() {
+      if (_this.isDestroyed || _this.isDestroying) { _this._bdTourConsuming = false; return; }
+      // Another instance/hook may have consumed it first.
+      if (!_this.get('appState.board_detail_tour_pending')) { _this._bdTourConsuming = false; return; }
+      if (_this._isBoardDetailEditTour()) {
+        _this._bdTourConsuming = false;
+        _this.appState.set('board_detail_tour_pending', false);
+        _this._scheduleBoardDetailAutoOpen();
+      } else if (attempts++ < 20) {              // ~3s ceiling (20 × 150ms)
+        runLater(_this, tryConsume, 150);
+      } else {
+        // Not a board-detail edit page after all — stop polling but LEAVE the flag
+        // set so a genuine edit-chrome instance can still pick it up later.
+        _this._bdTourConsuming = false;
+      }
+    };
+    scheduleOnce('afterRender', this, tryConsume);
+  },
+
   // Also check on mount in case the flag was already true when the component
   // first inserts (e.g., a route transition raced the observer registration).
   // Idempotent with the observer above — whichever fires first clears the flag.
@@ -297,6 +364,11 @@ export default Component.extend({
         this._scheduleAutoOpen();
       }
     } catch (e) { /* sessionStorage unavailable — fall through */ }
+    // Board-detail edit tour: the pending flag is set BEFORE the route transition
+    // into edit mode, so by the time this edit-chrome instance mounts it's already
+    // true. Funnel through the poll-based consumer (idempotent via its guard); it
+    // waits for the edit-tour condition to settle before firing.
+    this._consumePendingBoardDetailTour();
   },
 
   _scheduleAutoOpen: function() {
@@ -317,6 +389,31 @@ export default Component.extend({
       if (!_this.get('tourBuilder')) { handoff(); return; }
       _this._startTour({ afterComplete: handoff });
     });
+  },
+
+  // Board-detail edit auto-open. Unlike the home auto-open there's NO handoff —
+  // the user stays here editing. The edit grid loads asynchronously after the
+  // route transition, so wait (poll briefly) until a button cell is on screen so
+  // the interior spotlights resolve instead of being skipped; start anyway after
+  // a bounded number of attempts so the welcome/outro still show on a slow load.
+  _scheduleBoardDetailAutoOpen: function() {
+    var _this = this;
+    var attempts = 0;
+    var tryStart = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      attempts++;
+      var ready = document.querySelector('.md-board-detail-grid .md-board-detail-symbol-card') ||
+                  document.querySelector('.md-board-detail-grid');
+      if (ready || attempts >= 20) {        // ~3s ceiling (20 × 150ms)
+        // Re-confirm we're still the board-detail edit tour before starting (the
+        // route could have changed during the poll).
+        if (!_this._isBoardDetailEditTour()) { return; }
+        _this._startTour();
+      } else {
+        runLater(_this, tryStart, 150);
+      }
+    };
+    scheduleOnce('afterRender', this, tryStart);
   },
 
   // Common tour-start path. Used by both the trigger-button action (manual
@@ -366,13 +463,19 @@ export default Component.extend({
       when: { show: _onTourStepShow }
     });
 
+    // The board-picker handoff, returning-user topic MENU, and post-registration
+    // setup handoff are all HOME-tour concepts. Scope them to the home tour so
+    // OTHER tours built on this runner (board-picker, board-detail edit) get a
+    // plain linear walkthrough with no cross-page handoff. (Home behavior is
+    // unchanged: isHomeTour is true there.)
+    var isHomeTour = (this.get('appState.current_route') === 'user.home');
     // A user who has NOT completed THIS page+layout's tour is "first time" —
     // however the tour was launched (post-registration auto-open OR a manual
     // "Take a tour"). First-timers get the linear walkthrough whose outro previews
     // the board-picker next step AND are handed off to the board picker on finish.
     // A RETURNING user (already completed) launching manually gets the topic MENU.
     var firstTime = !this.get('tourSeen');
-    var menuMode = !firstTime && !options.afterComplete;
+    var menuMode = isHomeTour && !firstTime && !options.afterComplete;
     var onPickBoard = function() { _this.router.transitionTo('board-picker'); };
     // Board-picker handoff on the FIRST-TIME finish:
     //  • auto-open (options.afterComplete supplied): the caller's critical-mode
@@ -381,18 +484,18 @@ export default Component.extend({
     //  • manual first-time finish: send them to the standalone board picker, bound
     //    to COMPLETE only — finishing means "now go pick a board"; skipping/closing
     //    the tour should NOT yank them away.
-    var firstTimeNav = (!options.afterComplete && firstTime) ? onPickBoard : null;
+    var firstTimeNav = (isHomeTour && !options.afterComplete && firstTime) ? onPickBoard : null;
     // Options the builder reads:
     //  • handoff — first-time outro: preview the board-picker next step (the green
     //    forward animation + "Pick my board") instead of a dead-end "Finish".
     //  • menu — returning user: swap the linear walkthrough for the topic MENU.
     //  • onPickBoard — the menu-mode outro's "Go to your board picker" link (the
     //    component owns the router, so navigation is supplied here, not in step data).
-    var builtSteps = builder({
+    var builtSteps = builder(isHomeTour ? {
       handoff: firstTime,
       menu: menuMode,
       onPickBoard: onPickBoard
-    });
+    } : {});
     // Smooth "scroll then show" for every attached step (runner-level, so all
     // tours share it). Must run BEFORE addSteps so Shepherd instantiates the
     // steps with the injected beforeShowPromise + scrollTo:false. `tour` is

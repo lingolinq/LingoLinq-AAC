@@ -18,7 +18,7 @@
 // tour-specific COPY (title/text) per section.
 import i18n from '../i18n';
 import { HOME_SECTIONS } from '../dashboard_sections';
-import { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance } from './shared';
 
 // Selector overrides for the multi-markup cards. Speak/Caseload each render a
 // `-wide-only` AND a `-narrow-only` element that share the base class; the CSS
@@ -440,20 +440,6 @@ function pushCardSteps(steps, layout) {
       buttons: standardButtons()
     });
   });
-}
-
-// Forward "next action" animation for the HANDOFF outro — an arrow that draws
-// in and glides to the right (replaces the success checkmark) so the step reads
-// as "moving on to the next step", not "finished". Pure CSS (animations +
-// reduced-motion guard in app.scss: `.md-tour__next*`).
-function nextAdvance() {
-  return '' +
-    '<div class="md-tour__next" aria-hidden="true">' +
-      '<svg class="md-tour__next-svg" viewBox="0 0 52 52" width="62" height="62">' +
-        '<circle class="md-tour__next-circle" cx="26" cy="26" r="24"></circle>' +
-        '<path class="md-tour__next-arrow" d="M15 26 H34 M27 19 L34 26 L27 33"></path>' +
-      '</svg>' +
-    '</div>';
 }
 
 // Centered outro step. Two variants share the SAME completion summary (the

@@ -150,6 +150,14 @@ export default Component.extend({
         this.onSelect();
       }
     },
+    /* Forward canvas image-load progress (loaded, total) to the parent
+       (overlay / controller) so its loading spinner can show "N / total".
+       Pure pass-through — the parent owns the displayed state. */
+    canvas_progress: function(loaded, total) {
+      if (this.onCanvasProgress && typeof this.onCanvasProgress === 'function') {
+        this.onCanvasProgress(loaded, total);
+      }
+    },
     // Tour mode "Pick this Board": delegate to the overlay, which sets this board
     // as the user's home board and opens it in speak mode.
     pick_for_home: function() {

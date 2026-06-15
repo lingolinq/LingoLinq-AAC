@@ -21,6 +21,9 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
+- [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
+- [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
+- [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
 - [Pattern: remote buttonset reload can wipe generate URL before second load_buttons](#pattern-remote-buttonset-reload-can-wipe-generate-url-before-second-load_buttons)
@@ -107,6 +110,9 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: compile `app.scss` standalone with dart-sass to catch SCSS errors without a full ember build](#pattern-compile-appscss-standalone-with-dart-sass-to-catch-scss-errors-without-a-full-ember-build)
 - [Pattern: gate hover motion behind `prefers-reduced-motion: no-preference` instead of an `!important` reduced-motion override](#pattern-gate-hover-motion-behind-prefers-reduced-motion-no-preference-instead-of-an-important-reduced-motion-override)
 - [Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)](#pattern-a-glowhalo-before-that-leaks-to-the-whole-container-at-one-breakpoint--the-host-lost-position-static-re-anchors-the-absolute-pseudo)
+- [Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it](#pattern-a-css-background-image-on-a-shepherd-popover-or-any-lazily-injected-element-flashes-blank-on-first-open--preload-it)
+- [Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition](#pattern-a-guided-tour-auto-open-flag-consumed-at-a-single-afterrender-misses-when-the-gating-state-edit_mode-resolves-on-a-promise-microtask--poll-the-condition)
+- [Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys](#pattern-i18n_generatorrb---merge-does-not-refresh-changed-english-into-existing-locale-placeholders--only-adds-missing-keys)
 - [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
 - [Pattern: a click-to-speak container that holds the inline word-prediction buttons CANNOT be `role="button"`](#pattern-a-click-to-speak-or-click-to-act-container-that-holds-the-inline-word-prediction-buttons-cannot-be-rolebutton)
 - [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
@@ -4770,3 +4776,182 @@ can never run off-screen; PLUS `max-width:100%` on the inline-block heading so i
 wraps as a fallback on narrow screens. General rule: a long heading that won't wrap
 inside a max-width'd card — check BOTH flex `min-width:auto` AND a
 `display:inline-block`/`white-space:nowrap` on the heading itself.
+
+## Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent
+The board-preview loading overlay is correctly two-phase (model resolved AND canvas
+images settled — `board-preview.js#_emitCombinedLoading`, overlay gated on
+`preview_loading` in `board-preview-overlay.hbs`). But the canvas has a hard **4s
+safety net** (`board-preview-canvas.js#render_canvas`, the `runLater(..., 4000)`)
+that force-fires `onCanvasReady` even with images still pending — it assumes
+"cached/CDN-warm loads land in well under 1s." Cold, image-heavy public catalog
+boards (e.g. 84-button) cold-fetch dozens of S3/CloudFront symbols past 4s, so the
+overlay lifts while images are still loading → "images pop in after the spinner
+ends." Not a regression; inherent to previewing uncached boards.
+**Fix pattern (prefetch-on-intent):** warm a board on hover/focus/touch of its card,
+NOT eagerly on container open (the board-picker tour loads brand groups of up to
+50 boards ×2 — eager-all is a thundering herd). The warmer (`board_preview_warmer.js`)
+must (1) load the FULL record (list/search queries ship summary rows without
+`image_urls`; reload if `image_urls` missing — mirror board-preview's partial check)
+and (2) `new Image().src = url` for the SAME URLs the canvas requests: reproduce
+`variant_image_urls(skin)` + `[id + '-' + preferred_symbols] || [id]`, with
+preferred = `referenced_user.preferences.preferred_symbols || 'original'`, skin =
+`currentUser.preferences.skin`. This warms the browser HTTP cache so the canvas's
+`resolve_url_sync` remote-URL fallback becomes a cache hit. board-icon is shared
+app-wide, so gate warming behind an opt-in attr (`prefetchPreview`, default false)
+that only the picker passes — never enable hover-prefetch globally.
+**Root fix (not just the accelerator):** the canvas's fixed 4s safety net was the
+actual culprit — it force-fired `onCanvasReady` while images were still loading.
+Replace any "fixed deadline from start" overlay-release timer with a **no-progress
+stall watchdog**: extract a single `do_emit()`, then cancel+reschedule a
+`runLater(do_emit, STALL_MS)` on every unit of progress (each settled image in
+`mark_image_done`). A slow-but-steady load keeps the overlay up until the last item
+lands (pending→0, normal path); the timer fires ONLY on a true wedge (no onload AND
+no onerror ever), so it can't stick forever yet never penalizes a slow device.
+Cancel the timer in `do_emit`, at render start (observer re-render), and in
+`willDestroyElement`, and skip re-arming when `isDestroyed`/`isDestroying`. General
+rule: a loading gate that must wait for N async units should watch PROGRESS, not
+wall-clock — a fixed deadline is correct only when you can guarantee the work
+finishes within it (here, only warm/cached loads did).
+
+## Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page
+`app_state.global_transition` (`app/services/app-state.js`, fired on every Ember
+`routeWillChange` from `routes/application.js`) unconditionally calls `modal.close()`
++ `modal.close_board_preview()`. So a service modal (rendered via the modal service
+into `modal-container.hbs`, outside the route outlet) CANNOT survive a
+`router.transitionTo(...)` — the transition tears it down. Implication for guided
+tours / multi-step flows: do NOT try to keep a modal mounted-but-hidden across a
+route change (it needs an exemption in global_transition + CSS hiding + restore, and
+leaks if any other navigation fires). Two correct patterns instead: (1) stay in the
+modal layer — render the next step as an overlay STACKED on the still-mounted modal
+(how board-preview-overlay stacks on the tour-board-picker modal), so no route change
+happens; or (2) if the modal is STATELESS, accept the transition and RE-OPEN it on
+return — `transitionTo(route)` then open the modal in the transition's `.then`
+(opening AFTER the transition resolves dodges global_transition's close, which fires
+at routeWillChange). Example: `create-board-new#close` re-opens `tour-board-picker`
+on Cancel when `from_tour` is set. Carry the "came from the modal" intent in a local
+component property captured at init (the route's `deactivate` clears the appState
+flag, so reading appState at close-time is too late).
+
+## Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"
+A Shepherd `modal: true` tour does NOT block page interaction. The dark overlay
+(`.shepherd-modal-overlay-container`) is `pointer-events:none` (visual scrim only),
+and `canClickTarget:false` merely sets `pointer-events:none` on the spotlit target —
+which doesn't swallow the click, it makes the target TRANSPARENT to pointer events,
+so the click falls THROUGH to whatever element sits behind it. Concrete bug: the
+board-picker tour spotlights a card's `.info` Preview pill; clicking it fell through
+to the parent board-icon card's `pick_board` action and navigated into the board
+mid-tour. So "disable the target" is NOT enough to make a tour read-only.
+**Fix:** make the whole app inert while a step is showing, with one CSS rule keyed
+on Shepherd's own active-step class — `body:has(.shepherd-element.shepherd-enabled)
+#within_ember { pointer-events: none; }` — plus `.shepherd-element{pointer-events:
+auto}` so the popover stays live. Shepherd portals the popover + overlay to <body>
+OUTSIDE `#within_ember` (the ember app root), so the popover keeps working and only
+the page goes dead. Releases automatically when the tour ends (no enabled step), so
+a subsequent live modal/handoff is unaffected. Applies to EVERY tour on the shared
+runner. Keep `canClickTarget:false` too (defense-in-depth + documented standard).
+
+---
+
+## Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it
+
+**Surface:** any image shown via CSS `background-image: url(...)` on an element
+that is injected into the DOM on demand — Shepherd tour popovers, modals,
+dropdowns. Symptom: the element paints with a blank gap where the image goes,
+then the image pops in a beat later, but only the FIRST time (cached after).
+
+**Root cause:** a browser does not fetch a CSS `background-image` until the
+element is laid out and painted as visible. Shepherd portals its popover into
+`<body>` only at `tour.start()`, so the background fetch begins at show time —
+the card paints blank, then the bytes arrive. (For the guided tours this hit the
+welcome-card map illustration: `tour-map-dark.png`/`tour-map-light.png` on
+`.md-tour__step--welcome .shepherd-text`, app.scss ~92195/92249, shared by all
+three opening tours.)
+
+**Fix:** preload the bytes before the element exists with
+`<link rel="preload" as="image" href="...">` in `app/frontend/app/index.html`.
+This is the codebase's established pattern — the Focused "Let's Communicate"
+hero (`speak-circle-simple-dark.webp`) is preloaded there for the identical
+reason (index.html:36-43). Notes:
+- An `<img>` can also take `decoding="sync"`; a CSS background cannot, so for
+  backgrounds the preload fetch IS the whole fix — decode of a small (≤120px)
+  PNG is sub-frame.
+- index.html is static (only ember-cli tokens like `{{rootURL}}` are processed),
+  so it can't branch on the user's `dashboard_layout` — preload BOTH variants if
+  the image differs per layout. Each tour map is ~30-40KB, so this is cheap.
+- Prefer this over JS `new Image().src` warming on component mount for tours: the
+  auto-open tour (new users) fires immediately after render, so warming wouldn't
+  finish in time for the very case that matters; the index.html preload starts at
+  the top of page load, parallel and high-priority.
+
+**First seen in:** [2026-06-15-tour-welcome-image-blank-flash.md](./2026-06-15-tour-welcome-image-blank-flash.md)
+
+---
+
+## Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition
+
+**Surface:** a cross-page hand-off flag (e.g. `appState.board_detail_tour_pending`)
+set on page A, then consumed by a component that mounts on page B to auto-start
+something (a tour). The consumer checks a condition derived from route state
+(`tourKey` → `appState.edit_mode`) and clears the flag.
+
+**Symptom:** the auto-start silently never fires, even though the flag is set
+correctly and the consumer component mounts.
+
+**Root cause:** the consumer fired ONCE (init → `scheduleOnce('afterRender', …)`)
+and the condition it gated on wasn't true yet at that tick. On the board-detail
+EDIT page, `appState.edit_mode` is a computed on
+`stashes.current_mode == 'edit' && currentBoardState`, and the `.edit` route sets
+`current_mode='edit'` INSIDE `check_for_needing_purchase().then(...)` — a promise
+microtask, not synchronously in setupController (routes/user/board-detail/edit.js).
+So the single afterRender check runs before edit mode settles, sees the condition
+false, and does nothing. For a `tagName: ''` (tagless) component, `didInsertElement`
+never fires, and an observer on the flag/`tourKey` won't fire either when the flag
+was already true (no CHANGE after mount) — so there's no second chance.
+
+**Fix:** poll the gating condition on a bounded schedule (e.g. 20 × 150ms ≈ 3s)
+until it holds, THEN consume the flag once and start — the same pattern
+`_scheduleBoardDetailAutoOpen` already uses to wait for the grid DOM. Funnel all
+entry points (init, observer, didInsertElement) into one guarded consumer
+(`_bdTourConsuming` prevents stacking parallel polls). Leave the flag set on
+timeout so a later legitimate instance can still consume it, and guard every
+deferred tick with `isDestroyed`/`isDestroying` so an instance torn down mid-poll
+(the page-A instance during the route transition) bails instead of consuming the
+flag for the wrong context.
+
+**General rule:** never gate a one-shot afterRender action on route/mode state
+that is established by a PROMISE resolution (purchase checks, async model loads).
+Either await that promise explicitly, or poll the condition. `current_mode='edit'`
+landing on a microtask is the specific gotcha here.
+
+**First seen in:** [2026-06-15-board-detail-edit-tour-not-auto-opening.md](./2026-06-15-board-detail-edit-tour-not-auto-opening.md)
+
+---
+
+## Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys
+
+**Surface:** rewording an EXISTING user-facing string (changing the default in an
+`i18n.t('key', "new text")` call) that already has entries in the non-English
+`public/locales/*.json`.
+
+**Symptom:** after `ruby i18n_generator.rb --generate` (updates en.json from code)
++ `--merge`, en.json shows the NEW text but every other locale still shows the OLD
+text. New keys propagate fine; changed keys silently don't.
+
+**Root cause:** `--merge` builds each locale with
+`new_json[key] = json[key] || "*** #{english_string}"` (i18n_generator.rb ~L319/331)
+— it KEEPS the existing locale value and only falls back to `*** <english>` for
+keys MISSING from that locale. A changed key already exists, so its old value
+(often an untranslated `*** <old english>` placeholder) is preserved as-is.
+
+**Fix:** after `--generate`/`--merge`, refresh the changed keys in the non-English
+locales yourself. If they were untranslated placeholders (value starts with
+`*** `), replace the old-English placeholder with the new-English placeholder
+across all locales (a scoped `sed` over `public/locales/*.json`, skipping en.json)
+so they stay "awaiting translation" but current — matching how `--merge` writes
+brand-new keys. Verify none were actually translated first (grep the key across
+locales; a leading `*** ` means untranslated). Real translation is the separate
+rails-console step (`WordData.translate_locale_batch`). Always re-validate each
+file parses as JSON after a `sed` sweep (`ruby -e "require 'json'; JSON.parse(...)"`).
+Escape `&` as `\&` in the sed replacement.
+
+**First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md)

@@ -42,6 +42,21 @@
          {{rootURL}} — use HTML comments here, NOT {{!-- --}} (which leaks as text). -->
     <link rel="preload" as="image" href="{{rootURL}}images/speak-circle-simple-dark.webp" type="image/webp" fetchpriority="high" />
 
+    <!-- Preload the guided-tour welcome-card map illustrations. These are CSS
+         background-images on the tour's welcome step (.md-tour__step--welcome
+         .shepherd-text in app.scss: tour-map-dark.png for Focused View,
+         tour-map-light.png for Gentle View), shared by all three opening tours
+         (home, board-picker, board-detail edit). Shepherd injects the popover
+         into <body> only at tour-start, so the browser would otherwise fetch the
+         background the instant the card paints — the card flashes blank, then the
+         map pops in. Preloading puts the bytes in cache up front so it paints with
+         the card. Both variants are preloaded because index.html is static and
+         can't branch on the user's dashboard_layout; each is small (~30-40KB).
+         (A CSS background can't take decoding="sync" like the <img> hero above,
+         so the preload fetch is the whole fix — decode of a 120px PNG is trivial.) -->
+    <link rel="preload" as="image" href="{{rootURL}}images/tour-map-dark.png" type="image/png" />
+    <link rel="preload" as="image" href="{{rootURL}}images/tour-map-light.png" type="image/png" />
+
     <style>
       /* Bootstrap skeleton — painted before vendor.css / frontend.css load
          and before Ember boots. Identical visual to the Rails-served

@@ -107,6 +107,23 @@ function doneCelebration() {
     '</div>';
 }
 
+// Forward "next action" animation for a HANDOFF outro — an arrow that draws in
+// and glides to the right (the counterpart to doneCelebration's checkmark) so a
+// step that hands the user off to their NEXT step reads as "moving on", not
+// "finished". Pure CSS (animations + reduced-motion guard in app.scss:
+// `.md-tour__next*`). Shared so every handoff outro (home → board picker, board
+// picker → live picker modal) renders the identical forward symbol. The step
+// must also carry the `md-tour__step--next` class for the CSS to scope to it.
+function nextAdvance() {
+  return '' +
+    '<div class="md-tour__next" aria-hidden="true">' +
+      '<svg class="md-tour__next-svg" viewBox="0 0 52 52" width="62" height="62">' +
+        '<circle class="md-tour__next-circle" cx="26" cy="26" r="24"></circle>' +
+        '<path class="md-tour__next-arrow" d="M15 26 H34 M27 19 L34 26 L27 33"></path>' +
+      '</svg>' +
+    '</div>';
+}
+
 // Placement for a card popover. Every card — full-width OR the smaller two-up
 // action cards — shows its popover ABOVE the element, for one consistent read
 // down the page (and so a side popover never runs off the right edge or sits
@@ -197,4 +214,4 @@ function scrollIntoViewSettled(el, block, force) {
   });
 }
 
-export { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, scrollIntoViewSettled };
+export { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance, scrollIntoViewSettled };

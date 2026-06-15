@@ -14,7 +14,7 @@
 // static-parser gotcha — bound/dynamic keys are invisible to it).
 import i18n from '../i18n';
 import modal from '../modal';
-import { standardButtons, decoratedTitle, tourChecklist, visibleEl, doneCelebration } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, visibleEl, nextAdvance } from './shared';
 
 // NOTE: "smooth scroll, then show" is applied by the guided-tour RUNNER
 // (_applySmoothScroll) to every attached step of every tour — steps just declare
@@ -217,19 +217,22 @@ function pushInteriorSteps(steps) {
 // tour and opens the LIVE board-picker modal (the final, almost full-screen
 // "card") so the user can actually assign / create / pick. Completing first tears
 // down the Shepherd overlay before the app modal opens (two body-level overlays
-// would otherwise collide).
+// would otherwise collide). This step HANDS OFF (to the picker modal), so it uses
+// the forward "next" arrow animation — not the done checkmark, which would imply
+// the user is finished — matching the home tour's handoff outro. The
+// `md-tour__step--next` class scopes the arrow's CSS to this step.
 function doneStep() {
   return {
     id: 'board_picker_tour_done',
     title: decoratedTitle('board_picker_tour_done_title', "You're ready to pick a board"),
-    text: doneCelebration() + tourChecklist([
+    text: nextAdvance() + tourChecklist([
       i18n.t('board_picker_tour_welcome_b1', "Let us choose a starter board for you"),
       i18n.t('board_picker_tour_welcome_b2', "Build your own from scratch"),
       i18n.t('board_picker_tour_welcome_b3', "Browse and preview ready-made boards")
     ], null,
       i18n.t('board_picker_tour_done_text', "You can return to this tour anytime from the Take a tour button at the top."),
       { separator: orSeparator() }),
-    classes: 'md-tour__step md-tour__step--intro md-tour__step--outro',
+    classes: 'md-tour__step md-tour__step--intro md-tour__step--outro md-tour__step--next',
     buttons: [
       {
         text: i18n.t('board_picker_tour_pick_my_board', "Pick your Board"),

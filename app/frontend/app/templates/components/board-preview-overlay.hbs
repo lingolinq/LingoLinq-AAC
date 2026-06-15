@@ -32,19 +32,31 @@
         </div>
       {{else}}
         <div class="modal-body md-modal-body md-board-details-modal__body">
-          {{#if this.preview_loading}}
-            {{!-- Full-body loading overlay — covers the canvas + side
-                 panel until the board model resolves AND every canvas
-                 button-image promise settles (board-preview emits
-                 onLoadingChange(false) only after both). --}}
+          {{#if (or this.preview_loading this.copying)}}
+            {{!-- Full-body loading overlay — covers the canvas + side panel while
+                 (a) the board model resolves AND every canvas button-image promise
+                 settles (preview_loading), or (b) "Pick this Board" is copying the
+                 board into the user's account (copying). --}}
             <div class="md-board-details-modal__overlay" role="status" aria-live="polite">
               <div class="md-board-details-modal__overlay-card">
                 <span class="md-board-details-modal__overlay-spinner" aria-hidden="true"></span>
-                <span class="md-board-details-modal__overlay-text">{{t "Loading board preview..." key="loading_board_preview_overlay"}}</span>
+                {{!-- The translated label sits in the aria-live region (announced
+                     once); the per-image "N / total" count is aria-hidden so the
+                     rapidly-changing numbers don't spam screen readers. --}}
+                {{#if this.copying}}
+                  <span class="md-board-details-modal__overlay-text">{{t "Setting up your board..." key="setting_up_your_board"}}</span>
+                {{else if this.preview_images_total}}
+                  <span class="md-board-details-modal__overlay-text">
+                    {{t "Loading board images..." key="loading_board_images"}}
+                    <span class="md-board-details-modal__overlay-count" aria-hidden="true">{{this.preview_images_loaded}} / {{this.preview_images_total}}</span>
+                  </span>
+                {{else}}
+                  <span class="md-board-details-modal__overlay-text">{{t "Loading board preview..." key="loading_board_preview_overlay"}}</span>
+                {{/if}}
               </div>
             </div>
           {{/if}}
-          {{board-preview key=this.model_key back=this.back_func option=this.modal.boardPreview.option locale=this.modal.boardPreview.locale onSelect=(action "select") onPickForHome=(action "pick_for_home") dark_mode=true onLoadingChange=(action "set_preview_loading")}}
+          {{board-preview key=this.model_key back=this.back_func option=this.modal.boardPreview.option locale=this.modal.boardPreview.locale onSelect=(action "select") onPickForHome=(action "pick_for_home") dark_mode=true onLoadingChange=(action "set_preview_loading") onCanvasProgress=(action "set_preview_progress")}}
         </div>
       {{/if}}
     </div>

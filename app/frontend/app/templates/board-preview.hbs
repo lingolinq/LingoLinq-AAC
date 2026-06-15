@@ -48,12 +48,22 @@
             <div class="ll-premium-progress ll-premium-progress--in-modal" role="status" aria-live="polite" aria-busy="true">
               <div class="ll-premium-progress__card">
                 <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
-                <p class="ll-premium-progress__sub">{{t "Loading Board Preview..." key="loading_board_preview_modal"}}</p>
+                {{!-- Generic label stays in the aria-live region; the per-image
+                     "N / total" count is aria-hidden so the rapidly-changing
+                     numbers don't spam screen readers. --}}
+                {{#if this.preview_images_total}}
+                  <p class="ll-premium-progress__sub">
+                    {{t "Loading board images..." key="loading_board_images"}}
+                    <span class="ll-premium-progress__count" aria-hidden="true">{{this.preview_images_loaded}} / {{this.preview_images_total}}</span>
+                  </p>
+                {{else}}
+                  <p class="ll-premium-progress__sub">{{t "Loading Board Preview..." key="loading_board_preview_modal"}}</p>
+                {{/if}}
                 <div class="ll-premium-progress__bar" aria-hidden="true"></div>
               </div>
             </div>
           {{/if}}
-          {{board-preview key=this.model_key back=this.back_func option=this.model.option onSelect=(action "select") dark_mode=true onLoadingChange=(action "set_preview_loading") removeContext=this.model.remove onRemove=(action "remove")}}
+          {{board-preview key=this.model_key back=this.back_func option=this.model.option onSelect=(action "select") dark_mode=true onLoadingChange=(action "set_preview_loading") onCanvasProgress=(action "set_preview_progress") removeContext=this.model.remove onRemove=(action "remove")}}
         </div>
       {{/if}}
     </div><!-- /.modal-content -->
