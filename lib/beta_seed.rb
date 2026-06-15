@@ -91,6 +91,14 @@ module BetaSeed
       puts "        Add public/system-boards/crisis-vocabulary.obz or run: bundle exec rake lingolinq:ensure_crisis_vocabulary"
     end
 
+    senner_baud = SystemBoardSources.ensure_senner_baud!(user)
+    if senner_baud
+      puts "  Ensured #{SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)} social pages set"
+    else
+      puts "  NOTE: #{SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)} not found."
+      puts "        Add public/system-boards/senner-baud.obz to seed the Senner-Baud social pages."
+    end
+
     ensure_openaac_vocabularies_if_requested!(user)
   end
 
