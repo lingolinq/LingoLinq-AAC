@@ -72,4 +72,40 @@ describe BetaSeed do
       expect { described_class.delete_content_boards!(nil) }.to raise_error(ArgumentError)
     end
   end
+
+  describe '.missing_required_seed_env' do
+    it 'is empty in the test environment (defaults apply)' do
+      expect(described_class.missing_required_seed_env).to eq([])
+    end
+
+    it 'reports blank required vars when running as staging' do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('RAILS_ENV').and_return('staging')
+      allow(ENV).to receive(:[]).with('SEED_LINGOLINQ_PASSWORD').and_return(nil)
+      allow(ENV).to receive(:[]).with('SEED_ADMIN_PASSWORD').and_return('set')
+
+      expect(described_class.missing_required_seed_env).to eq(['SEED_LINGOLINQ_PASSWORD'])
+    end
+  end
+
+  describe '.content_boards_referenced_by_others' do
+    it 'counts distinct other users referencing the content user\'s boards' do
+      owner = User.create(user_name: 'lingolinq')
+      board = Board.process_new({name: 'Lib', public: true}, {user: owner, key: 'lib'})
+      u1 = User.create(user_name: 'u1')
+      u2 = User.create(user_name: 'u2')
+      UserBoardConnection.create!(user_id: u1.id, board_id: board.id, home: true)
+      UserBoardConnection.create!(user_id: u2.id, board_id: board.id, home: false)
+      # the owner's own connection must not count
+      UserBoardConnection.create!(user_id: owner.id, board_id: board.id, home: true)
+
+      expect(described_class.content_boards_referenced_by_others(owner)).to eq(2)
+    end
+
+    it 'is zero when no other users reference the boards' do
+      owner = User.create(user_name: 'lingolinq')
+      Board.process_new({name: 'Lib', public: true}, {user: owner, key: 'lib'})
+      expect(described_class.content_boards_referenced_by_others(owner)).to eq(0)
+    end
+  end
 end

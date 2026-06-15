@@ -17,21 +17,32 @@ namespace :lingolinq do
        'premade library so fixes (e.g. converter changes) actually re-import. ' \
        'Guarded: DRY_RUN=1 to preview, REBUILD_CONFIRM=1 to execute. Staging only.'
   task rebuild_library: :environment do
-    user_name = ENV['VOCABULARY_USER_NAME'].presence || BetaSeed::SYSTEM_USER_NAME
+    # Always the content user; no VOCABULARY_USER_NAME override, so this can
+    # never be pointed at an arbitrary real account by a stale/typo'd env var.
+    user_name = BetaSeed::SYSTEM_USER_NAME
     user = User.find_by(user_name: user_name)
     abort "Content user '#{user_name}' not found." unless user
 
+    db = ActiveRecord::Base.connection_db_config.configuration_hash
+    db_desc = "#{db[:database]}@#{db[:host] || 'local'}"
     scope = Board.where(user_id: user.id)
     total = scope.count
+    referenced = BetaSeed.content_boards_referenced_by_others(user)
     dry_run = ENV['DRY_RUN'].to_s =~ BetaSeed::TRUTHY_PATTERN
 
-    puts "#{dry_run ? '[DRY RUN] ' : ''}#{total} board(s) owned by '#{user_name}' " \
-         "would be deleted, then the premade library re-seeded."
+    puts "#{dry_run ? '[DRY RUN] ' : ''}Target: user '#{user_name}' (id #{user.id}) on DB #{db_desc}"
+    puts "  #{total} board(s) would be deleted, then the premade library re-seeded."
+    puts "  #{referenced} OTHER user(s) reference these boards (their home/sidebar would be cleared)."
     if dry_run
-      scope.order(:key).limit(50).pluck(:key).each { |k| puts "  - #{k}" }
-      puts "  ...and #{total - 50} more" if total > 50
+      scope.order(:key).limit(50).pluck(:key).each { |k| puts "    - #{k}" }
+      puts "    ...and #{total - 50} more" if total > 50
       next
     end
+
+    # Pre-flight the env ensure_baseline! needs BEFORE deleting, so a missing
+    # password can't leave the library empty after the delete commits.
+    missing_env = BetaSeed.missing_required_seed_env
+    abort "Refusing: required seed env missing (#{missing_env.join(', ')}). Export them, then retry." if missing_env.any?
 
     unless ENV['REBUILD_CONFIRM'].to_s =~ BetaSeed::TRUTHY_PATTERN
       abort "Refusing to delete without REBUILD_CONFIRM=1. Re-run with REBUILD_CONFIRM=1 (or DRY_RUN=1 to preview)."
@@ -42,16 +53,24 @@ namespace :lingolinq do
             "and breaks user copies / home-board references. Use an in-place refresh on prod."
     end
 
+    if referenced.positive? && ENV['ALLOW_REFERENCED_DELETE'].to_s !~ BetaSeed::TRUTHY_PATTERN
+      abort "Refusing: #{referenced} other user(s) have these boards as home/sidebar; deleting clears " \
+            "those refs and notifies them. This usually means #{db_desc} holds real/prod-derived users. " \
+            "Set ALLOW_REFERENCED_DELETE=1 only if you are certain this is throwaway data."
+    end
+
     deleted = BetaSeed.rebuild_content_boards!(user)
-    puts "Deleted #{deleted} board(s) and re-seeded. Verifying..."
+    remaining = Board.where(user_id: user.id).count
+    puts "Deleted #{deleted} board(s); content user now has #{remaining} board(s) after re-seed."
 
     missing = BetaSeed.verify_beta_seed(require_library_boards: true)
     if missing.empty?
-      puts 'OK: library rebuilt and verified.'
+      puts "OK: signup library verified. NOTE: individual gallery sets are not verified here " \
+           "(was #{total} boards, now #{remaining}); compare those counts and spot-check in the app."
     else
-      puts 'WARN: rebuilt, but some records are still missing:'
+      puts 'WARN: rebuilt, but required signup records are still missing:'
       missing.each { |item| puts "  - #{item}" }
-      puts "(Gallery sets need SEED_IMPORT_OPENAAC_VOCABULARIES; rebuild_library sets it automatically. Network/import failures are logged above.)"
+      puts "(Likely an OpenAAC network/import failure; see logs above. Safe to re-run.)"
     end
   end
 

@@ -7,6 +7,9 @@ module BetaSeed
   FALSEY_PATTERN = /^(0|false|no)$/i.freeze
   REQUIRED_STARTER_BOARD_SLUGS = %w[one two three yesno keyboard inflections].freeze
   REQUIRED_SIGNUP_BOARD_SLUGS = SystemBoardSources::SIGNUP_LIBRARY_SLUGS.freeze
+  # SEED_* env that ensure_baseline! demands in staging/production (it raises if
+  # blank). The rebuild flow pre-flights these BEFORE deleting anything.
+  REQUIRED_SEED_ENV = %w[SEED_LINGOLINQ_PASSWORD SEED_ADMIN_PASSWORD].freeze
 
   def self.seed_password(env_key, dev_default)
     if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && ENV[env_key].blank?
@@ -285,11 +288,35 @@ module BetaSeed
     count
   end
 
+  # Required SEED_* env that ensure_baseline! will demand in staging/production.
+  # Returned here so the rebuild can abort BEFORE deleting (a missing password
+  # otherwise raises mid-reseed, after the delete committed, leaving the library
+  # empty with no rollback). Empty in dev/test where defaults apply.
+  def self.missing_required_seed_env
+    return [] unless Rails.env.production? || ENV['RAILS_ENV'] == 'staging'
+    REQUIRED_SEED_ENV.reject { |key| ENV[key].present? }
+  end
+
+  # Count of DISTINCT *other* users whose home/sidebar/connections point at the
+  # content user's boards. Non-zero means a delete would damage real users:
+  # Board#flush_related_records clears their home_board + sidebars (and queues
+  # home_board_changed notifications) on destroy. This is the signal that a
+  # "staging" DB actually holds real/prod-derived users.
+  def self.content_boards_referenced_by_others(user)
+    return 0 unless user
+    board_ids = Board.where(user_id: user.id).pluck(:id)
+    return 0 if board_ids.empty?
+    UserBoardConnection.where(board_id: board_ids).where.not(user_id: user.id).distinct.count(:user_id)
+  end
+
   # Full clean rebuild of the content user's premade library: delete all their
   # boards, then re-run the baseline seed (starter + sidebar + crisis +
   # Senner-Baud) and, when import_vocabularies is true, the OpenAAC gallery sets
-  # + Project Core. Returns the number of boards deleted.
+  # + Project Core. Returns the number of boards deleted. Raises BEFORE deleting
+  # if required seed env is missing, so it can never leave the library empty.
   def self.rebuild_content_boards!(user, import_vocabularies: true)
+    missing = missing_required_seed_env
+    raise "Cannot rebuild: required seed env missing (#{missing.join(', ')})" if missing.any?
     deleted = delete_content_boards!(user)
     ENV['SEED_IMPORT_OPENAAC_VOCABULARIES'] = '1' if import_vocabularies
     ensure_baseline!
