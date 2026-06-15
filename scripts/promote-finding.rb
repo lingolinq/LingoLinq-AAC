@@ -84,8 +84,19 @@ SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded].freeze
 ASSIGNABLE_STATUS = 'open'
 # The only disposition this script is ever allowed to assign (Scot owns every other value).
 ASSIGNABLE_DISPOSITION = 'untriaged'
+# Dispositions only Scot sets (schema 1.1, every value except untriaged). Disposition is a SEPARATE
+# Scot-owned axis from status: a finding can be status "open" yet disposition "dismissed-false-positive"
+# or "wontfix". A reviewer re-finding such a finding is re-raising something Scot already decided, so
+# it must be flagged like a regression (loud note + summary entry), NOT silently refreshed as a routine
+# reseen -- otherwise the "only Scot triages" guarantee holds for new writes but quietly fails on re-find.
+SCOT_OWNED_DISPOSITIONS = %w[accepted fixed dismissed-false-positive wontfix].freeze
 # Evidence types that carry a checkable file:line snippet (must match citation-check.rb).
 CHECKABLE_TYPES = %w[code doc].freeze
+# IDENTICAL to scripts/citation-check.rb LINE_DRIFT_TOLERANCE: citation-check anchors a recorded
+# evidence.line to the nearest snippet occurrence and FAILs if it drifts more than this many lines.
+# Mirror it here so a reviewer's wrong evidence.line can never be promoted into a finding that then
+# reddens citation-check on the next run.
+LINE_DRIFT_TOLERANCE = 8
 
 # --- PII / secret detection (mirrors lib/pii_scrubber.rb patterns) -------------------------------
 # The register is code/path evidence only and is shipped to no model without a BAA review. A PR
@@ -113,7 +124,12 @@ SECRET_PATTERNS = {
   stripe_key: /\b(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{16,}\b/,
   jwt: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
   db_url_with_credentials: %r{\b[a-z][a-z0-9+.\-]*://[^:@/\s]+:[^@/\s]+@},
-  bearer_secret: /\b(?:bearer|token|secret|password|passwd|api[_-]?key)\b\s*[:=]\s*["']?[A-Za-z0-9\/+_=\-]{12,}/i
+  # Assignment form: `password = "..."`, `token: ...`, `api_key=...`.
+  bearer_secret: /\b(?:bearer|token|secret|password|passwd|api[_-]?key)\b\s*[:=]\s*["']?[A-Za-z0-9\/+_=\-]{12,}/i,
+  # HTTP Authorization header form: `Authorization: Bearer <token>` (space-separated, no [:=]).
+  http_bearer: %r{\bBearer\s+[A-Za-z0-9._~+/\-]{20,}=*},
+  # Google OAuth 2.0 access token.
+  google_oauth_token: /\bya29\.[0-9A-Za-z_-]{20,}/
 }.freeze
 
 opts = { ins: [], summary: nil, owner: 'unassigned', date: nil }
@@ -152,10 +168,14 @@ def finding_id(rule_key, path)
   'LL-' + Digest::SHA256.hexdigest("#{rule_key}|#{path}")[0, 10]
 end
 
-# True if `snippet` (whitespace-normalized) appears in `file` at `sha`. Mirrors the matching that
-# scripts/citation-check.rb uses, so a finding this script accepts is one citation-check passes.
-def snippet_present?(file, snippet, sha)
-  return false if file.to_s.empty? || snippet.to_s.strip.empty?
+# The 1-based line numbers in `file` at `sha` whose whitespace-normalized text contains the
+# normalized `snippet` (empty == not present). Mirrors scripts/citation-check.rb's per-LINE
+# matching EXACTLY (normalize each source line, then include?), so acceptance here predicts what
+# citation-check will do -- both that the snippet is present AND, via the caller, that evidence.line
+# sits within tolerance of it. A multi-line snippet matches no single line, so it returns [] and is
+# refused, rather than passing a whole-file include() that citation-check would then FAIL.
+def snippet_match_lines(file, snippet, sha)
+  return [] if file.to_s.empty? || snippet.to_s.strip.empty?
   out, _err, status =
     if sha.to_s.empty?
       File.file?(file) ? [File.read(file), nil, nil] : [nil, nil, nil]
@@ -164,28 +184,34 @@ def snippet_present?(file, snippet, sha)
     end
   content = out
   content = nil if !sha.to_s.empty? && !(status && status.success?)
-  return false if content.nil?
+  return [] if content.nil?
   norm = ->(s) { s.to_s.gsub(/\s+/, ' ').strip }
   needle = norm.call(snippet)
-  return false if needle.empty?
-  # Match citation-check.rb's per-LINE semantics exactly: it normalizes each source line and
-  # checks include() on that line. A multi-line snippet would pass a whole-file include() here but
-  # FAIL citation-check (no single line contains it), reddening the register. So gate per-line too.
-  content.each_line.any? { |line| norm.call(line).include?(needle) }
+  return [] if needle.empty?
+  lines = []
+  content.each_line.with_index(1) { |line, lineno| lines << lineno if norm.call(line).include?(needle) }
+  lines
 end
 
-# Scan all of a finding's free text for PII/secret shapes. Returns the list of matched categories
-# (empty == clean). Checks title, snippet, notes, remediation, evidence.source, frameworks-free
-# text. Refuses on ANY hit -- the register must never carry an identifier or a secret.
+# Every string (keys AND values) anywhere in a finding, walked recursively. A named-field allowlist
+# is unsafe: the WHOLE finding is copied into the register (e.g. remediation is passed through
+# verbatim), so PII hiding in a nested object or an arbitrary reviewer-added key would slip past a
+# field-by-field scan. Walk everything instead.
+def deep_strings(node, acc = [])
+  case node
+  when String then acc << node
+  when Hash   then node.each { |k, v| acc << k.to_s; deep_strings(v, acc) }
+  when Array  then node.each { |v| deep_strings(v, acc) }
+  end
+  acc
+end
+
+# Scan a finding's ENTIRE text (every nested string, not a hand-picked subset) for PII/secret
+# shapes. Returns the list of matched categories (empty == clean). Refuses on ANY hit -- the
+# register is code/path evidence only and must never carry an identifier or a secret, no matter
+# which field it rode in on.
 def sensitive_hits(raw)
-  ev = raw['evidence'] || {}
-  rem = raw['remediation'] || {}
-  texts = [
-    raw['title'], raw['notes'], raw['ruleKey'],
-    ev['snippet'], ev['file'], ev['source'],
-    rem['options'], rem['timeframe']
-  ].compact.map(&:to_s)
-  blob = texts.join("\n")
+  blob = deep_strings(raw).join("\n")
   hits = []
   SECRET_PATTERNS.each { |name, re| hits << "secret:#{name}" if blob.match?(re) }
   PII_PATTERNS.each { |name, re| hits << "pii:#{name}" if blob.match?(re) }
@@ -260,9 +286,28 @@ opts[:ins].each do |path|
                               'reason' => 'missing evidence.sha (snippet must anchor to a commit)' }
       next
     end
-    unless snippet_present?(file, snippet, sha)
+    match_lines = snippet_match_lines(file, snippet, sha)
+    if match_lines.empty?
       summary['skipped'] << { 'reviewer' => reviewer, 'ruleKey' => rule_key, 'severity' => sev,
                               'reason' => "snippet not found at #{file}@#{sha}; not added (would redden citation-check)" }
+      next
+    end
+    # citation-check validates evidence.line: it anchors the recorded line to the nearest snippet
+    # occurrence and FAILs if it drifts more than LINE_DRIFT_TOLERANCE. snippet_present alone does
+    # not catch a wrong line, so a finding with a present snippet but a bad line would promote and
+    # THEN redden citation-check. Validate the line here, mirroring citation-check exactly.
+    recorded_line = ev['line']
+    if recorded_line.is_a?(Numeric)
+      nearest = match_lines.min_by { |m| (m - recorded_line).abs }
+      if (nearest - recorded_line).abs > LINE_DRIFT_TOLERANCE
+        occ = match_lines.size > 1 ? " (snippet occurs at lines #{match_lines.join(', ')})" : ''
+        summary['skipped'] << { 'reviewer' => reviewer, 'ruleKey' => rule_key, 'severity' => sev,
+                                'reason' => "evidence.line #{recorded_line} is >#{LINE_DRIFT_TOLERANCE} lines from the snippet; nearest occurrence is line #{nearest} in #{file}@#{sha}#{occ}; not added (would redden citation-check)" }
+        next
+      end
+    elsif !recorded_line.nil?
+      summary['skipped'] << { 'reviewer' => reviewer, 'ruleKey' => rule_key, 'severity' => sev,
+                              'reason' => "evidence.line must be a number (got #{recorded_line.inspect})" }
       next
     end
 
@@ -274,13 +319,20 @@ opts[:ins].each do |path|
 
     if (existing = by_id[id])
       existing['lastSeen'] = run_date
-      if SCOT_OWNED_CLOSED.include?(existing['status'])
-        # Regression: a previously closed/accepted/superseded finding re-surfaced in a PR review.
-        # Do NOT flip the Scot-owned status; flag it loudly for adversary verification + Scot.
+      existing_disp = existing.dig('disposition', 'state')
+      scot_owned_status = SCOT_OWNED_CLOSED.include?(existing['status'])
+      scot_owned_disp = SCOT_OWNED_DISPOSITIONS.include?(existing_disp)
+      if scot_owned_status || scot_owned_disp
+        # Regression: a finding Scot already decided on re-surfaced in a PR review. This fires on EITHER
+        # axis -- a Scot-owned closed/accepted/superseded status, OR a Scot-set disposition (accepted /
+        # fixed / dismissed-false-positive / wontfix) even while status is still "open". Do NOT flip the
+        # status and do NOT touch the disposition; flag it loudly for adversary verification + Scot.
         existing['regression'] = true
-        note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} (status was #{existing['status']}). Needs adversary verification + Scot decision to reopen."
+        reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
+        note = "REGRESSION: re-surfaced by #{reviewer} on PR ##{pr} (#{run_date}) at #{sha} (#{reason}). Needs adversary verification + Scot decision."
         existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
+                                    'disposition' => existing_disp,
                                     'severity' => existing['severity'], 'reviewer' => reviewer, 'pr' => pr }
       else
         # Active finding already tracked. Record that a PR reviewer re-found it (lastSeen + note),

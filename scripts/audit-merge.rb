@@ -44,6 +44,12 @@ FRAMEWORK_ENUM = %w[FERPA COPPA HIPAA GDPR WCAG SOC2].freeze
 # Statuses a finder may NOT change. If a known id carries one of these, the finder's re-find
 # is a regression candidate, not a status flip.
 SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded].freeze
+# Dispositions only Scot sets (schema 1.1, every value except untriaged). Disposition is a SEPARATE
+# Scot-owned axis from status: a finding can be status "open" yet disposition "dismissed-false-positive"
+# or "wontfix". A finder re-finding such a finding is re-raising something Scot already decided, so it
+# must be flagged like a regression, not silently re-anchored as a routine reseen. (Mirrors
+# scripts/promote-finding.rb; kept in lockstep by hand.)
+SCOT_OWNED_DISPOSITIONS = %w[accepted fixed dismissed-false-positive wontfix].freeze
 # The only status this script is ever allowed to assign.
 ASSIGNABLE_STATUS = 'open'
 
@@ -83,9 +89,10 @@ def finding_id(rule_key, path)
   'LL-' + Digest::SHA256.hexdigest("#{rule_key}|#{path}")[0, 10]
 end
 
-# True if `snippet` (whitespace-normalized) appears in `file` at `sha`. Mirrors the matching
-# scripts/citation-check.rb uses, so a finding this script accepts is one citation-check will
-# pass. Used to refuse evidence that would redden the register on the next /audit-run.
+# True if `snippet` (whitespace-normalized) appears on a single line of `file` at `sha`. Mirrors the
+# per-LINE matching scripts/citation-check.rb uses, so a finding this script accepts is one
+# citation-check will pass. Used to refuse evidence that would redden the register on the next
+# /audit-run.
 def snippet_present?(file, snippet, sha)
   return false if file.to_s.empty? || snippet.to_s.strip.empty?
   out, _err, status =
@@ -98,7 +105,12 @@ def snippet_present?(file, snippet, sha)
   content = nil if !sha.to_s.empty? && !(status && status.success?)
   return false if content.nil?
   norm = ->(s) { s.to_s.gsub(/\s+/, ' ').strip }
-  norm.call(content).include?(norm.call(snippet))
+  needle = norm.call(snippet)
+  return false if needle.empty?
+  # Per-LINE, identical to scripts/citation-check.rb and scripts/promote-finding.rb: a multi-line
+  # snippet matches no single source line, so reject it here instead of accepting it via a
+  # whole-file include() that citation-check would then FAIL (reddening the register).
+  content.each_line.any? { |line| norm.call(line).include?(needle) }
 end
 
 CHECKABLE_TYPES = %w[code doc].freeze
@@ -155,13 +167,20 @@ opts[:ins].each do |path|
         summary['severityChangeCandidates'] << { 'id' => id, 'from' => existing['severity'], 'finderSays' => sev }
       end
 
-      if SCOT_OWNED_CLOSED.include?(existing['status'])
-        # Regression: a previously closed/accepted/superseded finding re-surfaced. Do NOT flip
-        # the Scot-owned status and do NOT touch its (still-valid) evidence; flag it loudly.
+      existing_disp = existing.dig('disposition', 'state')
+      scot_owned_status = SCOT_OWNED_CLOSED.include?(existing['status'])
+      scot_owned_disp = SCOT_OWNED_DISPOSITIONS.include?(existing_disp)
+      if scot_owned_status || scot_owned_disp
+        # Regression: a finding Scot already decided on re-surfaced. Fires on EITHER axis -- a
+        # Scot-owned closed/accepted/superseded status, OR a Scot-set disposition (accepted / fixed /
+        # dismissed-false-positive / wontfix) even while status is still "open". Do NOT flip the status,
+        # do NOT touch the disposition or the (still-valid) evidence; flag it loudly.
         existing['regression'] = true
-        note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (status was #{existing['status']}). Needs adversary verification + Scot decision to reopen."
+        reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
+        note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (#{reason}). Needs adversary verification + Scot decision."
         existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
+                                    'disposition' => existing_disp,
                                     'severity' => existing['severity'], 'domain' => domain, 'file' => anchor }
       else
         # Active finding still present. Re-anchor evidence to the new SHA ONLY if the new snippet
