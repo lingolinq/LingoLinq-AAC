@@ -53,6 +53,39 @@ SCOT_OWNED_DISPOSITIONS = %w[accepted fixed dismissed-false-positive wontfix].fr
 # The only status this script is ever allowed to assign.
 ASSIGNABLE_STATUS = 'open'
 
+# --- PII / secret detection (mirrors scripts/promote-finding.rb + lib/pii_scrubber.rb) -----------
+# The register is code/path evidence only and is a Claude-only compliance surface. A finder finding
+# whose text carries an identifier or a secret is REFUSED, not redacted: such evidence has no business
+# in the SSOT. Finders are read-only and code-scoped by contract, so this is defense-in-depth -- but
+# the register is git-tracked, so a single mis-shaped finder snippet must never be able to commit a
+# student email or a credential. Patterns are kept in lockstep with promote-finding.rb by hand.
+PII_PATTERNS = {
+  email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,
+  phone: /\b(?:\+?1[-.\s])?(?:\(\d{3}\)|\d{3})[-.\s]\d{3}[-.\s]\d{4}\b/,
+  ssn: /\b\d{3}-\d{2}-\d{4}\b/,
+  ip: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/,
+  global_id: /\b\d+_\d+(?:_[a-zA-Z0-9]+)?\b/
+}.freeze
+
+# Secret shapes (gitleaks-style, abbreviated). A match refuses the finding outright.
+SECRET_PATTERNS = {
+  aws_access_key: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
+  private_key_block: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/,
+  github_token: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b/,
+  slack_token: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/,
+  openai_key: /\bsk-[A-Za-z0-9]{20,}\b/,
+  google_api_key: /\bAIza[0-9A-Za-z\-_]{35}\b/,
+  stripe_key: /\b(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{16,}\b/,
+  jwt: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
+  db_url_with_credentials: %r{\b[a-z][a-z0-9+.\-]*://[^:@/\s]+:[^@/\s]+@},
+  # Assignment form: `password = "..."`, `token: ...`, `api_key=...`.
+  bearer_secret: /\b(?:bearer|token|secret|password|passwd|api[_-]?key)\b\s*[:=]\s*["']?[A-Za-z0-9\/+_=\-]{12,}/i,
+  # HTTP Authorization header form: `Authorization: Bearer <token>` (space-separated, no [:=]).
+  http_bearer: %r{\bBearer\s+[A-Za-z0-9._~+/\-]{20,}=*},
+  # Google OAuth 2.0 access token.
+  google_oauth_token: /\bya29\.[0-9A-Za-z_-]{20,}/
+}.freeze
+
 opts = { ins: [], ref: nil, date: nil, summary: nil }
 OptionParser.new do |o|
   o.banner = 'Usage: ruby scripts/audit-merge.rb --register F --sha S --in finder.json [...] --out F [--summary S]'
@@ -113,6 +146,30 @@ def snippet_present?(file, snippet, sha)
   content.each_line.any? { |line| norm.call(line).include?(needle) }
 end
 
+# Every string (keys AND values) anywhere in a finding, walked recursively. A named-field allowlist is
+# unsafe: the WHOLE finding is copied into the register (remediation et al. pass through verbatim), so
+# PII hiding in a nested object or an arbitrary key would slip past a field-by-field scan. Mirrors
+# scripts/promote-finding.rb#deep_strings.
+def deep_strings(node, acc = [])
+  case node
+  when String then acc << node
+  when Hash   then node.each { |k, v| acc << k.to_s; deep_strings(v, acc) }
+  when Array  then node.each { |v| deep_strings(v, acc) }
+  end
+  acc
+end
+
+# Scan a finding's ENTIRE text (every nested string) for PII/secret shapes. Returns the matched
+# categories (empty == clean). Refuses on ANY hit -- the register is code/path evidence only and must
+# never carry an identifier or a secret, no matter which field it rode in on.
+def sensitive_hits(raw)
+  blob = deep_strings(raw).join("\n")
+  hits = []
+  SECRET_PATTERNS.each { |name, re| hits << "secret:#{name}" if blob.match?(re) }
+  PII_PATTERNS.each { |name, re| hits << "pii:#{name}" if blob.match?(re) }
+  hits
+end
+
 CHECKABLE_TYPES = %w[code doc].freeze
 
 summary = { 'auditedSha' => run_sha, 'auditedDate' => run_date,
@@ -141,6 +198,16 @@ opts[:ins].each do |path|
     snippet = ev['snippet'].to_s
     if rule_key.empty?
       summary['skipped'] << { 'domain' => domain, 'reason' => 'missing ruleKey', 'title' => raw['title'] }
+      next
+    end
+    # PII/secret refusal: a finder finding whose text (any nested field) carries an identifier or a
+    # secret is never added and never re-anchored. Refused, not redacted -- the register is code/path
+    # evidence only. Skipping the whole incoming record also prevents a PII snippet from being written
+    # into an existing finding's evidence on the reseen path below.
+    hits = sensitive_hits(raw)
+    unless hits.empty?
+      summary['skipped'] << { 'domain' => domain, 'ruleKey' => rule_key,
+                              'reason' => "refused: contains #{hits.join(', ')} (register is code/path evidence only)" }
       next
     end
     # id anchor MUST match scripts/citation-check.rb#expected_id: the evidence file, or the
