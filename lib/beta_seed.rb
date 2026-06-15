@@ -96,7 +96,7 @@ module BetaSeed
       puts "  Ensured #{SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)} social pages set"
     else
       puts "  NOTE: #{SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)} not found."
-      puts "        Add public/system-boards/senner-baud.obz to seed the Senner-Baud social pages."
+      puts "        Upload the Senner-Baud OBZ to the static S3 bucket (#{SystemBoardSources::SENNER_BAUD_OBZ_KEY}) to seed it."
     end
 
     ensure_openaac_vocabularies_if_requested!(user)

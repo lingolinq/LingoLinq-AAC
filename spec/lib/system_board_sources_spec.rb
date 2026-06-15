@@ -69,18 +69,16 @@ describe SystemBoardSources do
       expect(result.settings['unlisted']).to eq(false)
     end
 
-    it 'returns nil when the OBZ file is missing and the board does not exist' do
+    it 'returns nil when the OBZ cannot be fetched and the board does not exist' do
       owner = User.create(user_name: 'lingolinq')
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with(SystemBoardSources::SENNER_BAUD_OBZ).and_return(false)
+      allow(described_class).to receive(:fetch_senner_baud_obz).and_return(nil)
       expect(described_class.ensure_senner_baud!(owner)).to eq(nil)
     end
 
     it 'stores the imported root at the full key and forces the library name' do
       owner = User.create(user_name: 'lingolinq')
       root = Board.process_new({name: "Senner-Baud greetings", public: false}, {user: owner, key: 'imported-root'})
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with(SystemBoardSources::SENNER_BAUD_OBZ).and_return(true)
+      allow(described_class).to receive(:fetch_senner_baud_obz).and_return(['https://example.s3.amazonaws.com/system-boards/senner-baud.obz', 'obz-bytes'])
       expect(Converters::LingoLinq).to receive(:from_obz).and_return([root])
 
       result = described_class.ensure_senner_baud!(owner)

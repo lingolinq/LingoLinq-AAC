@@ -4,7 +4,12 @@ module SystemBoardSources
   CRISIS_VOCABULARY_SLUG = 'crisis-vocabulary'.freeze
   CRISIS_VOCABULARY_OBZ = Rails.root.join('public/system-boards/crisis-vocabulary.obz').freeze
   SENNER_BAUD_SLUG = 'senner-baud'.freeze
-  SENNER_BAUD_OBZ = Rails.root.join('public/system-boards/senner-baud.obz').freeze
+  # The Senner-Baud set is ~12 MB, so it is hosted in the static S3 bucket
+  # (alongside avatars / AI assets) rather than committed to the repo. The seed
+  # fetches it from the running environment's STATIC_S3_BUCKET, falling back to
+  # the public prod bucket for local/dev (whose own static bucket is private).
+  SENNER_BAUD_OBZ_KEY = 'system-boards/senner-baud.obz'.freeze
+  SENNER_BAUD_OBZ_FALLBACK_BUCKET = 'lingolinq-prod-static'.freeze
   SENNER_BAUD_NAME = 'Senner-Baud Social Pages'.freeze
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary senner-baud].freeze
   SPANISH_LIBRARY_SLUGS = %w[quick-core-60-es vocal-flair-60-es].freeze
@@ -68,8 +73,32 @@ module SystemBoardSources
     Board.find_by_path(key) || root
   end
 
+  # Candidate public S3 URLs for the Senner-Baud OBZ: the running environment's
+  # static bucket first, then the public prod bucket as a fallback (so local/dev,
+  # whose own static bucket is private/KMS-encrypted, still resolves it).
+  def self.senner_baud_obz_urls
+    buckets = [ENV['STATIC_S3_BUCKET'].presence, SENNER_BAUD_OBZ_FALLBACK_BUCKET].compact.uniq
+    buckets.map { |b| "https://#{b}.s3.amazonaws.com/#{SENNER_BAUD_OBZ_KEY}" }
+  end
+
+  # Downloads the Senner-Baud OBZ from S3, returning [url, body] or nil.
+  def self.fetch_senner_baud_obz
+    require 'safe_http'
+    senner_baud_obz_urls.each do |url|
+      begin
+        resp = SafeHttp.get(url, timeout: 300, connecttimeout: 30)
+        return [url, resp.body] if resp && resp.success?
+        Rails.logger.warn("[SystemBoardSources] Senner-Baud OBZ #{url} -> HTTP #{resp && resp.code}")
+      rescue => e
+        Rails.logger.warn("[SystemBoardSources] Senner-Baud OBZ fetch failed for #{url}: #{e.message}")
+      end
+    end
+    nil
+  end
+
   # Idempotent: ensures the system board user has the Senner-Baud social pages set
-  # from the committed OBZ. Mirrors ensure_crisis_vocabulary!. The export's root is
+  # from the OBZ hosted in the static S3 bucket. Mirrors ensure_crisis_vocabulary!,
+  # but sources the (large) OBZ from S3 rather than the repo. The export's root is
   # the "greetings" page; we re-key it to <user>/senner-baud and give it the set's
   # name so it reads cleanly in the signup library.
   def self.ensure_senner_baud!(owner = nil)
@@ -87,13 +116,21 @@ module SystemBoardSources
       return existing
     end
 
-    unless File.exist?(SENNER_BAUD_OBZ)
-      Rails.logger.warn("[SystemBoardSources] Missing #{SENNER_BAUD_OBZ} — cannot import Senner-Baud social pages")
+    fetched = fetch_senner_baud_obz
+    unless fetched
+      Rails.logger.warn("[SystemBoardSources] Could not fetch Senner-Baud OBZ from S3 (#{senner_baud_obz_urls.join(', ')}) — skipping import")
       return nil
     end
 
     require Rails.root.join('lib', 'converters', 'lingo_linq')
-    boards = Converters::LingoLinq.from_obz(SENNER_BAUD_OBZ.to_s, 'user' => owner, 'boards' => {})
+    require 'tempfile'
+    boards = nil
+    Tempfile.create(['senner_baud_', '.obz']) do |tmp|
+      tmp.binmode
+      tmp.write(fetched.last)
+      tmp.close
+      boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => owner, 'boards' => {})
+    end
     return nil if boards.blank?
 
     root = boards.first
