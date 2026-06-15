@@ -3,6 +3,19 @@ require 'obf'
 module Converters::LingoLinq
   EXT_PARAMS = ['link_disabled', 'add_to_vocalization', 'add_vocalization', 'hide_label', 'home_lock', 'blocking_speech', 'part_of_speech', 'external_id', 'video', 'book']
 
+  # OpenBoards / CoughDrop-origin OBF/OBZ files namespace their extension
+  # attributes as ext_coughdrop_*, while LingoLinq exports use ext_lingolinq_*.
+  # LingoLinq is a CoughDrop fork, so accept either namespace on import. Without
+  # this, button settings like hide_label and add_vocalization (and board-level
+  # settings/background) are silently dropped from upstream boards. Prefers the
+  # ext_lingolinq_* value when both are present.
+  def self.ext_attr(obj, param)
+    return nil unless obj
+    val = obj["ext_lingolinq_#{param}"]
+    val = obj["ext_coughdrop_#{param}"] if val.nil?
+    val
+  end
+
   def self.to_obf(board, dest_path, path_hash=nil)
     json = nil
     Progress.as_percent(0, 0.1) do
@@ -299,10 +312,11 @@ module Converters::LingoLinq
     raise "user required" unless opts['user']
     raise "missing id" unless obj['id']
     protected_sources = opts['user'] ? opts['user'].enabled_protected_sources(true) : []
-    if obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['protected'] && obj['ext_lingolinq_settings']['key']
+    guard_settings = Converters::LingoLinq.ext_attr(obj, 'settings') || {}
+    if guard_settings['protected'] && guard_settings['key']
       importer = opts['user']
-      board_owner_id = obj['ext_lingolinq_settings']['protected_user_id']
-      user_name = obj['ext_lingolinq_settings']['key'].split(/\//)[0]
+      board_owner_id = guard_settings['protected_user_id']
+      user_name = guard_settings['key'].split(/\//)[0]
       # Allow import if: (1) key says same user, (2) importer is board owner, or
       # (3) importer has edit permission on the board owner (supervisor/manager)
       board_owner = board_owner_id && User.find_by_global_id(board_owner_id)
@@ -376,7 +390,7 @@ module Converters::LingoLinq
     non_user_params = {'user' => opts['user']}
     params['name'] = obj['name']
     params['description'] = obj['description_html']
-    params['image_url'] = obj['ext_lingolinq_image_url'] || obj['image_url']
+    params['image_url'] = Converters::LingoLinq.ext_attr(obj, 'image_url') || obj['image_url']
     params['license'] = OBF::Utils.parse_license(obj['license'])
     params['locale'] = obj['locale'] || 'en'
 
@@ -417,9 +431,8 @@ module Converters::LingoLinq
         new_button['sound_id'] = hashes[button['sound_id']]
       end
       EXT_PARAMS.each do |param|
-        if button["ext_lingolinq_#{param}"]
-          new_button[param] = button["ext_lingolinq_#{param}"]
-        end
+        val = Converters::LingoLinq.ext_attr(button, param)
+        new_button[param] = val if val
       end
 
       if button['translations']
@@ -434,7 +447,8 @@ module Converters::LingoLinq
           end
           ref['label'] ||= hash['label'] if hash['label']
           ref['vocalization'] ||= hash['vocalization'] if hash['vocalization']
-          ref['rules'] ||= hash['ext_lingolinq_rules'] if hash['ext_lingolinq_rules']
+          trans_rules = Converters::LingoLinq.ext_attr(hash, 'rules')
+          ref['rules'] ||= trans_rules if trans_rules
           (hash['inflections'] || {}).each do |key, str|
             if str == 'ext_lingolinq_defaults'
             elsif loc_hash[key] && !(hash['inflections']['ext_lingolinq_defaults'] || []).include?(key)
@@ -458,8 +472,9 @@ module Converters::LingoLinq
           end
         end
       elsif button['url']
-        if button['ext_lingolinq_apps']
-          new_button['apps'] = button['ext_lingolinq_apps']
+        ext_apps = Converters::LingoLinq.ext_attr(button, 'apps')
+        if ext_apps
+          new_button['apps'] = ext_apps
         else
           new_button['url'] = button['url']
         end
@@ -467,18 +482,20 @@ module Converters::LingoLinq
       new_button
     end
     params['grid'] = obj['grid']
-    params['public'] = !(obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['private'])
-    params['home_board'] = (obj['ext_lingolinq_settings'] || {})['home_board'] || false
-    params['categories'] = (obj['ext_lingolinq_settings'] || {})['categories'] || []
-    params['word_suggestions'] = obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['word_suggestions']
-    params['text_only'] = (obj['ext_lingolinq_settings'] || {})['text_only'] || false
-    params['hide_empty'] = (obj['ext_lingolinq_settings'] || {})['hide_empty'] || false
+    ext_settings = Converters::LingoLinq.ext_attr(obj, 'settings') || {}
+    params['public'] = !ext_settings['private']
+    params['home_board'] = ext_settings['home_board'] || false
+    params['categories'] = ext_settings['categories'] || []
+    params['word_suggestions'] = ext_settings['word_suggestions']
+    params['text_only'] = ext_settings['text_only'] || false
+    params['hide_empty'] = ext_settings['hide_empty'] || false
 
-    if obj['ext_lingolinq_background'] || obj['background']
-      params['background'] = obj['ext_lingolinq_background'] || obj['background']
+    ext_background = Converters::LingoLinq.ext_attr(obj, 'background')
+    if ext_background || obj['background']
+      params['background'] = ext_background || obj['background']
     end
 
-    non_user_params[:key] = (obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key'] && obj['ext_lingolinq_settings']['key'].split(/\//)[-1])
+    non_user_params[:key] = (ext_settings['key'] && ext_settings['key'].split(/\//)[-1])
     board = nil
     if opts['boards'] && opts['boards'][obj['id']]
       board = Board.find_by_path(opts['boards'][obj['id']]['id']) || Board.find_by_path(opts['boards'][obj['id']]['key'])
@@ -572,7 +589,8 @@ module Converters::LingoLinq
         board = Board.find_by_path(opts['boards'][obj['id']]['id']) || Board.find_by_path(opts['boards'][obj['id']]['key'])
       else
         non_user_params = {'user' => opts['user']}
-        non_user_params[:key] = (obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key'] && obj['ext_lingolinq_settings']['key'].split(/\//)[-1])
+        preload_settings = Converters::LingoLinq.ext_attr(obj, 'settings') || {}
+        non_user_params[:key] = (preload_settings['key'] && preload_settings['key'].split(/\//)[-1])
         params = {}
         params['name'] = obj['name']
         board = Board.process_new(params, non_user_params)
