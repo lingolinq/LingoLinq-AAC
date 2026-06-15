@@ -164,6 +164,24 @@ STATUS_SECTIONS = [
   ['superseded', 'Superseded / obsolete']
 ].freeze
 
+# A finding's triage state. Disposition is optional and orthogonal to status; a finding with no
+# disposition object (every /audit-run finding, and any pre-1.1 finding) reads as "untriaged".
+# Only Scot sets a non-untriaged value (see meta.governance).
+def disposition_state(finding)
+  d = finding['disposition']
+  state = d.is_a?(Hash) ? d['state'] : d
+  state.to_s.empty? ? 'untriaged' : state
+end
+
+# Origin of the finding: "pr-review" (promoted from a PR review by scripts/promote-finding.rb) or
+# "audit-run" (the default, from the periodic fan-out). Surfaced so the register attributes each
+# finding to where it came from (the evaluation's attribution requirement).
+def finding_source(finding)
+  src = finding['source']
+  kind = src.is_a?(Hash) ? src['kind'] : src
+  kind.to_s.empty? ? 'audit-run' : kind
+end
+
 def render_markdown(register)
   meta = register['meta'] || {}
   findings = register['findings'] || []
@@ -179,7 +197,9 @@ def render_markdown(register)
   out << "**Seed:** #{meta['seedSource']}  \n"
   out << "**Headline (open + remediated-unverified):** #{open_crit} Critical / #{open_high} High\n\n"
   out << "Statuses are verified against live code at the audited SHA, not copied from the dated report prose. "
-  out << "Only Scot closes a finding, downgrades severity, or accepts risk.\n\n"
+  out << "Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. "
+  out << "Disposition (triage) is orthogonal to status: a finding can be `open` yet "
+  out << "`dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.\n\n"
 
   STATUS_SECTIONS.each do |status, heading|
     group = findings.select { |f| f['status'] == status }
@@ -187,14 +207,16 @@ def render_markdown(register)
 
     group = group.sort_by { |f| [SEVERITY_ORDER[f['severity']] || 9, f['legacyId'].to_s] }
     out << "## #{heading} (#{group.size})\n\n"
-    out << "| ID | Legacy | Severity | Frameworks | Title | Evidence |\n"
-    out << "|---|---|---|---|---|---|\n"
+    out << "| ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |\n"
+    out << "|---|---|---|---|---|---|---|---|\n"
     group.each do |f|
       ev = f['evidence'] || {}
       anchor = ev['file'] ? "`#{ev['file']}`#{ev['line'] ? ":#{ev['line']}" : ''}" : '(attestation)'
       fw = (f['frameworks'] || []).join(', ')
       title = f['title'].to_s.gsub('|', '\\|')
-      out << "| #{f['id']} | #{f['legacyId']} | #{f['severity']} | #{fw} | #{title} | #{anchor} |\n"
+      disp = disposition_state(f)
+      disp = "**#{disp}**#{f['regression'] ? ' ⚠regression' : ''}" unless disp == 'untriaged'
+      out << "| #{f['id']} | #{f['legacyId']} | #{f['severity']} | #{fw} | #{disp} | #{finding_source(f)} | #{title} | #{anchor} |\n"
     end
     out << "\n"
   end
