@@ -80,10 +80,19 @@ class SystemSidebarBoards
 
     Board.find_by_path(key) || root
   rescue ActiveRecord::RecordNotUnique => e
-    # A board already occupies <user>/<slug>. Return it rather than aborting so
-    # the sidebar setup stays idempotent and we don't double-create utilities.
+    # A board already occupies <user>/<slug> (concurrent setup, or a partial
+    # prior run). Finalize and return it rather than aborting, so sidebar setup
+    # stays idempotent and callers never receive a half-published board.
     Rails.logger.warn("[SystemSidebarBoards] re-key collided on #{key} (#{e.message}); returning existing board")
-    Board.find_by_path(key)
+    existing = Board.find_by_path(key)
+    if existing
+      existing.public = true
+      existing.settings['unlisted'] = false
+      existing.generate_stats
+      existing.save_without_post_processing
+      return repair_utility_board(existing, spec)
+    end
+    existing
   end
 
   def self.repair_utility_board(board, spec)

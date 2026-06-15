@@ -48,7 +48,13 @@ namespace :openaac do
     files.each do |filename|
       url = "#{OPENBOARDS_BASE}/#{filename}"
       ext = File.extname(filename).downcase
-      ext = '.obz' unless ['.obz', '.obf'].include?(ext)
+      # Don't silently coerce an unknown extension to .obz; a typo in
+      # VOCABULARY_FILES (e.g. ".ofb") would otherwise be fed to from_obz and
+      # fail with a confusing parse error. Skip it loudly instead.
+      unless ['.obz', '.obf'].include?(ext)
+        puts "\n[#{filename}] SKIP: unrecognized extension '#{ext}' (expected .obz or .obf)."
+        next
+      end
       puts "\n[#{filename}] Downloading from #{url}..."
 
       response = SafeHttp.get(url, timeout: 300, connecttimeout: 30)

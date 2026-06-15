@@ -78,6 +78,10 @@ module SystemBoardSources
   # whose own static bucket is private/KMS-encrypted, still resolves it).
   def self.senner_baud_obz_urls
     buckets = [ENV['STATIC_S3_BUCKET'].presence, SENNER_BAUD_OBZ_FALLBACK_BUCKET].compact.uniq
+    # Drop anything that isn't a syntactically valid S3 bucket name, so a
+    # malformed STATIC_S3_BUCKET can't produce a bogus URL (it would just 404
+    # and waste a request); fetch_senner_baud_obz then logs + returns nil.
+    buckets = buckets.select { |b| b =~ /\A[a-z0-9][a-z0-9.\-]{1,61}[a-z0-9]\z/ }
     buckets.map { |b| "https://#{b}.s3.amazonaws.com/#{SENNER_BAUD_OBZ_KEY}" }
   end
 
@@ -154,10 +158,19 @@ module SystemBoardSources
 
     Board.find_by_path(key) || root
   rescue ActiveRecord::RecordNotUnique => e
-    # A board already occupies <user>/senner-baud (e.g. a partial prior run
-    # that imported then died before this re-key). Don't abort the whole seed;
-    # surface the existing board so callers stay idempotent.
+    # A board already occupies <user>/senner-baud (a concurrent seed, or a
+    # partial prior run that imported then died before this re-key). Don't abort
+    # the whole seed; finalize and surface the existing board so callers stay
+    # idempotent and never receive a half-published board.
     Rails.logger.warn("[SystemBoardSources] Senner-Baud re-key collided on #{key} (#{e.message}); returning existing board")
-    Board.find_by_path(key)
+    existing = Board.find_by_path(key)
+    if existing
+      existing.public = true
+      existing.settings['name'] ||= SENNER_BAUD_NAME
+      existing.settings['unlisted'] = false
+      existing.generate_stats
+      existing.save_without_post_processing
+    end
+    existing
   end
 end
