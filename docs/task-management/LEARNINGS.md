@@ -4592,3 +4592,32 @@ distinctive-prefix shapes to gate the skip. Test `.replace`-based scrubbers with
 
 **Evidence:** n8n workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)` / `DeepSeek PII
 Gate`; `scripts/promote-finding.rb` `SECRET_PATTERNS`.
+
+## Pattern: editing a LIVE n8n workflow - share nodes via fan-out, don't rename, verify at runtime
+
+**Context:** extended the PR-bot scrub from one model path to both, and consolidated the
+two-model output (workflow `lbyA52atQjQ8MCqy`).
+
+- **Don't rename a node in a live workflow to "clean up" a now-inaccurate name.** n8n connections
+  and `$('Node Name')` references key on the node NAME; renaming silently breaks every connection
+  and cross-node reference unless every reference is updated in the same atomic op. Keeping a
+  slightly-stale name (`PII Pre-Scrub (DeepSeek)` now scrubs both paths) + a corrected `notes`
+  field is the lower-risk choice. Document the broadened responsibility in notes + the sticky.
+- **Reuse one node via fan-out instead of duplicating logic.** One shared scrub node feeding two
+  IF gates (Claude + DeepSeek), both branching on the same `pii_scrub.secrets_found`, beats two
+  copies of the pattern list (DRY; one place to keep in sync with `lib/pii_scrubber.rb`). A synthetic
+  "Skipped" Code node per gate feeds the SAME Merge input index the real call would, so the
+  downstream reviewer-name lookup is unaffected.
+- **`n8n_validate_workflow` is a heuristic, not a compiler.** It emits false positives on Code
+  nodes: `"Array items must be objects with json property"` fires on a node whose helper functions
+  `return` non-arrays even when the node's actual `return [{ json: ... }]` is correct; `"Invalid $
+  usage"` and `"File system access"` fire on normal `.replace`/`$()` usage. ALWAYS confirm a Code
+  node's real behavior by running its logic standalone in node with stubbed `$input`/`$()` - the
+  runtime output is the source of truth, the validator is advisory.
+- **Consolidating two reviewers' findings:** dedupe by Jaccard token-overlap on finding TITLES
+  (>=0.6), merge to the higher severity + longer detail + union of reviewers, then derive ONE
+  verdict by mapping each model's verdict to a common severity scale and taking the max. Keep the
+  per-model verdicts in a small table so attribution is not lost.
+
+**Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md` follow-on section;
+workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)`, `Claude PII Gate`, `Format Output`.
