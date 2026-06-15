@@ -52,4 +52,24 @@ describe BetaSeed do
       expect(missing).to include('board:lingolinq/vocal-flair-84')
     end
   end
+
+  describe '.delete_content_boards!' do
+    it 'destroys only the given user\'s boards and returns the count' do
+      owner = User.create(user_name: 'lingolinq')
+      other = User.create(user_name: 'someone-else')
+      Board.process_new({name: 'A', public: true}, {user: owner, key: 'a'})
+      Board.process_new({name: 'B', public: true}, {user: owner, key: 'b'})
+      keep = Board.process_new({name: 'C', public: true}, {user: other, key: 'c'})
+
+      deleted = described_class.delete_content_boards!(owner)
+
+      expect(deleted).to eq(2)
+      expect(Board.where(user_id: owner.id).count).to eq(0)
+      expect(Board.find_by(id: keep.id)).to_not eq(nil)
+    end
+
+    it 'raises without a user' do
+      expect { described_class.delete_content_boards!(nil) }.to raise_error(ArgumentError)
+    end
+  end
 end

@@ -271,6 +271,31 @@ module BetaSeed
     end
   end
 
+  # Destroys every board owned by the given content user and returns the count.
+  # Used by the rebuild flow so a re-seed actually re-imports (the ensure_*/openaac
+  # importers skip boards that already exist). Destructive: deleted boards are
+  # recreated with NEW global_ids, so any user copies / home-board references to
+  # them break. Safe on staging (no real users); NOT for prod without an
+  # in-place refresh. Callers are responsible for confirmation/guards.
+  def self.delete_content_boards!(user)
+    raise ArgumentError, 'user required' unless user
+    scope = Board.where(user_id: user.id)
+    count = scope.count
+    scope.find_each(&:destroy)
+    count
+  end
+
+  # Full clean rebuild of the content user's premade library: delete all their
+  # boards, then re-run the baseline seed (starter + sidebar + crisis +
+  # Senner-Baud) and, when import_vocabularies is true, the OpenAAC gallery sets
+  # + Project Core. Returns the number of boards deleted.
+  def self.rebuild_content_boards!(user, import_vocabularies: true)
+    deleted = delete_content_boards!(user)
+    ENV['SEED_IMPORT_OPENAAC_VOCABULARIES'] = '1' if import_vocabularies
+    ensure_baseline!
+    deleted
+  end
+
   def self.verify_beta_seed(require_library_boards: true)
     missing = []
     content_user = User.find_by(user_name: SYSTEM_USER_NAME)
