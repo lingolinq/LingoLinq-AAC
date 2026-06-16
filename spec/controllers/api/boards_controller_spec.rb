@@ -2231,6 +2231,16 @@ describe Api::BoardsController, :type => :controller do
       expect(json['error']).to eq('invalid import bundle URL')
     end
 
+    it "should report invalid URL when sanitization fails" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      post :from_json_bundle, params: { url: 'file:///tmp/bundle.json' }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid URL')
+    end
+
     it "should schedule processing for a valid bundle upload URL" do
       token_user
       allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original

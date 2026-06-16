@@ -144,6 +144,13 @@ describe Converters::ApiJsonBundle do
     end
   end
 
+  describe '.normalize_sound' do
+    it 'stringifies numeric sound ids for sounds_hash key consistency' do
+      normalized = described_class.normalize_sound({ 'id' => 42, 'url' => 'https://example.com/a.mp3' })
+      expect(normalized['id']).to eq('42')
+    end
+  end
+
   describe '.entry_payload' do
     it 'builds images from board.image_urls when API omitted images[]' do
       entry = {

@@ -533,8 +533,11 @@ class Api::BoardsController < ApplicationController
     end
 
     if params['url']
-      url = Uploader.sanitize_url(params['url'])
-      return api_error(400, { error: 'url required' }) unless url.present?
+      raw_url = params['url'].to_s
+      return api_error(400, { error: 'url required' }) if raw_url.blank?
+
+      url = Uploader.sanitize_url(raw_url)
+      return api_error(400, { error: 'invalid URL' }) unless url.present?
       unless Uploader.valid_import_bundle_url?(url, @api_user.global_id)
         return api_error(400, { error: 'invalid import bundle URL' })
       end

@@ -376,6 +376,14 @@ describe Uploadable, :type => :model do
       expect(s.url).to eq(nil)
       expect(s.settings['errored_pending_url']).to eq('data:image/svg+xml,not-valid')
     end
+
+    it "does not read downloaded bytes into memory for sound S3 fallback" do
+      s = ButtonSound.create(user: u, settings: {})
+      file = instance_double(File)
+      expect(file).not_to receive(:rewind)
+      expect(file).not_to receive(:read)
+      expect(s.store_downloaded_file_fallback!(file, 'http://example.com/sound.mp3')).to eq(false)
+    end
   end
 
   describe "verify_stored_s3_upload!" do

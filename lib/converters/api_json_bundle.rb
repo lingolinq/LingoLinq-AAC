@@ -384,7 +384,7 @@ module Converters::ApiJsonBundle
   def self.normalize_sound(sound)
     snd = sound.with_indifferent_access
     {
-      'id' => snd[:id],
+      'id' => snd[:id].to_s,
       'url' => snd[:url],
       'duration' => snd[:duration],
       'content_type' => snd[:content_type],

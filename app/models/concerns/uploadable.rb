@@ -364,11 +364,14 @@ module Uploadable
   # When S3 is unavailable, keep imported symbol-library images usable by storing
   # the already-downloaded bytes or retaining the public CDN URL.
   def store_downloaded_file_fallback!(file, source_url)
+    # Only images can be stored as data_uri or trusted CDN URLs; sounds/videos need S3.
+    return false unless file_type == 'images'
+
     file.rewind
     body = file.read
     return false if body.blank?
 
-    if file_type == 'images' && body.bytesize <= DATA_URI_STORE_MAX_BYTES
+    if body.bytesize <= DATA_URI_STORE_MAX_BYTES
       ct = self.settings['content_type'].presence || 'application/octet-stream'
       data_uri = "data:#{ct};base64,#{Base64.strict_encode64(body)}"
       self.data = data_uri if respond_to?(:data=)
@@ -379,7 +382,7 @@ module Uploadable
       return true
     end
 
-    if file_type == 'images' && importable_symbol_cdn_url?(source_url)
+    if importable_symbol_cdn_url?(source_url)
       self.url = encode_source_url_for_fetch(source_url)
       self.settings['pending'] = false
       self.settings['pending_url'] = nil
