@@ -3,19 +3,21 @@
 > Generated from `audit-reports/FINDINGS.json` by `scripts/citation-check.rb --render`.
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 
-**Audited:** `scot/compliance/audit-phase4-cadence` @ `1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c` on 2026-06-14  
+**Audited:** `origin/staging` @ `d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403` on 2026-06-16  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 1 Critical / 15 High
+**Headline (open + remediated-unverified):** 1 Critical / 17 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (33)
+## Open (40)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
 | LL-e573a39d2b |  | critical | FERPA, HIPAA, COPPA, GDPR | untriaged | audit-run | Eval narration sends slp_notes/sett (student name + clinical notes) to Anthropic with no PiiScrubber | `lib/eval_narrator.rb`:189 |
 | LL-ef5ac1b2a5 |  | high | FERPA, HIPAA | untriaged | audit-run | Eval AI narration creates no AiApiLog entry (no record student eval data was sent to an LLM) | `lib/eval_narrator.rb`:58 |
 | LL-d1ea8659c3 |  | high |  | untriaged | audit-run | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
+| LL-20c48e298c |  | high | WCAG | untriaged | audit-run | Board-tile symbol image has no alt text (template render path) | `app/frontend/app/templates/board/index.hbs`:123 |
+| LL-2967f77e6d |  | high | WCAG | untriaged | audit-run | Board-tile symbol image has no alt text (fast_html render path) | `app/frontend/app/utils/button.js`:449 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | untriaged | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-1085e59d29 | Infra-P1-2 | high | FERPA, HIPAA | untriaged | audit-run | Webhook callback URL validation accepts plaintext http:// | `app/models/webhook.rb`:42 |
 | LL-c6dd65a2aa | Infra-P1-3 | high |  | untriaged | audit-run | Static cache_token='abc' never rotates (stale permission cache) | `config/initializers/resque.rb`:29 |
@@ -32,6 +34,11 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | untriaged | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
 | LL-52ff2a9a79 |  | medium | SOC2 | untriaged | audit-run | CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking | `.github/workflows/ci.yml`:107 |
 | LL-27d20047db |  | medium |  | untriaged | audit-run | Integration board_render_url is writable but never serialized back (read/write field-name asymmetry) | `app/frontend/app/models/integration.js`:24 |
+| LL-5ff3b22093 |  | medium | WCAG | untriaged | audit-run | Legacy Bootstrap close button labeled only by a times glyph, no aria-label | `app/frontend/app/templates/board-details.hbs`:3 |
+| LL-ed914bded3 |  | medium | WCAG | untriaged | audit-run | Raw low-contrast brand token used as text foreground (board-tile language pill) | `app/frontend/app/styles/app.scss`:193 |
+| LL-40dd412ed6 |  | medium | WCAG | untriaged | audit-run | Rails application layout html element has no lang attribute | `app/views/layouts/application.html.erb`:2 |
+| LL-70abe7d9a9 |  | medium | WCAG | untriaged | audit-run | Icon-only remove button named only by a non-i18n title attribute | `app/frontend/app/templates/share-board.hbs`:101 |
+| LL-13ad11eaee |  | medium | WCAG | untriaged | audit-run | Loading status text has no aria-live or role=status | `app/frontend/app/templates/bento.hbs`:14 |
 | LL-991d259b2a | P2-1 | medium |  | untriaged | audit-run | flush_leftovers is unimplemented (orphan records accumulate) | `lib/flusher.rb`:48 |
 | LL-55baae6d40 | P2-4 | medium | GDPR | untriaged | audit-run | external_reference exposed in license JSON without permission check | `lib/json_api/license.rb`:16 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | untriaged | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
@@ -70,4 +77,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_44 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_51 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
