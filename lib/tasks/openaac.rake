@@ -1,5 +1,9 @@
-# OpenAAC vocabulary import: download OBZ files from openboards.s3.amazonaws.com
-# and import using Converters::LingoLinq.from_obz().
+# OpenAAC vocabulary import: download OBZ/OBF files from openboards.s3.amazonaws.com
+# and import using Converters::LingoLinq.from_obz() (.obz sets) or
+# Converters::LingoLinq.from_obf() (single .obf boards, e.g. Project Core).
+#
+# Imported boards are public and gallery-visible under the owning user, but are
+# NOT added to the signup sidebar library (SystemBoardSources::SIGNUP_LIBRARY_SLUGS).
 #
 # Run: bundle exec rake openaac:import_vocabularies
 #
@@ -10,7 +14,7 @@
 namespace :openaac do
   OPENBOARDS_BASE = 'https://openboards.s3.amazonaws.com/examples'
 
-  VOCABULARY_OBZ_FILES = [
+  VOCABULARY_FILES = [
     'quick-core-24.obz',
     'quick-core-40.obz',
     'quick-core-60.obz',
@@ -24,10 +28,11 @@ namespace :openaac do
     'vocal-flair-112.obz',
     'sequoia-15.obz',
     'communikate-20.obz',
-    'ck12.obz'
+    'ck12.obz',
+    'project-core.obf'   # Universal Core 36 (CC BY 4.0); single .obf board
   ].freeze
 
-  desc 'Download OBZ files from openboards.s3.amazonaws.com and import via Converters::LingoLinq.from_obz()'
+  desc 'Download OBZ/OBF files from openboards.s3.amazonaws.com and import via Converters::LingoLinq'
   task import_vocabularies: :environment do
     require 'safe_http'
     require Rails.root.join('lib', 'converters', 'lingo_linq')
@@ -36,12 +41,20 @@ namespace :openaac do
     raise "User not found: #{user_name}. Run db:seed or create the user first." unless user
 
     only = ENV['ONLY']
-    files = only.present? ? [only] : VOCABULARY_OBZ_FILES
+    files = only.present? ? [only] : VOCABULARY_FILES
 
-    puts "Importing #{files.size} vocabulary OBZ file(s) as user #{user_name}..."
+    puts "Importing #{files.size} vocabulary file(s) as user #{user_name}..."
 
     files.each do |filename|
       url = "#{OPENBOARDS_BASE}/#{filename}"
+      ext = File.extname(filename).downcase
+      # Don't silently coerce an unknown extension to .obz; a typo in
+      # VOCABULARY_FILES (e.g. ".ofb") would otherwise be fed to from_obz and
+      # fail with a confusing parse error. Skip it loudly instead.
+      unless ['.obz', '.obf'].include?(ext)
+        puts "\n[#{filename}] SKIP: unrecognized extension '#{ext}' (expected .obz or .obf)."
+        next
+      end
       puts "\n[#{filename}] Downloading from #{url}..."
 
       response = SafeHttp.get(url, timeout: 300, connecttimeout: 30)
@@ -50,15 +63,26 @@ namespace :openaac do
         next
       end
 
-      Tempfile.create(['vocab_', '.obz']) do |tmp|
+      Tempfile.create(['vocab_', ext]) do |tmp|
         tmp.binmode
         tmp.write(response.body)
         tmp.close
 
-        puts "  Importing with Converters::LingoLinq.from_obz()..."
-        # Ensure 'boards' hash is present to prevent nil errors during linking
-        boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => user, 'boards' => {})
-        
+        # Ensure 'boards' hash is present to prevent nil errors during linking.
+        # from_obf returns a single board; wrap it so post-processing is uniform.
+        if ext == '.obf'
+          puts "  Importing with Converters::LingoLinq.from_obf()..."
+          boards = Array(Converters::LingoLinq.from_obf(tmp.path, 'user' => user, 'boards' => {}))
+        else
+          puts "  Importing with Converters::LingoLinq.from_obz()..."
+          boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => user, 'boards' => {})
+        end
+
+        if boards.blank?
+          puts "  WARN: #{filename} downloaded but produced no boards (parse returned nothing); skipping."
+          next
+        end
+
         puts "  OK: imported #{boards.size} board(s). Configuring settings..."
         
         boards.each_with_index do |board, idx|

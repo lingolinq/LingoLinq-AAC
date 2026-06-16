@@ -28,7 +28,6 @@ end
 
 data = JSON.parse(File.read(json_path))
 meta = data['meta'] || {}
-generated = meta['generatedDate'] || Time.now.utc.strftime('%Y-%m-%d')
 owner = meta['owner'] || 'compliance-officer'
 
 def framework_label(fw)
@@ -47,8 +46,25 @@ rescue ArgumentError
   nil
 end
 
-today = Date.today
-window_end = today + 90
+# Resolve the calendar's generation date ONCE and use it for BOTH the header and the "due within
+# 90 days / overdue" window, so the render is a PURE function of the JSON (the render on disk
+# changes only when the JSON changes). Anchoring the window to Date.today made it drift every day
+# as items crossed the 90-day boundary, reddening `--check` on every PR built on a later date even
+# when nobody touched the calendar. The .md is a dated snapshot ("Generated: <date>"); live "what
+# is due right now" is surfaced by /compliance-status, not by this static render.
+#
+# A present-but-malformed generatedDate is a hand-edit mistake: fail loudly rather than silently
+# falling back to the wall clock (which would reintroduce the very drift this guards against). Only
+# a fully ABSENT generatedDate falls back to today, for an undated scratch JSON.
+if meta.key?('generatedDate')
+  generated_date = parse_date(meta['generatedDate']) ||
+    abort("compliance-calendar-render: meta.generatedDate present but unparseable: #{meta['generatedDate'].inspect}")
+else
+  generated_date = Date.today
+end
+generated = generated_date.strftime('%Y-%m-%d')
+window_anchor = generated_date
+window_end = window_anchor + 90
 
 recurring = data['recurringReviews'] || []
 fixed = data['fixedRegulatoryDates'] || []
