@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
-import { next, debounce, cancel, later as runLater } from '@ember/runloop';
+import { next, debounce, cancel, later as runLater, scheduleOnce } from '@ember/runloop';
 import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
@@ -13,6 +13,7 @@ import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import contentGrabbers from '../utils/content_grabbers';
 import persistence from '../utils/persistence';
+import speecher from '../utils/speecher';
 import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 
@@ -133,6 +134,20 @@ export default Component.extend({
     this.set('show_paint_dropdown', false);
     this.set('show_paint_color_picker', false);
     this.set('custom_paint_color', '#4a90d9');
+    // Words tapped on the preview grid, shown in the preview speak bar (mirrors
+    // board-detail speak mode's sentence box). Single-clicking a button appends
+    // its label here and speaks it; the bar's Speak/Backspace/Clear act on it.
+    this.set('_speak_words', []);
+    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue
+    // Anyway" flips this to dismiss it for the session.
+    this.set('orientation_overlay_dismissed', false);
+    // Create-method chooser: on entry to the create-board page, present three
+    // animated options (Create My Own / Import / Generate with AI). Picking one
+    // routes into that flow and dismisses the chooser.
+    this.set('show_create_chooser', true);
+    // True once the user picked "Create My Own Board" from the chooser — swaps the
+    // header title to "Create My Own Board".
+    this.set('via_create_own', false);
     // Field-level validation tracking. `_field_touched` flips true after
     // the user has interacted with a field and blurred it; `_submit_attempted`
     // flips true after the first time the user clicks Create with required
@@ -396,10 +411,13 @@ export default Component.extend({
        Text Settings sitting at the bottom of the rail. */
     { id: 'background', label: i18n.t('board_detail_background', "Background") },
     { id: 'layout',     label: i18n.t('board_detail_board_layout', "Board Layout") },
-    { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols") },
+    { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols"), short_label: i18n.t('symbols', "Symbols") },
     { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") },
-    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border") },
-    { id: 'skin',       label: i18n.t('board_detail_skin_tones', "Skin Tones") },
+    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border"), short_label: i18n.t('shape_border', "Shape/Border") },
+    /* Skin Tones section temporarily hidden from the create-board rail — the
+       in-rail dropdown positioning needs rework; removed from the list so the
+       toggle + its body don't render. Re-add this entry to restore it. */
+    /* { id: 'skin',    label: i18n.t('board_detail_skin_tones', "Skin Tones") }, */
     { id: 'speakbar',   label: i18n.t('board_detail_speak_bar', "Speak Bar") },
     { id: 'text',       label: i18n.t('board_detail_text_settings', "Text Settings") }
     /* Gap removed — Grid Gap lives in the Board Layout section. */
@@ -1949,18 +1967,16 @@ export default Component.extend({
       this.set('_dragSourceIdx', null);
       this._clearCellDropHighlight(event && event.currentTarget);
     },
+    // Inline-edit a cell's label. Now triggered by DOUBLE-click (the cell's
+    // `ondblclick`) — a single click speaks the button (see cellClicked). Paint
+    // mode still hijacks the cell: while painting, a single click already applied
+    // the color, so the double-click must NOT open inline edit (and must not
+    // re-toggle the paint). Editing is also always available via the label chips.
     startCellEdit: function(idx, event) {
       if(event && event.stopPropagation) { event.stopPropagation(); }
       var labels = this.get('parsed_labels') || [];
       if(idx >= labels.length || !labels[idx]) { return; }
-      // Paint mode hijacks the cell click: instead of opening the inline
-      // edit, apply the currently-armed paint color to this label. Mirrors
-      // the board-detail edit flow where clicks-while-painting paint
-      // instead of selecting/editing the button.
-      if(this.get('paint_mode')) {
-        this.send('paint_button', labels[idx]);
-        return;
-      }
+      if(this.get('paint_mode')) { return; }
       this.set('_editIdx', idx);
       this.set('_editValue', labels[idx]);
       var _this = this;
@@ -2008,33 +2024,115 @@ export default Component.extend({
       labels.splice(idx, 1);
       this.set('model.grid.labels', labels.join('\n'));
     },
-    /** Cell-wrapper click handler. Exists primarily so paint mode can
-     *  apply to the *whole card* (symbol image + padding + edges), not
-     *  just the label-text area covered by `__label-btn`. When paint
-     *  mode is off this is a no-op — clicks on the label-btn continue
-     *  to fire `startCellEdit` directly with `bubbles=false`, and clicks
-     *  on the X / warning icon don't bubble here either. So this only
-     *  catches the dead-zone clicks (image area, padding) that
-     *  previously did nothing. */
-    cellClicked: function(idx, event) {
-      if(!this.get('paint_mode')) { return; }
-      // Defer to the X (remove) button when the user clicked it or
-      // any of its descendants (e.g. the SVG inside). The X uses
-      // {{action "removeCellAt" ... bubbles=false}} which Ember
-      // dispatches via a root-delegated listener — that listener
-      // fires AFTER this bubble-phase onclick handler runs, so the
-      // X's bubbles=false alone can't suppress this handler. Calling
-      // event.stopPropagation() below would cancel the event before
-      // it reaches Ember's root and removeCellAt would never fire.
-      // Opt out explicitly so the X still removes the label while
-      // paint mode is armed.
+    /** Cell click handler for the WHOLE card (symbol image + padding + edges +
+     *  the label-text button, which forwards here). A single click:
+     *    - paint mode ON  → applies the armed color to this button;
+     *    - paint mode OFF → speaks the button and appends it to the preview
+     *      speak bar, exactly like board-detail speak mode.
+     *  Clicks on the X (remove) are ignored here, and a drag never fires `click`
+     *  (native HTML5 drag suppresses it), so dragging a button doesn't speak. */
+    cellClicked: function(idx, image_url, event) {
+      // Defer to the X (remove) button when the user clicked it or any of its
+      // descendants (e.g. the SVG inside). The X uses {{action "removeCellAt" ...
+      // bubbles=false}}, which Ember dispatches via a root-delegated listener that
+      // fires AFTER this bubble-phase onclick — so bubbles=false alone can't
+      // suppress this handler, and calling stopPropagation() here would cancel the
+      // event before it reaches Ember's root (removeCellAt would never fire). Opt
+      // out explicitly instead.
       if(event && event.target && event.target.closest && event.target.closest('.md-board-detail-symbol-card__remove')) {
         return;
       }
+      // The 2nd click of a double-click opens inline edit (ondblclick →
+      // startCellEdit); don't also speak/paint on it. event.detail is the
+      // consecutive-click count (1 = single, ≥2 = part of a double-click).
+      if(event && event.detail > 1) { return; }
       var labels = this.get('parsed_labels') || [];
       if(idx < 0 || idx >= labels.length || !labels[idx]) { return; }
-      if(event && event.stopPropagation) { event.stopPropagation(); }
-      this.send('paint_button', labels[idx]);
+      if(this.get('paint_mode')) {
+        if(event && event.stopPropagation) { event.stopPropagation(); }
+        this.send('paint_button', labels[idx]);
+        return;
+      }
+      // `image_url` is the cell's resolved (skinned) symbol URL, passed from the
+      // template so the speak-bar chip shows the SAME symbol as the button — just
+      // like board-detail speak mode's sentence box (it falls back to text-only
+      // when there's no symbol or the user chose words-only).
+      this.send('speak_word', labels[idx], image_url);
+    },
+    // ── Preview speak bar (mirrors board-detail speak mode) ──────────────
+    // Tapping a grid button appends a { label, image_url } chip to `_speak_words`
+    // and speaks it; the speak bar's Speak / Backspace / Clear act on the list.
+    speak_word: function(label, image_url) {
+      if(!label) { return; }
+      var _this = this;
+      var entry = { label: label, image_url: image_url || null };
+      var words = (this.get('_speak_words') || []).slice();
+      words.push(entry);
+      this.set('_speak_words', words);
+      try { speecher.speak_text(label); } catch(e) { /* speech is best-effort */ }
+      // Don't let the bar bleed into the action buttons or scroll: once the
+      // newly-added chip pushes the content past the bar's width (or wraps to a
+      // second line), reset the bar to just this latest word so the user keeps
+      // building from a clean line. Measured AFTER the chip renders.
+      scheduleOnce('afterRender', this, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var el = (_this.element || document).querySelector('.md-board-detail-sentence-bar__text');
+        if(!el) { return; }
+        if(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) {
+          _this.set('_speak_words', [entry]);
+        }
+      });
+    },
+    speak_sentence: function() {
+      var words = this.get('_speak_words') || [];
+      if(!words.length) { return; }
+      var text = words.map(function(w) { return w.label; }).join(' ');
+      try { speecher.speak_text(text); } catch(e) { /* best-effort */ }
+    },
+    speak_backspace: function() {
+      var words = (this.get('_speak_words') || []).slice();
+      if(!words.length) { return; }
+      words.pop();
+      this.set('_speak_words', words);
+    },
+    speak_clear: function() {
+      this.set('_speak_words', []);
+    },
+    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for
+    // the rest of the session (accessibility escape for mounted / non-rotatable
+    // setups). Adds nb-orientation-overlay--dismissed, which beats the media query.
+    dismiss_orientation_overlay: function() {
+      this.set('orientation_overlay_dismissed', true);
+    },
+    // ── Create-method chooser actions ──────────────────────────────────
+    // "Create My Own Board" → the regular create-board form (dismiss the chooser;
+    // ensure we're not in AI mode).
+    choose_create_own: function() {
+      this.send('set_create_mode', 'regular');
+      this.set('via_create_own', true);
+      this.set('show_create_chooser', false);
+    },
+    // "Import Board(s)" → open the native board-file picker (#board_upload is
+    // always rendered behind the chooser; content-grabbers.js handles the upload
+    // on change). Clicked synchronously so it stays inside the user gesture.
+    choose_import: function() {
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+      var el = document.getElementById('board_upload');
+      if(el) { el.click(); }
+    },
+    // "Generate with AI" → the in-page AI generation flow.
+    choose_ai: function() {
+      this.send('set_create_mode', 'ai');
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+    },
+    // "Other Create Board Methods" (regular form) → reopen the chooser so the
+    // user can switch to Import / Generate with AI.
+    open_create_chooser: function() {
+      this.send('set_create_mode', 'regular');
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', true);
     },
     cellEditKeydown: function(event) {
       var key = event.key;
@@ -2166,11 +2264,30 @@ export default Component.extend({
     // other). Clicking the open one closes it. Drives the grid's
     // max-height expansion via the .nb-preview-stage--expanded class.
     toggle_create_rail_section: function(id) {
+      // The Paint section header doubles as the paint-mode indicator + toggle:
+      // once a color is armed its icon shows the active state (see the
+      // --paint-armed class in the template), and clicking the header again turns
+      // paint mode OFF and collapses the section — dimming the icon back to
+      // neutral. Mirrors the dual-purpose in-section palette button
+      // (toggle_paint_dropdown). When paint mode is NOT armed, the header just
+      // expands/collapses like every other section.
+      if(id === 'paint' && this.get('paint_mode')) {
+        this.send('clear_paint_mode');
+        this.set('show_paint_dropdown', false);
+        this.set('create_rail_open_section', null);
+        return;
+      }
       if(this.get('create_rail_open_section') === id) {
         this.set('create_rail_open_section', null);
       } else {
         this.set('create_rail_open_section', id);
       }
+    },
+    // "Back" affordance for the narrow (<=1024px) rail: collapses whatever
+    // section is open and returns to the full section list. Unlike the
+    // toggle above it never touches paint mode — it's purely navigational.
+    close_create_rail_section: function() {
+      this.set('create_rail_open_section', null);
     },
     toggleLabelsList: function() {
       this.toggleProperty('labels_list_open');
@@ -2196,6 +2313,17 @@ export default Component.extend({
       this.set('core_words', null);
       this.set('_editIdx', null);
       this.set('_editValue', '');
+      // On an AI-generation board, clearing the grid resets back to the generate
+      // step: dropping ai_labels_generated collapses the labels section (the
+      // full-size "Size & Labels" editor is gated on show_full_size_section =
+      // !ai_mode || ai_labels_generated) and re-reveals the AI description +
+      // Generate UI, so the user can re-generate from their description. Also
+      // collapse any open labels list and clear a stale generate error.
+      if(this.get('ai_mode')) {
+        this.set('ai_labels_generated', false);
+        this.set('labels_list_open', false);
+        this.set('ai_generate_error', null);
+      }
     },
     importCsv: function() {
       var input = document.getElementById('new_board_csv_input');

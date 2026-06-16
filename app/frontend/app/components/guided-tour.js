@@ -218,11 +218,11 @@ export default Component.extend({
   router: service('router'),
 
   // The dashboard layout actually in effect — mirrors
-  // dashboard/authenticated-view's effectiveLayout (default 'focused'; any
+  // dashboard/authenticated-view's effectiveLayout (default 'gentle'; any
   // unset/legacy value resolves to it). Used to pick the per-layout tour.
   effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', function() {
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
-    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'focused'; }
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
+    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
     return layout;
   }),
 
@@ -519,7 +519,24 @@ export default Component.extend({
           if (s && typeof s.on === 'function') {
             s.on('hide', function() {
               try {
-                if (s.el) { s.el.style.transition = 'opacity 0.45s ease'; s.el.style.opacity = '0'; }
+                if (!s.el) { return; }
+                // Steps anchored to an identity-dropdown MENU ITEM (the home tour's
+                // account-menu walkthrough) are a special case: advancing CLOSES the
+                // dropdown (next step's show hook → setIdentityDropdownOpen(false)),
+                // which removes the very element this popover is anchored to. A
+                // popover still mid-fade then has no anchor, so floating-ui flings it
+                // to the top-left (0,0) — the "Sign Out card flashes top-left" glitch.
+                // Snap these out INSTANTLY so there's nothing visible left to
+                // reposition. Every other step keeps the gentle cross-fade.
+                var sid = s.id || (s.options && s.options.id) || '';
+                var isDropdownItemStep = sid.indexOf('home_tour_iddrop_') === 0 || sid === 'home_tour_t_account';
+                if (isDropdownItemStep) {
+                  s.el.style.transition = 'none';
+                  s.el.style.opacity = '0';
+                } else {
+                  s.el.style.transition = 'opacity 0.45s ease';
+                  s.el.style.opacity = '0';
+                }
               } catch (e) { /* fade is best-effort */ }
             });
           }

@@ -113,6 +113,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it](#pattern-a-css-background-image-on-a-shepherd-popover-or-any-lazily-injected-element-flashes-blank-on-first-open--preload-it)
 - [Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition](#pattern-a-guided-tour-auto-open-flag-consumed-at-a-single-afterrender-misses-when-the-gating-state-edit_mode-resolves-on-a-promise-microtask--poll-the-condition)
 - [Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys](#pattern-i18n_generatorrb---merge-does-not-refresh-changed-english-into-existing-locale-placeholders--only-adds-missing-keys)
+- [Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly](#pattern-a-shepherd-popover-anchored-to-an-element-that-gets-removed-mid-transition-is-flung-to-the-top-left-00-by-floating-ui--snap-it-out-instantly)
 - [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
 - [Pattern: a click-to-speak container that holds the inline word-prediction buttons CANNOT be `role="button"`](#pattern-a-click-to-speak-or-click-to-act-container-that-holds-the-inline-word-prediction-buttons-cannot-be-rolebutton)
 - [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
@@ -4955,3 +4956,74 @@ file parses as JSON after a `sed` sweep (`ruby -e "require 'json'; JSON.parse(..
 Escape `&` as `\&` in the sed replacement.
 
 **First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md)
+
+---
+
+## Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly
+
+**Surface:** a guided-tour step (ember-shepherd) attached to an element that
+DISAPPEARS as the tour advances — classically a dropdown/menu item, where
+advancing to the next step closes the dropdown (e.g. the home tour's account-menu
+walkthrough → setIdentityDropdownOpen(false) on the next step's show hook).
+
+**Symptom:** when leaving that step, the OUTGOING popover (which is still
+mid-cross-fade, kept rendered by the app.scss `[hidden]` rule) briefly flashes at
+the top-left corner of the page before the next step settles. The flashing card
+shows the outgoing step's own text (e.g. "Sign Out").
+
+**Root cause:** the cross-fade keeps the outgoing popover in the DOM and visible
+(opacity transitioning over ~0.45s). floating-ui is still positioning it against
+its anchor. When the dropdown closes, the anchor element becomes display:none
+(zero box), so floating-ui recomputes and places the popover at the fallback 0,0
+— top-left — for the remainder of the fade.
+
+**Fix:** for steps anchored to a disappearing element, snap the outgoing popover
+out INSTANTLY (`transition:none; opacity:0`) on its `hide` event instead of
+cross-fading it, so there is nothing visible left for floating-ui to reposition.
+Detect those steps by id (e.g. ids starting with `home_tour_iddrop_`); every other
+step keeps the gentle cross-fade. Cheaper and more robust than trying to delay the
+dropdown close past the fade or freeze the popover's transform.
+
+**First seen in:** [2026-06-15-tour-signout-flash-top-left.md](./2026-06-15-tour-signout-flash-top-left.md)
+
+---
+
+## Dropdown clipped by a PAGE-level `overflow: hidden` ancestor — z-index can't fix it
+
+**Surface:** an absolutely-positioned in-panel dropdown (e.g. the create-board-new
+Edit Tools rail's `.md-settings-dropdown-menu` for skin tones / fonts) that opens
+but gets cut off, no matter how high its z-index is raised.
+
+**Root cause:** the menu is clipped by an ANCESTOR with `overflow: hidden` (or
+`overflow-y: auto`), not by sibling stacking. On the create-board-new PAGE the
+clippers were page-level wrappers — `.beta-program-access`,
+`.with_user…content--no-top-padding`, and `body`. z-index only resolves
+sibling/stacking order; it NEVER lets content escape an `overflow:hidden` clip box.
+
+**Diagnose, don't guess:** with the dropdown open, run a console ancestor-walk from
+the menu node up to `<html>`, logging each ancestor's computed
+`overflow`/`overflowX`/`overflowY`, `transform`, `clipPath`, `contain`, and bounding
+rect; flag any whose box ends before the menu's edge AND has overflow≠visible. The
+flagged node is the actual clipper.
+
+**Two fixes, by requirement:**
+- *In-panel is OK* → **flow-position** (`position: static; width: 100%` on the menu
+  + `display: block` on the wrap). Simplest; the menu grows the section down the
+  panel and the page scrolls. BUT it's bounded by the panel width — in a narrow
+  rail the labels truncate.
+- *Menu must SPILL OUTSIDE the container* (narrow rail, full labels in view) →
+  **anchored `position: fixed`** (the floating-ui/Popper pattern) is the intended
+  approach, BUT a hand-rolled in-place version for the create-board-new rail did
+  NOT land (inline coords never reliably applied; menu rendered off-screen). It was
+  reverted and the **Skin Tones section hidden** as a stopgap — STATUS: UNRESOLVED.
+  If revisited, do NOT hand-roll fixed positioning in place: PORTAL the menu to
+  `<body>` with Ember's built-in `{{in-element}}` (what ember-basic-dropdown/Popper
+  do) so there is no clipping ancestor at all, then position from the trigger.
+
+**Gotcha:** switching the menu to `position: static` dropped it BELOW the fixed
+close-backdrop (z-index 100), so the backdrop swallowed option clicks (selection
+"stopped working"). A positioned menu (`relative`/`fixed`) with z-index > backdrop
+keeps clicks working.
+
+**First seen in:** create-board-new Edit Tools rail dropdowns (traci/styling).
+See `docs/styling-recurring-problems.md` #1 for both fixes.
