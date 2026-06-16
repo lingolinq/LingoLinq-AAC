@@ -108,4 +108,54 @@ describe BetaSeed do
       expect(described_class.content_boards_referenced_by_others(owner)).to eq(0)
     end
   end
+
+  describe '.rebuild_content_boards!' do
+    it 'rolls back deletes and restores ENV when ensure_baseline! fails' do
+      owner = User.create(user_name: 'lingolinq')
+      Board.process_new({name: 'A', public: true}, {user: owner, key: 'a'})
+      prior_flag = ENV['SEED_IMPORT_OPENAAC_VOCABULARIES']
+      ENV.delete('SEED_IMPORT_OPENAAC_VOCABULARIES')
+      allow(described_class).to receive(:ensure_baseline!).and_raise('seed failed')
+
+      expect {
+        described_class.rebuild_content_boards!(owner, import_vocabularies: true)
+      }.to raise_error('seed failed')
+
+      expect(Board.where(user_id: owner.id).count).to eq(1)
+      expect(ENV['SEED_IMPORT_OPENAAC_VOCABULARIES']).to eq(prior_flag)
+    end
+
+    it 'refuses when other users reference content boards without ALLOW_REFERENCED_DELETE' do
+      owner = User.create(user_name: 'lingolinq')
+      board = Board.process_new({name: 'Lib', public: true}, {user: owner, key: 'lib'})
+      other = User.create(user_name: 'u1')
+      UserBoardConnection.create!(user_id: other.id, board_id: board.id, home: true)
+      prior = ENV['ALLOW_REFERENCED_DELETE']
+      ENV.delete('ALLOW_REFERENCED_DELETE')
+      begin
+        expect {
+          described_class.rebuild_content_boards!(owner)
+        }.to raise_error(/reference these boards/)
+
+        expect(Board.where(user_id: owner.id).count).to eq(1)
+      ensure
+        if prior.nil?
+          ENV.delete('ALLOW_REFERENCED_DELETE')
+        else
+          ENV['ALLOW_REFERENCED_DELETE'] = prior
+        end
+      end
+    end
+
+    it 'deletes and re-seeds when pre-flight checks pass' do
+      allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
+      owner = User.create(user_name: 'lingolinq')
+      Board.process_new({name: 'Old', public: true}, {user: owner, key: 'old-lib'})
+
+      deleted = described_class.rebuild_content_boards!(owner, import_vocabularies: false)
+
+      expect(deleted).to eq(1)
+      expect(Board.find_by_path(SystemBoardSources.board_key('one'))).to_not eq(nil)
+    end
+  end
 end

@@ -283,9 +283,13 @@ module BetaSeed
   def self.delete_content_boards!(user)
     raise ArgumentError, 'user required' unless user
     scope = Board.where(user_id: user.id)
-    count = scope.count
+    expected = scope.count
     scope.find_each(&:destroy)
-    count
+    remaining = Board.where(user_id: user.id).count
+    if remaining.positive?
+      raise "Delete incomplete: expected #{expected} board(s) removed, #{remaining} remain"
+    end
+    expected
   end
 
   # Required SEED_* env that ensure_baseline! will demand in staging/production.
@@ -313,15 +317,58 @@ module BetaSeed
   # boards, then re-run the baseline seed (starter + sidebar + crisis +
   # Senner-Baud) and, when import_vocabularies is true, the OpenAAC gallery sets
   # + Project Core. Returns the number of boards deleted. Raises BEFORE deleting
-  # if required seed env is missing, so it can never leave the library empty.
+  # if required seed env is missing or other users reference these boards, so it
+  # can never leave the library empty. Delete + re-seed run in one transaction
+  # so a seed failure rolls back the deletes.
   def self.rebuild_content_boards!(user, import_vocabularies: true)
     missing = missing_required_seed_env
     raise "Cannot rebuild: required seed env missing (#{missing.join(', ')})" if missing.any?
-    deleted = delete_content_boards!(user)
-    ENV['SEED_IMPORT_OPENAAC_VOCABULARIES'] = '1' if import_vocabularies
-    ensure_baseline!
+
+    referenced = content_boards_referenced_by_others(user)
+    if referenced.positive? && ENV['ALLOW_REFERENCED_DELETE'].to_s !~ TRUTHY_PATTERN
+      raise "Cannot rebuild: #{referenced} other user(s) reference these boards (home/sidebar). " \
+            'Set ALLOW_REFERENCED_DELETE=1 only if this is throwaway data.'
+    end
+
+    expected_count = Board.where(user_id: user.id).count
+    deleted = nil
+    env_overrides = {}
+    env_overrides['SEED_IMPORT_OPENAAC_VOCABULARIES'] = '1' if import_vocabularies
+
+    with_temporary_env(env_overrides) do
+      ActiveRecord::Base.transaction do
+        deleted = delete_content_boards!(user)
+        if deleted != expected_count
+          raise "Delete count mismatch: expected #{expected_count}, deleted #{deleted}"
+        end
+        ensure_baseline!
+      end
+    end
+
     deleted
   end
+
+  # Temporarily set ENV keys for the duration of a block, restoring prior values
+  # (or deleting keys that were unset) even when the block raises.
+  def self.with_temporary_env(overrides)
+    return yield if overrides.empty?
+
+    prior = {}
+    overrides.each do |key, value|
+      prior[key] = ENV.key?(key) ? ENV[key] : :__unset__
+      ENV[key] = value.to_s
+    end
+    yield
+  ensure
+    prior&.each do |key, old|
+      if old == :__unset__
+        ENV.delete(key)
+      else
+        ENV[key] = old
+      end
+    end
+  end
+  private_class_method :with_temporary_env
 
   def self.verify_beta_seed(require_library_boards: true)
     missing = []
