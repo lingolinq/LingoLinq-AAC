@@ -44,8 +44,47 @@ FRAMEWORK_ENUM = %w[FERPA COPPA HIPAA GDPR WCAG SOC2].freeze
 # Statuses a finder may NOT change. If a known id carries one of these, the finder's re-find
 # is a regression candidate, not a status flip.
 SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded].freeze
+# Dispositions only Scot sets (schema 1.1, every value except untriaged). Disposition is a SEPARATE
+# Scot-owned axis from status: a finding can be status "open" yet disposition "dismissed-false-positive"
+# or "wontfix". A finder re-finding such a finding is re-raising something Scot already decided, so it
+# must be flagged like a regression, not silently re-anchored as a routine reseen. (Mirrors
+# scripts/promote-finding.rb; kept in lockstep by hand.)
+SCOT_OWNED_DISPOSITIONS = %w[accepted fixed dismissed-false-positive wontfix].freeze
 # The only status this script is ever allowed to assign.
 ASSIGNABLE_STATUS = 'open'
+
+# --- PII / secret detection (mirrors scripts/promote-finding.rb + lib/pii_scrubber.rb) -----------
+# The register is code/path evidence only and is a Claude-only compliance surface. A finder finding
+# whose text carries an identifier or a secret is REFUSED, not redacted: such evidence has no business
+# in the SSOT. Finders are read-only and code-scoped by contract, so this is defense-in-depth -- but
+# the register is git-tracked, so a single mis-shaped finder snippet must never be able to commit a
+# student email or a credential. Patterns are kept in lockstep with promote-finding.rb by hand.
+PII_PATTERNS = {
+  email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,
+  phone: /\b(?:\+?1[-.\s])?(?:\(\d{3}\)|\d{3})[-.\s]\d{3}[-.\s]\d{4}\b/,
+  ssn: /\b\d{3}-\d{2}-\d{4}\b/,
+  ip: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/,
+  global_id: /\b\d+_\d+(?:_[a-zA-Z0-9]+)?\b/
+}.freeze
+
+# Secret shapes (gitleaks-style, abbreviated). A match refuses the finding outright.
+SECRET_PATTERNS = {
+  aws_access_key: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
+  private_key_block: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/,
+  github_token: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b/,
+  slack_token: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/,
+  openai_key: /\bsk-[A-Za-z0-9]{20,}\b/,
+  google_api_key: /\bAIza[0-9A-Za-z\-_]{35}\b/,
+  stripe_key: /\b(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{16,}\b/,
+  jwt: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
+  db_url_with_credentials: %r{\b[a-z][a-z0-9+.\-]*://[^:@/\s]+:[^@/\s]+@},
+  # Assignment form: `password = "..."`, `token: ...`, `api_key=...`.
+  bearer_secret: /\b(?:bearer|token|secret|password|passwd|api[_-]?key)\b\s*[:=]\s*["']?[A-Za-z0-9\/+_=\-]{12,}/i,
+  # HTTP Authorization header form: `Authorization: Bearer <token>` (space-separated, no [:=]).
+  http_bearer: %r{\bBearer\s+[A-Za-z0-9._~+/\-]{20,}=*},
+  # Google OAuth 2.0 access token.
+  google_oauth_token: /\bya29\.[0-9A-Za-z_-]{20,}/
+}.freeze
 
 opts = { ins: [], ref: nil, date: nil, summary: nil }
 OptionParser.new do |o|
@@ -83,9 +122,10 @@ def finding_id(rule_key, path)
   'LL-' + Digest::SHA256.hexdigest("#{rule_key}|#{path}")[0, 10]
 end
 
-# True if `snippet` (whitespace-normalized) appears in `file` at `sha`. Mirrors the matching
-# scripts/citation-check.rb uses, so a finding this script accepts is one citation-check will
-# pass. Used to refuse evidence that would redden the register on the next /audit-run.
+# True if `snippet` (whitespace-normalized) appears on a single line of `file` at `sha`. Mirrors the
+# per-LINE matching scripts/citation-check.rb uses, so a finding this script accepts is one
+# citation-check will pass. Used to refuse evidence that would redden the register on the next
+# /audit-run.
 def snippet_present?(file, snippet, sha)
   return false if file.to_s.empty? || snippet.to_s.strip.empty?
   out, _err, status =
@@ -98,7 +138,36 @@ def snippet_present?(file, snippet, sha)
   content = nil if !sha.to_s.empty? && !(status && status.success?)
   return false if content.nil?
   norm = ->(s) { s.to_s.gsub(/\s+/, ' ').strip }
-  norm.call(content).include?(norm.call(snippet))
+  needle = norm.call(snippet)
+  return false if needle.empty?
+  # Per-LINE, identical to scripts/citation-check.rb and scripts/promote-finding.rb: a multi-line
+  # snippet matches no single source line, so reject it here instead of accepting it via a
+  # whole-file include() that citation-check would then FAIL (reddening the register).
+  content.each_line.any? { |line| norm.call(line).include?(needle) }
+end
+
+# Every string (keys AND values) anywhere in a finding, walked recursively. A named-field allowlist is
+# unsafe: the WHOLE finding is copied into the register (remediation et al. pass through verbatim), so
+# PII hiding in a nested object or an arbitrary key would slip past a field-by-field scan. Mirrors
+# scripts/promote-finding.rb#deep_strings.
+def deep_strings(node, acc = [])
+  case node
+  when String then acc << node
+  when Hash   then node.each { |k, v| acc << k.to_s; deep_strings(v, acc) }
+  when Array  then node.each { |v| deep_strings(v, acc) }
+  end
+  acc
+end
+
+# Scan a finding's ENTIRE text (every nested string) for PII/secret shapes. Returns the matched
+# categories (empty == clean). Refuses on ANY hit -- the register is code/path evidence only and must
+# never carry an identifier or a secret, no matter which field it rode in on.
+def sensitive_hits(raw)
+  blob = deep_strings(raw).join("\n")
+  hits = []
+  SECRET_PATTERNS.each { |name, re| hits << "secret:#{name}" if blob.match?(re) }
+  PII_PATTERNS.each { |name, re| hits << "pii:#{name}" if blob.match?(re) }
+  hits
 end
 
 CHECKABLE_TYPES = %w[code doc].freeze
@@ -131,6 +200,16 @@ opts[:ins].each do |path|
       summary['skipped'] << { 'domain' => domain, 'reason' => 'missing ruleKey', 'title' => raw['title'] }
       next
     end
+    # PII/secret refusal: a finder finding whose text (any nested field) carries an identifier or a
+    # secret is never added and never re-anchored. Refused, not redacted -- the register is code/path
+    # evidence only. Skipping the whole incoming record also prevents a PII snippet from being written
+    # into an existing finding's evidence on the reseen path below.
+    hits = sensitive_hits(raw)
+    unless hits.empty?
+      summary['skipped'] << { 'domain' => domain, 'ruleKey' => rule_key,
+                              'reason' => "refused: contains #{hits.join(', ')} (register is code/path evidence only)" }
+      next
+    end
     # id anchor MUST match scripts/citation-check.rb#expected_id: the evidence file, or the
     # ruleKey itself when there is no file anchor. (Previously used "runtime:<source>", which
     # produced ids citation-check rejected as mismatched, reddening the register.)
@@ -155,13 +234,20 @@ opts[:ins].each do |path|
         summary['severityChangeCandidates'] << { 'id' => id, 'from' => existing['severity'], 'finderSays' => sev }
       end
 
-      if SCOT_OWNED_CLOSED.include?(existing['status'])
-        # Regression: a previously closed/accepted/superseded finding re-surfaced. Do NOT flip
-        # the Scot-owned status and do NOT touch its (still-valid) evidence; flag it loudly.
+      existing_disp = existing.dig('disposition', 'state')
+      scot_owned_status = SCOT_OWNED_CLOSED.include?(existing['status'])
+      scot_owned_disp = SCOT_OWNED_DISPOSITIONS.include?(existing_disp)
+      if scot_owned_status || scot_owned_disp
+        # Regression: a finding Scot already decided on re-surfaced. Fires on EITHER axis -- a
+        # Scot-owned closed/accepted/superseded status, OR a Scot-set disposition (accepted / fixed /
+        # dismissed-false-positive / wontfix) even while status is still "open". Do NOT flip the status,
+        # do NOT touch the disposition or the (still-valid) evidence; flag it loudly.
         existing['regression'] = true
-        note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (status was #{existing['status']}). Needs adversary verification + Scot decision to reopen."
+        reason = scot_owned_status ? "status was #{existing['status']}" : "disposition was #{existing_disp}"
+        note = "REGRESSION: re-surfaced by #{domain} finder on #{run_date} at #{run_sha} (#{reason}). Needs adversary verification + Scot decision."
         existing['notes'] = [existing['notes'], note].compact.reject(&:empty?).join(' | ')
         summary['regressions'] << { 'id' => id, 'ruleKey' => rule_key, 'status' => existing['status'],
+                                    'disposition' => existing_disp,
                                     'severity' => existing['severity'], 'domain' => domain, 'file' => anchor }
       else
         # Active finding still present. Re-anchor evidence to the new SHA ONLY if the new snippet

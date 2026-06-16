@@ -78,6 +78,11 @@
 # and agent-memory/ (finder `memory: project` accrues per-machine; not shared to avoid pulling
 # unrelated local agents' memory into git).
 
+# Audit run-log (Phase 4): per-tool examination detail is LOCAL telemetry (large/churny,
+# machine-specific). Only the per-run summary (runs.jsonl) and the README are tracked.
+/audit-reports/run-log/examined-*.jsonl
+/audit-reports/run-log/logger-errors.jsonl
+
 # Python bytecode
 __pycache__/
 *.pyc

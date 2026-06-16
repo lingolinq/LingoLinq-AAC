@@ -37,6 +37,38 @@ downgrades, or accepts risk. **Only Scot** moves a finding to `verified-closed`/
 a finder re-surfaces is flagged `regression: true` for adversary review and a Scot decision,
 never silently reopened or reclosed.
 
+## Bridging PR-time review findings (operationalization)
+
+The periodic `/audit-run` is not the only source of findings. The per-PR reviewers (the `/review-pr`
+and `/adversary-review` CLI passes, and the n8n PR Review Bot) catch real issues at PR time, but
+their output used to evaporate after the PR comment. The `/promote-finding` skill
+(`.claude/skills/promote-finding/`) bridges a **reviewed, Critical/High** PR finding INTO this
+register via `scripts/promote-finding.rb`, so it is tracked and triaged instead of just logged.
+
+Promotion is **manual and Claude-operated, never automatic** (not a hook, not an n8n step):
+`FINDINGS.json` is a Claude-only compliance surface, the n8n bot's DeepSeek pass runs on a no-BAA
+endpoint, and AI reviewers carry a 5-15% false-positive rate, so a human decides which findings are
+real enough to track. `promote-finding.rb` obeys the same governance as `audit-merge.rb`: it
+promotes Critical/High only, accepts **code/path evidence only** (a finding whose text carries a
+PII or secret shape is REFUSED, never redacted-in), adds findings as `open` with disposition
+`untriaged`, flags regressions of Scot-closed findings, and never closes, downgrades, or triages.
+Promoted findings carry a `source` block (`kind: "pr-review"`, PR number, reviewer) for attribution
+and do **not** change `meta.auditedSha` (they are anchored to their own PR sha).
+
+## Disposition (triage state, schema 1.1)
+
+Each finding may carry an optional `disposition` block, **orthogonal to `status`**:
+
+- `status` answers *does the issue still exist in code* (lifecycle, citation-validated).
+- `disposition.state` answers *what did we decide to do about it*: `untriaged` (default / blank) /
+  `accepted` / `fixed` / `dismissed-false-positive` / `wontfix`, plus `decidedBy`, `decidedDate`,
+  `rationale`. The finding's `owner` is the one named person responsible for triaging it.
+
+A finding can be `open` yet `dismissed-false-positive` (triaged away) or `wontfix` (acknowledged,
+not fixing). **Only Scot** sets a non-`untriaged` disposition, exactly as only Scot closes or
+accepts risk. The adding scripts never write a disposition other than `untriaged`. The rendered
+`FINDINGS.md` shows the disposition and source per finding.
+
 ## Seed (folded into the register)
 
 | File | Status |
@@ -68,8 +100,17 @@ their statuses as current.
 - Recurrence is a diff of the register between runs (finding IDs are deterministic).
 - Rendered quarterly/periodic reports will read **from** the register, never restate findings independently.
 - Plans and strategy docs live in `ai-company-brain/outputs/`, not here.
-- Only Scot closes a finding, downgrades severity, or accepts risk; `closureEvidence.attestation` stays empty until he signs.
+- Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition; `closureEvidence.attestation` and `disposition.decidedBy` stay empty until he signs.
 
-_Phase 1 "Foundation" + Phase 2 "Agent migration" of the Audit/Compliance System Modernization.
-The read-only finder agents and the `/audit-run` orchestrator ship in Phase 2 (see "How findings
-are generated" above and the repo CLAUDE.md). The one-way Notion publish remains Phase 3._
+_Phases 1-4 of the Audit/Compliance System Modernization. The read-only finder agents and the
+`/audit-run` orchestrator shipped in Phase 2; the compliance-officer, calendar, and customer-facing
+artifact skeletons in Phase 3. Phase 4 "Cadence" added the first full run, the quarterly-full +
+monthly-light cadence (`compliance-calendar.json`), hook-based per-run logging (`run-log/`), and
+the one-way Notion publish generator (`scripts/compliance-notion-publish.rb` ->
+`notion/compliance-audit-page.md`; see `notion/README.md`). The actual push to Notion is a
+human-initiated one-way step._
+
+_The "operationalize the review pipeline" phase (from the 2026-06-14 PR-review-workflow
+evaluation) added the PR-time promotion bridge (`/promote-finding` + `scripts/promote-finding.rb`)
+and the schema-1.1 `disposition` triage concept, so per-PR review findings get tracked and triaged
+in the register instead of evaporating after the PR comment._

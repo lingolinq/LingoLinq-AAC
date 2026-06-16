@@ -5027,3 +5027,106 @@ keeps clicks working.
 
 **First seen in:** create-board-new Edit Tools rail dropdowns (traci/styling).
 See `docs/styling-recurring-problems.md` #1 for both fixes.
+## Pattern: a register-adding script must mirror citation-check's matcher EXACTLY, or it reddens CI
+
+**Root cause family:** any script that ADDS findings to `FINDINGS.json` (`audit-merge.rb`,
+`promote-finding.rb`) gates evidence with its own `snippet_present?`. If that gate is looser than
+`citation-check.rb`'s acceptance test, it accepts evidence that citation-check later rejects,
+turning the register red after the fact.
+
+**Concrete trap:** `citation-check.rb` matches a snippet **per source line**
+(`contents.each_line ... normalize(line).include?(needle)`). A `snippet_present?` that normalizes
+the WHOLE file and does one `include?` will accept a multi-line snippet that no single line
+contains; citation-check then FAILs it. Fix: gate per-line too
+(`content.each_line.any? { |l| norm(l).include?(needle) }`). Verified by reproducing the FAIL.
+
+**Corollary - never re-anchor an existing finding's evidence to an ephemeral sha.** Promoting a
+re-found OPEN finding must NOT move its `evidence.sha` to the PR-branch head sha: that sha can be
+orphaned (rebase/force-push/branch delete) before citation-check runs in CI, reddening a finding
+that was green. Keep the finding's existing durable (merged/audited) sha; only refresh `lastSeen`
++ append a provenance note.
+
+**Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md`;
+`scripts/promote-finding.rb` `snippet_present?` and the reseen branch.
+
+## Pattern: secret pre-scrub should redact-and-proceed for PII but SKIP the call on a real secret
+
+**Context:** the n8n PR bot ships the diff to DeepSeek (OpenRouter, no BAA). Mirroring
+`lib/pii_scrubber.rb` (whose `redact_for_ai` is redact-and-proceed): PII shapes get redacted and
+the review still runs on the scrubbed diff, but a HIGH-CONFIDENCE secret shape (distinctive
+prefixes: AWS `AKIA`, `ghp_`, `xox*-`, `sk-`, `AIza`, `sk_live`, JWT `eyJ.eyJ.`, `scheme://u:p@`)
+trips a skip gate so a credentialed diff is never sent to a no-BAA endpoint even redacted.
+
+**Why not a generic `password=`/`token=` pattern for the SKIP:** it false-trips normal code
+(`token = SecureRandom.hex` matches), which would silently disable the adversary review on many
+PRs. Keep the generic shape for REDACTION (register-side refusal is cheap) but use only
+distinctive-prefix shapes to gate the skip. Test `.replace`-based scrubbers with `.replace`, not
+`.test`, on `/g` regexes - `.test` carries `lastIndex` across calls and gives false misses.
+
+**Evidence:** n8n workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)` / `DeepSeek PII
+Gate`; `scripts/promote-finding.rb` `SECRET_PATTERNS`.
+
+## Pattern: editing a LIVE n8n workflow - share nodes via fan-out, don't rename, verify at runtime
+
+**Context:** extended the PR-bot scrub from one model path to both, and consolidated the
+two-model output (workflow `lbyA52atQjQ8MCqy`).
+
+- **Don't rename a node in a live workflow to "clean up" a now-inaccurate name.** n8n connections
+  and `$('Node Name')` references key on the node NAME; renaming silently breaks every connection
+  and cross-node reference unless every reference is updated in the same atomic op. Keeping a
+  slightly-stale name (`PII Pre-Scrub (DeepSeek)` now scrubs both paths) + a corrected `notes`
+  field is the lower-risk choice. Document the broadened responsibility in notes + the sticky.
+- **Reuse one node via fan-out instead of duplicating logic.** One shared scrub node feeding two
+  IF gates (Claude + DeepSeek), both branching on the same `pii_scrub.secrets_found`, beats two
+  copies of the pattern list (DRY; one place to keep in sync with `lib/pii_scrubber.rb`). A synthetic
+  "Skipped" Code node per gate feeds the SAME Merge input index the real call would, so the
+  downstream reviewer-name lookup is unaffected.
+- **`n8n_validate_workflow` is a heuristic, not a compiler.** It emits false positives on Code
+  nodes: `"Array items must be objects with json property"` fires on a node whose helper functions
+  `return` non-arrays even when the node's actual `return [{ json: ... }]` is correct; `"Invalid $
+  usage"` and `"File system access"` fire on normal `.replace`/`$()` usage. ALWAYS confirm a Code
+  node's real behavior by running its logic standalone in node with stubbed `$input`/`$()` - the
+  runtime output is the source of truth, the validator is advisory.
+- **Consolidating two reviewers' findings:** dedupe by Jaccard token-overlap on finding TITLES
+  (>=0.6), merge to the higher severity + longer detail + union of reviewers, then derive ONE
+  verdict by mapping each model's verdict to a common severity scale and taking the max. Keep the
+  per-model verdicts in a small table so attribution is not lost.
+
+**Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md` follow-on section;
+workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)`, `Claude PII Gate`, `Format Output`.
+
+## Pattern: register governance has TWO Scot-owned axes (status AND disposition) - guard both
+
+When schema 1.1 added a `disposition` block (`untriaged`/`accepted`/`fixed`/`dismissed-false-positive`/
+`wontfix`) orthogonal to `status`, every place that protected a Scot decision by checking `status`
+alone silently regressed: a finding can be `status: open` yet `disposition: dismissed-false-positive`,
+and a re-find guarded only on `SCOT_OWNED_CLOSED` statuses sailed through as a routine `reseen`,
+quietly re-validating something Scot dismissed. **Rule:** any "is this Scot's decision?" check on a
+finding must test BOTH `status` (in `SCOT_OWNED_CLOSED`) and `disposition.state` (in
+`SCOT_OWNED_DISPOSITIONS` = every value except `untriaged`). Fixed in both `scripts/promote-finding.rb`
+and `scripts/audit-merge.rb` (the hand-synced sibling - when you fix governance in one, grep the other
+for the same guard). Reproduce a governance gap before fixing: build a register finding in the missed
+state, run the script against a COPY, assert the summary bucket (regressions vs reseen). Evidence:
+2026-06-15 review round 2 in `docs/task-management/2026-06-14-operationalize-review-findings.md`.
+
+## Pattern: refuse/scrub on a DEEP walk of the whole record, never a named-field allowlist
+
+`sensitive_hits` scanned a hand-picked list of fields (`title`, `snippet`, `remediation.options`...),
+so PII in a `remediation` subkey - or any reviewer-added key - bypassed refusal and a student email
+reached the git-tracked register. A code/path-evidence-only or no-PII guarantee that scans a SUBSET of
+a structure is a guarantee in name only: the whole object gets persisted/sent, so the whole object must
+be scanned. Replaced with a recursive `deep_strings(node)` that collects every key AND value, then
+matches the PII/secret patterns against the join. Same principle for the n8n pre-scrub (scrub the
+message content, not a curated slice). Evidence: H2, `scripts/promote-finding.rb#deep_strings`.
+
+## Pattern: redact-and-proceed vs skip on the no-BAA AI path - decide by confidence, not category
+
+The PR-bot scrub (`lbyA52atQjQ8MCqy`) and `promote-finding.rb` are a hand-synced secret/PII pair, but
+their CONSEQUENCE differs and should: distinctive live-credential shapes (AWS `AKIA`, GitHub `ghp_`,
+`Bearer <20+>`, Google `ya29.`) SKIP the model call entirely (a credentialed diff is never sent to a
+no-BAA endpoint even redacted); ambiguous shapes (a `password = "..."` assignment that is usually a
+test fixture) REDACT-and-proceed so the review still runs. The trap to avoid: a broad pattern that
+SKIPS on `token = SecureRandom.hex` disables review on a large fraction of normal PRs. Mitigations that
+worked: require a QUOTED value for generic credential assignments (`["'][^"'\s]{8,}["']`), and require
+20+ token chars after `Bearer`. Always test a new scrub regex for BOTH catch and no-false-trip on
+ordinary code before shipping. Evidence: H4, node `PII Pre-Scrub (DeepSeek)` SECRETS/PII arrays.

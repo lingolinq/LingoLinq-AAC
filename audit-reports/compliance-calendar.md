@@ -4,12 +4,13 @@
 > render; regenerate it from the JSON via `ruby scripts/compliance-calendar-render.rb`.
 > A review is only "done" when Scot attests; `nextDue` is advisory scheduling, not a compliance claim.
 >
-> Generated: 2026-06-13 | Owner: compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)
+> Generated: 2026-06-14 | Owner: compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)
 
 ## Due within 90 days or overdue (surface these first)
 
 | Date | Item | Framework | Cadence |
 |---|---|---|---|
+| 2026-07-14 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 | 2026-07-26 | COPPA data-retention enforcement + parental-consent flow check | COPPA | quarterly |
 | **2026-08-02** | EU AI Act Article 50 transparency obligations apply | EU AI Act | fixed |
 | 2026-09-01 | FERPA vendor-disclosure + directory-info posture review | FERPA | annual |
@@ -24,6 +25,8 @@
 
 | Framework | Review | Cadence | Last done | Next due |
 |---|---|---|---|---|
+| SOC2 | Full /audit-run (4 finders, full scope) + adversary verify - all frameworks | quarterly | 2026-06-14 | 2026-09-14 |
+| SOC2 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | monthly | 2026-06-14 | 2026-07-14 |
 | FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2026-09-01 |
 | HIPAA | HIPAA Security Rule risk assessment + BAA inventory review | annual | 2026-02-01 | 2027-02-01 |
 | GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2026-09-01 |
