@@ -115,6 +115,13 @@ jobs:
         # irreversibly destroy student/patient data. Production data lands via the
         # Render -> Cloud SQL restore (Phase 3), not via this Job; the Job only applies
         # pending migrations on top of an already-provisioned schema.
+        # Direct VPC egress is attached for parity with the web/worker deploys: Cloud SQL
+        # is reached via the built-in socket proxy (--set-cloudsql-instances, unaffected by
+        # private-ranges-only), and the VPC path means a migration that ever enqueues a
+        # Resque job or touches Redis can still reach Memorystore's private IP instead of
+        # hanging against an unreachable address. `private-ranges-only` routes ONLY RFC1918 /
+        # Google ranges through the VPC; public egress (S3/SES/etc.) still uses the default
+        # path, so this does not force all traffic through the VPC. (Phase 3.)
         run: |
           gcloud run jobs deploy lingolinq-migrate \
             --image "$IMAGE" \
@@ -122,6 +129,9 @@ jobs:
             --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --execution-environment gen2 \
             --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
+            --network "${{ vars.GCP_VPC_NETWORK }}" \
+            --subnet "${{ vars.GCP_VPC_SUBNET }}" \
+            --vpc-egress private-ranges-only \
             --command bundle \
             --args "exec,rake,db:migrate" \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
