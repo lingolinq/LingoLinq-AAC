@@ -527,6 +527,32 @@ class Api::BoardsController < ApplicationController
     end
   end
 
+  def from_json_bundle
+    unless FeatureFlags.feature_enabled_for?('paste_html_import', @api_user)
+      return api_error(403, { error: 'Feature not available' })
+    end
+
+    if params['url']
+      url = Uploader.sanitize_url(params['url'])
+      return api_error(400, { error: 'url required' }) unless url.present?
+
+      extra = {}
+      raw = params['recipient_global_ids'] || params.dig('board', 'recipient_global_ids')
+      if raw.present?
+        extra['recipient_global_ids'] = raw.is_a?(Array) ? raw : raw.to_s.split(/,/).map(&:strip).reject(&:blank?)
+      end
+
+      progress = Progress.schedule(Board, :import_json_bundle, @api_user.global_id, url, extra, for_user: @api_user)
+      render json: JsonApi::Progress.as_json(progress, wrapper: true).to_json
+    else
+      remote_path = "imports/boards/#{@api_user.global_id}/bundle-#{GoSecure.nonce('filename')}.json"
+      upload_params = Uploader.remote_upload_params(remote_path, 'application/json')
+      url = upload_params[:upload_url] + remote_path
+      upload_params[:success_url] = "/api/v1/boards/from_json_bundle?url=#{CGI.escape(url)}"
+      render json: { 'remote_upload' => upload_params }.to_json
+    end
+  end
+
   def generate_labels
     unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })

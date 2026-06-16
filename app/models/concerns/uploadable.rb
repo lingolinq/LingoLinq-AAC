@@ -253,7 +253,8 @@ module Uploadable
       file.write(payload)
     else
       self.settings['source_url'] = url if !rasterize
-      res = SafeHttp.get(URI.escape(url))
+      fetch_url = Uploader.sanitize_url(url) || url.to_s
+      res = SafeHttp.get(fetch_url)
       re = /^audio/
       re = /^image/ if file_type == 'images'
       re = /^video/ if file_type == 'videos'
@@ -339,6 +340,8 @@ module Uploadable
             self.settings['errored_pending_url'] = url
             Rails.logger.warn("S3 upload failed, data URI too large (#{url.bytesize} bytes > #{DATA_URI_STORE_MAX_BYTES}) for #{self.class.name} #{self.id}")
           end
+        elsif store_downloaded_file_fallback!(file, url)
+          Rails.logger.warn("S3 upload failed, stored downloaded #{file_type} locally for #{self.class.name} #{self.id}")
         else
           self.settings['errored_pending_url'] = url
         end
@@ -356,6 +359,55 @@ module Uploadable
 
   def decode_data_uri_body(data_uri)
     SvgSanitizer.decode_image_data_uri_payload(data_uri)
+  end
+
+  # When S3 is unavailable, keep imported symbol-library images usable by storing
+  # the already-downloaded bytes or retaining the public CDN URL.
+  def store_downloaded_file_fallback!(file, source_url)
+    file.rewind
+    body = file.read
+    return false if body.blank?
+
+    if file_type == 'images' && body.bytesize <= DATA_URI_STORE_MAX_BYTES
+      ct = self.settings['content_type'].presence || 'application/octet-stream'
+      data_uri = "data:#{ct};base64,#{Base64.strict_encode64(body)}"
+      self.data = data_uri if respond_to?(:data=)
+      self.settings['data_uri'] = data_uri
+      self.settings['pending'] = false
+      self.settings['pending_url'] = nil
+      self.settings['errored_pending_url'] = nil
+      return true
+    end
+
+    if file_type == 'images' && importable_symbol_cdn_url?(source_url)
+      self.url = encode_source_url_for_fetch(source_url)
+      self.settings['pending'] = false
+      self.settings['pending_url'] = nil
+      self.settings['errored_pending_url'] = nil
+      return true
+    end
+
+    false
+  end
+
+  def importable_symbol_cdn_url?(url)
+    str = url.to_s
+    return true if str.match?(%r{\Ahttps://d18vdu4p71yql0\.cloudfront\.net/})
+    return true if str.match?(%r{\Ahttps://dc5pvf6xvgi7y\.cloudfront\.net/})
+
+    cdn = ENV['OPENSYMBOLS_S3_CDN'].to_s
+    cdn.present? && str.start_with?(cdn)
+  end
+
+  def encode_source_url_for_fetch(url)
+    uri = Uploader.parse_http_uri(url.to_s)
+    return url.to_s unless uri
+
+    port_suffix = ''
+    if (uri.scheme == 'http' && uri.port != 80) || (uri.scheme == 'https' && uri.port != 443)
+      port_suffix = ":#{uri.port}"
+    end
+    "#{uri.scheme}://#{uri.host}#{port_suffix}#{uri.path}#{uri.query ? "?#{uri.query}" : ''}"
   end
 
   def resolve_upload_source(source)

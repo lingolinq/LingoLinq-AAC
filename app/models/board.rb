@@ -716,6 +716,73 @@ class Board < ApplicationRecord
 
     boards.map { |b| JsonApi::Board.as_json(b, permissions: primary) }
   end
+
+  # Imports a JSON bundle ({ root, boards: [{ key, data }] }) exported from
+  # CoughDrop/LingoLinq API responses. +source+ is an HTTPS URL, local path, or
+  # parsed Hash. See Converters::ApiJsonBundle.
+  def self.import_json_bundle(importer_global_id, source, extra = {})
+    importer = User.find_by_global_id(importer_global_id)
+    raise Progress::ProgressError, "invalid importer account" unless importer
+
+    recipient_ids_raw = []
+    extra = {} if extra.nil?
+    extra = extra.with_indifferent_access
+    if extra[:recipient_global_ids].present?
+      recipient_ids_raw = Array(extra[:recipient_global_ids]).flatten.map(&:presence).compact
+    end
+
+    by_gid = User.find_all_by_global_id(recipient_ids_raw).index_by(&:global_id)
+    recipient_users = recipient_ids_raw.filter_map { |gid| by_gid[gid] }
+    recipient_users = [importer] if recipient_users.empty?
+
+    recipient_users.each do |u|
+      next if u.global_id == importer.global_id
+      unless importer.edit_permission_for?(u)
+        raise Progress::ProgressError, "not authorized to import boards for #{u.user_name}"
+      end
+    end
+
+    primary = recipient_users[0]
+    dup_targets = recipient_users[1..] || []
+    bundle = Converters::ApiJsonBundle.load_bundle(source)
+    root_key = bundle['root']
+
+    boards = []
+    Progress.update_current_progress(0.05, :generating_boards)
+    begin
+      end_percent = dup_targets.any? ? 0.45 : 0.9
+      Progress.as_percent(0.05, end_percent) do
+        boards = Converters::ApiJsonBundle.import(bundle, primary)
+      end
+    rescue => e
+      if e.message.match(/protected boards/)
+        return {error: {message: "protected material cannot be imported", protected: true}}
+      else
+        raise e
+      end
+    end
+
+    if dup_targets.any?
+      root_old = boards.find { |b| root_key.present? && b.key == root_key } || boards[0]
+      root_old = root_old.reload
+      dup_targets.each_with_index do |target_user, idx|
+        span = 0.45 / dup_targets.length.to_f
+        start_p = 0.45 + (idx * span)
+        end_p = 0.45 + ((idx + 1) * span)
+        Progress.as_percent(start_p, end_p) do
+          new_root = root_old.copy_for(target_user, copier: importer)
+          Board.copy_board_links_for(target_user,
+            starting_old_board: root_old,
+            starting_new_board: new_root,
+            authorized_user: importer,
+            copier: importer
+          )
+        end
+      end
+    end
+
+    boards.map { |b| JsonApi::Board.as_json(b, permissions: primary) }
+  end
   
   def generate_download(user_id, type, opts)
     res = {}
@@ -2728,7 +2795,9 @@ class Board < ApplicationRecord
           next button if button['label'] && button['label'].match(/LingoLinq/)
           old_bi = bis.detect{|i| i.global_id == button['image_id'] }
           # skip buttons that have manually-uploaded image
-          if old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
+          if old_bi && old_bi.preserve_source_image?
+            # JSON bundle / migration import — keep exported image
+          elsif old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
             # puts "SAFE PIC"
           elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(old_bi.image_library) && library == 'opensybmols'))
             # puts "ALREADY SWAPPED"

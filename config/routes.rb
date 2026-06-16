@@ -164,6 +164,7 @@ LingoLinq::Application.routes.draw do
       get 'simple.obf' => 'boards#simple_obf'
       post 'imports' => 'boards#import', on: :collection
       post 'from_html' => 'boards#from_html', on: :collection
+      post 'from_json_bundle' => 'boards#from_json_bundle', on: :collection
       post 'generate_labels' => 'boards#generate_labels', on: :collection
       post 'unlink' => 'boards#unlink', on: :collection
       post 'bulk' => 'boards#bulk', on: :collection

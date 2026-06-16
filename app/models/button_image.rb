@@ -263,7 +263,12 @@ class ButtonImage < ApplicationRecord
     candidates.compact.find { |u| u.to_s.match(/\/libraries\//) }
   end
 
+  def preserve_source_image?
+    !!settings['preserve_source_image']
+  end
+
   def needs_library_url_enrichment?
+    return false if preserve_source_image?
     return false if library_url_for_skin
     return false if settings['library_url_lookup_attempted']
     !!(url.to_s.match(/amazonaws|lingolinq.*uploads/i))
@@ -272,6 +277,7 @@ class ButtonImage < ApplicationRecord
   # Re-resolve a plain S3 copy to the canonical OpenSymbols/library URL so
   # check_for_variants and client skin_image_map can apply skin tones.
   def ensure_library_url_for_skin!(label: nil, force: false)
+    return false if preserve_source_image? && !force
     return true if library_url_for_skin && !force
     return false if settings['library_url_lookup_attempted'] && !force
 
@@ -427,6 +433,15 @@ class ButtonImage < ApplicationRecord
     settings['protected'] = !!self.protected?
     settings.delete('library_alternates')
     used_library = 'original'
+    if preserve_source_image?
+      settings['used_library'] = 'original'
+      settings['url'] = self.best_url
+      token = user && user.user_token
+      if token && settings['url'] && settings['url'].match(/\/api\/v1\/users\/.+\/protected_image/)
+        settings['url'] = settings['url'] + (settings['url'].match(/\?/) ? '&' : '?') + "user_token=#{token}"
+      end
+      return settings
+    end
     if self.settings['library_alternates']
       pref ||= user && ((user.settings || {})['preferences'] || {})['preferred_symbols']
       allowed_sources ||= user && user.enabled_protected_sources(true)

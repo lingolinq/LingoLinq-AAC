@@ -314,6 +314,18 @@ describe Uploadable, :type => :model do
       expect(s.settings['data_uri']).to eq(nil)
     end
 
+    it "stores downloaded image bytes when S3 upload fails" do
+      s = ButtonImage.create(user: u, :settings => {})
+      res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/svg+xml'}, :body => "<svg></svg>")
+      expect(Typhoeus).to receive(:get).and_return(res)
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => false))
+
+      s.upload_to_remote("https://d18vdu4p71yql0.cloudfront.net/libraries/mulberry/lunch%202.svg")
+      expect(s.settings['pending']).to eq(false)
+      expect(s.settings['data_uri']).to match(/^data:image\/svg\+xml;base64,/)
+      expect(s.settings['errored_pending_url']).to eq(nil)
+    end
+
     it "should sanitize SVG fetched over http before uploading" do
       evil_svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="4"/></svg>'
       s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml', 'width' => 100, 'height' => 100 })

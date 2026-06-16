@@ -1704,6 +1704,12 @@ export default Component.extend({
       }
       modalUtil.open('import-from-html');
     },
+    importFromJsonBundle: function() {
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
+      modalUtil.open('import-from-json-bundle');
+    },
     // Legacy entry point — now just switches the page into AI mode
     // instead of opening the old generate-board modal.
     generateWithAi: function() {

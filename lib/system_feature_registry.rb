@@ -55,7 +55,7 @@ module SystemFeatureRegistry
     'multi_user_board_import' => { name: 'Multi-user board import', category: 'Boards', description: 'Import boards for multiple users' },
     'customize_menu' => { name: 'Customize menu', category: 'Speak mode', description: 'Customize speak menu items' },
     'home_tour' => { name: 'Home tour', category: 'Onboarding', description: 'Home page guided tour' },
-    'paste_html_import' => { name: 'Paste HTML import', category: 'Boards', description: 'Paste HTML board import' },
+    'paste_html_import' => { name: 'Paste HTML import', category: 'Boards', description: 'Paste HTML or JSON bundle board import (CoughDrop page-set migration)' },
     'catalog_board_prefetch' => { name: 'Catalog board prefetch', category: 'Boards', description: 'Prefetch catalog boards' },
     'background_board_prefetch' => { name: 'Background board prefetch', category: 'Boards', description: 'Background board prefetch' },
     'portrait_orientation_overlay' => { name: 'Portrait orientation overlay', category: 'UI', description: 'Portrait orientation overlay on small screens' },

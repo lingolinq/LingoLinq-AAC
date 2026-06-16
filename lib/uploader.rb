@@ -79,7 +79,8 @@ module Uploader
   end
 
   def self.sanitize_url(url)
-    uri = URI.parse(url) rescue nil
+    str = url.to_s
+    uri = parse_http_uri(str)
     return nil unless uri
     # Only ever fetch over http(s) — reject file://, gopher://, ftp://, data:, etc.
     # (also prevents a nil-host crash on schemeless/opaque URIs below).
@@ -99,6 +100,18 @@ module Uploader
     port_suffix = ""
     port_suffix = ":#{uri.port}" if (uri.scheme == 'http' && uri.port != 80)
     "#{uri.scheme}://#{uri.host}#{port_suffix}#{uri.path}#{uri.query && "?#{uri.query}"}"
+  end
+
+  # OpenSymbols/Mulberry URLs often include spaces (e.g. "lunch 2.svg").
+  def self.parse_http_uri(str)
+    URI.parse(str)
+  rescue URI::InvalidURIError
+    escaped = URI.escape(str) rescue nil
+    return nil if escaped.blank?
+
+    URI.parse(escaped)
+  rescue URI::InvalidURIError
+    nil
   end
 
   def self.invalidate_cdn(remote_path)

@@ -26,4 +26,18 @@ namespace :lingolinq do
       abort 'Beta seed verification failed'
     end
   end
+
+  desc 'Import a CoughDrop/LingoLinq JSON board bundle (PATH=..., USER=username)'
+  task import_json_bundle: :environment do
+    path = ENV['PATH'].presence || ENV['BUNDLE'].presence
+    abort 'Usage: PATH=/path/to/bundle.json USER=username bundle exec rake lingolinq:import_json_bundle' unless path
+
+    user = User.find_by_path(ENV['USER'].presence || 'example')
+    abort "User not found: #{ENV['USER'] || 'example'}" unless user
+
+    puts "Importing JSON bundle from #{path} for #{user.user_name}..."
+    boards = Converters::ApiJsonBundle.import(path, user)
+    root = boards.first
+    puts "OK: imported #{boards.length} board(s). Root: #{root&.key} (#{root&.global_id})"
+  end
 end

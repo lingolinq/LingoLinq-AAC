@@ -350,6 +350,12 @@ export default Component.extend({
       }
       modalUtil.open('import-from-html');
     },
+    importFromJsonBundle: function() {
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
+      modalUtil.open('import-from-json-bundle');
+    },
     generateWithAi: function() {
       if(!this.get('standalone')) {
         this.get('modal').close();
