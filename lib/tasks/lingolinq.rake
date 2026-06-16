@@ -27,10 +27,10 @@ namespace :lingolinq do
     end
   end
 
-  desc 'Import a CoughDrop/LingoLinq JSON board bundle (PATH=..., USER=username, optional IMPORTER=supervisor)'
+  desc 'Import a CoughDrop/LingoLinq JSON board bundle (BUNDLE=..., USER=username, optional IMPORTER=supervisor)'
   task import_json_bundle: :environment do
-    path = ENV['PATH'].presence || ENV['BUNDLE'].presence
-    abort 'Usage: PATH=/path/to/bundle.json USER=username [IMPORTER=supervisor] bundle exec rake lingolinq:import_json_bundle' unless path
+    path = ENV['BUNDLE'].presence || ENV['BUNDLE_PATH'].presence
+    abort 'Usage: BUNDLE=/path/to/bundle.json USER=username [IMPORTER=supervisor] bundle exec rake lingolinq:import_json_bundle' unless path
 
     recipient = User.find_by_path(ENV['USER'].presence || 'example')
     abort "User not found: #{ENV['USER'] || 'example'}" unless recipient

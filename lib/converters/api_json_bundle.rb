@@ -21,6 +21,10 @@ module Converters::ApiJsonBundle
       if source.match?(%r{\Ahttps?://}i)
         download_json_bundle(source, allowed_importer_global_id: allowed_importer_global_id)
       elsif File.exist?(source)
+        size = File.size(source)
+        if size > MAX_BUNDLE_BYTES
+          raise Progress::ProgressError, "bundle exceeds maximum size (#{MAX_BUNDLE_BYTES} bytes)"
+        end
         parse_local_bundle(File.read(source))
       else
         parse_local_bundle(source)
@@ -60,11 +64,17 @@ module Converters::ApiJsonBundle
   end
 
   def self.parse_local_bundle(raw)
-    unless raw.to_s.lstrip.start_with?('{', '[')
+    raw = raw.to_s
+    if raw.bytesize > MAX_BUNDLE_BYTES
+      raise Progress::ProgressError, "bundle exceeds maximum size (#{MAX_BUNDLE_BYTES} bytes)"
+    end
+    unless raw.lstrip.start_with?('{', '[')
       raise Progress::ProgressError, "bundle is not valid JSON"
     end
 
     JSON.parse(raw)
+  rescue JSON::ParserError
+    raise Progress::ProgressError, "bundle is not valid JSON"
   end
 
   def self.response_content_length(response)

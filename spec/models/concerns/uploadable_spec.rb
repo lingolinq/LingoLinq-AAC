@@ -384,6 +384,24 @@ describe Uploadable, :type => :model do
       expect(file).not_to receive(:read)
       expect(s.store_downloaded_file_fallback!(file, 'http://example.com/sound.mp3')).to eq(false)
     end
+
+    it "does not read large downloaded images when falling back to a symbol CDN URL" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      cdn_url = 'https://d18vdu4p71yql0.cloudfront.net/libraries/mulberry/lunch.png'
+      file = instance_double(File, size: Uploadable::DATA_URI_STORE_MAX_BYTES + 1)
+      expect(file).to receive(:rewind).once
+      expect(file).not_to receive(:read)
+      expect(s.store_downloaded_file_fallback!(file, cdn_url)).to eq(true)
+      expect(s.url).to eq(cdn_url)
+    end
+
+    it "does not read large downloaded images when no CDN fallback is available" do
+      s = ButtonImage.create(user: u, settings: { 'content_type' => 'image/png' })
+      file = instance_double(File, size: Uploadable::DATA_URI_STORE_MAX_BYTES + 1)
+      expect(file).to receive(:rewind).once
+      expect(file).not_to receive(:read)
+      expect(s.store_downloaded_file_fallback!(file, 'http://example.com/huge.png')).to eq(false)
+    end
   end
 
   describe "verify_stored_s3_upload!" do

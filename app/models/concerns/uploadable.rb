@@ -368,29 +368,29 @@ module Uploadable
     return false unless file_type == 'images'
 
     file.rewind
+    byte_size = file.respond_to?(:size) ? file.size : File.size(file.path)
+    if byte_size > DATA_URI_STORE_MAX_BYTES
+      if importable_symbol_cdn_url?(source_url)
+        self.url = encode_source_url_for_fetch(source_url)
+        self.settings['pending'] = false
+        self.settings['pending_url'] = nil
+        self.settings['errored_pending_url'] = nil
+        return true
+      end
+      return false
+    end
+
     body = file.read
     return false if body.blank?
 
-    if body.bytesize <= DATA_URI_STORE_MAX_BYTES
-      ct = self.settings['content_type'].presence || 'application/octet-stream'
-      data_uri = "data:#{ct};base64,#{Base64.strict_encode64(body)}"
-      self.data = data_uri if respond_to?(:data=)
-      self.settings['data_uri'] = data_uri
-      self.settings['pending'] = false
-      self.settings['pending_url'] = nil
-      self.settings['errored_pending_url'] = nil
-      return true
-    end
-
-    if importable_symbol_cdn_url?(source_url)
-      self.url = encode_source_url_for_fetch(source_url)
-      self.settings['pending'] = false
-      self.settings['pending_url'] = nil
-      self.settings['errored_pending_url'] = nil
-      return true
-    end
-
-    false
+    ct = self.settings['content_type'].presence || 'application/octet-stream'
+    data_uri = "data:#{ct};base64,#{Base64.strict_encode64(body)}"
+    self.data = data_uri if respond_to?(:data=)
+    self.settings['data_uri'] = data_uri
+    self.settings['pending'] = false
+    self.settings['pending_url'] = nil
+    self.settings['errored_pending_url'] = nil
+    true
   end
 
   def importable_symbol_cdn_url?(url)

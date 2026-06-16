@@ -142,6 +142,30 @@ describe Converters::ApiJsonBundle do
         described_class.load_bundle(url, allowed_importer_global_id: importer.global_id)
       }.to raise_error(Progress::ProgressError, /not valid JSON/)
     end
+
+    it 'rejects malformed JSON bundle bodies' do
+      expect {
+        described_class.load_bundle('{not json')
+      }.to raise_error(Progress::ProgressError, /not valid JSON/)
+    end
+
+    it 'rejects inline bundles larger than MAX_BUNDLE_BYTES' do
+      stub_const('Converters::ApiJsonBundle::MAX_BUNDLE_BYTES', 10)
+      expect {
+        described_class.load_bundle('{"boards":[]}' + (' ' * 5))
+      }.to raise_error(Progress::ProgressError, /exceeds maximum size/)
+    end
+
+    it 'rejects local bundle files larger than MAX_BUNDLE_BYTES' do
+      stub_const('Converters::ApiJsonBundle::MAX_BUNDLE_BYTES', 10)
+      path = Rails.root.join('tmp', "oversized-bundle-#{SecureRandom.hex(8)}.json")
+      File.binwrite(path, '{"boards":[]}' + (' ' * 5))
+      expect {
+        described_class.load_bundle(path.to_s)
+      }.to raise_error(Progress::ProgressError, /exceeds maximum size/)
+    ensure
+      File.delete(path) if path && File.exist?(path)
+    end
   end
 
   describe '.normalize_sound' do
