@@ -271,7 +271,7 @@ module Uploadable
         end
         file.write(body)
 
-        if file_type == 'images' && !self.settings['width']
+        if file_type == 'images' && !self.settings['width'] && !SvgSanitizer.svg_content_type?(self.settings['content_type'])
           identify_data = `identify -verbose #{file.path}`
           identify_data.split(/\n/).each do |line|
             pre, post = line.sub(/^\s+/, '').split(/:\s/, 2)

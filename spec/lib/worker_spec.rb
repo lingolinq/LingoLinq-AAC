@@ -6,6 +6,13 @@ describe Worker do
     Worker.flush_queues
     expect(Worker.scheduled?(User, :do_something, 2)).to eq(false)
   end
+
+  it "clears sizeof queue cache on flush so scheduled? is not fooled by stale counts" do
+    Resque.redis.setex("sizeof/default", 30, 501)
+    Worker.flush_queues
+    Worker.schedule(User, 'do_something', 3)
+    expect(Worker.scheduled?(User, :do_something, 3)).to eq(true)
+  end
   
   describe "perform" do
     it "should parse out Worker options and call the appropriate method" do

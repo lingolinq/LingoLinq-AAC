@@ -109,9 +109,11 @@ module Uploader
     escaped = URI.escape(str) rescue nil
     return nil if escaped.blank?
 
-    URI.parse(escaped)
-  rescue URI::InvalidURIError
-    nil
+    begin
+      URI.parse(escaped)
+    rescue URI::InvalidURIError
+      nil
+    end
   end
 
   def self.invalidate_cdn(remote_path)
