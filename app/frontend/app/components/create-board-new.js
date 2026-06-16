@@ -139,7 +139,8 @@ export default Component.extend({
     // its label here and speaks it; the bar's Speak/Backspace/Clear act on it.
     this.set('_speak_words', []);
     // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue
-    // Anyway" flips this to dismiss it for the session.
+    // Anyway" flips this to dismiss it for the rest of this visit (resets on
+    // re-entry — see dismiss_orientation_overlay).
     this.set('orientation_overlay_dismissed', false);
     // Create-method chooser: on entry to the create-board page, present three
     // animated options (Create My Own / Import / Generate with AI). Picking one
@@ -2076,7 +2077,12 @@ export default Component.extend({
       // building from a clean line. Measured AFTER the chip renders.
       scheduleOnce('afterRender', this, function() {
         if(_this.isDestroyed || _this.isDestroying) { return; }
-        var el = (_this.element || document).querySelector('.md-board-detail-sentence-bar__text');
+        // This component is tagless (tagName ''), so there's no `this.element` to
+        // scope the lookup to — and `.md-board-detail-sentence-bar__text` is also
+        // used by board-detail's own speak bar. Anchor the query to the
+        // create-board-only preview row (`.nb-preview-sentence-row`) so a
+        // board-detail sentence bar elsewhere in the DOM can never be measured.
+        var el = document.querySelector('.nb-preview-sentence-row .md-board-detail-sentence-bar__text');
         if(!el) { return; }
         if(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) {
           _this.set('_speak_words', [entry]);
@@ -2099,8 +2105,10 @@ export default Component.extend({
       this.set('_speak_words', []);
     },
     // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for
-    // the rest of the session (accessibility escape for mounted / non-rotatable
-    // setups). Adds nb-orientation-overlay--dismissed, which beats the media query.
+    // the rest of THIS visit (accessibility escape for mounted / non-rotatable
+    // setups). State lives on the component, so it resets on a later visit, where
+    // the device orientation may well differ. Adds nb-orientation-overlay--dismissed,
+    // which beats the media query.
     dismiss_orientation_overlay: function() {
       this.set('orientation_overlay_dismissed', true);
     },
