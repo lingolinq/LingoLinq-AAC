@@ -119,7 +119,9 @@ jobs:
         # is reached via the built-in socket proxy (--set-cloudsql-instances, unaffected by
         # private-ranges-only), and the VPC path means a migration that ever enqueues a
         # Resque job or touches Redis can still reach Memorystore's private IP instead of
-        # hanging against an unreachable address. (Phase 3.)
+        # hanging against an unreachable address. `private-ranges-only` routes ONLY RFC1918 /
+        # Google ranges through the VPC; public egress (S3/SES/etc.) still uses the default
+        # path, so this does not force all traffic through the VPC. (Phase 3.)
         run: |
           gcloud run jobs deploy lingolinq-migrate \
             --image "$IMAGE" \
