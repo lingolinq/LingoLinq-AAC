@@ -106,6 +106,44 @@ describe Converters::ApiJsonBundle do
     end
   end
 
+  describe '.load_bundle' do
+    it 'rejects remote URLs that are not the importer bundle upload path' do
+      importer = User.create
+      url = 'https://www.example.com/imports/boards/evil/bundle-abc.json'
+      expect {
+        described_class.load_bundle(url, allowed_importer_global_id: importer.global_id)
+      }.to raise_error(Progress::ProgressError, /invalid import bundle URL/)
+    end
+
+    it 'rejects bundles larger than MAX_BUNDLE_BYTES' do
+      importer = User.create
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{importer.global_id}/bundle-abc.json"
+      allow(Uploader).to receive(:valid_import_bundle_url?).with(url, importer.global_id).and_return(true)
+      allow(Uploader).to receive(:sanitize_url).with(url).and_return(url)
+      head = double('head', success?: true, headers: { 'Content-Length' => (described_class::MAX_BUNDLE_BYTES + 1).to_s })
+      allow(SafeHttp).to receive(:head).with(url).and_return(head)
+
+      expect {
+        described_class.load_bundle(url, allowed_importer_global_id: importer.global_id)
+      }.to raise_error(Progress::ProgressError, /exceeds maximum size/)
+    end
+
+    it 'rejects non-JSON bundle bodies' do
+      importer = User.create
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{importer.global_id}/bundle-abc.json"
+      allow(Uploader).to receive(:valid_import_bundle_url?).with(url, importer.global_id).and_return(true)
+      allow(Uploader).to receive(:sanitize_url).with(url).and_return(url)
+      allow(SafeHttp).to receive(:head).with(url).and_return(double('head', success?: true, headers: {}))
+      allow(SafeHttp).to receive(:get).with(url).and_return(double('get', success?: true, body: '<html></html>', code: 200))
+
+      expect {
+        described_class.load_bundle(url, allowed_importer_global_id: importer.global_id)
+      }.to raise_error(Progress::ProgressError, /not valid JSON/)
+    end
+  end
+
   describe '.entry_payload' do
     it 'builds images from board.image_urls when API omitted images[]' do
       entry = {

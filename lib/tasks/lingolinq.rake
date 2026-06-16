@@ -27,17 +27,28 @@ namespace :lingolinq do
     end
   end
 
-  desc 'Import a CoughDrop/LingoLinq JSON board bundle (PATH=..., USER=username)'
+  desc 'Import a CoughDrop/LingoLinq JSON board bundle (PATH=..., USER=username, optional IMPORTER=supervisor)'
   task import_json_bundle: :environment do
     path = ENV['PATH'].presence || ENV['BUNDLE'].presence
-    abort 'Usage: PATH=/path/to/bundle.json USER=username bundle exec rake lingolinq:import_json_bundle' unless path
+    abort 'Usage: PATH=/path/to/bundle.json USER=username [IMPORTER=supervisor] bundle exec rake lingolinq:import_json_bundle' unless path
 
-    user = User.find_by_path(ENV['USER'].presence || 'example')
-    abort "User not found: #{ENV['USER'] || 'example'}" unless user
+    recipient = User.find_by_path(ENV['USER'].presence || 'example')
+    abort "User not found: #{ENV['USER'] || 'example'}" unless recipient
 
-    puts "Importing JSON bundle from #{path} for #{user.user_name}..."
-    boards = Converters::ApiJsonBundle.import(path, user)
-    root = boards.first
-    puts "OK: imported #{boards.length} board(s). Root: #{root&.key} (#{root&.global_id})"
+    importer = User.find_by_path(ENV['IMPORTER'].presence || ENV['USER'].presence || 'example')
+    abort "Importer not found: #{ENV['IMPORTER']}" unless importer
+
+    puts "Importing JSON bundle from #{path} for #{recipient.user_name} (importer: #{importer.user_name})..."
+    result = Board.import_json_bundle(
+      importer.global_id,
+      path,
+      { 'recipient_global_ids' => [recipient.global_id] }
+    )
+    if result.is_a?(Hash) && result[:error]
+      abort result[:error][:message]
+    end
+
+    root = result.first
+    puts "OK: imported #{result.length} board(s). Root: #{root&.dig('key')} (#{root&.dig('id')})"
   end
 end

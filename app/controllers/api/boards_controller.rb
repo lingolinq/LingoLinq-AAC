@@ -535,6 +535,9 @@ class Api::BoardsController < ApplicationController
     if params['url']
       url = Uploader.sanitize_url(params['url'])
       return api_error(400, { error: 'url required' }) unless url.present?
+      unless Uploader.valid_import_bundle_url?(url, @api_user.global_id)
+        return api_error(400, { error: 'invalid import bundle URL' })
+      end
 
       extra = {}
       raw = params['recipient_global_ids'] || params.dig('board', 'recipient_global_ids')

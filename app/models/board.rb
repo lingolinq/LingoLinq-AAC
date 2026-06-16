@@ -744,7 +744,7 @@ class Board < ApplicationRecord
 
     primary = recipient_users[0]
     dup_targets = recipient_users[1..] || []
-    bundle = Converters::ApiJsonBundle.load_bundle(source)
+    bundle = Converters::ApiJsonBundle.load_bundle(source, allowed_importer_global_id: importer.global_id)
     root_key = bundle['root']
 
     boards = []

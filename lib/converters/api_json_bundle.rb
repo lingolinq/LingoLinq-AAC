@@ -4,6 +4,7 @@
 # ({ root, boards: [{ key, data: { board, images, sounds } }] }).
 module Converters::ApiJsonBundle
   MAX_BOARDS = 500
+  MAX_BUNDLE_BYTES = 50 * 1024 * 1024
 
   # JSON.parse and synthesized media entries use string keys; always resolve ids safely.
   def self.media_entry_id(item)
@@ -12,24 +13,66 @@ module Converters::ApiJsonBundle
     item.with_indifferent_access[:id].presence&.to_s
   end
 
-  def self.load_bundle(source)
+  def self.load_bundle(source, allowed_importer_global_id: nil)
     case source
     when Hash
       source.with_indifferent_access
     when String
       if source.match?(%r{\Ahttps?://}i)
-        response = SafeHttp.get(Uploader.sanitize_url(source))
-        raise Progress::ProgressError, "failed to download bundle (#{response.code})" unless response.success?
-
-        JSON.parse(response.body)
+        download_json_bundle(source, allowed_importer_global_id: allowed_importer_global_id)
       elsif File.exist?(source)
-        JSON.parse(File.read(source))
+        parse_local_bundle(File.read(source))
       else
-        JSON.parse(source)
+        parse_local_bundle(source)
       end
     else
       raise Progress::ProgressError, "invalid bundle source"
     end
+  end
+
+  def self.download_json_bundle(url, allowed_importer_global_id: nil)
+    sanitized = Uploader.sanitize_url(url)
+    raise Progress::ProgressError, "invalid bundle URL" unless sanitized
+
+    if allowed_importer_global_id.present?
+      unless Uploader.valid_import_bundle_url?(sanitized, allowed_importer_global_id)
+        raise Progress::ProgressError, "invalid import bundle URL"
+      end
+    end
+
+    head = SafeHttp.head(sanitized)
+    if head.success?
+      len = response_content_length(head)
+      if len && len > MAX_BUNDLE_BYTES
+        raise Progress::ProgressError, "bundle exceeds maximum size (#{MAX_BUNDLE_BYTES} bytes)"
+      end
+    end
+
+    response = SafeHttp.get(sanitized)
+    raise Progress::ProgressError, "failed to download bundle (#{response.code})" unless response.success?
+
+    body = response.body.to_s
+    if body.bytesize > MAX_BUNDLE_BYTES
+      raise Progress::ProgressError, "bundle exceeds maximum size (#{MAX_BUNDLE_BYTES} bytes)"
+    end
+
+    parse_local_bundle(body)
+  end
+
+  def self.parse_local_bundle(raw)
+    unless raw.to_s.lstrip.start_with?('{', '[')
+      raise Progress::ProgressError, "bundle is not valid JSON"
+    end
+
+    JSON.parse(raw)
+  end
+
+  def self.response_content_length(response)
+    raw = response.headers && (response.headers['Content-Length'] || response.headers['content-length'])
+    return nil if raw.blank?
+
+    len = raw.to_i
+    len.positive? ? len : nil
   end
 
   def self.validate!(bundle)

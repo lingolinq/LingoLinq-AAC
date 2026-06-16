@@ -445,6 +445,35 @@ module Uploader
     res ||= url.match(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//)
     !!res
   end
+
+  # Remote path for a JSON bundle the user uploaded via from_json_bundle presign
+  # (imports/boards/{global_id}/bundle-*.json), or nil if the URL is not allowed.
+  def self.import_bundle_remote_path(user_global_id, url)
+    return nil if user_global_id.blank? || url.blank?
+
+    path = url.to_s
+    if ENV['UPLOADS_S3_BUCKET'].present?
+      bucket = Regexp.escape(ENV['UPLOADS_S3_BUCKET'].to_s.strip)
+      path = path.sub(%r{\Ahttps://#{bucket}\.s3\.amazonaws\.com/}, '')
+      path = path.sub(%r{\Ahttps://s3\.amazonaws\.com/#{bucket}/}, '')
+    end
+    if ENV['UPLOADS_S3_CDN'].present?
+      cdn = Regexp.escape(ENV['UPLOADS_S3_CDN'].to_s.sub(%r{/+\z}, ''))
+      path = path.sub(%r{\A#{cdn}/}, '')
+    end
+    path = path.sub(%r{\A/+}, '')
+
+    gid = Regexp.escape(user_global_id.to_s)
+    return path if path.match?(%r{\Aimports/boards/#{gid}/bundle-[\w-]+\.json\z}i)
+
+    nil
+  end
+
+  def self.valid_import_bundle_url?(url, user_global_id)
+    return false unless url.to_s.start_with?('https://')
+
+    import_bundle_remote_path(user_global_id, url).present?
+  end
   
   def self.lessonpix_credentials(opts)
     return nil unless ENV['LESSONPIX_PID'] && ENV['LESSONPIX_SECRET']
