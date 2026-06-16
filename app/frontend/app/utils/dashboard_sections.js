@@ -2,7 +2,7 @@
 // inside `.md-grid--dashboard` on the home page. This is the SINGLE source of
 // truth shared by:
 //   - dashboard/authenticated-view (renders the cards, hides per preference)
-//   - getting-started-tour (the "choose your display style" modal's checkbox
+//   - display-style (the "choose your display style" modal's checkbox
 //     list + live preview toggling)
 // so the two can never drift apart.
 //

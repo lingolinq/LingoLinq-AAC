@@ -405,35 +405,48 @@ See docs/CODE_INVESTIGATION.md for detailed debugging guidance on common problem
 
 ## Audit Orchestration System
 
-This repo includes a full audit orchestration system for continuous code quality, compliance, and MVP readiness assessment.
+This repo includes an audit orchestration system for continuous code quality, compliance, and
+security-posture assessment. As of the Audit/Compliance Modernization (Phase 2, 2026-06), it
+lives in the supported Claude Code layout under `.claude/` and is driven by the findings
+register. The legacy top-level `skills/`, `subagents/`, and `workflows/` dirs were removed in
+Phase 2; their content was migrated into the `.claude/` layout below.
 
-### Directory Layout
-| Directory | Purpose |
-|-----------|---------|
-| `skills/` | 7 structured audit skills (checklists + output schemas) |
-| `subagents/` | 7 isolated audit worker prompts for Claude Code Task tool |
-| `workflows/` | Orchestration runbooks (full-audit pipeline, team coordination) |
-| `audit-reports/` | Generated audit output (JSON + markdown) |
-| `.claude/skills/` | Claude Code native skills (a11y, compliance, deploy, ember) |
+### Directory Layout (current)
+| Path | Purpose |
+|------|---------|
+| `.claude/agents/*-auditor.md` | Read-only domain finder agents (privacy, infra, api, dependency, accessibility) |
+| `.claude/skills/<domain>-audit/SKILL.md` | Per-domain checklists with the register schema embedded |
+| `.claude/skills/audit-run/SKILL.md` | `/audit-run` orchestrator (replaces `workflows/full-audit.md`) |
+| `.claude/hooks/audit-readonly-guard.sh` | PreToolUse write-blocker wired into each finder |
+| `audit-reports/FINDINGS.json` + `FINDINGS.md` | The findings register: single source of truth |
+| `scripts/citation-check.rb` | Mechanical evidence validator (snippet exists at SHA) |
+| `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
 
 ### Running a Full Audit
-1. Read `workflows/full-audit.md`
-2. Follow its orchestration steps (launches 6 parallel subagents)
-3. Results land in `audit-reports/` and sync to Notion
+1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the five
+   read-only finders in parallel, reconciles results into `audit-reports/FINDINGS.json` via
+   `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
+   `scripts/citation-check.rb`.
+2. Headline is the count of open **Critical/High** findings, NOT a 0-100 score.
+3. Only Scot closes a finding, downgrades severity, or accepts risk.
 
-### Skills Reference
-| Skill | Path | Purpose |
-|-------|------|---------|
-| Full-Stack Auditor | `skills/full-stack-auditor/SKILL.md` | Master orchestrator + MVP scoring |
-| GDPR/FERPA Compliance | `skills/gdpr-ferpa-compliance/SKILL.md` | Privacy & compliance |
-| Ember Stabilization | `skills/ember-stabilization/SKILL.md` | Ember 3.12->3.28 migration |
-| Rails Upgrade | `skills/rails-upgrade/SKILL.md` | Rails upgrade readiness |
-| API Contract Verification | `skills/api-contract-verification/SKILL.md` | Ember<->Rails contract checks |
-| SOC2 Auditor | `skills/soc2-auditor/SKILL.md` | SOC2-style security posture |
-| Notion Sync | `skills/notion-sync/SKILL.md` | Push results to Notion via MCP |
+### Finder Agents
+| Agent | Domain | Skill loaded |
+|-------|--------|--------------|
+| `privacy-auditor` | GDPR/FERPA/COPPA/HIPAA privacy | `gdpr-ferpa-audit` |
+| `infra-auditor` | SOC2-style security + infrastructure | `soc2-security-audit` |
+| `api-auditor` | Ember<->Rails API contract | `api-contract-audit` |
+| `dependency-auditor` | Dependency freshness + CVEs | `dependency-audit` |
+| `accessibility-auditor` | WCAG 2.1 AA / EN 301 549 (static markup/SCSS) | `accessibility-audit` |
+
+Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
+and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
 
 ### Audit Rules
-- NEVER modify code during audits - read-only until "apply fixes" is explicitly said
-- Always show diffs before proposing changes
-- Subagents scan only their declared domain
-- All findings include file paths and line numbers where possible
+- Finders are read-only by construction: `tools: Read, Grep, Glob, Bash` (no Edit/Write) plus a
+  PreToolUse hook that blocks mutating Bash. They report; they never fix.
+- The register (`audit-reports/FINDINGS.json`) is the single source of truth. `audit-merge.rb`
+  only ever ADDS findings or marks them `open`; it never closes or downgrades.
+- No student/patient data ever appears in findings; evidence snippets are code only.
+- Compliance content is Claude-only, never routed to Codex/DeepSeek.
+- All findings include file paths and line numbers, anchored to the audited commit SHA.

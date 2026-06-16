@@ -36,6 +36,23 @@ export default Component.extend({
     openLanguage() {
       this.get('application').send('language');
     },
+    // Open the Dashboard Design / Display Style flow from the mobile drawer —
+    // mirrors dashboard/authenticated-view's `editDashboard`: prefer the direct
+    // opener the (still-mounted) display-style component registers on appState,
+    // falling back to the appState signal it also observes. The disc itself is
+    // hidden in the inner header at <=640px; this is its drawer replacement.
+    openDisplayStyle() {
+      var opener = this.get('appState.dashboard_design_opener');
+      if (opener) {
+        opener('display_style_display');
+      } else {
+        this.get('appState').set('open_dashboard_design', 'display');
+      }
+    },
+    closeDrawerAndDisplayStyle() {
+      this.send('closeDrawer');
+      this.send('openDisplayStyle');
+    },
     openCompanySidebar() {
       this.set('isCompanySidebarOpen', true);
     },

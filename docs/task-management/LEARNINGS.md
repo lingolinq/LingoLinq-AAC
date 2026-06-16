@@ -80,6 +80,7 @@ file (see [README.md](README.md)).
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
 - [Pattern: Demo speak `board` query param must alias away from loaded board state](#pattern-demo-speak-board-query-param-must-alias-away-from-loaded-board-state)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
+- [Pattern: Shepherd tour steps for a user-reorderable surface must be built from the LIVE DOM, not a fixed list](#pattern-shepherd-tour-steps-for-a-user-reorderable-surface-must-be-built-from-the-live-dom-not-a-fixed-list)
 - [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
 - [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
 - [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
@@ -4485,3 +4486,228 @@ skips `swap_images` replacement. Re-import affected boards after deploying.
 
 **Evidence:** `lib/converters/lingo_linq.rb`, `app/models/button_image.rb`,
 `app/models/board.rb#swap_images`, task log `2026-06-13-json-bundle-import.md`.
+
+---
+
+## Pattern: "Center the cards" on the account page means centering `.row.big_buttons`, not the stat rows — and it must be base-level, not Focused-View-scoped
+
+**Symptom:** Account-page stat cards (`.md-user-summary__stats-row--boards`,
+`--supervise`) render left-aligned on small screens. Repeated attempts to
+center them by adding `justify-content: center` / a flex-column to the stats
+row *itself* (and verified-correct via compiled-CSS cascade) did not move them.
+
+**Root cause (two compounding mistakes):**
+1. **Wrong element.** Those stat rows are nested **inside** `.row.big_buttons`
+   (`app/templates/user/index.hbs`), which at `@media (max-width:768px)` is
+   `display:flex; flex-wrap:wrap` with **no `justify-content`**. The stat rows
+   are flex *items* of that container, so they pack to the left regardless of
+   how their *internal* cards are aligned. Centering the cards inside a row
+   does nothing when the row itself is a left-packed flex item. Fix: center the
+   **container** → `.md-user-summary .row.big_buttons { justify-content:center }`.
+2. **Wrong scope.** Focused View is `body.ll-layout-focused` (toggled in
+   `app.js` only when layout ≠ 'gentle'). A fix scoped to `body.ll-layout-focused`
+   is a no-op in Gentle View. "Center on small screens regardless of view" ⇒ the
+   rule must live at the **base** level (`.md-user-summary …`), not inside the
+   focused-view block.
+
+**Also burned:** generalizing the (wrong) fix to `.md-user-summary__stats-row`
+re-showed the `--boards` row that Focused View hides — because `display:flex`
+(specificity 0,2,1, later in source) beat the `display:none` hide (also 0,2,1).
+Only set `display` on a row you're sure isn't the hidden one; prefer centering
+the parent (no `display`/`width` touched ⇒ the `--boards` hide stays safe).
+
+**Lesson:** When cards "won't center," check whether they're flex/grid *items*
+of a wrapper and center the **wrapper**. And confirm which view-class
+(`body.ll-layout-focused`) actually applies before scoping a rule to it.
+
+---
+
+## Pattern: A divider/hairline in a flex-column container "has space but no line" → flex-shrink collapsed its height
+
+**Symptom:** A `<div>` divider (e.g. `.la-mobile-drawer__divider`, height 1–2px) renders an
+empty GAP where it should be but no visible line — only on tall/overflowing layouts.
+
+**Cause:** The parent is `display: flex; flex-direction: column` with overflow (e.g. the mobile
+drawer panel). When content exceeds the container, flex shrinks items with the default
+`flex-shrink: 1`. A divider has **no content**, so its min-content height is 0 → it collapses to
+0px. Its `margin` is NOT subject to flex-shrink, so the gap remains while the line vanishes.
+
+**Fix:** Pin the divider's size: `flex-shrink: 0;` on the divider rule. (Same fix applies to any
+fixed-size, zero-content flex child — spacers, rules, thin separators.)
+
+**Lesson:** "Gap shows but the element doesn't paint" inside a flex column = suspect flex-shrink
+collapsing a zero-content child before suspecting the background/color.
+
+## Pattern: Shepherd tour steps for a user-reorderable surface must be built from the LIVE DOM, not a fixed list
+
+The Gentle View home dashboard is now a drag-to-reorder + show/hide grid
+(`utils/dashboard_sections.js` → `dashboard_order` / `dashboard_sections`
+prefs). A guided tour with a hard-coded step list + per-card placement sides
+(`speak`→right, `boards`→left, …) breaks the moment a user moves or hides a
+card: the popover points the wrong way and the tour jumps around instead of
+following what the user sees.
+
+**Fix (the position-independent tour, `app/frontend/app/utils/tours/`):**
+1. **Coverage from the shared registry** — iterate `HOME_SECTIONS` (the same
+   source of truth the renderer uses) so tour coverage can't silently drift
+   when cards are added. Per-card tour *copy* lives in a `cardCopy()` switch.
+2. **Skip hidden cards via `offsetParent`** — cards turned off are
+   `display:none !important` but STAY in the DOM, so a bare `querySelector`
+   still finds them and Shepherd spotlights a zero-size box (popover flies to a
+   corner). `visibleEl(sel)` = first match with `offsetParent !== null` skips
+   hidden cards AND picks the visible variant of a dual-markup card
+   (`-wide-only`/`-narrow-only`) without special-casing. (Same failure family
+   as the dual-markup spotlight bug.)
+3. **Order by live geometry** — sort the resolved elements by
+   `getBoundingClientRect()` top, then left, so steps follow the on-screen
+   reading order whatever the saved arrangement is.
+4. **Placement from geometry, not a fixed side** — `placementForElement(el)`:
+   `<=1024px` or near-full-width → `bottom`; left half → `right`; right half →
+   `left`. Recompute on resize for `home_tour_card_*` steps only and re-show the
+   open step.
+5. **Small screens** — the nav step targets whichever control is visible
+   (`.md-pillnav` vs the collapsed `.md-pillnav-dropdown__trigger`, since
+   `.md-pillnav` is `display:none` at `<=$aac-breakpoint-xs`); per-pill steps
+   gate on the pill row's `offsetParent`.
+
+**Two corollaries:**
+- **Page-specific tours need a dispatcher, not one mega-component.** A
+  `tourBuilderFor(route, layout)` registry maps the page to its step-builder;
+  the trigger button hides (`hasTour`) where no tour exists. The home dashboard
+  renders at BOTH `user.index` and `user.home`; home-only navbar affordances
+  (display-style, the tour button) gate on `current_route == "user.home"`.
+- **Don't lose a side-effect when gating the tour.** The post-registration
+  auto-open also hands the user off to the critical-mode setup wizard. When the
+  current layout has no tour yet (default Focused View), still run the handoff —
+  gate the *tour*, not the *handoff*.
+## Pattern: compliance-officer write guard uses a file allowlist, not directory prefixes
+
+**Root cause family:** granting `Write` on broad prefixes (`audit-reports/`, `/tmp`) lets a
+read-mostly agent touch register truth (`FINDINGS.json`) or stage files outside the repo tree.
+
+**Fix pattern:** `compliance-officer-write-scope.sh` resolves paths with `File.realpath` (or
+parent realpath for not-yet-created files), then matches an explicit relative-path allowlist
+(calendar, dated hygiene/regulatory notes, `docs/legal/*.md`). `FINDINGS.json` / `FINDINGS.md`
+are hard-denied. `/tmp` is not allowed. Calendar `.md` is generated by
+`scripts/compliance-calendar-render.rb` with a CI `--check` drift gate.
+
+**Evidence:** `docs/task-management/2026-06-13-pr-review-phase3-fixes.md`; hook at
+`.claude/hooks/compliance-officer-write-scope.sh`.
+
+## Pattern: a register-adding script must mirror citation-check's matcher EXACTLY, or it reddens CI
+
+**Root cause family:** any script that ADDS findings to `FINDINGS.json` (`audit-merge.rb`,
+`promote-finding.rb`) gates evidence with its own `snippet_present?`. If that gate is looser than
+`citation-check.rb`'s acceptance test, it accepts evidence that citation-check later rejects,
+turning the register red after the fact.
+
+**Concrete trap:** `citation-check.rb` matches a snippet **per source line**
+(`contents.each_line ... normalize(line).include?(needle)`). A `snippet_present?` that normalizes
+the WHOLE file and does one `include?` will accept a multi-line snippet that no single line
+contains; citation-check then FAILs it. Fix: gate per-line too
+(`content.each_line.any? { |l| norm(l).include?(needle) }`). Verified by reproducing the FAIL.
+
+**Corollary - never re-anchor an existing finding's evidence to an ephemeral sha.** Promoting a
+re-found OPEN finding must NOT move its `evidence.sha` to the PR-branch head sha: that sha can be
+orphaned (rebase/force-push/branch delete) before citation-check runs in CI, reddening a finding
+that was green. Keep the finding's existing durable (merged/audited) sha; only refresh `lastSeen`
++ append a provenance note.
+
+**Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md`;
+`scripts/promote-finding.rb` `snippet_present?` and the reseen branch.
+
+## Pattern: secret pre-scrub should redact-and-proceed for PII but SKIP the call on a real secret
+
+**Context:** the n8n PR bot ships the diff to DeepSeek (OpenRouter, no BAA). Mirroring
+`lib/pii_scrubber.rb` (whose `redact_for_ai` is redact-and-proceed): PII shapes get redacted and
+the review still runs on the scrubbed diff, but a HIGH-CONFIDENCE secret shape (distinctive
+prefixes: AWS `AKIA`, `ghp_`, `xox*-`, `sk-`, `AIza`, `sk_live`, JWT `eyJ.eyJ.`, `scheme://u:p@`)
+trips a skip gate so a credentialed diff is never sent to a no-BAA endpoint even redacted.
+
+**Why not a generic `password=`/`token=` pattern for the SKIP:** it false-trips normal code
+(`token = SecureRandom.hex` matches), which would silently disable the adversary review on many
+PRs. Keep the generic shape for REDACTION (register-side refusal is cheap) but use only
+distinctive-prefix shapes to gate the skip. Test `.replace`-based scrubbers with `.replace`, not
+`.test`, on `/g` regexes - `.test` carries `lastIndex` across calls and gives false misses.
+
+**Evidence:** n8n workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)` / `DeepSeek PII
+Gate`; `scripts/promote-finding.rb` `SECRET_PATTERNS`.
+
+## Pattern: editing a LIVE n8n workflow - share nodes via fan-out, don't rename, verify at runtime
+
+**Context:** extended the PR-bot scrub from one model path to both, and consolidated the
+two-model output (workflow `lbyA52atQjQ8MCqy`).
+
+- **Don't rename a node in a live workflow to "clean up" a now-inaccurate name.** n8n connections
+  and `$('Node Name')` references key on the node NAME; renaming silently breaks every connection
+  and cross-node reference unless every reference is updated in the same atomic op. Keeping a
+  slightly-stale name (`PII Pre-Scrub (DeepSeek)` now scrubs both paths) + a corrected `notes`
+  field is the lower-risk choice. Document the broadened responsibility in notes + the sticky.
+- **Reuse one node via fan-out instead of duplicating logic.** One shared scrub node feeding two
+  IF gates (Claude + DeepSeek), both branching on the same `pii_scrub.secrets_found`, beats two
+  copies of the pattern list (DRY; one place to keep in sync with `lib/pii_scrubber.rb`). A synthetic
+  "Skipped" Code node per gate feeds the SAME Merge input index the real call would, so the
+  downstream reviewer-name lookup is unaffected.
+- **`n8n_validate_workflow` is a heuristic, not a compiler.** It emits false positives on Code
+  nodes: `"Array items must be objects with json property"` fires on a node whose helper functions
+  `return` non-arrays even when the node's actual `return [{ json: ... }]` is correct; `"Invalid $
+  usage"` and `"File system access"` fire on normal `.replace`/`$()` usage. ALWAYS confirm a Code
+  node's real behavior by running its logic standalone in node with stubbed `$input`/`$()` - the
+  runtime output is the source of truth, the validator is advisory.
+- **Consolidating two reviewers' findings:** dedupe by Jaccard token-overlap on finding TITLES
+  (>=0.6), merge to the higher severity + longer detail + union of reviewers, then derive ONE
+  verdict by mapping each model's verdict to a common severity scale and taking the max. Keep the
+  per-model verdicts in a small table so attribution is not lost.
+
+**Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md` follow-on section;
+workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)`, `Claude PII Gate`, `Format Output`.
+
+## Pattern: register governance has TWO Scot-owned axes (status AND disposition) - guard both
+
+When schema 1.1 added a `disposition` block (`untriaged`/`accepted`/`fixed`/`dismissed-false-positive`/
+`wontfix`) orthogonal to `status`, every place that protected a Scot decision by checking `status`
+alone silently regressed: a finding can be `status: open` yet `disposition: dismissed-false-positive`,
+and a re-find guarded only on `SCOT_OWNED_CLOSED` statuses sailed through as a routine `reseen`,
+quietly re-validating something Scot dismissed. **Rule:** any "is this Scot's decision?" check on a
+finding must test BOTH `status` (in `SCOT_OWNED_CLOSED`) and `disposition.state` (in
+`SCOT_OWNED_DISPOSITIONS` = every value except `untriaged`). Fixed in both `scripts/promote-finding.rb`
+and `scripts/audit-merge.rb` (the hand-synced sibling - when you fix governance in one, grep the other
+for the same guard). Reproduce a governance gap before fixing: build a register finding in the missed
+state, run the script against a COPY, assert the summary bucket (regressions vs reseen). Evidence:
+2026-06-15 review round 2 in `docs/task-management/2026-06-14-operationalize-review-findings.md`.
+
+## Pattern: refuse/scrub on a DEEP walk of the whole record, never a named-field allowlist
+
+`sensitive_hits` scanned a hand-picked list of fields (`title`, `snippet`, `remediation.options`...),
+so PII in a `remediation` subkey - or any reviewer-added key - bypassed refusal and a student email
+reached the git-tracked register. A code/path-evidence-only or no-PII guarantee that scans a SUBSET of
+a structure is a guarantee in name only: the whole object gets persisted/sent, so the whole object must
+be scanned. Replaced with a recursive `deep_strings(node)` that collects every key AND value, then
+matches the PII/secret patterns against the join. Same principle for the n8n pre-scrub (scrub the
+message content, not a curated slice). Evidence: H2, `scripts/promote-finding.rb#deep_strings`.
+
+## Pattern: redact-and-proceed vs skip on the no-BAA AI path - decide by confidence, not category
+
+The PR-bot scrub (`lbyA52atQjQ8MCqy`) and `promote-finding.rb` are a hand-synced secret/PII pair, but
+their CONSEQUENCE differs and should: distinctive live-credential shapes (AWS `AKIA`, GitHub `ghp_`,
+`Bearer <20+>`, Google `ya29.`) SKIP the model call entirely (a credentialed diff is never sent to a
+no-BAA endpoint even redacted); ambiguous shapes (a `password = "..."` assignment that is usually a
+test fixture) REDACT-and-proceed so the review still runs. The trap to avoid: a broad pattern that
+SKIPS on `token = SecureRandom.hex` disables review on a large fraction of normal PRs. Mitigations that
+worked: require a QUOTED value for generic credential assignments (`["'][^"'\s]{8,}["']`), and require
+20+ token chars after `Bearer`. Always test a new scrub regex for BOTH catch and no-false-trip on
+ordinary code before shipping. Evidence: H4, node `PII Pre-Scrub (DeepSeek)` SECRETS/PII arrays.
+
+## Gotcha: EN 301 549 clause numbers (9.x.x.x) trip the register's IP-address PII scrubber
+
+When the `accessibility-auditor` finder emits a WCAG finding, any four-part dotted number in the
+finding text - notably an EN 301 549 clause like `9.1.4.3` - matches `audit-merge.rb`'s IP regex
+(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`) and the ENTIRE finding is REFUSED as `pii:ip` (it
+silently never lands in the register; merge reports `skipped`, citation-check stays green only
+because the finding is absent). WCAG success-criterion numbers (`1.4.3`, `2.4.7`) are at most 3
+dotted groups and are always safe; the EN 301 549 web mapping (`9.1.x.x`) is the one that bites.
+Fix (no Ruby change, scrubber is correct defense-in-depth): the `accessibility-audit` skill + agent
+instruct finders to cite the WCAG SC number in emitted fields and reference EN 301 549 only at the
+3-part parent clause (`9.1.4`) or in prose. Verified 2026-06-15 via a /tmp dry-run: with `9.1.4.3`
+in `notes` -> merge `skipped=1 (refused: pii:ip)`; with `9.1.4` -> merge `new=1`, citation-check
+PASS. Evidence: `scripts/audit-merge.rb` PII_PATTERNS[:ip]; `.claude/skills/accessibility-audit/SKILL.md`.

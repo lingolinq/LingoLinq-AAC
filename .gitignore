@@ -47,8 +47,41 @@
 # Cursor IDE debug session logs (NDJSON)
 .cursor/debug*.log
 
-# Ignore local settings for claude
-/.claude
+# Ignore local Claude Code settings + worktrees, but TRACK the shared audit system.
+# Pattern note: exclude the CONTENTS of /.claude (not the dir itself) so the
+# audit subtree below can be re-included. Re-including a child of a fully-excluded
+# directory is impossible in git, hence /.claude/* rather than /.claude.
+/.claude/*
+# Shared, version-controlled audit/compliance system (Phase 2 agent migration).
+# Re-include ONLY the specific tracked file types, not whole directories, so future local junk
+# dropped under these dirs (scratch logs, finder temp JSON, editor swap files) stays ignored.
+# Idiom: re-include dir, re-exclude its contents, re-include the wanted files.
+!/.claude/agents/
+/.claude/agents/*
+!/.claude/agents/*.md
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/*/
+/.claude/skills/*/*
+!/.claude/skills/*/SKILL.md
+!/.claude/hooks/
+/.claude/hooks/*
+!/.claude/hooks/*.sh
+!/.claude/settings.json
+# GSD toolkit (locally-installed planning/workflow tooling) is NOT part of the
+# product — keep its agent + hook definitions out of the repo. These re-exclude
+# patterns come AFTER the broad *.md / *.sh re-includes above, so they win and
+# only the gsd-* subset is ignored (the audit/compliance agents + hooks stay tracked).
+/.claude/agents/gsd-*.md
+/.claude/hooks/gsd-*.sh
+# Everything else under /.claude stays local and ignored: settings.local.json, worktrees/,
+# and agent-memory/ (finder `memory: project` accrues per-machine; not shared to avoid pulling
+# unrelated local agents' memory into git).
+
+# Audit run-log (Phase 4): per-tool examination detail is LOCAL telemetry (large/churny,
+# machine-specific). Only the per-run summary (runs.jsonl) and the README are tracked.
+/audit-reports/run-log/examined-*.jsonl
+/audit-reports/run-log/logger-errors.jsonl
 
 # Python bytecode
 __pycache__/

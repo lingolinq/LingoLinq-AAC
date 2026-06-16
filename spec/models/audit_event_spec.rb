@@ -31,7 +31,7 @@ describe AuditEvent, :type => :model do
       # false return -- AuditEvent has no validations, so save never returns false.
       event = AuditEvent.new
       allow(event).to receive(:save!).and_raise(StandardError.new('boom'))
-      allow(AuditEvent).to receive(:new).and_return(event)
+      allow(AuditEvent).to receive(:new).with(user_key: 'fred', data: {}).and_return(event)
 
       expect(Rails.logger).to receive(:error).with('[AuditEvent] failed to persist audit record for fred: StandardError: boom')
       result = nil
@@ -46,7 +46,7 @@ describe AuditEvent, :type => :model do
       # the only interpolated value that could carry PII, so it must be scrubbed.
       event = AuditEvent.new
       allow(event).to receive(:save!).and_raise(StandardError.new('PG error near grandma@hospital.example'))
-      allow(AuditEvent).to receive(:new).and_return(event)
+      allow(AuditEvent).to receive(:new).with(user_key: 'fred', data: {}).and_return(event)
 
       logged = nil
       allow(Rails.logger).to receive(:error) { |line| logged = line }
@@ -61,7 +61,7 @@ describe AuditEvent, :type => :model do
       # scrubbed message, never the raw exception (which Sentry would not scrub).
       event = AuditEvent.new
       allow(event).to receive(:save!).and_raise(StandardError.new('db error for grandma@hospital.example'))
-      allow(AuditEvent).to receive(:new).and_return(event)
+      allow(AuditEvent).to receive(:new).with(user_key: 'fred', data: {}).and_return(event)
       allow(Rails.logger).to receive(:error)
       allow(Sentry).to receive(:initialized?).and_return(true)
 
@@ -71,6 +71,28 @@ describe AuditEvent, :type => :model do
 
       expect(captured).to include('[REDACTED_EMAIL]')
       expect(captured).not_to include('grandma@hospital.example')
+    end
+
+    %w[NameError LoadError ArgumentError].each do |scrub_error_class|
+      it "falls back to a non-echoing placeholder when the scrubber raises #{scrub_error_class}" do
+        # If PiiScrubber is unavailable or broken (e.g. lib/ not autoloaded in a
+        # worker) the scrub call raises; the fallback must NOT log the raw
+        # e.message we were trying to scrub, or the scrubber-absent path becomes
+        # the PII-leak path. Scrubber exception messages are also withheld.
+        event = AuditEvent.new
+        allow(event).to receive(:save!).and_raise(StandardError.new('PG error near grandma@hospital.example'))
+        allow(AuditEvent).to receive(:new).with(user_key: 'fred', data: {}).and_return(event)
+        scrub_err = scrub_error_class.constantize.new('scrub failure detail with grandma@hospital.example')
+        allow(PiiScrubber).to receive(:scrub_log_line).and_raise(scrub_err)
+
+        logged = nil
+        allow(Rails.logger).to receive(:error) { |line| logged = line }
+        expect { AuditEvent.log_command('fred', {}) }.not_to raise_error
+
+        expect(logged).to include("[unscrubbable:#{scrub_error_class}]")
+        expect(logged).not_to include('grandma@hospital.example')
+        expect(logged).not_to include('scrub failure detail')
+      end
     end
   end
 end

@@ -1,0 +1,227 @@
+{
+  "meta": {
+    "schemaVersion": "1.0",
+    "artifact": "LingoLinq-AAC compliance calendar",
+    "description": "Source of truth for recurring compliance review cadences and fixed regulatory dates. Owned by the compliance-officer agent, surfaced at /compliance-status. The officer DRAFTS and SURFACES; only Scot attests that a review was completed. Regenerate compliance-calendar.md with `ruby scripts/compliance-calendar-render.rb`; do not hand-edit the render.",
+    "generatedDate": "2026-06-14",
+    "owner": "compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)",
+    "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 5.1, 6, 9.1; fresh regulatory lookups 2026-06-13; Phase 4 audit-run cadence added 2026-06-14",
+    "dateConvention": "ISO-8601 absolute dates. All cached regulatory dates are 'verify before relying'; regulation is fast-moving.",
+    "governance": "A review is only 'done' when Scot attests. nextDue is advisory scheduling, not a compliance claim. No student/patient data in this file."
+  },
+  "recurringReviews": [
+    {
+      "id": "rev-audit-run-quarterly-full",
+      "framework": "SOC2",
+      "title": "Full /audit-run (4 finders, full scope) + adversary verify - all frameworks",
+      "cadence": "quarterly",
+      "lastDone": "2026-06-14",
+      "nextDue": "2026-09-14",
+      "drafts": "Full fan-out: privacy/infra/api/dependency finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).",
+      "watch": "Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db).",
+      "basis": "plan 5.1, 9.1 (decision: quarterly full + monthly light); .claude/skills/audit-run cadence section"
+    },
+    {
+      "id": "rev-audit-run-monthly-light",
+      "framework": "SOC2",
+      "title": "Monthly light /audit-run (diff-since-last-run scope, no full re-scan)",
+      "cadence": "monthly",
+      "lastDone": "2026-06-14",
+      "nextDue": "2026-07-14",
+      "drafts": "Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.",
+      "watch": "Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim.",
+      "basis": "plan 5.1, 9.1; .claude/skills/audit-run cadence section"
+    },
+    {
+      "id": "rev-ferpa-annual",
+      "framework": "FERPA",
+      "title": "FERPA vendor-disclosure + directory-info posture review",
+      "cadence": "annual",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "register hygiene + posture delta for school-district data flows",
+      "watch": "FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly",
+      "basis": "plan 1.3"
+    },
+    {
+      "id": "rev-hipaa-annual",
+      "framework": "HIPAA",
+      "title": "HIPAA Security Rule risk assessment + BAA inventory review",
+      "cadence": "annual",
+      "lastDone": "2026-02-01",
+      "nextDue": "2027-02-01",
+      "drafts": "BAA inventory (AWS BAA on file 2026-02; subprocessor BAAs), minimum-necessary review for hospital data",
+      "watch": "Proposed HIPAA Security Rule update is still an NPRM, not law - build to the current rule, watch",
+      "basis": "plan 1.3; docs/legal/AWS_BAA_ACCEPTED.md"
+    },
+    {
+      "id": "rev-gdpr-dpa-annual",
+      "framework": "GDPR",
+      "title": "GDPR DPA + RoPA + data-residency review",
+      "cadence": "annual",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "RoPA refresh, DPA terms review, right-to-deletion path verification for EU clients",
+      "watch": "EU AI Act intersects GDPR for EU clients - see fixed dates",
+      "basis": "plan 1.3"
+    },
+    {
+      "id": "rev-gdpr-subprocessor-quarterly",
+      "framework": "GDPR",
+      "title": "Subprocessor list review (SUBPROCESSORS.md)",
+      "cadence": "quarterly",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "updated subprocessor inventory + change notice draft (GDPR Art. 28(2) prior-notice posture)",
+      "watch": "any new third-party data processor added to the stack triggers an off-cycle review",
+      "basis": "plan 1.3, 2.5; docs/legal/SUBPROCESSORS.md"
+    },
+    {
+      "id": "rev-coppa-retention-quarterly",
+      "framework": "COPPA",
+      "title": "COPPA data-retention enforcement + parental-consent flow check",
+      "cadence": "quarterly",
+      "lastDone": "2026-04-26",
+      "nextDue": "2026-07-26",
+      "drafts": "verify enforced deletion of children's data per written retention policy; verify separate verifiable parental consent for any disclosure not integral to the service (incl. AI training)",
+      "watch": "amended COPPA Rule compliance deadline 2026-04-22 PASSED and is enforceable (~$51.7k/incident/day). Watch FTC enforcement actions.",
+      "basis": "plan 1.3, 2.4; docs/legal/COPPA_VERIFICATION_2026-04-26.md; docs/legal/DATA_RETENTION.md"
+    },
+    {
+      "id": "rev-soc2-quarterly",
+      "framework": "SOC2",
+      "title": "SOC 2 control review (continuous monitoring posture)",
+      "cadence": "quarterly",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "control-evidence freshness check; map register findings to SOC 2 CC criteria; flag stale evidence before an auditor sees it",
+      "watch": "SOC 2 / ISO 27001 control overlap ~90% - implement once, map to many (plan 1.2)",
+      "basis": "plan 1.2, 1.3"
+    },
+    {
+      "id": "rev-accessibility-acr-semiannual",
+      "framework": "WCAG",
+      "title": "Accessibility Conformance Report (ACR/VPAT) refresh",
+      "cadence": "semi-annual",
+      "lastDone": null,
+      "nextDue": "2026-12-13",
+      "drafts": "refresh docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md against current AAC surfaces; re-test the dual render path (index.hbs + button.js fast_html)",
+      "watch": "WCAG 2.1 AA stands; district RFPs flow it down regardless of the extended ADA Title II dates. Also refresh on any major AAC UI change.",
+      "basis": "plan 2.5, 6; audit-reports/wcag-modernized-2026-04-11*.md"
+    },
+    {
+      "id": "rev-zdr-reverify-on-rotation",
+      "framework": "SOC2",
+      "title": "OpenRouter ZDR re-verification (after every key rotation, plus quarterly)",
+      "cadence": "event-driven + quarterly",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "confirm the OpenRouter ZDR account toggle is still on after any API-key rotation; PiiScrubber is the real backstop, ZDR is operator-maintained and unenforceable from config",
+      "watch": "ZDR is NOT a BAA. Re-verify the toggle after every key rotation - nothing else checks it (plan 2.4 item 7).",
+      "basis": "plan 1.8, 2.4; ZDR verification SOP (Phase 1)"
+    },
+    {
+      "id": "rev-gemini-baa-annual",
+      "framework": "HIPAA",
+      "title": "Google Gemini API fallback path BAA/DPA verification",
+      "cadence": "annual",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "Confirm Gemini API data-handling terms and whether any Google BAA covers the runtime fallback in lib/ai_word_predictor.rb; document result in AI Governance Memo section 7",
+      "watch": "Until resolved, PiiScrubber remains the controlling backstop for the Gemini path",
+      "basis": "docs/legal/AI_GOVERNANCE_MEMO.md section 7; lib/ai_word_predictor.rb Gemini fallback"
+    },
+    {
+      "id": "gov-secret-rejector-build",
+      "framework": "SOC2",
+      "title": "Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3)",
+      "cadence": "one-time",
+      "lastDone": null,
+      "nextDue": "2026-09-01",
+      "drafts": "Build scripts/audit-merge.rb or scripts/citation-check.rb rejector for secret/PII-shaped runtime evidence snippets",
+      "watch": "Instruction-only control on infra-auditor until this ships; tagged HIPAA/FERPA in register",
+      "basis": "audit-reports/self-findings-triage-2026-06-13.md; LL-b5c30235d3"
+    },
+    {
+      "id": "rev-dpa-ndpa-renewals",
+      "framework": "FERPA",
+      "title": "District DPA / SDPC NDPA renewals + registry listing",
+      "cadence": "per-contract (track renewal dates as they are signed)",
+      "lastDone": null,
+      "nextDue": null,
+      "drafts": "NDPA v2.2 posture responses; CAIQ pre-fill; SDPC registry listing maintenance",
+      "watch": "SDPC NDPA v2.2 (Nov 2025) is the de facto K-12 vendor contract; registry listing is the highest-leverage sales artifact (plan 1.3). nextDue is null until contracts with renewal dates exist.",
+      "basis": "plan 1.2, 1.3, 2.5"
+    }
+  ],
+  "fixedRegulatoryDates": [
+    {
+      "id": "fix-coppa-2026-04-22",
+      "framework": "COPPA",
+      "date": "2026-04-22",
+      "status": "passed-enforceable",
+      "nextDue": "2026-07-26",
+      "linkedReview": "rev-coppa-retention-quarterly",
+      "title": "Amended COPPA Rule compliance deadline",
+      "obligation": "Written data-retention policy with enforced deletion; written information security program; expanded PI (voiceprints, audio); separate verifiable parental consent for disclosure not integral to the service, explicitly including using children's data to train AI.",
+      "action": "Verify ongoing compliance each quarter (rev-coppa-retention-quarterly). Penalties up to ~$51,744/incident/day.",
+      "source": "https://www.federalregister.gov/documents/2025/04/22/2025-05904/childrens-online-privacy-protection-rule",
+      "verifiedOn": "2026-06-13"
+    },
+    {
+      "id": "fix-euaiact-art50-2026-08-02",
+      "framework": "EU_AI_Act",
+      "date": "2026-08-02",
+      "status": "upcoming",
+      "title": "EU AI Act Article 50 transparency obligations apply",
+      "obligation": "Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-scope AI system, not only high-risk. For an AAC predictor, the relevant question is whether output meets the synthetic-content marking trigger.",
+      "action": "Before 2026-08-02: document the Article 50 applicability analysis for the AAC predictor in the AI Governance Memo; implement any required user-facing AI-interaction disclosure.",
+      "source": "https://artificialintelligenceact.eu/article/50/",
+      "verifiedOn": "2026-06-13"
+    },
+    {
+      "id": "fix-euaiact-art50-2-2026-12-02",
+      "framework": "EU_AI_Act",
+      "date": "2026-12-02",
+      "status": "upcoming",
+      "title": "EU AI Act Article 50(2) machine-readable marking grace ends",
+      "obligation": "Generative AI systems already on the market before 2026-08-02 must meet the machine-readable marking-of-output requirement by 2026-12-02 (May-2026 Digital Omnibus grace period).",
+      "action": "Only relevant if the AAC predictor is deemed to generate markable synthetic content; resolve in the Article 50 applicability analysis.",
+      "source": "https://artificialintelligenceact.eu/transparency-rules-article-50/",
+      "verifiedOn": "2026-06-13"
+    },
+    {
+      "id": "fix-ada-titleii-2027-04",
+      "framework": "WCAG",
+      "date": "2027-04-24",
+      "status": "upcoming",
+      "title": "ADA Title II web accessibility - large public entities",
+      "obligation": "WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. LingoLinq is a vendor, but district customers flow WCAG down via RFP today.",
+      "action": "Keep the ACR/VPAT current; treat WCAG 2.1 AA as a present sales requirement regardless of the federal date.",
+      "source": "https://www.federalregister.gov/documents/2026/04/20/2026-07663/extension-of-compliance-dates-for-nondiscrimination-on-the-basis-of-disability-accessibility-of-web",
+      "verifiedOn": "2026-06-13"
+    },
+    {
+      "id": "fix-euaiact-annexiii-2027-12-02",
+      "framework": "EU_AI_Act",
+      "date": "2027-12-02",
+      "status": "upcoming",
+      "title": "EU AI Act Annex III high-risk obligations apply",
+      "obligation": "High-risk obligations for Annex III systems (deferred from earlier by the Digital Omnibus). An AAC word predictor is plausibly NOT Annex III point 3 (it does not gate admission, assess learning, or proctor) - but that must be a documented memo, not an assumption.",
+      "action": "Maintain the Annex III classification memo in the AI Governance Memo; revisit if product scope moves toward education-gating functions.",
+      "source": "https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/",
+      "verifiedOn": "2026-06-13"
+    },
+    {
+      "id": "watch-eaa-microenterprise",
+      "framework": "EAA",
+      "date": null,
+      "status": "conditional",
+      "title": "European Accessibility Act microenterprise exemption threshold",
+      "obligation": "EAA enforceable since 2025-06. LingoLinq is likely inside the microenterprise exemption (<10 staff AND <EUR 2M turnover/balance sheet). The exemption vanishes the day EITHER threshold is crossed.",
+      "action": "Re-check exemption status at each headcount or revenue milestone; if crossed, EAA accessibility obligations attach to EU-facing services.",
+      "source": "https://www.taylorwessing.com/en/interface/2025/accessibility/key-eu-accessibility-act-exemptions-and-the-challenges-they-pose",
+      "verifiedOn": "2026-06-13"
+    }
+  ]
+}

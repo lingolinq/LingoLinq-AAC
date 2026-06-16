@@ -1,0 +1,32 @@
+{{!-- Trigger button — Shepherd portals the actual tour popovers and modal
+     overlay into <body> at run time, so this template is just the entry point.
+     Shown only when the current page/layout actually has a tour (hasTour →
+     utils/tours/registry). Scoped class `.md-tour__trigger` is styled in
+     app.scss alongside the `.shepherd-*` overrides. --}}
+{{#if this.hasTour}}
+<button
+  type="button"
+  class="md-tour__trigger"
+  aria-label={{t "Take a tour of the dashboard" key="home_tour_trigger_aria"}}
+  {{action "startTour"}}
+>
+  {{!-- Map icon — reads as a guided tour / walkthrough. Two-tone like the
+       dashboard card icons: brand-blue outline (#4C86D8) + charcoal fold
+       creases (#46505F). Solid hex strokes (not currentColor / gradient refs)
+       so it stays crisp and survives the production asset pipeline. --}}
+  <svg class="md-tour__trigger-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" stroke="#4C86D8"></polygon>
+    <line x1="8" y1="2" x2="8" y2="18" stroke="#46505F"></line>
+    <line x1="16" y1="6" x2="16" y2="22" stroke="#46505F"></line>
+  </svg>
+  <span class="md-tour__trigger-label">{{t "Take a tour" key="home_tour_trigger_label"}}</span>
+  {{!-- "Seen" indicator — a small check badge once this page+view's tour has been
+       completed at least once (preferences.progress.guided_tours_completed). --}}
+  {{#if this.tourSeen}}
+    <span class="md-tour__trigger-seen-badge" aria-hidden="true">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    </span>
+    <span class="sr-only">{{t "Tour completed" key="home_tour_seen_sr"}}</span>
+  {{/if}}
+</button>
+{{/if}}
