@@ -43,14 +43,20 @@ function decoratedTitle(headingKey, headingDefault) {
 // as the .shepherd-text innerHTML. All pieces come from i18n only, never user
 // input. Styling: `.md-tour__list` / `.md-tour__li` / `.md-tour__lead` /
 // `.md-tour__foot` in app.scss.
-function tourChecklist(items, lead, foot) {
+// `options.separator` (optional) is an HTML string inserted BETWEEN items —
+// used to render an "OR" divider when the listed items are mutually-exclusive
+// choices (the board-picker tour). Omitted everywhere else, so the default
+// (run-on checklist) is unchanged.
+function tourChecklist(items, lead, foot, options) {
+  options = options || {};
   var check = '<svg class="md-tour__li-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   var lis = (items || []).map(function(t) {
     return '<li class="md-tour__li">' + check + '<span class="md-tour__li-text">' + t + '</span></li>';
-  }).join('');
+  });
+  var lisHtml = lis.join(options.separator || '');
   var leadHtml = lead ? ('<p class="md-tour__lead">' + lead + '</p>') : '';
   var footHtml = foot ? ('<p class="md-tour__foot">' + foot + '</p>') : '';
-  return leadHtml + '<ul class="md-tour__list">' + lis + '</ul>' + footHtml;
+  return leadHtml + '<ul class="md-tour__list">' + lisHtml + '</ul>' + footHtml;
 }
 
 // Force the identity (account) dropdown open/closed for the tour. Sets the menu's
@@ -87,6 +93,37 @@ function visibleEl(selector) {
   return null;
 }
 
+// Modern "completion" animation for a tour's outro — a success checkmark that
+// draws in with a pop + ring burst (replaces a plain "That's the tour!" line).
+// Pure CSS (animations + reduced-motion guard in app.scss: `.md-tour__done*`).
+// Shared across page tours so the celebratory outro is identical everywhere.
+function doneCelebration() {
+  return '' +
+    '<div class="md-tour__done" aria-hidden="true">' +
+      '<svg class="md-tour__done-svg" viewBox="0 0 52 52" width="62" height="62">' +
+        '<circle class="md-tour__done-circle" cx="26" cy="26" r="24"></circle>' +
+        '<path class="md-tour__done-mark" d="M16 27 l7 7 l13 -15"></path>' +
+      '</svg>' +
+    '</div>';
+}
+
+// Forward "next action" animation for a HANDOFF outro — an arrow that draws in
+// and glides to the right (the counterpart to doneCelebration's checkmark) so a
+// step that hands the user off to their NEXT step reads as "moving on", not
+// "finished". Pure CSS (animations + reduced-motion guard in app.scss:
+// `.md-tour__next*`). Shared so every handoff outro (home → board picker, board
+// picker → live picker modal) renders the identical forward symbol. The step
+// must also carry the `md-tour__step--next` class for the CSS to scope to it.
+function nextAdvance() {
+  return '' +
+    '<div class="md-tour__next" aria-hidden="true">' +
+      '<svg class="md-tour__next-svg" viewBox="0 0 52 52" width="62" height="62">' +
+        '<circle class="md-tour__next-circle" cx="26" cy="26" r="24"></circle>' +
+        '<path class="md-tour__next-arrow" d="M15 26 H34 M27 19 L34 26 L27 33"></path>' +
+      '</svg>' +
+    '</div>';
+}
+
 // Placement for a card popover. Every card — full-width OR the smaller two-up
 // action cards — shows its popover ABOVE the element, for one consistent read
 // down the page (and so a side popover never runs off the right edge or sits
@@ -99,4 +136,82 @@ function placementForElement() {
   return 'top';
 }
 
-export { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement };
+// The scroll container the tour scrolls. The app's main pane is `#content`; while
+// the tour runs we lock it to overflow:hidden (so the user can't scroll), but it
+// stays programmatically scrollable — so detect it by scrollability, not by
+// overflow. Prefer #content if it actually scrolls and contains the target; else
+// walk up for any scrollable ancestor (overflow auto/scroll/hidden); else window.
+function _tourScroller(el) {
+  var content = document.getElementById('content');
+  if (content && content.contains(el) && content.scrollHeight > content.clientHeight + 2) {
+    return content;
+  }
+  var node = el && el.parentElement;
+  while (node && node !== document.body && node !== document.documentElement) {
+    var oy = window.getComputedStyle(node).overflowY;
+    if ((oy === 'auto' || oy === 'scroll' || oy === 'hidden') && node.scrollHeight > node.clientHeight + 2) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+
+// GENTLY scroll a step's target into view and resolve when the scroll finishes.
+// AAC-friendly: a slow, eased, custom animation (browser 'smooth' is too quick),
+// so the user can comfortably FOLLOW the page to where the next highlight will be.
+// Scrolling runs BEFORE the popover is positioned (it's an attached step's
+// beforeShowPromise) so floating-ui places the card once, at the final spot — no
+// flip-flash. `block` 'center' (default) or 'start' (tall targets, honoring the
+// target's scroll-margin-top). `force` scrolls even if the target is already on
+// screen. Respects prefers-reduced-motion (jumps instantly). Never hangs — it
+// resolves after a fixed duration, or immediately when no scroll is needed.
+function scrollIntoViewSettled(el, block, force) {
+  return new Promise(function(resolve) {
+    if (!el) { resolve(); return; }
+    try {
+      var scroller = _tourScroller(el);
+      var isWin = (scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body);
+      var sRect = isWin ? { top: 0, height: window.innerHeight || document.documentElement.clientHeight } : scroller.getBoundingClientRect();
+      var startTop = isWin ? (window.scrollY || document.documentElement.scrollTop || 0) : scroller.scrollTop;
+      var tRect = el.getBoundingClientRect();
+      var relTop = tRect.top - sRect.top;
+      var delta;
+      if (block === 'start') {
+        var margin = parseFloat(window.getComputedStyle(el).scrollMarginTop) || 0;
+        delta = relTop - margin;
+      } else {
+        delta = relTop - (sRect.height - tRect.height) / 2;
+      }
+      var clientH = isWin ? sRect.height : scroller.clientHeight;
+      var scrollH = isWin ? document.documentElement.scrollHeight : scroller.scrollHeight;
+      var maxTop = Math.max(0, scrollH - clientH);
+      var destTop = Math.max(0, Math.min(maxTop, startTop + delta));
+      var diff = destTop - startTop;
+      if (!force && Math.abs(diff) < 6) { resolve(); return; }   // already in view
+      var setTop = isWin ? function(v) { window.scrollTo(0, v); } : function(v) { scroller.scrollTop = v; };
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce) { setTop(destTop); resolve(); return; }        // accessibility: no animation
+      // Eased scroll (~600ms easeInOutCubic): still gentle/visible, but quick
+      // enough that the next card (which fades in once the scroll settles) starts
+      // appearing promptly. The next card can't fade in DURING the scroll — while
+      // floating-ui repositions it every frame the browser suppresses its
+      // appearance until the target is fully in view — so a shorter scroll is what
+      // makes the card show up sooner.
+      var duration = 600, t0 = null;
+      var tick = function(ts) {
+        if (t0 === null) { t0 = ts; }
+        var p = Math.min(1, (ts - t0) / duration);
+        var eased = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        setTop(startTop + diff * eased);
+        if (p < 1) { requestAnimationFrame(tick); } else { resolve(); }
+      };
+      requestAnimationFrame(tick);
+    } catch (e) {
+      try { el.scrollIntoView({ block: block || 'center' }); } catch (e2) { /* ignore */ }
+      resolve();
+    }
+  });
+}
+
+export { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance, scrollIntoViewSettled };

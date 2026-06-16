@@ -30,11 +30,11 @@ export default Component.extend({
 
   // The layout actually RENDERED — the saved `dashboard_layout` pref, validated to a
   // known variant. Everything that drives the grid (class, grid state, section
-  // visibility, the shell modifier) reads THIS. The default is 'focused'; an unset
+  // visibility, the shell modifier) reads THIS. The default is 'gentle'; an unset
   // pref or any legacy/invalid value (e.g. the removed 'balanced') resolves to it.
   effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', function() {
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
-    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'focused'; }
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
+    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
     return layout;
   }),
 

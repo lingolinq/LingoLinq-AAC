@@ -30,4 +30,19 @@ module('Unit | Utility | tours/registry', function() {
     assert.equal(tourBuilderFor('user.boards', 'gentle'), null);
     assert.equal(tourBuilderFor(undefined, undefined), null);
   });
+
+  // Board-detail EDIT mode is a STATE, not its own route, so the board-detail tour
+  // is gated on the third `editMode` arg for BOTH board-detail routes.
+  test('board-detail tour is gated on editMode for both board-detail routes', function(assert) {
+    assert.equal(tourKeyFor('user.board-detail.index', 'gentle', true), 'board_detail_edit_gentle');
+    assert.equal(tourKeyFor('user.board-detail.edit', 'focused', true), 'board_detail_edit_focused');
+    assert.equal(typeof tourBuilderFor('user.board-detail.index', 'gentle', true), 'function');
+    assert.equal(typeof tourBuilderFor('user.board-detail.edit', 'focused', true), 'function');
+  });
+
+  test('board-detail tour is absent when NOT in edit mode', function(assert) {
+    assert.equal(tourKeyFor('user.board-detail.index', 'gentle', false), null);
+    assert.equal(tourBuilderFor('user.board-detail.index', 'gentle'), null);
+    assert.equal(tourBuilderFor('user.board-detail.index', 'gentle', false), null);
+  });
 });

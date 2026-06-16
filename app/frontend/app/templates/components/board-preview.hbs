@@ -1,47 +1,5 @@
 <div class='row md-board-preview'>
   <div class="{{if this.include_canvas "col-sm-4" "col-sm-8 col-sm-offset-2"}} md-board-preview__info">
-    <div class='md-board-preview__actions'>
-      <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "select"}}>
-        {{#if this.select_option}}
-          {{t "Choose This Board" key="choose_this_board"}}
-        {{else}}
-          {{t "Try This Board" key="try_this_board"}}
-        {{/if}}
-      </button>
-      {{#if this.back}}
-        <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
-          {{t "Back to List" key="back_to_list"}}
-        </button>
-      {{/if}}
-      {{#if this.select_option}}
-        <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{action "close"}}>
-          {{t "Cancel" key="cancel"}}
-        </button>
-      {{else}}
-        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "visit"}}>
-          {{t "Board Actions" key="board_actions"}}
-        </button>
-      {{/if}}
-      {{#if this.app_state.currentUser.supervisees}}
-        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "copy"}}>
-          {{t "Copy For..." key="copy_for_ellipses"}}
-        </button>
-      {{/if}}
-      {{#if this.removeContext}}
-        {{!-- Touch-device parity for the tile's hover-only delete/unlike/unshare
-             button. Renders at the bottom of the action stack with a danger
-             treatment and a separator above so it reads as a destructive
-             action, isolated from the positive CTAs. Label + icon come from
-             board_list.remove_* so all four contextual variants (delete,
-             unstar, unlink, untag) are covered with their correct copy. --}}
-        <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{action this.onRemove}} aria-label={{this.removeContext.label}}>
-          {{#if this.removeContext.icon}}
-            <span class='md-board-preview__action--remove-icon {{this.removeContext.icon}}' aria-hidden="true"></span>
-          {{/if}}
-          <span class='md-board-preview__action--remove-text'>{{this.removeContext.label}}</span>
-        </button>
-      {{/if}}
-    </div>
     {{#if this.model.loading}}
       <div class='md-board-preview__status'>{{t "Loading board..." key="loading_board"}}</div>
     {{else if this.model.error}}
@@ -92,9 +50,78 @@
       <div class='md-board-preview__status'>{{t "No data to show" key="no_data_to_show"}}</div>
     {{/if}}
   </div>
-  {{#if this.include_canvas}}
-    <div class='col-sm-8 md-board-preview__canvas-col'>
-      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal" dark_mode=this.dark_mode onCanvasReady=(action "canvas_ready")}}
+  {{!-- Right column: the preview canvas, with the action buttons DIRECTLY BELOW
+       it (to the right of the board-detail info on the left). The column always
+       renders so the buttons show even on narrow viewports where the canvas is
+       suppressed (include_canvas=false); there it stacks under the info. --}}
+  <div class="{{if this.include_canvas "col-sm-8" "col-sm-8 col-sm-offset-2"}} md-board-preview__canvas-col">
+    {{#if this.include_canvas}}
+      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal" dark_mode=this.dark_mode onCanvasReady=(action "canvas_ready") onCanvasProgress=(action "canvas_progress")}}
+    {{/if}}
+    {{!-- Action buttons: secondary / Back flow from the LEFT; the primary CTA is
+         pushed to the RIGHT (.md-board-preview__action--primary { margin-left:auto }
+         in app.scss). Same row for board-picker TOUR mode (Pick this Board) and the
+         regular board-preview details modal (Try This Board / Board Actions). --}}
+    <div class='md-board-preview__actions'>
+      {{#if this.tour_pick}}
+        {{!-- Board-picker TOUR mode: "Back" returns to the live tour modal (left);
+             "Pick this Board" copies the board to the user and opens it in edit
+             mode (right). See board-preview-overlay#pick_for_home. --}}
+        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "close"}}>
+          {{t "Back to Picker" key="board_picker_back"}}
+        </button>
+        {{#if this.back}}
+          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
+            {{t "Back to List" key="back_to_list"}}
+          </button>
+        {{/if}}
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "pick_for_home"}}>
+          {{t "Pick this Board" key="pick_this_board"}}
+        </button>
+      {{else}}
+        {{!-- Regular details modal: destructive Remove sits at the far LEFT
+             (isolated from the positive CTAs); Back / Cancel / Board Actions /
+             Copy For follow; the primary CTA (Try / Choose This Board) is pushed
+             to the RIGHT. --}}
+        {{#if this.removeContext}}
+          {{!-- Touch-device parity for the tile's hover-only delete/unlike/unshare
+               button. Danger treatment, far-left + isolated. Label + icon come from
+               board_list.remove_* so all four contextual variants (delete, unstar,
+               unlink, untag) are covered with their correct copy. --}}
+          <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{action this.onRemove}} aria-label={{this.removeContext.label}}>
+            {{#if this.removeContext.icon}}
+              <span class='md-board-preview__action--remove-icon {{this.removeContext.icon}}' aria-hidden="true"></span>
+            {{/if}}
+            <span class='md-board-preview__action--remove-text'>{{this.removeContext.label}}</span>
+          </button>
+        {{/if}}
+        {{#if this.back}}
+          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
+            {{t "Back to List" key="back_to_list"}}
+          </button>
+        {{/if}}
+        {{#if this.select_option}}
+          <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{action "close"}}>
+            {{t "Cancel" key="cancel"}}
+          </button>
+        {{else}}
+          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "visit"}}>
+            {{t "Board Actions" key="board_actions"}}
+          </button>
+        {{/if}}
+        {{#if this.app_state.currentUser.supervisees}}
+          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "copy"}}>
+            {{t "Copy For..." key="copy_for_ellipses"}}
+          </button>
+        {{/if}}
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "select"}}>
+          {{#if this.select_option}}
+            {{t "Choose This Board" key="choose_this_board"}}
+          {{else}}
+            {{t "Try This Board" key="try_this_board"}}
+          {{/if}}
+        </button>
+      {{/if}}
     </div>
-  {{/if}}
+  </div>
 </div>

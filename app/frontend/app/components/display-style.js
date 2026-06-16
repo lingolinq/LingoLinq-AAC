@@ -427,8 +427,8 @@ function _onDisplayShow(component) {
       var _appState = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
       var _seedUser = _appState && _appState.get('currentUser');
       if (_seedUser && liveEl) {
-        var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'focused';
-        if (['gentle', 'focused'].indexOf(_savedLayout) === -1) { _savedLayout = 'focused'; }
+        var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'gentle';
+        if (['gentle', 'focused'].indexOf(_savedLayout) === -1) { _savedLayout = 'gentle'; }
         Array.prototype.forEach.call(el.querySelectorAll('.md-ds-option'), function(opt) {
           var on = opt.getAttribute('data-gst-layout') === _savedLayout;
           opt.classList.toggle('is-selected', on);
@@ -546,11 +546,11 @@ function _onDisplayShow(component) {
     };
     var currentLayout = function() {
       var sel = el.querySelector('.md-ds-option.is-selected');
-      if (sel) { return sel.getAttribute('data-gst-layout') || 'focused'; }
+      if (sel) { return sel.getAttribute('data-gst-layout') || 'gentle'; }
       try {
         var as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
-        return (as && as.get('currentUser.preferences.dashboard_layout')) || 'focused';
-      } catch (e) { return 'focused'; }
+        return (as && as.get('currentUser.preferences.dashboard_layout')) || 'gentle';
+      } catch (e) { return 'gentle'; }
     };
     var applyLayoutSections = function(layout) {
       var focused = (layout === 'focused');
@@ -945,10 +945,10 @@ export default Component.extend({
   // content toggles + drag now live on page 2 (the home-layout step); page 1 pairs
   // these cards with a READ-ONLY preview (see _buildSteps).
   _styleCardsHtml: function() {
-    // Pre-select the user's SAVED layout (default focused) so re-opening the
+    // Pre-select the user's SAVED layout (default gentle) so re-opening the
     // modal reflects what's stored, not a fixed default.
-    var saved = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
-    if (['gentle', 'focused'].indexOf(saved) === -1) { saved = 'focused'; }
+    var saved = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
+    if (['gentle', 'focused'].indexOf(saved) === -1) { saved = 'gentle'; }
     var option = function(key, label, desc) {
       var sel = key === saved;
       return '<button type="button" class="md-ds-option' + (sel ? ' is-selected' : '') + '" data-gst-layout="' + key + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
@@ -983,15 +983,15 @@ export default Component.extend({
       '</div>';
     return '' +
       '<div class="md-ds-options">' +
+        // Gentle View is listed FIRST (it's the site default), Focused View second.
+        // The KEY is 'gentle' — the value persisted in preferences.dashboard_layout
+        // (and allow-listed below). The user-facing LABEL is "Gentle View".
+        option('gentle', i18n.t('display_style_layout_gentle', "Gentle View"), gentleDesc) +
+        '<span class="md-ds-options__or" aria-hidden="true">' + i18n.t('display_style_or_divider', "OR") + '</span>' +
         // The layout KEY is 'focused' — the layout engine selects on
         // `layout === 'focused'` and it's the value persisted in
         // preferences.dashboard_layout. The user-facing LABEL is "Focused View".
         option('focused', i18n.t('display_style_layout_focused', "Focused View"), focusedDesc) +
-        '<span class="md-ds-options__or" aria-hidden="true">' + i18n.t('display_style_or_divider', "OR") + '</span>' +
-        // The other KEY is 'gentle' — the value persisted in
-        // preferences.dashboard_layout (and allow-listed below). The user-facing
-        // LABEL is "Gentle View".
-        option('gentle', i18n.t('display_style_layout_gentle', "Gentle View"), gentleDesc) +
       '</div>';
   },
 
@@ -1062,7 +1062,7 @@ export default Component.extend({
     opts = opts || {};
     var withToggles = opts.toggles !== false;
     var dragOn = (opts.drag !== false) && !!this.get('appState.feature_flags.dashboard_drag_layout');
-    var savedLayout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
+    var savedLayout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
     var savedOrder = this.get('appState.currentUser.preferences.dashboard_order');
     var savedOrderJson = JSON.stringify((savedOrder && savedOrder.length) ? savedOrder : []);
     // Combined legend: the bracketed preview tag and (when dragging is enabled) the
@@ -1128,8 +1128,8 @@ export default Component.extend({
     // alphabetical sort): rank each available section by its index in the active
     // layout's saved order so the list reads top-to-bottom the way the cards lay
     // out. `.slice()` so we never mutate the array availableHomeSections returns.
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
-    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'focused'; }
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
+    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
     var base = (layout === 'focused') ? FOCUSED_DEFAULT_ORDER : DEFAULT_ORDER;
     var savedOrder = this.get('appState.currentUser.preferences.dashboard_order');
     var ord = (savedOrder && savedOrder.length) ? savedOrder.slice() : base.slice();

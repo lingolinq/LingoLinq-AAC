@@ -92,7 +92,7 @@
                   {{#each group.result.boards as |board|}}
                     {{#if board.key}}
                       <div class="md-home-boards-picker__board simple_board_holder">
-                        {{board-icon board=board}}
+                        {{board-icon board=board prefetchPreview=true}}
                       </div>
                     {{/if}}
                   {{/each}}
@@ -132,7 +132,7 @@
           {{#each this.category_boards as |board|}}
             {{#if board.key}}
               <div class="md-home-boards-picker__board simple_board_holder">
-                {{board-icon board=board}}
+                {{board-icon board=board prefetchPreview=true}}
               </div>
             {{/if}}
           {{/each}}

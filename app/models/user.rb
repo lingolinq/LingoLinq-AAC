@@ -688,10 +688,15 @@ class User < ApplicationRecord
         # content — this is purely a visual/UX shell preference.
         # Default 'modern' to surface the newer, feature-richer UI.
         'board_view_style' => 'modern',
-        # Home-page dashboard arrangement: 'focused' (default) or 'gentle'.
+        # Home-page dashboard arrangement: 'gentle' (default) or 'focused'.
         # Chosen during the Dashboard Design flow; drives the md-grid--layout-*
         # modifier on the dashboard grid.
-        'dashboard_layout' => 'focused',
+        # NOTE (adversarial-review false positive — "client/server default mismatch"):
+        # this server default is 'gentle', matching the frontend default
+        # (dashboard/authenticated-view.js#effectiveLayout). They are aligned; new users
+        # get 'gentle' from both sides. (sanitize_dashboard_preferences! below also coerces
+        # any out-of-range stored value back to a known variant.)
+        'dashboard_layout' => 'gentle',
         # Per-section visibility for the home dashboard cards, e.g.
         # {'boards' => true, 'extras' => false}. Chosen during the Getting
         # Started flow. A missing key (or true) means visible, so sections

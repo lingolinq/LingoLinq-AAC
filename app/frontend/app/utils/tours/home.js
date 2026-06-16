@@ -18,7 +18,7 @@
 // tour-specific COPY (title/text) per section.
 import i18n from '../i18n';
 import { HOME_SECTIONS } from '../dashboard_sections';
-import { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance } from './shared';
 
 // Selector overrides for the multi-markup cards. Speak/Caseload each render a
 // `-wide-only` AND a `-narrow-only` element that share the base class; the CSS
@@ -442,22 +442,39 @@ function pushCardSteps(steps, layout) {
   });
 }
 
-// Modern "completion" animation for the outro — a success checkmark that draws
-// in with a pop + ring burst (replaces a plain "That's the tour!" line). Pure
-// CSS (animations + reduced-motion guard in app.scss: `.md-tour__done*`).
-function doneCelebration() {
-  return '' +
-    '<div class="md-tour__done" aria-hidden="true">' +
-      '<svg class="md-tour__done-svg" viewBox="0 0 52 52" width="62" height="62">' +
-        '<circle class="md-tour__done-circle" cx="26" cy="26" r="24"></circle>' +
-        '<path class="md-tour__done-mark" d="M16 27 l7 7 l13 -15"></path>' +
-      '</svg>' +
-    '</div>';
-}
-
-// Centered outro step (single Finish button — type:next on the last step
-// completes the tour via Shepherd's auto-complete).
-function doneStep() {
+// Centered outro step. Two variants share the SAME completion summary (the
+// checklist of what the Home Page tour covered):
+//   • `handoff` true  — the first-time flow that hands the user straight off to
+//     the board picker. Swaps the success checkmark for a forward "next"
+//     animation and tells them their next step is to pick a communication
+//     board (page-set). The single button advances the tour, whose `complete`
+//     event fires the board-picker handoff (see guided-tour.js _scheduleAutoOpen).
+//   • otherwise — a manual replay via "Take a tour": celebratory checkmark,
+//     "You're all set", Finish.
+// (single button — type:next on the last step completes the tour via Shepherd's
+// auto-complete.)
+function doneStep(handoff) {
+  if (handoff) {
+    return {
+      id: 'home_tour_done',
+      title: decoratedTitle('home_tour_next_title', "Next: pick your communication board (page-set)"),
+      text: nextAdvance() + tourChecklist([
+        i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode"),
+        i18n.t('home_tour_welcome_b2', "Reports & insights"),
+        i18n.t('home_tour_welcome_b3', "Account, settings & more")
+      ],
+        i18n.t('home_tour_next_lead', "You've finished the Home Page tour."),
+        i18n.t('home_tour_next_text', "Now let's pick the communication board (page-set) you'll use to start talking.")),
+      classes: 'md-tour__step md-tour__step--intro md-tour__step--outro md-tour__step--next',
+      buttons: [
+        {
+          text: i18n.t('home_tour_pick_board', "Pick my board (page-set)"),
+          type: 'next',
+          classes: 'md-tour__btn md-tour__btn--primary'
+        }
+      ]
+    };
+  }
   return {
     id: 'home_tour_done',
     title: decoratedTitle('home_tour_done_title', "You're all set with the Home Page"),
@@ -478,16 +495,228 @@ function doneStep() {
   };
 }
 
+// =============================================================================
+// Second-round MENU mode (returning users who've completed the tour before)
+// =============================================================================
+// Instead of re-walking the whole linear tour, a user who has already finished
+// the Home Page tour gets a HUB: a centered menu listing the page's topic areas
+// as a button list. Picking one spotlights that area with EXPANDED detail (more
+// about what each thing does than the first-run copy), with a "Back to menu"
+// button so they can hop around to whatever they want a refresher on. Walking
+// "Next" through the topics ends at the celebratory done step — which here also
+// offers a link back to the board picker. Built via Shepherd's `tour.show(id)`
+// jump navigation (button `action` is bound to the Tour — verified in
+// shepherd.js), so the menu and "Back to menu" buttons can target steps by id.
+
+// Resolve each topic's spotlight element from the live DOM, skipping any whose
+// element isn't on screen (mirrors the linear tour's DOM-driven defensiveness so
+// the menu never lists a topic it can't spotlight). Each topic is a SINGLE
+// spotlight with its own expanded copy. Order matches the linear tour's reading
+// order: toolbar → navigation → cards → account.
+function menuTopics() {
+  var topics = [];
+  // Toolbar — prefer the full-width fixed #inner_header (offsetParent is null when
+  // position:fixed, so resolve directly + verify it's rendered).
+  var headerEl = document.querySelector('#inner_header');
+  if (!headerEl || !headerEl.getBoundingClientRect().width) {
+    headerEl = visibleEl('.app-navbar-authenticated-inner');
+  }
+  if (headerEl) {
+    topics.push({
+      id: 'home_tour_t_header', el: headerEl, on: 'bottom', padded: true,
+      menuLabel: i18n.t('home_tour_menu_header_label', "Your top toolbar"),
+      title: i18n.t('home_tour_menu_header_title', "Your top toolbar"),
+      text: tourChecklist([
+        i18n.t('home_tour_menu_header_b1', "Search finds any board by name or symbol"),
+        i18n.t('home_tour_menu_header_b2', "Display style switches Gentle/Focused views and customizes your dashboard"),
+        i18n.t('home_tour_menu_header_b3', "Upgrade shows plans and manages your subscription"),
+        i18n.t('home_tour_menu_header_b4', "Your account menu lives at the far right"),
+        i18n.t('home_tour_menu_header_b5', "Replay this tour anytime from the tour button")
+      ], i18n.t('home_tour_menu_header_lead', "Everything up here is always one tap away — here's what each control does:"))
+    });
+  }
+  // Navigation pills.
+  var navEl = visibleEl('.md-pillnav') || visibleEl('.md-pillnav-dropdown__trigger') || visibleEl('.md-pillnav-dropdown');
+  if (navEl) {
+    topics.push({
+      id: 'home_tour_t_nav', el: navEl, on: 'bottom',
+      menuLabel: i18n.t('home_tour_menu_nav_label', "Navigation"),
+      title: i18n.t('home_tour_menu_nav_title', "Moving around LingoLinq"),
+      text: tourChecklist([
+        i18n.t('home_tour_menu_nav_b1', "Home — your dashboard and most-used tools"),
+        i18n.t('home_tour_menu_nav_b2', "Boards — browse, open, create and organize boards"),
+        i18n.t('home_tour_menu_nav_b3', "Reports — usage and progress for those you support"),
+        i18n.t('home_tour_menu_nav_b4', "Extras — games, lessons, settings and more tools")
+      ], i18n.t('home_tour_menu_nav_lead', "These pills switch between the main sections in one tap:"))
+    });
+  }
+  // Dashboard cards — spotlight the whole grid so the cutout wraps every card.
+  var gridEl = visibleEl('.md-grid--dashboard');
+  if (gridEl) {
+    topics.push({
+      id: 'home_tour_t_cards', el: gridEl, on: 'top',
+      menuLabel: i18n.t('home_tour_menu_cards_label', "Your dashboard cards"),
+      title: i18n.t('home_tour_menu_cards_title', "Your dashboard cards"),
+      text: tourChecklist([
+        i18n.t('home_tour_menu_cards_b1', "Open Speak Mode to start communicating"),
+        i18n.t('home_tour_menu_cards_b2', "Jump straight to your boards, reports and account"),
+        i18n.t('home_tour_menu_cards_b3', "Drag to reorder, or show/hide cards from Display style"),
+        i18n.t('home_tour_menu_cards_b4', "Whatever you use most stays front and center")
+      ], i18n.t('home_tour_menu_cards_lead', "These cards are your shortcuts into everything you do here:"))
+    });
+  }
+  // Account menu — opens the dropdown so the user sees what's inside.
+  var idBtn = visibleEl('#identity_button');
+  if (idBtn) {
+    topics.push({
+      id: 'home_tour_t_account', el: idBtn, on: 'left', padded: true, openDropdown: true,
+      menuLabel: i18n.t('home_tour_menu_account_label', "Account menu"),
+      title: i18n.t('home_tour_menu_account_title', "Your account menu"),
+      text: tourChecklist([
+        i18n.t('home_tour_menu_account_b1', "Account & profile"),
+        i18n.t('home_tour_menu_account_b2', "All of your boards"),
+        i18n.t('home_tour_menu_account_b3', "Settings & display language"),
+        i18n.t('home_tour_menu_account_b4', "Help & support"),
+        i18n.t('home_tour_menu_account_b5', "Sign out")
+      ], i18n.t('home_tour_menu_account_lead', "Everything tied to your account lives in this menu:"))
+    });
+  }
+  return topics;
+}
+
+// The centered hub. Each topic becomes a full-width menu button that jumps to its
+// spotlight via the Tour's show(); a final "Finish" entry jumps to the done step.
+function menuStep(topics) {
+  var buttons = topics.map(function(t) {
+    return {
+      text: t.menuLabel,
+      classes: 'md-tour__btn md-tour__menu-btn',
+      action: function() { return this.show(t.id); }
+    };
+  });
+  buttons.push({
+    text: i18n.t('home_tour_menu_finish', "Finish & wrap up"),
+    classes: 'md-tour__btn md-tour__menu-btn md-tour__menu-btn--finish',
+    action: function() { return this.show('home_tour_done'); }
+  });
+  return {
+    id: 'home_tour_menu',
+    title: decoratedTitle('home_tour_menu_title', "Take the tour again"),
+    text: '<p class="md-tour__lead">' +
+      i18n.t('home_tour_menu_lead', "You've explored your Home Page before — jump to whatever you'd like a closer look at.") +
+      '</p>',
+    classes: 'md-tour__step md-tour__step--intro md-tour__step--menu',
+    buttons: buttons
+  };
+}
+
+// One spotlight step per topic, with a "Back to menu" button + Next (Next walks
+// the topics in order, ending at the done step).
+function topicStep(t) {
+  var step = {
+    id: t.id,
+    attachTo: { element: t.el, on: t.on },
+    title: t.title,
+    text: t.text,
+    classes: 'md-tour__step' + (t.padded ? ' md-tour__step--navbar' : ''),
+    buttons: [
+      {
+        text: i18n.t('home_tour_back_to_menu', "Back to menu"),
+        classes: 'md-tour__btn md-tour__btn--ghost',
+        action: function() { return this.show('home_tour_menu'); }
+      },
+      {
+        text: i18n.t('home_tour_next', "Next"),
+        type: 'next',
+        classes: 'md-tour__btn md-tour__btn--primary'
+      }
+    ]
+  };
+  // Padded/rounded stylized cutout for the square chrome targets (toolbar, avatar).
+  if (t.padded) {
+    step.modalOverlayOpeningPadding = 8;
+    step.modalOverlayOpeningRadius = 16;
+    step.matchTargetRadius = false;
+  }
+  // Account topic opens the identity dropdown before positioning (guided-tour.js
+  // keeps it open for this step's id and closes it again on any other step/end).
+  if (t.openDropdown) {
+    step.beforeShowPromise = function() { setIdentityDropdownOpen(true); return Promise.resolve(); };
+  }
+  return step;
+}
+
+// Menu-mode outro — the celebratory green check (restored from the manual-replay
+// done step) PLUS a link back to the board picker so a returning user can hop
+// over to pick/change their communication board. `onPickBoard` (supplied by the
+// component, which owns the router) navigates there; we complete() the tour first
+// so the overlay tears down before the route transition.
+function menuDoneStep(onPickBoard) {
+  return {
+    id: 'home_tour_done',
+    title: decoratedTitle('home_tour_done_title', "You're all set with the Home Page"),
+    text: doneCelebration() + tourChecklist([
+      i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode"),
+      i18n.t('home_tour_welcome_b2', "Reports & insights"),
+      i18n.t('home_tour_welcome_b3', "Account, settings & more")
+    ], null,
+      i18n.t('home_tour_menu_done_text', "Refreshed on the Home Page. You can reopen this menu anytime from the Take a tour button.")),
+    classes: 'md-tour__step md-tour__step--intro md-tour__step--outro',
+    buttons: [
+      {
+        text: i18n.t('home_tour_goto_board_picker', "Go to your board picker (page-set)"),
+        classes: 'md-tour__btn md-tour__btn--board-link',
+        action: function() { this.complete(); if (onPickBoard) { onPickBoard(); } }
+      },
+      {
+        text: i18n.t('home_tour_finish', "Finish"),
+        type: 'next',
+        classes: 'md-tour__btn md-tour__btn--primary'
+      }
+    ]
+  };
+}
+
+// Menu-mode ordered step list: the hub, one spotlight per resolved topic, then the
+// celebratory done step (with the board-picker link). Falls back to null when no
+// topics resolve (e.g. a stripped-down page), so the caller can run the linear
+// tour instead of showing an empty menu.
+function buildHomeMenuSteps(layout, options) {
+  options = options || {};
+  var topics = menuTopics();
+  if (!topics.length) { return null; }
+  var steps = [];
+  steps.push(menuStep(topics));
+  topics.forEach(function(t) { steps.push(topicStep(t)); });
+  steps.push(menuDoneStep(options.onPickBoard));
+  if (layout === 'focused') {
+    steps.forEach(function(s) {
+      s.classes = ((s.classes || '') + ' md-tour__step--focused').trim();
+    });
+  }
+  return steps;
+}
+
 // Build the full ordered step list for the home page. `layout` is 'gentle' or
 // 'focused' (defaults to 'gentle'); it only affects per-layout copy — structure
 // is discovered from the live DOM, so it's correct even if `layout` is omitted.
-function buildHomeSteps(layout) {
+// `options.handoff` selects the outro variant: true when the tour will hand the
+// user straight off to the board picker (first-time flow), so the final step
+// previews that next step instead of a dead-end "Finish". `options.menu` (set for
+// returning users who've already completed this tour) swaps the linear walkthrough
+// for the topic MENU; if no topic resolves it falls back to the linear tour.
+function buildHomeSteps(layout, options) {
+  options = options || {};
+  if (options.menu) {
+    var menuSteps = buildHomeMenuSteps(layout, options);
+    if (menuSteps) { return menuSteps; }
+  }
   var steps = [];
   steps.push(welcomeStep());
   pushHeaderSteps(steps);
   pushNavSteps(steps);
   pushCardSteps(steps, layout);
-  steps.push(doneStep());
+  steps.push(doneStep(options.handoff));
   // Focused View: tag every step so the popover picks up the Focused-View skin
   // (Focused palette + gradient CTA) — see `.md-tour__step--focused` in app.scss.
   if (layout === 'focused') {

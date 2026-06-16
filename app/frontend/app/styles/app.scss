@@ -5613,6 +5613,40 @@ tr.accuracy_non_mastered {
   padding: $aac-spacing-8 0 $aac-spacing-16;
 }
 
+/* --- Final tour step: the live board-picker presented in an almost full-screen
+   modal (component `tour-board-picker`). The board-picker-page markup is reused
+   verbatim inside the modal body, which scrolls; the dialog itself fills most of
+   the viewport. --- */
+.modal-dialog.md-dialog--tour-picker {
+  width: 96vw;
+  max-width: 1280px;
+  margin: 3vh auto;
+}
+.modal-content.md-modal-content--tour-picker {
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.md-modal-header--tour-picker {
+  flex: 0 0 auto;
+  /* Minimal header — just the close chip, top-right. */
+  min-height: 0;
+  padding: $aac-spacing-8 $aac-spacing-8 0;
+  border: 0;
+}
+.md-modal-body--tour-picker {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 $aac-spacing-24 $aac-spacing-16;
+}
+/* Inside the modal the page already has its own top spacing from the header chip,
+   so trim the page's own top padding a touch. */
+.board-picker-page--in-tour {
+  padding-top: 0;
+}
+
 /* --- Hero --- */
 .board-picker-page__header {
   margin: 0 0 $aac-spacing-16;
@@ -5690,9 +5724,12 @@ tr.accuracy_non_mastered {
   color: rgba($la-navy, 0.55);
 }
 .board-picker-page__assign-btn {
+  /* Same diagonal two-stop gradient background STYLE as the "Create My Own Board"
+     button (the 135deg glass gradient), but kept in this button's own dusty-denim
+     colour rather than the create button's teal→blue. */
   @include home-board-pill(
-    rgba($brand-dusty-denim, 0.30),
-    rgba($brand-dusty-denim, 0.45)
+    linear-gradient(135deg, rgba($brand-dusty-denim, 0.34), rgba($brand-dusty-denim, 0.20)),
+    linear-gradient(135deg, rgba($brand-dusty-denim, 0.50), rgba($brand-dusty-denim, 0.34))
   );
 }
 .board-picker-page__assign-btn[disabled],
@@ -5705,6 +5742,9 @@ tr.accuracy_non_mastered {
     linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10)),
     linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
   );
+  /* The "+" icon sits on the LEFT, so give the right side more room to balance the
+     label between the icon and the pill edge (mixin base is 8px 14px). */
+  padding-right: 22px;
 }
 .board-picker-page__cta-icon {
   flex-shrink: 0;
@@ -5745,6 +5785,21 @@ tr.accuracy_non_mastered {
   flex-wrap: wrap !important;
   gap: 8px 4px;
   justify-content: center;
+}
+/* No orphaned tab on a wrapped row: the tabs keep their natural width (base
+   `> li { flex:0 0 auto }`), and when wrapping would leave a SINGLE tab alone on
+   the last row, board-picker.js inserts this zero-height, full-width break <li>
+   before the second-to-last tab — pulling it down so the last two tabs share the
+   row (instead of one lone centred pill). flex-basis:100% forces the line wrap;
+   the negative top margin cancels the extra row-gap the break would add (matches
+   the container's 8px row-gap). It carries no `<a>`, so the pill rules don't
+   touch it. Scoped to the board-picker page (the JS gates on `.board-picker-page`). */
+.board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li.md-home-boards-picker__tab-break {
+  flex: 0 0 100%;
+  height: 0;
+  margin: -8px 0 0;
+  padding: 0;
+  pointer-events: none;
 }
 /* Every tab is a filled glass pill so they all read as tappable action
    buttons (not just the selected one). */
@@ -5938,11 +5993,15 @@ tr.accuracy_non_mastered {
   background: rgba(255, 255, 255, 0.62);
   backdrop-filter: blur(20px) saturate(1.1);
   -webkit-backdrop-filter: blur(20px) saturate(1.1);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  /* Inset/recessed look — the panel reads as carved INTO the page rather than
+     floating on it: a soft neutral groove border, inner shadow at the top inner
+     edge (deepest at the top, fading down), and a thin light "lip" along the
+     bottom inner edge. No outer drop shadow (that read as raised). */
+  border: 1px solid rgba(15, 23, 42, 0.07);
   box-shadow:
-    0 24px 64px rgba(15, 23, 42, 0.08),
-    0 10px 28px rgba(15, 23, 42, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    inset 0 3px 8px rgba(15, 23, 42, 0.13),
+    inset 0 12px 26px rgba(15, 23, 42, 0.07),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.5);
 }
 .board-picker-page .md-home-boards-picker__layout--tabbed .md-home-boards-picker__content {
   flex: 1 1 100%;
@@ -30325,6 +30384,23 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
     display: flex;
   }
 }
+/* create-board-new variant of the same landscape-rotate overlay. Same visual as
+   the board-detail/display-style ones; hidden by default and shown at ≤768px
+   (the build canvas is too cramped below that to create + customize a board).
+   `--dismissed` (set by "Continue Anyway") beats the media query so mounted /
+   non-rotatable setups can proceed. See create-board-new.hbs. */
+.md-board-detail-portrait-overlay.nb-orientation-overlay {
+  display: none;
+  z-index: 100000;
+}
+@media (max-width: 768px) {
+  .md-board-detail-portrait-overlay.nb-orientation-overlay {
+    display: flex;
+  }
+}
+.md-board-detail-portrait-overlay.nb-orientation-overlay.nb-orientation-overlay--dismissed {
+  display: none !important;
+}
 /* Workspace-like wrapper so the cloned grid lays out at the same width as the
    real home page; the clone is the actual `.md-grid--dashboard`, so its
    responsive (viewport-driven) layout is identical to what the user sees. */
@@ -48567,7 +48643,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   border-bottom: 1px solid var(--md-line) !important;
 
-  background: rgba(255, 255, 255, 0.5) !important;
+  /* Transparent so the workspace's Focused-View boards surface shows through. */
+  background: transparent !important;
 
 }
 .new-board--modern .modal-header h3 {
@@ -48667,7 +48744,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .new-board--modern .modal-body {
   padding: 24px !important;
 
-  background: rgba(255, 255, 255, 0.4) !important;
+  /* Transparent so the workspace's Focused-View boards surface shows through. */
+  background: transparent !important;
 
 }
 .new-board--modern .form-group {
@@ -48733,7 +48811,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   border-top: 1px solid var(--md-line) !important;
 
-  background: rgba(255, 255, 255, 0.5) !important;
+  /* Transparent so the workspace's Focused-View boards surface shows through. */
+  background: transparent !important;
 
 }
 .new-board--modern .modal-footer .new-board__submit,
@@ -49176,6 +49255,20 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 12px 32px rgba($brand-right-logo, 0.18),
     0 12px 32px rgba($brand-verdigris, 0.10) !important;
   outline: none;
+}
+/* create-board-new PAGE: render the "Generate with AI" CTA 25% larger (per
+   request). A uniform scale enlarges the WHOLE composed chip — sparkle badge,
+   icon, label, padding, radius — while preserving the centering translate, so it
+   stays centered on the actions row. The shared hover rule above resets transform
+   to a 1px lift WITHOUT scale, so the scale must be re-applied for hover/focus.
+   Scoped to the PAGE `.btn` variant only; the new-board MODAL (`.la-btn`) keeps
+   its original size. */
+.new-board--modern .create-board-actions .nb-generate-ai-btn.btn {
+  transform: translate(-50%, -50%) scale(1.25) !important;
+}
+.new-board--modern .create-board-actions .nb-generate-ai-btn.btn:hover,
+.new-board--modern .create-board-actions .nb-generate-ai-btn.btn:focus-visible {
+  transform: translate(-50%, calc(-50% - 1px)) scale(1.25) !important;
 }
 /* Sparkle rotates ~8° on button hover — gives the chip a subtle
    AI-product micro-interaction without distracting the rest of the
@@ -50339,8 +50432,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .new-board-dimensions {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 12px;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+/* Compact two-column "definition list" for the advanced-options fields (macOS/
+   iOS settings style): a FIXED-width label column + a flexible control column,
+   so Fill order / Board key / Language all line up on a consistent grid instead
+   of stacking label-over-control. */
+.new-board--modern .new-board-field--key,
+.new-board--modern .new-board-field--locale,
+.new-board--modern .new-board-field--fill-order {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 14px;
+}
+.new-board--modern .new-board-field--key > .nb-field__label,
+.new-board--modern .new-board-field--locale > .nb-field__label,
+.new-board--modern .new-board-field--fill-order > .nb-field__label {
+  margin: 0;
+}
+/* Hint reads inline in the content column (no full-width line / extra margin),
+   with a little left padding so it's spaced off the "Language" label. */
+.new-board--modern .new-board-field--locale .nb-field__hint {
+  margin: 0;
+  padding-left: 8px;
 }
 .new-board-dimensions__field {
   display: flex;
@@ -50447,24 +50564,21 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .nb-stepper-mini {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  height: 44px;
-  padding: 4px 10px 4px 14px;
+  gap: 1px;
+  height: 36px;
+  padding: 3px 7px 1px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba($la-navy, 0.08);
+  /* Match the workspace's Focused-View surface (white sheen over the blue-white
+     focus tint on a white base) so the steppers read as part of the surface. */
   background:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.65) 0%,
-      rgba(255, 255, 255, 0.4) 100%
-    );
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.12) 20%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, rgba($focus-surface-top, 0.60) 0%, rgba($focus-surface-bottom, 0.55) 100%),
+    #ffffff;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
-    0 1px 2px rgba(13, 36, 56, 0.05),
-    0 4px 12px -4px rgba(13, 36, 56, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 4px 10px -4px rgba($la-navy, 0.12);
   width: fit-content;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -50478,29 +50592,29 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .nb-stepper-mini__label {
   position: relative;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: rgba(31, 41, 51, 0.55);
-  padding-right: 10px;
-  margin-right: 6px;
+  padding-right: 7px;
+  margin-right: 3px;
 }
 .nb-stepper-mini__label::after {
   content: "";
   position: absolute;
   right: 0;
-  top: 4px;
-  bottom: 4px;
+  top: 5px;
+  bottom: 5px;
   width: 1px;
-  background: rgba(31, 41, 51, 0.2);
+  background: rgba(31, 41, 51, 0.16);
 }
 .nb-stepper-mini__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -50526,14 +50640,28 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   display: block;
 }
 .nb-stepper-mini__input {
-  width: 36px;
-  border: none;
-  background: transparent;
+  /* The number sits in a glass circle, matching the beta-welcome step numbers
+     (.beta-welcome-steps__num): denim→verdigris glass disc with a specular sheen,
+     light rim, and layered inner highlight + colored under-glow. Sized to fit the
+     36px stepper. */
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($brand-dusty-denim, 0.32) 0%, rgba($brand-verdigris, 0.28) 100%);
+  backdrop-filter: blur(8px) saturate(1.4);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  box-shadow:
+    0 4px 10px rgba($brand-dusty-denim, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -3px 6px rgba($brand-verdigris, 0.16);
   outline: none;
   text-align: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--md-ink, #1f2933);
+  font-size: 14px;
+  font-weight: $aac-font-weight-bold;
+  color: $indigo;
   font-variant-numeric: tabular-nums;
   -moz-appearance: textfield;
   appearance: textfield;
@@ -50604,9 +50732,100 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   max-width: none;
   min-height: 0;
   align-self: stretch;
-  /* Attach to the grid — square the seam-side corners. */
+  /* Attach to the grid — square the seam-side corners AND drop the
+     shared left border so the rail and grid read as one surface (mirrors
+     the mockup-wrap's `border-right: none`). Without this, the panel's
+     left border — a near-white hairline in dark mode (rgba(255,255,255,
+     0.06)) — shows as a white seam between the grid and the panel. */
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
+  border-left: none;
+}
+/* Short responsive section labels — hidden by default (full labels show at
+   >1024px); the ≤1024px block below swaps them in. */
+.nb-create-rail .nb-rail-label__short { display: none; }
+/* ≤1024px: narrow the edit-tools rail by 25% (250px → 187.5px) so the board
+   mockup keeps more room as the viewport tightens, and fit the section content
+   to the tighter rail. Only the rail's flex-basis changes (flex-grow/shrink stay
+   0/0). */
+@media (max-width: 1024px) {
+  .nb-create-rail.md-board-edit-right-panel {
+    flex-basis: 187.5px;
+  }
+  /* Swap the long section labels for their short forms (Board Symbols → Symbols,
+     Shape & Border → Border) so they fit the narrower rail. */
+  .nb-create-rail .nb-rail-label__full { display: none; }
+  .nb-create-rail .nb-rail-label__short { display: inline; }
+  /* Reclaim a little content width by tightening the section bodies' side
+     padding (12px → 8px). */
+  .nb-create-rail .md-board-edit-right-panel__section-body {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  /* Cap the open dropdown menus to the rail's inner width so their options
+     can't bleed past the rail edge over the board, and lift them above
+     adjacent sections so the open list shows in full. */
+  .nb-create-rail .md-settings-dropdown-menu {
+    max-width: 160px;
+    z-index: 1000;
+  }
+  /* Drill-down navigation on narrow rails: once a section is open, collapse
+     the rail to JUST that section (hide the other section toggles and the
+     group subheader) and surface a Back button to return to the full list.
+     Above 1024px the accordion shows every section at once, so .nb-rail-back
+     stays hidden and nothing is suppressed. */
+  .nb-create-rail .md-board-edit-right-panel__group--section-open
+    .md-board-edit-right-panel__section:not(.md-board-edit-right-panel__section--open) {
+    display: none;
+  }
+  .nb-rail-back {
+    display: inline-flex;
+  }
+  /* Reorder: move the Symbols section below Speak Bar (and keep Text Settings
+     last). The group is a flex column, so giving only these two a positive
+     order floats them after the natural-order (order:0) sections, which stay
+     in DOM order. Result: …Skin Tones, Speak Bar, Symbols, Text Settings. */
+  .nb-create-rail .md-board-edit-right-panel__section[data-section-id="symbols"] {
+    order: 1;
+  }
+  .nb-create-rail .md-board-edit-right-panel__section[data-section-id="text"] {
+    order: 2;
+  }
+}
+/* Modern Back affordance — hidden by default; only the <=1024px rule above
+   reveals it when a section is open. Soft pill with a leading chevron. */
+.nb-rail-back {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin: 0 0 12px;
+  padding: 7px 14px 7px 11px;
+  border: 1px solid rgba($la-navy, 0.16);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f8 100%);
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba($la-navy, 0.08),
+    0 6px 14px -8px rgba($la-navy, 0.18);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.nb-rail-back:hover,
+.nb-rail-back:focus-visible {
+  transform: translateX(-2px);
+  border-color: rgba($la-navy, 0.3);
+  background: linear-gradient(180deg, #ffffff 0%, #e9eef6 100%);
+}
+.nb-rail-back:active {
+  transform: translateX(0);
+}
+.nb-rail-back__icon {
+  flex: 0 0 auto;
 }
 /* Grid sizes to its own content. The base grid uses
    `grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr))` +
@@ -50672,6 +50891,347 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .nb-create-rail .md-board-edit-right-panel__paint-pill {
   min-width: 0;
 }
+/* Paint section header as the ACTIVE paint-mode indicator/toggle. When a color
+   is armed (paint_mode set → the --paint-armed modifier from create-board-new.hbs),
+   the section reads as "painting is ON" with a verdigris accent on its chip + label
+   — distinct from the neutral slate "just open" state. Clicking the header again
+   clears paint_mode (create-board-new.js#toggle_create_rail_section), removing this
+   class so the icon dims back to neutral. Scoped to the create rail. */
+.nb-create-rail .md-board-edit-right-panel__section--paint-armed {
+  background: rgba($brand-verdigris, 0.14);
+  border-color: rgba($brand-verdigris, 0.45);
+}
+.nb-create-rail .md-board-edit-right-panel__section--paint-armed .md-board-edit-right-panel__section-toggle,
+.nb-create-rail .md-board-edit-right-panel__section--paint-armed .md-board-edit-right-panel__section-label {
+  color: $brand-verdigris;
+  font-weight: 700;
+}
+.nb-create-rail .md-board-edit-right-panel__section--paint-armed .md-board-edit-right-panel__section-icon {
+  border-color: rgba($brand-verdigris, 0.55);
+  box-shadow:
+    0 0 0 2px rgba($brand-verdigris, 0.30),
+    0 1px 2px rgba($la-navy, 0.08);
+}
+/* Clear Grid footer on the create-board-new live edit rail — sits below the
+   divider under Text Settings (see create-board-new.hbs). Centers the reused
+   `.nb-link--danger` "clear grid" button with breathing room below the sections. */
+.nb-create-rail__clear-grid {
+  display: flex;
+  justify-content: center;
+  padding: 12px 8px 4px;
+}
+/* Primary actions docked at the bottom of the Edit Tools rail:
+   Create Board (compact) stacked above a plain-link Cancel. */
+.nb-create-rail__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: auto;
+  padding: 14px 4px 2px;
+  border-top: 1px solid rgba(13, 36, 56, 0.1);
+}
+.nb-create-rail__submit {
+  /* Same teal→blue dimensional face as the old footer CTA, but tighter
+     padding so it reads as a compact rail button. */
+  width: 100%;
+  padding: 8px 16px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(44, 183, 176, 0.18) !important;
+  font-weight: 850 !important;
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.24), rgba(91, 141, 239, 0.20)) !important;
+  color: var(--md-ink) !important;
+  box-shadow: var(--md-shadow-2) !important;
+}
+.nb-create-rail__submit:hover:not(.new-board__submit--invalid) {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.32), rgba(91, 141, 239, 0.28)) !important;
+}
+/* Dark mode: the teal/blue face goes muddy and the dark ink text is
+   unreadable on the dark panel. Lift to a brighter glassy gradient with
+   light (near-white) text. */
+.md-board-detail--dark.nb-create-rail .nb-create-rail__submit {
+  background: linear-gradient(135deg, rgba(76, 215, 200, 0.42), rgba(123, 165, 247, 0.38)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #f4f8ff !important;
+}
+.md-board-detail--dark.nb-create-rail .nb-create-rail__submit:hover:not(.new-board__submit--invalid) {
+  background: linear-gradient(135deg, rgba(76, 215, 200, 0.54), rgba(123, 165, 247, 0.50)) !important;
+}
+/* Context-scoped (0,3,0) + !important so it beats the base
+   `.new-board--modern .create-board-actions button` rule (line ~48687),
+   which forces a flat white background, neutral border and shadow with
+   !important — that's what was flattening this button. Same winning
+   pattern used by `.new-board__submit--top` just above. */
+.new-board--modern .create-board-actions .nb-other-methods-btn {
+  margin: 0;
+  /* Raised, dimensional pill (not the flat .nb-ai-mode-other chip): a
+     diagonal top-left → bottom-right gradient (light-lit upper-left corner
+     falling to a deeper shade at the lower-right) for a sense of 3D depth,
+     plus inset highlight/lower-edge + layered ambient shadow. */
+  padding: 9px 18px !important;
+  color: $la-navy !important;
+  background: linear-gradient(135deg, #ffffff 0%, #eef2f8 55%, #dde4f0 100%) !important;
+  border: 1px solid rgba($brand-slate-blue, 0.22) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 0 rgba($la-navy, 0.06),
+    0 2px 4px rgba($la-navy, 0.08),
+    0 8px 18px -6px rgba($la-navy, 0.16) !important;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.new-board--modern .create-board-actions .nb-other-methods-btn:hover,
+.new-board--modern .create-board-actions .nb-other-methods-btn:focus-visible {
+  transform: translateY(-2px);
+  color: $la-navy !important;
+  background: linear-gradient(135deg, #ffffff 0%, #e9eef6 55%, #d4dcec 100%) !important;
+  border-color: rgba($brand-slate-blue, 0.42) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 0 rgba($la-navy, 0.07),
+    0 4px 8px rgba($la-navy, 0.12),
+    0 14px 26px -8px rgba($la-navy, 0.20) !important;
+  outline: none;
+}
+.new-board--modern .create-board-actions .nb-other-methods-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.14),
+    0 2px 6px rgba($la-navy, 0.10) !important;
+}
+/* 2-column intro header: title + subtitle on the left, the actions (Other Create
+   Board Methods + the conditional Create Board) aligned to the right. */
+.nb-create-header {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.nb-create-header__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;   /* left-align the title + subtitle */
+  text-align: left;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;            /* fill the available width (the actions stay right) */
+}
+.nb-create-header__intro > h3,
+.nb-create-header__subtitle {
+  text-align: left !important;
+  align-self: stretch;
+}
+.nb-create-header__subtitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.62);
+}
+.nb-create-header .create-board-actions {
+  flex: 0 0 auto;
+  margin-top: 0 !important;
+  /* Nudge left so the button clears the top-right close (X) chip. */
+  margin-right: 44px;
+  justify-content: flex-end;
+}
+/* ── Create-method chooser modal (create-board-new) ─────────────────────────
+   Full-screen scrim + centered card with three stylized options that rise in
+   successively (staggered inline animation-delay + nb-chooser-rise). z-index
+   sits above the form but below the ≤768px landscape overlay (100000), so on a
+   phone the rotate prompt still gates first. */
+.nb-create-chooser {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(120% 90% at 50% 38%, rgba($la-navy, 0.50), rgba($la-navy, 0.78));
+  backdrop-filter: blur(7px) saturate(0.92);
+  -webkit-backdrop-filter: blur(7px) saturate(0.92);
+  animation: md-portrait-overlay-fade 0.2s ease-out;
+}
+.nb-create-chooser__panel {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  padding: 25px 38px 36px;
+  border-radius: 22px;
+  /* Match the Focused View "Boards" card surface: a white top-sheen over the
+     blue-white focus-surface tint (#ECF1FA → #D4DCEC). Layered on an opaque white
+     base so it reads light over the dark chooser scrim. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.12) 20%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, rgba($focus-surface-top, 0.60) 0%, rgba($focus-surface-bottom, 0.55) 100%),
+    #ffffff;
+  border: 1px solid rgba($la-navy, 0.08);
+  box-shadow: 0 24px 60px rgba($la-navy, 0.28), 0 4px 12px rgba($la-navy, 0.14);
+  text-align: center;
+}
+/* Close chip — top-right of the panel; returns to the originating page. */
+.nb-create-chooser__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: rgba($la-navy, 0.04);
+  color: rgba($la-navy, 0.55);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.nb-create-chooser__close:hover,
+.nb-create-chooser__close:focus-visible {
+  background: rgba($la-navy, 0.09);
+  border-color: rgba($la-navy, 0.18);
+  color: $la-navy;
+  transform: scale(1.05);
+  outline: none;
+}
+.nb-create-chooser__title {
+  margin: 0 0 14px;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: $la-navy;
+}
+/* Modern separator under the title — brand verdigris→navy gradient hairline that
+   fades at both ends (the app's standard modern divider), tidily capped under
+   the heading rather than spanning the full panel. */
+.nb-create-chooser__separator {
+  height: 2px;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto 22px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba($la-navy, 0) 0%,
+    rgba($brand-verdigris-aa, 0.45) 18%,
+    rgba($la-navy, 0.32) 50%,
+    rgba($brand-verdigris-aa, 0.35) 82%,
+    rgba($la-navy, 0) 100%
+  );
+}
+.nb-create-chooser__options {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.nb-create-chooser__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;            /* center the icon + label group */
+  gap: 14px;
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba($brand-slate-blue, 0.22);
+  /* Dimensional surface: top-lit gradient + inset highlight/lower-edge + layered
+     ambient shadow so each option reads as a raised, pressable key. */
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f8 100%);
+  color: $la-navy;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 0 rgba($la-navy, 0.06),
+    0 2px 4px rgba($la-navy, 0.08),
+    0 10px 22px rgba($la-navy, 0.12);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  /* Successive entrance: hidden (opacity 0, `both` fill) until each element's
+     inline animation-delay elapses, then rises into place. */
+  animation: nb-chooser-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.nb-create-chooser__btn:hover,
+.nb-create-chooser__btn:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba($brand-slate-blue, 0.45);
+  background: linear-gradient(180deg, #ffffff 0%, #e9eef6 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 0 rgba($la-navy, 0.07),
+    0 4px 8px rgba($la-navy, 0.12),
+    0 18px 34px rgba($la-navy, 0.16);
+  outline: none;
+}
+.nb-create-chooser__btn:active {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.14),
+    0 2px 6px rgba($la-navy, 0.10);
+}
+.nb-create-chooser__btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  /* Raised glassy chip: gradient fill + top highlight + soft drop so the icon
+     sits proud of the button face. */
+  background: linear-gradient(180deg, rgba($brand-slate-blue, 0.16), rgba($brand-slate-blue, 0.07));
+  color: $brand-slate-blue;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.12);
+}
+.nb-create-chooser__btn-label { flex: 0 0 auto; }
+.nb-create-chooser__btn--ai {
+  border-color: rgba($brand-verdigris, 0.40);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-verdigris, 0.13) 100%);
+}
+.nb-create-chooser__btn--ai:hover,
+.nb-create-chooser__btn--ai:focus-visible {
+  border-color: rgba($brand-verdigris, 0.60);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-verdigris, 0.18) 100%);
+}
+.nb-create-chooser__sparkle-badge {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+}
+.nb-create-chooser__or {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 2px 4px;
+  color: rgba($la-navy, 0.45);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  animation: nb-chooser-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.nb-create-chooser__or::before,
+.nb-create-chooser__or::after {
+  content: '';
+  /* Half the previous full-fill length: cap each line at ~90px (was filling the
+     row, ~180px each) and center the group so the extra space goes to the sides. */
+  flex: 1 1 auto;
+  max-width: 90px;
+  height: 1px;
+  background: rgba($la-navy, 0.14);
+}
+@keyframes nb-chooser-rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nb-create-chooser__btn,
+  .nb-create-chooser__or { animation: none; }
+}
 /* create-board-new rail: font dropdown extends past the rail's left
    edge. The base rule at ~66191 sets `max-width: 240px` and the
    right-panel override at ~86319 anchors the menu to `right: 0` (the
@@ -50697,6 +51257,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .nb-preview-sentence-row {
   flex: 0 0 auto;
   margin-bottom: 10px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+/* Preview speak bar — same fill as the home button beside it
+   (rgba(110,122,140,.32)) so the two read as one tier in light mode. */
+.nb-preview-sentence-row .md-board-detail-sentence-bar {
+  background: rgba(110, 122, 140, 0.32);
 }
 /* Speak Bar → "Sentence Bar" size: the preview speak bar grows with
    the chosen vocalization_height so the control has a visible effect
@@ -50718,6 +51285,31 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   opacity: 0.55;
   font-style: italic;
 }
+/* Clip the create-board-new preview speak bar's content to its own box so a
+   just-tapped word/symbol can never visibly bleed into the action buttons (or
+   below the bar) for the frame before the overflow check resets it (see
+   create-board-new.js#speak_word). Scoped to the preview row so the live
+   board-detail sentence bar's own scroll/wrap behavior is untouched. */
+.nb-preview-sentence-row .md-board-detail-sentence-bar__text {
+  overflow: hidden;
+  /* Scale the placeholder / tapped words down on smaller screens (was a fixed
+     21px) so the message fits the narrower bar. */
+  font-size: clamp(14px, 2.4vw, 21px);
+}
+/* Tapped words rendered in the preview speak bar (create-board-new). Each word
+   is a soft chip, mirroring the sentence box filling up in board-detail speak
+   mode. Wraps/scrolls within the bar like the real sentence row. */
+.nb-preview-sentence-bar__word {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  margin: 2px 4px 2px 0;
+  border-radius: 8px;
+  background: rgba($brand-slate-blue, 0.12);
+  color: $la-navy;
+  font-weight: 600;
+  white-space: nowrap;
+}
 /* Drop the right-side 1px divider on the mockup's speak bar (the
    live board-detail bar keeps it; the preview mockup doesn't need
    it). */
@@ -50725,23 +51317,41 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   display: none;
 }
 
+/* Edit Tools rail — same surface COLOR as the labels div (.nb-words-grid), but
+   NOT its recessed/inset treatment: only the bg gradient is applied (no inset
+   shadows), so the panel reads flush rather than dented. */
+/* Light mode only: recessed "labels div" surface for the rail. Dark mode
+   (`.md-board-detail--dark` on the same aside) is excluded so it keeps its
+   own dark panel background instead of this light gradient. */
+.nb-create-rail.md-board-edit-right-panel:not(.md-board-detail--dark) {
+  background: linear-gradient(
+    180deg,
+    rgba(13, 36, 56, 0.06) 0%,
+    rgba(13, 36, 56, 0.02) 35%,
+    rgba(255, 255, 255, 0.55) 100%
+  ) !important;
+}
 .new-board-mockup-wrap {
   position: relative;
   width: 100%;
   max-width: 850px;
   max-height: 700px;
   margin: 0 auto;
-  padding: 14px;
+  padding: 14px 0;
   border-radius: 18px;
+  /* Same recessed surface as the labels div (.nb-words-grid). */
   background: linear-gradient(
     180deg,
-    #{color.adjust($brand-stone-100, $lightness: 12%)} 0%,
-    #{color.adjust($brand-stone-200, $lightness: 12%)} 100%
+    rgba(13, 36, 56, 0.06) 0%,
+    rgba(13, 36, 56, 0.02) 35%,
+    rgba(255, 255, 255, 0.55) 100%
   );
-  border: 1px solid rgba(13, 36, 56, 0.08);
+  border: 1px solid rgba(13, 36, 56, 0.06);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    0 2px 6px rgba(13, 36, 56, 0.05);
+    inset 0 3px 8px rgba(13, 36, 56, 0.14),
+    inset 0 1px 2px rgba(13, 36, 56, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 0 rgba(255, 255, 255, 0.55);
 }
 .new-board-mockup-wrap--dark {
   /* Mirrors the .md-shell--board-detail dark page treatment so the preview
@@ -51042,6 +51652,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   aspect-ratio: var(--board-columns, 4) / var(--board-rows, 4);
   margin: 0 auto;
   gap: clamp(4px, 1vw, 12px) !important;
+  padding-left: 8px;
+  padding-right: 8px;
+  background: transparent;
 }
 /* Left ("Fit cell" / square) shape: the cards already fill the cell
    height, so the full inter-row gap reads as too much dead space in
@@ -51333,6 +51946,35 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .nb-basics-grid__col .nb-field__label {
   padding-left: 0;
 }
+/* Name + Description sit side-by-side: Name (first, left) takes 30% of the
+   card, Description (right) the remaining 70%. Below 768px they stack —
+   Description wraps to its own row underneath the Name. */
+.nb-basics-grid__col--left {
+  display: grid;
+  grid-template-columns: minmax(0, 30%) minmax(0, 70%);
+  align-items: start;
+  gap: 14px;
+}
+/* Name + Description must read as one matched pair: equal-height labels (the
+   Description label carries an optional/required pill that would otherwise
+   make its row taller and push its input out of line) and equal-height
+   inputs, so both labels AND both inputs line up across the two columns. */
+.nb-basics-grid__col--left .nb-field__label {
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+  margin: 0;
+  line-height: 1.2;
+}
+.nb-basics-grid__col--left .nb-field__input {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+@media (max-width: $aac-breakpoint-md) {
+  .nb-basics-grid__col--left {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .nb-basics-grid__col--right {
   justify-content: flex-start;
 }
@@ -51353,7 +51995,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    !important elsewhere. */
 .new-board--modern .nb-basics-grid textarea.nb-field__input--fill,
 .la-new-board-modal-wrap .la-new-board-form .nb-basics-grid textarea.nb-field__input--fill {
-  min-height: 0 !important;
+  /* Match the single-line Name <input> height (44px) so the Description
+     textarea and the Name input line up; field-sizing lets it grow if the
+     description wraps. */
+  min-height: 44px !important;
   height: auto !important;
   resize: vertical !important;
   field-sizing: content;
@@ -51666,17 +52311,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    bullet list (.nb-section__hint) below — same chrome as Visibility,
    Basics, Size & Labels, etc. */
 .nb-advanced-toggle__lockup {
+  /* Title + "optional" pill and the hint list (Fill order · Board key · Language
+     · Icon) sit INLINE on one row (wrapping if needed) rather than stacked. */
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  /* Match the title→hint spacing used by every other section header
-     (Visibility, Basics, Size & preview, etc.). Those sections inherit
-     `.nb-section`'s 12px flex gap with `.nb-section__hint` pulling up
-     -4px for an effective 8px — but visually reads larger because of
-     the section's 20px top padding and the `<p>` baseline. Matching the
-     parent `.nb-section` gap value here keeps the eyebrow pill from
-     feeling crammed against the bullet list. */
-  gap: 12px;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   flex: 1;
   min-width: 0;
 }
@@ -51946,6 +52587,20 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-weight: 400;
   line-height: 1.45;
   color: rgba(31, 41, 51, 0.62);
+}
+/* Section header that lays the title pill and its hint on ONE row
+   (e.g. Basics: "Give your board a name and brief description." sits
+   inline after the BASICS pill), wrapping on narrow widths. */
+.nb-section__header-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.nb-section__header-inline .nb-section__hint {
+  margin: 0;
+  padding-left: 0;
 }
 .nb-section__toggle {
   font-size: 14px;
@@ -63668,7 +64323,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    (.modal-header, .modal-body, .modal-footer styling), just neutralize
    its own background/border/shadow/radius. */
 .md-workspace--create-board-new.new-board--modern {
-  background: rgba(255, 255, 255, 0.92) !important;
+  /* Match the Focused View "Boards" card surface: white top-sheen over the
+     blue-white focus-surface tint (#ECF1FA → #D4DCEC) on an opaque white base. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.12) 20%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, rgba($focus-surface-top, 0.60) 0%, rgba($focus-surface-bottom, 0.55) 100%),
+    #ffffff !important;
   border: 1px solid var(--md-line) !important;
   box-shadow: var(--md-shadow) !important;
   border-radius: 48px !important;
@@ -64283,6 +64943,20 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 8px 24px rgba($la-navy, 0.06),
     0 24px 60px rgba($la-navy, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+/* SPEAK / viewing mode (light): the board canvas reads as a flush surface that
+   fills its column, not a floating rounded card — drop the rounded corners,
+   hairline border, and drop shadow the base rule gives it. The left nav + right
+   activity panels stay (the 194px grid columns are unchanged); only the board's
+   own card framing is removed. Scoped to speak + light so EDIT mode keeps its
+   rounded board panel and dark mode keeps its own treatment. The 0,4,0 selector
+   beats the base .md-board-detail-main (0,1,0) regardless of source order — this
+   is the same mode-scoping pattern the edit/dark variants already use, not a
+   specificity patch. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-main {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* Top bar: boards picker, expand/collapse, close */
@@ -66390,6 +67064,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px 16px;
+  /* Positioning anchor for the floated "Take a tour" trigger
+     (.md-board-edit-session__tour), which sits below-right of this bar.
+     z-index: this bar's `backdrop-filter` makes it a STACKING CONTEXT, which traps
+     the floated trigger's z-index inside it. Without a positive z-index here, the
+     bar sits at z:auto and the board-details title row (.md-board-detail-header__
+     title-row--edit, position:relative, later in the DOM) paints OVER the trigger
+     and swallows its clicks. A positive z-index lifts the whole bar (trigger
+     included) above that row so the button is actually clickable. */
+  position: relative;
+  z-index: 5;
   /* More separation from the board content card below (Layer 1 vs Layer 2) + a
      slightly brighter surface so the session bar reads as the upper editing layer.
      Vertical padding trimmed (10 → 7) so the bar isn't taller than it needs — the
@@ -66418,6 +67102,26 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 6px 18px rgba(0, 0, 0, 0.22),
     0 0 34px rgba(143, 228, 223, 0.22);
+}
+/* Float the "Take a tour" trigger below-RIGHT of the editing session bar — about
+   10rem below the Done Editing button. The WRAPPER carries the positioning:
+   `position: absolute` takes it OUT of the bar's space-between flex flow (so it
+   doesn't claim a slot and shove the Discard/Done Editing actions to the centre),
+   anchored to the session bar (position:relative); z-index lifts it above the
+   board-details card directly below. */
+.md-board-edit-session__tour {
+  position: absolute;
+  top: 10rem;
+  right: 12px;
+  z-index: 15;
+}
+/* The trigger pill is `position: fixed` by default (its dashboard placement). Reset
+   it to `static` so it simply flows inside the absolutely-positioned wrapper above —
+   the WHOLE pill is then a normal in-flow button, fully clickable (icon + text +
+   edges alike); an absolutely-positioned trigger left dead spots over its contents.
+   The 0,2,0 selector beats the trigger's base/per-breakpoint position rules. */
+.md-board-edit-session__tour .md-tour__trigger {
+  position: static;
 }
 .md-board-edit-session__state {
   display: flex;
@@ -77090,6 +77794,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 16px;
   letter-spacing: 0.005em;
 }
+/* Per-image "N / total" count under the loading label. Block so it sits on its
+   own line; tabular-nums so the width doesn't jitter as the count ticks up. */
+.md-board-details-modal__overlay-count {
+  display: block;
+  margin-top: 6px;
+  font-weight: 600;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: rgba($la-navy, 0.65);
+}
 @keyframes md-board-details-modal__overlay-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -77113,19 +77827,27 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 15px;
   color: $brand-charcoal-blue;
 }
+/* Action buttons sit in a row DIRECTLY BELOW the preview canvas (inside the
+   right-hand canvas column, to the right of the board-detail info). The row is
+   RIGHT-ALIGNED so the primary CTA and its neighbours (Board Actions / Back)
+   cluster at the right edge; the destructive Remove is pushed to the far LEFT
+   (margin-right:auto below) so it stays isolated. Wraps on narrow viewports. */
 .md-board-preview__actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-top: 14px;
 }
 /* Modern button override — beats the legacy `.btn` / `.btn-lg`
    bootstrap rules that were on these elements (we keep the bootstrap
    classes for safety, and let the md-* rules take over via specificity
    + the !important in md-modal-btn--primary). */
 .md-board-preview__action.md-board-preview__action {
-  display: flex;
-  width: 100%;
+  display: inline-flex;
+  width: auto;
   justify-content: center;
   padding: 12px 18px;
   font-size: 15px;
@@ -77146,16 +77868,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   letter-spacing: 0.02em;
 }
 /* Touch-device parity for the tile's hover-only `.board_action`.
-   De-emphasized danger treatment, placed at the bottom of the action
-   column with a separator above so it reads as destructive and
-   isolated from the positive CTAs (Try / Board Actions / Copy For).
-   Capitalize via CSS because remove_label ships lowercase ("delete",
-   "un-like") from i18n — those strings double as title tooltips on
-   the tile, where lowercase is correct. */
+   De-emphasized danger treatment. `margin-right:auto` pushes it to the far LEFT
+   of the right-aligned row so it stays isolated from the positive CTAs (Try /
+   Board Actions / Copy For). Capitalize via CSS because remove_label ships
+   lowercase ("delete", "un-like") from i18n — those strings double as title
+   tooltips on the tile, where lowercase is correct. */
 .md-board-preview__action--remove.md-board-preview__action--remove {
-  margin-top: 6px;
-  padding-top: 16px;
-  border-top: 1px solid rgba($la-navy, 0.10);
+  margin-right: auto;
   background: rgba(176, 42, 42, 0.06);
   color: #b02a2a;
   font-size: 14px;
@@ -84476,6 +85195,14 @@ a.md-caseload__action {
   color: rgba($la-navy, 0.65);
   line-height: 1.5;
 }
+/* Per-image "N / total" count under the loading label. Block so it sits on its
+   own line; tabular-nums so the width doesn't jitter as the count ticks up. */
+.ll-premium-progress__count {
+  display: block;
+  margin-top: 4px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .ll-premium-progress__bar {
   position: relative;
   width: 100%;
@@ -90836,6 +91563,38 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   fill: #4cd7c8;
 }
 
+/* create-board-new rail exception: an expanded section must look IDENTICAL
+   to a collapsed one — keep the neutral icon chip + the icon's authored
+   two-tone colors, NOT board-detail's "active chip" treatment (dark
+   gradient chip + flattened-white icons). Scoped to .nb-create-rail so the
+   board-detail edit page keeps its active-chip behavior. Light mode keeps
+   the authored #46505F/#2A9D8F; dark mode keeps the dark-lifted
+   #cfd8e8/#4cd7c8 so contrast survives on the dark panel. */
+.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon {
+  background: rgba($la-navy, 0.05);
+  border-color: rgba($la-navy, 0.08);
+  color: rgba($la-navy, 0.65);
+  transform: none;
+  box-shadow: none;
+}
+.md-board-detail--dark.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.60);
+}
+.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [stroke="#46505F"] { stroke: #46505F !important; }
+.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [stroke="#2A9D8F"] { stroke: #2A9D8F !important; }
+/* The Speak Bar (and Symbols/Background) icons have filled dots with
+   stroke="none"; the open white-flip's broad [stroke] selector would
+   outline those dots white. Keep them stroke-less in both themes. */
+.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [stroke="none"] { stroke: none !important; }
+.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [fill="#46505F"]:not([fill="none"]) { fill: #46505F !important; fill-opacity: 1 !important; }
+.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [fill="#2A9D8F"]:not([fill="none"]) { fill: #2A9D8F !important; fill-opacity: 1 !important; }
+.md-board-detail--dark.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [stroke="#46505F"] { stroke: #cfd8e8 !important; }
+.md-board-detail--dark.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [stroke="#2A9D8F"] { stroke: #4cd7c8 !important; }
+.md-board-detail--dark.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [fill="#46505F"]:not([fill="none"]) { fill: #cfd8e8 !important; fill-opacity: 1 !important; }
+.md-board-detail--dark.nb-create-rail .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [fill="#2A9D8F"]:not([fill="none"]) { fill: #4cd7c8 !important; fill-opacity: 1 !important; }
+
 /* (Removed) the ≤1023px `.md-board-edit-right-panel { display:none }`
    rule used to live here — it outright HID the Settings panel on
    narrower screens (the comment mislabelled it "collapse to 0 width";
@@ -91134,8 +91893,40 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
    rounded corners (fixes the "bottom edge cut off" perception),
    white surface, hairline navy border, modern shadow, dusty-denim
    action buttons (NO smart-blue per palette directive). */
+/* "Scroll the highlight into view" reveal: while a step's target is scrolled into
+   place, the dimmed page + its moving spotlight stay visible, but the popover card
+   is held hidden (this class) so floating-ui's flip() can't flash it mid-scroll;
+   removing the class fades it in (the .shepherd-element opacity transition below).
+   The 3-class selector outweighs Shepherd's own `.shepherd-enabled.shepherd-element`
+   opacity rule without needing !important. */
+.shepherd-element.shepherd-enabled.md-tour__step--revealing {
+  /* Hide INSTANTLY while scrolling (transition:none) — otherwise Shepherd's own
+     opacity transition fades the card out/in and it flickers mid-scroll. It fades
+     back in (base .shepherd-element transition) only when the class is removed on
+     settle. visibility:hidden so it's fully gone, not just transparent. */
+  opacity: 0;
+  visibility: hidden;
+  transition: none;
+  pointer-events: none;
+}
+/* Fade the OUTGOING card OUT instead of snapping it away. Shepherd hides a step
+   by setting the `hidden` attribute (→ display:none, instant). Override that so a
+   just-hidden card stays RENDERED (display/visibility) — the actual fade is driven
+   by an inline opacity set in guided-tour.js on the step's `hide` event (inline
+   beats the cascade reliably; a CSS opacity here was getting overridden). It
+   lingers transparent + non-interactive (position is absolute/fixed, no layout
+   impact) until its next show destroys+recreates it, or the tour ends. */
+.shepherd-element.shepherd-enabled[hidden] {
+  display: block;
+  visibility: visible;
+  pointer-events: none;
+}
 .shepherd-element {
   position: relative;
+  /* GRADUAL fade for the reveal above (popover held hidden while its target
+     scrolls in, then faded in once the scroll settles) AND the fade-out of an
+     outgoing card. ~0.45s reads as a gentle cross-fade (AAC-friendly), not a snap. */
+  transition: opacity 0.45s ease;
   /* "Guided Experience" surface — soft navy-tinted glass with two
      low-opacity aurora washes (verdigris top-right, denim top-left)
      instead of the flat white card. The translucency + backdrop blur
@@ -91263,6 +92054,15 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
 }
+/* Board-picker handoff outro only (--next) — its heading ("Next: pick your
+   communication board (page-set)") is far longer than the celebratory outro's, so
+   it needs a wider card to sit on one line. Widen the cap past the shared 560px
+   intro width, but clamp to the viewport (94vw) so the centered card can never run
+   off-screen and clip the title. (4-class selector beats the base intro
+   max-width.) */
+.shepherd-element.md-tour__step--intro.md-tour__step--outro.md-tour__step--next {
+  max-width: min(720px, 94vw);
+}
 /* Outro only — extra breathing room above the closing line (card grows ~20px). */
 .shepherd-element.md-tour__step--outro .md-tour__foot {
   margin-top: 34px;
@@ -91299,6 +92099,14 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
    orb-glow shading) for a cleaner completion card. Scoped to the outro so the
    welcome keeps its accent (3-class selector beats the base intro ::after). */
 .shepherd-element.md-tour__step--intro.md-tour__step--outro::after {
+  display: none;
+}
+/* Dashboard Design modal — drop the same top-right decoration (speech bubbles +
+   orb-glow shading) on every page of the modal, per request, for a cleaner
+   surface. The ds-modal steps carry both `md-tour__step--intro` and `md-ds-modal`;
+   the 3-class selector beats the base intro ::after (mirrors the outro removal
+   above). The guided-tour intro steps keep their accent. */
+.shepherd-element.md-tour__step--intro.md-ds-modal::after {
   display: none;
 }
 
@@ -91372,6 +92180,12 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
      asymmetric, editorial layout. Footer is untouched. */
   align-items: flex-start;
   text-align: left;
+  /* The title is a flex ITEM of Shepherd's flex .shepherd-header; flex items have
+     min-width:auto and won't shrink below their content, so a long heading (e.g.
+     the board-picker handoff title) forces the popover past its max-width and off
+     the left edge of the screen. min-width:0 lets it shrink so the heading wraps
+     inside the capped popover instead. */
+  min-width: 0;
 }
 /* The "Choose your display style" step reuses the intro class for its
    eyebrow+heading treatment, but its title is CENTERED on the page rather than
@@ -91398,7 +92212,7 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
     0 2px 8px rgba(42, 157, 143, 0.14);
   color: #1f6b60;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -91420,6 +92234,10 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   line-height: 1.08;
   letter-spacing: -0.012em;
   color: var(--md-ink, $brand-blue-black);
+  /* Wrap long headings within the popover (with min-width:0 on the title above)
+     rather than overflowing on one line. */
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 /* Body — solid white surface, AAC-scale typography (~16-17px). */
@@ -91439,16 +92257,40 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
    the interior (left-aligned) steps it just sits at the start. */
 .md-tour__lead {
   margin: 0 0 14px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
-  color: rgba(70, 80, 95, 0.7);
+  /* 0.82 (not 0.7) so the muted lead text clears WCAG AA 4.5:1 on the light
+     popover — matches the body text alpha. */
+  color: rgba(70, 80, 95, 0.82);
 }
 /* Closing line below the checklist (e.g. the outro's "return anytime" note). */
 .md-tour__foot {
   margin: 14px 0 0;
   font-size: 15px;
   line-height: 1.5;
-  color: rgba(70, 80, 95, 0.7);
+  /* 0.82 (not 0.7) so the muted footer note clears WCAG AA 4.5:1 on the light
+     popover — matches the body text alpha. */
+  color: rgba(70, 80, 95, 0.82);
+}
+/* Board-picker handoff outro (--next) — its closing line ("Now let's pick the
+   communication board (page-set)…") is the actual call to action, so make it
+   stand out instead of reading as muted footnote copy: bolder + larger, coloured
+   to match the "Pick my board" button. Per layout: Focused = the hero navy that
+   fills the focused primary button; Gentle = the verdigris accent of the gentle
+   button (its light wash fill is too pale to read as text). */
+.shepherd-element.md-tour__step--next .md-tour__foot {
+  font-size: 17px;
+  font-weight: 700;
+  color: $brand-verdigris-aa;
+  /* Soft light halo behind the glyphs so the dark text lifts off the modal
+     surface and stands out — layered white glows (tight + wide). */
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, 0.95),
+    0 0 12px rgba(255, 255, 255, 0.8),
+    0 1px 2px rgba(255, 255, 255, 0.9);
+}
+.shepherd-element.md-tour__step--focused.md-tour__step--next .md-tour__foot {
+  color: $focus-hero-base;
 }
 /* ── Outro completion animation ──────────────────────────────────────────────
    Modern "task complete" cue: the circle draws in, the check strokes on, the
@@ -91514,6 +92356,68 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   .md-tour__done-mark { animation: none; stroke-dashoffset: 0; }
   .md-tour__done::after { opacity: 0; }
 }
+/* ── Handoff "next action" animation ─────────────────────────────────────────
+   The first-time outro hands the user off to the board picker, so it shows a
+   forward cue instead of a "done" checkmark: the circle draws in, the arrow
+   strokes on, the whole mark pops, then the arrow nudges to the right (twice)
+   to read as "moving on". Pure CSS; reduced-motion shows the finished arrow with
+   no animation. Uses the Focused accent so it reads as a CTA, not a completion. */
+.md-tour__next {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 2px 0 18px;
+}
+.md-tour__next-svg {
+  animation: md-tour-done-pop 0.45s cubic-bezier(0.2, 0.85, 0.3, 1.25) both,
+             md-tour-next-nudge 1.3s ease-in-out 0.95s infinite;
+}
+.md-tour__next-circle {
+  fill: rgba($focus-accent, 0.10);
+  stroke: $focus-accent;
+  stroke-width: 2.5;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: md-tour-done-circle 0.5s ease-out 0.08s forwards;
+}
+.md-tour__next-arrow {
+  fill: none;
+  stroke: $focus-accent;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: md-tour-done-mark 0.3s ease-out 0.52s forwards;
+}
+/* Ring burst behind the arrow */
+.md-tour__next::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 2px solid rgba($focus-accent, 0.45);
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  pointer-events: none;
+  animation: md-tour-done-ring 0.65s ease-out 0.18s forwards;
+}
+/* Gentle right-nudge of the whole mark once it has drawn in — the "go forward"
+   read. Small travel so it stays elegant, not jittery. */
+@keyframes md-tour-next-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-tour__next-svg,
+  .md-tour__next::after { animation: none; }
+  .md-tour__next-circle,
+  .md-tour__next-arrow { animation: none; stroke-dashoffset: 0; }
+  .md-tour__next::after { opacity: 0; }
+}
 .shepherd-text .md-tour__list {
   list-style: none;
   margin: 0;
@@ -91522,6 +92426,19 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   flex-direction: column;
   gap: 11px;
   text-align: left;
+}
+/* In the centered intro/outro cards (welcome / "you're ready"), the checklist
+   sits in its OWN highlighted panel: rounded corners + a faintly SUNKEN (inset)
+   surface so it reads as a distinct, recessed callout rather than loose text.
+   The panel fill is a 30% white veil — i.e. ~30% LIGHTER than whatever modal
+   surface sits behind it (works across gentle / focused / welcome variants). */
+.shepherd-element.md-tour__step--intro .md-tour__list {
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.30);
+  box-shadow:
+    inset 0 1px 3px rgba(20, 27, 46, 0.09),
+    inset 0 0 0 1px rgba(86, 110, 180, 0.10);
 }
 .shepherd-text .md-tour__li {
   display: flex;
@@ -91545,6 +92462,33 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   box-sizing: border-box;
 }
 .shepherd-text .md-tour__li-text { flex: 1 1 auto; }
+/* "OR" divider between checklist items (board-picker tour) — reads the three
+   options as mutually-exclusive. Stretches full width of the inline-flex list
+   (align-items:stretch), an uppercase tracked label flanked by thin rules.
+   aria-hidden in markup (decorative — the items themselves carry the meaning). */
+.shepherd-text .md-tour__or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Symmetric inset pulls the flanking rules in from both edges so they span
+     only the middle ~half of the row (lines are half as long), OR stays
+     centered. */
+  padding: 0 25%;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  /* 0.7 (not 0.45) so the "OR" divider label clears WCAG AA 4.5:1 on the light
+     popover; the flanking hairline rules below stay faint (non-text, exempt). */
+  color: rgba($brand-blue-black, 0.7);
+}
+.shepherd-text .md-tour__or::before,
+.shepherd-text .md-tour__or::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba($brand-blue-black, 0.16);
+}
 /* Focused View — check disc in the Focused accent (matches the rest of the
    Focused skin). */
 .shepherd-element.md-tour__step--focused .shepherd-text .md-tour__li-check {
@@ -91708,6 +92652,102 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
 }
 
+/* ── Second-round MENU step ───────────────────────────────────────────────────
+   Returning users get a centered hub whose footer is a vertical BUTTON LIST of
+   topic areas (instead of the usual right-aligned Back/Next pair). Restyle this
+   step's footer to a full-width column; each entry reads as a tappable list row
+   with a leading chevron. */
+.md-tour__step--menu .shepherd-footer {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 6px 22px 20px;
+}
+.shepherd-element .md-tour__menu-btn {
+  /* Full-width list row, left-aligned (overrides the base button's centered
+     inline-flex) with a leading chevron and a soft glass surface. */
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 14px;
+  padding: 13px 16px;
+  font-size: 16px;
+  color: $la-navy;
+  border-color: rgba(86, 110, 180, 0.18);
+  background: linear-gradient(180deg, #fff, rgba(245, 247, 250, 0.9));
+  box-shadow:
+    0 1px 2px rgba(22, 34, 70, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+/* Leading chevron — a decorative "open this" cue. */
+.shepherd-element .md-tour__menu-btn::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-right: 12px;
+  border-right: 2px solid rgba($brand-dusty-denim, 0.7);
+  border-bottom: 2px solid rgba($brand-dusty-denim, 0.7);
+  transform: rotate(-45deg);
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+.shepherd-element .md-tour__menu-btn:not(:disabled):hover {
+  border-color: rgba($brand-dusty-denim, 0.4);
+  background: linear-gradient(180deg, #fff, rgba(240, 244, 249, 0.95));
+  box-shadow:
+    0 0 14px rgba($brand-verdigris, 0.18),
+    0 6px 16px rgba($brand-dusty-denim, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+.shepherd-element .md-tour__menu-btn:not(:disabled):hover::before {
+  transform: rotate(-45deg) translate(1px, 1px);
+  border-color: $brand-dusty-denim;
+}
+.shepherd-element .md-tour__menu-btn:focus-visible {
+  outline: none;
+  border-color: rgba($brand-dusty-denim, 0.6);
+  box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
+}
+/* The "Finish & wrap up" entry sits a touch apart from the topic rows above and
+   drops the chevron (it ends the tour rather than opening a topic). */
+.shepherd-element .md-tour__menu-btn--finish {
+  margin-top: 4px;
+  color: var(--md-muted, $la-navy);
+  background: rgba(86, 110, 180, 0.06);
+  border-color: transparent;
+}
+.shepherd-element .md-tour__menu-btn--finish::before { display: none; }
+.shepherd-element .md-tour__menu-btn--finish:not(:disabled):hover {
+  background: rgba(86, 110, 180, 0.12);
+  border-color: rgba(86, 110, 180, 0.22);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Menu-mode outro — the "Go to your board picker" link button. Lower-emphasis
+   than the primary Finish: a verdigris-tinted text link with a subtle underline,
+   so it reads as an optional "you can head over there" link, not a CTA. */
+.shepherd-element .md-tour__btn--board-link {
+  color: $brand-verdigris-aa;
+  border-color: transparent;
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+}
+.shepherd-element .md-tour__btn--board-link:not(:disabled):hover {
+  color: $brand-dusty-denim;
+  background: rgba(86, 110, 180, 0.06);
+  text-decoration-thickness: 2px;
+}
+.shepherd-element .md-tour__btn--board-link:focus-visible {
+  outline: none;
+  border-color: rgba($brand-dusty-denim, 0.6);
+  box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
+}
+
 /* ── Focused View tour skin ──────────────────────────────────────────────────
    When the home tour runs in Focused View, every step carries
    `md-tour__step--focused` (added in utils/tours/home.js). Re-skin the popover
@@ -91732,6 +92772,17 @@ body.ll-layout-focused .shepherd-element.md-ds-modal {
     radial-gradient(120% 75% at 50% 0%, rgba($focus-accent, 0.12) 0%, rgba($focus-accent, 0) 62%),
     radial-gradient(90% 80% at 100% 16%, rgba($focus-nav-accent-to, 0.12) 0%, rgba($focus-nav-accent-to, 0) 55%),
     linear-gradient(180deg, rgba($focus-surface-top, 0.97) 0%, rgba($focus-surface-bottom, 0.95) 100%);
+}
+/* First page (welcome) of the Focused tours — home, board-picker AND board-detail
+   edit all share .md-tour__step--focused.md-tour__step--welcome — gets a 10% LIGHTER
+   surface than the shared focused-intro background above so the opening card reads
+   brighter. Scoped to --welcome (the outro keeps the deeper tone); the 0,3,0
+   selector + source order beats the intro rule. */
+.shepherd-element.md-tour__step--focused.md-tour__step--welcome {
+  background:
+    radial-gradient(120% 75% at 50% 0%, rgba($focus-accent, 0.12) 0%, rgba($focus-accent, 0) 62%),
+    radial-gradient(90% 80% at 100% 16%, rgba($focus-nav-accent-to, 0.12) 0%, rgba($focus-nav-accent-to, 0) 55%),
+    linear-gradient(180deg, rgba(mix(#fff, $focus-surface-top, 10%), 0.97) 0%, rgba(mix(#fff, $focus-surface-bottom, 10%), 0.95) 100%);
 }
 .shepherd-element.md-tour__step--focused .shepherd-content .shepherd-header::after,
 body.ll-layout-focused .shepherd-element.md-ds-modal .shepherd-content .shepherd-header::after {
@@ -91824,6 +92875,13 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
   display: flex;
   flex-direction: column;
 }
+/* "Make this board your own" (board-detail edit tour welcome, tagged --bd-welcome
+   in board-detail.js) is 20% taller than the other tours' welcome cards: 345 → 414.
+   The 0,4,0 selector + source order beats both the focused (345) and gentle (414)
+   welcome content rules, so it applies in either view. */
+.shepherd-element.md-tour__step--welcome.md-tour__step--bd-welcome .shepherd-content {
+  min-height: 414px;
+}
 /* The tour-map image moves OUT of the top-right corner accent and BESIDE the
    body copy (see the .shepherd-text rules below), so suppress the base intro
    ::after graphic (speech bubbles + orb-glow shading) on the welcome page in
@@ -91862,7 +92920,9 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
    keeps specificity level with the Focused selectors so neither wins by accident.
    Give the content the extra height + column flow so the body holds the image. */
 .shepherd-element.md-tour__step--welcome:not(.md-tour__step--focused) .shepherd-content {
-  min-height: 345px;
+  /* 20% taller than the prior 345px (the content min-height is what drives the
+     welcome card's height — the natural content sits right around it). */
+  min-height: 414px;
   display: flex;
   flex-direction: column;
 }
@@ -92007,17 +93067,25 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
    clipped by an ancestor's overflow. The glow reads brightest inside the
    modal-overlay spotlight opening and softly fades into the surrounding
    scrim. No position/z-index change, so it can't disturb the target's
-   layout or get trapped below the body-level overlay. */
-.shepherd-target {
-  /* Single-hue verdigris glow (the brand teal used by the active pill /
-     New Board button). One colour in two tight layers — NOT the old
-     denim+verdigris mix spread 26px wide, which murked into a grey-green
-     "muddy" halo once the 50% overlay darkened it. Tight + bright reads as
-     a clean highlight against the dark scrim (padding is 0, so the glow
-     sits on the overlay). */
+   layout or get trapped below the body-level overlay.
+
+   `:not(body)` is REQUIRED: for a CENTERED step (welcome/outro, no attachTo)
+   Shepherd falls back to `this.target || document.body` and tags `<body>`
+   itself with `.shepherd-target` (shepherd.js setupTooltip → showStep). A
+   `filter` on `<body>` blanks the whole page on any route whose body has an
+   opaque background (e.g. /board-picker) — Chrome stops propagating the body
+   background to the canvas and the white body box paints over everything. The
+   glow on body is invisible anyway (it sits behind the dark modal overlay), so
+   excluding body costs nothing and prevents the white-out. */
+.shepherd-target:not(body) {
+  /* Soft WHITE-ish highlight glow with only a faint teal hint (was a fuller
+     verdigris, which read as too much teal). Two tight layers of a near-white
+     teal-white against the dark scrim — bright + clean, clearly a highlight but
+     no longer a saturated teal halo. (padding is 0, so the glow sits on the
+     overlay.) */
   filter:
-    drop-shadow(0 0 4px rgba(44, 183, 176, 0.9))
-    drop-shadow(0 0 11px rgba(44, 183, 176, 0.55));
+    drop-shadow(0 0 4px rgba(224, 247, 244, 0.95))
+    drop-shadow(0 0 12px rgba(214, 244, 240, 0.6));
 }
 
 /* — Tour active-pill spotlight — while a per-page step highlights a nav
@@ -92052,10 +93120,12 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
    and the centered intro/outro steps (positioned via margin-top) are
    unaffected either way. */
 @media (prefers-reduced-motion: no-preference) {
-  /* Each step popover floats up + scales .97 -> 1 + fades in on show. */
-  .shepherd-element {
-    animation: md-tour-step-in 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  }
+  /* NOTE: the per-step card entrance is intentionally NOT a keyframe animation.
+     A slide/scale entrance (the old `md-tour-step-in`) reads as too much motion
+     for AAC users, and its `fill:both` held opacity:1 which blocked the fade-out.
+     The card now gently FADES out (old) and FADES in (new) via opacity transitions
+     only — driven by guided-tour.js (hide hook + reveal) and the `.shepherd-element`
+     opacity transition above. No translate/scale. */
   /* The intro illustration + orb glow drifts very slowly (ambient). */
   .shepherd-element.md-tour__step--intro::after {
     animation: md-tour-orb-drift 6s ease-in-out infinite alternate;
@@ -92076,13 +93146,13 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
   }
   .shepherd-element.md-tour__step--intro .md-tour__heading {
     display: inline-block;
+    /* inline-block sizes to its content (one line) — cap it to the card so a long
+       heading wraps inside the popover instead of forcing it wider than the card
+       (and off-screen) on narrow viewports. */
+    max-width: 100%;
     opacity: 0;
     animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.24s forwards;
   }
-}
-@keyframes md-tour-step-in {
-  from { opacity: 0; translate: 0 12px; scale: 0.985; }
-  to   { opacity: 1; translate: 0 0;    scale: 1; }
 }
 @keyframes md-tour-orb-drift {
   from { translate: 0 0; }
@@ -92111,6 +93181,27 @@ body.ll-layout-focused .shepherd-element.md-ds-modal .md-tour__btn--primary:focu
 }
 .shepherd-modal-overlay-container path {
   fill: #111b3a;
+}
+/* — Tour makes the page INERT — only the popover buttons are clickable —
+   While a guided-tour STEP is showing, nothing in the app shell may be clicked;
+   the tour is driven solely by the popover's Back/Next/Skip. This is REQUIRED:
+   Shepherd's modal overlay is visual only (pointer-events:none), and
+   `canClickTarget:false` merely sets pointer-events:none on the spotlit target —
+   which makes a click on it fall THROUGH to whatever sits behind (e.g. a
+   board-picker card's pick_board → navigates into the board mid-tour, the exact
+   bug this fixes). Block the whole ember root (#within_ember); Shepherd portals
+   the popover + overlay to <body> OUTSIDE that root, so they stay live. The final
+   live board-picker MODAL opens AFTER the tour completes (no .shepherd-enabled
+   step), so it is unaffected. Applies to every tour built on this runner. */
+body:has(.shepherd-element.shepherd-enabled) #within_ember {
+  pointer-events: none;
+}
+/* Belt-and-suspenders: keep the popover interactive even if a future change
+   portals it inside the root (pointer-events:auto on a descendant is hit-tested
+   regardless of an ancestor's `none`). */
+body:has(.shepherd-element.shepherd-enabled) .shepherd-element,
+body:has(.shepherd-element.shepherd-enabled) .shepherd-element * {
+  pointer-events: auto;
 }
 /* "Paused" background blur — scoped to the centered intro/outro steps
    only (body.md-tour--centered-step is toggled in home-tour.js). The

@@ -130,6 +130,12 @@ export default Component.extend({
   select_option: computed('option', function() {
     return this.get('option') == 'select';
   }),
+  // True when this preview was opened from the board-picker TOUR modal (flag set
+  // by tour-board-picker). In that mode the "Try This Board" + "Board Actions"
+  // buttons are replaced by a single "Pick this Board" CTA (see the template).
+  tour_pick: computed('appState.tour_board_picker_active', function() {
+    return !!this.get('appState.tour_board_picker_active');
+  }),
   actions: {
     /* Fired by board-preview-canvas once every button-image promise
        has settled (or there were no images to load). Flips the
@@ -142,6 +148,21 @@ export default Component.extend({
     select: function() {
       if (this.onSelect && typeof this.onSelect === 'function') {
         this.onSelect();
+      }
+    },
+    /* Forward canvas image-load progress (loaded, total) to the parent
+       (overlay / controller) so its loading spinner can show "N / total".
+       Pure pass-through — the parent owns the displayed state. */
+    canvas_progress: function(loaded, total) {
+      if (this.onCanvasProgress && typeof this.onCanvasProgress === 'function') {
+        this.onCanvasProgress(loaded, total);
+      }
+    },
+    // Tour mode "Pick this Board": delegate to the overlay, which sets this board
+    // as the user's home board and opens it in speak mode.
+    pick_for_home: function() {
+      if (this.onPickForHome && typeof this.onPickForHome === 'function') {
+        this.onPickForHome();
       }
     },
     close: function() {
