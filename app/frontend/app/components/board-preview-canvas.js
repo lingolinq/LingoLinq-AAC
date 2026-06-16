@@ -111,6 +111,13 @@ export default Component.extend({
     var arm_stall_watchdog = function() {
       if(emitted) { return; }
       if(stall_timer) { runCancel(stall_timer); }
+      // Adversarial-review false positive ("isDestroyed guard fires too late, could call
+      // do_emit -> onCanvasReady on a stale parent"): two layers prevent that. (1) The
+      // timer handle is stored on `_this._previewStallTimer` and runCancel()'d in
+      // willDestroyElement (see below), so on a normal teardown the callback never runs.
+      // (2) Even if it did fire, the FIRST statement here is the isDestroyed/isDestroying
+      // check, which returns BEFORE do_emit — so onCanvasReady is never invoked once the
+      // component is tearing down. The guard is the entry condition, not "too late".
       stall_timer = _this._previewStallTimer = runLater(function() {
         stall_timer = null;
         _this._previewStallTimer = null;

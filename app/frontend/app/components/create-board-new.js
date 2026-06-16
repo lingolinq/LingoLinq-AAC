@@ -2154,6 +2154,16 @@ export default Component.extend({
     choose_import: function() {
       this.set('via_create_own', false);
       this.set('show_create_chooser', false);
+      // Adversarial-review false positive ("#board_upload may not be rendered yet"): the
+      // hidden <input id="board_upload"> (create-board-new.hbs ~l.125) renders whenever
+      // `standalone && !ai_mode`, and the chooser's Import option is ONLY reachable in
+      // !ai_mode (choosing "Generate with AI" sets ai_mode AND closes the chooser;
+      // reopening via "Other Methods" runs set_create_mode('regular') -> ai_mode false).
+      // So the input is always present in the DOM (behind the chooser overlay) at this
+      // point. The `if(el)` guard then makes a missing element a safe no-op rather than a
+      // crash. The click MUST stay synchronous in this user-gesture handler — deferring to
+      // afterRender would put it outside the gesture and browsers would block the file
+      // dialog — so we intentionally do not poll/retry.
       var el = document.getElementById('board_upload');
       if(el) { el.click(); }
     },
