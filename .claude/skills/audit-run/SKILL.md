@@ -26,6 +26,12 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
   scope (pass each finder the `git diff --stat origin/staging...HEAD` paths below). No quarterly
   report render unless something material surfaces. This catches regressions between heavy runs
   without burning plan-cap headroom.
+  - **Exception - `accessibility-auditor` never runs diff-only.** Static a11y on a diff is
+    low-signal (the dual board render path and shared SCSS selectors mean a tile/contrast defect
+    rarely lives entirely inside the changed lines), so in a monthly light run the accessibility
+    finder either runs its FULL frontend scope or is skipped entirely - it is never passed the
+    diff scope. If it is skipped in a light run, say so in the run-log `runs.jsonl` line
+    (`skipped: ["accessibility"]`) so its absence is explicit, not silent.
 
 Either way the register `FINDINGS.json` is updated mechanically and citation-check must stay
 green; only Scot closes, downgrades, or accepts risk.
@@ -47,7 +53,7 @@ SHA so `scripts/citation-check.rb` can validate snippets against the exact tree 
    must anchor to a committed SHA).
 
 ## Step 2: Fan out the read-only finders (parallel)
-Spawn the four domain finders concurrently with the Agent tool, passing each the `auditedSha`.
+Spawn the five domain finders concurrently with the Agent tool, passing each the `auditedSha`.
 They are read-only (no Edit/Write; a PreToolUse guard blocks mutating Bash) and emit
 register-shaped findings with `status: "open"`.
 
@@ -68,10 +74,11 @@ register-shaped findings with `status: "open"`.
 
 | Agent | Domain | Skill it loads |
 |-------|--------|----------------|
-| `privacy-auditor`    | privacy    | gdpr-ferpa-audit |
-| `infra-auditor`      | infra      | soc2-security-audit |
-| `api-auditor`        | api        | api-contract-audit |
-| `dependency-auditor` | dependency | dependency-audit |
+| `privacy-auditor`       | privacy       | gdpr-ferpa-audit |
+| `infra-auditor`         | infra         | soc2-security-audit |
+| `api-auditor`           | api           | api-contract-audit |
+| `dependency-auditor`    | dependency    | dependency-audit |
+| `accessibility-auditor` | accessibility | accessibility-audit |
 
 Prompt each with: the `auditedSha`, the scan scope from its skill, and
 "cross-check `audit-reports/FINDINGS.json` first; reference an existing `id` rather than
@@ -96,6 +103,7 @@ ruby scripts/audit-merge.rb \
   --sha <auditedSha> --ref <auditedRef> --date <YYYY-MM-DD> \
   --in /tmp/finder-privacy.json --in /tmp/finder-infra.json \
   --in /tmp/finder-api.json --in /tmp/finder-dependency.json \
+  --in /tmp/finder-accessibility.json \
   --out audit-reports/FINDINGS.json --summary /tmp/audit-summary.json
 ```
 
@@ -119,9 +127,19 @@ is not part of this run; this run surfaces and verifies, it does not close.
 ## Step 5: Validate + render
 1. `ruby scripts/citation-check.rb audit-reports/FINDINGS.json` (expect exit 0). If any active
    finding's snippet does not exist at `auditedSha`, fix the finding's evidence and re-run.
-2. `ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json` to regenerate
+2. **Inspect the merge summary for REFUSED findings (do NOT treat a refusal as a benign skip).**
+   `audit-merge.rb` buckets PII/secret refusals into the same `skipped` array as benign skips
+   (snippet-not-found, missing-ruleKey). A refusal is a data-quality DEFECT, not a routine skip: a
+   real finding (possibly Critical/High) was dropped and is invisible in the headline. Check it:
+   `ruby -rjson -e 'JSON.parse(File.read("/tmp/audit-summary.json"))["skipped"].select{|s| s["reason"].to_s.include?("refused:")}.each{|s| puts s.to_json}'`
+   If any line prints, surface it LOUDLY to Scot (which finder, which ruleKey, which pattern) and
+   have the finder re-emit without the offending token. Common case: an accessibility finding whose
+   text contains a 4-part EN 301 549 clause (`9.1.4.3`) that matches the IP scrubber - the
+   accessibility-audit skill already instructs finders to avoid this, so a refusal here means the
+   guidance was not followed and the finding must be corrected, not silently lost.
+3. `ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json` to regenerate
    `audit-reports/FINDINGS.md` from the JSON.
-3. Optionally write a rendered `audit-reports/unified-audit-YYYY-MM-DD.md` for a quarterly run.
+4. Optionally write a rendered `audit-reports/unified-audit-YYYY-MM-DD.md` for a quarterly run.
 
 ## Step 6: Report (headline = open Critical/High, not a score)
 Present to Scot:
