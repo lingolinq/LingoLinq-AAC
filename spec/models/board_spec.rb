@@ -3056,6 +3056,44 @@ describe Board, :type => :model do
       expect(Board.last).to eq(b2)
     end
   end
+
+  describe "import_json_bundle" do
+    it "rejects remote bundle URLs outside the importer upload prefix" do
+      importer = User.create
+      expect {
+        Board.import_json_bundle(importer.global_id, 'https://www.example.com/imports/boards/evil/bundle-abc.json')
+      }.to raise_error(Progress::ProgressError, /invalid import bundle URL/)
+    end
+
+    it "requires edit permission when importing for another user" do
+      importer = User.create(user_name: 'importer')
+      recipient = User.create(user_name: 'recipient')
+      bundle = {
+        'root' => 'source/root-board',
+        'boards' => [
+          {
+            'key' => 'source/root-board',
+            'data' => {
+              'board' => {
+                'id' => '1_100_root',
+                'key' => 'source/root-board',
+                'name' => 'Root',
+                'locale' => 'en',
+                'buttons' => [],
+                'grid' => { 'rows' => 1, 'columns' => 1, 'order' => [[nil]] }
+              },
+              'images' => [],
+              'sounds' => []
+            }
+          }
+        ]
+      }
+
+      expect {
+        Board.import_json_bundle(importer.global_id, bundle, { 'recipient_global_ids' => [recipient.global_id] })
+      }.to raise_error(Progress::ProgressError, /not authorized/)
+    end
+  end
   
   describe "additional_webhook_codes" do
     it "should return empty list by default" do

@@ -2206,6 +2206,55 @@ describe Api::BoardsController, :type => :controller do
       expect(json['remote_upload']['upload_url']).to_not eq(nil)
     end
   end
+
+  describe "from_json_bundle" do
+    it "should require api token" do
+      post :from_json_bundle, params: { url: 'https://www.example.com/bundle.json' }
+      assert_missing_token
+    end
+
+    it "should require the paste_html_import feature flag" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(false)
+      post :from_json_bundle, params: { url: 'https://www.example.com/bundle.json' }
+      expect(response.status).to eq(403)
+    end
+
+    it "should reject bundle URLs outside the importer upload prefix" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      post :from_json_bundle, params: { url: 'https://www.example.com/imports/boards/evil/bundle-abc.json' }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid import bundle URL')
+    end
+
+    it "should report invalid URL when sanitization fails" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      post :from_json_bundle, params: { url: 'file:///tmp/bundle.json' }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid URL')
+    end
+
+    it "should schedule processing for a valid bundle upload URL" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{@user.global_id}/bundle-abc123.json"
+      p = Progress.create
+      expect(Progress).to receive(:schedule).with(Board, :import_json_bundle, @user.global_id, url, {}, for_user: @user).and_return(p)
+      post :from_json_bundle, params: { url: url }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['progress']['id']).to eq(p.global_id)
+    end
+  end
   
   describe "unlink" do
     it "should require api token" do

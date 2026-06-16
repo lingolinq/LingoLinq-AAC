@@ -356,6 +356,53 @@ describe Uploader do
         ENV['OPENSYMBOLS_S3_BUCKET'] = orig_opensymbols
       end
     end
+  end
+
+  describe "valid_import_bundle_url?" do
+    it "allows only HTTPS bundle uploads under imports/boards/{global_id}/" do
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      orig_uploads = ENV['UPLOADS_S3_BUCKET']
+      orig_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV.delete('UPLOADS_S3_CDN')
+      gid = '1_42'
+      good = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/bundle-abc123.json"
+      begin
+        expect(Uploader.valid_import_bundle_url?(good, gid)).to eq(true)
+        expect(Uploader.valid_import_bundle_url?(good, '1_99')).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/upload-abc.json", gid)).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("https://evil.com/imports/boards/#{gid}/bundle-abc.json", gid)).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("http://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/bundle-abc.json", gid)).to eq(false)
+      ensure
+        ENV['UPLOADS_S3_BUCKET'] = orig_uploads
+        if orig_cdn.nil?
+          ENV.delete('UPLOADS_S3_CDN')
+        else
+          ENV['UPLOADS_S3_CDN'] = orig_cdn
+        end
+      end
+    end
+
+    it "accepts CDN-fronted bundle upload URLs" do
+      uploads_bucket = 'lingolinq-dev-uploads'
+      cdn = 'https://cdn.example.com'
+      orig_uploads = ENV['UPLOADS_S3_BUCKET']
+      orig_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV['UPLOADS_S3_CDN'] = cdn
+      gid = '1_42'
+      url = "#{cdn}/imports/boards/#{gid}/bundle-abc123.json"
+      begin
+        expect(Uploader.valid_import_bundle_url?(url, gid)).to eq(true)
+      ensure
+        ENV['UPLOADS_S3_BUCKET'] = orig_uploads
+        if orig_cdn.nil?
+          ENV.delete('UPLOADS_S3_CDN')
+        else
+          ENV['UPLOADS_S3_CDN'] = orig_cdn
+        end
+      end
+    end
   end  
 
   describe "remote_remove" do

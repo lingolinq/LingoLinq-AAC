@@ -77549,6 +77549,74 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 16px;
 }
 
+/* Import JSON Bundle modal — CoughDrop export bookmarklet + file upload */
+.md-json-bundle-export {
+  text-align: left;
+  max-width: 34rem;
+  margin: 0 auto 1.25rem;
+}
+.md-json-bundle-export__title {
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: $la-navy;
+}
+.md-json-bundle-export__lead {
+  margin: 0 0 0.85rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.82);
+}
+.md-json-bundle-export__steps {
+  margin: 0 0 1.1rem 1.15rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: rgba($la-navy, 0.9);
+  li + li {
+    margin-top: 0.45rem;
+  }
+}
+.md-json-bundle-export__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.35rem;
+}
+.md-json-bundle-export__bookmarklet {
+  min-height: 2.75rem;
+  padding: 0.55rem 1.1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: grab;
+}
+.md-json-bundle-export__bookmarklet:active {
+  cursor: grabbing;
+}
+.md-json-bundle-export__copy {
+  font-size: 1rem;
+  padding: 0.35rem 0;
+}
+.md-json-bundle-export__help {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: rgba($la-navy, 0.7);
+}
+.md-json-bundle-export__divider {
+  max-width: 34rem;
+  margin: 1.35rem auto;
+  border-color: rgba($la-navy, 0.12);
+}
+.md-modal-body .md-json-bundle-export + hr + section {
+  text-align: left;
+  max-width: 34rem;
+  margin: 0 auto;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 /* Board Details modal — fill the viewport. We pin the dialog via
    `position: fixed` with explicit insets rather than relying on
    Bootstrap's centered `.modal-dialog` margin, because the

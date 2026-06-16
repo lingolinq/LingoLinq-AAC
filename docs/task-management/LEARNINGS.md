@@ -4600,8 +4600,48 @@ moving/occluding element sits between the cursor and the target.
 "deeper" + adversarial-review sections). User-verified working after the
 geometry + re-wire fixes.
 
-**Related:** [Custom-JS drag works on desktop but not in touch emulation](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
+**Related:** [Custom-JS drag works on desktop but not in touch-emulation](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
 (touch-action), [Dashboard card order is driven by grid-template-areas](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom).
+
+### JSON bundle import: images missing when S3 upload fails locally
+
+**Symptom:** JSON bundle import creates boards and `image_id` on buttons, but
+buttons show no symbols. `ButtonImage` rows have `pending: true`, `url: nil`,
+`errored_pending_url` set to the CloudFront source URL.
+
+**Root cause:** `upload_to_remote` successfully fetches OpenSymbols /
+CloudFront URLs during import, but when the S3 post fails (common in local dev
+without upload creds) it only recorded `errored_pending_url` for http(s)
+sources — leaving the image stuck pending with nothing displayable.
+
+**Fix:** `Uploadable#store_downloaded_file_fallback!` — on S3 failure after a
+successful fetch, store bytes as a `data_uri` (≤512KB) or keep a trusted
+symbol-CDN URL with `pending: false`. Also normalize synthesized bundle URLs
+in `ApiJsonBundle#coalesce_media` via `encode_import_url`.
+
+**Re-import required** after pulling the fix; existing pending images on a test
+account won't self-heal unless you re-import or run `upload_to_remote` again.
+
+### JSON bundle import: custom photos replaced by OpenSymbols after import
+
+**Symptom:** Imported custom button images (e.g. teacher photos) display
+correctly at first, then swap to stock symbols (e.g. dart for "Miss") minutes
+later or after reload.
+
+**Root cause:** `ButtonImage#ensure_library_url_for_skin!` runs on a slow job
+after board API load when `needs_library_url_enrichment?` is true (S3-hosted
+import copies). It searches OpenSymbols by button label and stores
+`library_alternates`. With `preferred_symbols: opensymbols` (default), the
+client renders the alternate URL, not the imported photo. `Board#swap_images`
+can also replace `image_id` by label lookup (only skips `lingolinq-usercontent`
+URLs).
+
+**Fix:** JSON bundle import sets `ButtonImage#settings['preserve_source_image']`.
+That flag skips skin enrichment, keeps `settings_for` on the original URL, and
+skips `swap_images` replacement. Re-import affected boards after deploying.
+
+**Evidence:** `lib/converters/lingo_linq.rb`, `app/models/button_image.rb`,
+`app/models/board.rb#swap_images`, task log `2026-06-13-json-bundle-import.md`.
 
 ---
 

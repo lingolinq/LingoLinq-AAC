@@ -26,6 +26,11 @@ module.exports = function(app) {
     return path === '/auth' || path.indexOf('/auth/') === 0;
   }
 
+  function migrationPath(url) {
+    var path = (url || '').split('?')[0];
+    return path === '/migration' || path.indexOf('/migration/') === 0;
+  }
+
   var proxy = require('http-proxy').createProxyServer({
     target: 'http://127.0.0.1:5000',
     changeOrigin: true,
@@ -61,7 +66,7 @@ module.exports = function(app) {
   });
 
   app.use(function(req, res, next) {
-    if(!authPath(req.url)) {
+    if(!authPath(req.url) && !migrationPath(req.url)) {
       return next();
     }
     proxy.web(req, res, { target: 'http://127.0.0.1:5000' });
