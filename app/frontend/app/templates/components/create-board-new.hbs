@@ -80,13 +80,23 @@
                 <span class="nb-create-chooser__btn-label">{{t "Import JSON Bundle" key="import_json_bundle"}}</span>
               </button>
             {{/if}}
-            <span class="nb-create-chooser__or" style="animation-delay: {{if this.paste_html_import_enabled "0.95s" "0.65s"}}" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: {{if this.paste_html_import_enabled "1.05s" "0.85s"}}" {{action "choose_ai"}}>
-              <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
-                <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
-              </span>
-              <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
-            </button>
+            {{#if this.paste_html_import_enabled}}
+              <span class="nb-create-chooser__or" style="animation-delay: 0.95s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
+              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 1.05s" {{action "choose_ai"}}>
+                <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
+                  <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
+                </span>
+                <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
+              </button>
+            {{else}}
+              <span class="nb-create-chooser__or" style="animation-delay: 0.65s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
+              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 0.85s" {{action "choose_ai"}}>
+                <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
+                  <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
+                </span>
+                <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
+              </button>
+            {{/if}}
           </div>
         </div>
       </div>
