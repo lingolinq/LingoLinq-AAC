@@ -1458,7 +1458,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). The tile <a class=button> is named by the visible label span (index.hbs:141), but that span is gated by {{#unless button.hide_label}} (index.hbs:140); with hide_label set and the symbol <img> carrying no alt, the tile has NO accessible name at all (critical for symbol-only/emerging communicators). Dual render-path issue: the same defect exists in the fast_html string builder in app/frontend/app/utils/button.js."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). The tile <a class=button> is named by the visible label span (index.hbs:141), but that span is gated by {{#unless button.hide_label}} (index.hbs:140); with hide_label set and the symbol <img> carrying no alt, the tile has NO accessible name at all (critical for symbol-only/emerging communicators). Dual render-path issue: the same defect exists in the fast_html string builder in app/frontend/app/utils/button.js. | adversary: uncertain (2026-06-16): the cited line sits inside {{#if this.app_state.edit_mode}} (index.hbs:102), an EDIT-MODE-ONLY path; the live communicator grid renders via {{board.fast_html.html}} (index.hbs:100), not this markup. The missing-alt defect is real here, but this anchor is NOT the AAC-core live surface the title/notes imply -- the live case is the separate utils/button.js fast_html finding. Recommend Scot re-anchor this to the fast_html finding or downgrade its scope to edit-mode. (Verified .hide-label = display:none at app.scss:9167.)"
     },
     {
       "id": "LL-2967f77e6d",
@@ -1489,7 +1489,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). Second of the two board-grid render paths: button.js builds the tile symbol <img> as a raw HTML string with no alt attribute (the action_image at button.js:442 does include alt). Mirror of the templates/board/index.hbs finding; a fix in one path is not automatically in the other."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). Second of the two board-grid render paths: button.js builds the tile symbol <img> as a raw HTML string with no alt attribute (the action_image at button.js:442 does include alt). Mirror of the templates/board/index.hbs finding; a fix in one path is not automatically in the other. | adversary: confirmed (2026-06-16): the fast_html symbol <img> (button.js:449) has no alt on a LIVE render path ({{button.fast_html}} / {{board.fast_html.html}}); the action_image <img> at button.js:442 DOES include alt, so the omission is specific not global. Escalation verified: when button.hide_label is set, the label span (button.js:479) is display:none via .hide-label (app.scss:9167), so it leaves the accessibility tree and the tile has NO accessible name at all -- supports high/critical. The parallel board.js render_fast_html builder repeats the same pattern (a third render path)."
     },
     {
       "id": "LL-5ff3b22093",
@@ -1520,7 +1520,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1). The legacy Bootstrap class=close close button is named only by the &times; glyph (announced as 'times' or nothing useful), while the modern .la-modal-close buttons carry aria-label={{t \"Close\"}}. This legacy pattern recurs across many modal templates (board-details, add-to-sidebar, add-webhook, badge-image, approve-board-share, batch-recording, board-copies, board-stats, etc.); board-details.hbs is cited as representative. Per the one-finding-per-file schema, a full sweep would emit one per affected template."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1). The legacy Bootstrap class=close close button is named only by the &times; glyph (announced as 'times' or nothing useful), while the modern .la-modal-close buttons carry aria-label={{t \"Close\"}}. This legacy pattern recurs across many modal templates (board-details, add-to-sidebar, add-webhook, badge-image, approve-board-share, batch-recording, board-copies, board-stats, etc.); board-details.hbs is cited as representative. Per the one-finding-per-file schema, a full sweep would emit one per affected template. | adversary: confirmed (2026-06-16): no aria-label, title, or sr-only text; the SCSS rule (app.scss:11877) only sizes/positions the button and board-details.js performs no aria injection. The only name is &times; (U+00D7), announced as \"times\"/\"multiplication\" or skipped, not \"Close\". The modern .la-modal-close (button-set.hbs:3) carries aria-label={{t \"Close\"}}, confirming the inconsistent gap."
     },
     {
       "id": "LL-ed914bded3",
@@ -1551,7 +1551,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.4.3 (EN 301 549 9.1.4). $brand-verdigris (defined in _variables.scss; ~3.32:1 on white per the inline note at app.scss:12181) is used as a text/link foreground on a near-white surface: the .board-icon__lang-marker language pill that overlays board tiles. Same raw-token text use also at app.scss:11621 (nav-pill link hover) and app.scss:11765 (button hover). Icon/SVG color uses of the same token (9973, 11685, 12308) are non-text-contrast (3:1) and not flagged. Runtime ratio confirmation is the human ACR pass."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.4.3 (EN 301 549 9.1.4). $brand-verdigris (defined in _variables.scss; ~3.32:1 on white per the inline note at app.scss:12181) is used as a text/link foreground on a near-white surface: the .board-icon__lang-marker language pill that overlays board tiles. Same raw-token text use also at app.scss:11621 (nav-pill link hover) and app.scss:11765 (button hover). Icon/SVG color uses of the same token (9973, 11685, 12308) are non-text-contrast (3:1) and not flagged. Runtime ratio confirmation is the human ACR pass. | adversary: confirmed (2026-06-16): all three cited lines apply raw $brand-verdigris (~3.32:1 on white) as normal-weight text on light backgrounds, below the 4.5:1 AA minimum. The cited .board-icon__lang-marker rule overrides via !important the already-AA-correct rule at app.scss:9926 (whose text is 14px/700 = NOT large-scale, so 4.5:1 governs). The only icon use of the token (.board-icon__lang-marker-icon, app.scss:9972; 3:1 where 3.32:1 passes) is correctly excluded."
     },
     {
       "id": "LL-40dd412ed6",
@@ -1582,7 +1582,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 3.1.1 (EN 301 549 9.3.1). The Rails-served application layout opens <html> with only a conditional itemscope/itemtype and never sets lang, so AT cannot determine the page language for server-rendered pages (marketing/SEO, parental-consent shares). The Ember SPA shell index.html does set lang. parental_consent.html.erb already sets lang=\"en\"; application.html.erb and email.html.erb do not."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 3.1.1 (EN 301 549 9.3.1). The Rails-served application layout opens <html> with only a conditional itemscope/itemtype and never sets lang, so AT cannot determine the page language for server-rendered pages (marketing/SEO, parental-consent shares). The Ember SPA shell index.html does set lang. parental_consent.html.erb already sets lang=\"en\"; application.html.erb and email.html.erb do not. | adversary: confirmed (2026-06-16): the <html> tag has no lang in either ERB branch; no <body lang>, meta http-equiv, or JS documentElement.lang assignment exists anywhere. This is the default Rails layout (boards#index, crawler/meta pages, parental-consent meta), so it renders real user-facing/SEO content. parental_consent.html.erb sets lang; email.html.erb does not. Note: once the SPA boots it inherits no lang from this <html> either."
     },
     {
       "id": "LL-70abe7d9a9",
@@ -1613,7 +1613,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1) plus i18n. The share-board unshare control is icon-only (inline SVG trash glyph, no visible text) and exposes its accessible name only through title=\"Remove\". title is inconsistently surfaced by assistive tech and the value is a raw English string rather than the {{t}} helper, so it is both an a11y-naming and an i18n defect."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1) plus i18n. The share-board unshare control is icon-only (inline SVG trash glyph, no visible text) and exposes its accessible name only through title=\"Remove\". title is inconsistently surfaced by assistive tech and the value is a raw English string rather than the {{t}} helper, so it is both an a11y-naming and an i18n defect. | adversary: confirmed (2026-06-16): the button child is an inline <svg> with no <title>/role/aria, and there is no aria-label/aria-labelledby/sr-only; the name derives solely from title=. Nuance: title DOES feed accname, so a strict 4.1.2 read could \"pass\" in AT that surfaces title -- but it is the weakest/most-inconsistent source (no keyboard/touch tooltip), so the medium framing holds. The i18n half is unambiguous: \"Remove\" is a raw literal, not {{t}}."
     },
     {
       "id": "LL-13ad11eaee",
@@ -1644,7 +1644,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.3 (EN 301 549 9.4.1). The bento dashboard 'Loading...' text is a plain <div> with no aria-live/role=status, so AT users are not told the view is loading. Same pattern at board-stats.hbs:66 and bulk_purchase.hbs:5. The app does use aria-live elsewhere, so these are isolated omissions rather than a systemic gap."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.3 (EN 301 549 9.4.1). The bento dashboard 'Loading...' text is a plain <div> with no aria-live/role=status, so AT users are not told the view is loading. Same pattern at board-stats.hbs:66 and bulk_purchase.hbs:5. The app does use aria-live elsewhere, so these are isolated omissions rather than a systemic gap. | adversary: confirmed (2026-06-16): the bento.hbs Loading <div> and its #index_view ancestor carry no aria-live/role=status, and there is no separate hidden live region; layout ancestors application.hbs/index.hbs have none either. board-stats.hbs:66 (<dl>) and bulk_purchase.hbs:5 (<h2>) likewise lack live-region semantics."
     }
   ]
 }
