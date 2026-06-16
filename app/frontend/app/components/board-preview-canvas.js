@@ -9,6 +9,15 @@ import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 
+// No-progress stall watchdog window (ms). This is NOT a total-load deadline — it's the
+// maximum GAP with zero image progress before the preview gives up and lifts the loading
+// overlay (every settled image re-arms it; see arm_stall_watchdog). It only ever fires on
+// a true wedge (a CDN/network hang where neither onload nor onerror arrives), so a
+// slow-but-steady load on 3G / hospital WiFi keeps the overlay up and is NOT cut off at
+// this value. Named at module scope (not buried in the render closure) so it can be tuned
+// in one place.
+const STALL_MS = 12000;
+
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
@@ -106,8 +115,8 @@ export default Component.extend({
        watchdog fires only on a true wedge — a CDN/network hang where neither
        onload nor onerror ever arrives — guaranteeing the overlay can never stick
        forever. Re-arm (cancel + reschedule) implements the "no progress for
-       STALL_MS" semantic without any wall-clock math. */
-    var STALL_MS = 12000;
+       STALL_MS" semantic without any wall-clock math. STALL_MS is the module-scope
+       named constant defined at the top of this file (tunable in one place). */
     var arm_stall_watchdog = function() {
       if(emitted) { return; }
       if(stall_timer) { runCancel(stall_timer); }

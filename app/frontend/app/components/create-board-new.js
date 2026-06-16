@@ -2095,14 +2095,18 @@ export default Component.extend({
         // create-board-only preview row (`.nb-preview-sentence-row`) so a
         // board-detail sentence bar elsewhere in the DOM can never be measured.
         //
-        // Adversarial-review false positive ("global query bleeds across routes"):
+        // Adversarial-review false positive ("global query bleeds across routes" /
+        // "overlapping renders / modal-within-modal could measure the second element"):
         // `.nb-preview-sentence-row` exists ONLY in this template (create-board-new.hbs)
         // and create-board-new is a single route-level page/modal — there is never a
         // second instance, and board-detail's speak bar does NOT have this ancestor, so
         // the anchored descendant query cannot match it. There is no FastBoot/SSR in this
-        // app (Ember SPA), so no nested-outlet double-render either. And the worst case if
-        // it somehow mismeasured is benign: it resets THIS throwaway create-board PREVIEW
-        // bar, never a real Speak-Mode utterance.
+        // app (Ember SPA), so no nested-outlet double-render either. The product UX never
+        // stacks a second create-board-new (you don't open the create-board modal while
+        // already on the /create-board-new page), so there is never a 2nd
+        // `.nb-preview-sentence-row` for querySelector to pick the wrong one of. And even
+        // in that hypothetical, the worst case is benign: it resets THIS throwaway
+        // create-board PREVIEW bar, never a real Speak-Mode utterance.
         var el = document.querySelector('.nb-preview-sentence-row .md-board-detail-sentence-bar__text');
         if(!el) { return; }
         if(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) {

@@ -312,7 +312,17 @@ export default Component.extend({
         // paints fully-loaded — the same readiness guarantee the preview gives.
         // Usually instant: the preview the user just viewed already warmed these
         // exact URLs into the browser cache. Bounded by preload's safety timeout.
-        preload_board_images(copiedBoard).then(go, go);
+        //
+        // Clear `copying` as we hand off to `go` (on BOTH resolve and reject): go either
+        // shows its own body-level "Preparing your Board" overlay and navigates (which
+        // tears down this modal anyway), or — on a torn-down component or a malformed key
+        // (parts.length < 2) — takes a path that doesn't navigate. Clearing here ensures
+        // the "Setting up your board..." overlay can never stick visible in that case.
+        var finish = function() {
+          if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
+          go();
+        };
+        preload_board_images(copiedBoard).then(finish, finish);
       }, function(err) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         // Leave the tour modal active so the user can retry from the preview.
