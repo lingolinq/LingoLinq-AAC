@@ -322,8 +322,31 @@ export default Component.extend({
     var tryConsume = function() {
       if (_this.isDestroyed || _this.isDestroying) { _this._bdTourConsuming = false; return; }
       // Another instance/hook may have consumed it first.
-      if (!_this.get('appState.board_detail_tour_pending')) { _this._bdTourConsuming = false; return; }
+      var pending = _this.get('appState.board_detail_tour_pending');
+      if (!pending) { _this._bdTourConsuming = false; return; }
       if (_this._isBoardDetailEditTour()) {
+        // `pending` carries the COPIED BOARD'S KEY (a string; set by board-preview
+        // "Pick this Board"). Fire the edit tour ONLY when the board-detail page this
+        // instance mounted on IS that board — so a stale flag can't auto-open the tour
+        // on a DIFFERENT board the user navigated to instead. A bare `true` (legacy /
+        // no-key fallback) keeps the old "fire on any edit page" behavior.
+        if (typeof pending === 'string') {
+          var curKey = _this.get('appState.currentBoardState.key');
+          if (!curKey) {
+            // currentBoardState lands a microtask or two after the route settles —
+            // keep polling rather than fire or clear on incomplete state.
+            if (attempts++ < 20) { runLater(_this, tryConsume, 150); }
+            else { _this._bdTourConsuming = false; }   // give up; leave flag for a later mount
+            return;
+          }
+          if (curKey !== pending) {
+            // On a board-detail EDIT page, but NOT the copied board — consume the stale
+            // flag WITHOUT firing so it can never auto-open the tour on the wrong board.
+            _this._bdTourConsuming = false;
+            _this.appState.set('board_detail_tour_pending', false);
+            return;
+          }
+        }
         _this._bdTourConsuming = false;
         _this.appState.set('board_detail_tour_pending', false);
         _this._scheduleBoardDetailAutoOpen();

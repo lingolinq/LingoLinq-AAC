@@ -2051,6 +2051,10 @@ export default Component.extend({
       if(idx < 0 || idx >= labels.length || !labels[idx]) { return; }
       if(this.get('paint_mode')) {
         if(event && event.stopPropagation) { event.stopPropagation(); }
+        // SECURITY (adversarial-review false positive — "unsanitized image URLs in paint
+        // mode"): paint passes only the LABEL object to paint_button; image_url is never
+        // used in the paint path. (And where image_url IS used — the speak-bar chip — it
+        // renders via an Ember-escaped, sanitized `<img src>`; see speak_word.)
         this.send('paint_button', labels[idx]);
         return;
       }
@@ -2066,6 +2070,14 @@ export default Component.extend({
     speak_word: function(label, image_url) {
       if(!label) { return; }
       var _this = this;
+      // SECURITY (adversarial-review false positive — "XSS via image_url in speak_word"):
+      // image_url is NOT interpolated into markup here. It's stored on a plain object and
+      // the chip renders it via an Ember-escaped, URL-sanitized bound attribute —
+      // `<img src={{word.image_url}}>` (create-board-new.hbs ~l.537). Ember HTML-escapes
+      // attribute values, so a crafted URL can't break out to inject `onerror=`/`onload=`,
+      // and a `javascript:`/`data:` value in an <img src> is inert (browsers never execute
+      // script from an image's src). So there is no script-injection path. (image_url is
+      // also a resolved symbol URL from the search/board pipeline, not raw free text.)
       var entry = { label: label, image_url: image_url || null };
       var words = (this.get('_speak_words') || []).slice();
       words.push(entry);

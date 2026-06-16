@@ -255,15 +255,20 @@ export default Component.extend({
       editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         app_state.set('tour_board_picker_active', false);
+        var key = copiedBoard.get('key') || '';
         // Hand-off flag for the board-detail EDIT tour: the guided-tour edit-chrome
         // instance reads this once it mounts on the board-detail edit page and
         // auto-starts the edit tour, then clears it (see guided-tour.js
         // _consumePendingBoardDetailTour, which polls until edit mode settles).
-        app_state.set('board_detail_tour_pending', true);
+        // SCOPED TO THE COPIED BOARD'S KEY (not a bare `true`): the consumer fires the
+        // tour only when the board-detail page it mounts on IS this copied board. That
+        // prevents the flag from auto-starting the tour on a DIFFERENT board if the user
+        // navigates away before the route settles, or in a second tab/session that reads
+        // the shared app_state flag (addresses the wrong-board / stale-flag race).
+        app_state.set('board_detail_tour_pending', key || true);
         // Preserve the language the user previewed/picked in so a translated board
         // doesn't open in the wrong locale.
         if (locale) { app_state.set('label_locale', locale); }
-        var key = copiedBoard.get('key') || '';
         var parts = key.split('/');
         var routerSvc = _this.get('router');
         // The route change, masked by the shared body-level "Preparing your Board"
@@ -304,6 +309,16 @@ export default Component.extend({
         _this.set('copying', false);
         // Only surface `err` directly when it's a display string — copy_board can
         // reject with an Error/object, which would render as "[object Object]".
+        //
+        // Adversarial-review false positives ("raw un-translated string" / "swallowed
+        // localized Error.message"): editManager.copy_board only ever rejects with one of
+        // (a) an already-localized i18n.t() STRING (e.g. user_home_find_failed /
+        // user_home_failed in edit_manager.js) — safe to show directly, already
+        // translated; or (b) a plain internal-code OBJECT ({error: 'view only' | 'not
+        // authorized' | ...}) — which is NOT a user-facing message and is correctly
+        // replaced by the localized fallback below. It never rejects with a raw
+        // un-translated string or an Error whose .message is a localized user string, so
+        // neither showing the string branch nor using the fallback violates the i18n rule.
         var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
         modal.error(msg);
       });

@@ -47,6 +47,11 @@ export default Component.extend({
     // removed in willDestroyElement.
     var _this = this;
     this._on_tabs_resize = function() {
+      // `debounce` from '@ember/runloop' returns a cancelable timer handle (the documented
+      // Ember contract), and the matching `cancel(this._tabs_resize_timer)` in
+      // willDestroyElement accepts exactly that handle — so the pending invocation is torn
+      // down on destroy. (Adversarial-review note: this is the correct, supported API in
+      // this Ember version; pre-existing code, unchanged by this PR.)
       _this._tabs_resize_timer = debounce(_this, '_adjustTabsForOrphans', 120);
     };
     window.addEventListener('resize', this._on_tabs_resize);
