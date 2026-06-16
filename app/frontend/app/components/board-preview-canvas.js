@@ -9,6 +9,15 @@ import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 
+// No-progress stall watchdog window (ms). This is NOT a total-load deadline — it's the
+// maximum GAP with zero image progress before the preview gives up and lifts the loading
+// overlay (every settled image re-arms it; see arm_stall_watchdog). It only ever fires on
+// a true wedge (a CDN/network hang where neither onload nor onerror arrives), so a
+// slow-but-steady load on 3G / hospital WiFi keeps the overlay up and is NOT cut off at
+// this value. Named at module scope (not buried in the render closure) so it can be tuned
+// in one place.
+const STALL_MS = 12000;
+
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
@@ -40,6 +49,11 @@ export default Component.extend({
       this.element.style.height = 'calc(100% - 55px)';
     }
     var _this = this; // Capture _this for closure access
+    /* Drop any prior render's stall watchdog before starting a fresh render —
+       the observer can re-render (debounced) when board.id/image_urls/locale
+       settle, and a stale watchdog from the previous closure must not fire
+       onCanvasReady against this render. */
+    if (_this._previewStallTimer) { runCancel(_this._previewStallTimer); _this._previewStallTimer = null; }
     var persistence = _this.persistence;
     var board = this.get('board');
     var level = this.get('current_level') || this.get('base_level') || 10;
@@ -54,31 +68,91 @@ export default Component.extend({
     var pending = 0;
     var loop_done = false;
     var emitted = false;
+    /* Image-load progress surfaced to the loading overlay via onCanvasProgress
+       so the spinner can show "N / total" instead of an opaque wait — important
+       on slow/old devices where the (correct) wait-for-all-images behavior can
+       otherwise look like a hang. total_images counts cells that start an image
+       load; loaded_images counts the ones that have settled (onload OR onerror). */
+    var total_images = 0;
+    var loaded_images = 0;
     /* Set inside the main draw block (closure over context + palette).
        Called by maybe_emit_canvas_ready as the FINAL drawing operation,
        AFTER all per-cell drawImage calls have settled, so nothing can
        overdraw the badge. Null when the canvas didn't draw (e.g.
        board.id missing). */
     var draw_badge_if_offline = null;
-    var maybe_emit_canvas_ready = function() {
+    var stall_timer = null;
+    /* Fire onCanvasReady exactly once, painting the offline badge LAST so no
+       late-loading cell image can overdraw it (only when persistence reports
+       offline at this exact moment — the badge captures "was offline when the
+       preview finished loading"). Shared by the normal "all images settled"
+       path and the stall watchdog, and always clears the watchdog so it can't
+       fire after we've already emitted. */
+    var do_emit = function() {
       if(emitted) { return; }
-      if(!loop_done) { return; }
-      if(pending > 0) { return; }
-      // Paint the offline badge LAST so no late-loading cell image can
-      // overdraw it. Only when persistence reports offline at this
-      // exact moment — the badge captures "was offline when the
-      // preview finished loading," which is the right semantic for a
-      // one-shot canvas render.
       if(draw_badge_if_offline && persistence && persistence.get('online') === false) {
         draw_badge_if_offline();
       }
+      if(stall_timer) { runCancel(stall_timer); stall_timer = null; _this._previewStallTimer = null; }
       emitted = true;
       var cb = _this.get('onCanvasReady');
       if(cb && typeof cb === 'function') { cb(); }
     };
+    var maybe_emit_canvas_ready = function() {
+      if(emitted) { return; }
+      if(!loop_done) { return; }
+      if(pending > 0) { return; }
+      do_emit();
+    };
+    /* No-progress stall watchdog. The loading overlay (board-preview-overlay)
+       stays up until the canvas reports onCanvasReady, so we must NOT report
+       ready while images are still legitimately loading — on a slow/old device
+       that would lift the overlay onto a half-drawn board. Instead of a fixed
+       deadline from render start, we only bail when image loading makes ZERO
+       progress for STALL_MS: every settled image (onload/onerror) re-arms the
+       timer via mark_image_done, so a slow-but-steady load keeps the overlay up
+       until the last image lands and pending hits 0 (the normal emit path). The
+       watchdog fires only on a true wedge — a CDN/network hang where neither
+       onload nor onerror ever arrives — guaranteeing the overlay can never stick
+       forever. Re-arm (cancel + reschedule) implements the "no progress for
+       STALL_MS" semantic without any wall-clock math. STALL_MS is the module-scope
+       named constant defined at the top of this file (tunable in one place). */
+    var arm_stall_watchdog = function() {
+      if(emitted) { return; }
+      if(stall_timer) { runCancel(stall_timer); }
+      // Adversarial-review false positive ("isDestroyed guard fires too late, could call
+      // do_emit -> onCanvasReady on a stale parent"): two layers prevent that. (1) The
+      // timer handle is stored on `_this._previewStallTimer` and runCancel()'d in
+      // willDestroyElement (see below), so on a normal teardown the callback never runs.
+      // (2) Even if it did fire, the FIRST statement here is the isDestroyed/isDestroying
+      // check, which returns BEFORE do_emit — so onCanvasReady is never invoked once the
+      // component is tearing down. The guard is the entry condition, not "too late".
+      stall_timer = _this._previewStallTimer = runLater(function() {
+        stall_timer = null;
+        _this._previewStallTimer = null;
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        do_emit();
+      }, STALL_MS);
+    };
+    /* Push the current image-load tally to the overlay. Called once up-front
+       with (0, total) so the spinner can show the total immediately, then after
+       every settled image. No-op when the parent didn't wire a handler. */
+    var emit_progress = function() {
+      var cb = _this.get('onCanvasProgress');
+      if(cb && typeof cb === 'function') { cb(loaded_images, total_images); }
+    };
     var mark_image_done = function() {
       if(pending > 0) { pending--; }
+      if(loaded_images < total_images) { loaded_images++; }
+      emit_progress();
       maybe_emit_canvas_ready();
+      // An image just settled — that's progress. Reset the no-progress
+      // watchdog so loading is judged stalled only by a genuine gap with no
+      // image arriving, not by overall slowness. (do_emit clears it once
+      // pending hits 0, so this is a no-op on the final image.) Skip during
+      // teardown — image callbacks can route here after destroy, and we must
+      // not schedule a fresh timer then.
+      if(!emitted && !_this.isDestroyed && !_this.isDestroying) { arm_stall_watchdog(); }
     };
     /* Pick a label color (dark or light) that contrasts with the
        button's actual fill. Author-set background colors override the
@@ -542,6 +616,7 @@ export default Component.extend({
                      S3 symbol URLs reliably. */
                   var resolved_url = resolve_url_sync(url) || url;
                   pending++;
+                  total_images++;
                   (function(button, x, y, resolved_url, component) {
                     var cell_done = false;
                     var cell_finish = function() {
@@ -612,31 +687,25 @@ export default Component.extend({
            guards on pending > 0); the per-cell `cell_finish` callbacks
            then drive the emit when the last image actually settles. */
         loop_done = true;
+        /* Seed the overlay with (0, total) now that the cell count is known, so
+           the progress reads "0 / N" the instant the spinner appears rather than
+           jumping in once the first image lands. */
+        if (total_images > 0) { emit_progress(); }
         runLater(function() {
           if (_this.isDestroyed || _this.isDestroying) { return; }
           maybe_emit_canvas_ready();
         }, 0);
-        /* Safety net: if any per-cell image load wedges (rare now that
-           we no longer route through persistence.find_url, but the
-           browser can still hang on a slow CDN), guarantee the overlay
-           still hides after a bounded wait. 4s is short enough that a
-           stuck preview isn't silently broken; cached/CDN-warm loads
-           land in well under 1s. */
-        runLater(function() {
-          if (_this.isDestroyed || _this.isDestroying) { return; }
-          if (!emitted) {
-            // Safety-net path bypasses maybe_emit_canvas_ready, so
-            // paint the badge directly here too if we're offline at
-            // this point. Without this, a stuck preview goes 4s
-            // without revealing whether the user is offline.
-            if(draw_badge_if_offline && persistence && persistence.get('online') === false) {
-              draw_badge_if_offline();
-            }
-            emitted = true;
-            var cb = _this.get('onCanvasReady');
-            if(cb && typeof cb === 'function') { cb(); }
-          }
-        }, 4000);
+        /* Arm the no-progress stall watchdog once all per-cell image loads have
+           been dispatched. From here each settled image re-arms it
+           (mark_image_done); it fires only if loading wedges for STALL_MS with
+           zero progress. When pending is already 0 (text-only board, fully
+           cached symbols) the 0-tick maybe_emit above handles the emit and no
+           watchdog is needed. This replaces the old fixed 4s deadline, which
+           lifted the overlay early on slow devices while images were still
+           loading — exactly the half-rendered-preview symptom we're fixing. */
+        if (pending > 0) {
+          arm_stall_watchdog();
+        }
       }
     }
   },
@@ -671,6 +740,10 @@ export default Component.extend({
     if (this._renderDebounce) {
       runCancel(this._renderDebounce);
       this._renderDebounce = null;
+    }
+    if (this._previewStallTimer) {
+      runCancel(this._previewStallTimer);
+      this._previewStallTimer = null;
     }
     this._super(...arguments);
   },

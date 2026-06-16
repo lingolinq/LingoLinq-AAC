@@ -48,6 +48,37 @@ isn't tall enough to grow). For those cases, find and remove the
   `__custom-picker`), which is already flow-positioned and dark-themed
   for the rail. Lesson: when porting a control into the rail, reuse
   the rail's existing classes, not the toolbar's absolute ones.
+- create-board-new rail `.md-settings-dropdown-menu` (skin/font/etc.) —
+  bumping z-index did NOT help: the menu was clipped by PAGE-level
+  `overflow: hidden` ancestors (`.beta-program-access`,
+  `.with_user…content--no-top-padding`, `body`), which no z-index can
+  escape. Two valid fixes depending on the requirement:
+  1. **Flow-position** (`position: static`) — simplest, but the menu can
+     only grow *inside* the panel (it can't spill out of a narrow rail, so
+     labels truncate to the rail width). Use when in-panel is acceptable.
+  2. **Anchored fixed positioning (floating-ui pattern)** — the intended
+     answer when the menu must SPILL OUTSIDE its container (narrow rail).
+     `position: fixed` + a JS positioner that sets top/right/max-height from
+     the trigger's `getBoundingClientRect()`. NOTE: an in-house attempt at
+     this for the create-board-new rail did NOT land cleanly (the inline
+     coords never reliably applied; the menu kept rendering off-screen), so
+     it was reverted and the **Skin Tones section was temporarily hidden**
+     from the rail (`create_rail_sections` in create-board-new.js). STATUS:
+     UNRESOLVED. The robust path if revisited is to PORTAL the menu to
+     `<body>` via Ember's built-in `{{in-element}}` (what ember-basic-dropdown
+     /Popper do) so it has no clipping ancestor at all, then position from the
+     trigger — rather than hand-rolling fixed positioning in place.
+
+**Diagnose the real clipper (don't guess at z-index):** with the dropdown
+open, run an ancestor-walk in the console that reports each ancestor's
+`overflow`/`transform`/`clipPath`/`contain` and flags any whose box ends
+before the menu's edge. The flagged node IS the clipper. z-index only ever
+helps for sibling-stacking, never for an `overflow: hidden` ancestor — the
+fix is flow-positioning (#1) or anchored `fixed` (#2), never a higher
+z-index. `fixed` is only safe to escape overflow when NO ancestor has
+`transform`/`filter`/`perspective`/`contain` (each makes itself the
+containing block for fixed descendants); the same console walk confirms
+that.
 
 ---
 

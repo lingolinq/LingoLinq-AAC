@@ -10,12 +10,21 @@ export default Controller.extend({
      paints its canvas. The component fires `onLoadingChange(false)`
      once the board record resolves; the modal hides the indicator. */
   preview_loading: true,
+  /* Canvas image-load progress, shown as "N / total" in the loading overlay.
+     `preview_images_total` is 0 for text-only boards / before the canvas
+     reports, in which case the spinner shows the generic message. */
+  preview_images_loaded: 0,
+  preview_images_total: 0,
   reset_preview_loading: observer('model_key', function() {
     /* Reset to loading whenever the modal opens with a new key, so
        reusing the same modal for a different board correctly
        re-shows the indicator. */
     if(this.get('model_key')) {
       this.set('preview_loading', true);
+      /* Clear stale image counts so the reused modal doesn't flash the
+         previous board's progress before the new canvas reports. */
+      this.set('preview_images_loaded', 0);
+      this.set('preview_images_total', 0);
     }
   }),
   update_style_needed: observer('model.board.key', 'model.allow_style', 'model.board.style.options', function() {
@@ -86,6 +95,10 @@ export default Controller.extend({
   actions: {
     set_preview_loading: function(value) {
       this.set('preview_loading', !!value);
+    },
+    set_preview_progress: function(loaded, total) {
+      this.set('preview_images_loaded', loaded || 0);
+      this.set('preview_images_total', total || 0);
     },
     close: function() {
       this.set('model_style', null);

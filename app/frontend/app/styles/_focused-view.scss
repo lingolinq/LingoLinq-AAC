@@ -438,6 +438,136 @@ body.ll-layout-focused .md-shell--reports-view {
 }
 
 // -----------------------------------------------------------------------------
+// Standalone Board Picker page (/board-picker) — Focused View
+// -----------------------------------------------------------------------------
+// The board-picker carries the global `ll-layout-focused` body class like every
+// page (so it ALREADY reads the user's dashboard_layout pref — no per-page wiring
+// needed), but its premium gentle styling (app.scss ~5584) leans on the verdigris
+// accent: a teal-led workspace glow, a verdigris CTA glyph + divider, and white
+// glass tab pills with a verdigris hover/active glow. In Focused View, shift it
+// into the SAME dusty-denim focused family as the dashboard + standalone Boards
+// page: denim workspace glow, focused-accent CTA glyph + divider, and the focused
+// gradient active pill. Scoped to `.md-shell--board-picker` / `.board-picker-page`
+// (both board-picker-only), so Gentle View and every other page are untouched.
+body.ll-layout-focused {
+  // Workspace atmosphere — retint the verdigris-led radial blooms to the focused
+  // dusty-denim accent so the panel reads denim, not teal. Only the background is
+  // overridden; the base blur / border / shadow cascade through unchanged.
+  // (0,3,0) beats the base `.md-shell--board-picker > .md-workspace` (0,2,0).
+  .md-shell--board-picker > .md-workspace {
+    background:
+      radial-gradient(680px 380px at 50% 1%, rgba($focus-accent, 0.12), transparent 52%),
+      radial-gradient(880px 460px at 12% 4%, rgba($focus-accent, 0.16), transparent 44%),
+      radial-gradient(820px 460px at 92% 12%, rgba($brand-dusty-denim, 0.14), transparent 46%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(248, 250, 252, 0.5));
+  }
+
+  // Inner boards-picker panel — give it a darker cool-denim glass than the light
+  // workspace above so it reads as a nested, recessed container (base is the same
+  // light white glass as the workspace). Keeps the panel's blur/border/shadow; only
+  // the fill darkens. (0,3,0) beats the base
+  // `.board-picker-page .md-home-boards-picker__layout--tabbed` (0,2,0).
+  .board-picker-page .md-home-boards-picker__layout--tabbed {
+    background: linear-gradient(180deg,
+      rgba(color.scale($focus-surface-top, $lightness: -5%, $saturation: -45%), 0.85) 0%,
+      rgba(color.scale($focus-surface-bottom, $lightness: -5%, $saturation: -45%), 0.9) 100%);
+  }
+
+  // CTA glyphs (the two action-button icons) take the focused accent instead of
+  // verdigris. (0,2,0) beats base `.board-picker-page__cta-icon` (0,1,0).
+  .board-picker-page__cta-icon {
+    color: $focus-accent;
+  }
+
+  // The "or" divider rules lean verdigris→denim in gentle; in focused, push the
+  // left rule to the denim accent so the page's one accent colour stays
+  // consistent (the right rule is already denim). (0,2,0) beats base (0,1,0).
+  .board-picker-page__divider-line {
+    background: linear-gradient(90deg, transparent 0%, rgba($focus-accent, 0.7) 45%);
+  }
+
+  // "Create My Own Board" — match the focused HOME dashboard Boards-card "Create"
+  // button (`.md-grid--layout-focused .md-card--boards .md-card--boards__add`,
+  // app.scss ~47376): the desaturated dusty-denim glossy gradient with white
+  // text/icon + the raised denim shadow, instead of the gentle light-teal pill.
+  // hover/focus keep the SAME fill (just the lift) so they don't flash back to the
+  // light base. (0,2,0)/(0,2,1) beat the base `.board-picker-page__new-btn` mixin
+  // rules (0,1,0)/(0,1,1). The assign-btn is left untouched.
+  .board-picker-page__new-btn,
+  .board-picker-page__new-btn:hover,
+  .board-picker-page__new-btn:focus-visible {
+    color: $focus-on-dark;
+    border-color: rgba($focus-on-dark, 0.18);
+    background: linear-gradient(160deg in oklab,
+      #{$focus-btn-base} 0%,
+      #{$focus-btn-edge} 100%);
+    font-weight: 700;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      inset 0 -1px 0 rgba($focus-accent, 0.18),
+      0 1px 2px rgba($focus-shadow-ink, 0.08),
+      0 6px 16px rgba($focus-accent, 0.20);
+    transition: background 0.15s ease, border-color 0.15s ease,
+                box-shadow 0.14s ease, transform 0.14s ease;
+  }
+  .board-picker-page__new-btn:hover,
+  .board-picker-page__new-btn:focus-visible {
+    transform: translateY(-1px);
+  }
+  // The "+" glyph (SVG, stroke=currentColor) goes white to sit on the dark fill —
+  // (0,3,0) overrides the focused cta-icon denim colour for THIS button only.
+  .board-picker-page__new-btn .board-picker-page__cta-icon {
+    color: $focus-on-dark;
+  }
+
+  // "Assign a Home Board" — KEEP its lighter denim fill (the create button's dark
+  // denim is its colour, which stays distinct per request), but adopt the create
+  // button's ELEVATION so the two read as one matched family: the SAME raised denim
+  // shadow (with the glossy white inset highlight) + the hover lift, plus a defined
+  // denim border (the create button's white edge would vanish on this light fill).
+  // (0,2,0)/(0,2,1) beat the base `.board-picker-page__assign-btn` mixin rules.
+  .board-picker-page__assign-btn,
+  .board-picker-page__assign-btn:hover,
+  .board-picker-page__assign-btn:focus-visible {
+    border-color: rgba($focus-accent, 0.38);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      inset 0 -1px 0 rgba($focus-accent, 0.18),
+      0 1px 2px rgba($focus-shadow-ink, 0.08),
+      0 6px 16px rgba($focus-accent, 0.20);
+    transition: background 0.15s ease, border-color 0.15s ease,
+                box-shadow 0.14s ease, transform 0.14s ease;
+  }
+  .board-picker-page__assign-btn:not(:disabled):hover,
+  .board-picker-page__assign-btn:not(:disabled):focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba($focus-accent, 0.5);
+  }
+
+  // Category tab pills. Resting pills keep the base light glass; hover swaps the
+  // verdigris glow ring for the focused denim accent (navy text unchanged), and
+  // the SELECTED pill takes the full focused denim gradient + white text — the
+  // same active-pill treatment as the focused dashboard + Boards page. The base
+  // rules are (0,4,2) + !important, so these repeat that specificity under the
+  // body class (0,5,2) + !important to win.
+  .board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li > a:hover,
+  .board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li > a:focus-visible {
+    box-shadow:
+      0 0 14px rgba($focus-accent, 0.24),
+      0 6px 16px rgba($focus-pill-accent-to, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  }
+  .board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li.is-active > a {
+    color: $focus-on-dark !important;
+    border-color: rgba($focus-on-dark, 0.18) !important;
+    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    box-shadow:
+      0 6px 16px rgba($focus-shadow-ink, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Account page pill-nav (.md-pillnav--user) — Focused View
 // -----------------------------------------------------------------------------
 // It already matches the home pill-nav in Gentle View (same charcoal-blue active

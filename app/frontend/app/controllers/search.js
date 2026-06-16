@@ -160,13 +160,24 @@ export default Controller.extend({
       this.load_results(this.get('searchString'));
       this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
     },
-    /* Picked a board from the header jump dropdown — open it. Mirrors the
-       board-tile navigation used across the app
-       (router.transitionTo('board', key)). */
+    /* Picked a board from the find-boards search box — open it in the user's
+       PREFERRED board view, mirroring boards-page tile navigation
+       (user/index.js#open_board_in_user_view):
+         - default / 'modern' → user.board-detail.index (the speak page)
+         - explicit 'classic'  → user.board-alt.index (the classic grid)
+       Previously this used transitionTo('board', key), whose route ALWAYS
+       replaceWith('user.board-alt', …) (routes/board.js#beforeModel) — so every
+       pick landed on board-alt regardless of preference. Non user/board keys
+       (integrations, obf) still go through the 'board' route, which handles them. */
     select_jump_board: function(board) {
       if(!board) { return; }
       var key = board.get ? board.get('key') : board.key;
-      if(key) { this.router.transitionTo('board', key); }
+      if(!key) { return; }
+      var parts = key.split('/');
+      if(parts.length !== 2) { this.router.transitionTo('board', key); return; }
+      var pref = app_state.get('currentUser.preferences.board_view_style');
+      var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
+      this.router.transitionTo(route, parts[0], parts[1]);
     }
   }
 });

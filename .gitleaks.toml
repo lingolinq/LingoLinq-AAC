@@ -1,0 +1,23 @@
+# Gitleaks configuration for LingoLinq-AAC.
+#
+# Extends the full default ruleset and adds ONE narrowly-scoped allowlist for a
+# known false positive: gitleaks' `generic-api-key` rule (a long/high-entropy
+# string heuristic) matches i18n translation keys/values in the locale files
+# (e.g. the `landing_a11y_neurodivergent` accessibility keys), none of which are
+# secrets. The allowlist is intentionally narrow:
+#   - targetRules = ["generic-api-key"]  -> ONLY that one noisy rule is relaxed;
+#     every other rule (AWS keys, private keys, tokens, etc.) STILL scans the
+#     locale files.
+#   - paths = public/locales/*.json      -> ONLY the translation files are
+#     exempted; `generic-api-key` STILL scans the rest of the repository.
+title = "LingoLinq-AAC gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "i18n locale strings trip generic-api-key (translation text, not secrets)"
+targetRules = ["generic-api-key"]
+paths = [
+  '''public/locales/.*\.json''',
+]

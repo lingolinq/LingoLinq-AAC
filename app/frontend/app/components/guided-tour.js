@@ -2,10 +2,85 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { observer, computed } from '@ember/object';
-import { scheduleOnce } from '@ember/runloop';
+import { scheduleOnce, later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
-import { placementForElement, setIdentityDropdownOpen } from '../utils/tours/shared';
+import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
+
+// Apply "smooth scroll, THEN show" to every ATTACHED step of a built tour, so
+// the spotlight glides to each target and the popover is positioned once at the
+// settled spot (no mid-scroll flip-flash). Done at the runner level so EVERY tour
+// (home, board-picker, future) gets it from one place — step builders don't have
+// to wire it themselves. For each step with an attachTo element: disable
+// Shepherd's own (post-show) scrollTo and move the scroll into beforeShowPromise,
+// composing with any beforeShowPromise the step already declares (e.g. the home
+// tour opening the account dropdown before its item steps). Centered steps (no
+// attachTo) are left alone. `step.scrollBlock` lets a step force a scroll
+// position (e.g. 'start' for a target taller than the popover can sit beside).
+function _applySmoothScroll(steps, tour) {
+  (steps || []).forEach(function(step) {
+    if (!step || !step.attachTo || !step.attachTo.element) { return; }
+    var prevBefore = (typeof step.beforeShowPromise === 'function') ? step.beforeShowPromise : null;
+    // Disable Shepherd's own (post-show) scrollTo. We instead scroll in the show
+    // hook (_scrollHighlightIntoView) AFTER the step shows, so the dimmed page and
+    // its spotlight stay visible and TRACK the target as it scrolls into view —
+    // the modern "watch the next item glide into the highlight" experience. The
+    // popover card is held hidden only during that motion so it can't flip-flash.
+    step.scrollTo = false;
+    step.beforeShowPromise = function() {
+      // Keep the dark scrim CONTINUOUS across the hide→show handoff: the previous
+      // step's hide() set modalIsVisible=false; re-set it true now (synchronously,
+      // before Svelte flushes the class) so the overlay never blinks bright for a
+      // frame. Do NOT closeModalOpening here — we want the spotlight to stay and
+      // track, not flatten. The tour is captured because Shepherd calls
+      // beforeShowPromise with `this` = the step OPTIONS, not the Step.
+      try {
+        var modal = tour && tour.tourObject && tour.tourObject.modal;
+        if (modal && typeof modal.show === 'function') { modal.show(); }
+      } catch (e) { /* overlay continuity is best-effort */ }
+      return prevBefore ? Promise.resolve(prevBefore()) : Promise.resolve();
+    };
+  });
+}
+
+// Show hook helper: gently scroll the step's target into view with the spotlight
+// visible (the dimmed page is the user's constant reference), holding the popover
+// card hidden during the motion so floating-ui's flip() can't flash it; fade it
+// in once the target settles. Already-on-screen targets show immediately (unless
+// the step forces a scroll position via `scrollBlock`, e.g. the board-picker card
+// that must scroll to the top so its below-popover fits).
+function _scrollHighlightIntoView(step) {
+  var el = step && step.el;
+  if (!el) { return; }
+  // Hide the incoming card, gently scroll its target into view (slow), THEN fade
+  // it in. Done for EVERY step so each one fades in the same gentle way (the card
+  // entrance is a pure opacity fade now — no slide/scale). Centered steps (no
+  // target) just fade in.
+  el.classList.add('md-tour__step--revealing');
+  var reveal = function() {
+    if (!el) { return; }
+    // Fade the card in immediately. The "revealing" class hid it with
+    // transition:none; just removing the class and relying on the base opacity
+    // transition does NOT reliably start the fade (Blink skips a transition when
+    // transition-property flips from none in the same frame), which left the card
+    // sitting hidden for a beat. So drive it explicitly: commit opacity:0 with a
+    // forced reflow, then transition to 1. Inline styles are cleared after.
+    el.classList.remove('md-tour__step--revealing');
+    el.style.transition = 'none';
+    el.style.opacity = '0';
+    void el.offsetWidth;                       // commit the opacity:0 frame
+    el.style.transition = 'opacity 0.45s ease';
+    el.style.opacity = '1';
+    window.setTimeout(function() {
+      if (el) { el.style.opacity = ''; el.style.transition = ''; }
+    }, 520);
+  };
+  var target = step.target;
+  if (!target) { reveal(); return; }
+  var block = (step.options && step.options.scrollBlock) || 'center';
+  var force = !!(step.options && step.options.scrollBlock);
+  scrollIntoViewSettled(target, block, force).then(reveal);
+}
 
 // — Shepherd step lifecycle helpers (module scope) —
 // These run with `this` bound to the active Shepherd Step (the `when` handlers
@@ -20,6 +95,13 @@ import { placementForElement, setIdentityDropdownOpen } from '../utils/tours/sha
 function _renderTourProgress(step) {
   if (!step || !step.el) { return; }
   var steps = (step.tour && step.tour.steps) || [];
+  // Menu mode (returning user) is a hub-and-spoke, not a linear 1..N sequence —
+  // the progress dots would misrepresent it, so skip them whenever the tour
+  // includes the menu hub.
+  var isMenuMode = steps.some(function(s) {
+    return (s.id || (s.options && s.options.id)) === 'home_tour_menu';
+  });
+  if (isMenuMode) { return; }
   var total = steps.length;
   var idx = steps.indexOf(step);
   if (total <= 1 || idx < 0) { return; }
@@ -59,14 +141,20 @@ function _onTourStepShow() {
     document.body.classList.toggle('md-tour--centered-step', !!centered);
   } catch (e) { /* class toggle is decorative — never block the step */ }
   try { _renderTourProgress(step); } catch (e) { /* progress is decorative */ }
+  // Smooth "scroll the highlight into view" — keep page + spotlight visible,
+  // hold the popover hidden during the motion, fade it in on settle.
+  try { _scrollHighlightIntoView(step); } catch (e) { /* reveal is best-effort */ }
   // Account menu: keep it OPEN only for the dropdown ITEM steps (they also force
   // it open via beforeShowPromise before positioning). Close it on every other
   // step — including the identity TRIGGER step, which just spotlights the avatar
   // with the menu still closed.
   try {
     var sid = step.id || (step.options && step.options.id) || '';
-    var inDropdownItems = sid.indexOf('home_tour_iddrop_') === 0;
-    if (!inDropdownItems) { setIdentityDropdownOpen(false); }
+    // Keep the account menu OPEN for the linear dropdown-item steps AND for the
+    // menu-mode "Account menu" topic (home_tour_t_account), which opens the menu
+    // so the user can see what's inside. Close it on every other step.
+    var keepDropdownOpen = sid.indexOf('home_tour_iddrop_') === 0 || sid === 'home_tour_t_account';
+    if (!keepDropdownOpen) { setIdentityDropdownOpen(false); }
   } catch (e) { /* dropdown sync is non-critical */ }
   // Match the spotlight cutout's corner radius to the highlighted element's OWN
   // border-radius so the opening reads as the same shape as the element (a pill
@@ -130,18 +218,18 @@ export default Component.extend({
   router: service('router'),
 
   // The dashboard layout actually in effect — mirrors
-  // dashboard/authenticated-view's effectiveLayout (default 'focused'; any
+  // dashboard/authenticated-view's effectiveLayout (default 'gentle'; any
   // unset/legacy value resolves to it). Used to pick the per-layout tour.
   effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', function() {
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'focused';
-    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'focused'; }
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
+    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
     return layout;
   }),
 
   // The step-builder for the current page/layout, or null when no tour exists
   // here. Drives both the trigger visibility (hasTour) and _startTour.
-  tourBuilder: computed('appState.current_route', 'effectiveLayout', function() {
-    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'));
+  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
+    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
   }),
 
   // Only show the trigger when the current page actually has a tour.
@@ -152,8 +240,8 @@ export default Component.extend({
   // Stable completion-flag key for the current page + layout (e.g. 'home_gentle',
   // 'home_focused'), or null. Persisted under
   // preferences.progress.guided_tours_completed once the tour is COMPLETED.
-  tourKey: computed('appState.current_route', 'effectiveLayout', function() {
-    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'));
+  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
+    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
   }),
 
   // Whether THIS page+view's tour has been completed at least once — drives the
@@ -183,6 +271,96 @@ export default Component.extend({
     }
   }),
 
+  // True only when THIS instance is the board-detail EDIT tour (edit mode on a
+  // board-detail route → tourKey 'board_detail_edit_*'). The auto-start guard must
+  // use this, NOT a bare `tourBuilder` truthy check: `board_detail_tour_pending`
+  // is flipped during "Pick this Board" while the user is STILL on /board-picker,
+  // where the navbar guided-tour instance has a (board-PICKER) tourBuilder — a
+  // truthy check would let it consume the flag and fire the WRONG tour. Gating on
+  // the board-detail-edit tourKey makes only the edit-chrome instance respond.
+  _isBoardDetailEditTour: function() {
+    return (this.get('tourKey') || '').indexOf('board_detail_edit') === 0;
+  },
+
+  // Auto-fire the board-detail EDIT tour when `appState.board_detail_tour_pending`
+  // is set — flipped by board-preview "Pick this Board" (and, eventually, the
+  // create-board path) right before routing into board-detail edit mode. All three
+  // entry points (init, this observer, didInsertElement) funnel into the single
+  // poll-based consumer below, which clears the flag once and only on the
+  // board-detail edit instance.
+  _boardDetailTourWatcher: observer('appState.board_detail_tour_pending', 'tourKey', function() {
+    this._consumePendingBoardDetailTour();
+  }),
+
+  // This component is `tagName: ''` (tagless), so `didInsertElement` does NOT fire,
+  // and the observer above only fires on CHANGE — but `board_detail_tour_pending`
+  // is already true (set during "Pick this Board", BEFORE this edit-chrome instance
+  // mounts). So init is the reliable entry. init DOES run for tagless components.
+  init: function() {
+    this._super(...arguments);
+    this._consumePendingBoardDetailTour();
+  },
+
+  // Consume the pending-edit-tour flag and auto-open the board-detail EDIT tour.
+  // ROBUST to timing: the edit-tour condition (appState.edit_mode → tourKey)
+  // depends on the .edit route's check_for_needing_purchase() PROMISE resolving —
+  // which persists current_mode='edit' (board-detail/edit.js) — and on
+  // currentBoardState. Both can land a microtask or two AFTER this tagless
+  // instance's init/first afterRender. A single afterRender check therefore often
+  // runs before the page is recognizably "board-detail edit" and misses, after
+  // which nothing re-triggers — the tour silently never opens (the reported bug).
+  // So poll on a bounded schedule until _isBoardDetailEditTour() holds, then
+  // consume the flag ONCE and start. The `_bdTourConsuming` guard stops the init +
+  // observer triggers from stacking parallel polls.
+  _consumePendingBoardDetailTour: function() {
+    var _this = this;
+    if (this.isDestroyed || this.isDestroying) { return; }
+    if (!this.get('appState.board_detail_tour_pending')) { return; }
+    if (this._bdTourConsuming) { return; }
+    this._bdTourConsuming = true;
+    var attempts = 0;
+    var tryConsume = function() {
+      if (_this.isDestroyed || _this.isDestroying) { _this._bdTourConsuming = false; return; }
+      // Another instance/hook may have consumed it first.
+      var pending = _this.get('appState.board_detail_tour_pending');
+      if (!pending) { _this._bdTourConsuming = false; return; }
+      if (_this._isBoardDetailEditTour()) {
+        // `pending` carries the COPIED BOARD'S KEY (a string; set by board-preview
+        // "Pick this Board"). Fire the edit tour ONLY when the board-detail page this
+        // instance mounted on IS that board — so a stale flag can't auto-open the tour
+        // on a DIFFERENT board the user navigated to instead. A bare `true` (legacy /
+        // no-key fallback) keeps the old "fire on any edit page" behavior.
+        if (typeof pending === 'string') {
+          var curKey = _this.get('appState.currentBoardState.key');
+          if (!curKey) {
+            // currentBoardState lands a microtask or two after the route settles —
+            // keep polling rather than fire or clear on incomplete state.
+            if (attempts++ < 20) { runLater(_this, tryConsume, 150); }
+            else { _this._bdTourConsuming = false; }   // give up; leave flag for a later mount
+            return;
+          }
+          if (curKey !== pending) {
+            // On a board-detail EDIT page, but NOT the copied board — consume the stale
+            // flag WITHOUT firing so it can never auto-open the tour on the wrong board.
+            _this._bdTourConsuming = false;
+            _this.appState.set('board_detail_tour_pending', false);
+            return;
+          }
+        }
+        _this._bdTourConsuming = false;
+        _this.appState.set('board_detail_tour_pending', false);
+        _this._scheduleBoardDetailAutoOpen();
+      } else if (attempts++ < 20) {              // ~3s ceiling (20 × 150ms)
+        runLater(_this, tryConsume, 150);
+      } else {
+        // Not a board-detail edit page after all — stop polling but LEAVE the flag
+        // set so a genuine edit-chrome instance can still pick it up later.
+        _this._bdTourConsuming = false;
+      }
+    };
+    scheduleOnce('afterRender', this, tryConsume);
+  },
+
   // Also check on mount in case the flag was already true when the component
   // first inserts (e.g., a route transition raced the observer registration).
   // Idempotent with the observer above — whichever fires first clears the flag.
@@ -209,6 +387,11 @@ export default Component.extend({
         this._scheduleAutoOpen();
       }
     } catch (e) { /* sessionStorage unavailable — fall through */ }
+    // Board-detail edit tour: the pending flag is set BEFORE the route transition
+    // into edit mode, so by the time this edit-chrome instance mounts it's already
+    // true. Funnel through the poll-based consumer (idempotent via its guard); it
+    // waits for the edit-tour condition to settle before firing.
+    this._consumePendingBoardDetailTour();
   },
 
   _scheduleAutoOpen: function() {
@@ -229,6 +412,34 @@ export default Component.extend({
       if (!_this.get('tourBuilder')) { handoff(); return; }
       _this._startTour({ afterComplete: handoff });
     });
+  },
+
+  // Board-detail edit auto-open. Unlike the home auto-open there's NO handoff —
+  // the user stays here editing. The edit grid loads asynchronously after the
+  // route transition, so wait (poll briefly) until a button cell is on screen so
+  // the interior spotlights resolve instead of being skipped; start anyway after
+  // a bounded number of attempts so the welcome/outro still show on a slow load.
+  _scheduleBoardDetailAutoOpen: function() {
+    var _this = this;
+    var attempts = 0;
+    var tryStart = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      attempts++;
+      var ready = document.querySelector('.md-board-detail-grid .md-board-detail-symbol-card') ||
+                  document.querySelector('.md-board-detail-grid');
+      // BOUNDED — does NOT hang. After ~3s (20 × 150ms) the poll gives up regardless of
+      // whether the grid ever appeared (e.g. a network error), so there's no infinite
+      // wait (adversarial-review "no timeout" note). Same ceiling guards the consumer.
+      if (ready || attempts >= 20) {        // ~3s ceiling (20 × 150ms)
+        // Re-confirm we're still the board-detail edit tour before starting (the
+        // route could have changed during the poll).
+        if (!_this._isBoardDetailEditTour()) { return; }
+        _this._startTour();
+      } else {
+        runLater(_this, tryStart, 150);
+      }
+    };
+    scheduleOnce('afterRender', this, tryStart);
   },
 
   // Common tour-start path. Used by both the trigger-button action (manual
@@ -278,7 +489,45 @@ export default Component.extend({
       when: { show: _onTourStepShow }
     });
 
-    tour.addSteps(builder()).then(function() {
+    // The board-picker handoff, returning-user topic MENU, and post-registration
+    // setup handoff are all HOME-tour concepts. Scope them to the home tour so
+    // OTHER tours built on this runner (board-picker, board-detail edit) get a
+    // plain linear walkthrough with no cross-page handoff. (Home behavior is
+    // unchanged: isHomeTour is true there.)
+    var isHomeTour = (this.get('appState.current_route') === 'user.home');
+    // A user who has NOT completed THIS page+layout's tour is "first time" —
+    // however the tour was launched (post-registration auto-open OR a manual
+    // "Take a tour"). First-timers get the linear walkthrough whose outro previews
+    // the board-picker next step AND are handed off to the board picker on finish.
+    // A RETURNING user (already completed) launching manually gets the topic MENU.
+    var firstTime = !this.get('tourSeen');
+    var menuMode = isHomeTour && !firstTime && !options.afterComplete;
+    var onPickBoard = function() { _this.router.transitionTo('board-picker'); };
+    // Board-picker handoff on the FIRST-TIME finish:
+    //  • auto-open (options.afterComplete supplied): the caller's critical-mode
+    //    setup handoff, bound below to BOTH complete and cancel — a new user must
+    //    reach setup however the tour ends. (Existing behavior, unchanged.)
+    //  • manual first-time finish: send them to the standalone board picker, bound
+    //    to COMPLETE only — finishing means "now go pick a board"; skipping/closing
+    //    the tour should NOT yank them away.
+    var firstTimeNav = (isHomeTour && !options.afterComplete && firstTime) ? onPickBoard : null;
+    // Options the builder reads:
+    //  • handoff — first-time outro: preview the board-picker next step (the green
+    //    forward animation + "Pick my board") instead of a dead-end "Finish".
+    //  • menu — returning user: swap the linear walkthrough for the topic MENU.
+    //  • onPickBoard — the menu-mode outro's "Go to your board picker" link (the
+    //    component owns the router, so navigation is supplied here, not in step data).
+    var builtSteps = builder(isHomeTour ? {
+      handoff: firstTime,
+      menu: menuMode,
+      onPickBoard: onPickBoard
+    } : {});
+    // Smooth "scroll then show" for every attached step (runner-level, so all
+    // tours share it). Must run BEFORE addSteps so Shepherd instantiates the
+    // steps with the injected beforeShowPromise + scrollTo:false. `tour` is
+    // captured so the injected hook can keep the overlay dark during the scroll.
+    _applySmoothScroll(builtSteps, tour);
+    tour.addSteps(builtSteps).then(function() {
       // If the component (or tour) was torn down while addSteps was resolving,
       // don't wire handlers / start against a dead instance.
       if (_this.isDestroyed || _this.isDestroying) { return; }
@@ -287,6 +536,37 @@ export default Component.extend({
       // method-triggered events (back, next) but NOT shepherd-native lifecycle
       // events (complete, cancel) — wire those on the underlying Tour directly.
       if (tour.tourObject) {
+        // Fade the OUTGOING card out on hide. Shepherd snaps a step away via the
+        // `hidden` attribute; CSS keeps it rendered (app.scss `[hidden]` rule) and
+        // this fades its opacity inline (inline beats the cascade reliably). With
+        // the incoming card's fade-in (the reveal logic), each transition reads as
+        // one card fading out → the next fading in, never a hard snap.
+        (tour.tourObject.steps || []).forEach(function(s) {
+          if (s && typeof s.on === 'function') {
+            s.on('hide', function() {
+              try {
+                if (!s.el) { return; }
+                // Steps anchored to an identity-dropdown MENU ITEM (the home tour's
+                // account-menu walkthrough) are a special case: advancing CLOSES the
+                // dropdown (next step's show hook → setIdentityDropdownOpen(false)),
+                // which removes the very element this popover is anchored to. A
+                // popover still mid-fade then has no anchor, so floating-ui flings it
+                // to the top-left (0,0) — the "Sign Out card flashes top-left" glitch.
+                // Snap these out INSTANTLY so there's nothing visible left to
+                // reposition. Every other step keeps the gentle cross-fade.
+                var sid = s.id || (s.options && s.options.id) || '';
+                var isDropdownItemStep = sid.indexOf('home_tour_iddrop_') === 0 || sid === 'home_tour_t_account';
+                if (isDropdownItemStep) {
+                  s.el.style.transition = 'none';
+                  s.el.style.opacity = '0';
+                } else {
+                  s.el.style.transition = 'opacity 0.45s ease';
+                  s.el.style.opacity = '0';
+                }
+              } catch (e) { /* fade is best-effort */ }
+            });
+          }
+        });
         // Always tidy the body-level centered-step flag when the tour ends,
         // however it ends.
         tour.tourObject.on('complete', _clearTourCenteredClass);
@@ -306,13 +586,53 @@ export default Component.extend({
         // On finish, return the user to the top of the page (the tour's
         // center-scroll leaves it parked on the last step's card).
         tour.tourObject.on('complete', _scrollTourToTop);
+        // Lock page scroll while the tour runs. A modal tour drives the view
+        // itself (each step's scrollTo centers its target via scrollIntoView,
+        // which still works on an overflow:hidden container), so letting the
+        // user scroll the page out from under the spotlight only causes
+        // floating-ui to flip/chase the popover — the "bounce" + "freeze" on a
+        // tall target (e.g. the board-picker grid). Restore on either end.
+        tour.tourObject.on('complete', function() { _this._unlockTourScroll(); });
+        tour.tourObject.on('cancel', function() { _this._unlockTourScroll(); });
       }
       if (options.afterComplete && tour.tourObject) {
+        // Auto-open handoff (critical-mode setup) — fire however the tour ends.
         tour.tourObject.on('complete', options.afterComplete);
         tour.tourObject.on('cancel', options.afterComplete);
+      } else if (firstTimeNav && tour.tourObject) {
+        // Manual first-time finish — hand off to the board picker on FINISH only
+        // (not on skip/close).
+        tour.tourObject.on('complete', firstTimeNav);
       }
+      _this._lockTourScroll();
       tour.start();
     });
+  },
+
+  // Lock/unlock page scroll for the duration of the tour. We set overflow:hidden
+  // on the app's scroll containers (the main `#content` pane plus body/html as a
+  // catch-all for layouts that scroll the window), remembering each prior inline
+  // value so it's restored exactly. overflow:hidden blocks user wheel/scrollbar
+  // scrolling but does NOT block programmatic scroll — Shepherd's per-step
+  // scrollIntoView still brings each target into view (verified). Idempotent.
+  _lockTourScroll: function() {
+    if (this._scrollLocked) { return; }
+    var els = [];
+    var content = document.getElementById('content');
+    if (content) { els.push(content); }
+    if (document.body) { els.push(document.body); }
+    if (document.documentElement) { els.push(document.documentElement); }
+    this._scrollLocked = els.map(function(el) {
+      var prev = el.style.overflow;
+      el.style.overflow = 'hidden';
+      return { el: el, prev: prev };
+    });
+  },
+
+  _unlockTourScroll: function() {
+    if (!this._scrollLocked) { return; }
+    this._scrollLocked.forEach(function(o) { o.el.style.overflow = o.prev || ''; });
+    this._scrollLocked = null;
   },
 
   // Attach a window-resize listener that re-evaluates card placements when the
@@ -387,6 +707,7 @@ export default Component.extend({
   // change, etc.), make sure the resize listener is removed.
   willDestroyElement: function() {
     this._detachTourResize();
+    this._unlockTourScroll();
     setIdentityDropdownOpen(false);
     this._super.apply(this, arguments);
   },

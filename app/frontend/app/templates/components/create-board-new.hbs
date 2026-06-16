@@ -1,11 +1,88 @@
 {{#grid-listener gridEvent=(action "grid_event")}}
   <div class="board_drop new-board--modern md-workspace md-workspace--create-board-new">
+    {{!-- Orientation overlay: at ≤768px the build canvas is cramped, so reuse
+         the board-detail landscape-rotate overlay (same .md-board-detail-portrait-
+         overlay visual) to invite a rotate. Always in the DOM; shown purely via a
+         ≤768px media query (.nb-orientation-overlay in app.scss), mirroring the
+         Dashboard Design step's .md-ds-orientation pattern. "Continue Anyway" is
+         the accessibility escape for mounted / non-rotatable setups. SVG def ids
+         are nb-prefixed so they never collide with the board-detail instance. --}}
+    <div class="md-board-detail-portrait-overlay nb-orientation-overlay {{if this.orientation_overlay_dismissed 'nb-orientation-overlay--dismissed'}}" role="dialog" aria-modal="true" aria-label={{t "Landscape mode recommended" key="board_detail_landscape_recommended"}}>
+      <div class="md-board-detail-portrait-overlay__card">
+        <span class="md-board-detail-portrait-overlay__accent" aria-hidden="true"></span>
+        <div class="md-board-detail-portrait-overlay__phone" aria-hidden="true">
+          <svg class="md-board-detail-portrait-overlay__phone-arc" width="76" height="76" viewBox="0 0 76 76" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="nb-rot-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5ED0C0"/><stop offset="100%" stop-color="#1C7E72"/></linearGradient>
+              <filter id="nb-rot-shadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2A9D8F" flood-opacity="0.5"/></filter>
+            </defs>
+            <g filter="url(#nb-rot-shadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path class="md-board-detail-portrait-overlay__arc-track" d="M34 14 C62 8 75 34 65 48" stroke="currentColor" stroke-width="3" stroke-opacity="0.20"/>
+              <path class="md-board-detail-portrait-overlay__arc-comet" d="M34 14 C62 8 75 34 65 48" pathLength="100" stroke="url(#nb-rot-grad)" stroke-width="3.5"/>
+              <polyline class="md-board-detail-portrait-overlay__arc-head" points="59 42 65 48 71 42" stroke="url(#nb-rot-grad)" stroke-width="3.5"/>
+            </g>
+          </svg>
+          <svg class="md-board-detail-portrait-overlay__phone-svg" width="76" height="76" viewBox="0 0 76 76" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="30" y="24" width="16" height="28" rx="4.5"/><line x1="35" y1="47" x2="41" y2="47"/>
+          </svg>
+        </div>
+        <h2 class="md-board-detail-portrait-overlay__title">{{t "Landscape mode recommended" key="board_detail_landscape_recommended"}}</h2>
+        <p class="md-board-detail-portrait-overlay__desc">{{t "Rotate your device to landscape for the room to create and customize your board." key="create_board_landscape_explanation"}}</p>
+        <div class="md-board-detail-portrait-overlay__actions">
+          <button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--secondary" {{action "dismiss_orientation_overlay"}}>{{t "Continue Anyway" key="board_detail_continue_anyway"}}</button>
+        </div>
+      </div>
+    </div>
+    {{!-- Create-method chooser: shown on entry (standalone page only). Three
+         stylized options that rise in successively (staggered animation-delay +
+         nb-chooser-rise), each routing into its flow: Create My Own → the regular
+         form (dismiss), Import Board(s) → the native file picker, Generate with AI
+         → the in-page AI flow. --}}
+    {{#if (and this.standalone this.show_create_chooser)}}
+      <div class="nb-create-chooser" role="dialog" aria-modal="true" aria-label={{t "How would you like to create your board?" key="create_chooser_title"}}>
+        <div class="nb-create-chooser__panel">
+          {{!-- Close → the component's `close` action, which returns the user to
+               whichever page they opened create-board-new from (history back, the
+               board-picker tour modal, or an onClose handler). --}}
+          <button type="button" class="nb-create-chooser__close" {{action "close"}} aria-label={{t "Close and return to previous page" key="close_create_board"}} title={{t "Close" key="close"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <div class="nb-create-chooser__title">{{t "How would you like to create your board?" key="create_chooser_title"}}</div>
+          <div class="nb-create-chooser__separator" aria-hidden="true"></div>
+          <div class="nb-create-chooser__options">
+            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--own" style="animation-delay: 0.05s" {{action "choose_create_own"}}>
+              <span class="nb-create-chooser__btn-icon" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </span>
+              <span class="nb-create-chooser__btn-label">{{t "Create My Own Board" key="create_my_own_board"}}</span>
+            </button>
+            <span class="nb-create-chooser__or" style="animation-delay: 0.25s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
+            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--import" style="animation-delay: 0.45s" {{action "choose_import"}}>
+              <span class="nb-create-chooser__btn-icon" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+              </span>
+              <span class="nb-create-chooser__btn-label">{{t "Import Board(s)" key="import_boards"}}</span>
+            </button>
+            <span class="nb-create-chooser__or" style="animation-delay: 0.65s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
+            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 0.85s" {{action "choose_ai"}}>
+              <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
+                <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
+              </span>
+              <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    {{/if}}
     {{#if this.standalone}}
     <button type="button" class="md-workspace__close" {{action "close"}} aria-label={{t "Close and return to previous page" key="close_create_board"}} title={{t "Close" key="close"}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <div class="modal-header md-modal-header">
-      <h3>{{t "Create a New Board" key="create_a_new_board"}}</h3>
+    <div class="modal-header md-modal-header nb-create-header">
+      <div class="nb-create-header__intro">
+        <h3>{{#if this.ai_mode}}{{t "Create a New Board with AI" key="create_a_new_board_with_ai"}}{{else if this.via_create_own}}{{t "Create My Own Board" key="create_my_own_board"}}{{else}}{{t "Create a New Board" key="create_a_new_board"}}{{/if}}</h3>
+        <p class="nb-create-header__subtitle">{{#if this.ai_mode}}{{t "Describe your board for AI — who it's for, the setting, the vocabulary focus." key="create_board_intro_subtitle_ai"}}{{else}}{{t "Build from scratch, paste labels, import a CSV, or choose from core lists." key="create_board_intro_subtitle"}}{{/if}}</p>
+      </div>
       <div class="create-board-actions">
         {{#if this.ai_mode}}
           {{!-- AI mode: other creation options are hidden; an
@@ -35,43 +112,20 @@
                 {{/if}}
               </span>
             </span>
-            <button type="button" class="nb-ai-mode-other" {{action "set_create_mode" "regular"}}>
+            <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{action "open_create_chooser"}}>
               {{t "Other Create Board Methods" key="other_create_methods"}}
             </button>
           </div>
         {{else}}
-          <span class="file_select_holder">
-            <button type="button" class="btn btn-default">
-              {{t "Import Board(s)" key="import_boards"}}
-            </button>
-            <input type="file" name="board_upload" id="board_upload" tabindex="-1">
-          </span>
-          {{#if this.paste_html_import_enabled}}
-            <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
-              {{t "Paste HTML" key="paste_html"}}
-            </button>
-          {{/if}}
-          {{#if this.ai_board_generation_enabled}}
-            {{!-- Generate with AI sits on the same row as Import /
-                 Paste, but absolute-positioned to be centered on the
-                 page (rather than packed inline next to Paste). See
-                 .nb-generate-ai-btn positioning rules in app.scss —
-                 same left:50% / transform centering the AI-mode badge
-                 uses, so click → in-place transition. --}}
-            <button type="button" class="btn btn-default nb-generate-ai-btn" {{action "set_create_mode" "ai"}}>
-              <span class="nb-ai-sparkle-badge nb-generate-ai-btn__sparkle-badge" aria-hidden="true">
-                <span class="nb-ai-sparkle nb-generate-ai-btn__sparkle"></span>
-              </span>
-              {{!-- Per-letter spans for the cascading bounce-in (matches
-                   the "Communicate" hero on the boards page). aria-label
-                   on the wrapper preserves the i18n key for screen
-                   readers; the visible letters are aria-hidden so they
-                   are not read individually. --}}
-              <span class="nb-generate-ai-btn__title ub-communicate" aria-label={{t "Generate with AI" key="generate_with_ai"}}>
-                <span class="ub-letter" style="animation-delay:0s" aria-hidden="true">G</span><span class="ub-letter" style="animation-delay:0.05s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.10s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.15s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.20s" aria-hidden="true">r</span><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.30s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.35s" aria-hidden="true">e</span><span class="ub-letter ub-letter--space" style="animation-delay:0.40s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.45s" aria-hidden="true">w</span><span class="ub-letter" style="animation-delay:0.50s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.60s" aria-hidden="true">h</span><span class="ub-letter ub-letter--space" style="animation-delay:0.65s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.70s" aria-hidden="true">A</span><span class="ub-letter" style="animation-delay:0.75s" aria-hidden="true">I</span>
-              </span>
-            </button>
-          {{/if}}
+          {{!-- The Import / Generate-with-AI options now live in the create-method
+               chooser (shown on entry). This single CENTERED button reopens that
+               chooser so the user can switch methods. The board-file input stays
+               in the DOM (hidden) so the chooser's "Import Board(s)" can still
+               trigger it — content-grabbers.js processes #board_upload on change. --}}
+          <input type="file" name="board_upload" id="board_upload" tabindex="-1" style="display: none;">
+          <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{action "open_create_chooser"}}>
+            {{t "Other Create Board Methods" key="other_create_methods"}}
+          </button>
         {{/if}}
         {{!-- Top-right Create Board: same action as the footer button,
              but only rendered once the form is valid (createBoardDisabled
@@ -155,8 +209,10 @@
       <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{action "saveBoard" on="submit"}}>
 
         <section class="nb-section">
-          <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>
-          <p class="nb-section__hint">{{t "Give your board a name and brief description." key="new_board_section_basics_hint"}}</p>
+          <div class="nb-section__header-inline">
+            <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>
+            <p class="nb-section__hint">{{t "Give your board a name and brief description." key="new_board_section_basics_hint"}}</p>
+          </div>
           <div class="nb-section__body">
             <div class="nb-basics-grid">
               <div class="nb-basics-grid__col nb-basics-grid__col--left">
@@ -177,9 +233,6 @@
                 </div>
                 <div class="nb-field new-board-field--description">
                   <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}{{#if this.ai_mode}}<span class="nb-field__required-pill">{{t "required" key="required"}}</span>{{else}}<span class="nb-field__optional-pill">{{t "optional" key="optional"}}</span>{{/if}}</label>
-                  {{#if this.ai_mode}}
-                    <p class="nb-field__hint">{{t "The AI uses this description to generate your board's labels — be specific (who it's for, the setting, the vocabulary focus)." key="ai_description_hint"}}</p>
-                  {{/if}}
                   <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" rows="1" />
                 </div>
               </div>
@@ -221,17 +274,6 @@
         <section class="nb-section">
           <div class="nb-section__head">
             <h4 class="nb-section__title">{{t "Size & Labels" key="new_board_section_size"}}</h4>
-            {{!-- Checklist hints are about typing / pasting / CSV-uploading
-                 labels, which only happens in NON-AI mode (or after the
-                 AI has populated the labels). Stay gated on
-                 `show_full_size_section`. --}}
-            {{#if this.show_full_size_section}}
-            <ul class="nb-checklist nb-checklist--inset nb-section__head-checklist">
-              <li class="nb-checklist__item">{{t "Auto-sizes as you add labels" key="new_board_size_hint_grid"}}</li>
-              <li class="nb-checklist__item">{{t "Press Enter to add label" key="new_board_size_hint_label"}}</li>
-              <li class="nb-checklist__item">{{t "Type, paste, or upload CSV" key="new_board_size_hint_input"}}</li>
-            </ul>
-            {{/if}}
             {{!-- Rows / columns steppers are visible in ALL modes,
                  including AI pre-generation. The AI label generator
                  passes the current rows/columns to the backend (see
@@ -378,7 +420,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter, paste a list, or import a csv file" key="labels_chip_placeholder_import")}}
+                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter · paste a list · import a csv file" key="labels_chip_placeholder_import")}}
                   {{#if this.label_count}}
                     <div class="nb-labels-disclosure">
                       <button type="button" class="nb-link nb-labels-disclosure__toggle" aria-expanded={{if this.labels_list_open "true" "false"}} {{action "toggleLabelsList"}}>
@@ -482,17 +524,43 @@
                   </svg>
                 </button>
                 <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
-                  <div class="md-board-detail-sentence-bar__text">
-                    <span class="nb-preview-sentence-bar__placeholder">{{t "Tapped words will appear here" key="preview_sentence_placeholder"}}</span>
+                  <div class="md-board-detail-sentence-bar__text {{if (and this._speak_words.length (is-equal this.utterance_text_only_str "false")) "md-board-detail-sentence-bar__text--with-symbols"}}">
+                    {{#if this._speak_words.length}}
+                      {{#if (is-equal this.utterance_text_only_str "false")}}
+                        {{!-- Symbol mode (default): show each tapped button as an
+                             image-over-text chip, mirroring board-detail speak
+                             mode's sentence box. Falls back to text-only when a
+                             button has no symbol. --}}
+                        {{#each this._speak_words as |word|}}
+                          <span class="md-board-detail-sentence-bar__chip">
+                            {{#if word.image_url}}
+                              <img src={{word.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
+                            {{/if}}
+                            <span class="md-board-detail-sentence-bar__chip-label">{{word.label}}</span>
+                          </span>
+                        {{/each}}
+                      {{else}}
+                        {{#each this._speak_words as |word|}}<span class="nb-preview-sentence-bar__word">{{word.label}}</span>{{/each}}
+                      {{/if}}
+                    {{else}}
+                      <span class="nb-preview-sentence-bar__placeholder">{{t "Tapped words will appear here" key="preview_sentence_placeholder"}}</span>
+                    {{/if}}
                   </div>
                   <div class="md-board-detail-sentence-bar__actions">
-                    <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-label={{t "Speak sentence" key="board_detail_speak_sentence"}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-label={{t "Speak sentence" key="board_detail_speak_sentence"}} {{action "speak_sentence"}}>
+                      {{!-- Microphone icon (matches board-detail speak mode's
+                           primary speak control), not a volume/speaker glyph. --}}
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                      </svg>
                     </button>
-                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace"}} aria-label={{t "Backspace" key="backspace"}}>
+                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace"}} aria-label={{t "Backspace" key="backspace"}} {{action "speak_backspace"}}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
                     </button>
-                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Clear" key="board_detail_clear"}} aria-label={{t "Clear" key="board_detail_clear"}}>
+                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Clear" key="board_detail_clear"}} aria-label={{t "Clear" key="board_detail_clear"}} {{action "speak_clear"}}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                   </div>
@@ -508,7 +576,8 @@
                     <div class="md-board-detail-grid__cell {{if cell.empty "md-board-detail-grid__cell--empty"}} {{if cell.editing "md-board-detail-grid__cell--editing"}} {{if cell.painted "md-board-detail-grid__cell--painted"}} {{if cell.is_duplicate "md-board-detail-grid__cell--duplicate"}} {{if cell.no_category "md-board-detail-grid__cell--no-category"}}"
                          role="gridcell"
                          draggable={{if cell.draggable "true" "false"}}
-                         onclick={{action "cellClicked" cell.idx}}
+                         onclick={{action "cellClicked" cell.idx cell.image_url}}
+                         ondblclick={{action "startCellEdit" cell.idx}}
                          ondragstart={{action "cellDragStart" rowIdx colIdx}}
                          ondragover={{action "cellDragOver" rowIdx colIdx}}
                          ondragleave={{action "cellDragLeave"}}
@@ -577,10 +646,17 @@
                                    onkeydown={{action "cellEditKeydown"}}
                                    onblur={{action "commitCellEdit"}} />
                           {{else}}
+                            {{!-- The label button has NO own action: a click on it
+                                 (mouse OR keyboard) bubbles to the cell wrapper's
+                                 onclick → cellClicked, which speaks (or paints).
+                                 Wiring an action here too would double-fire, since
+                                 the wrapper's direct onclick already catches the
+                                 bubbled click. Kept as a focusable <button> with a
+                                 "Speak <word>" label for keyboard + screen-reader
+                                 access. --}}
                             <button type="button"
                                     class="md-board-detail-symbol-card__label-btn"
-                                    aria-label={{t "Edit %{word}" key="edit_label_chip_named" word=cell.label}}
-                                    {{action "startCellEdit" cell.idx bubbles=false}}>
+                                    aria-label={{t "Speak %{word}" key="speak_label_named" word=cell.label}}>
                               <span class="md-board-detail-symbol-card__label">{{cell.label}}</span>
                             </button>
                           {{/if}}
@@ -616,10 +692,21 @@
                 </button>
               </div>
               <div class="md-board-edit-right-panel__body">
-                <div class="md-board-edit-right-panel__group">
+                <div class="md-board-edit-right-panel__group {{if this.create_rail_open_section 'md-board-edit-right-panel__group--section-open'}}">
+                  {{!-- Narrow rails (<=1024px) collapse to a single open section;
+                       this Back button (hidden at wider widths via CSS) returns
+                       to the full list. --}}
+                  {{#if this.create_rail_open_section}}
+                    <button type="button" class="nb-rail-back" {{action "close_create_rail_section"}}>
+                      <svg class="nb-rail-back__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="15 18 9 12 15 6"/>
+                      </svg>
+                      <span>{{t "Back" key="back"}}</span>
+                    </button>
+                  {{/if}}
                   <div class="md-board-edit-right-panel__subheader">{{t "Appearance" key="board_edit_appearance_group"}}</div>
                   {{#each this.create_rail_sections as |sec|}}
-                    <div class="md-board-edit-right-panel__section {{if (is-equal this.create_rail_open_section sec.id) 'md-board-edit-right-panel__section--open'}}">
+                    <div class="md-board-edit-right-panel__section {{if (is-equal this.create_rail_open_section sec.id) 'md-board-edit-right-panel__section--open'}} {{if (and (is-equal sec.id "paint") this.paint_mode) 'md-board-edit-right-panel__section--paint-armed'}}" data-section-id={{sec.id}}>
                       <button type="button" class="md-board-edit-right-panel__section-toggle" aria-expanded={{if (is-equal this.create_rail_open_section sec.id) "true" "false"}} {{action "toggle_create_rail_section" sec.id}}>
                         {{!-- Per-category icons taken verbatim from the
                              board-detail edit right panel so the two
@@ -683,7 +770,7 @@
                             </svg>
                           {{/if}}
                         </span>
-                        <span class="md-board-edit-right-panel__section-label">{{sec.label}}</span>
+                        <span class="md-board-edit-right-panel__section-label">{{#if sec.short_label}}<span class="nb-rail-label__full">{{sec.label}}</span><span class="nb-rail-label__short">{{sec.short_label}}</span>{{else}}{{sec.label}}{{/if}}</span>
                         <svg class="md-board-edit-right-panel__section-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                           <polyline points="6 9 12 15 18 9"/>
                         </svg>
@@ -802,8 +889,9 @@
                                  computed bindings the component already
                                  exposes; this is now the canonical editor
                                  for this pref. --}}
+                            {{!-- The section toggle already reads "Skin Tones",
+                                 so the in-body label was redundant — removed. --}}
                             <div class="md-board-edit-right-panel__row-pair">
-                              <span class="md-board-edit-right-panel__row-pair-label">{{t "Skin-Tones" key="board_detail_settings_skin_tones"}}</span>
                               <div class="md-settings-dropdown-wrap">
                                 <button type="button" class="md-settings-select md-settings-select--trigger md-settings-select--with-swatch {{if this.display_prefs_skin_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_skin_dropdown_open "true" "false"}} data-tooltip={{t "Skin tone" key="board_detail_prefs_skin"}} aria-label={{t "Skin tone" key="board_detail_prefs_skin"}} {{action "toggle_display_skin_dropdown"}}>
                                   <span class="md-settings-select__swatch md-settings-skin md-settings-skin--{{this.display_prefs_current_skin_swatch}}" aria-hidden="true"></span>
@@ -1059,7 +1147,49 @@
                     </div>
                   {{/each}}
                 </div>
+                {{!-- Divider below the Appearance sections (Text Settings is the
+                     last), then a Clear Grid action mirroring the labels-row
+                     "clear grid" button (same clearGrid action) so the grid can
+                     be reset from the live edit rail too. Shown only when there
+                     are labels to clear. --}}
+                {{#if this.label_count}}
+                  <div class="md-board-edit-right-panel__divider" role="presentation"></div>
+                  <div class="nb-create-rail__clear-grid">
+                    <button type="button"
+                            class="nb-link nb-link--danger nb-create-rail__clear-grid-btn"
+                            {{action "clearGrid"}}
+                            aria-label={{t "Clear all labels" key="clear_all_labels"}}>
+                      <svg class="nb-link__icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+                        <path d="M3 4 L3 12 Q3 13 4 13 L10 13 Q11 13 11 12 L11 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 4 L12 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        <path d="M5.5 4 L5.5 2.5 Q5.5 2 6 2 L8 2 Q8.5 2 8.5 2.5 L8.5 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M5.5 6.5 L5.5 10.5 M8.5 6.5 L8.5 10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                      </svg>
+                      <span>{{t "clear grid" key="clear_grid"}}</span>
+                    </button>
+                  </div>
+                {{/if}}
               </div>
+              {{!-- Primary action docked at the foot of the Edit Tools rail on
+                   the standalone page: a compact, bottom-aligned Create Board.
+                   The legacy modal keeps its own footer below. --}}
+              {{#if this.standalone}}
+                <div class="nb-create-rail__actions">
+                  <span id="new-board-create-hint" class="sr-only" aria-live="polite">{{this.missing_required_summary}}</span>
+                  <button {{action "attemptSave"}}
+                          class="btn btn-primary new-board__submit nb-create-rail__submit {{if this.createBoardDisabled 'new-board__submit--invalid'}}"
+                          aria-disabled={{if this.createBoardDisabled "true" "false"}}
+                          aria-describedby="new-board-create-hint">
+                    {{#if this.status.saving}}
+                      {{t "Creating Board..." key="creating_board"}}
+                    {{else if this.status.error}}
+                      {{t "Error Creating Board" key="error_creating_board"}}
+                    {{else}}
+                      {{t "Create Board" key="create_board"}}
+                    {{/if}}
+                  </button>
+                </div>
+              {{/if}}
             </aside>
             </div>
             {{else}}
@@ -1068,7 +1198,6 @@
                    required description, fills the labels, then flips
                    show_full_size_section so the full section renders. --}}
               <div class="nb-ai-generate">
-                <p class="nb-ai-generate__lead">{{t "Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board." key="ai_generate_labels_lead"}}</p>
                 {{!-- Over-limit warning: shows when the user dials the
                      rows/cols steppers past the recommended 112-button
                      ceiling. Also blocks the Generate button (via
@@ -1115,6 +1244,7 @@
                     {{t "Generate Labels with AI" key="ai_generate_labels_btn"}}
                   {{/if}}
                 </button>
+                <p class="nb-ai-generate__lead">{{t "Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board." key="ai_generate_labels_lead"}}</p>
               </div>
             {{/if}}
           </div>
@@ -1125,19 +1255,9 @@
              mode show_full_size_section is always true, so this is a
              no-op there. --}}
         {{#if this.show_full_size_section}}
-        <section class="nb-section">
-          <div class="nb-section__title-row">
-            <h4 class="nb-section__title">{{t "Visibility" key="new_board_section_appearance"}}</h4>
-            <span class="nb-section__optional-pill">{{t "optional" key="optional"}}</span>
-          </div>
-          <p class="nb-section__hint">{{t "Pick who can see this board." key="new_board_section_appearance_hint"}}</p>
-          <div class="nb-section__body">
-            <div class="nb-field new-board-field--visibility">
-              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(action "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
-            </div>
-          </div>
-        </section>
-
+        {{!-- Visibility control removed from the create flow — boards are created
+             PRIVATE by default (model.visibility = 'private'); visibility can still
+             be changed later from board-detail. --}}
         <section class="nb-section nb-section--advanced">
           <button
             type="button"
@@ -1155,7 +1275,6 @@
                 <li class="nb-advanced-toggle__hint-item">{{t "Fill order" key="advanced_hint_fill_order"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Board key" key="advanced_hint_board_key"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Language" key="advanced_hint_language"}}</li>
-                <li class="nb-advanced-toggle__hint-item">{{t "Home-board categories" key="advanced_hint_home_categories"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Icon" key="advanced_hint_icon"}}</li>
               </ul>
             </span>
@@ -1196,28 +1315,10 @@
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
                 {{#if this.appState.feature_flags.english_first_board_generation}}
                   <p class="nb-field__hint">{{t "Boards are created in English first for accurate symbol colors. You can translate after saving." key="english_first_board_hint"}}</p>
-                  <p class="nb-field__static">{{t "English" key="english"}}</p>
                 {{else}}
                   {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(action "setLocale") ariaLabel=(t "Language" key="locale")}}
                 {{/if}}
               </div>
-              <div class="nb-field nb-field--checkbox new-board-checkbox-row">
-                <label for="home_board" class="nb-checkbox">
-                  <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
-                  <span>{{t "This board can be used as a home board" key="is_home_board"}}</span>
-                </label>
-              </div>
-              {{#if this.model.home_board}}
-                <div class="nb-field">
-                  <p class="nb-field__hint">{{t "Select any categories that this home board may fit well into." key="select_categories"}}</p>
-                  {{#each this.board_categories as |category|}}
-                    <label class="nb-checkbox">
-                      <Input @type="checkbox" @checked={{category.selected}} />
-                      <span>{{category.name}}</span>
-                    </label>
-                  {{/each}}
-                </div>
-              {{/if}}
               <div class="nb-field new-board-field--icon nb-icon-disclosure {{if this.icon_picker_open 'nb-icon-disclosure--open'}}">
                 <button
                   type="button"
@@ -1245,7 +1346,11 @@
         {{/if}}
       </form>
     </div>
-    <div class="{{if this.standalone "modal-footer" "la-new-board-modal-footer"}}">
+    {{!-- Standalone page: Create/Cancel now live in the Edit Tools rail
+         (see nb-create-rail__actions above), so the page-level footer only
+         renders for the legacy modal context. --}}
+    {{#unless this.standalone}}
+    <div class="la-new-board-modal-footer">
       {{!-- Visually hidden description tied to the Create button via
            aria-describedby. When fields are missing, the assistive
            technology announces what's needed; once everything's set
@@ -1254,23 +1359,6 @@
            CTA self-explanatory and let the reason live in a tooltip /
            aria description, not as floating layout text. --}}
       <span id="new-board-create-hint" class="sr-only" aria-live="polite">{{this.missing_required_summary}}</span>
-      {{#if this.standalone}}
-      <div class="new-board__footer-actions">
-        <button type="button" class="btn btn-default new-board__cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-        <button {{action "attemptSave"}}
-                class="btn btn-primary new-board__submit {{if this.createBoardDisabled 'new-board__submit--invalid'}}"
-                aria-disabled={{if this.createBoardDisabled "true" "false"}}
-                aria-describedby="new-board-create-hint">
-          {{#if this.status.saving}}
-            {{t "Creating Board..." key="creating_board"}}
-          {{else if this.status.error}}
-            {{t "Error Creating Board" key="error_creating_board"}}
-          {{else}}
-            {{t "Create Board" key="create_board"}}
-          {{/if}}
-        </button>
-      </div>
-      {{else}}
       <div class="la-new-board-modal-footer__actions">
         <button type="button" {{action "attemptSave"}}
                 class="la-btn la-btn--primary new-board__submit {{if this.createBoardDisabled 'new-board__submit--invalid'}}"
@@ -1286,7 +1374,7 @@
         </button>
         <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
-      {{/if}}
     </div>
+    {{/unless}}
   </div>
 {{/grid-listener}}

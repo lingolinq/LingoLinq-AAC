@@ -1364,6 +1364,16 @@
                       <span class="md-board-edit-session__btn-label">{{t "Done Editing" key="board_detail_done_editing"}}</span>
                     </button>
                   </div>
+                  {{!-- Guided-tour host for the edit-mode tour, FLOATED below-right
+                       (absolute, ~10rem below the Done Editing button — see
+                       .md-board-edit-session__tour in app.scss). The standard navbar's
+                       {{guided-tour}} is gated to empty_header so it isn't mounted on a
+                       board page; this host gives the edit tour its "Take a tour"
+                       trigger AND the runner that auto-starts it. hasTour resolves to
+                       the board-detail builder only in edit mode (registry). --}}
+                  {{#if this.app_state.feature_flags.home_tour}}
+                    <span class="md-board-edit-session__tour">{{guided-tour}}</span>
+                  {{/if}}
                 </div>
                 <div class="md-board-detail-header__edit-card" role="region" aria-label={{t "Board details" key="board_detail_info_panel"}}>
                   {{!-- Title row uses a 3-column grid (1fr | auto | 1fr)

@@ -11,11 +11,30 @@
 // Adding another page's tour: write a builder module under utils/tours/ and
 // register its route here.
 import { buildHomeSteps } from './home';
+import { buildBoardPickerSteps } from './board-picker';
+import { buildBoardDetailSteps } from './board-detail';
 
-function tourBuilderFor(route, layout) {
+// Board-detail EDIT mode is a STATE (app_state.edit_mode), not its own route —
+// both `user.board-detail.index` and `user.board-detail.edit` can be in edit
+// mode — so the board-detail tour is gated on `editMode`, not the route alone.
+function _isBoardDetail(route) {
+  return !!route && route.indexOf('user.board-detail') === 0;
+}
+
+function tourBuilderFor(route, layout, editMode) {
   if (route === 'user.home') {
     var view = (layout === 'focused') ? 'focused' : 'gentle';
-    return function() { return buildHomeSteps(view); };
+    // The thunk forwards caller options (e.g. { handoff: true } when the tour
+    // will hand off to the board picker) through to the step builder.
+    return function(options) { return buildHomeSteps(view, options); };
+  }
+  if (route === 'board-picker') {
+    var bpView = (layout === 'focused') ? 'focused' : 'gentle';
+    return function(options) { return buildBoardPickerSteps(bpView, options); };
+  }
+  if (editMode && _isBoardDetail(route)) {
+    var bdView = (layout === 'focused') ? 'focused' : 'gentle';
+    return function(options) { return buildBoardDetailSteps(bdView, options); };
   }
   return null;
 }
@@ -24,9 +43,15 @@ function tourBuilderFor(route, layout) {
 // user.preferences.progress.guided_tours_completed (e.g. 'home_gentle',
 // 'home_focused'). One key per page/view so each tour is tracked independently;
 // returns null where no tour exists. Mirrors tourBuilderFor's route/layout map.
-function tourKeyFor(route, layout) {
+function tourKeyFor(route, layout, editMode) {
   if (route === 'user.home') {
     return 'home_' + ((layout === 'focused') ? 'focused' : 'gentle');
+  }
+  if (route === 'board-picker') {
+    return 'board_picker_' + ((layout === 'focused') ? 'focused' : 'gentle');
+  }
+  if (editMode && _isBoardDetail(route)) {
+    return 'board_detail_edit_' + ((layout === 'focused') ? 'focused' : 'gentle');
   }
   return null;
 }
