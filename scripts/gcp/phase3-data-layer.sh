@@ -366,6 +366,13 @@ if [ "$CONFIRM_REDIS" = "1" ]; then
   set +x
   REDIS_AUTH="$(gcloud redis instances get-auth-string "$REDIS_INSTANCE" --region="$REGION" --project="$PROJECT_ID" --format='value(authString)' 2>/dev/null)"
   [ -n "$REDIS_AUTH" ] || { echo "ERROR: could not read Redis AUTH string for $REDIS_INSTANCE" >&2; exit 1; }
+  # Reject an AUTH string containing URL-reserved chars so the rediss:// DSN cannot be
+  # silently corrupted (mirrors the DB-password guard in Step 2d). Memorystore AUTH strings
+  # are UUID-format today, but that is not a documented guarantee, and a corrupt REDIS_URL
+  # would sit in Secret Manager and only fail later at cutover -- abort loudly here instead.
+  case "$REDIS_AUTH" in
+    *[/+=@:?\#\&]*) echo "ERROR: Redis AUTH string contains a URL-reserved char; cannot build a safe rediss:// DSN." >&2; exit 1 ;;
+  esac
   REDIS_URL_VAL="rediss://:${REDIS_AUTH}@${REDIS_HOST}:${REDIS_PORT}/0"
   gcloud secrets describe "$SECRET_REDIS_URL" --project="$PROJECT_ID" >/dev/null 2>&1 \
     || { echo "ERROR: secret $SECRET_REDIS_URL not found; it should have been created EMPTY in Phase 1." >&2; exit 1; }
