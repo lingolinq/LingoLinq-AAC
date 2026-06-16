@@ -302,7 +302,10 @@ export default Component.extend({
         if (_this.isDestroyed || _this.isDestroying) { return; }
         // Leave the tour modal active so the user can retry from the preview.
         _this.set('copying', false);
-        modal.error(err || i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again."));
+        // Only surface `err` directly when it's a display string — copy_board can
+        // reject with an Error/object, which would render as "[object Object]".
+        var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
+        modal.error(msg);
       });
     }
   }

@@ -550,7 +550,7 @@ function _onDisplayShow(component) {
       try {
         var as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
         return (as && as.get('currentUser.preferences.dashboard_layout')) || 'gentle';
-      } catch (e) { return 'focused'; }
+      } catch (e) { return 'gentle'; }
     };
     var applyLayoutSections = function(layout) {
       var focused = (layout === 'focused');
