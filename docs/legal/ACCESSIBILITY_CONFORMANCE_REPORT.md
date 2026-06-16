@@ -119,3 +119,9 @@ be re-measured against the live tokens at verification time.)
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). The
 `wcag-modernized-2026-04-11*.md` files in `audit-reports/` are this report's working notes._
+
+_Automated feeder: the read-only `accessibility-auditor` finder (skill `accessibility-audit`,
+spawned by `/audit-run`) emits static WCAG 2.1 AA / EN 301 549 findings (`frameworks:["WCAG"]`)
+into `audit-reports/FINDINGS.json` at a stamped SHA. Those register findings are the
+code-anchored input to this report; they do NOT change its DRAFT/attestation state - only Scot
+attests, after AT user testing and adversary review close the gaps above._

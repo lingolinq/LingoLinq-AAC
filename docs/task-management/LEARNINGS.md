@@ -4657,3 +4657,17 @@ SKIPS on `token = SecureRandom.hex` disables review on a large fraction of norma
 worked: require a QUOTED value for generic credential assignments (`["'][^"'\s]{8,}["']`), and require
 20+ token chars after `Bearer`. Always test a new scrub regex for BOTH catch and no-false-trip on
 ordinary code before shipping. Evidence: H4, node `PII Pre-Scrub (DeepSeek)` SECRETS/PII arrays.
+
+## Gotcha: EN 301 549 clause numbers (9.x.x.x) trip the register's IP-address PII scrubber
+
+When the `accessibility-auditor` finder emits a WCAG finding, any four-part dotted number in the
+finding text - notably an EN 301 549 clause like `9.1.4.3` - matches `audit-merge.rb`'s IP regex
+(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`) and the ENTIRE finding is REFUSED as `pii:ip` (it
+silently never lands in the register; merge reports `skipped`, citation-check stays green only
+because the finding is absent). WCAG success-criterion numbers (`1.4.3`, `2.4.7`) are at most 3
+dotted groups and are always safe; the EN 301 549 web mapping (`9.1.x.x`) is the one that bites.
+Fix (no Ruby change, scrubber is correct defense-in-depth): the `accessibility-audit` skill + agent
+instruct finders to cite the WCAG SC number in emitted fields and reference EN 301 549 only at the
+3-part parent clause (`9.1.4`) or in prose. Verified 2026-06-15 via a /tmp dry-run: with `9.1.4.3`
+in `notes` -> merge `skipped=1 (refused: pii:ip)`; with `9.1.4` -> merge `new=1`, citation-check
+PASS. Evidence: `scripts/audit-merge.rb` PII_PATTERNS[:ip]; `.claude/skills/accessibility-audit/SKILL.md`.

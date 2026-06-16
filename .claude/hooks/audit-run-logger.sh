@@ -2,7 +2,8 @@
 # audit-run-logger.sh
 #
 # PostToolUse evidence logger for the LingoLinq read-only audit finder agents
-# (privacy-auditor, infra-auditor, api-auditor, dependency-auditor). Wired into
+# (privacy-auditor, infra-auditor, api-auditor, dependency-auditor,
+#  accessibility-auditor). Wired into
 # each finder via its `hooks:` frontmatter (alongside the read-only guard), with
 # the agent name passed as $1. Phase 4 "Cadence" deliverable.
 #
