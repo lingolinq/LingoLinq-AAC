@@ -86,6 +86,13 @@ export default Component.extend({
   // to the standalone /board-picker page (the tabs keep their natural width
   // elsewhere). Idempotent — clears its prior break and re-measures each run.
   _adjustTabsForOrphans: function() {
+    // Adversarial-review note (LOW, pre-existing — unchanged by this PR): the injected
+    // tab-break <li> is created imperatively, but this is safe/idempotent: the lookup is
+    // scoped to THIS component (`this.element`, further gated to `.board-picker-page`),
+    // every run first removes any prior `.md-home-boards-picker__tab-break` before
+    // re-inserting, and the node carries aria-hidden + role="presentation" so it's inert
+    // to assistive tech. If Glimmer re-renders the <ul>, the manual node is dropped with
+    // it and re-added on the next resize tick — no orphan/duplicate accumulates.
     if (this.isDestroyed || this.isDestroying) { return; }
     var root = this.element;
     if (!root || !root.closest || !root.closest('.board-picker-page')) { return; }

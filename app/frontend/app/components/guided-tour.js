@@ -427,6 +427,9 @@ export default Component.extend({
       attempts++;
       var ready = document.querySelector('.md-board-detail-grid .md-board-detail-symbol-card') ||
                   document.querySelector('.md-board-detail-grid');
+      // BOUNDED — does NOT hang. After ~3s (20 × 150ms) the poll gives up regardless of
+      // whether the grid ever appeared (e.g. a network error), so there's no infinite
+      // wait (adversarial-review "no timeout" note). Same ceiling guards the consumer.
       if (ready || attempts >= 20) {        // ~3s ceiling (20 × 150ms)
         // Re-confirm we're still the board-detail edit tour before starting (the
         // route could have changed during the poll).

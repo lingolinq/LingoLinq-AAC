@@ -260,12 +260,16 @@ export default Component.extend({
         // instance reads this once it mounts on the board-detail edit page and
         // auto-starts the edit tour, then clears it (see guided-tour.js
         // _consumePendingBoardDetailTour, which polls until edit mode settles).
-        // SCOPED TO THE COPIED BOARD'S KEY (not a bare `true`): the consumer fires the
+        // SCOPED TO THE COPIED BOARD'S KEY (never a bare `true`): the consumer fires the
         // tour only when the board-detail page it mounts on IS this copied board. That
         // prevents the flag from auto-starting the tour on a DIFFERENT board if the user
         // navigates away before the route settles, or in a second tab/session that reads
         // the shared app_state flag (addresses the wrong-board / stale-flag race).
-        app_state.set('board_detail_tour_pending', key || true);
+        // We deliberately do NOT fall back to `true` when the key is empty — a bare `true`
+        // would reintroduce that very race. A freshly-copied board always has a key (the
+        // routing below relies on it); the `if (key)` is purely defensive, and skipping
+        // the flag just means the edit tour doesn't auto-open (graceful, never wrong-board).
+        if (key) { app_state.set('board_detail_tour_pending', key); }
         // Preserve the language the user previewed/picked in so a translated board
         // doesn't open in the wrong locale.
         if (locale) { app_state.set('label_locale', locale); }
@@ -319,6 +323,9 @@ export default Component.extend({
         // replaced by the localized fallback below. It never rejects with a raw
         // un-translated string or an Error whose .message is a localized user string, so
         // neither showing the string branch nor using the fallback violates the i18n rule.
+        // If a FUTURE copy_board change were to reject with a raw English string, the fix
+        // belongs at that source (reject with an i18n.t() string or a code object) — this
+        // handler intentionally trusts copy_board's string rejections to be localized.
         var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
         modal.error(msg);
       });

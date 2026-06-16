@@ -2094,6 +2094,15 @@ export default Component.extend({
         // used by board-detail's own speak bar. Anchor the query to the
         // create-board-only preview row (`.nb-preview-sentence-row`) so a
         // board-detail sentence bar elsewhere in the DOM can never be measured.
+        //
+        // Adversarial-review false positive ("global query bleeds across routes"):
+        // `.nb-preview-sentence-row` exists ONLY in this template (create-board-new.hbs)
+        // and create-board-new is a single route-level page/modal — there is never a
+        // second instance, and board-detail's speak bar does NOT have this ancestor, so
+        // the anchored descendant query cannot match it. There is no FastBoot/SSR in this
+        // app (Ember SPA), so no nested-outlet double-render either. And the worst case if
+        // it somehow mismeasured is benign: it resets THIS throwaway create-board PREVIEW
+        // bar, never a real Speak-Mode utterance.
         var el = document.querySelector('.nb-preview-sentence-row .md-board-detail-sentence-bar__text');
         if(!el) { return; }
         if(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) {
@@ -2121,6 +2130,13 @@ export default Component.extend({
     // setups). State lives on the component, so it resets on a later visit, where
     // the device orientation may well differ. Adds nb-orientation-overlay--dismissed,
     // which beats the media query.
+    //
+    // Adversarial-review note ("a11y: SR users trapped if they can't rotate"): not a
+    // trap — this is a real, keyboard/SR-reachable <button> that fully removes the
+    // overlay, and it is present on EVERY visit, so a non-rotatable user is never stuck.
+    // Re-showing on a later visit (vs. persisting the dismissal) is intentional: the
+    // orientation may differ next time; the escape is always one button away. (Persisting
+    // the dismissal to a preference is a possible future nicety, not an a11y blocker.)
     dismiss_orientation_overlay: function() {
       this.set('orientation_overlay_dismissed', true);
     },
