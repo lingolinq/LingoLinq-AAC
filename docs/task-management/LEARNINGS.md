@@ -5144,3 +5144,38 @@ instruct finders to cite the WCAG SC number in emitted fields and reference EN 3
 3-part parent clause (`9.1.4`) or in prose. Verified 2026-06-15 via a /tmp dry-run: with `9.1.4.3`
 in `notes` -> merge `skipped=1 (refused: pii:ip)`; with `9.1.4` -> merge `new=1`, citation-check
 PASS. Evidence: `scripts/audit-merge.rb` PII_PATTERNS[:ip]; `.claude/skills/accessibility-audit/SKILL.md`.
+
+## Gotcha: `Worker.scheduled?` specs flake repo-wide off BoyBand's stale 30s `sizeof/<queue>` cache
+
+`Worker.scheduled?` -> `BoyBand::WorkerMethods#scheduled_for?` short-circuits with
+`return false if idx > 500`, where `idx = queue_size(queue)` reads a Redis cache
+`sizeof/<queue>` with a **30-second TTL** that only recomputes when the cached value is `0`.
+`Worker.flush_queues` (run in `spec_helper.rb` `before(:each)`) empties the queue LISTS but
+never clears that cache. So one earlier example that pushes `sizeof/default` past 500 makes
+EVERY `Worker.scheduled?` return a FALSE NEGATIVE (`expected true, got false`) for the next 30
+WALL-CLOCK seconds - regardless of the flushed queue. Whether a given spec lands in that window
+varies run-to-run, so it presents as a random "timing" flake that passes on re-run. It is
+repo-wide: 38 spec files / 201 `scheduled?` assertion sites are exposed; `external_tracker_spec:16`
+and `flusher_spec:403` are just the most frequently bitten. Two traps: (1) "force Resque inline"
+is the WRONG fix - these specs assert the job IS queued, and inline runs it and empties the queue,
+failing them deterministically; (2) `config.order = "defined"` + single-process CI + fresh Redis
+rules out order-dependence and cross-process races, so the only nondeterminism is wall-clock vs the
+TTL. Fix (verified): in `before(:each)` after `flush_queues`, also
+`Resque.redis.keys('sizeof/*').each{|k| Resque.redis.del(k)}` and the same for `*_queue_size`
+(`RedisInit#queue_size`'s separate 5-min cache). Deterministic repro:
+`redis-cli set lingolinq-test:sizeof/default 600` then run the two specs -> exact CI failure;
+clearing the cache makes them pass. Evidence: `boy_band-0.1.16/lib/boy_band.rb:43,266`;
+`spec/spec_helper.rb` before(:each); CI run 27601259798.
+
+## Gotcha: local `lingolinq-test` `bad decrypt` at boot from a stale `encryption_hash` sentinel row
+
+Running rspec locally can fail at environment load with
+`OpenSSL::Cipher::CipherError: bad decrypt` in `Setting.get` (config/environment.rb -> spec_helper).
+Cause: the test DB holds a single `settings` row `key='encryption_hash'` (GoSecure's
+key-validation sentinel) encrypted with a SECURE key pair that no longer matches the effective env.
+`spec_helper` loads `.env.op.template` BEFORE `.env`, and dotenv does not override already-set vars,
+so `.env.op.template`'s `SECURE_NONCE_KEY` shadows `.env`'s and breaks the encryption pair. CI never
+hits this because it uses `db:create db:schema:load` (fresh DB, no `encryption_hash` row -> no
+decrypt). Local fix (test DB only, regenerates on boot):
+`psql -U scotw -d lingolinq-test -c "delete from settings where key='encryption_hash'"`. Do not
+"fix" it by editing the dotenv load order in spec_helper.
