@@ -41,15 +41,22 @@ module RedisInit
     ca_cert = ENV['REDIS_CA_CERT']
     if ca_cert && !ca_cert.empty?
       store = OpenSSL::X509::Store.new
+      added = 0
       ca_cert.scan(/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/m).each do |pem|
         begin
           store.add_cert(OpenSSL::X509::Certificate.new(pem))
-        rescue OpenSSL::X509::StoreError
-          # A duplicate cert (e.g. an old + new blob that overlap during a CA
-          # rotation) raises "cert already in hash table"; skip it rather than
-          # crashing boot, which would defeat the rotation resilience above.
+          added += 1
+        rescue OpenSSL::OpenSSLError
+          # Skip a bad cert rather than crashing boot, which would defeat the
+          # rotation resilience above. Both failure modes descend from
+          # OpenSSLError: a duplicate (old + new blob overlapping during a CA
+          # rotation) raises X509::StoreError ("cert already in hash table"),
+          # and a malformed body inside valid fences raises X509::CertificateError.
         end
       end
+      # Name the misconfiguration at boot rather than failing later as an opaque
+      # handshake error: REDIS_CA_CERT was set but produced no usable anchors.
+      raise 'REDIS_CA_CERT set but no valid certificates parsed' if added == 0
       return { :cert_store => store }
     end
 

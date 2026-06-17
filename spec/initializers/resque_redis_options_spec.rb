@@ -82,5 +82,40 @@ describe RedisInit do
       expect { RedisInit.redis_options(rediss_uri) }.not_to raise_error
       expect(RedisInit.redis_options(rediss_uri)[:ssl_params][:cert_store]).to be_a(OpenSSL::X509::Store)
     end
+
+    it 'skips a malformed (fenced-but-garbage) cert without crashing if a good one remains' do
+      key = OpenSSL::PKey::RSA.new(2048)
+      garbage = "-----BEGIN CERTIFICATE-----\nnot-valid-base64!!!\n-----END CERTIFICATE-----\n"
+      ENV['REDIS_CA_CERT'] = build_cert(key, 'ca-good').to_pem + garbage
+      expect { RedisInit.redis_options(rediss_uri) }.not_to raise_error
+      expect(RedisInit.redis_options(rediss_uri)[:ssl_params][:cert_store]).to be_a(OpenSSL::X509::Store)
+    end
+
+    it 'raises a named error when REDIS_CA_CERT is set but yields zero valid certs' do
+      ENV['REDIS_CA_CERT'] = "-----BEGIN CERTIFICATE-----\nnope\n-----END CERTIFICATE-----\n"
+      expect { RedisInit.redis_options(rediss_uri) }.to raise_error(/no valid certificates/)
+    end
+  end
+
+  # The load-bearing security property: the ssl_params we hand to redis-rb must
+  # produce a context that actually verifies the server cert (VERIFY_PEER), in
+  # both the inline-CA and no-CA rediss:// cases. redis-rb forwards ssl_params
+  # to OpenSSL::SSL::SSLContext#set_params, so mirror that here. Guards against a
+  # future refactor silently downgrading to VERIFY_NONE.
+  describe 'TLS verification is enforced for rediss://' do
+    def verify_mode_for(opts)
+      ctx = OpenSSL::SSL::SSLContext.new
+      ctx.set_params(opts[:ssl_params] || {})
+      ctx.verify_mode
+    end
+
+    it 'verifies the peer when no CA env is set (system store)' do
+      expect(verify_mode_for(RedisInit.redis_options(rediss_uri))).to eq(OpenSSL::SSL::VERIFY_PEER)
+    end
+
+    it 'verifies the peer when an inline CA is supplied' do
+      ENV['REDIS_CA_CERT'] = build_cert(OpenSSL::PKey::RSA.new(2048), 'ca').to_pem
+      expect(verify_mode_for(RedisInit.redis_options(rediss_uri))).to eq(OpenSSL::SSL::VERIFY_PEER)
+    end
   end
 end
