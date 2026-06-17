@@ -1,5 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "_note": "Shared, version-controlled Claude Code config for LingoLinq-AAC. The audit read-only write-blocker (.claude/hooks/audit-readonly-guard.sh) is intentionally NOT registered as a global hook here: it is wired per-agent via each finder's `hooks:` frontmatter so it scopes to the read-only audit finders ONLY and never blocks normal editing in the main session or for teammates. See .claude/agents/*-auditor.md and audit-reports/README.md.",
+  "worktree": {
+    "baseRef": "head"
+  },
   "hooks": {}
 }

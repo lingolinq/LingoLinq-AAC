@@ -1,0 +1,13 @@
+# .worktreeinclude -- gitignored files Claude Code copies into every NEW worktree
+# it creates (claude -w, EnterWorktree, isolation:worktree subagents, desktop
+# parallel sessions). Uses .gitignore syntax; only files that are themselves
+# gitignored are copied (tracked files like .nvmrc carry over via git already, so
+# the Node 20 pin is preserved automatically).
+#
+# NOTE: raw `git worktree add` (and therefore the claude-wt launcher) does NOT
+# process this file -- that is a Claude-Code-native feature. claude-wt copies the
+# same set itself. This file covers the native/subagent creation paths.
+.env
+.env.local
+app/frontend/.env
+app/frontend/.env.local
