@@ -5,7 +5,7 @@
 
 **Audited:** `origin/staging` @ `d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403` on 2026-06-16  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 1 Critical / 17 High
+**Headline (open + remediated-unverified):** 1 Critical / 16 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
@@ -16,7 +16,6 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-e573a39d2b |  | critical | FERPA, HIPAA, COPPA, GDPR | untriaged | audit-run | Eval narration sends slp_notes/sett (student name + clinical notes) to Anthropic with no PiiScrubber | `lib/eval_narrator.rb`:189 |
 | LL-ef5ac1b2a5 |  | high | FERPA, HIPAA | untriaged | audit-run | Eval AI narration creates no AiApiLog entry (no record student eval data was sent to an LLM) | `lib/eval_narrator.rb`:58 |
 | LL-d1ea8659c3 |  | high |  | untriaged | audit-run | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
-| LL-20c48e298c |  | high | WCAG | untriaged | audit-run | Board-tile symbol image has no alt text (template render path) | `app/frontend/app/templates/board/index.hbs`:123 |
 | LL-2967f77e6d |  | high | WCAG | untriaged | audit-run | Board-tile symbol image has no alt text (fast_html render path) | `app/frontend/app/utils/button.js`:449 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | untriaged | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-1085e59d29 | Infra-P1-2 | high | FERPA, HIPAA | untriaged | audit-run | Webhook callback URL validation accepts plaintext http:// | `app/models/webhook.rb`:42 |
@@ -51,6 +50,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-5f0f4f52f8 |  | low | SOC2 | untriaged | audit-run | Audit system files (.claude/) are not in any finder scan scope (no self-audit) | `.claude/agents/infra-auditor.md`:62 |
 | LL-ba0585ab93 |  | low | SOC2, HIPAA, FERPA | untriaged | audit-run | Production Postgres uses sslmode=require (encrypt only), not verify-ca/verify-full | `config/database.yml`:26 |
 | LL-41d2d553ab |  | low |  | untriaged | audit-run | Integration JSON emits a debug junk key (asdf) consumed by no Ember model | `lib/json_api/integration.rb`:67 |
+| LL-20c48e298c |  | low | WCAG | untriaged | audit-run | Board-tile symbol image has no alt text (edit-mode board-editor path) | `app/frontend/app/templates/board/index.hbs`:123 |
 | LL-a97357136e | P2-2 | low |  | untriaged | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | untriaged | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
 

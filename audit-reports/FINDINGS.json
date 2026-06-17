@@ -1432,8 +1432,8 @@
     {
       "id": "LL-20c48e298c",
       "ruleKey": "board-tile-symbol-img-missing-alt",
-      "title": "Board-tile symbol image has no alt text (template render path)",
-      "severity": "high",
+      "title": "Board-tile symbol image has no alt text (edit-mode board-editor path)",
+      "severity": "low",
       "confidence": "high",
       "frameworks": [
         "WCAG"
@@ -1458,7 +1458,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). The tile <a class=button> is named by the visible label span (index.hbs:141), but that span is gated by {{#unless button.hide_label}} (index.hbs:140); with hide_label set and the symbol <img> carrying no alt, the tile has NO accessible name at all (critical for symbol-only/emerging communicators). Dual render-path issue: the same defect exists in the fast_html string builder in app/frontend/app/utils/button.js. | adversary: uncertain (2026-06-16): the cited line sits inside {{#if this.app_state.edit_mode}} (index.hbs:102), an EDIT-MODE-ONLY path; the live communicator grid renders via {{board.fast_html.html}} (index.hbs:100), not this markup. The missing-alt defect is real here, but this anchor is NOT the AAC-core live surface the title/notes imply -- the live case is the separate utils/button.js fast_html finding. Recommend Scot re-anchor this to the fast_html finding or downgrade its scope to edit-mode. (Verified .hide-label = display:none at app.scss:9167.)"
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). The tile <a class=button> is named by the visible label span (index.hbs:141), but that span is gated by {{#unless button.hide_label}} (index.hbs:140); with hide_label set and the symbol <img> carrying no alt, the tile has NO accessible name at all (critical for symbol-only/emerging communicators). Dual render-path issue: the same defect exists in the fast_html string builder in app/frontend/app/utils/button.js. | adversary: uncertain (2026-06-16): the cited line sits inside {{#if this.app_state.edit_mode}} (index.hbs:102), an EDIT-MODE-ONLY path; the live communicator grid renders via {{board.fast_html.html}} (index.hbs:100), not this markup. The missing-alt defect is real here, but this anchor is NOT the AAC-core live surface the title/notes imply -- the live case is the separate utils/button.js fast_html finding. Recommend Scot re-anchor this to the fast_html finding or downgrade its scope to edit-mode. (Verified .hide-label = display:none at app.scss:9167.) | disposition 2026-06-16 (per Scot delegation): downgraded high->low and re-scoped to the edit-mode-only path after adversary review. The cited index.hbs:123 markup renders only under {{#if this.app_state.edit_mode}} (index.hbs:102 -- the board editor), where the button label is shown via {{label-field}} (index.hbs:135) so the control is named and the symbol img alt is decorative there. The substantive live-grid case (incl. symbol-only/hide_label, where the live tile is genuinely nameless) is the confirmed utils/button.js fast_html finding of the same ruleKey."
     },
     {
       "id": "LL-2967f77e6d",
