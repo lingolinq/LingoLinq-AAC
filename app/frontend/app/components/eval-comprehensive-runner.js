@@ -307,10 +307,14 @@ export default Component.extend({
       // before any eval data leaves for the AI provider.
       const user = this.get('user');
       const userId = user && user.get ? user.get('id') : null;
+      // use_anthropic: true is the SLP's explicit opt-in for external-model
+      // narration. This action only runs when they click "Generate AI
+      // Narrative"; the server defaults to the local template and sends no
+      // eval data to the AI provider unless this flag is present.
       persistence.ajax('/api/v1/eval_sessions/narrate', {
         type: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ eval_session: payload.data, user_id: userId })
+        data: JSON.stringify({ eval_session: payload.data, user_id: userId, use_anthropic: true })
       }).then(function(res) {
         _this.set('aiBusy', false);
         const narrative = res && res.narrative;

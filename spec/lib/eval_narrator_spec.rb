@@ -16,7 +16,10 @@ describe EvalNarrator do
       'recommendation' => { 'access_method' => 'touch' },
       'sett' => { 'student' => 'Janie Doe', 'environment' => 'classroom' },
       'slp_notes' => 'Met with Janie Doe; email mom at jane@example.com.',
-      'duration_s' => 600
+      'duration_s' => 600,
+      # External-model narration is opt-in; the AI-path specs below assert the
+      # gate fires only when this flag is explicitly true.
+      'use_anthropic' => true
     }
   end
 
@@ -117,6 +120,56 @@ describe EvalNarrator do
       expect(captured[:user_content]).not_to include('jane@example.com')
       expect(captured[:user_content]).to include('[REDACTED_NAME]')
       expect(captured[:user_content]).to include('[REDACTED_EMAIL]')
+    end
+
+    it 'does not call the AI unless the request explicitly opts in (use_anthropic == true)' do
+      allow(described_class).to receive(:call_anthropic)
+      allow(AiApiLog).to receive(:log_ai_call)
+
+      # Flag false, and flag absent, both keep eval data local (template).
+      out_false = described_class.draft_narrative(payload.merge('use_anthropic' => false), user: user)
+      out_absent = described_class.draft_narrative(payload.reject { |k, _| k == 'use_anthropic' }, user: user)
+
+      expect(described_class).not_to have_received(:call_anthropic)
+      expect(out_false).to include('Evaluation Summary')
+      expect(out_absent).to include('Evaluation Summary')
+    end
+
+    it 'does not forward the client-asserted SETT student name to the AI (subject derived from resolved user)' do
+      # Mismatch case: the request resolves to user A (full_name "Janie Doe")
+      # but the payload SETT names a different child. The client-asserted name
+      # must not reach the model through the structured identity field, while
+      # the rest of the SETT context still does.
+      payload['sett'] = { 'student' => 'Some Other Child', 'environment' => 'resource room' }
+      payload['slp_notes'] = 'Session went well.'
+      captured = {}
+      allow(described_class).to receive(:call_anthropic) do |model:, system_prompt:, user_content:|
+        captured[:user_content] = user_content
+        anthropic_response('ok')
+      end
+      allow(AiApiLog).to receive(:log_ai_call)
+
+      described_class.draft_narrative(payload, user: user)
+
+      expect(captured[:user_content]).to be_present
+      expect(captured[:user_content]).not_to include('Some Other Child')
+      expect(captured[:user_content]).to include('resource room')
+    end
+
+    it 'drops the student name under any key casing (Student/STUDENT)' do
+      payload['sett'] = { 'Student' => 'Capitalized Childname', 'task' => 'requesting' }
+      payload['slp_notes'] = 'Session went well.'
+      captured = {}
+      allow(described_class).to receive(:call_anthropic) do |model:, system_prompt:, user_content:|
+        captured[:user_content] = user_content
+        anthropic_response('ok')
+      end
+      allow(AiApiLog).to receive(:log_ai_call)
+
+      described_class.draft_narrative(payload, user: user)
+
+      expect(captured[:user_content]).not_to include('Capitalized Childname')
+      expect(captured[:user_content]).to include('requesting')
     end
 
     it 'redacts a known name token even when only one part appears (tokenized blocklist)' do
