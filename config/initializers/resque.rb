@@ -7,6 +7,49 @@ module RedisInit
     URI.parse(redis_url)
   end
 
+  # Builds the option hash for Redis.new from a parsed redis URI. Backward
+  # compatible: a redis:// URI yields exactly the historical {host, port,
+  # password} hash with no :ssl key, so the Render environment is unchanged.
+  # A rediss:// URI (GCP Memorystore with AUTH + TLS, SERVER_AUTHENTICATION
+  # mode) additionally enables :ssl and validates the server cert against the
+  # supplied CA. SERVER_AUTHENTICATION presents no client cert.
+  def self.redis_options(uri, extra = {})
+    opts = { :host => uri.host, :port => uri.port, :password => uri.password }
+    if uri.scheme == 'rediss'
+      opts[:ssl] = true
+      ssl_params = redis_ssl_params
+      opts[:ssl_params] = ssl_params unless ssl_params.empty?
+    end
+    opts.merge(extra)
+  end
+
+  # SSL params for a rediss:// (TLS) connection, passed straight to
+  # OpenSSL::SSL::SSLContext#set_params by redis-rb. Prefers a CA file path
+  # (REDIS_CA_FILE), falling back to inline PEM contents (REDIS_CA_CERT) which
+  # suits Cloud Run + Secret Manager where mounting a file is extra work.
+  # Either source may hold multiple concatenated certificates so a Memorystore
+  # CA rotation does not drop the connection. When neither is set the OpenSSL
+  # default trust store is used (verification still on); the Memorystore
+  # per-instance CA is NOT in that store, so one of these env vars must be set
+  # against a live instance.
+  def self.redis_ssl_params
+    require 'openssl'
+
+    ca_file = ENV['REDIS_CA_FILE']
+    return { :ca_file => ca_file } if ca_file && !ca_file.empty?
+
+    ca_cert = ENV['REDIS_CA_CERT']
+    if ca_cert && !ca_cert.empty?
+      store = OpenSSL::X509::Store.new
+      ca_cert.scan(/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/m).each do |pem|
+        store.add_cert(OpenSSL::X509::Certificate.new(pem))
+      end
+      return { :cert_store => store }
+    end
+
+    {}
+  end
+
   def self.init
     uri = redis_uri
     return if !uri && ENV['SKIP_VALIDATIONS']
@@ -20,10 +63,10 @@ module RedisInit
     end
     @ns_suffix = ns_suffix
     if defined?(Resque)
-      Resque.redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+      Resque.redis = Redis.new(redis_options(uri))
       Resque.redis.namespace = "lingolinq#{ns_suffix}"
     end
-    @redis_inst = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password, :timeout => 5)
+    @redis_inst = Redis.new(redis_options(uri, :timeout => 5))
     @default = Redis::Namespace.new("lingolinq-stash#{ns_suffix}", :redis => @redis_inst)
     @permissions = Redis::Namespace.new("lingolinq-permissions#{ns_suffix}", :redis => @redis_inst)
     self.cache_token = 'abc'
@@ -57,7 +100,7 @@ module RedisInit
 
   def self.errors
     uri = RedisInit.redis_uri
-    redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+    redis = Redis.new(redis_options(uri))
     key = "lingolinq#{@ns_suffix}:failed"
     redis.type(key)
     len = redis.llen(key)
@@ -107,7 +150,7 @@ module RedisInit
 
   def self.size_check(verbose=false)
     uri = redis_uri
-    redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+    redis = Redis.new(redis_options(uri))
     total =  0
     prefixes = {}
     redis.keys.each do |key|

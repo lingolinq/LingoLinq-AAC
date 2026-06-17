@@ -9,7 +9,7 @@ module Throttling
     uri = RedisInit.redis_uri
     unless ENV['SKIP_VALIDATIONS']
       raise "redis URI needed for throttling" unless uri
-      redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+      redis = Redis.new(RedisInit.redis_options(uri))
       redis = Redis::Namespace.new("throttling", :redis => redis)
       Rack::Attack.cache.store = Rack::Attack::StoreProxy::RedisProxy.new(redis)
     end
