@@ -26,7 +26,13 @@ module EvalNarrator
     payload = eval_session.is_a?(Hash) ? eval_session : eval_session.to_h
     raise NarrationError, 'eval_session must be a Hash' unless payload.is_a?(Hash)
 
-    if anthropic_configured? && payload['use_anthropic'] != false && ai_allowed_for?(user)
+    # External-model narration is OPT-IN: it runs only when the caller
+    # explicitly sets use_anthropic == true (the SLP clicking "Generate AI
+    # Narrative" in the controller). Any caller that omits the flag gets the
+    # deterministic local template and no eval data leaves for the AI
+    # provider. This default-safe posture is in addition to the ai_allowed_for?
+    # COPPA/org gate, not a replacement for it.
+    if anthropic_configured? && payload['use_anthropic'] == true && ai_allowed_for?(user)
       begin
         return draft_via_anthropic(payload, user)
       rescue => e
@@ -332,14 +338,26 @@ module EvalNarrator
   end
 
   # Selects only the fields the model needs, as a Hash. The caller scrubs
-  # this through PiiScrubber and JSON-encodes it before egress, so the raw
-  # student name in sett.student never leaves un-redacted.
+  # this through PiiScrubber and JSON-encodes it before egress.
+  #
+  # The eval subject's identity is DERIVED FROM THE RESOLVED USER, never from
+  # the client-asserted payload: the free-text sett.student name is dropped
+  # from the egress payload entirely (the AI drafts about "the student" and
+  # the SLP fills the name in when editing). This is the structural defense
+  # against the user_id/payload decoupling -- a request that gates on user A
+  # but carries student B's notes cannot leak B's name through the structured
+  # identity field, because no client-asserted name is forwarded at all. The
+  # resolved user's own name is independently blocklisted (configure_blocklist_for)
+  # so it is redacted wherever it appears in remaining free text. Arbitrary
+  # third-party names typed into slp_notes remain a surface-wide NER limitation.
   def self.payload_for_prompt(payload)
+    sett = payload['sett']
+    safe_sett = sett.is_a?(Hash) ? sett.reject { |k, _| k.to_s == 'student' } : sett
     {
       'mode' => payload['eval_mode'],
       'intake' => payload['intake'],
       'recommendation' => payload['recommendation'],
-      'sett' => payload['sett'],
+      'sett' => safe_sett,
       'slp_notes' => payload['slp_notes'],
       'duration_s' => payload['duration_s']
     }

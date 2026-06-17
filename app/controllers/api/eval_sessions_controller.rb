@@ -60,7 +60,14 @@ class Api::EvalSessionsController < ApplicationController
       return unless allowed?(user, 'supervise')
     end
     payload = eval_data.respond_to?(:to_unsafe_h) ? eval_data.to_unsafe_h : eval_data.to_h
-    narrative = EvalNarrator.draft_narrative(payload.with_indifferent_access, user: user)
+    payload = payload.with_indifferent_access
+    # Explicit opt-in for external-model narration. The SLP clicking "Generate
+    # AI Narrative" sends use_anthropic: true; a request that omits it (or any
+    # other caller) gets the deterministic local template and no eval data
+    # leaves for the AI provider. Coerce to a strict boolean so a truthy string
+    # cannot accidentally satisfy the narrator's `== true` gate.
+    payload['use_anthropic'] = (ActiveModel::Type::Boolean.new.cast(params['use_anthropic']) == true)
+    narrative = EvalNarrator.draft_narrative(payload, user: user)
     render json: { 'narrative' => narrative }
   rescue EvalNarrator::NarrationError => e
     api_error 502, { error: e.message }

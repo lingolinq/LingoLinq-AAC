@@ -5252,3 +5252,23 @@ Gemfile pins official `anthropic ~> 1.23`, whose API is `Anthropic::Client.new(a
 `response.usage.input_tokens/output_tokens`. The old call raised and soft-fell-back to the template,
 so the AI path was dead. Match the sibling AI libs' usage; isolate the SDK call behind a
 `call_anthropic` method so specs can stub the network boundary.
+
+## Gotcha: eval `narrate` gates on `user_id` but ships the unbound `eval_session` payload (identity/payload decoupling)
+
+Adversary verification of the #411 COPPA fix found the gate and PII blocklist were bypassable:
+`Api::EvalSessionsController#narrate` resolves the student from `params['user_id']` and runs the
+COPPA consent, org AI opt-out, and supervise checks against THAT user, but the data actually sent
+to Anthropic is the independent free-text `params['eval_session']` payload. Nothing bound the two,
+so a clinician supervising a consented student A could pass `user_id=A` (gate passes) while the
+payload carried a different, non-consented child B's eval data. Lesson: when a compliance gate keys
+on a caller-asserted identity, the egressed data must be DERIVED from that identity, not accepted
+independently from the same request. Hardening applied (`scot/security/eval-narrator-payload-binding`):
+(1) external narration is now OPT-IN (`payload['use_anthropic'] == true`; the controller coerces the
+client flag to a strict boolean and the frontend sends it only on the SLP's explicit "Generate"
+click) so nothing egresses by default; (2) `payload_for_prompt` drops the client-asserted
+`sett.student` name entirely (subject identity comes only from the resolved user record, whose name
+is blocklisted), so a mismatched request cannot leak the payload subject's name via the structured
+field. RESIDUAL (still open, needs a larger follow-up): the consent decision is still keyed to the
+caller-asserted `user_id`; fully binding eval-data provenance to the gated user requires persisting
+the eval server-side against that user rather than trusting a client payload. Arbitrary third-party
+names typed into `slp_notes` free text remain a surface-wide NER limitation, not eval-specific.
