@@ -3,8 +3,8 @@
     "schemaVersion": "1.1",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
-    "auditedSha": "d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403",
-    "auditedRef": "origin/staging",
+    "auditedSha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649",
+    "auditedRef": "scot/test/audit-run-e2e",
     "auditedDate": "2026-06-16",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff",
@@ -1645,6 +1645,302 @@
         "attestation": ""
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.3 (EN 301 549 9.4.1). The bento dashboard 'Loading...' text is a plain <div> with no aria-live/role=status, so AT users are not told the view is loading. Same pattern at board-stats.hbs:66 and bulk_purchase.hbs:5. The app does use aria-live elsewhere, so these are isolated omissions rather than a systemic gap. | adversary: confirmed (2026-06-16): the bento.hbs Loading <div> and its #index_view ancestor carry no aria-live/role=status, and there is no separate hidden live region; layout ancestors application.hbs/index.hbs have none either. board-stats.hbs:66 (<dl>) and bulk_purchase.hbs:5 (<h2>) likewise lack live-region semantics."
+    },
+    {
+      "id": "LL-2e4c14d370",
+      "ruleKey": "eval-narrator-no-coppa-consent-gate",
+      "title": "Eval AI narration has no COPPA parental-consent hard-gate before sending under-13 student data to Anthropic",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/eval_narrator.rb",
+        "line": 43,
+        "snippet": "  def self.draft_via_anthropic(payload)",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Both sibling external-model call sites enforce the COPPA Final Rule hard-gate FeatureFlags.coppa_blocks_ai_for?(user) before any Anthropic call (lib/ai_board_generator.rb:38 and :240; lib/ai_word_predictor.rb:35), blocking under-13 users awaiting parental consent. The eval narration path (lib/eval_narrator.rb draft_via_anthropic, reached via app/controllers/api/eval_sessions_controller.rb#narrate, gated only by require_api_token + the comprehensive_eval_ai feature flag) has NO equivalent gate. Options: resolve the evaluated student to a User and call coppa_blocks_ai_for? before draft_via_anthropic; or require an explicit consent token/flag on the eval_session payload and refuse the AI draft without it; or hard-disable draft_via_anthropic until a consent gate is wired (falling back to the deterministic template draft).",
+        "timeframe": "high 15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-06-16. Distinct from LL-e573a39d2b (missing PiiScrubber on this same path) and LL-ef5ac1b2a5 (missing AiApiLog): this finding is the absent COPPA parental-consent gate, a control both sibling AI sites enforce and the eval path omits. coppa_blocks_ai_for? defined at lib/feature_flags.rb:153 -> user.coppa_parental_consent_pending?. Surfaced by privacy finder on 2026-06-16. | adversary: confirmed (2026-06-16). Sibling gates verified (ai_word_predictor.rb:35, ai_board_generator.rb:38/240); narrate path loads no user and runs no COPPA check (eval_sessions_controller.rb:43-69, uses weaker feature_enabled_for? not ai_feature_enabled_for?). Latent until ANTHROPIC_API_KEY is set (deterministic fallback eval_narrator.rb:36)."
+    },
+    {
+      "id": "LL-ab88513735",
+      "ruleKey": "user-is-admin-missing-from-rails-payload",
+      "title": "User model declares is_admin attribute but Rails JSON builder never emits it",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/user.js",
+        "line": 40,
+        "snippet": "  is_admin: DS.attr('boolean'),",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Rails side (preferred): add json['is_admin'] = user.admin? in JsonApi::User.build_json alongside the existing json['admin'] = true if user.admin? (lib/json_api/user.rb:33), or remove is_admin from the Ember model since admin covers the same data. The four Ember consumers all guard with u.get('admin') || u.get('is_admin') so the fallback works, but is_admin will always be undefined on API-loaded records and misleads future readers.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-16. Rails counterpart to fix: lib/json_api/user.rb line 33. The admin field (user.js:41-42) IS emitted and covers the runtime behavior via OR fallback; is_admin is a stale duplicate declaration that the builder never populates. | adversary: confirmed. lib/json_api/user.rb emits only admin (line 33), never is_admin (full builder read). Fail-safe direction (would read undefined->false) but a latent orphan attr."
+    },
+    {
+      "id": "LL-6447a21503",
+      "ruleKey": "org-total-extras-orphaned-ember-attr",
+      "title": "Organization model declares total_extras attribute but Rails builder never emits it",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/organization.js",
+        "line": 42,
+        "snippet": "  total_extras: DS.attr('number'),",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Remove total_extras: DS.attr('number') from the Ember Organization model (organization.js:42) -- it is never populated from the API (lib/json_api/organization.rb emits allotted_extras at line 62, not total_extras) and is never read by any template, controller, or computed. Alternatively, if the intent was to expose org.settings['total_extras'] directly, add json['total_extras'] = org.settings['total_extras'] || 0 to the Rails builder.",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-16. Rails builder at lib/json_api/organization.rb:62 emits allotted_extras (from settings['total_extras']). The Ember model already has allotted_extras: DS.attr('number') at line 33 which IS populated. The separate total_extras attr at line 42 is a dead declaration. | adversary: confirmed. Builder emits allotted_extras (organization.rb:62) sourced from settings[total_extras]; never emits total_extras. Naming inversion is the likely cause of the drift."
+    },
+    {
+      "id": "LL-5a173ce87f",
+      "ruleKey": "utterance-created-at-vs-timestamp-casing-drift",
+      "title": "Utterance Rails builder emits created_at but Ember model declares timestamp instead",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/utterance.js",
+        "line": 15,
+        "snippet": "  timestamp: DS.attr('number'),",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Align both sides: either (a) rename the Ember attr to created_at: DS.attr('date') to match what lib/json_api/utterance.rb:11 emits (json['created_at'] = utterance.created_at.iso8601), or (b) have the Rails builder also emit json['timestamp'] = utterance.created_at.to_i. Neither field is consumed in any Ember template or controller at this SHA, so impact is dormant but will silently fail if a future feature reads utterance.get('timestamp') or utterance.get('created_at').",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-16. Rails builder file: lib/json_api/utterance.rb line 11 emits json['created_at'] as an ISO 8601 string. Ember model also declares user_id: DS.attr('string') at line 12 which has no Rails counterpart; that field is similarly orphaned. | adversary: confirmed, but title is inaccurate. This is a double-sided NAME+TYPE drift (Ember timestamp number vs Rails created_at iso8601 string), not casing. Recommend Scot rename the finding before any fix work."
+    },
+    {
+      "id": "LL-a46e5c6b69",
+      "ruleKey": "cve-braces-2024-4068",
+      "title": "braces 2.3.2 in npm tree is vulnerable to CVE-2024-4068 (ReDoS)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package-lock.json",
+        "line": 8315,
+        "snippet": "    \"node_modules/braces\": {",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "braces >= 3.0.3 fixes CVE-2024-4068. braces 2.3.2 is a transitive dep of legacy ember-cli toolchain (micromatch 3.x -> braces 2.x). The override block in package.json can be extended to force braces >= 3.0.3 independently. Risk is build-time dev toolchain only (no production server process runs braces); ReDoS requires attacker-controlled glob patterns reaching the build.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-16. CVE-2024-4068 (GHSA-brh3-cv2h-8fj9); ReDoS via malicious glob input; affects braces < 3.0.3. Dev toolchain dep only - not shipped to browsers. Ember 3.28 pin does NOT block a braces override. | adversary: confirmed. Root node_modules/braces resolves 2.3.2 (package-lock.json:8316); fixed >=3.0.3. Seven other nested copies already 3.0.3. dev-only dep, no package.json override masks it."
+    },
+    {
+      "id": "LL-65700d9bd8",
+      "ruleKey": "abandoned-moment-js",
+      "title": "moment 2.29.4 is in maintenance-only mode (effectively abandoned) and locked below the latest 2.30 maintenance patch",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 71,
+        "snippet": "    \"moment\": \"^2.29.4\",",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "moment.js has been in maintenance-only mode since September 2020 with no new features; the team recommends migration to date-fns, Luxon, or Day.js. No security patches are planned; the known ReDoS in moment locale parsing has no fix in 2.x. If locale/format parsing is not in a hot path, accept-risk + add a migration note; otherwise begin migration to date-fns or Luxon (compatible with Ember 3.28).",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-16. moment 2.29.4 is the last published version; the project is in passive maintenance per the official moment.js statement (https://momentjs.com/docs/#/-project-status/). Known ReDoS in moment locale parsing has no fix. Dev dep only (not used in Rails backend). | adversary: confirmed. moment 2.29.4, maintenance-only per official project status. dev-only dep (not in Rails backend)."
+    },
+    {
+      "id": "LL-553fdc242b",
+      "ruleKey": "abandoned-davidshimjs-qrcodejs",
+      "title": "davidshimjs-qrcodejs 0.0.2 is abandoned (no release since 2014, >10 years)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 36,
+        "snippet": "    \"davidshimjs-qrcodejs\": \"^0.0.2\",",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Replace davidshimjs/qrcodejs (last commit 2014) with an actively maintained QR code library such as qrcode (npm: qrcode, actively maintained, MIT, Node 20 compatible). Audit which components call it before swapping (grep for qrcode or QRCode in the frontend app/).",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-16. davidshimjs-qrcodejs 0.0.2 was last published circa 2014 and has had no releases in over 10 years. No security patches are possible. Risk is supply-chain/integrity rather than a current CVE. | adversary: confirmed abandoned (single 0.0.2 release, stale upstream). Drop the unverifiable exact \"since 2014\" date. dev-only in lockfile; sanity-check actual runtime QR usage."
+    },
+    {
+      "id": "LL-257c696fe0",
+      "ruleKey": "eol-eslint-5x",
+      "title": "eslint 5.16.0 is EOL (v5 end-of-life 2019); dev toolchain running unsupported linter",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package-lock.json",
+        "line": 18085,
+        "snippet": "    \"node_modules/eslint\": {",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "eslint v5 has been EOL since 2019; latest stable is v9.x. Upgrading eslint within Ember 3.28 is constrained by ember-cli-eslint ^5.1.0 which requires eslint 5.x. eslint upgrade is effectively blocked on Ember 3.28 -> Ember 5 migration. Mitigation: run npm audit in CI and treat any eslint advisory as high-priority.",
+        "timeframe": "blocked-on-ember-migration"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-16. eslint 5.x EOL per https://github.com/eslint/eslint/releases; ember-cli-eslint ^5 pins eslint 5. No current CVE in eslint 5.16.0 itself, but EOL means no patches for future vulnerabilities. Dev dep; no production runtime exposure. | adversary: confirmed. eslint 5.16.0 (package-lock.json:18086), long EOL. dev-tooling only, no runtime exposure."
+    },
+    {
+      "id": "LL-a25d930f21",
+      "ruleKey": "abandoned-ember-cli-mirage-2x",
+      "title": "ember-cli-mirage 2.4.0 is abandoned for Ember 3.x (no active maintenance, last meaningful release 2021)",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package-lock.json",
+        "line": 12501,
+        "snippet": "    \"node_modules/ember-cli-mirage\": {",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "ember-cli-mirage 2.x targets Ember 3.x but has seen no active security or maintenance releases since ~2021. It is used in test environments only (no production bundle inclusion). Consider migrating to MSW (Mock Service Worker) or Pretender directly when the Ember 5 migration lands.",
+        "timeframe": "blocked-on-ember-migration"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-16. ember-cli-mirage 2.4.0 is a dev/test-only dep. No current CVE. Abandonment risk is test-toolchain reliability, not production security. | adversary: confirmed stale (2.4.0; current 3.0.4, two majors behind). Recommend rewording \"abandoned\" -> \"two majors behind/superseded\" (project continued via miragejs). dev/test-only."
+    },
+    {
+      "id": "LL-0c6e931f47",
+      "ruleKey": "sentence-box-chip-img-missing-alt",
+      "title": "Sentence box (utterance bar) symbol chip images have no alt attribute",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/components/button-list.hbs",
+        "line": 21,
+        "snippet": "<img src={{button.image}} onerror=\"button_broken_image(this);\"  draggable=\"false\">",
+        "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
+      },
+      "firstSeen": "2026-06-16",
+      "lastSeen": "2026-06-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Give each utterance-chip symbol <img> an explicit alt. Since the chip's visible {{button.label}} text is always rendered in the adjacent .text div, the image is decorative for naming purposes and should carry alt=\"\" so AT does not announce the image src/filename; if the label can be hidden, set alt to the button label instead. Apply the same to the fallback paper.svg <img> on the same component (button-list.hbs:23).",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-16. Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 Non-text Content. This is the sentence box / utterance bar, a core AAC surface: components/button-list.js renders the constructed-sentence chips via templates/components/button-list.hbs, mounted in the speak-bar at application.hbs (#button_list). Both the primary chip <img> (button-list.hbs:21) and the fallback mulberry/paper.svg <img> (button-list.hbs:23) lack any alt attribute. The adjacent {{button.label}} text div provides the accessible name, so this is decorative-image-missing-empty-alt (medium), not a nameless control. Distinct file/surface from the board-grid tile findings (LL-20c48e298c, LL-2967f77e6d) under a separate ruleKey. | adversary: confirmed. Live utterance bar mounted at application.hbs:131; imgs at button-list.hbs:21,23 lack alt/aria-hidden. Caveats: pattern is systemic (also button.hbs:17, board/index.hbs:123, board.js:1715 fast_html dual-render); and prefer alt={{button.label}} with alt=\"\" only when label is guaranteed non-empty (image-only buttons would otherwise lose their name)."
     }
   ]
 }
