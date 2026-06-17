@@ -47,6 +47,20 @@ module EvalNarrator
   # eval data externally -- the deterministic template draft is returned
   # instead. This is the invariant the comment at
   # feature_flags.rb:150-152 ("used by every AI call site") describes.
+  #
+  # SLP/student split (intentional, diverges from the sibling sites): the
+  # comprehensive_eval_ai *feature flag* is SLP-facing tooling enabled per
+  # supervisor/org, so it is checked against the requesting clinician
+  # (@api_user) in the controller. The data subject whose eval data would
+  # leave is the STUDENT, so the COPPA consent gate and the org-level AI
+  # opt-out (disable_ai_features, via ai_enabled_for?) are checked against
+  # the student here. We deliberately do NOT require the comprehensive_eval_ai
+  # flag to be enabled on the student's own account: it is beta-opt-in and a
+  # student account is almost never the SLP-tooling audience, so requiring it
+  # would block legitimate narration. The student org's disable_ai_features
+  # is the FERPA backstop for a school that wants no AI processing at all.
+  # (In AiBoardGenerator/AiWordPredictor the `user` IS the feature audience,
+  # so they gate the flag on that same user.)
   def self.ai_allowed_for?(user)
     return false unless user
     return false if FeatureFlags.coppa_blocks_ai_for?(user)
@@ -80,13 +94,13 @@ module EvalNarrator
     user_content = JSON.pretty_generate(scrubbed_payload)
 
     model = ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7'
-    system_prompt = [
-      {
-        type: 'text',
-        text: ANTHROPIC_SYSTEM_PROMPT,
-        cache_control: { type: 'ephemeral' }
-      }
-    ]
+    # Plain-string system prompt, matching AiBoardGenerator / AiWordPredictor
+    # against the official anthropic (~> 1.23) gem. The prior array +
+    # cache_control "ephemeral" shape was never verified against this gem; a
+    # malformed request would silently soft-fall-back to the template and
+    # mask the failure. Eval narration is low-volume, so the prompt-cache
+    # saving is marginal -- correctness on this compliance path wins.
+    system_prompt = ANTHROPIC_SYSTEM_PROMPT
 
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     narrative = nil
@@ -121,6 +135,9 @@ module EvalNarrator
         success: success,
         error_message: error_message
       )
+      # Clear the thread-local blocklist so a later PiiScrubber caller on
+      # this Puma worker thread does not inherit this student's name list.
+      PiiScrubber.reset_blocklist!
     end
 
     raise NarrationError, 'Anthropic returned an empty narrative' if narrative.blank?
@@ -153,7 +170,22 @@ module EvalNarrator
     end
     sett = payload['sett']
     names << sett['student'].to_s.strip if sett.is_a?(Hash) && sett['student'].to_s.strip.present?
-    PiiScrubber.configure_blocklist(names)
+
+    # Expand multi-token names into individual tokens so a known name is
+    # redacted even when only one part appears (e.g. SETT student "Janie"
+    # while the surname "Doe" is typed in slp_notes). This intentionally
+    # over-redacts on the external-egress path and is stricter than the
+    # sibling AI sites: an over-zealous redaction in an editable SLP draft
+    # is recoverable, a leaked student/family name is not. Tokens under 2
+    # chars are dropped so initials do not match everywhere. NOTE: this
+    # cannot catch a third-party name (family, school, peer) typed free-hand
+    # in slp_notes that matches none of these sources -- that needs NER and
+    # remains a surface-wide limitation, not specific to this path.
+    expanded = names.flat_map { |n| [n] + n.to_s.split(/\s+/) }
+                    .map { |n| n.to_s.strip }
+                    .reject { |n| n.length < 2 }
+                    .uniq
+    PiiScrubber.configure_blocklist(expanded)
   end
 
   # Records the AI call in AiApiLog for compliance auditing. Never raises

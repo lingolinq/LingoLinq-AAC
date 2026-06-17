@@ -119,6 +119,24 @@ describe EvalNarrator do
       expect(captured[:user_content]).to include('[REDACTED_EMAIL]')
     end
 
+    it 'redacts a known name token even when only one part appears (tokenized blocklist)' do
+      # SETT student is a first name only; the surname appears alone in
+      # slp_notes. The user full_name "Janie Doe" tokenizes to include "Doe".
+      payload['sett']['student'] = 'Janie'
+      payload['slp_notes'] = 'Met with the Doe family about IEP goals.'
+      captured = {}
+      allow(described_class).to receive(:call_anthropic) do |model:, system_prompt:, user_content:|
+        captured[:user_content] = user_content
+        anthropic_response('ok')
+      end
+      allow(AiApiLog).to receive(:log_ai_call)
+
+      described_class.draft_narrative(payload, user: user)
+
+      expect(captured[:user_content]).not_to match(/\bDoe\b/)
+      expect(captured[:user_content]).not_to match(/\bJanie\b/)
+    end
+
     it 'records the AI call in AiApiLog with an audit trail' do
       allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('Drafted narrative.'))
 
