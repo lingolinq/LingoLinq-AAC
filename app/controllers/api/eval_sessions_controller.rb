@@ -47,8 +47,20 @@ class Api::EvalSessionsController < ApplicationController
       api_error(400, { error: 'eval_session payload required' })
       return
     end
+    # Resolve the evaluated student so the narrator can apply the same
+    # COPPA parental-consent hard-gate and org-level AI opt-out as every
+    # other external-model call site. The requester must supervise the
+    # student before any eval data becomes eligible to leave for an AI
+    # provider. When no student can be resolved, the narrator refuses the
+    # AI draft and returns the deterministic local template (no external
+    # call) instead of sending data ungated.
+    user = params['user_id'].present? ? User.find_by_path(params['user_id']) : nil
+    if params['user_id'].present?
+      return unless exists?(user, params['user_id'])
+      return unless allowed?(user, 'supervise')
+    end
     payload = eval_data.respond_to?(:to_unsafe_h) ? eval_data.to_unsafe_h : eval_data.to_h
-    narrative = EvalNarrator.draft_narrative(payload.with_indifferent_access)
+    narrative = EvalNarrator.draft_narrative(payload.with_indifferent_access, user: user)
     render json: { 'narrative' => narrative }
   rescue EvalNarrator::NarrationError => e
     api_error 502, { error: e.message }
@@ -63,7 +75,11 @@ class Api::EvalSessionsController < ApplicationController
   end
 
   def ai_feature_enabled?
-    return true if FeatureFlags.feature_enabled_for?('comprehensive_eval_ai', @api_user)
+    # ai_feature_enabled_for? combines the feature flag with the org-level
+    # AI opt-out (disable_ai_features), so an org that has opted out of AI
+    # processing cannot reach the narrator at all. Requires
+    # 'comprehensive_eval_ai' to be registered in FeatureFlags::AI_FEATURES.
+    return true if FeatureFlags.ai_feature_enabled_for?('comprehensive_eval_ai', @api_user)
     api_error 400, { error: 'comprehensive_eval_ai feature not enabled' }
     false
   end

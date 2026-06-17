@@ -5219,3 +5219,36 @@ hits this because it uses `db:create db:schema:load` (fresh DB, no `encryption_h
 decrypt). Local fix (test DB only, regenerates on boot):
 `psql -U scotw -d lingolinq-test -c "delete from settings where key='encryption_hash'"`. Do not
 "fix" it by editing the dotenv load order in spec_helper.
+
+## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)
+
+The canonical AI egress shape is fixed across call sites (`lib/ai_word_predictor.rb`,
+`lib/ai_board_generator.rb`): (1) `FeatureFlags.ai_feature_enabled_for?(feature, user)` for the
+feature flag + org `disable_ai_features` opt-out, (2) `FeatureFlags.coppa_blocks_ai_for?(user)`
+short-circuit (default-ON via `COPPA_AI_HARD_GATE`) BEFORE any provider call, (3)
+`PiiScrubber.redact_for_ai` on the payload with the user's names + any free-text person name added
+via `PiiScrubber.configure_blocklist`, and (4) an `AiApiLog.log_ai_call(provider: 'claude', ...)`
+row in an `ensure` so success AND failure are audited. `lib/eval_narrator.rb` was the lone exception
+(finding LL-2e4c14d370 et al.); when adding a NEW AI call site, copy this shape exactly rather than
+inventing a new flag. Gate on whoever's data leaves (the evaluated student), not necessarily the
+requesting user. When no data subject can be resolved, refuse the external call and fall back to a
+local/deterministic path rather than sending ungated.
+
+## Gotcha: `ai_feature_enabled_for?` silently returns false unless the flag is in `FeatureFlags::AI_FEATURES`
+
+`FeatureFlags.ai_feature_enabled_for?(feature, user)` first does `return false unless
+AI_FEATURES.include?(feature)` (`feature_flags.rb:139`). A flag can be live in
+`AVAILABLE_FRONTEND_FEATURES`/`ENABLED_FRONTEND_FEATURES` yet still be denied by the AI gate because
+it was never added to the `AI_FEATURES` allowlist (`:77`). Adding a feature to the AI gate means
+registering it in `AI_FEATURES`. `system_feature_registry.rb:80` also derives its `ai_feature:`
+flag from this list, so registering there correctly tags it in the admin registry.
+
+## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
+
+`lib/eval_narrator.rb#draft_via_anthropic` originally used `Anthropic::Client.new(access_token:)` +
+`client.messages(parameters: {...})` + a Hash response (the alexrudall `ruby-anthropic` gem). The
+Gemfile pins official `anthropic ~> 1.23`, whose API is `Anthropic::Client.new(api_key:)` +
+`client.messages.create(...)`, with `response.content` an array of blocks (`#type`/`#text`) and
+`response.usage.input_tokens/output_tokens`. The old call raised and soft-fell-back to the template,
+so the AI path was dead. Match the sibling AI libs' usage; isolate the SDK call behind a
+`call_anthropic` method so specs can stub the network boundary.

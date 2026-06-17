@@ -75,7 +75,7 @@ module FeatureFlags
     'multi_user_board_import' => 'May 15, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
-                   ai_symbol_search ai_compliance_logging].freeze
+                   ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze
   def self.frontend_flags_for(user)
     flags = {}
     enabled_list = SystemFeatureSettings.effective_enabled_for(user)
