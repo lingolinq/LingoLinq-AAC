@@ -53,4 +53,80 @@ describe Api::EvalSessionsController, type: :controller do
       expect(JSON.parse(response.body)['error']).to eq('feature not enabled')
     end
   end
+
+  describe 'narrate' do
+    let(:eval_payload) { {eval_mode: 'comprehensive', intake: {}, recommendation: {}, sett: {}, slp_notes: ''} }
+
+    before do
+      # Endpoint gate now uses ai_feature_enabled_for? so the org-level AI
+      # opt-out is honored. Stub it on for the happy-path tests.
+      allow(FeatureFlags).to receive(:ai_feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('comprehensive_eval_ai', anything).and_return(true)
+    end
+
+    it 'requires an access token' do
+      post :narrate, params: {eval_session: eval_payload}
+      assert_missing_token
+    end
+
+    it 'aborts with 400 when the AI feature is disabled (flag off or org opted out)' do
+      allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('comprehensive_eval_ai', anything).and_return(false)
+      token_user
+      post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
+      expect(response.code.to_i).to eq(400)
+      expect(JSON.parse(response.body)['error']).to eq('comprehensive_eval_ai feature not enabled')
+    end
+
+    it 'requires the target user to exist when a user_id is given' do
+      token_user
+      post :narrate, params: {eval_session: eval_payload, user_id: 'no-such-user'}
+      assert_not_found('no-such-user')
+    end
+
+    it 'requires supervise permission on the target user' do
+      token_user
+      other = User.create
+      post :narrate, params: {eval_session: eval_payload, user_id: other.global_id}
+      assert_unauthorized
+    end
+
+    it 'aborts with 400 when the eval_session payload is missing' do
+      token_user
+      post :narrate, params: {user_id: @user.global_id}
+      expect(response.code.to_i).to eq(400)
+      expect(JSON.parse(response.body)['error']).to eq('eval_session payload required')
+    end
+
+    it 'resolves the evaluated student and hands it to the narrator for gating' do
+      token_user
+      captured_user = :unset
+      allow(EvalNarrator).to receive(:draft_narrative) do |_payload, user:|
+        captured_user = user
+        'drafted'
+      end
+      post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
+      expect(captured_user).to be_a(User)
+      expect(captured_user.global_id).to eq(@user.global_id)
+    end
+
+    it 'returns the drafted narrative for the supervising user' do
+      token_user
+      allow(EvalNarrator).to receive(:draft_narrative).and_return('A drafted narrative.')
+      post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
+      json = assert_success_json
+      expect(json['narrative']).to eq('A drafted narrative.')
+    end
+
+    it 'still drafts (template fallback) when no user_id is supplied' do
+      token_user
+      captured_user = :unset
+      allow(EvalNarrator).to receive(:draft_narrative) do |_payload, user:|
+        captured_user = user
+        'template draft'
+      end
+      post :narrate, params: {eval_session: eval_payload}
+      expect(assert_success_json['narrative']).to eq('template draft')
+      expect(captured_user).to be_nil
+    end
+  end
 end

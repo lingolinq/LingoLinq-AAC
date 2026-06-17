@@ -302,10 +302,15 @@ export default Component.extend({
       }
       this.set('aiBusy', true);
       this.set('aiError', null);
+      // Send the evaluated student's id so the server can apply the same
+      // COPPA consent + org AI opt-out gate as every other AI call site
+      // before any eval data leaves for the AI provider.
+      const user = this.get('user');
+      const userId = user && user.get ? user.get('id') : null;
       persistence.ajax('/api/v1/eval_sessions/narrate', {
         type: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ eval_session: payload.data })
+        data: JSON.stringify({ eval_session: payload.data, user_id: userId })
       }).then(function(res) {
         _this.set('aiBusy', false);
         const narrative = res && res.narrative;
