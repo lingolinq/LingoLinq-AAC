@@ -175,7 +175,8 @@ module EvalNarrator
       end
     end
     sett = payload['sett']
-    names << sett['student'].to_s.strip if sett.is_a?(Hash) && sett['student'].to_s.strip.present?
+    student = sett_student(sett)
+    names << student if student.present?
 
     # Expand multi-token names into individual tokens so a known name is
     # redacted even when only one part appears (e.g. SETT student "Janie"
@@ -192,6 +193,15 @@ module EvalNarrator
                     .reject { |n| n.length < 2 }
                     .uniq
     PiiScrubber.configure_blocklist(expanded)
+  end
+
+  # Returns the SETT student name regardless of key casing ('student',
+  # 'Student', ...) so a case-variant key cannot slip the name past the
+  # blocklist (it is also dropped from egress in payload_for_prompt).
+  def self.sett_student(sett)
+    return '' unless sett.is_a?(Hash)
+    pair = sett.find { |k, _| k.to_s.downcase == 'student' }
+    pair ? pair.last.to_s.strip : ''
   end
 
   # Records the AI call in AiApiLog for compliance auditing. Never raises
@@ -352,7 +362,9 @@ module EvalNarrator
   # third-party names typed into slp_notes remain a surface-wide NER limitation.
   def self.payload_for_prompt(payload)
     sett = payload['sett']
-    safe_sett = sett.is_a?(Hash) ? sett.reject { |k, _| k.to_s == 'student' } : sett
+    # Drop the student name under ANY key casing ('student', 'Student', ...)
+    # and never forward a non-Hash sett shape verbatim.
+    safe_sett = sett.is_a?(Hash) ? sett.reject { |k, _| k.to_s.downcase == 'student' } : {}
     {
       'mode' => payload['eval_mode'],
       'intake' => payload['intake'],

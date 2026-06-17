@@ -64,9 +64,14 @@ class Api::EvalSessionsController < ApplicationController
     # Explicit opt-in for external-model narration. The SLP clicking "Generate
     # AI Narrative" sends use_anthropic: true; a request that omits it (or any
     # other caller) gets the deterministic local template and no eval data
-    # leaves for the AI provider. Coerce to a strict boolean so a truthy string
-    # cannot accidentally satisfy the narrator's `== true` gate.
-    payload['use_anthropic'] = (ActiveModel::Type::Boolean.new.cast(params['use_anthropic']) == true)
+    # leaves for the AI provider. Accept ONLY a literal boolean true (JSON) or
+    # the string "true" (form/test posts); every other value -- including
+    # ambiguous strings like "no"/"off"/"False" -- resolves to false so the
+    # default stays no-egress. (Deliberately NOT ActiveModel::Type::Boolean,
+    # whose cast treats any non-false-token string as true and would enable
+    # egress for "no"/"False"/"Off".)
+    raw_opt_in = params['use_anthropic']
+    payload['use_anthropic'] = (raw_opt_in == true || raw_opt_in == 'true')
     narrative = EvalNarrator.draft_narrative(payload, user: user)
     render json: { 'narrative' => narrative }
   rescue EvalNarrator::NarrationError => e

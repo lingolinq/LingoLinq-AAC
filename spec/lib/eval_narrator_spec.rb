@@ -156,6 +156,22 @@ describe EvalNarrator do
       expect(captured[:user_content]).to include('resource room')
     end
 
+    it 'drops the student name under any key casing (Student/STUDENT)' do
+      payload['sett'] = { 'Student' => 'Capitalized Childname', 'task' => 'requesting' }
+      payload['slp_notes'] = 'Session went well.'
+      captured = {}
+      allow(described_class).to receive(:call_anthropic) do |model:, system_prompt:, user_content:|
+        captured[:user_content] = user_content
+        anthropic_response('ok')
+      end
+      allow(AiApiLog).to receive(:log_ai_call)
+
+      described_class.draft_narrative(payload, user: user)
+
+      expect(captured[:user_content]).not_to include('Capitalized Childname')
+      expect(captured[:user_content]).to include('requesting')
+    end
+
     it 'redacts a known name token even when only one part appears (tokenized blocklist)' do
       # SETT student is a first name only; the surname appears alone in
       # slp_notes. The user full_name "Janie Doe" tokenizes to include "Doe".

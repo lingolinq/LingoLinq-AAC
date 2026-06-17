@@ -139,6 +139,20 @@ describe Api::EvalSessionsController, type: :controller do
       expect(captured_payload['use_anthropic']).to eq(false)
     end
 
+    it 'does not treat ambiguous opt-in values as true (no/off/False stay no-egress)' do
+      token_user
+      captured = {}
+      allow(EvalNarrator).to receive(:draft_narrative) do |payload, user:|
+        captured[payload['use_anthropic']] = true
+        'drafted'
+      end
+      ['no', 'off', 'False', '2', 'maybe'].each do |val|
+        post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id, use_anthropic: val}
+      end
+      # Every ambiguous string resolves to a single false key; true is never set.
+      expect(captured.keys).to eq([false])
+    end
+
     it 'still drafts (template fallback) when no user_id is supplied' do
       token_user
       captured_user = :unset
