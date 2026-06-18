@@ -10,12 +10,11 @@
 /bower_components/
 /node_modules/
 
-# local eslint plugin (Node context, not app)
-/eslint-plugin-lingolinq/
-
 # misc
 /coverage/
 !.*
+.eslintcache
+.lint-todo/
 
 # ember-try
 /.node_modules.ember-try/

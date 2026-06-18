@@ -5,5 +5,17 @@
 
     Setting `disableAnalytics` to true will prevent any data from being sent.
   */
-  "disableAnalytics": false
+  "disableAnalytics": false,
+
+  /**
+    Proxy API, globals.js, images, and weblinger to Rails (same as bin/ember-server / foreman).
+    Without this, `ember serve` alone 404s on /assets/globals.js and /api/v1/*.
+  */
+  "proxy": "http://127.0.0.1:5000",
+
+  /**
+    Setting `isTypeScriptProject` to true will force the blueprint generators to generate TypeScript
+    rather than JavaScript by default, when a TypeScript version of a given blueprint is available.
+  */
+  "isTypeScriptProject": false
 }

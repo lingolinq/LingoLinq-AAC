@@ -1519,15 +1519,12 @@
 {{/if}}
 
 {{modal-container}}
-{{outlet "highlight"}}
-{{outlet "highlight-secondary"}}
+<HighlightOutlet />
+<HighlightOutlet @secondary={{true}} />
 {{#if this.modalService.boardPreview}}
   {{board-preview-overlay}}
-{{else}}
-  {{outlet "board-preview"}}
 {{/if}}
 <FlashOutlet />
-{{outlet "flash-message"}}
 {{! Page footer: show on index/dashboard/setup and when not viewing a board (setup_footer no longer used; setup uses same page footer as other pages) }}
 {{#if this.footer}}
   {{page-footer support=(action "support") language=(action "language")}}
