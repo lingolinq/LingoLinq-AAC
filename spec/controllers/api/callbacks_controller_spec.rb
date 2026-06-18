@@ -74,7 +74,23 @@ describe Api::CallbacksController, :type => :controller do
       expect(json).to eq({'error' => 'unrecognized callback', 'status' => 400})
     end
     
+    it "should reject an inauthentic transcoding event" do
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(false)
+      expect(Transcoder).to_not receive(:handle_event)
+      request.headers['x-amz-sns-message-type'] = 'Notification'
+      request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
+      post 'callback', body: {a: '1'}.to_json
+      expect(response).to_not be_successful
+      json = JSON.parse(response.body)
+      expect(json).to eq({'error' => 'inauthentic message', 'status' => 401})
+    end
+
     it "should error on unhandled transcoding event" do
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(true)
       request.headers['x-amz-sns-message-type'] = 'Notification'
       request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
       expect(Transcoder).to receive(:handle_event){|params|
@@ -85,8 +101,11 @@ describe Api::CallbacksController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json).to eq({'error' => 'event not handled', 'status' => 400})
     end
-    
+
     it "should succeed on handled transcoding event" do
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(true)
       request.headers['x-amz-sns-message-type'] = 'Notification'
       request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
       expect(Transcoder).to receive(:handle_event){|params|
@@ -140,6 +159,9 @@ describe Api::CallbacksController, :type => :controller do
 
       Worker.process_queues
 
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(true)
       request.headers['x-amz-sns-message-type'] = 'Notification'
       request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
       post 'callback', body: {'Message' => {
