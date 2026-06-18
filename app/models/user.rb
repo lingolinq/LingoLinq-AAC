@@ -1643,6 +1643,10 @@ class User < ApplicationRecord
     if params['password'] && params['password'] != ""
       if !self.settings['password'] || valid_password?(params['old_password']) || non_user_params[:allow_password_change]
         @password_changed = !!self.settings['password']
+        # Remember whether this was a self-service change (old password verified)
+        # vs. a forced change without the old password (admin reset / forgot-password
+        # token). Recorded in the audit trail by notify_of_changes (LL-747bb0e02d).
+        @password_change_self_service = @password_changed && !non_user_params[:allow_password_change]
         self.generate_password(params['password'])
       else
         add_processing_error("incorrect current password")
@@ -2260,7 +2264,18 @@ class User < ApplicationRecord
   def notify_of_changes
     if @password_changed
       UserMailer.schedule_delivery(:password_changed, self.global_id)
+      # Record an immutable audit trail entry for every password change, including
+      # admin-initiated / token resets (LL-747bb0e02d). log_command is best-effort
+      # (it rescues and never raises), so a failed audit insert can never break the
+      # password change or alter the existing mailer behavior. No password material
+      # or PII is stored - only the change type and self-service flag; user_key is
+      # the opaque global_id.
+      AuditEvent.log_command(self.global_id, {
+        'type' => 'password_changed',
+        'self_service' => !!@password_change_self_service
+      })
       @password_changed = false
+      @password_change_self_service = false
     end
     if @email_changed
       # TODO: should have confirmation flow for new email address
