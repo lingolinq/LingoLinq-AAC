@@ -63,6 +63,17 @@ HubSpot receives data via `lib/external_tracker.rb`. The code path gates on `sup
 
 The `lib/pusher.rb` module is an internal naming relic from the CoughDrop fork; it is an `aws-sdk-sns` wrapper used to deliver transactional SMS (supervisor consent invitations, two-factor codes, password resets). Phone numbers and short message bodies are transmitted to AWS SNS; no communication content or board data is sent. This flow is covered by the AWS BAA executed on 2026-02-07 and is listed under subprocessor #1 (Amazon Web Services).
 
+### 5.7 Planned: Google Cloud Platform / Cloud Run (migration in progress, NOT yet an active subprocessor)
+
+LingoLinq is migrating production compute from Render to Google Cloud Run, with object storage and email staying on AWS (project: Render-to-GCP Cloud Run migration). When that cutover lands, GCP becomes a subprocessor that processes tenant application data at rest and in compute (Cloud Run, Cloud SQL, Memorystore over a private VPC), and Google must be added to the table in section 4 as an active subprocessor.
+
+This has not happened yet, so Google compute is **deliberately not listed as an active subprocessor today**. Two items must close before it is:
+
+1. **Executed BAA on file.** The migration record indicates a Google BAA was pursued in Phase 1, but no executed artifact is in `docs/legal/`, and the only Google BAA item currently tracked in the compliance calendar is the Gemini API path (`rev-gemini-baa-annual`). Confirm and file the Cloud Run / GCP infrastructure BAA before any production tenant data reaches GCP.
+2. **Cutover actually carries data.** Phase 3 of the migration (Cloud SQL, Memorystore, VPC) is drafted but inert. The `rediss://` TLS capability (#410) is shipped, but the live environment still runs on Render. Add the GCP row, give 30 days advance change notice per section 2, and log the change below at cutover.
+
+Google LLC already appears in the table for the **Gemini API** (#5, de-identified prompts) and **Google Workspace** (#12, corporate productivity). The Cloud Run / infrastructure relationship is distinct from both and will be a separate row.
+
 ## 6. De-identified Data Standard
 
 For any subprocessor marked as receiving only de-identified data, LingoLinq applies the scrubbing pipeline documented in `lib/pii_scrubber.rb`. De-identified data must not include names, email addresses, phone numbers, street addresses, precise geolocation, tenant names, or any free-text field that has not been passed through the scrubber. A quarterly sampling audit verifies scrubber coverage.
@@ -82,3 +93,4 @@ When LingoLinq ends a subprocessor relationship, the Privacy Contact confirms th
 |---|---|---|
 | 2026-04-20 | Register established, 14 subprocessors recorded | Bulletin planned for 2026-05-20 |
 | 2026-04-23 | Removed Pusher Ltd. entry: `lib/pusher.rb` is an AWS SNS SMS wrapper, not a Pusher.com integration. SMS flow is now described under AWS (subprocessor #1). | Bulletin planned for 2026-05-20 |
+| 2026-06-18 | Added section 5.7 flagging the planned GCP / Cloud Run migration. Google compute is NOT yet an active subprocessor; the row is added at cutover once the infrastructure BAA is filed. No change to the active list. | No customer notice yet (no active change) |

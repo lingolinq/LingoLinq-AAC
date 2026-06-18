@@ -6,17 +6,33 @@
 > other report in `audit-reports/` is a point-in-time snapshot and is not authoritative for
 > status. Drafted by the compliance-officer; goes through adversary review before reaching Scot.
 >
-> Generated: 2026-06-13. Register audited SHA: `56da75814c` (auditedDate 2026-06-12).
-> Regenerated per audit run; do not hand-edit.
+> Refreshed: 2026-06-18. Register audited SHA: `59e20439e` (auditedDate 2026-06-18, ref `staging`),
+> re-stamped from `d72463c7` with Scot's 2026-06-18 sign-off. The only intervening commit (#416, a
+> GCP Memorystore AUTH flag fix) touched one provisioning script and added no findings, so the
+> register now sits at the staging tip. Headline counts are read directly from
+> `audit-reports/FINDINGS.json`; do not hand-edit the figures, refresh them from the register.
+
+### Changes since the prior draft (2026-06-13)
+
+- **Eval-narration AI surface brought under governance** (#411, #412, #413). The comprehensive
+  assessment narrator now scrubs student PII before egress, logs every call to `AiApiLog`, hard
+  blocks under-13 eval data via COPPA gating, and binds the egress payload to the server-resolved
+  user. Three findings on this path were verified-closed; one residual stays open (below).
+- **Redis TLS capability shipped** (#410). The application can now speak `rediss://` TLS to a
+  managed Redis. This is an enabler for the GCP Memorystore cutover, not a live closure: the
+  current hosting environment still runs plaintext `redis://`, so finding LL-6619cc1811 stays open.
+- **Headline moved from 0 Critical / 13 High to 0 Critical / 16 High** as the second full audit
+  run and the accessibility finder promoted new findings into the register. The rise reflects
+  wider scan coverage, not new regressions.
 
 ## Headline
 
 | Metric | Count |
 |---|---|
 | **Open Critical findings** | **0** |
-| **Open High findings** | **13** |
-| Open Medium / Low | 7 / 6 |
-| Verified closed (Scot attested) | 9 |
+| **Open High findings** | **16** |
+| Open Medium / Low | 18 / 14 |
+| Verified closed (Scot attested) | 12 |
 | Superseded | 2 |
 
 The headline is the count of open Critical and High findings, not a synthetic readiness score
@@ -51,11 +67,15 @@ one framework):
 
 | Framework | Open findings | Open High | Context |
 |---|---:|---:|---|
-| FERPA (US schools) | 8 | 4 | Student data isolation, access scoping, audit trail. |
-| HIPAA (US hospitals) | 6 | 5 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02). |
+| FERPA (US schools) | 10 | 5 | Student data isolation, access scoping, audit trail. |
+| HIPAA (US hospitals) | 8 | 6 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02). Render BAA pending. GCP/Cloud Run BAA for the migration: confirm execution and file the artifact in `docs/legal/` before Google compute carries production data. |
 | GDPR (EU clients) | 4 | 2 | Data residency, subprocessor posture, deletion and export paths. |
-| SOC 2 (in progress) | 5 | 0 | Control-evidence and audit-system hardening items. |
-| COPPA (under-13 users) | see controls | see controls | Amended Rule enforceable since 2026-04-22. Controls below. |
+| COPPA (under-13 users) | 1 | 1 | Amended Rule enforceable since 2026-04-22. The one open High is the eval-narration consent-binding residual (LL-11db0dc848). Product controls below. |
+| WCAG (accessibility) | 8 | 1 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
+| SOC 2 (in progress) | 7 | 0 | Control-evidence and audit-system hardening items. |
+
+A single finding can map to more than one framework, so these rows do not sum to the 48 open
+total. 21 open findings carry no framework tag (engineering-quality and API-contract items).
 
 ### Active product controls (evidence in code)
 
@@ -70,6 +90,30 @@ These are implemented and operating, not aspirational:
   events tied to child users before they reach the error tracker.
 - **Console auditing** (`AuditEvent`) and **AI call logging** (`AiApiLog`): privileged access
   and external model calls are recorded with audit trails.
+- **Eval-narration AI gating** (`lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb`):
+  the comprehensive assessment narrator is held to the same controls as the rest of the AI
+  surface. Student PII is scrubbed before egress, every call is recorded in `AiApiLog`, a COPPA
+  hard block prevents under-13 eval data from reaching the model, external narration is opt-in,
+  and the egress payload is bound to the server-resolved user (the client-asserted student name
+  is dropped). One residual on this path stays open and tracked (consent binding to the gate
+  subject, LL-11db0dc848).
+
+## Infrastructure migration in progress
+
+LingoLinq is migrating production compute from Render to Google Cloud Run, with object storage
+and email staying on AWS. Two compliance-relevant items are in flight:
+
+- **Managed Redis over TLS.** The application can now negotiate `rediss://` TLS to a managed
+  Redis instance (#410), which is the prerequisite for moving Redis to GCP Memorystore with AUTH
+  and TLS. The current Render environment still runs plaintext `redis://`, so the corresponding
+  finding (LL-6619cc1811, HIPAA) is held open until the cutover lands. Closure is gated on the
+  migration, not on a separate fix.
+- **GCP Business Associate Agreement.** The migration record indicates a BAA with Google was
+  pursued in Phase 1, but no executed artifact is on file in `docs/legal/` and the only Google BAA
+  item currently tracked in the register is the Gemini API path (`rev-gemini-baa-annual`). Confirm
+  the Cloud Run / GCP infrastructure BAA, file the artifact, and add Google as an active
+  subprocessor at cutover. Until then Google compute is not listed as an active subprocessor (see
+  `docs/legal/SUBPROCESSORS.md`).
 
 ## Accessibility
 

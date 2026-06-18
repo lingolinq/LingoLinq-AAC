@@ -5272,3 +5272,34 @@ field. RESIDUAL (still open, needs a larger follow-up): the consent decision is 
 caller-asserted `user_id`; fully binding eval-data provenance to the gated user requires persisting
 the eval server-side against that user rather than trusting a client payload. Arbitrary third-party
 names typed into `slp_notes` free text remain a surface-wide NER limitation, not eval-specific.
+
+## Gotcha: in an EnterWorktree session, Edit/Write to absolute PRIMARY paths hits the primary checkout, not the worktree
+
+When the session is inside an `EnterWorktree` worktree (`.claude/worktrees/...`), `Edit` and `Write`
+calls that pass an absolute path into the primary checkout
+(`/mnt/c/.../LingoLinq-AAC/docs/...`) write to the primary checkout, NOT the worktree, even though
+cwd is the worktree. Relative-path tools (Bash scripts run after `cd`, render scripts) correctly hit
+the worktree, so you end up with a split: some changes in the worktree, some in primary. Symptom:
+`git status` in the worktree shows only the relative-path changes; a `grep` of the worktree file
+shows the edit "missing." Recovery without disturbing other tabs sharing the primary checkout:
+`cp primary/file worktree/file` for each edited file, then `git -C primary checkout HEAD -- <tracked
+files>` and `rm` any stray new files from primary (a path-level restore, not a branch switch, so
+co-tenant tabs are safe). Prevention: once in a worktree, address files by their worktree path
+(`.claude/worktrees/<name>/...`) for Edit/Write, or Read the worktree path first so the harness
+tracks that copy. Confirmed 2026-06-18 during the compliance-docs refresh.
+
+## Pattern: the compliance register is the source of truth; the legal docs and Notion page are renders or hand-anchored drafts
+
+`audit-reports/FINDINGS.json` is the single source of truth for finding status/counts. `FINDINGS.md`,
+`audit-reports/compliance-calendar.md`, and `audit-reports/notion/compliance-audit-page.md` are
+deterministic renders; never hand-edit them. Regenerate via `ruby scripts/citation-check.rb
+<json> --render`, `ruby scripts/compliance-calendar-render.rb <json>`, and `ruby
+scripts/compliance-notion-publish.rb <json>` (the last stamps a fresh `Time.now` so its `--check`
+ignores the timestamp). The `docs/legal/*` artifacts (Posture Report, AI Governance Memo,
+Subprocessors, dated status snapshots) are hand-authored DRAFTS that must (a) read headline counts
+from the register, not from prose, (b) stay DRAFT/unattested until Scot signs, and (c) never close,
+triage, or attest a finding, which is Scot-only. When refreshing them, recompute per-framework
+open/high counts straight from the JSON (a `ruby -rjson` tally) rather than carrying old numbers
+forward; the 2026-06-13 posture report had stale 0/13 + FERPA 8/4 figures that did not match the
+register's 0/16 + FERPA 10/5. Run all three `--check` renders + `citation-check` green before
+committing. Confirmed 2026-06-18.
