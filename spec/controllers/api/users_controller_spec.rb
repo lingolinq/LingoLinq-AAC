@@ -1401,87 +1401,92 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
     end
     
-    it "should throttle token creation and emailing" do
+    it "should not email a throttled user but should still return a uniform response" do
       u = User.create
       10.times{|i| u.generate_password_reset }
       u.save
       expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
-      expect(response).not_to be_successful
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('The user matching that name or email has had too many password resets. Please wait at least three hours and try again.')
+      expect(json).to eq({'email_sent' => true})
     end
-    
-    it "should return message when no users found" do
+
+    it "should not email for an unknown username but should still return a uniform response" do
+      expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => 'shoelace'}
-      expect(response).not_to be_successful
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('No users found with that name or email.')
+      expect(json).to eq({'email_sent' => true})
     end
-    
-    
+
+    it "should not leak account existence (identical response for real and bogus keys)" do
+      u = User.create(:settings => {'email' => 'bob@example.com'})
+      post :forgot_password, params: {:key => u.user_name}
+      real = JSON.parse(response.body)
+      real_status = response.status
+      post :forgot_password, params: {:key => 'definitely-not-a-user'}
+      bogus = JSON.parse(response.body)
+      expect(response.status).to eq(real_status)
+      expect(bogus).to eq(real)
+      expect(real).to eq({'email_sent' => true})
+    end
+
     it "should schedule a message delivery when non-throttled user is found" do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       expect(UserMailer).to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
       expect(response).to be_successful
     end
-    
+
     it "should return a success message when no users found but an email address provided" do
       post :forgot_password, params: {:key => 'shoelace@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['email_sent']).to eq(true)
     end
-    
+
     it "should schedule a message delivery when no user found by an email address provided" do
       expect(UserMailer).to receive(:schedule_delivery).with(:login_no_user, 'shoelace@example.com')
       post :forgot_password, params: {:key => 'shoelace@example.com'}
       expect(response).to be_successful
     end
 
-    it "should not include disabled emails" do
+    it "should not email disabled accounts but should still return a uniform response" do
       u = User.create(:settings => {'email' => 'bob@example.com', 'email_disabled' => true})
       expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
-      expect(response).not_to be_successful
-      json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('The email address for that account has been manually disabled.')
-    end
-    
-    it "should include possibly-multiple users for the given email address" do
-      u = User.create(:settings => {'email' => 'bob@example.com'})
-      post :forgot_password, params: {:key => u.user_name}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(1)
-      
+      expect(json).to eq({'email_sent' => true})
+    end
+
+    it "should email all matching users for the given email address" do
+      u = User.create(:settings => {'email' => 'bob@example.com'})
       u2 = User.create(:settings => {'email' => 'bob@example.com'})
+      expect(UserMailer).to receive(:schedule_delivery) do |template, ids|
+        expect(template).to eq(:forgot_password)
+        expect(ids.sort).to eq([u.global_id, u2.global_id].sort)
+      end
       post :forgot_password, params: {:key => 'bob@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(2)
+      expect(json).to eq({'email_sent' => true})
     end
-    it "should provide helpful message if some user accounts but not others were throttled" do
+
+    it "should still email non-throttled users when some accounts are throttled" do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       u2 = User.create(:settings => {'email' => 'bob@example.com'})
       10.times{|i| u.generate_password_reset }
       u.save
-      expect(UserMailer).to receive(:schedule_delivery)
+      expect(UserMailer).to receive(:schedule_delivery) do |template, ids|
+        expect(template).to eq(:forgot_password)
+        expect(ids).to eq([u2.global_id])
+      end
       post :forgot_password, params: {:key => 'bob@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(2)
-      expect(json['message']).to eq("One or more of the users matching that name or email have had too many password resets, so those links weren't emailed to you. Please wait at least three hours and try again.")
+      expect(json).to eq({'email_sent' => true})
     end
   end
 

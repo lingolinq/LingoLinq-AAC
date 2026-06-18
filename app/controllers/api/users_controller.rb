@@ -698,30 +698,16 @@ class Api::UsersController < ApplicationController
     end
     not_disabled_users = users.select{|u| !u.settings['email_disabled'] }
     reset_users = not_disabled_users.select{|u| u.generate_password_reset }
-    if users.length > 0
-      if reset_users.length > 0
-        UserMailer.schedule_delivery(:forgot_password, reset_users.map(&:global_id))
-        if reset_users.length == users.length
-          render json: {email_sent: true, users: users.length}
-        else
-          message = "One or more of the users matching that name or email have had too many password resets, so those links weren't emailed to you. Please wait at least three hours and try again."
-          render json: {email_sent: true, users: users.length, message: message}
-        end
-      else
-        message = "All users matching that name or email have had too many password resets. Please wait at least three hours and try again."
-        message = "The user matching that name or email has had too many password resets. Please wait at least three hours and try again." if users.length == 1
-        message = "The email address for that account has been manually disabled." if not_disabled_users.length == 0
-        api_error 400, {email_sent: false, users: 0, error: message, message: message}
-      end
-    else
-      if params['key'] && params['key'].match(/@/)
-        UserMailer.schedule_delivery(:login_no_user, params['key'])
-        render json: {email_sent: true, users: 0}
-      else
-        message = "No users found with that name or email."
-        api_error 400, {email_sent: false, users: 0, error: message, message: message}
-      end
+    # Send the appropriate email when one is warranted, but always return the
+    # same response shape regardless of whether an account exists, is disabled,
+    # or is throttled. Leaking existence (via a users count, a 400 status, or a
+    # distinguishing message) enabled account enumeration (finding LL-9a3ee852d5).
+    if reset_users.length > 0
+      UserMailer.schedule_delivery(:forgot_password, reset_users.map(&:global_id))
+    elsif users.length == 0 && params['key'] && params['key'].match(/@/)
+      UserMailer.schedule_delivery(:login_no_user, params['key'])
     end
+    render json: {email_sent: true}
   end
 
   # Re-send parental consent email when the child cannot log in until a parent approves (same flow as signup).
