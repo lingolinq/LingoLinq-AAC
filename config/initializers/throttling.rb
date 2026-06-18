@@ -25,7 +25,15 @@ module Throttling
     'api/v1/supervisor_relationships/.+/approve',
     'api/v1/supervisor_relationships/.+/deny',
     # Org bulk user-claim: abusable account-claim/enumeration surface (LL-e65d34f109).
-    'api/v1/organizations/.+/claim_user'
+    'api/v1/organizations/.+/claim_user',
+    # Registration, 2FA enrollment, and SAML assertion consumption: account
+    # creation/auth surfaces that were unthrottled (LL-56f0f19fca). The
+    # 'api/v1/users' entry is anchored to the collection (create/index) ONLY so
+    # the many per-user member endpoints keep their normal NORMAL_CUTOFF limit.
+    'api/v1/users(\.json)?$',
+    'api/v1/users/.+/confirm_registration',
+    'api/v1/users/.+/2fa',
+    'saml/consume'
   ].freeze
   PROTECTED_RE = /#{PROTECTED_PATHS.join('|')}/
 

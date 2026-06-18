@@ -36,5 +36,22 @@ describe Throttling do
     it 'protects the organization claim_user endpoint' do
       expect(protected?('/api/v1/organizations/1_2/claim_user')).to eq(true)
     end
+
+    # LL-56f0f19fca: registration, 2FA, and SAML assertion consumption.
+    it 'protects registration, 2FA, and SAML consume endpoints' do
+      expect(protected?('/api/v1/users')).to eq(true)
+      expect(protected?('/api/v1/users.json')).to eq(true)
+      expect(protected?('/api/v1/users/1_2/confirm_registration')).to eq(true)
+      expect(protected?('/api/v1/users/1_2/2fa')).to eq(true)
+      expect(protected?('/saml/consume')).to eq(true)
+    end
+
+    # Regression guard for the anchored 'api/v1/users' entry: protecting the
+    # collection must NOT broaden the throttle to every per-user member route.
+    it 'does not over-throttle ordinary per-user member endpoints' do
+      expect(protected?('/api/v1/users/1_2')).to eq(false)
+      expect(protected?('/api/v1/users/1_2/stats/daily')).to eq(false)
+      expect(protected?('/api/v1/users/1_2/board_tags/ensure')).to eq(false)
+    end
   end
 end
