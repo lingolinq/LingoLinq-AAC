@@ -407,9 +407,16 @@ if [ "$CONFIRM_REDIS" = "1" ]; then
   # Per-secret accessor grant for the runtime SA (mirrors the Phase 1 secret model).
   gcloud secrets add-iam-policy-binding "$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" \
     --member="serviceAccount:${RUNTIME_SA}" --role=roles/secretmanager.secretAccessor --quiet >/dev/null
-  printf '%s' "$REDIS_CA" | gcloud secrets versions add "$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" --data-file=- >/dev/null
-  echo "    new version added to secret $SECRET_REDIS_CA_CERT"
-  unset REDIS_CA
+  # Only add a version when the CA actually changed, so re-runs do not churn
+  # versions (the CA is stable for the life of the instance, modulo rotation).
+  CURRENT_CA="$(gcloud secrets versions access latest --secret="$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" 2>/dev/null || true)"
+  if [ "$CURRENT_CA" = "$REDIS_CA" ]; then
+    skip "secret $SECRET_REDIS_CA_CERT already holds the current CA"
+  else
+    printf '%s' "$REDIS_CA" | gcloud secrets versions add "$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" --data-file=- >/dev/null
+    echo "    new version added to secret $SECRET_REDIS_CA_CERT"
+  fi
+  unset REDIS_CA CURRENT_CA
 else
   gate "Step 3 (Memorystore) SKIPPED. Re-run with CONFIRM_REDIS=1 to provision Redis."
 fi

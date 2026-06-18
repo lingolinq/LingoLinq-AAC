@@ -71,7 +71,17 @@ module RedisInit
       params[:cert_store] = store
     end
 
-    params[:verify_hostname] = false if tls_hostname_verification_disabled?
+    if tls_hostname_verification_disabled?
+      # Disabling hostname verification is only safe while the chain is still
+      # pinned to a known CA. With no REDIS_CA_FILE/REDIS_CA_CERT we would fall
+      # back to the system trust store with hostname matching off, which accepts
+      # ANY publicly-trusted cert -- a silent MITM hole. Fail closed instead.
+      if params[:ca_file].nil? && params[:cert_store].nil?
+        raise 'REDIS_TLS_VERIFY_HOSTNAME is off but no REDIS_CA_FILE/REDIS_CA_CERT is set; ' \
+              'refusing to skip hostname verification without a pinned CA'
+      end
+      params[:verify_hostname] = false
+    end
 
     params
   end

@@ -161,5 +161,10 @@ describe RedisInit do
       expect(ctx.verify_hostname).to eq(false)
       expect(ctx.verify_mode).to eq(OpenSSL::SSL::VERIFY_PEER)
     end
+
+    it 'fails closed when hostname verification is off but no CA is pinned' do
+      ENV['REDIS_TLS_VERIFY_HOSTNAME'] = 'false'
+      expect { RedisInit.redis_options(rediss_uri) }.to raise_error(%r{no REDIS_CA_FILE/REDIS_CA_CERT})
+    end
   end
 end
