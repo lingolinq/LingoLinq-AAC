@@ -82,7 +82,24 @@ module RedisInit
     @redis_inst = Redis.new(redis_options(uri, :timeout => 5))
     @default = Redis::Namespace.new("lingolinq-stash#{ns_suffix}", :redis => @redis_inst)
     @permissions = Redis::Namespace.new("lingolinq-permissions#{ns_suffix}", :redis => @redis_inst)
-    self.cache_token = 'abc'
+    self.cache_token = resolved_cache_token
+  end
+
+  # The cache_token namespaces the shared permission cache (see Permissable
+  # below), so EVERY web/worker process in a deploy MUST resolve to the SAME
+  # value or they would read/write disjoint permission caches. A static 'abc'
+  # (LL-c6dd65a2aa) was predictable and never rotated. Resolve from env in
+  # preference order, all of which are process-invariant within a deploy:
+  #   CACHE_TOKEN       - explicit operator-set secret (preferred)
+  #   RENDER_GIT_COMMIT - deploy SHA on Render (current platform)
+  #   K_REVISION        - Cloud Run revision name (GCP migration target)
+  # Falling back to 'abc' only in local/dev/test where none are set, preserving
+  # existing behavior there. Deterministic: no per-process randomness.
+  def self.resolved_cache_token
+    ENV['CACHE_TOKEN'].presence ||
+      ENV['RENDER_GIT_COMMIT'].presence ||
+      ENV['K_REVISION'].presence ||
+      'abc'
   end
 
   def self.memory
