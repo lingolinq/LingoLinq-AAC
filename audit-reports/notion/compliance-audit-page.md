@@ -11,13 +11,13 @@
 **Audited commit:** `7ed643e92700cd19a0b1e2e25f1bfc1bccef7649`  
 **Audited ref:** `scot/test/audit-run-e2e`  
 **Run date:** 2026-06-16  
-**Page generated:** 2026-06-17T07:28:22Z
+**Page generated:** 2026-06-18T00:42:21Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **1** | **17** | 18 | 14 |
+| **0** | **16** | 18 | 14 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -25,11 +25,9 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 
 | ID | Legacy | Severity | Frameworks | Title | Evidence |
 |---|---|---|---|---|---|
-| LL-e573a39d2b |  | critical | FERPA, HIPAA, COPPA, GDPR | Eval narration sends slp_notes/sett (student name + clinical notes) to Anthropic with no PiiScrubber | `lib/eval_narrator.rb`:189 |
+| LL-11db0dc848 |  | high | COPPA, FERPA, HIPAA | Eval narration gates on caller-asserted user_id but egresses an independent, unbound eval_session payload | `app/controllers/api/eval_sessions_controller.rb`:57 |
 | LL-2967f77e6d |  | high | WCAG | Board-tile symbol image has no alt text (fast_html render path) | `app/frontend/app/utils/button.js`:449 |
-| LL-2e4c14d370 |  | high | COPPA, FERPA, HIPAA | Eval AI narration has no COPPA parental-consent hard-gate before sending under-13 student data to Anthropic | `lib/eval_narrator.rb`:43 |
 | LL-d1ea8659c3 |  | high |  | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
-| LL-ef5ac1b2a5 |  | high | FERPA, HIPAA | Eval AI narration creates no AiApiLog entry (no record student eval data was sent to an LLM) | `lib/eval_narrator.rb`:58 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-1085e59d29 | Infra-P1-2 | high | FERPA, HIPAA | Webhook callback URL validation accepts plaintext http:// | `app/models/webhook.rb`:42 |
 | LL-c6dd65a2aa | Infra-P1-3 | high |  | Static cache_token='abc' never rotates (stale permission cache) | `config/initializers/resque.rb`:29 |
