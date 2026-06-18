@@ -2077,6 +2077,49 @@
         "promotedDate": "2026-06-17"
       },
       "notes": "Promoted from PR #412 review (adversary) on 2026-06-17. The COPPA consent / org-opt-out / supervise gates are keyed to the caller-asserted params[user_id], but the data egressed is the independent params[eval_session] payload, with no server-side binding between the two. A clinician can gate on a consented student while the payload carries a different non-consented child eval content; #412 redacts the student NAME (sett.student) but not the clinical content ownership. Distinct residual after closing LL-2e4c14d370/LL-e573a39d2b/LL-ef5ac1b2a5. See docs/task-management/LEARNINGS.md (eval narrator residual)."
+    },
+    {
+      "id": "LL-16fef018a0",
+      "ruleKey": "password-reset-code-throttle",
+      "title": "Password-reset code verification endpoint (users#password_reset) not rate-limited",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "config/initializers/throttling.rb",
+        "line": 41,
+        "snippet": "'api/v1/users/.+/password_reset'",
+        "sha": "0f691f48c3955ff6749ed5c5d18d00479dd316db"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add api/v1/users/.+/password_reset to Throttling::PROTECTED_PATHS so reset-code verification falls under PROTECTED_CUTOFF (10 req/3s), as its sibling forgot_password already is.",
+        "timeframe": "done"
+      },
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-18",
+        "rationale": "Throttle the password_reset code-verification endpoint; fixed in #421."
+      },
+      "closureEvidence": {
+        "sha": "0f691f48c3955ff6749ed5c5d18d00479dd316db",
+        "verifierNote": "Verified 2026-06-18 on staging (#421, 0f691f48c): 'api/v1/users/.+/password_reset' is present in Throttling::PROTECTED_PATHS (config/initializers/throttling.rb:41); the reset-code verification endpoint now falls under PROTECTED_CUTOFF (10 req/3s). throttling_paths_spec asserts the classification.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #421."
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 421,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-06-18"
+      },
+      "notes": "Defense-in-depth follow-up raised during the #420 senior-dev/DeepSeek review and fixed in #421; it never surfaced in an /audit-run, so it had no register row. Added to the register and attest-closed in the same motion at Scot's request (2026-06-18) so the remediation is tracked. The evidence anchor points at the remediating line (the endpoint was simply absent from PROTECTED_PATHS before #421)."
     }
   ]
 }
