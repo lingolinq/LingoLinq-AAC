@@ -33,7 +33,12 @@ module Throttling
     'api/v1/users(\.json)?$',
     'api/v1/users/.+/confirm_registration',
     'api/v1/users/.+/2fa',
-    'saml/consume'
+    'saml/consume',
+    # Password-reset code verification: exchanges a reset code for a reset token
+    # (users#password_reset), so an unthrottled endpoint invites reset-code
+    # brute-forcing. Follow-up to the audit rate-limit pass; sibling of the
+    # already-protected forgot_password.
+    'api/v1/users/.+/password_reset'
   ].freeze
   PROTECTED_RE = /#{PROTECTED_PATHS.join('|')}/
 
