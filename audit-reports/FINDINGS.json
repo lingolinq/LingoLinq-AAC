@@ -251,7 +251,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -260,16 +260,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add supervisor_relationships/.*/consent (and the consent_response/approve/deny paths) to protected_paths so they fall under the 10-req/3s limit.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): supervisor/parent consent endpoints now in Throttling::PROTECTED_PATHS - 'api/v1/supervisor_relationships/consent_response' and 'api/v1/supervisor_relationships/.+/consent_response' (config/initializers/throttling.rb:23-24), placing consent-token verification and approve/deny under PROTECTED_CUTOFF (10 req/3s). Classification spec asserts the match.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: protected_paths (throttling.rb:18-21) contains no consent path; consent endpoints are unauthenticated and fall under the 150-req/3s general limit.",
       "disposition": {
@@ -366,7 +366,7 @@
       "frameworks": [
         "FERPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -375,16 +375,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add api/v1/organizations/.+/claim_user to protected_paths.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): 'api/v1/organizations/.+/claim_user' added to Throttling::PROTECTED_PATHS (config/initializers/throttling.rb:28); the org account-claim/enumeration surface now falls under PROTECTED_CUTOFF (10 req/3s). Classification spec added.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: claim_user not present in protected_paths. Shares the throttling.rb anchor with P1-1/P2-6; remediate together.",
       "disposition": {
@@ -477,7 +477,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/models/user.rb",
@@ -486,16 +486,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add AuditEvent.log_command/create! in the password-change path (notify_of_changes / @password_changed branch).",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): User#notify_of_changes now calls AuditEvent.log_command on @password_changed for every password change including admin-initiated/token resets (app/models/user.rb:2273-2276). Best-effort (log_command rescues and never raises) so a failed audit insert cannot break the password change; records only {type:'password_changed', self_service} - no password material or PII; user_key is the opaque global_id.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: notify_of_changes (user.rb:2255) only schedules a password_changed mailer (:2257); no AuditEvent. AuditEvent is used elsewhere in user.rb (e.g. :540, :581) but not for password changes.",
       "disposition": {
@@ -662,7 +662,7 @@
       "severity": "high",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/resque.rb",
@@ -671,16 +671,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Derive cache_token from an env var or the deploy commit SHA.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): RedisInit.cache_token is derived via RedisInit.resolved_cache_token = ENV['CACHE_TOKEN'] || ENV['RENDER_GIT_COMMIT'] || ENV['K_REVISION'] || 'abc' (config/initializers/resque.rb:130-135); the static 'abc' is reached only in local/dev/test where none are set. CACHE_TOKEN is set on all prod/staging/dev Render services (1Password-backed), so the shared permission cache namespaces on an operator secret in every deployed environment.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: literal 'abc' (resque.rb:29). Low real-world impact but unchanged.",
       "disposition": {
