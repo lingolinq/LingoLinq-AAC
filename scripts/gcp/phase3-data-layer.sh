@@ -339,9 +339,10 @@ if [ "$CONFIRM_REDIS" = "1" ]; then
     skip "Redis instance $REDIS_INSTANCE already exists"
   else
     # connect-mode PRIVATE_SERVICE_ACCESS reuses the Step 1c peering (no separate range).
-    # --auth-enabled + SERVER_AUTHENTICATION in-transit encryption = HIPAA posture (Scot's
+    # --enable-auth + SERVER_AUTHENTICATION in-transit encryption = HIPAA posture (Scot's
     # call). PREREQUISITE before this secret is consumed: the app's Redis client must speak
     # TLS for the rediss:// URL (see the handoff block + config/initializers/resque.rb).
+    # NOTE: the AUTH flag is --enable-auth (gcloud >= 400-ish), NOT --auth-enabled.
     gcloud redis instances create "$REDIS_INSTANCE" \
       --project="$PROJECT_ID" \
       --region="$REGION" \
@@ -350,7 +351,7 @@ if [ "$CONFIRM_REDIS" = "1" ]; then
       --redis-version="$REDIS_VERSION" \
       --network="projects/${PROJECT_ID}/global/networks/${VPC_NAME}" \
       --connect-mode=PRIVATE_SERVICE_ACCESS \
-      --auth-enabled \
+      --enable-auth \
       --transit-encryption-mode=SERVER_AUTHENTICATION
   fi
 
