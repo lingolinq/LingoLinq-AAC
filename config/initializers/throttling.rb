@@ -23,7 +23,9 @@ module Throttling
     'api/v1/supervisor_relationships/consent_response',
     'api/v1/supervisor_relationships/.+/consent_response',
     'api/v1/supervisor_relationships/.+/approve',
-    'api/v1/supervisor_relationships/.+/deny'
+    'api/v1/supervisor_relationships/.+/deny',
+    # Org bulk user-claim: abusable account-claim/enumeration surface (LL-e65d34f109).
+    'api/v1/organizations/.+/claim_user'
   ].freeze
   PROTECTED_RE = /#{PROTECTED_PATHS.join('|')}/
 
