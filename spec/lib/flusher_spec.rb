@@ -321,7 +321,7 @@ describe Flusher do
       u1 = User.create
       u2 = User.create
       ref = {}
-      expect(ref).to receive(:update_all).with(user_id: u2.id).and_return(1).exactly(10).times
+      expect(ref).to receive(:update_all).with(user_id: u2.id).and_return(1).exactly(11).times
       expect(NfcTag).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserIntegration).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserGoal).to receive(:where).with(:user_id => u1.id).and_return(ref)
@@ -332,7 +332,17 @@ describe Flusher do
       expect(ButtonSound).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(ButtonImage).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserVideo).to receive(:where).with(:user_id => u1.id).and_return(ref)
+      expect(License).to receive(:where).with(:user_id => u1.id).and_return(ref)
       Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+    end
+
+    it "should transfer license seats so they are not orphaned on merge" do
+      u1 = User.create
+      u2 = User.create
+      o = Organization.create
+      l = License.create!(organization: o, user: u1, seat_type: 'student', status: 'active')
+      Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+      expect(l.reload.user_id).to eq(u2.id)
     end
   end
   
