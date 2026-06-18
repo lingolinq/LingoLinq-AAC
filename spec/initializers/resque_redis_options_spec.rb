@@ -24,13 +24,15 @@ describe RedisInit do
   end
 
   around(:each) do |example|
-    saved = ENV.values_at('REDIS_CA_FILE', 'REDIS_CA_CERT')
+    saved = ENV.values_at('REDIS_CA_FILE', 'REDIS_CA_CERT', 'REDIS_TLS_VERIFY_HOSTNAME')
     ENV.delete('REDIS_CA_FILE')
     ENV.delete('REDIS_CA_CERT')
+    ENV.delete('REDIS_TLS_VERIFY_HOSTNAME')
     example.run
-    ENV['REDIS_CA_FILE'], ENV['REDIS_CA_CERT'] = saved
+    ENV['REDIS_CA_FILE'], ENV['REDIS_CA_CERT'], ENV['REDIS_TLS_VERIFY_HOSTNAME'] = saved
     ENV.delete('REDIS_CA_FILE') if saved[0].nil?
     ENV.delete('REDIS_CA_CERT') if saved[1].nil?
+    ENV.delete('REDIS_TLS_VERIFY_HOSTNAME') if saved[2].nil?
   end
 
   describe '.redis_options' do
@@ -162,6 +164,53 @@ describe RedisInit do
     it 'is deterministic: repeated calls return the same value' do
       ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
       expect(RedisInit.resolved_cache_token).to eq(RedisInit.resolved_cache_token)
+    end
+  end
+
+  # Hostname verification is ON by default (so DNS-named TLS endpoints stay
+  # safe) and is turned OFF only when REDIS_TLS_VERIFY_HOSTNAME is explicitly
+  # false-y. Disabling it is required for Memorystore (connect-by-private-IP,
+  # cert issued for the instance not the IP) and MUST NOT weaken CA-chain
+  # verification, which stays at VERIFY_PEER. See config/initializers/resque.rb.
+  describe 'hostname verification opt-out (REDIS_TLS_VERIFY_HOSTNAME)' do
+    it 'leaves verify_hostname unset by default for rediss:// (verification ON)' do
+      ENV['REDIS_CA_CERT'] = build_cert(OpenSSL::PKey::RSA.new(2048), 'ca').to_pem
+      expect(RedisInit.redis_options(rediss_uri)[:ssl_params]).not_to have_key(:verify_hostname)
+    end
+
+    it 'sets verify_hostname=false when REDIS_TLS_VERIFY_HOSTNAME=false, keeping the CA store' do
+      ENV['REDIS_CA_CERT'] = build_cert(OpenSSL::PKey::RSA.new(2048), 'ca').to_pem
+      ENV['REDIS_TLS_VERIFY_HOSTNAME'] = 'false'
+      ssl = RedisInit.redis_options(rediss_uri)[:ssl_params]
+      expect(ssl[:verify_hostname]).to eq(false)
+      expect(ssl[:cert_store]).to be_a(OpenSSL::X509::Store)
+    end
+
+    it 'treats truthy/unrelated values as verification ON (no opt-out)' do
+      ENV['REDIS_CA_CERT'] = build_cert(OpenSSL::PKey::RSA.new(2048), 'ca').to_pem
+      ENV['REDIS_TLS_VERIFY_HOSTNAME'] = 'true'
+      expect(RedisInit.redis_options(rediss_uri)[:ssl_params]).not_to have_key(:verify_hostname)
+    end
+
+    it 'does not touch redis:// (no ssl_params) even when the flag is false' do
+      ENV['REDIS_TLS_VERIFY_HOSTNAME'] = 'false'
+      opts = RedisInit.redis_options(redis_uri)
+      expect(opts).not_to have_key(:ssl)
+      expect(opts).not_to have_key(:ssl_params)
+    end
+
+    it 'produces a context that disables the hostname check but stays VERIFY_PEER' do
+      ENV['REDIS_CA_CERT'] = build_cert(OpenSSL::PKey::RSA.new(2048), 'ca').to_pem
+      ENV['REDIS_TLS_VERIFY_HOSTNAME'] = 'off'
+      ctx = OpenSSL::SSL::SSLContext.new
+      ctx.set_params(RedisInit.redis_options(rediss_uri)[:ssl_params])
+      expect(ctx.verify_hostname).to eq(false)
+      expect(ctx.verify_mode).to eq(OpenSSL::SSL::VERIFY_PEER)
+    end
+
+    it 'fails closed when hostname verification is off but no CA is pinned' do
+      ENV['REDIS_TLS_VERIFY_HOSTNAME'] = 'false'
+      expect { RedisInit.redis_options(rediss_uri) }.to raise_error(%r{no REDIS_CA_FILE/REDIS_CA_CERT})
     end
   end
 end

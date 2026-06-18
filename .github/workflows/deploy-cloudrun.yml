@@ -39,6 +39,9 @@ name: Deploy to Cloud Run
 # GCP SECRET MANAGER secrets Phase 2 step 4 must seed (referenced by name via --set-secrets,
 # NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DATABASE_URL,
 #   REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY, DEFAULT_HOST.
+#   REDIS_CA_CERT is seeded later by scripts/gcp/phase3-data-layer.sh (the Memorystore
+#   per-instance CA, fetched from the live instance) -- the app's Redis client loads it to
+#   verify the rediss:// TLS chain.
 #
 # MANUAL TRIGGER (only meaningful after Phase 1):
 #   gh workflow run deploy-cloudrun.yml
@@ -83,9 +86,13 @@ jobs:
       # The worker (rake environment resque:work) and the migration Job (rake db:migrate)
       # both fully boot Rails, so they need the same boot set as the web service -- not a
       # narrower subset, which would crash them on boot.
-      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,DEFAULT_HOST=DEFAULT_HOST:latest
+      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest
       # Web adds the mail-sending envs used by request-path mailers.
       WEB_EXTRA_SECRETS: DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest
+      # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
+      # private IP and its server cert is issued for the instance, not the IP, so hostname
+      # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
+      # See config/initializers/resque.rb.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,7 +141,7 @@ jobs:
             --vpc-egress private-ranges-only \
             --command bundle \
             --args "exec,rake,db:migrate" \
-            --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
             --set-secrets "$BOOT_SECRETS"
           gcloud run jobs execute lingolinq-migrate \
             --region "${{ vars.GCP_REGION }}" \
@@ -154,7 +161,7 @@ jobs:
             --network "${{ vars.GCP_VPC_NETWORK }}" \
             --subnet "${{ vars.GCP_VPC_SUBNET }}" \
             --vpc-egress private-ranges-only \
-            --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
             --set-secrets "$BOOT_SECRETS,$WEB_EXTRA_SECRETS" \
             --allow-unauthenticated
 
@@ -170,5 +177,5 @@ jobs:
             --network "${{ vars.GCP_VPC_NETWORK }}" \
             --subnet "${{ vars.GCP_VPC_SUBNET }}" \
             --vpc-egress private-ranges-only \
-            --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
             --set-secrets "$BOOT_SECRETS"
