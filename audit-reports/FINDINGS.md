@@ -3,7 +3,7 @@
 > Generated from `audit-reports/FINDINGS.json` by `scripts/citation-check.rb --render`.
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 
-**Audited:** `staging` @ `d72463c7558f1f00543763f3ab866fcecf4606d1` on 2026-06-17  
+**Audited:** `staging` @ `59e20439e005b363ec67f8444d5406848a1c434f` on 2026-06-18  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
 **Headline (open + remediated-unverified):** 0 Critical / 16 High
 

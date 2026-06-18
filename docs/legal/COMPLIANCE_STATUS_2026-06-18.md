@@ -19,15 +19,16 @@ point-in-time reports. The audit/compliance modernization (Phases 1 through 4) h
 program is in operate mode. This snapshot records where the register stands and what today's
 merges changed. It does not close any finding or attest any control; only Scot does that.
 
-Headline, read directly from the register at audited SHA `d72463c7` (auditedDate 2026-06-17):
+Headline, read directly from the register at audited SHA `59e20439e` (auditedDate 2026-06-18):
 
 - **0 open Critical** findings (the gating metric).
 - **16 open High** findings, all currently untriaged.
 - 18 open Medium, 14 open Low. 48 open total. 12 verified-closed, 2 superseded.
 
-The staging tip is `59e20439e`, one infrastructure-only commit ahead of the audited SHA (#416, a
-GCP Memorystore AUTH flag fix that added no findings). Whether to re-stamp the register to the
-staging tip is a decision for Scot (section 4).
+The register was re-stamped from `d72463c7` to the staging tip `59e20439e` on 2026-06-18 with
+Scot's sign-off. The only intervening commit (#416, a GCP Memorystore AUTH flag fix) touched a
+single provisioning script and added no findings, so no finding status changed and no evidence
+anchor moved.
 
 ## 2. What changed since the prior snapshots
 
@@ -37,7 +38,7 @@ Since `COMPLIANCE_STATUS_2026-04-23.md` and the 2026-06-13 posture-report draft:
 |---|---|---|
 | Eval-narration AI surface | #411/#412 gated the comprehensive assessment narrator: PiiScrubber before egress, AiApiLog per call, COPPA hard block for under-13, opt-in external narration with the egress payload bound to the server-resolved user. | Three findings verified-closed in #413 (one Critical PiiScrubber gap, two High: AiApiLog and COPPA). One residual stays open: LL-11db0dc848 (consent binding to the gate subject). |
 | Redis transport | #410 added the ability to speak `rediss://` TLS to a managed Redis. | Enabler only. The live Render environment still runs plaintext `redis://`, so LL-6619cc1811 (HIPAA) stays open; closure is gated on the GCP Memorystore cutover. |
-| Register hygiene | #413 closed the eval findings with attestation and added the consent-binding residual; #415 reconciled and re-stamped the register to `d72463c75`. | Register is the single source of truth; FINDINGS.md, the compliance calendar, and the Notion page are deterministic renders of it. |
+| Register hygiene | #413 closed the eval findings with attestation and added the consent-binding residual; #415 reconciled and re-stamped to `d72463c75`; this PR re-stamps to the staging tip `59e20439e` (2026-06-18, Scot sign-off). | Register is the single source of truth; FINDINGS.md, the compliance calendar, and the Notion page are deterministic renders of it. |
 | GCP migration | #414 added worktree isolation config; #416 fixed the Memorystore AUTH provisioning flag. Phase 3 (Cloud SQL, Memorystore, VPC) is drafted but inert. | No production data is on GCP yet. GCP/Cloud Run is flagged as a planned subprocessor, not an active one (SUBPROCESSORS.md section 5.7). |
 
 The High-count rise from 13 (2026-06-13) to 16 reflects wider scan coverage (the second full
@@ -62,9 +63,8 @@ rows do not sum to 48; 21 open findings carry no framework tag):
 These are surfaced, not decided. No AI closes a finding, downgrades severity, accepts risk, sets
 a disposition, or attests a customer-facing doc.
 
-1. **Re-stamp the register to `59e20439e`?** The audited SHA lags the staging tip by one
-   infrastructure-only commit (#416, no new findings). Re-stamping keeps the anchor current;
-   leaving it preserves the last reconciled state. Either is defensible.
+1. ~~Re-stamp the register to `59e20439e`?~~ **DECIDED 2026-06-18:** re-stamped to the staging tip
+   in this PR with Scot's sign-off. The audited SHA now matches the staging tip.
 2. **DeepSeek vs the compliance surface (AI Governance Memo section 4.1).** The memo says DeepSeek
    is never used on any compliance surface, but the n8n PR-review bot still runs its DeepSeek
    adversary pass on register-only diffs (#413/#415). No PHI or student data left the boundary,

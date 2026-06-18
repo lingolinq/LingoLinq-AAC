@@ -6,11 +6,11 @@
 > other report in `audit-reports/` is a point-in-time snapshot and is not authoritative for
 > status. Drafted by the compliance-officer; goes through adversary review before reaching Scot.
 >
-> Refreshed: 2026-06-18. Register audited SHA: `d72463c7` (auditedDate 2026-06-17, ref `staging`).
-> The staging tip is `59e20439e`; it leads the audited SHA by one infrastructure-only commit
-> (#416, a GCP Memorystore AUTH flag fix) that added no findings. Headline counts are read
-> directly from `audit-reports/FINDINGS.json`; do not hand-edit the figures, refresh them from
-> the register.
+> Refreshed: 2026-06-18. Register audited SHA: `59e20439e` (auditedDate 2026-06-18, ref `staging`),
+> re-stamped from `d72463c7` with Scot's 2026-06-18 sign-off. The only intervening commit (#416, a
+> GCP Memorystore AUTH flag fix) touched one provisioning script and added no findings, so the
+> register now sits at the staging tip. Headline counts are read directly from
+> `audit-reports/FINDINGS.json`; do not hand-edit the figures, refresh them from the register.
 
 ### Changes since the prior draft (2026-06-13)
 
