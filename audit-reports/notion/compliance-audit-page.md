@@ -8,10 +8,10 @@
 > Regenerate: `ruby scripts/compliance-notion-publish.rb`, then push this body to the single
 > Notion "Compliance & Audit" page (see `audit-reports/notion/README.md`).
 
-**Audited commit:** `7ed643e92700cd19a0b1e2e25f1bfc1bccef7649`  
-**Audited ref:** `scot/test/audit-run-e2e`  
-**Run date:** 2026-06-16  
-**Page generated:** 2026-06-18T00:42:21Z
+**Audited commit:** `d72463c7558f1f00543763f3ab866fcecf4606d1`  
+**Audited ref:** `staging`  
+**Run date:** 2026-06-17  
+**Page generated:** 2026-06-18T03:32:09Z
 
 ## Headline - open findings
 

@@ -3,9 +3,10 @@
     "schemaVersion": "1.1",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
-    "auditedSha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649",
-    "auditedRef": "scot/test/audit-run-e2e",
-    "auditedDate": "2026-06-16",
+    "auditedSha": "d72463c7558f1f00543763f3ab866fcecf4606d1",
+    "auditedRef": "staging",
+    "auditedDate": "2026-06-17",
+    "auditedShaPriorNote": "Restamped 2026-06-17 to staging tip d72463c75 from prior auditedSha 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16), after #410/#411/#412/#413 merged. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit.",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff",
     "statusEnum": [
@@ -541,7 +542,7 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-17",
       "owner": "unassigned",
       "remediation": {
         "options": "Use TLS (rediss) and per-environment instances. Being overtaken by the GCP Memorystore migration (private VPC egress); reconcile rather than fix twice.",
@@ -552,7 +553,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover."
+      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover. | 2026-06-17 reconcile (staging tip d72463c75, RULE #0 re-verified): #410 shipped the app-side TLS CAPABILITY but NOT live closure. redis_options now enables :ssl + :ssl_params for rediss:// URIs (config/initializers/resque.rb:16-21; redis_ssl_params at :35) and every Redis.new routes through redis_options (resque.rb:79,82,116,166). A plain redis:// URI returns the option hash with no :ssl key, so live Render Redis remains plaintext (resque.rb:12 comment: 'the Render environment is unchanged'). Enabler only; NOT verified-closed. Full closure gated on the GCP Memorystore cutover (Cloud Run migration Phase 3). Disposition (Scot 2026-06-17): keep open / severity high; do not close until the rediss:// cutover lands."
     },
     {
       "id": "LL-1085e59d29",
