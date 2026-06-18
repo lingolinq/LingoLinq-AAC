@@ -46,6 +46,11 @@ describe Throttling do
       expect(protected?('/saml/consume')).to eq(true)
     end
 
+    # Password-reset code verification endpoint (users#password_reset).
+    it 'protects the password_reset code-verification endpoint' do
+      expect(protected?('/api/v1/users/1_2/password_reset')).to eq(true)
+    end
+
     # Regression guard for the anchored 'api/v1/users' entry: protecting the
     # collection must NOT broaden the throttle to every per-user member route.
     it 'does not over-throttle ordinary per-user member endpoints' do
