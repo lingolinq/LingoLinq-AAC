@@ -32,14 +32,25 @@ module RedisInit
   # default trust store is used (verification still on); the Memorystore
   # per-instance CA is NOT in that store, so one of these env vars must be set
   # against a live instance.
+  #
+  # REDIS_TLS_VERIFY_HOSTNAME=false additionally turns OFF hostname matching
+  # while leaving CA-chain verification (VERIFY_PEER) ON. This is required for
+  # Memorystore: redis-client sets the TLS SNI hostname to the connection host
+  # (the instance's private IP), and set_params defaults verify_hostname=true,
+  # so the handshake rejects the server cert -- which is issued for the instance,
+  # not the IP -- even with a correct CA. Default (unset) leaves hostname
+  # verification ON, so redis:// (Render) and any DNS-named TLS endpoint are
+  # unchanged.
   def self.redis_ssl_params
     require 'openssl'
 
-    ca_file = ENV['REDIS_CA_FILE']
-    return { :ca_file => ca_file } if ca_file && !ca_file.empty?
+    params = {}
 
+    ca_file = ENV['REDIS_CA_FILE']
     ca_cert = ENV['REDIS_CA_CERT']
-    if ca_cert && !ca_cert.empty?
+    if ca_file && !ca_file.empty?
+      params[:ca_file] = ca_file
+    elsif ca_cert && !ca_cert.empty?
       store = OpenSSL::X509::Store.new
       added = 0
       ca_cert.scan(/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/m).each do |pem|
@@ -57,10 +68,21 @@ module RedisInit
       # Name the misconfiguration at boot rather than failing later as an opaque
       # handshake error: REDIS_CA_CERT was set but produced no usable anchors.
       raise 'REDIS_CA_CERT set but no valid certificates parsed' if added == 0
-      return { :cert_store => store }
+      params[:cert_store] = store
     end
 
-    {}
+    params[:verify_hostname] = false if tls_hostname_verification_disabled?
+
+    params
+  end
+
+  # True only when REDIS_TLS_VERIFY_HOSTNAME is explicitly set to a false-y
+  # value (false / 0 / no / off, case-insensitive). Unset, blank, or anything
+  # else leaves hostname verification ON -- secure by default.
+  def self.tls_hostname_verification_disabled?
+    val = ENV['REDIS_TLS_VERIFY_HOSTNAME']
+    return false if val.nil? || val.strip.empty?
+    %w[false 0 no off].include?(val.strip.downcase)
   end
 
   def self.init

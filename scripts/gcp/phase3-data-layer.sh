@@ -97,6 +97,7 @@ REDIS_TIER="${REDIS_TIER:-basic}"                     # single node pre-MVP; HA 
 # Secret Manager names (created EMPTY in Phase 1; we add VALUE versions here)
 SECRET_DATABASE_URL="${SECRET_DATABASE_URL:-DATABASE_URL}"
 SECRET_REDIS_URL="${SECRET_REDIS_URL:-REDIS_URL}"
+SECRET_REDIS_CA_CERT="${SECRET_REDIS_CA_CERT:-REDIS_CA_CERT}"
 
 # GitHub repo for repo-variable writes (needs `gh` CLI authed)
 GH_REPO="${GH_REPO:-lingolinq/LingoLinq-AAC}"
@@ -381,6 +382,34 @@ if [ "$CONFIRM_REDIS" = "1" ]; then
   echo "    new version added to secret $SECRET_REDIS_URL (value not shown)"
   unset REDIS_AUTH REDIS_URL_VAL
   [ "${RXTRACE_WAS_ON:-0}" -eq 1 ] && set -x || true
+
+  log "Step 3c: store Memorystore server CA in Secret Manager ($SECRET_REDIS_CA_CERT)"
+  # The app's Redis client verifies the rediss:// chain against this per-instance CA
+  # (config/initializers/resque.rb reads it from REDIS_CA_CERT, and connects with
+  # hostname verification off since Memorystore is reached by private IP). Unlike the
+  # Phase 1 secrets this one is NOT pre-created, so create it + grant the runtime SA
+  # read access here. A server CA is a public certificate (not a key), so no xtrace
+  # discipline is needed. serverCaCerts may carry more than one entry during a CA
+  # rotation; ship them all so the client trust store survives the overlap.
+  REDIS_CA="$(gcloud redis instances describe "$REDIS_INSTANCE" --region="$REGION" --project="$PROJECT_ID" --format='value(serverCaCerts[].cert)')"
+  case "$REDIS_CA" in
+    *"BEGIN CERTIFICATE"*) : ;;
+    *) echo "ERROR: could not read a PEM server CA for $REDIS_INSTANCE." >&2; exit 1 ;;
+  esac
+  if gcloud secrets describe "$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    skip "secret $SECRET_REDIS_CA_CERT already exists"
+  else
+    # Match the Phase 1 secrets' replication (user-managed, pinned to $REGION).
+    gcloud secrets create "$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" \
+      --replication-policy=user-managed --locations="$REGION" >/dev/null
+    echo "    created secret $SECRET_REDIS_CA_CERT (user-managed, $REGION)"
+  fi
+  # Per-secret accessor grant for the runtime SA (mirrors the Phase 1 secret model).
+  gcloud secrets add-iam-policy-binding "$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" \
+    --member="serviceAccount:${RUNTIME_SA}" --role=roles/secretmanager.secretAccessor --quiet >/dev/null
+  printf '%s' "$REDIS_CA" | gcloud secrets versions add "$SECRET_REDIS_CA_CERT" --project="$PROJECT_ID" --data-file=- >/dev/null
+  echo "    new version added to secret $SECRET_REDIS_CA_CERT"
+  unset REDIS_CA
 else
   gate "Step 3 (Memorystore) SKIPPED. Re-run with CONFIRM_REDIS=1 to provision Redis."
 fi
@@ -432,14 +461,14 @@ PHASE 3 -> deploy-workflow edits (DONE on this branch, still INERT):
   - deploy-cloudrun.yml already passes Direct VPC egress + Cloud SQL on all three deploy
     commands (web, worker pool, migration Job) and the runtime SA (--service-account).
 
-REQUIRED app-code prerequisite before the REDIS gate's secret is consumed (i.e. before
-cutover): the app's Redis client must speak TLS for the rediss:// URL. Today all five
-Redis.new sites (config/initializers/resque.rb:23,26,60,110 + throttling.rb:12) build
-connections WITHOUT :ssl and ignore the URL scheme, so they CANNOT connect to a TLS Redis.
-This needs a small, backward-compatible change (enable :ssl for rediss://, keep redis://
-unchanged for Render) plus handling the Memorystore server CA, and it MUST be verified
-against the live instance (cert/CA behavior is not testable until the instance exists).
-AUTH alone works with the current client; TLS does not. Do this as its own verified commit.
+App-code Redis-over-TLS support is DONE (config/initializers/resque.rb routes all five
+Redis.new sites through RedisInit.redis_options: redis:// stays byte-identical for Render,
+rediss:// enables :ssl + verifies the Memorystore CA). This script now also seeds that CA
+(Step 3c -> REDIS_CA_CERT secret) and the deploy workflow mounts it + sets
+REDIS_TLS_VERIFY_HOSTNAME=false (Memorystore is reached by private IP, so hostname matching
+is off while CA-chain verification stays on). STILL live-only: the actual TLS handshake is
+not exercisable until a Cloud Run service inside the VPC connects to the private endpoint;
+confirm it during the Phase 4 dress rehearsal before cutover.
 
 PHASE 4 (separate branch, the cutover - NOT this script):
   - pg_dump Render prod -> restore into ${APP_DB_NAME} on ${SQL_INSTANCE}.
