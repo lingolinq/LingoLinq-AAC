@@ -11,7 +11,7 @@
 **Audited commit:** `d72463c7558f1f00543763f3ab866fcecf4606d1`  
 **Audited ref:** `staging`  
 **Run date:** 2026-06-17  
-**Page generated:** 2026-06-18T03:32:09Z
+**Page generated:** 2026-06-18T04:28:18Z
 
 ## Headline - open findings
 
