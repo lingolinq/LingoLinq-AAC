@@ -5,6 +5,38 @@ module Throttling
   # Relax limits in development to avoid 429 during login testing; test env keeps strict limits for specs
   TOKEN_CUTOFF = Rails.env.development? ? 200 : 20
   PROTECTED_CUTOFF = Rails.env.development? ? 100 : 10
+
+  # Paths that get the stricter PROTECTED_CUTOFF rate limit. Each entry is an
+  # unanchored regex fragment matched against req.path, so 'api/v1/messages'
+  # also covers '/api/v1/messages/...'. Exposed as a module constant (instead of
+  # a local in the Application body) so the path classification is unit-testable
+  # without booting Rack::Attack; the Application body builds the same regex from
+  # this list, so runtime behavior is unchanged.
+  PROTECTED_PATHS = [
+    'oauth2/token', '^/token', 'api/v1/forgot_password', 'api/v1/gifts/code_check',
+    'api/v1/boards/.+/imports', 'api/v1/boards/.+/download', 'api/v1/boards/.+/rename',
+    'api/v1/users/\w+/replace_board', 'api/v1/users/\w+/rename', 'auth/lookup', 'saml/tmp_token',
+    'api/v1/purchase_gift', 'api/v1/messages', 'api/v1/beta_feedback_recordings', 'api/v1/logs/code_check',
+    # Supervisor/parent consent decisions: brute-forceable consent-token and
+    # approval endpoints (LL-ca38d4d99e). Covers the collection consent_response,
+    # the per-relationship consent_response, and the approve/deny actions.
+    'api/v1/supervisor_relationships/consent_response',
+    'api/v1/supervisor_relationships/.+/consent_response',
+    'api/v1/supervisor_relationships/.+/approve',
+    'api/v1/supervisor_relationships/.+/deny',
+    # Org bulk user-claim: abusable account-claim/enumeration surface (LL-e65d34f109).
+    'api/v1/organizations/.+/claim_user',
+    # Registration, 2FA enrollment, and SAML assertion consumption: account
+    # creation/auth surfaces that were unthrottled (LL-56f0f19fca). The
+    # 'api/v1/users' entry is anchored to the collection (create/index) ONLY so
+    # the many per-user member endpoints keep their normal NORMAL_CUTOFF limit.
+    'api/v1/users(\.json)?$',
+    'api/v1/users/.+/confirm_registration',
+    'api/v1/users/.+/2fa',
+    'saml/consume'
+  ].freeze
+  PROTECTED_RE = /#{PROTECTED_PATHS.join('|')}/
+
   class LingoLinq::Application < Rails::Application
     uri = RedisInit.redis_uri
     unless ENV['SKIP_VALIDATIONS']
@@ -15,11 +47,7 @@ module Throttling
     end
 
     # Always register throttle rules (specs override cache store to test throttling)
-    protected_paths = ['oauth2/token', '^/token', 'api/v1/forgot_password', 'api/v1/gifts/code_check',
-          'api/v1/boards/.+/imports', 'api/v1/boards/.+/download', 'api/v1/boards/.+/rename',
-          'api/v1/users/\w+/replace_board', 'api/v1/users/\w+/rename', 'auth/lookup', 'saml/tmp_token',
-          'api/v1/purchase_gift', 'api/v1/messages', 'api/v1/beta_feedback_recordings', 'api/v1/logs/code_check']
-    re = /#{protected_paths.join('|')}/
+    re = Throttling::PROTECTED_RE
 
     limit_proc = proc {|req|
       if req.path.match(/^\/token/)

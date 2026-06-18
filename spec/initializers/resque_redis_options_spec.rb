@@ -121,6 +121,52 @@ describe RedisInit do
     end
   end
 
+  # LL-c6dd65a2aa: the permission-cache token must no longer be the static 'abc'.
+  # It is shared across all web/worker processes, so the resolver must be
+  # deterministic (no randomness) and prefer an explicit env value, falling back
+  # through deploy-identity env vars before the dev-only literal.
+  describe '.resolved_cache_token' do
+    around(:each) do |example|
+      keys = %w[CACHE_TOKEN RENDER_GIT_COMMIT K_REVISION]
+      saved = ENV.values_at(*keys)
+      keys.each { |k| ENV.delete(k) }
+      example.run
+      keys.each_with_index { |k, i| saved[i].nil? ? ENV.delete(k) : ENV[k] = saved[i] }
+    end
+
+    it 'prefers CACHE_TOKEN when set' do
+      ENV['CACHE_TOKEN'] = 'explicit-secret'
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      expect(RedisInit.resolved_cache_token).to eq('explicit-secret')
+    end
+
+    it 'falls back to the Render deploy SHA when CACHE_TOKEN is absent' do
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      ENV['K_REVISION'] = 'svc-00001-abc'
+      expect(RedisInit.resolved_cache_token).to eq('deadbeef')
+    end
+
+    it 'falls back to the Cloud Run revision when no CACHE_TOKEN/Render SHA' do
+      ENV['K_REVISION'] = 'svc-00001-abc'
+      expect(RedisInit.resolved_cache_token).to eq('svc-00001-abc')
+    end
+
+    it 'treats a blank env value as unset (skips to the next source)' do
+      ENV['CACHE_TOKEN'] = ''
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      expect(RedisInit.resolved_cache_token).to eq('deadbeef')
+    end
+
+    it 'falls back to the legacy literal only when nothing is set' do
+      expect(RedisInit.resolved_cache_token).to eq('abc')
+    end
+
+    it 'is deterministic: repeated calls return the same value' do
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      expect(RedisInit.resolved_cache_token).to eq(RedisInit.resolved_cache_token)
+    end
+  end
+
   # Hostname verification is ON by default (so DNS-named TLS endpoints stay
   # safe) and is turned OFF only when REDIS_TLS_VERIFY_HOSTNAME is explicitly
   # false-y. Disabling it is required for Memorystore (connect-by-private-IP,
