@@ -5,8 +5,10 @@ class EncryptLicenseExternalReference < ActiveRecord::Migration[7.2]
   # right thing. external_reference has no writers anywhere in the app today, so
   # this is a defensive backfill expected to touch 0 rows; it is idempotent.
   #
-  # Operates on the raw column via SQL (not the model) so the model's accessor
-  # does not interfere while migrating.
+  # Reads the raw column via SQL (not the model) so the decrypting accessor does
+  # not interfere, and writes back through update_all (quoted by ActiveRecord, no
+  # string interpolation; update_all bypasses the encrypting setter so the
+  # pre-encrypted blob lands in the column verbatim).
   disable_ddl_transaction!
 
   def up
@@ -25,9 +27,7 @@ class EncryptLicenseExternalReference < ActiveRecord::Migration[7.2]
       next if already_encrypted
 
       encrypted = GoSecure::SecureJson.dump(raw)
-      connection.execute(
-        "UPDATE licenses SET external_reference = #{connection.quote(encrypted)} WHERE id = #{id.to_i}"
-      )
+      License.where(id: id).update_all(external_reference: encrypted)
       migrated += 1
     end
     say "encrypted external_reference for #{migrated} license row(s)"
@@ -48,9 +48,7 @@ class EncryptLicenseExternalReference < ActiveRecord::Migration[7.2]
       next if decrypted.nil?
 
       plaintext = decrypted.is_a?(String) ? decrypted : decrypted.to_json
-      connection.execute(
-        "UPDATE licenses SET external_reference = #{connection.quote(plaintext)} WHERE id = #{id.to_i}"
-      )
+      License.where(id: id).update_all(external_reference: plaintext)
       reverted += 1
     end
     say "decrypted external_reference for #{reverted} license row(s)"
