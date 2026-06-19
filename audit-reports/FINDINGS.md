@@ -5,18 +5,17 @@
 
 **Audited:** `scot/security/audit-erasure-admin-reads` @ `445336592ddaf838689df7e578829e94e140890d` on 2026-06-19  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 5 High
+**Headline (open + remediated-unverified):** 0 Critical / 4 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (49)
+## Open (48)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
 | LL-d1ea8659c3 |  | high |  | **fixed** | audit-run | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
 | LL-11db0dc848 |  | high | COPPA, FERPA, HIPAA | **fixed** | audit | Eval narration gates on caller-asserted user_id but egresses an independent, unbound eval_session payload | `app/controllers/api/eval_sessions_controller.rb`:57 |
 | LL-aacae48768 |  | high | SOC2, HIPAA, FERPA | **accepted** | audit-run | Production Postgres (lingolinq-prod-db) reachable from an all-addresses /0 allowlist (public internet) | (attestation) |
-| LL-9b5d0f1381 |  | high | WCAG | **fixed** | audit-run | Find-a-button search input has no accessible name (placeholder-only, non-i18n) | `app/frontend/app/templates/find-button.hbs`:8 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | **fixed** | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | untriaged | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
 | LL-52ff2a9a79 |  | medium | SOC2 | untriaged | audit-run | CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking | `.github/workflows/ci.yml`:107 |
@@ -63,7 +62,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-a97357136e | P2-2 | low |  | untriaged | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | untriaged | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
 
-## Verified closed (26)
+## Verified closed (27)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -80,6 +79,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-16fef018a0 |  | high | SOC2 | **fixed** | pr-review | Password-reset code verification endpoint (users#password_reset) not rate-limited | `config/initializers/throttling.rb`:41 |
 | LL-080a21089f |  | high | FERPA, HIPAA, GDPR | untriaged | audit-run | Account deletion / right-to-erasure path writes no AuditEvent | `app/controllers/api/users_controller.rb`:388 |
 | LL-7acd0e7416 |  | high | FERPA, HIPAA | untriaged | audit-run | Admin-support reads of individual student records (version history, daily usage) write no AuditEvent | `app/controllers/api/users_controller.rb`:485 |
+| LL-9b5d0f1381 |  | high | WCAG | **fixed** | audit-run | Find-a-button search input has no accessible name (placeholder-only, non-i18n) | `app/frontend/app/templates/find-button.hbs`:8 |
 | LL-1085e59d29 | Infra-P1-2 | high | FERPA, HIPAA | **fixed** | audit-run | Webhook callback URL validation accepts plaintext http:// | `app/models/webhook.rb`:42 |
 | LL-c6dd65a2aa | Infra-P1-3 | high |  | **fixed** | audit-run | Static cache_token='abc' never rotates (stale permission cache) | `config/initializers/resque.rb`:29 |
 | LL-ca38d4d99e | P1-1 | high | FERPA, HIPAA | **fixed** | audit-run | Consent endpoints absent from Rack::Attack protected_paths | `config/initializers/throttling.rb`:18 |

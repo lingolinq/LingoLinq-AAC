@@ -2531,7 +2531,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/templates/find-button.hbs",
@@ -2544,12 +2544,12 @@
       "owner": "Scot Wahlquist",
       "remediation": {
         "options": "Give the find-a-button search input a programmatic accessible name: add an i18n aria-label (aria-label={{t \"Search for a button\" key='...'}}). A placeholder is not a reliable accessible name and disappears on input; the sibling .la-modal-header-label span (find-button.hbs:4) is not programmatically associated. Also convert the raw placeholder to the i18n helper per the double-quote/{{t}} convention.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "dd194540640bcb4e6bcf71343b97e41b6a6f33d8",
+        "verifierNote": "Find-a-button search input given a working accessible name + i18n placeholder in #448 (dd1945406); vestigial Phase-1 find-button route template removed in #450. Verified against merged staging.",
+        "attestation": "Scot Wahlquist 2026-06-19: attested verified-closed; instructed in-thread to close after #448 shipped the accessible-name fix."
       },
       "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Labels-or-Instructions and Name-Role-Value criteria, mapped in EN 301 549 clauses 9.3 and 9.4. Find-a-button is a core AAC navigation surface (reachable in scanning). focus-input (components/focus-input.js) extends TextField and renders a bare input with the passed attributes, injecting no aria-label, so the input is named only by a placeholder. Distinct (ruleKey, file) from the registered search-overlay-input-missing-label finding, which is the authenticated-view Home dashboard overlay in a different file. i18n cross-ref: placeholder is a raw English string, not {{t}} -- also an i18n defect. | adversary: confirmed (focus-input injects no aria-label; input named by placeholder only; distinct from LL-35e6b7a3d6, the authenticated-view overlay input in a different file). HIGH leans on a find-a-button scan-reachability assumption not independently traced; the defect itself is solid. | triaged 2026-06-19: disposition=accepted (real, to remediate), owner Scot, at Scot's direction in the audit session. | fixed 2026-06-19 in PR #448 (commit dd1945406, merged to staging): root cause was focus-input (components/focus-input.js) extending classic TextField, whose attributeBindings do not include aria-label, so a passed aria-label set a property that never reached the DOM -- fixed by adding attributeBindings:['aria-label'] to focus-input. The live component template (templates/components/find-button.hbs) already carried an sr-only <label for=button_search_string>, so its input had an accessible name; the cited route-style templates/find-button.hbs had neither label nor i18n placeholder, both added. Raw placeholder converted to the {{t}} helper in both. Status remains open pending a verified-closed attestation batch.",
       "disposition": {
