@@ -5,7 +5,6 @@ import { later as RunLater } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import DS from 'ember-data';
 import Resolver from 'ember-resolver';
 import loadInitializers from 'ember-load-initializers';
 import config from './config/environment';
@@ -13,7 +12,6 @@ import capabilities from './utils/capabilities';
 import i18n from './utils/i18n';
 import persistence from './utils/persistence';
 import lingoLinqExtras from './utils/extras';
-import { computed } from '@ember/object';
 
 window.onerror = function(msg, url, line, col, obj) {
   // Enhanced debugging for persistence service errors (both null and undefined)
@@ -198,51 +196,6 @@ if(capabilities.wait_for_deviceready) {
 
 
 loadInitializers(LingoLinq, config.modulePrefix);
-
-DS.Model.reopen({
-  reload: function(ignore_local) {
-    if(ignore_local === false) {
-      persistence.force_reload = null;
-    } else {
-      persistence.force_reload = this._internalModel.modelName + "_" + this.get('id');
-    }
-    return this._super();
-  },
-  retrieved: DS.attr('number'),
-  fresh: computed('retrieved', 'app_state.refresh_stamp', function() {
-    var retrieved = this.get('retrieved');
-    var now = (new Date()).getTime();
-    return (now - retrieved) < (5 * 60 * 1000);
-  }),
-  really_fresh: computed('retrieved', 'app_state.short_refresh_stamp', function() {
-    var retrieved = this.get('retrieved');
-    var now = (new Date()).getTime();
-    return (now - retrieved) < (30 * 1000);
-  }),
-  save: function() {
-    // TODO: this causes a difficult constraint, because you need to use the result of the
-    // promise instead of the original record you were saving in any results, just in case
-    // the record object changed. It's not ideal, but we have to do something because DS gets
-    // mad now if the server returns a different id, and we use a temporary id when persisted
-    // locally.
-    if(this.id && this.id.match(/^tmp[_/]/) && persistence.get('online')) {
-      var tmp_id = this.id;
-      var tmp_key = this.get('key');
-      var type = this._internalModel.modelName;
-      var attrs = this._internalModel._attributes;
-      var rec = this.store.createRecord(type, attrs);
-      rec.tmp_key = tmp_key;
-      return rec.save().then(function(result) {
-        return persistence.remove(type, {}, tmp_id).then(function() {
-          return RSVP.resolve(result);
-        }, function() {
-          return RSVP.reject({error: "failed to remove temporary record"});
-        });
-      });
-    }
-    return this._super();
-  }
-});
 
 Route.reopen({
   // Loading and error substates (e.g. `index_loading`) often have no

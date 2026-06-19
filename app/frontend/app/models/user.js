@@ -1,6 +1,7 @@
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import templateHelpers from '../utils/template_helpers';
 import speecher from '../utils/speecher';
@@ -19,7 +20,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 
-LingoLinq.User = DS.Model.extend({
+LingoLinq.User = BaseModel.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   stashes: service('stashes'),
@@ -515,7 +516,7 @@ LingoLinq.User = DS.Model.extend({
     return (this.get('devices') || []).length;
   }),
   current_device_name: computed('devices', function() {
-    var device = (this.get('devices') || []).findBy('current_device', true);
+    var device = (this.get('devices') || []).find(function(d) { return d && d.current_device === true; });
     return (device && device.name) || "Unknown device";
   }),
   access_method: computed(
@@ -811,7 +812,7 @@ LingoLinq.User = DS.Model.extend({
   load_active_goals: function() {
     var _this = this;
     this.store.query('goal', {active: true, user_id: this.get('id')}).then(function(list) {
-      _this.set('active_goals', list.map(function(i) { return i; }).sort(function(a, b) {
+      _this.set('active_goals', list.slice().sort(function(a, b) {
         if(a.get('primary')) {
           return -1;
         } else if(b.get('primary')) {

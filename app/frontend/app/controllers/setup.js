@@ -990,7 +990,7 @@ export default Controller.extend({
       }
       this.set('assigning_home_board', true);
       LingoLinq.store.query('board', { q: 'Vocal Flair 84', public: true, per_page: 10 }).then(function(results) {
-        var list = (results && results.toArray) ? results.toArray() : (results || []);
+        var list = (results && results.slice) ? results.slice() : (results || []);
         var pick = function(re) {
           for(var i = 0; i < list.length; i++) {
             if(re.test((list[i].get('key') || ''))) { return list[i]; }

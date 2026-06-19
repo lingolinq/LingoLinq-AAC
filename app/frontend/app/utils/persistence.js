@@ -369,7 +369,7 @@ var persistence = EmberObject.extend({
     keys.forEach(function(key) { hash[key] = true; });
     // Look in the in-memory store for matching records, mark them
     // as not missing if found
-    LingoLinq.store.peekAll(store).map(function(i) { return i; }).forEach(function(item) {
+    LingoLinq.store.peekAll(store).slice().forEach(function(item) {
       if(item) {
         var record = item;
         if(record && hash[record.get('id')]) {
@@ -649,7 +649,7 @@ var persistence = EmberObject.extend({
       var boards = [];
       var loaded_boards = LingoLinq.store.peekAll('board');
       ids.forEach(function(id) {
-        var loaded_board = loaded_boards.findBy('id', id);
+        var loaded_board = loaded_boards.find(function(b) { return b.get('id') === id; });
         if(loaded_board) {
           boards.push(loaded_board);
         } else {
@@ -3728,13 +3728,20 @@ var persistence = EmberObject.extend({
     return RSVP.reject({offline: true, error: "not online"});
   },
   meta: function(store, obj) {
-    if(obj && obj.get('meta')) {
-      return obj.get('meta');
-    } else if(obj && obj.get('id')) {
-      var res = lingoLinqExtras.meta('GET', store, obj.get('id'));
-      res = res || lingoLinqExtras.meta('PUT', store, obj.get('id'));
-      res = res || lingoLinqExtras.meta('GET', store, obj.get('user_name') || obj.get('key'));
-      return res;
+    if(obj) {
+      // store.query() returns a RecordArray; .get() is deprecated on array-like results (ED 4+).
+      if(Array.isArray(obj) && obj.modelName) {
+        return obj.meta || null;
+      }
+      if(typeof obj.get === 'function' && obj.get('meta')) {
+        return obj.get('meta');
+      }
+      if(typeof obj.get === 'function' && obj.get('id')) {
+        var res = lingoLinqExtras.meta('GET', store, obj.get('id'));
+        res = res || lingoLinqExtras.meta('PUT', store, obj.get('id'));
+        res = res || lingoLinqExtras.meta('GET', store, obj.get('user_name') || obj.get('key'));
+        return res;
+      }
     } else if(!obj) {
       return lingoLinqExtras.meta('POST', store, null);
     }

@@ -5,12 +5,12 @@
     class="bound-select__trigger"
     aria-haspopup="listbox"
     aria-expanded={{this.isOpen}}
-    {{action "toggle"}}
+    {{on "click" (action "toggle")}}
   >
     <span class="bound-select__trigger-text {{if this.showPlaceholder "bound-select__trigger-text--placeholder"}}">{{this.triggerLabel}}</span>
   </button>
   {{#if this.isOpen}}
-    <ul class="bound-select__list" role="listbox" {{action "stopPropagation" on="click"}} {{action "list_keydown" on="keydown"}}>
+    <ul class="bound-select__list" role="listbox" {{on "click" (action "stopPropagation")}} {{on "keydown" (action "list_keydown")}}>
       {{#if this.searchable}}
         <li class="bound-select__search" role="presentation">
           <Input
@@ -33,8 +33,8 @@
               tabindex={{if item.disabled "-1" "0"}}
               aria-selected={{is-equal this.selection item.id}}
               aria-disabled={{if item.disabled "true" "false"}}
-              {{action "choose" item}}
-              {{action "option_keydown" item on="keydown"}}
+              {{on "click" (action "choose" item)}}
+              {{on "keydown" (action "option_keydown" item)}}
             >
               {{item.name}}
             </li>

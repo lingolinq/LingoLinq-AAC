@@ -83,7 +83,7 @@ export default Controller.extend({
           if(res.content.length === 0) {
             modal.warning(i18n.t('no_user_result', "No results found for \"%{q}\"", {q: q}));
           } else if(res.content.length == 1) {
-            _this.transitionToRoute('user.index', res.map(function(i) { return i; })[0].get('user_name'));
+            _this.transitionToRoute('user.index', res.slice()[0].get('user_name'));
           } else {
             modal.open('user-results', {list: res, q: q});
           }

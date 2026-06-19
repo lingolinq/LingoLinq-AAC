@@ -1,6 +1,7 @@
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
@@ -8,7 +9,7 @@ import contentGrabbers from '../utils/content_grabbers';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Sound = DS.Model.extend({
+LingoLinq.Sound = BaseModel.extend({
   init() {
     this._super(...arguments);
     // Check transcription on initialization
@@ -146,14 +147,13 @@ LingoLinq.Sound = DS.Model.extend({
     this.checkForDataURL().then(null, function() { });
   })
 });
-LingoLinq.Sound.reopenClass({
-  mimic_server_processing: function(record, hash) {
-    if(record.get('data_url')) {
-      hash.sound.url = record.get('data_url');
-      hash.sound.data_url = hash.sound.url;
-    }
-    return hash;
+
+LingoLinq.Sound.mimic_server_processing = function(record, hash) {
+  if(record.get('data_url')) {
+    hash.sound.url = record.get('data_url');
+    hash.sound.data_url = hash.sound.url;
   }
-});
+  return hash;
+};
 
 export default LingoLinq.Sound;

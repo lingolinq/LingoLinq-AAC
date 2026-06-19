@@ -1280,6 +1280,7 @@ var buttonTracker = EmberObject.extend({
           } else if(
             elem_wrap.dom.classList.contains('speak_menu_button') ||
             elem_wrap.dom.classList.contains('md-speak-menu__btn') ||
+            elem_wrap.dom.classList.contains('md-speak-menu__close') ||
             elem_wrap.dom.classList.contains('md-speak-menu__bottom-btn')
           ) {
             if(elem_wrap.dom.tagName === 'BUTTON') {

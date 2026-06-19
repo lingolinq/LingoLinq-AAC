@@ -21,6 +21,8 @@ module.exports = function(environment) {
       // Use an explicit root so we never use body (avoids "same root element (body) multiple times")
       rootElement: '#ember-application-root'
     },
+    // window.LingoLinq is set in app.js; skip deprecated ember-export-application-global
+    exportApplicationGlobal: false,
     staticS3Bucket: process.env.STATIC_S3_BUCKET || (environment === 'production' ? 'lingolinq-prod-static' : 'lingolinq-dev-static')
   };
 
