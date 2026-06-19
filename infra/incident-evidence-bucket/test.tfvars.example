@@ -11,8 +11,10 @@ object_lock_mode = "GOVERNANCE"   # override-able, so the test bucket can be tor
 retention_years  = 1              # minimum; GOVERNANCE lets you bypass for cleanup
 encryption_type  = "SSE-S3"
 
+# For the throwaway test, skip role creation and write directly as your own
+# principal so validate.sh --probe-write can upload without assuming a role.
+create_incident_roles = false
 write_principal_arns = [
-  # same principals you'll use for real, so the policy is exercised faithfully
+  # your own caller ARN, so the probe upload succeeds:
   # "arn:aws:iam::239044785114:user/scot",
-  # "arn:aws:iam::239044785114:user/melissa",
 ]

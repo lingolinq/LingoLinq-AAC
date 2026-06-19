@@ -19,6 +19,16 @@ output "retention_years" {
 }
 
 output "write_principal_arns" {
-  description = "Principals permitted to write/read evidence."
-  value       = var.write_principal_arns
+  description = "Effective principals permitted to write/read evidence (created role ARNs plus any extra write_principal_arns)."
+  value       = local.effective_write_principals
+}
+
+output "incident_commander_role_arn" {
+  description = "ARN of the incident-commander role (null if create_incident_roles = false). The IC assumes this to write evidence."
+  value       = var.create_incident_roles ? aws_iam_role.incident_commander[0].arn : null
+}
+
+output "tech_lead_role_arn" {
+  description = "ARN of the tech-lead role (null if create_incident_roles = false). The Tech Lead assumes this to write evidence."
+  value       = var.create_incident_roles ? aws_iam_role.tech_lead[0].arn : null
 }

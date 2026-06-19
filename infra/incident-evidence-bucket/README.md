@@ -15,7 +15,8 @@ bucket exists before the first district contract redline.
 | Encryption | SSE-S3 (AES-256) by default; SSE-KMS optional (Decision D3) |
 | Public access | All four blocks ON |
 | Ownership | `BucketOwnerEnforced` (ACLs disabled) |
-| Bucket policy | TLS-only; write/read allowed ONLY to the Incident Commander + Tech Lead principals; PutObject denied to everyone else |
+| Bucket policy | TLS-only; write/read allowed ONLY to the Incident Commander + Tech Lead role ARNs; PutObject denied to everyone else |
+| IAM roles | `lingolinq-incident-commander` + `lingolinq-tech-lead` (created by default), each assumable WITH MFA by the principals you name, each scoped to read/write only this bucket |
 
 MFA-delete is intentionally NOT configured: COMPLIANCE-mode Object Lock blocks
 deletion before retention expiry under any credentials, which supersedes it
@@ -47,10 +48,14 @@ evidence to it.
 - **Admin AWS credentials.** The app user `lingolinq-app` cannot create buckets
   with Object Lock, attach bucket policies, or read IAM. Apply with an
   admin/elevated principal in account `239044785114`.
-- **The two incident principal ARNs.** Runbook §3.1: Incident Commander = Scot
-  (CEO), Tech Lead = Melissa. Supply their IAM user or role ARNs in
-  `write_principal_arns`. If dedicated roles do not exist yet, either create
-  them first or use the existing user ARNs.
+- **Who may assume the two roles.** The module creates the
+  `lingolinq-incident-commander` and `lingolinq-tech-lead` roles and wires their
+  stable ARNs into the bucket policy automatically. You only supply the IAM
+  principal ARNs allowed to assume each (runbook §3.1: Scot -> IC, Melissa ->
+  Tech Lead) via `incident_commander_trusted_principal_arns` and
+  `tech_lead_trusted_principal_arns`. Assumption requires MFA by default. To
+  skip role creation and use existing principals instead, set
+  `create_incident_roles = false` and supply `write_principal_arns`.
 - Terraform >= 1.5, AWS provider >= 5.40.
 
 ## Step 1: validate in a throwaway bucket (do this first)
@@ -93,7 +98,8 @@ open-gap #2 closed.
 - **D4 name:** `lingolinq-incident-evidence`
 - **D5 method:** Terraform (this module)
 
-These are the module defaults, so `terraform.tfvars` only needs
-`write_principal_arns` filled in (the Incident Commander + Tech Lead ARNs).
-Full rationale:
+These are the module defaults, so `terraform.tfvars` only needs the two
+assume-role principal ARNs filled in
+(`incident_commander_trusted_principal_arns` = Scot,
+`tech_lead_trusted_principal_arns` = Melissa). Full rationale:
 `~/ai-company-brain/outputs/plans/2026-06-19-incident-evidence-bucket-provisioning-plan.md`.

@@ -49,14 +49,34 @@ variable "kms_key_arn" {
   default     = ""
 }
 
-variable "write_principal_arns" {
-  description = "IAM principal ARNs allowed to write evidence (s3:PutObject) and read it back. Per runbook §3.1 these are the Incident Commander (Scot, CEO) and Tech Lead (Melissa). Supply the actual user OR role ARNs in this account. Everyone else is denied write. Must be non-empty."
-  type        = list(string)
+variable "create_incident_roles" {
+  description = "When true (default), create dedicated lingolinq-incident-commander and lingolinq-tech-lead roles and use their stable ARNs as the bucket's write principals. Preferred over personal user ARNs in a 7-year-locked policy (staff changes only touch the role trust policy)."
+  type        = bool
+  default     = true
+}
 
-  validation {
-    condition     = length(var.write_principal_arns) > 0
-    error_message = "write_principal_arns must list at least the Incident Commander and Tech Lead ARNs. The bucket is useless and unsafe with an empty writer set."
-  }
+variable "incident_commander_trusted_principal_arns" {
+  description = "IAM principal ARNs allowed to ASSUME the incident-commander role (runbook §3.1: Scot, CEO). Required when create_incident_roles = true. e.g. arn:aws:iam::239044785114:user/scot."
+  type        = list(string)
+  default     = []
+}
+
+variable "tech_lead_trusted_principal_arns" {
+  description = "IAM principal ARNs allowed to ASSUME the tech-lead role (runbook §3.1: Melissa). Required when create_incident_roles = true. e.g. arn:aws:iam::239044785114:user/melissa."
+  type        = list(string)
+  default     = []
+}
+
+variable "require_mfa_to_assume" {
+  description = "Require MFA (aws:MultiFactorAuthPresent) to assume either incident role. Strongly recommended for a role that writes permanent forensic evidence."
+  type        = bool
+  default     = true
+}
+
+variable "write_principal_arns" {
+  description = "EXTRA principal ARNs (beyond the created roles) allowed to write/read evidence. Usually empty. If create_incident_roles = false, this must be non-empty and becomes the sole writer set. Everyone else is denied write."
+  type        = list(string)
+  default     = []
 }
 
 variable "enable_access_logging" {

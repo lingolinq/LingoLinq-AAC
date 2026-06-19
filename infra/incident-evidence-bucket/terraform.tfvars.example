@@ -20,13 +20,22 @@ encryption_type = "SSE-S3"
 # encryption_type = "SSE-KMS"
 # kms_key_arn     = "arn:aws:kms:us-west-2:239044785114:key/REPLACE-WITH-CMK-ID"
 
-# --- Incident principals (runbook §3.1): Incident Commander = Scot, Tech Lead = Melissa ---
-# Supply the real IAM user OR role ARNs in account 239044785114. REQUIRED, non-empty.
-write_principal_arns = [
+# --- Incident roles (runbook §3.1): created by this module, MFA-gated ---
+# The module creates lingolinq-incident-commander and lingolinq-tech-lead and
+# uses their stable ARNs as the bucket writers. You only supply WHO may assume
+# each role (Scot's and Melissa's IAM user ARNs in account 239044785114).
+create_incident_roles = true
+require_mfa_to_assume  = true
+
+incident_commander_trusted_principal_arns = [
   # "arn:aws:iam::239044785114:user/scot",
-  # "arn:aws:iam::239044785114:user/melissa",
-  # or role ARNs, e.g. "arn:aws:iam::239044785114:role/incident-commander",
 ]
+tech_lead_trusted_principal_arns = [
+  # "arn:aws:iam::239044785114:user/melissa",
+]
+
+# Extra break-glass writers beyond the two roles. Usually empty.
+write_principal_arns = []
 
 # --- Optional access logging (off by default) ---
 # enable_access_logging = false

@@ -11,6 +11,15 @@
 
 locals {
   use_kms = var.encryption_type == "SSE-KMS"
+
+  # When the module creates the incident roles, their (stable) ARNs are the
+  # bucket's write principals -- no ARN copying needed. Any extra break-glass
+  # ARNs in var.write_principal_arns are appended.
+  role_arns = var.create_incident_roles ? [
+    aws_iam_role.incident_commander[0].arn,
+    aws_iam_role.tech_lead[0].arn,
+  ] : []
+  effective_write_principals = concat(local.role_arns, var.write_principal_arns)
 }
 
 resource "aws_s3_bucket" "evidence" {
@@ -134,7 +143,7 @@ data "aws_iam_policy_document" "evidence" {
     ]
     principals {
       type        = "AWS"
-      identifiers = var.write_principal_arns
+      identifiers = local.effective_write_principals
     }
   }
 
@@ -151,7 +160,7 @@ data "aws_iam_policy_document" "evidence" {
     condition {
       test     = "StringNotEquals"
       variable = "aws:PrincipalArn"
-      values   = var.write_principal_arns
+      values   = local.effective_write_principals
     }
   }
 }
@@ -162,4 +171,12 @@ resource "aws_s3_bucket_policy" "evidence" {
 
   # Ensure public access block exists before a policy is attached.
   depends_on = [aws_s3_bucket_public_access_block.evidence]
+
+  # The bucket must have at least one writer, or evidence can never be captured.
+  lifecycle {
+    precondition {
+      condition     = length(local.effective_write_principals) > 0
+      error_message = "No write principals. Set create_incident_roles = true (with trusted assume-principals) and/or supply write_principal_arns."
+    }
+  }
 }
