@@ -786,6 +786,109 @@ describe Api::UsersController, :type => :controller do
         body = JSON.parse(response.body)
         expect(body['coppa_parental_consent_pending']).to eq(true)
       end
+
+      it "treats a present-but-invalid authored_organization_id as NO authorization (COPPA still applies)" do
+        # Regression: a non-blank but invalid org id must NOT skip the COPPA gate.
+        # Under-13 with a bogus org id and no parent email must be rejected, proving
+        # the gate ran despite the non-blank authored_organization_id.
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_bogus_org',
+          'email' => 'kid_bogus_org@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => 'invalid_org_999',
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "treats an unauthorized author's authored_organization_id as NO authorization (COPPA still applies)" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        # @user is NOT a manager of o, so the claimed authorization is invalid.
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_unauth_org',
+          'email' => 'kid_unauth_org@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "skips COPPA and records an auditable school_authorization for a valid org-authored minor" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        post :create, params: {:user => {
+          'name' => 'school_kid',
+          'email' => 'school_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to be_falsey
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+        sa = u.settings['school_authorization']
+        expect(sa).to be_a(Hash)
+        expect(sa['basis']).to eq('school_official')
+        expect(sa['organization_id']).to eq(o.global_id)
+        expect(sa['authorized_by']).to eq(@user.global_id)
+        ev = AuditEvent.where(:event_type => 'school_authorization', :record_id => sa['record_id']).first
+        expect(ev).to be_present
+        expect(ev.user_key).to eq(u.global_id)
+        expect(ev.data['organization_id']).to eq(o.global_id)
+      end
+
+      it "currently allows an assistant-level manager to author a minor (Phase 1 will decide if a full manager should be required)" do
+        # Documents the preserved authoring scope: 'edit' is satisfied by assistant
+        # managers (add_manager(..., false)), not only full managers. This is the
+        # pre-existing behavior; tightening to full-manager-only is a Phase 1 decision.
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, false)
+        post :create, params: {:user => {
+          'name' => 'assistant_authored_kid',
+          'email' => 'assistant_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
+
+      it "does not orphan or 500 the child account when the school_authorization audit fails (fail-open)" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        allow(AuditEvent).to receive(:create!).and_call_original
+        expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'school_authorization')).and_raise(StandardError.new('boom'))
+        post :create, params: {:user => {
+          'name' => 'audit_fail_kid',
+          'email' => 'audit_fail_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u).to be_present
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
     end
 
     it "should error on invalid start code" do
