@@ -11,13 +11,13 @@
 **Audited commit:** `59e20439e005b363ec67f8444d5406848a1c434f`  
 **Audited ref:** `staging`  
 **Run date:** 2026-06-18  
-**Page generated:** 2026-06-19T04:30:03Z
+**Page generated:** 2026-06-19T04:31:47Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **13** | 23 | 16 |
+| **0** | **9** | 23 | 16 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -27,17 +27,13 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 |---|---|---|---|---|---|
 | LL-080a21089f |  | high | FERPA, HIPAA, GDPR | Account deletion / right-to-erasure path writes no AuditEvent | `app/controllers/api/users_controller.rb`:388 |
 | LL-11db0dc848 |  | high | COPPA, FERPA, HIPAA | Eval narration gates on caller-asserted user_id but egresses an independent, unbound eval_session payload | `app/controllers/api/eval_sessions_controller.rb`:57 |
-| LL-2967f77e6d |  | high | WCAG | Board-tile symbol image has no alt text (fast_html render path) | `app/frontend/app/utils/button.js`:449 |
 | LL-7acd0e7416 |  | high | FERPA, HIPAA | Admin-support reads of individual student records (version history, daily usage) write no AuditEvent | `app/controllers/api/users_controller.rb`:485 |
 | LL-d1ea8659c3 |  | high |  | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-1085e59d29 | Infra-P1-2 | high | FERPA, HIPAA | Webhook callback URL validation accepts plaintext http:// | `app/models/webhook.rb`:42 |
 | LL-9f83617435 | Infra-P1-4 | high |  | No explicit HSTS ssl_options (subdomains/preload) | `config/environments/production.rb`:62 |
 | LL-740bcb10fa | P1-2 | high | GDPR, HIPAA | License.metadata / external_reference stored unencrypted | `app/models/license.rb`:2 |
-| LL-e775d86e6a | P1-3 | high | GDPR | License not handled in transfer_user_content (orphaned seats on merge) | `lib/flusher.rb`:156 |
 | LL-92dc570f30 | P1-5 | high |  | consent_response accepts token/decision from multiple parameter keys | `app/controllers/api/supervisor_relationships_controller.rb`:86 |
-| LL-9a3ee852d5 | P1-6 | high |  | forgot_password leaks account existence via response shape and users count | `app/controllers/api/users_controller.rb`:705 |
-| LL-6d8314e37b | P1-8 | high |  | SNS transcoding callbacks accepted without signature verification | `app/controllers/api/callbacks_controller.rb`:8 |
 | LL-0c6e931f47 |  | medium | WCAG | Sentence box (utterance bar) symbol chip images have no alt attribute | `app/frontend/app/templates/components/button-list.hbs`:21 |
 | LL-13ad11eaee |  | medium | WCAG | Loading status text has no aria-live or role=status | `app/frontend/app/templates/bento.hbs`:14 |
 | LL-27d20047db |  | medium |  | Integration board_render_url is writable but never serialized back (read/write field-name asymmetry) | `app/frontend/app/models/integration.js`:24 |
