@@ -16,12 +16,15 @@
 #      copy its secret. Store it in 1Password (do NOT commit it).
 #   2. Share the "LingoLinq Compliance Findings (LL)" database with that integration.
 #   3. Export the DB's id (the 32-char id from its URL).
+#      The seeded mirror is at https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805
+#      so NOTION_FINDINGS_DB_ID=1f8451c4a17b4f5b868878ac4386b805 (data-source collection
+#      id a52a3fd5-168c-4208-8270-26dc7de0f9f8). The title property is "Finding ID".
 #
 # Usage:
 #   NOTION_TOKEN=secret_xxx NOTION_FINDINGS_DB_ID=<dbid> ruby scripts/compliance-findings-notion-sync.rb [--prune] [--dry-run]
 #
 # Schema expected on the Notion DB (created once via MCP or by hand):
-#   ID (title), Severity (select), Status (select), Disposition (select), Title (rich_text),
+#   Finding ID (title), Severity (select), Status (select), Disposition (select), Title (rich_text),
 #   Frameworks (multi_select), Rule key (rich_text), First seen (date), Last seen (date),
 #   Closed/decided by (rich_text), PRs (rich_text), Closure SHA (rich_text),
 #   Evidence (rich_text), Remediation (rich_text).
@@ -73,7 +76,7 @@ def properties_for(f)
   loc = ev['file'].to_s.empty? ? ev['source'].to_s : "#{ev['file']}#{ev['line'] ? ":#{ev['line']}" : ''}"
   disp = (f['disposition'] || {})['state'] || 'untriaged'
   {
-    'ID'                => { 'title' => [{ 'text' => { 'content' => f['id'] } }] },
+    'Finding ID'        => { 'title' => [{ 'text' => { 'content' => f['id'] } }] },
     'Severity'          => { 'select' => { 'name' => SEV[f['severity']] || f['severity'].to_s } },
     'Status'            => { 'select' => { 'name' => f['status'].to_s } },
     'Disposition'       => { 'select' => { 'name' => disp } },
@@ -122,7 +125,7 @@ def existing_rows
     body['start_cursor'] = cursor if cursor
     data = api(:post, "/v1/databases/#{DB_ID}/query", body)
     (data['results'] || []).each do |p|
-      title = (p.dig('properties', 'ID', 'title') || []).map { |t| t['plain_text'] }.join
+      title = (p.dig('properties', 'Finding ID', 'title') || []).map { |t| t['plain_text'] }.join
       rows[title] = p['id'] unless title.empty?
     end
     break unless data['has_more']
