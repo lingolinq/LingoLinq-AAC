@@ -11,7 +11,7 @@
 **Audited commit:** `445336592ddaf838689df7e578829e94e140890d`  
 **Audited ref:** `scot/security/audit-erasure-admin-reads`  
 **Run date:** 2026-06-19  
-**Page generated:** 2026-06-19T14:29:56Z
+**Page generated:** 2026-06-19T18:00:46Z
 
 ## Headline - open findings
 
