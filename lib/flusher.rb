@@ -183,6 +183,8 @@ module Flusher
     ButtonSound.where(user_id: source.id).update_all(user_id: target.id)
     ButtonImage.where(user_id: source.id).update_all(user_id: target.id)
     UserVideo.where(user_id: source.id).update_all(user_id: target.id)
+    # Move org seats with the user so the seat is not orphaned on merge.
+    License.where(user_id: source.id).update_all(user_id: target.id)
 
     #invalidate any caches
     source.touch
