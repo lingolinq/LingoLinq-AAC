@@ -402,7 +402,7 @@
       "severity": "high",
       "confidence": "medium",
       "frameworks": [],
-      "status": "open",
+      "status": "accepted-risk",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/supervisor_relationships_controller.rb",
@@ -411,7 +411,7 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-19",
       "owner": "unassigned",
       "remediation": {
         "options": "Standardize to a single token key and a single decision key; or Scot accepts the risk given token_valid? + expiry guards now present.",
@@ -698,7 +698,7 @@
       "severity": "high",
       "confidence": "low",
       "frameworks": [],
-      "status": "open",
+      "status": "accepted-risk",
       "evidence": {
         "type": "code",
         "file": "config/environments/production.rb",
@@ -707,7 +707,7 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-19",
       "owner": "unassigned",
       "remediation": {
         "options": "Add config.ssl_options = { hsts: { subdomains: true, preload: true, expires_in: 1.year } }.",
