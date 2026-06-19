@@ -1,0 +1,42 @@
+# Copy to terraform.tfvars and fill in before `terraform apply`.
+# terraform.tfvars is gitignored (it can carry account-specific ARNs).
+
+# --- Decision D1: region (default us-west-2, co-located with prod data) ---
+region = "us-west-2"
+
+# --- Decision D4: bucket name (runbook-hardcoded; do not change) ---
+bucket_name = "lingolinq-incident-evidence"
+
+# --- Decision D2: lock mode + retention (COMPLIANCE is IRREVERSIBLE) ---
+object_lock_mode = "COMPLIANCE"
+retention_years  = 7
+
+# --- Decision D3: encryption ---
+# SSE-S3 (runbook default, no key to manage):
+encryption_type = "SSE-S3"
+# kms_key_arn   = ""
+#
+# OR SSE-KMS (per-key audit + decryption gating). Uncomment both:
+# encryption_type = "SSE-KMS"
+# kms_key_arn     = "arn:aws:kms:us-west-2:239044785114:key/REPLACE-WITH-CMK-ID"
+
+# --- Incident roles (runbook §3.1): created by this module, MFA-gated ---
+# The module creates lingolinq-incident-commander and lingolinq-tech-lead and
+# uses their stable ARNs as the bucket writers. You only supply WHO may assume
+# each role (Scot's and Melissa's IAM user ARNs in account 239044785114).
+create_incident_roles = true
+require_mfa_to_assume  = true
+
+incident_commander_trusted_principal_arns = [
+  "arn:aws:iam::239044785114:user/wahlquist-admin", # Scot -> Incident Commander
+]
+tech_lead_trusted_principal_arns = [
+  "arn:aws:iam::239044785114:user/melissa-oneil", # Melissa -> Tech Lead
+]
+
+# Extra break-glass writers beyond the two roles. Usually empty.
+write_principal_arns = []
+
+# --- Optional access logging (off by default) ---
+# enable_access_logging = false
+# log_target_bucket     = ""
