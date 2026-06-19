@@ -290,7 +290,7 @@
         "GDPR",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/models/license.rb",
@@ -299,16 +299,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add secure_serialize :metadata to License, consistent with Organization/User sensitive-field handling.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "4071b1c05f4d53c96a6291efcc4dde17cde96346",
+        "verifierNote": "Verified 2026-06-18 on staging: License now includes SecureSerialize with secure_serialize :metadata (#435, 2df67ae10), encrypting metadata at rest; external_reference is encrypted via manual GoSecure::SecureJson accessors (#436, 4071b1c05) because go_secure permits only one secure_serialize column per model, with a reader that tolerates legacy plaintext (rescue -> raw). Idempotent backfill migrations 20260618120000 and 20260618130000 re-encrypt any pre-existing rows (read raw via SQL, write via update_all). external_reference is also stripped from the DB-browser API (schema_explorer.rb).",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; metadata encrypted via #435, external_reference via #436."
       },
       "notes": "Verified still open 2026-06-12: License includes only GlobalId; no secure_serialize declared. metadata text + external_reference string remain plaintext.",
       "disposition": {
@@ -626,7 +626,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/models/webhook.rb",
@@ -635,16 +635,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Require https:// in the callback URL validation regex.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "7cb207d988b464ad6bd912f0fecd1bf77b33981e",
+        "verifierNote": "Verified 2026-06-18 on staging (#434, 7cb207d98): all three webhook callback-URL validation sites now require /^https:\\/\\// (app/models/webhook.rb:42 register, :254 process_params url, :264 notification callback), rejecting plaintext http://. Non-breaking: existing stored webhooks (settings is secure_serialize-encrypted) are not re-validated and the send path is unchanged; only new/updated registrations are gated.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #434."
       },
       "notes": "Verified still open 2026-06-12: regex /^http/ matches both http and https (webhook.rb:42).",
       "disposition": {
