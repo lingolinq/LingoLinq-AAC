@@ -1,0 +1,18 @@
+# SAFE VALIDATION VARS. Copy to test.tfvars and apply FIRST, against a throwaway
+# bucket, to prove the lock + policy behave before creating the real COMPLIANCE
+# bucket. GOVERNANCE mode + 1-day retention means test objects can be cleaned up
+# (a privileged principal can BypassGovernanceRetention); NEVER use these values
+# for the real bucket. See README "Step 1: validate in a throwaway bucket".
+#
+# Pick a unique throwaway name; never reuse the production name here.
+bucket_name      = "lingolinq-incident-evidence-TEST-CHANGEME"
+region           = "us-west-2"
+object_lock_mode = "GOVERNANCE"   # override-able, so the test bucket can be torn down
+retention_years  = 1              # minimum; GOVERNANCE lets you bypass for cleanup
+encryption_type  = "SSE-S3"
+
+write_principal_arns = [
+  # same principals you'll use for real, so the policy is exercised faithfully
+  # "arn:aws:iam::239044785114:user/scot",
+  # "arn:aws:iam::239044785114:user/melissa",
+]

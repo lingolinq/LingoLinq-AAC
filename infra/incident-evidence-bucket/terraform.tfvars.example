@@ -1,0 +1,33 @@
+# Copy to terraform.tfvars and fill in before `terraform apply`.
+# terraform.tfvars is gitignored (it can carry account-specific ARNs).
+
+# --- Decision D1: region (default us-west-2, co-located with prod data) ---
+region = "us-west-2"
+
+# --- Decision D4: bucket name (runbook-hardcoded; do not change) ---
+bucket_name = "lingolinq-incident-evidence"
+
+# --- Decision D2: lock mode + retention (COMPLIANCE is IRREVERSIBLE) ---
+object_lock_mode = "COMPLIANCE"
+retention_years  = 7
+
+# --- Decision D3: encryption ---
+# SSE-S3 (runbook default, no key to manage):
+encryption_type = "SSE-S3"
+# kms_key_arn   = ""
+#
+# OR SSE-KMS (per-key audit + decryption gating). Uncomment both:
+# encryption_type = "SSE-KMS"
+# kms_key_arn     = "arn:aws:kms:us-west-2:239044785114:key/REPLACE-WITH-CMK-ID"
+
+# --- Incident principals (runbook §3.1): Incident Commander = Scot, Tech Lead = Melissa ---
+# Supply the real IAM user OR role ARNs in account 239044785114. REQUIRED, non-empty.
+write_principal_arns = [
+  # "arn:aws:iam::239044785114:user/scot",
+  # "arn:aws:iam::239044785114:user/melissa",
+  # or role ARNs, e.g. "arn:aws:iam::239044785114:role/incident-commander",
+]
+
+# --- Optional access logging (off by default) ---
+# enable_access_logging = false
+# log_target_bucket     = ""
