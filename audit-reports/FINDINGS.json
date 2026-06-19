@@ -2132,7 +2132,7 @@
         "HIPAA",
         "GDPR"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/users_controller.rb",
@@ -2141,16 +2141,16 @@
         "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
       },
       "firstSeen": "2026-06-18",
-      "lastSeen": "2026-06-18",
+      "lastSeen": "2026-06-19",
       "owner": "unassigned",
       "remediation": {
         "options": "Log AuditEvent.log_command in flush_user and flush_logs (actor global_id, target user global_id, action), and at the async finalization step (Flusher.flush_user_completely, lib/flusher.rb:230) so permanent destruction of education/health records is timestamped. Mirror the AuditEvent pattern in organizations_controller.rb / supervisor_relationships_controller.rb.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb",
+        "verifierNote": "PR #442 (merge b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb) adds AuditEvent.log_command on the erasure path: users_controller#flush_logs (user_logs_flush_scheduled), #flush_user (user_deletion_scheduled), and Flusher.flush_user_completely (user_permanently_destroyed, system actor, global_id captured pre-destroy). Verified against merged staging code + 3 new green RSpec examples.",
+        "attestation": "Scot Wahlquist 2026-06-19: attested verified-closed; attested in-thread to PR #442 which implements and tests the AuditEvent coverage for this finding."
       },
       "notes": "Surfaced by privacy finder on 2026-06-18. Distinct from LL-d35cbdb313 (creation). Verified at ac80f5ceff: zero AuditEvent in users_controller.rb and lib/flusher.rb. flush_user (users_controller.rb:388) schedules deletion + emails but logs nothing; the cascade flush_user_content/flush_user_completely (flusher.rb:192,230) destroys LogSession/boards/images/User with no audit entry. FERPA/HIPAA require logging destruction of records; GDPR Art.17 erasure must be demonstrable. Register flush findings (LL-37caf162eb, LL-e775d86e6a, LL-991d259b2a) cover WHAT is flushed, not whether it is audited.\n\nadversary (2026-06-18): CONFIRMED. No AuditEvent on flush_user/flusher.rb erasure path; flush_record->flush_versions deletes PaperTrail history (flusher.rb:35-46) so erasure destroys its own evidence; no User destroy callback backstop. HIGH justified."
     },
@@ -2164,7 +2164,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/users_controller.rb",
@@ -2173,16 +2173,16 @@
         "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
       },
       "firstSeen": "2026-06-18",
-      "lastSeen": "2026-06-18",
+      "lastSeen": "2026-06-19",
       "owner": "unassigned",
       "remediation": {
         "options": "Emit AuditEvent.log_command (actor=@api_user.global_id, target=user.global_id) in cross-user admin-support reads: history (users_controller.rb:485, returns full UserVersion change history) and daily_use (users_controller.rb:819/826, returns daily_use communication LogSession). Scope to the cross-user branch so self-reads are not logged. Consistent with AuditEvent coverage in organizations / supervisor_relationships / database_contents controllers.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb",
+        "verifierNote": "PR #442 (merge b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb) adds AuditEvent.log_command on cross-user admin-support reads: users_controller#history (admin_support_history_read) and #daily_use (admin_support_daily_use_read), scoped to the cross-user branch so self-reads are not logged. Verified against merged staging code + 3 new green RSpec examples (incl. a negative self-read assertion).",
+        "attestation": "Scot Wahlquist 2026-06-19: attested verified-closed; attested in-thread to PR #442 which implements and tests the AuditEvent coverage for this finding."
       },
       "notes": "Surfaced by privacy finder on 2026-06-18. Verified at ac80f5ceff: zero AuditEvent in users_controller.rb. history (line 485, gated admin_support_actions) returns User.user_versions with no audit entry; daily_use (line 819, cross-user gated at line 826) returns the daily_use LogSession with no audit entry. AuditEvent IS used in peer admin controllers, so this is an inconsistent gap. FERPA: school-official access to education records should be logged; HIPAA: PHI read access requires audit controls. Distinct from LL-d35cbdb313 and the deletion-audit finding.\n\nadversary (2026-06-18): CONFIRMED. history (line 485) and daily_use (line 819) cross-user branches emit no AuditEvent. Strongest peer precedent is database_contents_controller (fail-closed audit on every read, lines 36-41/99-109); the organizations/supervisor_relationships log_command sites are MUTATIONS not reads, so trim those from the rationale to avoid an apples-to-oranges rebuttal. HIGH defensible."
     },
