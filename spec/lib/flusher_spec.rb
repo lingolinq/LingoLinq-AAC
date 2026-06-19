@@ -407,6 +407,17 @@ describe Flusher do
       expect(Flusher).to receive(:flush_record).with(u, u.id, u.class.to_s)
       Flusher.flush_user_completely(u.global_id, u.user_name)
     end
+
+    it "should log an audit event recording the permanent destruction" do
+      u = User.create
+      gid = u.global_id
+      AuditEvent.delete_all
+      Flusher.flush_user_completely(u.global_id, u.user_name)
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_permanently_destroyed' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq('system')
+      expect(ev.data['user_id']).to eq(gid)
+    end
   end
 
   describe "flush_deleted_users" do
