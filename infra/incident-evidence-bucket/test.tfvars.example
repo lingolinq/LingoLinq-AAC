@@ -15,6 +15,6 @@ encryption_type  = "SSE-S3"
 # principal so validate.sh --probe-write can upload without assuming a role.
 create_incident_roles = false
 write_principal_arns = [
-  # your own caller ARN, so the probe upload succeeds:
-  # "arn:aws:iam::239044785114:user/scot",
+  # your own caller ARN, so the probe upload succeeds (admin running the test):
+  "arn:aws:iam::239044785114:user/wahlquist-admin",
 ]

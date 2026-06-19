@@ -28,10 +28,10 @@ create_incident_roles = true
 require_mfa_to_assume  = true
 
 incident_commander_trusted_principal_arns = [
-  # "arn:aws:iam::239044785114:user/scot",
+  "arn:aws:iam::239044785114:user/wahlquist-admin", # Scot -> Incident Commander
 ]
 tech_lead_trusted_principal_arns = [
-  # "arn:aws:iam::239044785114:user/melissa",
+  "arn:aws:iam::239044785114:user/melissa-oneil", # Melissa -> Tech Lead
 ]
 
 # Extra break-glass writers beyond the two roles. Usually empty.

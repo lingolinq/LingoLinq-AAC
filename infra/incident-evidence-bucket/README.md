@@ -98,8 +98,9 @@ open-gap #2 closed.
 - **D4 name:** `lingolinq-incident-evidence`
 - **D5 method:** Terraform (this module)
 
-These are the module defaults, so `terraform.tfvars` only needs the two
-assume-role principal ARNs filled in
-(`incident_commander_trusted_principal_arns` = Scot,
-`tech_lead_trusted_principal_arns` = Melissa). Full rationale:
+These are the module defaults. `terraform.tfvars.example` is now pre-filled
+with the two assume-role principal ARNs for this account (`239044785114`):
+`wahlquist-admin` -> Incident Commander, `melissa-oneil` -> Tech Lead. Confirm
+both usernames are correct at apply time (the apply fails clearly if either ARN
+does not resolve). Full rationale:
 `~/ai-company-brain/outputs/plans/2026-06-19-incident-evidence-bucket-provisioning-plan.md`.
