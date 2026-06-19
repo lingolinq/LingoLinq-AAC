@@ -38,7 +38,12 @@ module Throttling
     # (users#password_reset), so an unthrottled endpoint invites reset-code
     # brute-forcing. Follow-up to the audit rate-limit pass; sibling of the
     # already-protected forgot_password.
-    'api/v1/users/.+/password_reset'
+    'api/v1/users/.+/password_reset',
+    # Unauthenticated start-code lookup (organizations#start_code_lookup, routed
+    # at api/v1/start_code). Verifier lengthened to 16 chars, but legacy 5-char
+    # links are still accepted; throttling keeps that short prefix from being
+    # brute-forced during the transition (LL-4e243f3e16).
+    'api/v1/start_code'
   ].freeze
   PROTECTED_RE = /#{PROTECTED_PATHS.join('|')}/
 

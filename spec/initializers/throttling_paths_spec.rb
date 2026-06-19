@@ -51,6 +51,12 @@ describe Throttling do
       expect(protected?('/api/v1/users/1_2/password_reset')).to eq(true)
     end
 
+    # LL-4e243f3e16: unauthenticated start-code lookup (api/v1/start_code).
+    it 'protects the start_code lookup endpoint' do
+      expect(protected?('/api/v1/start_code')).to eq(true)
+      expect(protected?('/api/v1/start_code?code=11111&v=abcde')).to eq(true)
+    end
+
     # Regression guard for the anchored 'api/v1/users' entry: protecting the
     # collection must NOT broaden the throttle to every per-user member route.
     it 'does not over-throttle ordinary per-user member endpoints' do

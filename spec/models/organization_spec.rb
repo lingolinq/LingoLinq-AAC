@@ -3153,14 +3153,14 @@ describe Organization, :type => :model do
             code: code,
             disabled: false,
             locale: 'es',
-            v: GoSecure.sha512(Webhook.get_record_code(o), 'start_code_verifier')[0, 5]
+            v: Organization.start_code_verifier(o)
           },
           {
             code: code2,
             disabled: false,
             locale: 'fr',
             symbol_library: 'pcs',
-            v: GoSecure.sha512(Webhook.get_record_code(o), 'start_code_verifier')[0, 5]
+            v: Organization.start_code_verifier(o)
           }
         ])
       end
@@ -3184,16 +3184,48 @@ describe Organization, :type => :model do
           {
             code: code,
             disabled: false,
-            v: GoSecure.sha512(Webhook.get_record_code(u), 'start_code_verifier')[0, 5]
+            v: Organization.start_code_verifier(u)
 
           },
           {
             code: code2,
             disabled: false,
             home_board_key: b.key,
-            v: GoSecure.sha512(Webhook.get_record_code(u), 'start_code_verifier')[0, 5]
+            v: Organization.start_code_verifier(u)
           }
         ])
+      end
+    end
+
+    describe "start_code_verifier / valid_start_code_verifier?" do
+      # LL-4e243f3e16: the share-link verifier was a brute-forceable 5-char hash.
+      it "should generate a 16-char verifier by default" do
+        o = Organization.create
+        v = Organization.start_code_verifier(o)
+        expect(v.length).to eq(16)
+        full = GoSecure.sha512(Webhook.get_record_code(o), 'start_code_verifier')
+        expect(v).to eq(full[0, 16])
+      end
+
+      it "should accept the current 16-char verifier" do
+        o = Organization.create
+        expect(Organization.valid_start_code_verifier?(o, Organization.start_code_verifier(o))).to eq(true)
+      end
+
+      it "should still accept the legacy 5-char verifier for already-issued links" do
+        o = Organization.create
+        legacy = GoSecure.sha512(Webhook.get_record_code(o), 'start_code_verifier')[0, 5]
+        expect(Organization.valid_start_code_verifier?(o, legacy)).to eq(true)
+      end
+
+      it "should reject a wrong, blank, nil, or truncated verifier" do
+        o = Organization.create
+        expect(Organization.valid_start_code_verifier?(o, 'nope')).to eq(false)
+        expect(Organization.valid_start_code_verifier?(o, '')).to eq(false)
+        expect(Organization.valid_start_code_verifier?(o, nil)).to eq(false)
+        # a 4-char prefix (shorter than the legacy length) must not validate
+        full = GoSecure.sha512(Webhook.get_record_code(o), 'start_code_verifier')
+        expect(Organization.valid_start_code_verifier?(o, full[0, 4])).to eq(false)
       end
     end
 
