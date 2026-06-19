@@ -251,7 +251,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -260,16 +260,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add supervisor_relationships/.*/consent (and the consent_response/approve/deny paths) to protected_paths so they fall under the 10-req/3s limit.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): supervisor/parent consent endpoints now in Throttling::PROTECTED_PATHS - 'api/v1/supervisor_relationships/consent_response' and 'api/v1/supervisor_relationships/.+/consent_response' (config/initializers/throttling.rb:23-24), placing consent-token verification and approve/deny under PROTECTED_CUTOFF (10 req/3s). Classification spec asserts the match.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: protected_paths (throttling.rb:18-21) contains no consent path; consent endpoints are unauthenticated and fall under the 150-req/3s general limit.",
       "disposition": {
@@ -366,7 +366,7 @@
       "frameworks": [
         "FERPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -375,16 +375,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add api/v1/organizations/.+/claim_user to protected_paths.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): 'api/v1/organizations/.+/claim_user' added to Throttling::PROTECTED_PATHS (config/initializers/throttling.rb:28); the org account-claim/enumeration surface now falls under PROTECTED_CUTOFF (10 req/3s). Classification spec added.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: claim_user not present in protected_paths. Shares the throttling.rb anchor with P1-1/P2-6; remediate together.",
       "disposition": {
@@ -477,7 +477,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/models/user.rb",
@@ -486,16 +486,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add AuditEvent.log_command/create! in the password-change path (notify_of_changes / @password_changed branch).",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): User#notify_of_changes now calls AuditEvent.log_command on @password_changed for every password change including admin-initiated/token resets (app/models/user.rb:2273-2276). Best-effort (log_command rescues and never raises) so a failed audit insert cannot break the password change; records only {type:'password_changed', self_service} - no password material or PII; user_key is the opaque global_id.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: notify_of_changes (user.rb:2255) only schedules a password_changed mailer (:2257); no AuditEvent. AuditEvent is used elsewhere in user.rb (e.g. :540, :581) but not for password changes.",
       "disposition": {
@@ -549,7 +549,7 @@
       "severity": "high",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/organizations_controller.rb",
@@ -558,16 +558,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Increase the verification-hash length to at least 16 chars; this unauthenticated endpoint leaks org/supervisor names.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "20b11176ad03b78668502af6edca4386565f3c7a",
+        "verifierNote": "Verified 2026-06-18 on staging (#433, 20b11176a): the share-link verifier is now 16 chars (Organization::START_CODE_VERIFIER_LENGTH=16, app/models/organization.rb:1325); generation uses Organization.start_code_verifier and lookup uses Organization.valid_start_code_verifier? (organizations_controller.rb:129), which also accepts the legacy 5-char value so already-issued links keep working. api/v1/start_code added to Throttling::PROTECTED_PATHS (throttling.rb:46) so the legacy short prefix is rate-limited (10 req/3s). The memorable activation/promo code is unchanged. Specs: verifier length + both-length acceptance/rejection + throttle classification (57 examples, 0 failures).",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging (#433)."
       },
       "notes": "Verified still open 2026-06-12: hash truncated to [0, 5] of SHA512 (organizations_controller.rb:128).",
       "disposition": {
@@ -662,7 +662,7 @@
       "severity": "high",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/resque.rb",
@@ -671,16 +671,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Derive cache_token from an env var or the deploy commit SHA.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): RedisInit.cache_token is derived via RedisInit.resolved_cache_token = ENV['CACHE_TOKEN'] || ENV['RENDER_GIT_COMMIT'] || ENV['K_REVISION'] || 'abc' (config/initializers/resque.rb:130-135); the static 'abc' is reached only in local/dev/test where none are set. CACHE_TOKEN is set on all prod/staging/dev Render services (1Password-backed), so the shared permission cache namespaces on an operator secret in every deployed environment.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: literal 'abc' (resque.rb:29). Low real-world impact but unchanged.",
       "disposition": {
@@ -2077,6 +2077,49 @@
         "promotedDate": "2026-06-17"
       },
       "notes": "Promoted from PR #412 review (adversary) on 2026-06-17. The COPPA consent / org-opt-out / supervise gates are keyed to the caller-asserted params[user_id], but the data egressed is the independent params[eval_session] payload, with no server-side binding between the two. A clinician can gate on a consented student while the payload carries a different non-consented child eval content; #412 redacts the student NAME (sett.student) but not the clinical content ownership. Distinct residual after closing LL-2e4c14d370/LL-e573a39d2b/LL-ef5ac1b2a5. See docs/task-management/LEARNINGS.md (eval narrator residual)."
+    },
+    {
+      "id": "LL-16fef018a0",
+      "ruleKey": "password-reset-code-throttle",
+      "title": "Password-reset code verification endpoint (users#password_reset) not rate-limited",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "config/initializers/throttling.rb",
+        "line": 41,
+        "snippet": "'api/v1/users/.+/password_reset'",
+        "sha": "0f691f48c3955ff6749ed5c5d18d00479dd316db"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add api/v1/users/.+/password_reset to Throttling::PROTECTED_PATHS so reset-code verification falls under PROTECTED_CUTOFF (10 req/3s), as its sibling forgot_password already is.",
+        "timeframe": "done"
+      },
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-18",
+        "rationale": "Throttle the password_reset code-verification endpoint; fixed in #421."
+      },
+      "closureEvidence": {
+        "sha": "0f691f48c3955ff6749ed5c5d18d00479dd316db",
+        "verifierNote": "Verified 2026-06-18 on staging (#421, 0f691f48c): 'api/v1/users/.+/password_reset' is present in Throttling::PROTECTED_PATHS (config/initializers/throttling.rb:41); the reset-code verification endpoint now falls under PROTECTED_CUTOFF (10 req/3s). throttling_paths_spec asserts the classification.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #421."
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 421,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-06-18"
+      },
+      "notes": "Defense-in-depth follow-up raised during the #420 senior-dev/DeepSeek review and fixed in #421; it never surfaced in an /audit-run, so it had no register row. Added to the register and attest-closed in the same motion at Scot's request (2026-06-18) so the remediation is tracked. The evidence anchor points at the remediating line (the endpoint was simply absent from PROTECTED_PATHS before #421)."
     }
   ]
 }
