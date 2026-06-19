@@ -549,7 +549,7 @@
       "severity": "high",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/organizations_controller.rb",
@@ -558,16 +558,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Increase the verification-hash length to at least 16 chars; this unauthenticated endpoint leaks org/supervisor names.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "20b11176ad03b78668502af6edca4386565f3c7a",
+        "verifierNote": "Verified 2026-06-18 on staging (#433, 20b11176a): the share-link verifier is now 16 chars (Organization::START_CODE_VERIFIER_LENGTH=16, app/models/organization.rb:1325); generation uses Organization.start_code_verifier and lookup uses Organization.valid_start_code_verifier? (organizations_controller.rb:129), which also accepts the legacy 5-char value so already-issued links keep working. api/v1/start_code added to Throttling::PROTECTED_PATHS (throttling.rb:46) so the legacy short prefix is rate-limited (10 req/3s). The memorable activation/promo code is unchanged. Specs: verifier length + both-length acceptance/rejection + throttle classification (57 examples, 0 failures).",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging (#433)."
       },
       "notes": "Verified still open 2026-06-12: hash truncated to [0, 5] of SHA512 (organizations_controller.rb:128).",
       "disposition": {
