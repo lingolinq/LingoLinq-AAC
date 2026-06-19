@@ -6,8 +6,10 @@ class EncryptLicenseMetadata < ActiveRecord::Migration[7.2]
   # expected to touch 0 rows; it is written to be safe and idempotent if data
   # does exist.
   #
-  # We operate on the raw column via SQL (not the model) so we are not affected
-  # by the model's decrypting accessor while migrating.
+  # We read the raw column via SQL (not the model) so the decrypting accessor
+  # does not interfere, and write back through update_all (bound/quoted by
+  # ActiveRecord, no string interpolation; update_all bypasses the encrypting
+  # setter so the pre-encrypted blob lands in the column verbatim).
   disable_ddl_transaction!
 
   def up
@@ -28,9 +30,7 @@ class EncryptLicenseMetadata < ActiveRecord::Migration[7.2]
 
       object = raw.strip.start_with?('{', '[') ? (JSON.parse(raw) rescue raw) : raw
       encrypted = GoSecure::SecureJson.dump(object)
-      connection.execute(
-        "UPDATE licenses SET metadata = #{connection.quote(encrypted)} WHERE id = #{id.to_i}"
-      )
+      License.where(id: id).update_all(metadata: encrypted)
       migrated += 1
     end
     say "encrypted metadata for #{migrated} license row(s)"
@@ -53,9 +53,7 @@ class EncryptLicenseMetadata < ActiveRecord::Migration[7.2]
       next if decrypted.nil?
 
       plaintext = decrypted.is_a?(String) ? decrypted : decrypted.to_json
-      connection.execute(
-        "UPDATE licenses SET metadata = #{connection.quote(plaintext)} WHERE id = #{id.to_i}"
-      )
+      License.where(id: id).update_all(metadata: plaintext)
       reverted += 1
     end
     say "decrypted metadata for #{reverted} license row(s)"
