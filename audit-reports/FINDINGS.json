@@ -328,7 +328,7 @@
       "frameworks": [
         "GDPR"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
@@ -337,16 +337,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add License.where(user_id: source.id).update_all(user_id: target.id) to transfer_user_content.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "dc82c5df7bfc28ecb049d13ee79e367bcf257d5e",
+        "verifierNote": "Verified 2026-06-18 on staging (#429, dc82c5df7): Flusher.transfer_user_content now reassigns License rows via License.where(user_id: source.id).update_all(user_id: target.id) (lib/flusher.rb:187), so seats are transferred rather than orphaned when users are merged.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #429."
       },
       "notes": "Verified still open 2026-06-12: transfer_user_content transfers NfcTag/UserIntegration/UserGoal/UserBadge/Webhook/UserBoardConnection/UserLink/ButtonSound/ButtonImage/UserVideo but not License (flusher.rb:156-190). License IS handled in flush_user_content (see P0-2), only the transfer path is missing it.",
       "disposition": {
@@ -438,7 +438,7 @@
       "severity": "high",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/users_controller.rb",
@@ -447,16 +447,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Return a uniform {email_sent: true} regardless of existence; drop the users count.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "91319512a1989784d1650e8d9dbe7a15d79c7695",
+        "verifierNote": "Verified 2026-06-18 on staging (#427, 91319512a): users#forgot_password now returns a uniform {email_sent: true} regardless of account existence, disabled, or throttled state (app/controllers/api/users_controller.rb:710); the users count and the distinguishing 400/messages were removed. The Ember forgot_password and forgot-login controllers store the whole response object and never read .users, so the frontend is unaffected by dropping the count.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #427."
       },
       "notes": "Verified still open 2026-06-12: forgot_password (users_controller.rb:692) returns users: users.length on success (:705/:708) and a 400 with users: 0 (:714), enabling enumeration.",
       "disposition": {
@@ -513,7 +513,7 @@
       "severity": "high",
       "confidence": "medium",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/callbacks_controller.rb",
@@ -522,16 +522,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Apply Aws::SNS::MessageVerifier to the transcoding callback path as already done for the SMS-inbound path.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "eb563e8dc9b5e9b8d9b76ccaca1b6ba4dfeaf203",
+        "verifierNote": "Verified 2026-06-18 on staging (#425, eb563e8dc): the transcoding callback branch (audio_conversion_events/video_conversion_events) now constructs Aws::SNS::MessageVerifier and returns 401 'inauthentic message' when authentic?(body) is false, before Transcoder.handle_event runs (app/controllers/api/callbacks_controller.rb), mirroring the SMS-inbound path.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #425."
       },
       "notes": "Reduced-scope 2026-06-12: SMS-inbound path now verifies via Aws::SNS::MessageVerifier.authentic? (callbacks_controller.rb:37-38), but the general transcoding TODO at :8 remains. Originally scoped to all SNS callbacks.",
       "disposition": {
@@ -1554,7 +1554,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/utils/button.js",
@@ -1563,16 +1563,16 @@
         "sha": "d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "In the fast_html symbol <img> string, concatenate an alt attribute (button label, or empty when the label is rendered). Keep parity with the template path fix so both grid render paths agree.",
-        "timeframe": "30 days"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "abb09fcf1a789af51be463943aeb97270cb8cffc",
+        "verifierNote": "Verified 2026-06-18 on staging (#428, abb09fcf1a): the fast_html symbol <img> string now emits alt=symbol_alt (the html-escaped button label) at app/frontend/app/utils/button.js:450, matching the template render path board/index.hbs:123 (alt={{button.label}}). Both grid render paths now provide alt text.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #428."
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). Second of the two board-grid render paths: button.js builds the tile symbol <img> as a raw HTML string with no alt attribute (the action_image at button.js:442 does include alt). Mirror of the templates/board/index.hbs finding; a fix in one path is not automatically in the other. | adversary: confirmed (2026-06-16): the fast_html symbol <img> (button.js:449) has no alt on a LIVE render path ({{button.fast_html}} / {{board.fast_html.html}}); the action_image <img> at button.js:442 DOES include alt, so the omission is specific not global. Escalation verified: when button.hide_label is set, the label span (button.js:479) is display:none via .hide-label (app.scss:9167), so it leaves the accessibility tree and the tile has NO accessible name at all -- supports high/critical. The parallel board.js render_fast_html builder repeats the same pattern (a third render path).",
       "disposition": {
@@ -2120,6 +2120,281 @@
         "promotedDate": "2026-06-18"
       },
       "notes": "Defense-in-depth follow-up raised during the #420 senior-dev/DeepSeek review and fixed in #421; it never surfaced in an /audit-run, so it had no register row. Added to the register and attest-closed in the same motion at Scot's request (2026-06-18) so the remediation is tracked. The evidence anchor points at the remediating line (the endpoint was simply absent from PROTECTED_PATHS before #421)."
+    },
+    {
+      "id": "LL-080a21089f",
+      "ruleKey": "no-auditevent-account-deletion-erasure",
+      "title": "Account deletion / right-to-erasure path writes no AuditEvent",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/users_controller.rb",
+        "line": 388,
+        "snippet": "  def flush_user",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Log AuditEvent.log_command in flush_user and flush_logs (actor global_id, target user global_id, action), and at the async finalization step (Flusher.flush_user_completely, lib/flusher.rb:230) so permanent destruction of education/health records is timestamped. Mirror the AuditEvent pattern in organizations_controller.rb / supervisor_relationships_controller.rb.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-06-18. Distinct from LL-d35cbdb313 (creation). Verified at ac80f5ceff: zero AuditEvent in users_controller.rb and lib/flusher.rb. flush_user (users_controller.rb:388) schedules deletion + emails but logs nothing; the cascade flush_user_content/flush_user_completely (flusher.rb:192,230) destroys LogSession/boards/images/User with no audit entry. FERPA/HIPAA require logging destruction of records; GDPR Art.17 erasure must be demonstrable. Register flush findings (LL-37caf162eb, LL-e775d86e6a, LL-991d259b2a) cover WHAT is flushed, not whether it is audited.\n\nadversary (2026-06-18): CONFIRMED. No AuditEvent on flush_user/flusher.rb erasure path; flush_record->flush_versions deletes PaperTrail history (flusher.rb:35-46) so erasure destroys its own evidence; no User destroy callback backstop. HIGH justified."
+    },
+    {
+      "id": "LL-7acd0e7416",
+      "ruleKey": "no-auditevent-admin-support-user-record-reads",
+      "title": "Admin-support reads of individual student records (version history, daily usage) write no AuditEvent",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/users_controller.rb",
+        "line": 485,
+        "snippet": "  def history",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Emit AuditEvent.log_command (actor=@api_user.global_id, target=user.global_id) in cross-user admin-support reads: history (users_controller.rb:485, returns full UserVersion change history) and daily_use (users_controller.rb:819/826, returns daily_use communication LogSession). Scope to the cross-user branch so self-reads are not logged. Consistent with AuditEvent coverage in organizations / supervisor_relationships / database_contents controllers.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-06-18. Verified at ac80f5ceff: zero AuditEvent in users_controller.rb. history (line 485, gated admin_support_actions) returns User.user_versions with no audit entry; daily_use (line 819, cross-user gated at line 826) returns the daily_use LogSession with no audit entry. AuditEvent IS used in peer admin controllers, so this is an inconsistent gap. FERPA: school-official access to education records should be logged; HIPAA: PHI read access requires audit controls. Distinct from LL-d35cbdb313 and the deletion-audit finding.\n\nadversary (2026-06-18): CONFIRMED. history (line 485) and daily_use (line 819) cross-user branches emit no AuditEvent. Strongest peer precedent is database_contents_controller (fail-closed audit on every read, lines 36-41/99-109); the organizations/supervisor_relationships log_command sites are MUTATIONS not reads, so trim those from the rationale to avoid an apples-to-oranges rebuttal. HIGH defensible."
+    },
+    {
+      "id": "LL-30bcbc1e27",
+      "ruleKey": "integration-remote-webhook-url-never-serialized",
+      "title": "Integration button_webhook_url not serialized for remote webhooks, silencing the client insecure-URL warning",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/json_api/integration.rb",
+        "line": 16,
+        "snippet": "    if json['webhook'] && obj.settings['button_webhook_local']",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Rails side (preferred): serialize json['button_webhook_url'] = obj.settings['button_webhook_url'] unconditionally when json['webhook'] is true (not only when button_webhook_local is set), so Ember's insecure_button_webhook_url computed can evaluate remote URLs. Alternative: add a server-side http:// check and surface a dedicated boolean flag so the client warning does not depend on receiving the raw URL.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-18. Ember counterpart: app/frontend/app/models/integration.js:22-27 declares button_webhook_url and derives insecure_button_webhook_url as truthy when URL starts with http:// AND button_webhook_local is false. Because Rails only emits button_webhook_url when button_webhook_local is set (integration.rb:16-18), remote webhook URLs are never returned, so the insecure indicator never fires and the add-integration.hbs:31 warning is silenced for the exact case it was designed to catch. Relates to LL-1085e59d29 (model accepts plaintext http:// callback URLs); this is the distinct API-contract gap that silences the client-side indicator.\n\nadversary (2026-06-18): REFUTED. add-integration.hbs is create-only (add-integration.js:6 createRecord); the insecure_button_webhook_url warning evaluates the live in-memory record's button_webhook_url/button_webhook_local as the user types, NOT server JSON, so it DOES fire for remote http:// webhooks. Serializer (integration.rb:16-18) is never consulted in this path. RECOMMEND Scot drop/close as not-a-defect."
+    },
+    {
+      "id": "LL-6614b7c85a",
+      "ruleKey": "outdated-lodash-lockfile-drift",
+      "title": "lodash 4.18.1 resolved in package-lock.json exceeds all known published 4.x releases (latest 4.17.21)",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package-lock.json",
+        "line": 22142,
+        "snippet": "      \"version\": \"4.18.1\",",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Verify lodash@4.18.1 exists on the public npm registry (run `npm view lodash versions`). The lockfile resolves a real integrity hash + resolved URL for 4.18.1, but that version exceeds the highest known-published 4.x (4.17.21). If 4.18.1 is not on the public registry, delete and regenerate package-lock.json to lock at 4.17.21. lodash-es is also resolved to 4.18.1 (line 22149). No known CVEs in 4.18.x.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. package.json devDependencies and overrides both specify lodash ^4.17.21. package-lock resolves 4.18.1 with a sha512 integrity hash. If genuine (published after auditor cutoff) the concern is low; if phantom, supply-chain integrity defect. Medium confidence pending live registry check.\n\nadversary (2026-06-18): REFUTED. lodash 4.18.0 (2026-03-31) and 4.18.1 (2026-04-01) are genuine npm releases; 4.18.1 is the current `latest` dist-tag and the lockfile integrity hash matches the registry's published dist.integrity exactly. Genuine upstream release, dev-only. Not a supply-chain concern (auditor's 'latest=4.17.21' premise was stale). RECOMMEND Scot drop."
+    },
+    {
+      "id": "LL-6f1977944f",
+      "ruleKey": "ruby-saml-no-explicit-floor",
+      "title": "ruby-saml has no minimum version constraint in Gemfile; SAML auth-bypass CVEs fixed in >= 1.17.0",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "Gemfile.lock",
+        "line": 490,
+        "snippet": "    ruby-saml (1.18.1)",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Locked 1.18.1 is >= 1.17.0 so CVE-2025-25291 and CVE-2025-25292 (XML signature-wrapping auth bypass) are covered. But Gemfile line 84 is `gem 'ruby-saml'` with no constraint, so a future `bundle update ruby-saml` could resolve a breaking 2.x or compromised version without alert. Add an explicit `>= 1.17.0` security floor. SAML is used for school-district SSO (FERPA scope).",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2025-25291 / CVE-2025-25292: XML signature wrapping via REXML in ruby-saml < 1.17.0 allowing auth bypass. Locked 1.18.1 is safe; the finding is the absent Gemfile floor on a security-sensitive auth library used in school environments.\n\nadversary (2026-06-18): CONFIRMED but over-rated. Facts hold (Gemfile:84 bare, lock pins safe 1.18.1). Real defense-in-depth on an auth boundary, but lockfile already pins a safe version and CI installs from lock. RECOMMEND Scot downgrade MEDIUM->LOW; one-line fix `gem 'ruby-saml', '>= 1.18.0'`."
+    },
+    {
+      "id": "LL-e066ea6fa3",
+      "ruleKey": "http-proxy-1.18.1-eol-cve-2024-21943",
+      "title": "http-proxy 1.18.1 (EOL, last release 2021) has CVE-2024-21943 (ReDoS via Host header); dev-only",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 64,
+        "snippet": "    \"http-proxy\": \"^1.18.1\",",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "http-proxy 1.x is EOL with no upstream fix for CVE-2024-21943 (ReDoS via crafted Host header). It is a devDependency for the Ember local dev proxy only, not bundled to production. Options: (1) accept-risk with a dated note (impact limited to developer machine); (2) migrate the dev proxy to http-proxy-middleware 3.x when the Ember 5 migration lands.",
+        "timeframe": "blocked-on-ember-migration"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2024-21943: ReDoS in http-proxy <= 1.18.1 via crafted Host header; exploitable only by an attacker who can reach the local Ember dev server. Low because dev-only with no production surface. Distinct from tracked bootstrap finding LL-d1ea8659c3.\n\nadversary (2026-06-18): UNCERTAIN. Dev-only framing CONFIRMED (devDependencies, no prod bundle). But CVE-2024-21943 attribution could NOT be corroborated; documented http-proxy issue is a long-request-body DoS fixed IN 1.18.1 (already covered by ^1.18.1). Real residual signal is EOL/unmaintained (last release ~6yr old). RECOMMEND re-source/correct the CVE id before trusting; LOW severity is right regardless."
+    },
+    {
+      "id": "LL-2695434541",
+      "ruleKey": "puma-constraint-allows-pre-patch",
+      "title": "Puma Gemfile constraint permits 7.2.0 which predates the CVE-2026-47736/47737 fix; floor unset",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "Gemfile",
+        "line": 62,
+        "snippet": "gem 'puma', '~> 7.2' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Tighten `gem 'puma', '~> 7.2'` to also require `'>= 7.2.1'` so `bundle update puma` cannot resolve back to 7.2.0. Gemfile.lock already pins 7.2.1 (line 349), so there is no current exposure; this is defense-in-depth against future re-resolution undoing the CVE fix.",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2026-47736 / CVE-2026-47737 are PROXY protocol v1 parser issues fixed in puma 7.2.1. The Gemfile comment acknowledges this but the ~> 7.2 constraint technically permits 7.2.0. Current lockfile resolves 7.2.1 (safe). Constraint-tightening only; no current vulnerability exposure.\n\nadversary (2026-06-18): CONFIRMED but config-gated. CVE-2026-47736/47737 real, fixed in 7.2.1; lock pins 7.2.1 (safe). Gemfile:62 already carries an inline comment documenting the floor. Both CVEs only bite with non-default `set_remote_address proxy_protocol: :v1`, which is not enabled (Render terminates TLS normally) -> real-world exploitability ~nil. RECOMMEND Scot treat as informational; optional tighten to `'~> 7.2', '>= 7.2.1'`."
+    },
+    {
+      "id": "LL-35e6b7a3d6",
+      "ruleKey": "search-overlay-input-missing-label",
+      "title": "Dashboard search overlay text input has no programmatic label (placeholder only)",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/components/dashboard/authenticated-view.hbs",
+        "line": 588,
+        "snippet": "          class=\"md-searchOverlay__input\"",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Give the search input a programmatic accessible name: add an i18n aria-label to the input. The overlay role=dialog already carries an i18n aria-label, but the input itself needs its own name; a placeholder is not a reliable accessible name and disappears on input.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Labels or Instructions (SC 3.3.2) and Name Role Value (SC 4.1.2). Live authenticated Home dashboard search overlay; its only text input (md-searchOverlay__input) exposes purpose solely via placeholder; no label/aria-label/aria-labelledby. Confidence medium: input is reachable/wired though results not yet backed by a Rails endpoint.\n\nadversary (2026-06-18): CONFIRMED. Grepped whole overlay: no <label>/for=/aria-label/aria-labelledby/sr-only on the input; the only aria-label is on the role=dialog section (585), which does not name the input. Placeholder is not a valid accessible name. Real SC 4.1.2/3.3.2 defect."
+    },
+    {
+      "id": "LL-e08bd45a9f",
+      "ruleKey": "sentence-box-vocalize-anchor-missing-button-role",
+      "title": "Sentence box / utterance bar vocalize control is an anchor with no button role or accessible name",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/application.hbs",
+        "line": 86,
+        "snippet": "        <a href='#' tabindex=\"0\" id=\"button_list\" class={{this.button_list_class}} {{ action \"vocalize\" on=\"select\"}} data-placement=\"bottom\" data-trigger=\"manual\">",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add role=button and an i18n aria-label to the #button_list anchor. href=# makes it announce as a link not the speak action, and its only name source is dynamic chip/time content (absent when the utterance is empty). The sibling icon controls (backspace, clear) already use sr-only i18n names; mirror that.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Name Role Value (SC 4.1.2). Sentence box/utterance bar speak control #button_list, the primary tap-to-vocalize action. An anchor (announced as link) with no role=button and no aria-label; name comes only from dynamic content, empty when the utterance is empty. Distinct from tracked chip-img finding LL-0c6e931f47 (chip img alt, a Non-text Content SC); this is the wrapping control's role+name. Confidence medium: chip text can supply a name when non-empty.\n\nadversary (2026-06-18): CONFIRMED. #button_list anchor (application.hbs:86-132) has no role=button, no aria-label, no title; wrapped button-list component supplies no name; rendered focusable (tabindex=0), not aria-hidden; empty accessible name when utterance empty. Real SC 4.1.2 defect on a core daily-use AAC control."
     }
   ]
 }
