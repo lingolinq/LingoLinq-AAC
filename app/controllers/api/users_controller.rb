@@ -261,6 +261,25 @@ class Api::UsersController < ApplicationController
       start_progress = res[:progress]
     end
     UserBoardProvisioner.provision_for(user)
+    # Org-authored (school-official) creation: emit the immutable authorization audit
+    # now that the user is persisted. process_params recorded the basis in settings
+    # but had no global_id to key the event on. This makes every school-authorized
+    # under-13 account creation traceable to the authorizing org and manager.
+    sa = user.settings && user.settings['school_authorization']
+    if sa.is_a?(Hash) && sa['basis'] == 'school_official'
+      AuditEvent.create!(
+        user_key: user.global_id,
+        data: {
+          'type' => 'school_authorization',
+          'basis' => sa['basis'],
+          'organization_id' => sa['organization_id'],
+          'authorized_by' => sa['authorized_by'],
+          'record_id' => sa['record_id']
+        },
+        event_type: 'school_authorization',
+        record_id: sa['record_id']
+      )
+    end
     coppa_pending = user.coppa_parental_consent_pending?
     unless coppa_pending
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)

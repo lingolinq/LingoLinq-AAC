@@ -1251,8 +1251,24 @@ class User < ApplicationRecord
       end
       self.settings['email'] = process_string(new_email)
     end
-    # Use blank? so empty string from the client does not skip COPPA (!"" is false in Ruby).
-    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored_organization_id'].blank?
+    # Determine up front whether this is a VALID organization-authored creation (a
+    # school/district manager creating a managed user under the FERPA school-official
+    # exception). The COPPA parental-consent gate is skipped ONLY for a validated org
+    # authorization. Previously the skip keyed on the raw authored_organization_id
+    # param being non-blank while the org/author validation ran later (see below), so
+    # a present-but-invalid or unauthorized org id bypassed the COPPA gate AND recorded
+    # nothing. Compute the validated result once and reuse it for both decisions.
+    org_authorized = false
+    authoring_org = nil
+    if !self.id && params['authored_organization_id'].present?
+      authoring_org = Organization.find_by_global_id(params['authored_organization_id'])
+      if authoring_org && non_user_params[:author] && authoring_org.allows?(non_user_params[:author], 'edit')
+        org_authorized = true
+      end
+    end
+    # Use !org_authorized (not authored_organization_id.blank?) so an empty string OR a
+    # present-but-invalid/unauthorized org id both fall through to the COPPA gate.
+    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized
       # Ember may send snake_case, dasherized, or camelCase JSON keys depending on serializer/version.
       minor_flag = params['coppa_under_13'] || params['coppa-under-13'] || params['coppaUnder13']
       wants_minor = [true, 'true', '1', 1].include?(minor_flag)
@@ -1290,12 +1306,20 @@ class User < ApplicationRecord
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']
-    if params['authored_organization_id'].present? && !self.id
-      org = Organization.find_by_global_id(params['authored_organization_id'])
-      if org && non_user_params[:author] && org.allows?(non_user_params[:author], 'edit')
-        self.settings['authored_organization_id'] = org.global_id
-        self.settings['pending'] = false
-      end
+    if org_authorized
+      self.settings['authored_organization_id'] = authoring_org.global_id
+      self.settings['pending'] = false
+      # Record the school-authorization basis explicitly so the school-official
+      # exception is auditable (who authorized it, when, and on what basis) instead
+      # of silently skipping COPPA with no record. The matching immutable AuditEvent
+      # is emitted post-save in api/users#create (no global_id exists yet here).
+      self.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => authoring_org.global_id,
+        'authorized_by' => (non_user_params[:author] && non_user_params[:author].global_id),
+        'authorized_at' => Time.now.utc.iso8601,
+        'record_id' => SecureRandom.uuid
+      }
     end
     if params['last_message_read']
       last_message_read = params['last_message_read'].to_i
