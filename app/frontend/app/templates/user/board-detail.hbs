@@ -163,7 +163,7 @@
             class="md-board-edit-panel__collapse-btn"
             aria-expanded={{unless this.left_panel_collapsed "true" "false"}}
             aria-label={{if this.left_panel_collapsed (t "Expand panel" key="expand_panel") (t "Collapse panel" key="collapse_panel")}}
-            {{on "click" (action "toggle_left_panel") bubbles=false}}>
+            {{action "toggle_left_panel" bubbles=false}}>
             <svg class="md-board-edit-panel__collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="11 17 6 12 11 7"/>
               <polyline points="18 17 13 12 18 7"/>
@@ -726,7 +726,7 @@
                 {{#if this.suggestions.list.length}}
                   <span class="md-board-detail-sentence-bar__prediction-group" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
                     {{#each this.suggestions.list as |suggestion|}}
-                      <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (action "complete_word" suggestion) bubbles=false}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
+                      <button type="button" class="md-board-detail-sentence-bar__prediction" {{action "complete_word" suggestion bubbles=false}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                         {{#if this.utterance_show_symbols}}
                           {{#if suggestion.image}}
                             <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
@@ -867,7 +867,7 @@
             (handled by board-detail controller) so this is purely a mouse
             convenience — hide it from AT. --}}
           <div class="md-board-detail-actions-backdrop" {{on "click" (action "toggle_options_menu")}} aria-hidden="true"></div>
-          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (action "options_menu_keydown") preventDefault=false}}>
+          <div class="md-board-detail-actions-menu" role="menu" {{action "options_menu_keydown" on="keydown"}}>
             {{#unless this.edit_mode}}
               {{!-- Edit Board — pulled out of the BOARD section per
                    design request and floated above all other items as
@@ -2080,7 +2080,7 @@
                    (see app.scss .md-board-detail-prediction-rail text-pos rules). --}}
               <div class="md-board-detail-prediction-rail {{this.button_text_position_class}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
                 {{#each this.prediction_rail_suggestions as |suggestion|}}
-                  <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (action "complete_word" suggestion) bubbles=false}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
+                  <button type="button" class="md-board-detail-sentence-bar__prediction" {{action "complete_word" suggestion bubbles=false}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                     {{#if this.utterance_show_symbols}}
                       {{#if suggestion.image}}
                         <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
