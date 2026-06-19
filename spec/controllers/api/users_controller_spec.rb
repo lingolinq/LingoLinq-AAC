@@ -848,6 +848,47 @@ describe Api::UsersController, :type => :controller do
         expect(ev.user_key).to eq(u.global_id)
         expect(ev.data['organization_id']).to eq(o.global_id)
       end
+
+      it "currently allows an assistant-level manager to author a minor (Phase 1 will decide if a full manager should be required)" do
+        # Documents the preserved authoring scope: 'edit' is satisfied by assistant
+        # managers (add_manager(..., false)), not only full managers. This is the
+        # pre-existing behavior; tightening to full-manager-only is a Phase 1 decision.
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, false)
+        post :create, params: {:user => {
+          'name' => 'assistant_authored_kid',
+          'email' => 'assistant_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
+
+      it "does not orphan or 500 the child account when the school_authorization audit fails (fail-open)" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        allow(AuditEvent).to receive(:create!).and_call_original
+        expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'school_authorization')).and_raise(StandardError.new('boom'))
+        post :create, params: {:user => {
+          'name' => 'audit_fail_kid',
+          'email' => 'audit_fail_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u).to be_present
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
     end
 
     it "should error on invalid start code" do

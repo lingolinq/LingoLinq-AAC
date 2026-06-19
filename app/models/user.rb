@@ -1262,6 +1262,15 @@ class User < ApplicationRecord
     authoring_org = nil
     if !self.id && params['authored_organization_id'].present?
       authoring_org = Organization.find_by_global_id(params['authored_organization_id'])
+      # NOTE: 'edit' is satisfied by assistant-level managers, not only full managers
+      # (Organization adds 'edit' for assistant? at organization.rb:43; 'manage' is the
+      # full-manager-only level at :44). This preserves the pre-existing authoring scope.
+      # Whether the school-official exception should be restricted to full managers, and
+      # gated on a signed-contract/DPA flag, is the Phase 1 decision (see
+      # outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md); do not silently change
+      # the scope here. Any code path that sets settings['school_authorization'] below
+      # must also emit the school_authorization AuditEvent (today the only creator path
+      # is api/users#create, which does).
       if authoring_org && non_user_params[:author] && authoring_org.allows?(non_user_params[:author], 'edit')
         org_authorized = true
       end
