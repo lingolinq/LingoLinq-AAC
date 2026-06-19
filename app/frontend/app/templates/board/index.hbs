@@ -120,7 +120,7 @@
                       {{#unless this.app_state.currentUser.hide_symbols}}
                         {{#unless button.board.text_only}}
                           {{#unless button.text_only}}
-                            <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
+                            <img src={{button.local_image_url}} rel={{button.original_image_url}} alt={{button.label}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
                           {{/unless}}
                         {{/unless}}
                       {{/unless}}
