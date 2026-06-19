@@ -3,12 +3,38 @@ import { computed } from '@ember/object';
 import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 
+/** Ember Data model name for force_reload keys and tmp→server saves. */
+function modelNameForRecord(record) {
+  if (record._internalModel && record._internalModel.modelName) {
+    return record._internalModel.modelName;
+  }
+  if (typeof record.modelName === 'string') {
+    return record.modelName;
+  }
+  if (record.constructor && record.constructor.modelName) {
+    return record.constructor.modelName;
+  }
+  return null;
+}
+
+/** Scalar attrs including unsaved edits — same scope as legacy _internalModel._attributes. */
+function attributeValuesForRecord(record) {
+  var attrs = {};
+  record.eachAttribute(function(name) {
+    attrs[name] = record.get(name);
+  });
+  return attrs;
+}
+
 const BaseModel = DS.Model.extend({
   reload: function(ignore_local) {
     if(ignore_local === false) {
       persistence.force_reload = null;
     } else {
-      persistence.force_reload = this.constructor.modelName + "_" + this.get('id');
+      var modelName = modelNameForRecord(this);
+      if(modelName) {
+        persistence.force_reload = modelName + "_" + this.get('id');
+      }
     }
     return this._super();
   },
@@ -32,8 +58,11 @@ const BaseModel = DS.Model.extend({
     if(this.id && this.id.match(/^tmp[_/]/) && persistence.get('online')) {
       var tmp_id = this.id;
       var tmp_key = this.get('key');
-      var type = this.constructor.modelName;
-      var attrs = this.serialize({ includeId: false });
+      var type = modelNameForRecord(this);
+      if(!type) {
+        return this._super();
+      }
+      var attrs = attributeValuesForRecord(this);
       var rec = this.store.createRecord(type, attrs);
       rec.tmp_key = tmp_key;
       return rec.save().then(function(result) {

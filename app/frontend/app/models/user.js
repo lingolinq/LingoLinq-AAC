@@ -509,13 +509,13 @@ LingoLinq.User = BaseModel.extend({
       }
     });
   }),
-  multiple_devices: computed('devices', function() {
+  multiple_devices: computed('devices', 'devices.[]', function() {
     return (this.get('devices') || []).length > 1;
   }),
-  device_count: computed('devices', function() {
+  device_count: computed('devices', 'devices.[]', function() {
     return (this.get('devices') || []).length;
   }),
-  current_device_name: computed('devices', function() {
+  current_device_name: computed('devices', 'devices.[]', function() {
     var device = (this.get('devices') || []).find(function(d) { return d && d.current_device === true; });
     return (device && device.name) || "Unknown device";
   }),

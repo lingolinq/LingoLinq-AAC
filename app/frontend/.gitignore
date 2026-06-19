@@ -10,6 +10,7 @@
 
 # misc
 /.env*
+/.ember-cli.local
 /.pnp*
 /.sass-cache
 /connect.lock

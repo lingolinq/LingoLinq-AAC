@@ -369,7 +369,7 @@ var persistence = EmberObject.extend({
     keys.forEach(function(key) { hash[key] = true; });
     // Look in the in-memory store for matching records, mark them
     // as not missing if found
-    LingoLinq.store.peekAll(store).slice().forEach(function(item) {
+    LingoLinq.store.peekAll(store).forEach(function(item) {
       if(item) {
         var record = item;
         if(record && hash[record.get('id')]) {

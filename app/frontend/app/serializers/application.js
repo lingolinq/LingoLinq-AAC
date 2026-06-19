@@ -98,6 +98,7 @@ export default DS.RESTSerializer.extend({
       if (mediaData && mediaData.id) {
         var conflictId = String(mediaData.id);
         try {
+          // Snapshot before unload — avoid mutating the live RecordArray mid-loop.
           var allRecs = store.peekAll(mediaKey).slice();
           for (var mi = 0; mi < allRecs.length; mi++) {
             if (String(allRecs[mi].get('id')) === conflictId) {

@@ -1101,7 +1101,7 @@ LingoLinq.Board = BaseModel.extend({
     // reload or fetch them remotely to get the latest, updated version,
     // which will include the "my copy" information.
     var do_reloads = this.appState.get('board_reloads') || {};
-    LingoLinq.store.peekAll('board').slice().forEach(function(brd) {
+    LingoLinq.store.peekAll('board').forEach(function(brd) {
       if(brd && affected_board_ids && affected_board_ids.indexOf(brd.get('id')) != -1) {
         if(!brd.get('isLoading') && !brd.get('isNew') && !brd.get('isDeleted')) {
           do_reloads[brd.get('id')] = true;
@@ -1307,7 +1307,7 @@ LingoLinq.Board = BaseModel.extend({
     } else {
       var valid_button_set = null;
       // first check if there's a satisfactory higher-level buttonset that can be used instead
-      LingoLinq.store.peekAll('buttonset').slice().forEach(function(bs) {
+      LingoLinq.store.peekAll('buttonset').forEach(function(bs) {
         if(bs && (bs.get('board_ids') || []).indexOf(_this.get('id')) != -1) {
           if((bs.get('buttons') && bs.get('buttons').length) || bs.get('root_url')) {
             if(bs.get('fresh') || !valid_button_set) {
@@ -1883,17 +1883,17 @@ LingoLinq.Board.refresh_data_urls = function() {
     // shortcoming.
     var _this = this;
     runLater(function() {
-      LingoLinq.store.peekAll('board').slice().forEach(function(i) {
+      LingoLinq.store.peekAll('board').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      LingoLinq.store.peekAll('image').slice().forEach(function(i) {
+      LingoLinq.store.peekAll('image').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      LingoLinq.store.peekAll('sound').slice().forEach(function(i) {
+      LingoLinq.store.peekAll('sound').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }

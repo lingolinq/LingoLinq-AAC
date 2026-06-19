@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 import { getOwner } from '@ember/application';
 
 /**
@@ -18,13 +18,20 @@ export default Component.extend({
       : this.get('modalService.highlightModel');
   }),
 
-  highlightController: computed('settings', 'secondary', function() {
-    var settings = this.get('settings');
-    if (!settings) { return null; }
+  highlightController: computed('secondary', function() {
     var owner = getOwner(this);
     var key = this.get('secondary') ? 'controller:highlight2' : 'controller:highlight';
-    var ctrl = owner.lookup(key);
-    ctrl.set('model', settings);
-    return ctrl;
+    return owner.lookup(key);
   }),
+
+  syncHighlightControllerModel: observer('settings', 'highlightController', function() {
+    var ctrl = this.get('highlightController');
+    if(!ctrl) { return; }
+    ctrl.set('model', this.get('settings'));
+  }),
+
+  init() {
+    this._super(...arguments);
+    this.syncHighlightControllerModel();
+  }
 });
