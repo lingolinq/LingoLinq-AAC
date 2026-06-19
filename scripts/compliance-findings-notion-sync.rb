@@ -29,6 +29,15 @@
 #   Closed/decided by (rich_text), PRs (rich_text), Closure SHA (rich_text),
 #   Evidence (rich_text), Remediation (rich_text).
 #
+# Split ownership (so non-devs can use the board without the sync clobbering them):
+# this script ONLY writes the register-owned columns listed below; it sends a fixed property
+# set on every PATCH and never touches any other column. Columns reserved for humans -
+# "Owner", "Target date", "Program notes", "Needs Scot decision" (and any future ones) - are
+# left untouched, so a non-dev can assign owners, set dates, take notes, and flag items for
+# Scot directly in Notion. The register stays authoritative ONLY for the finding facts +
+# status (code-verified, governance-gated); program-management lives in Notion. Do NOT add
+# any of the human-owned columns to properties_for.
+#
 # This is compliance content: Claude-only, never routed to Codex/DeepSeek. The register is
 # already PII-free (code/path evidence only), so nothing identifiable reaches Notion.
 
