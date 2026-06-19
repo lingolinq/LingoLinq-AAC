@@ -135,17 +135,17 @@ describe Api::DatabaseContentsController, :type => :controller do
       end
     end
 
-    it 'should serve a no-secure-column allowlisted table (licenses)' do
-      # Exercises the exposable_columns guard for a model that never calls
-      # secure_serialize, so respond_to?(:secure_column) is false.
+    it 'should strip both the encrypted metadata and the plaintext external_reference (licenses)' do
+      # licenses.metadata is now secure_serialize'd (LL-740bcb10fa), so it is
+      # stripped via the secure_column guard; external_reference is a plaintext
+      # PO/Stripe id that go_secure cannot also encrypt (one secure column per
+      # model), so it must still be stripped explicitly via SENSITIVE_COLUMNS.
       make_admin
-      expect(License.respond_to?(:secure_column)).to eq(false)
+      expect(License.secure_column).to eq(:metadata)
       get :index, params: {table: 'licenses'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
       columns = json['database_contents']['columns']
-      # licenses has no encrypted column, so its plaintext metadata and the
-      # PO/Stripe external_reference must be stripped explicitly.
       expect(columns).not_to include('metadata')
       expect(columns).not_to include('external_reference')
     end

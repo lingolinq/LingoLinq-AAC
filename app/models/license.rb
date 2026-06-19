@@ -1,7 +1,14 @@
 class License < ApplicationRecord
   include GlobalId
+  include SecureSerialize
   belongs_to :organization
   belongs_to :user, optional: true
+
+  # LL-740bcb10fa: metadata is an untyped catch-all that may hold sensitive
+  # district/billing data, so it is encrypted at rest. go_secure permits only
+  # one secure column per model; external_reference (a PO/Stripe id) stays
+  # plaintext and is excluded from the DB-browser API in schema_explorer.rb.
+  secure_serialize :metadata
 
   validates :organization_id, presence: true
   validates :seat_type, inclusion: { in: %w[student supervisor] }
