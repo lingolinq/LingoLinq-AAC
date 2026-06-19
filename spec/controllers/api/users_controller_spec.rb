@@ -1712,8 +1712,19 @@ describe Api::UsersController, :type => :controller do
       expect(progress.settings['method']).to eq('flush_user_logs')
       expect(progress.settings['arguments']).to eq([@user.global_id, @user.user_name])
     end
+
+    it "should log an audit event when scheduling a log flush" do
+      token_user
+      AuditEvent.delete_all
+      post :flush_logs, params: {:user_id => @user.global_id, :confirm_user_id => @user.global_id, :user_name => @user.user_name}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_logs_flush_scheduled' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(@user.global_id)
+    end
   end
-  
+
   describe "flush_user" do
     it "should require api token" do
       post :flush_user, params: {:user_id => 1}
@@ -1752,6 +1763,17 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json).to eq({'flushed' => 'pending'})
+    end
+
+    it "should log an audit event when scheduling account deletion" do
+      token_user
+      AuditEvent.delete_all
+      post :flush_user, params: {:user_id => @user.global_id, :confirm_user_id => @user.global_id, :user_name => @user.user_name}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_deletion_scheduled' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(@user.global_id)
     end
   end
 
@@ -2704,6 +2726,29 @@ describe Api::UsersController, :type => :controller do
       expect(json['log']).to_not eq(nil)
     end
 
+    it "should log an admin-support audit event for a cross-user daily_use read" do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, true)
+      u = User.create
+      AuditEvent.delete_all
+      get :daily_use, params: {:user_id => u.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_daily_use_read' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(u.global_id)
+    end
+
+    it "should not log an admin-support audit event for a self daily_use read" do
+      token_user
+      AuditEvent.delete_all
+      get :daily_use, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_daily_use_read' }
+      expect(ev).to eq(nil)
+    end
+
     it 'should return data if available' do
       token_user
       d = Device.create(:user => @user)
@@ -2753,6 +2798,20 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['userversion']).to eq([])
+    end
+
+    it 'should log an admin-support audit event for a cross-user history read' do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, true)
+      u = User.create
+      AuditEvent.delete_all
+      get 'history', :params => {'user_id' => u.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_history_read' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(u.global_id)
     end
   end
   

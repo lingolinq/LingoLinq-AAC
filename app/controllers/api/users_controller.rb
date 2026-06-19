@@ -382,9 +382,14 @@ class Api::UsersController < ApplicationController
     return unless allowed?(user, 'delete')
     return api_error(400, {'flushed' => 'false', 'user_name_math' => (user.user_name == params['user_name']), 'user_id_match' => (user.global_id == params['confirm_user_id'])}) unless user.user_name == params['user_name'] && user.global_id == params['confirm_user_id']
     progress = Progress.schedule(Flusher, :flush_user_logs, user.global_id, user.user_name, for_user: @api_user)
+    AuditEvent.log_command(@api_user.global_id, {
+      'type' => 'user_logs_flush_scheduled',
+      'user_id' => user.global_id,
+      'progress_id' => progress.global_id
+    })
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
-  
+
   def flush_user
     user = User.find_by_path(params['user_id'])
     return unless allowed?(user, 'delete')
@@ -394,6 +399,11 @@ class Api::UsersController < ApplicationController
     Purchasing.cancel_other_subscriptions(user, 'all')
     SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
     AdminMailer.schedule_delivery(:opt_out, user.global_id, 'deleted')
+    AuditEvent.log_command(@api_user.global_id, {
+      'type' => 'user_deletion_scheduled',
+      'user_id' => user.global_id,
+      'scheduled_deletion_at' => user.schedule_deletion_at&.iso8601
+    })
     render json: {flushed: 'pending'}
   end
   
@@ -493,6 +503,14 @@ class Api::UsersController < ApplicationController
       user_id = params['user_id']
     end
     return unless exists?(user_id)
+    # Accounting-of-disclosure: admin-support reads of another user's full version
+    # history are timestamped. Self-reads are not logged.
+    if @api_user && user_id != @api_user.global_id
+      AuditEvent.log_command(@api_user.global_id, {
+        'type' => 'admin_support_history_read',
+        'user_id' => user_id
+      })
+    end
     versions = User.user_versions(user_id)
     render json: JsonApi::UserVersion.paginate(params, versions, {:admin => Organization.admin_manager?(@api_user)})
   end
@@ -814,6 +832,12 @@ class Api::UsersController < ApplicationController
         api_error 400, {error: 'Not authorized', unauthorized: true}
         return
       end
+      # Accounting-of-disclosure: admin-support reads of another user's daily-use
+      # communication log are timestamped.
+      AuditEvent.log_command(@api_user.global_id, {
+        'type' => 'admin_support_daily_use_read',
+        'user_id' => user.global_id
+      })
     end
     log = LogSession.find_by(:user_id => user.id, :log_type => 'daily_use')
     if log
