@@ -1,4 +1,4 @@
-import { Response } from 'ember-cli-mirage';
+import { Response } from 'miragejs';
 
 export default function() {
   // Route prefix matches the LingoLinq Rails JSON API

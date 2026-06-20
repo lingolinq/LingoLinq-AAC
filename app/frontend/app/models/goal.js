@@ -1,4 +1,5 @@
 import DS from 'ember-data';
+import BaseModel from './base';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import LingoLinq from '../app';
@@ -7,7 +8,7 @@ import Utils from '../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Goal = DS.Model.extend({
+LingoLinq.Goal = BaseModel.extend({
   init() {
     this._super(...arguments);
     // Set auto_assessment based on assessment_badge

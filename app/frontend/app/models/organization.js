@@ -1,5 +1,6 @@
 import EmberObject from '@ember/object';
 import DS from 'ember-data';
+import BaseModel from './base';
 import $ from 'jquery';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
@@ -9,7 +10,7 @@ import Subscription from '../utils/subscription';
 import Utils from '../utils/misc';
 import { computed, observer } from '@ember/object';
 
-LingoLinq.Organization = DS.Model.extend({
+LingoLinq.Organization = BaseModel.extend({
   init() {
     this._super(...arguments);
   },
@@ -149,15 +150,14 @@ LingoLinq.Organization = DS.Model.extend({
     return res;
   })
 });
-LingoLinq.Organization.reopenClass({
-  mimic_server_processing: function(record, hash) {
-    hash.organization.permissions = {
-      "view": true,
-      "edit": true
-    };
 
-    return hash;
-  }
-});
+LingoLinq.Organization.mimic_server_processing = function(record, hash) {
+  hash.organization.permissions = {
+    "view": true,
+    "edit": true
+  };
+
+  return hash;
+};
 
 export default LingoLinq.Organization;

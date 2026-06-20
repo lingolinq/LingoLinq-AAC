@@ -5,6 +5,7 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import $ from 'jquery';
 import RSVP from 'rsvp';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import LingoLinqImage from '../models/image';
 import i18n from '../utils/i18n';
@@ -19,7 +20,7 @@ import { computed } from '@ember/object';
 
 var button_set_cache = {};
 
-LingoLinq.Buttonset = DS.Model.extend({
+LingoLinq.Buttonset = BaseModel.extend({
   persistence: service('persistence'),
   stashes: service('stashes'),
   appState: service('app-state'),
@@ -772,7 +773,7 @@ LingoLinq.Buttonset = DS.Model.extend({
         combo.steps.forEach(function(step) {
           var button = step.button;
           if(button) {
-            var image = images.findBy('id', button.image_id);
+            var image = images.find(function(img) { return img.get('id') === button.image_id; });
             if(image) {
               button.image = image.get('best_url');
             }
@@ -1189,7 +1190,7 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
   if(button.image && LingoLinqImage.personalize_url) {
     button.image = LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
   }
-  var image = images.findBy('id', button.image_id);
+  var image = images.find(function(img) { return img.get('id') === button.image_id; });
   if(image) {
     button.image = image.get('best_url');
     button.image_license = image.get('license');

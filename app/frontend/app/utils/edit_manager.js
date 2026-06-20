@@ -1866,6 +1866,19 @@ var editManager = EmberObject.extend({
         controller._apply_focus_dim_to_ordered_buttons();
       }
     };
+    var is_board_detail = !!(controller.get && controller.get('is_board_detail'));
+    // Board-detail builds its own plain-object grid in speak mode (_build_from_raw /
+    // boardDetailCache). The classic path below recreates every cell as Button.create
+    // on each utterance update — redundant load_image work and console noise with no
+    // visible change. Edit mode still uses board-detail's Ember-button grid rebuild.
+    if(appState.get('speak_mode') && is_board_detail && !appState.get('edit_mode')) {
+      if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (board-detail speak mode)'); }
+      applyBoardDetailFocusDim();
+      if(typeof appState.refresh_suggestions === 'function') {
+        appState.refresh_suggestions();
+      }
+      return;
+    }
     var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
     board.set('display_level', board_level);
     if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying getting contextualized_buttons'); }
@@ -1928,7 +1941,6 @@ var editManager = EmberObject.extend({
 
     var p = this.persistence || (typeof window !== 'undefined' && window.persistence);
     var need_everything_local = appState.get('speak_mode') || !p || typeof p.get !== 'function' || !p.get('online');
-    var is_board_detail = !!(controller.get && controller.get('is_board_detail'));
     if(appState.get('speak_mode') && !is_board_detail) {
       if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') }); }
       controller.update_button_symbol_class();

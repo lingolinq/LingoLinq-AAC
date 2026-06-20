@@ -1,11 +1,12 @@
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import speecher from '../utils/speecher';
 import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
-LingoLinq.Badge = DS.Model.extend({
+LingoLinq.Badge = BaseModel.extend({
   name: DS.attr('string'),
   user_id: DS.attr('string'),
   user_name: DS.attr('string'),

@@ -517,7 +517,7 @@ export default Component.extend({
         controller.set('logs', {loading: true});
       }
       this.get('store').query('log', find_args).then(function(list) {
-        controller.set('logs', list.map(function(i) { return i; }));
+        controller.set('logs', list.slice());
       }, function() {
         if(!(controller.get('logs') || {}).length) {
           controller.set('logs', {error: true});

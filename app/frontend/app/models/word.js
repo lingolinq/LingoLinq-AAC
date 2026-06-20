@@ -1,7 +1,8 @@
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 
-LingoLinq.Word = DS.Model.extend({
+LingoLinq.Word = BaseModel.extend({
   word: DS.attr('string'),
   locale: DS.attr('string'),
   parts_of_speech: DS.attr('raw'),

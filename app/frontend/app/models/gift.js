@@ -1,10 +1,11 @@
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Gift = DS.Model.extend({
+LingoLinq.Gift = BaseModel.extend({
   code: DS.attr('string'),
   duration: DS.attr('string'),
   seconds: DS.attr('number'),

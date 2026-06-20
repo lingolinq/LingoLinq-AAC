@@ -11,7 +11,7 @@ export default Controller.extend({
     var _this = this;
     this.set('badges', {loading: true});
     this.store.query('badge', {user_id: this.get('model.id')}).then(function(badges) {
-      badges = badges.map(function(i) { return i; });
+      badges = badges.slice();
       _this.set('badges', badges);
     }, function(err) {
       _this.set('badges', {error: true});
