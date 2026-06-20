@@ -1,16 +1,14 @@
 # LingoLinq AAC Compliance Posture Report
 
-> **DRAFT, awaiting attestation.** This is a Phase 3 skeleton generated from the findings
-> register. It is not a published statement and must not be shared externally until Scot
-> attests it. The headline counts are read directly from `audit-reports/FINDINGS.json`; every
-> other report in `audit-reports/` is a point-in-time snapshot and is not authoritative for
-> status. Drafted by the compliance-officer; goes through adversary review before reaching Scot.
+> **ATTESTED 2026-06-19 by Scot Wahlquist, CEO.** This is a Phase 3 report generated from the
+> findings register. The headline counts are read directly from `audit-reports/FINDINGS.json`;
+> every other report in `audit-reports/` is a point-in-time snapshot and is not authoritative for
+> status. Drafted by the compliance-officer; adversary-reviewed; attested by the CEO.
 >
-> Refreshed: 2026-06-18. Register audited SHA: `59e20439e` (auditedDate 2026-06-18, ref `staging`),
-> re-stamped from `d72463c7` with Scot's 2026-06-18 sign-off. The only intervening commit (#416, a
-> GCP Memorystore AUTH flag fix) touched one provisioning script and added no findings, so the
-> register now sits at the staging tip. Headline counts are read directly from
-> `audit-reports/FINDINGS.json`; do not hand-edit the figures, refresh them from the register.
+> Refreshed and attested: 2026-06-19. Register audited SHA: `445336592` (auditedDate 2026-06-19,
+> ref `staging`). Counts in this report were re-derived from the register at that SHA prior to
+> attestation. Headline counts are read directly from `audit-reports/FINDINGS.json`; do not
+> hand-edit the figures, refresh them from the register.
 
 ### Changes since the prior draft (2026-06-13)
 
@@ -21,18 +19,20 @@
 - **Redis TLS capability shipped** (#410). The application can now speak `rediss://` TLS to a
   managed Redis. This is an enabler for the GCP Memorystore cutover, not a live closure: the
   current hosting environment still runs plaintext `redis://`, so finding LL-6619cc1811 stays open.
-- **Headline moved from 0 Critical / 13 High to 0 Critical / 16 High** as the second full audit
-  run and the accessibility finder promoted new findings into the register. The rise reflects
-  wider scan coverage, not new regressions.
+- **Open High count moved 13 -> 16 -> 4.** A second full audit run plus the accessibility finder
+  raised the count to 16 (wider scan coverage, not new regressions); those 16 were dispositioned
+  in #419 (14 fixed-intent / 2 accepted), and the fixed-intent set has since been remediated and
+  verified-closed, leaving **4 open High** at the 2026-06-19 register (SHA `445336592`).
 
 ## Headline
 
 | Metric | Count |
 |---|---|
 | **Open Critical findings** | **0** |
-| **Open High findings** | **16** |
-| Open Medium / Low | 18 / 14 |
-| Verified closed (Scot attested) | 12 |
+| **Open High findings** | **4** |
+| Open Medium / Low | 25 / 19 |
+| Verified closed (Scot attested) | 27 |
+| Accepted risk | 2 |
 | Superseded | 2 |
 
 The headline is the count of open Critical and High findings, not a synthetic readiness score
@@ -67,12 +67,12 @@ one framework):
 
 | Framework | Open findings | Open High | Context |
 |---|---:|---:|---|
-| FERPA (US schools) | 10 | 5 | Student data isolation, access scoping, audit trail. |
-| HIPAA (US hospitals) | 8 | 6 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02). Render BAA pending. GCP/Cloud Run BAA for the migration: confirm execution and file the artifact in `docs/legal/` before Google compute carries production data. |
-| GDPR (EU clients) | 4 | 2 | Data residency, subprocessor posture, deletion and export paths. |
+| FERPA (US schools) | 8 | 2 | Student data isolation, access scoping, audit trail. |
+| HIPAA (US hospitals) | 6 | 3 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (2026-06). |
+| GDPR (EU clients) | 2 | 0 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-06). |
 | COPPA (under-13 users) | 1 | 1 | Amended Rule enforceable since 2026-04-22. The one open High is the eval-narration consent-binding residual (LL-11db0dc848). Product controls below. |
-| WCAG (accessibility) | 8 | 1 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
-| SOC 2 (in progress) | 7 | 0 | Control-evidence and audit-system hardening items. |
+| WCAG (accessibility) | 11 | 0 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
+| SOC 2 (in progress) | 9 | 1 | Control-evidence and audit-system hardening items. |
 
 A single finding can map to more than one framework, so these rows do not sum to the 48 open
 total. 21 open findings carry no framework tag (engineering-quality and API-contract items).
@@ -108,12 +108,11 @@ and email staying on AWS. Two compliance-relevant items are in flight:
   and TLS. The current Render environment still runs plaintext `redis://`, so the corresponding
   finding (LL-6619cc1811, HIPAA) is held open until the cutover lands. Closure is gated on the
   migration, not on a separate fix.
-- **GCP Business Associate Agreement.** The migration record indicates a BAA with Google was
-  pursued in Phase 1, but no executed artifact is on file in `docs/legal/` and the only Google BAA
-  item currently tracked in the register is the Gemini API path (`rev-gemini-baa-annual`). Confirm
-  the Cloud Run / GCP infrastructure BAA, file the artifact, and add Google as an active
-  subprocessor at cutover. Until then Google compute is not listed as an active subprocessor (see
-  `docs/legal/SUBPROCESSORS.md`).
+- **GCP Business Associate Agreement.** The Google Cloud HIPAA BAA was accepted in-console
+  (certified 2026-06-08; acceptance evidence captured 2026-06-19), and the GCP Standard
+  Contractual Clauses were certified 2026-06-08 for EU-transfer coverage. Add Google as an active
+  subprocessor in `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying
+  production data; until then it remains a planned subprocessor.
 
 ## Accessibility
 
@@ -143,9 +142,10 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer agent (draft) |
-| Reviewed by | adversary agent (pending) |
-| Attested by | _Scot Wahlquist (pending signature)_ |
-| Attestation date | _pending_ |
+| Reviewed by | adversary agent |
+| Attested by | **Scot Wahlquist, CEO** |
+| Attestation date | **2026-06-19** |
 
-_Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). The one-way
+_Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
+re-derived from the register at SHA `445336592` (2026-06-19) prior to attestation. The one-way
 Notion publish of this report is a separate, human-initiated step into the Master Inbox._

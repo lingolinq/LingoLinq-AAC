@@ -11,7 +11,7 @@
 **Audited commit:** `445336592ddaf838689df7e578829e94e140890d`  
 **Audited ref:** `scot/security/audit-erasure-admin-reads`  
 **Run date:** 2026-06-19  
-**Page generated:** 2026-06-19T20:42:42Z
+**Page generated:** 2026-06-20T00:21:13Z
 
 ## Headline - open findings
 
@@ -80,6 +80,6 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
   carries no evidence snippets, no finding notes, and no student/patient data.
 - **Closed / accepted / superseded findings** are intentionally omitted here; see
   `audit-reports/FINDINGS.md` for the full lifecycle.
-- **Compliance Posture Report** (`docs/legal/COMPLIANCE_POSTURE_REPORT.md`) stays **DRAFT /
-  unattested** until Scot signs; it is linked, never embedded, and is not published
-  externally until attested.
+- **Compliance Posture Report** (`docs/legal/COMPLIANCE_POSTURE_REPORT.md`) is **CEO-attested**
+  (Scot Wahlquist, 2026-06-19); it is linked from this summary, never embedded. External
+  distribution remains the CEO's decision at attestation time.
