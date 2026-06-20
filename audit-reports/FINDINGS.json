@@ -74,7 +74,7 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: licenses action now guards sort_by via allowed_sort_columns allowlist (organizations_controller.rb:221-225); only the validated value reaches .order(). sort_order already validated against asc/desc.",
+        "verifierNote": "Verified 2026-06-12: licenses action now guards sort_by via allowed_sort_columns allowlist (organizations_controller.rb:221-225); only the validated value reaches .order(). sort_order already validated against asc/desc. Remediated in #177.",
         "attestation": ""
       },
       "notes": "April seed showed this as a live P0; remediated since."
@@ -106,7 +106,7 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: flush_user_content now iterates License.where(user_id:) nullifying user_id+granted_at and calling flush_versions (flusher.rb:224-226).",
+        "verifierNote": "Verified 2026-06-12: flush_user_content now iterates License.where(user_id:) nullifying user_id+granted_at and calling flush_versions (flusher.rb:224-226). Remediated in #177.",
         "attestation": ""
       },
       "notes": ""
@@ -138,7 +138,7 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: claim_user logs AuditEvent.log_command (organizations_controller.rb:238); License#release_user! logs AuditEvent.log_command('system', ...) (license.rb:32).",
+        "verifierNote": "Verified 2026-06-12: claim_user logs AuditEvent.log_command (organizations_controller.rb:238); License#release_user! logs AuditEvent.log_command('system', ...) (license.rb:32). Remediated in #177.",
         "attestation": ""
       },
       "notes": ""
@@ -171,7 +171,7 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: create logs at supervisor_relationships_controller.rb:52, consent_response at :101, destroy at :135. approve/deny route through consent_response.",
+        "verifierNote": "Verified 2026-06-12: create logs at supervisor_relationships_controller.rb:52, consent_response at :101, destroy at :135. approve/deny route through consent_response. Remediated in #177.",
         "attestation": ""
       },
       "notes": ""
@@ -203,7 +203,7 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: LingoLinq-AAC-Worker (render.yaml:55) now declares all four keys with generateValue (render.yaml:84-91). Note: prod is migrating to GCP Cloud Run with Secret Manager; render.yaml remains the live config until cutover.",
+        "verifierNote": "Verified 2026-06-12: LingoLinq-AAC-Worker (render.yaml:55) now declares all four keys with generateValue (render.yaml:84-91). Note: prod is migrating to GCP Cloud Run with Secret Manager; render.yaml remains the live config until cutover. Remediated in #177.",
         "attestation": ""
       },
       "notes": ""
@@ -235,7 +235,7 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: status action returns {active: true} for unauthenticated callers (session_controller.rb:948); queue/db introspection runs only when @api_user present (:952-967).",
+        "verifierNote": "Verified 2026-06-12: status action returns {active: true} for unauthenticated callers (session_controller.rb:948); queue/db introspection runs only when @api_user present (:952-967). Remediated in #177.",
         "attestation": ""
       },
       "notes": ""
@@ -1032,7 +1032,7 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: user_id/user_name serialized only when license.user_id is present (json_api/license.rb:17-19); release_user! nullifies user_id, so an expired/released license exposes no user_name.",
+        "verifierNote": "Verified 2026-06-12: user_id/user_name serialized only when license.user_id is present (json_api/license.rb:17-19); release_user! nullifies user_id, so an expired/released license exposes no user_name. Remediated in #177.",
         "attestation": ""
       },
       "notes": ""
@@ -1765,7 +1765,7 @@
       },
       "closureEvidence": {
         "sha": "922d93b98417692e5fd5b8bc3d64df7b3baab84d",
-        "verifierNote": "Hard-gate (COPPA consent + org opt-out via ai_allowed_for?) now enforced and egress is opt-in. SUPERSEDED-BY: residual consent-binding gap tracked as new finding below.",
+        "verifierNote": "Hard-gate (COPPA consent + org opt-out via ai_allowed_for?) now enforced and egress is opt-in. SUPERSEDED-BY: residual consent-binding gap tracked as new finding below. Remediated in #412.",
         "attestation": "Scot Wahlquist 2026-06-17"
       },
       "notes": "Surfaced by privacy finder on 2026-06-16. Distinct from LL-e573a39d2b (missing PiiScrubber on this same path) and LL-ef5ac1b2a5 (missing AiApiLog): this finding is the absent COPPA parental-consent gate, a control both sibling AI sites enforce and the eval path omits. coppa_blocks_ai_for? defined at lib/feature_flags.rb:153 -> user.coppa_parental_consent_pending?. Surfaced by privacy finder on 2026-06-16. | adversary: confirmed (2026-06-16). Sibling gates verified (ai_word_predictor.rb:35, ai_board_generator.rb:38/240); narrate path loads no user and runs no COPPA check (eval_sessions_controller.rb:43-69, uses weaker feature_enabled_for? not ai_feature_enabled_for?). Latent until ANTHROPIC_API_KEY is set (deterministic fallback eval_narrator.rb:36)."
