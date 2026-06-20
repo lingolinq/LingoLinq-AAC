@@ -75,7 +75,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12: licenses action now guards sort_by via allowed_sort_columns allowlist (organizations_controller.rb:221-225); only the validated value reaches .order(). sort_order already validated against asc/desc. Remediated in #177.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": "April seed showed this as a live P0; remediated since."
     },
@@ -107,7 +107,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12: flush_user_content now iterates License.where(user_id:) nullifying user_id+granted_at and calling flush_versions (flusher.rb:224-226). Remediated in #177.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -139,7 +139,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12: claim_user logs AuditEvent.log_command (organizations_controller.rb:238); License#release_user! logs AuditEvent.log_command('system', ...) (license.rb:32). Remediated in #177.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -172,7 +172,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12: create logs at supervisor_relationships_controller.rb:52, consent_response at :101, destroy at :135. approve/deny route through consent_response. Remediated in #177.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -204,7 +204,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12: LingoLinq-AAC-Worker (render.yaml:55) now declares all four keys with generateValue (render.yaml:84-91). Note: prod is migrating to GCP Cloud Run with Secret Manager; render.yaml remains the live config until cutover. Remediated in #177.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12 (live render.yaml until GCP cutover)."
       },
       "notes": ""
     },
@@ -236,7 +236,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12: status action returns {active: true} for unauthenticated callers (session_controller.rb:948); queue/db introspection runs only when @api_user present (:952-967). Remediated in #177.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -1033,7 +1033,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12: user_id/user_name serialized only when license.user_id is present (json_api/license.rb:17-19); release_user! nullifies user_id, so an expired/released license exposes no user_name. Remediated in #177.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -1065,7 +1065,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12 (doc-level): INFRASTRUCTURE.md:101 records ACLs disabled via BucketOwnerEnforced; the app's acl: public-read is a no-op. Bucket-policy posture should still be confirmed in the GCP/AWS infra-audit refresh.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; S3 ACLs disabled via BucketOwnerEnforced (doc-level, INFRASTRUCTURE.md), verified 2026-06-12."
       },
       "notes": "Doc-level closure; recommend a live AWS bucket-policy spot-check during the next infra-audit run."
     },
@@ -1097,7 +1097,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Closed 2026-06-08: AWS hybrid BAA signed via AWS Artifact, covering S3/SES/Transcoder/SNS (docs/legal/AWS_BAA_ACCEPTED.md; project_render_cloud_migration Phase 1). Attestation = external legal artifact, not code.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; AWS hybrid BAA signed via AWS Artifact 2026-06-08 (external legal artifact, not code)."
       },
       "notes": "Non-code finding; evidence is an executed legal agreement, validated by attestation not citation-check."
     },
