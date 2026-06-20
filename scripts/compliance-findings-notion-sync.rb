@@ -70,8 +70,11 @@ def closed_by(f)
 end
 
 def prs(f)
+  # Scan every register field a PR number is recorded in. PRs land in the closure
+  # note/attestation (closures), in disposition.rationale (accepted/decided risks),
+  # and in the top-level `notes` field (enabler/tracking PRs on still-open findings).
   src = [(f['closureEvidence'] || {})['verifierNote'], (f['closureEvidence'] || {})['attestation'],
-         (f['remediation'] || {})['options']].join(' ')
+         (f['remediation'] || {})['options'], (f['disposition'] || {})['rationale'], f['notes']].join(' ')
   src.scan(/#\d{3,4}/).uniq.join(' ')
 end
 
