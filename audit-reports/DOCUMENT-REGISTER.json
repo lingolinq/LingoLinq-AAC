@@ -198,7 +198,10 @@
       ],
       "lastReviewed": "2026-04-18",
       "nextReviewDue": "2027-04-18",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "a6e8b0bebcd45451e7d70472d729331d69f6b07b179b2f52e00ff54f4cb1bfba",
       "bundles": [],
       "mirrors": [],
@@ -221,7 +224,10 @@
       ],
       "lastReviewed": "2026-06-18",
       "nextReviewDue": "2027-06-18",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "5b81ecf7622dd79434d0a23e89b79b774a82926331c42805d54f4e1ceee63377",
       "bundles": [
         "compliance-records-set-2026-06"
@@ -340,7 +346,10 @@
       ],
       "lastReviewed": "2026-06-18",
       "nextReviewDue": "2027-06-18",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "14563501a6e4347d75affe5ca67c838bdb75413d61ce101298c22642c6228f63",
       "bundles": [
         "soc2-evidence",
@@ -369,7 +378,10 @@
       ],
       "lastReviewed": "2026-06-18",
       "nextReviewDue": "2027-06-18",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "6aa015915c605ee285e6a13404377f352103c34413d43b7a43385e707f523844",
       "bundles": [
         "school-dpa-package"
@@ -395,7 +407,10 @@
       ],
       "lastReviewed": "2026-04-26",
       "nextReviewDue": "2026-07-26",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "86da72955ba23901e8acaa518dbded3e59b5eee7328404f56f87deb909564f7c",
       "bundles": [
         "school-dpa-package"
@@ -421,7 +436,10 @@
       ],
       "lastReviewed": "2026-06-11",
       "nextReviewDue": "2027-06-11",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "9f467478159ca39d862c9a4d5cd209a6f434cd1ca94c7cfb3224cbbae54fa609",
       "bundles": [
         "school-dpa-package"
@@ -449,7 +467,10 @@
       ],
       "lastReviewed": "2026-05-27",
       "nextReviewDue": "2027-05-27",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "3efcaaf4a7c53016237527a5202a370bf74852f4b3e26e4346db5f418c5e263b",
       "bundles": [
         "soc2-evidence"
@@ -476,7 +497,10 @@
       ],
       "lastReviewed": "2026-05-27",
       "nextReviewDue": "2026-08-27",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "e4e7c0b98d3fe6992eb33980597be8d1844a408fc8bd1c8205d2f214d59d9073",
       "bundles": [
         "soc2-evidence"
@@ -524,7 +548,10 @@
       ],
       "lastReviewed": "2026-05-11",
       "nextReviewDue": "2027-05-11",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": "dc6a2ba9fa167f3f2bff6ec356bbd2b8bd9f9bafcd680b15362225aeca023f3e",
       "bundles": [],
       "mirrors": [],
@@ -1394,20 +1421,23 @@
     },
     {
       "title": "Roadmap - What's Left (2026-06-19)",
-      "description": "Internal roadmap of remaining compliance work; internal-only, no attestation banner by design.",
+      "description": "Internal roadmap of remaining compliance work; internal-only set, attested by Scot.",
       "type": "audit-artifact",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "drive",
       "canonicalLocation": "https://docs.google.com/document/d/1f9haDNHifkZQ4qDbZBYMODaWO2KiuwEkrBpUq2Edq4E/edit",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [],
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-21"
+      },
       "contentHash": null,
       "bundles": [],
       "mirrors": [],
-      "notes": "Internal roadmap; not part of the externally-released set.",
+      "notes": "Internal roadmap; not part of the externally-released set. Attested by Scot Wahlquist 2026-06-21 per CEO direction.",
       "id": "DOC-912b28f375"
     },
     {
