@@ -401,7 +401,9 @@
       "title": "consent_response accepts token/decision from multiple parameter keys",
       "severity": "high",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "accepted-risk",
       "evidence": {
         "type": "code",
@@ -437,7 +439,10 @@
       "title": "forgot_password leaks account existence via response shape and users count",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2",
+        "GDPR"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -512,7 +517,9 @@
       "title": "SNS transcoding callbacks accepted without signature verification",
       "severity": "high",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -548,7 +555,9 @@
       "title": "start_code_lookup uses a brute-forceable 5-char verification hash",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -661,7 +670,9 @@
       "title": "Static cache_token='abc' never rotates (stale permission cache)",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -697,7 +708,9 @@
       "title": "No explicit HSTS ssl_options (subdomains/preload)",
       "severity": "high",
       "confidence": "low",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "accepted-risk",
       "evidence": {
         "type": "code",
@@ -733,7 +746,9 @@
       "title": "Legacy s3 gem (0.3.29) in production",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "superseded",
       "evidence": {
         "type": "doc",
@@ -763,7 +778,10 @@
       "title": "flush_leftovers is unimplemented (orphan records accumulate)",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -793,7 +811,9 @@
       "title": "params.permit! bypasses Strong Parameters",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -918,7 +938,9 @@
       "title": "Registration/2fa/SAML endpoints under general throttle only",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1485,7 +1507,9 @@
       "title": "bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1863,7 +1887,9 @@
       "title": "braces 2.3.2 in npm tree is vulnerable to CVE-2024-4068 (ReDoS)",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1892,7 +1918,9 @@
       "title": "moment 2.29.4 is in maintenance-only mode (effectively abandoned) and locked below the latest 2.30 maintenance patch",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1921,7 +1949,9 @@
       "title": "davidshimjs-qrcodejs 0.0.2 is abandoned (no release since 2014, >10 years)",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1950,7 +1980,9 @@
       "title": "eslint 5.16.0 is EOL (v5 end-of-life 2019); dev toolchain running unsupported linter",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1979,7 +2011,9 @@
       "title": "ember-cli-mirage 2.4.0 is abandoned for Ember 3.x (no active maintenance, last meaningful release 2021)",
       "severity": "low",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2221,7 +2255,9 @@
       "title": "lodash 4.18.1 resolved in package-lock.json exceeds all known published 4.x releases (latest 4.17.21)",
       "severity": "medium",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2282,7 +2318,9 @@
       "title": "http-proxy 1.18.1 (EOL, last release 2021) has CVE-2024-21943 (ReDoS via Host header); dev-only",
       "severity": "low",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2311,7 +2349,9 @@
       "title": "Puma Gemfile constraint permits 7.2.0 which predates the CVE-2026-47736/47737 fix; floor unset",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2499,7 +2539,9 @@
       "title": "serialize-javascript 4.0.0 vulnerable to CVE-2024-11831 (XSS); dev toolchain only",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2620,6 +2662,38 @@
         "attestation": ""
       },
       "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. The #reply_icon remote-modeling button in the speak bar (a core surface used by therapists/supervisors during pairing sessions) contains only state glyphicons and an optional avatar img with no alt, and has no sr-only text/aria-label, so it has no accessible name. Renders only when this.app_state.pairing is active, hence medium severity. Distinct control from the registered #button_list vocalize anchor (sentence-box-vocalize-anchor-missing-button-role); same file, different ruleKey. | adversary: confirmed (#reply_icon has only glyphicons + an alt-less avatar img, no sr-only/aria-label; sibling #speak_options carries an sr-only i18n name). Pairing-gated, so MEDIUM."
+    },
+    {
+      "id": "LL-efef111d59",
+      "ruleKey": "cve-nokogiri-1-19-4",
+      "legacyId": "Dep-nokogiri-1194",
+      "title": "nokogiri 1.19.3 vulnerable to six published advisories (fixed in 1.19.4)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "doc",
+        "file": "Gemfile.lock",
+        "line": 281,
+        "snippet": "nokogiri (1.19.3-aarch64-linux-gnu)",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-20",
+      "lastSeen": "2026-06-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Bump nokogiri to >= 1.19.4 (done in #460).",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "5b40ce137ed73ef732b1326c65f6ee56f8b6ae78",
+        "verifierNote": "Verified 2026-06-21: nokogiri bumped 1.19.3 -> 1.19.4 in #460 (commit 5b40ce137), resolving GHSA-8678-w3jw-xfc2, GHSA-9cv2-cfxc-v4v2, GHSA-p67v-3w7g-wjg7, GHSA-phwj-rprq-35pp, GHSA-wfpw-mmfh-qq69, GHSA-wjv4-x9w8-wm3h. Gemfile.lock now pins 1.19.4 (Gemfile.lock:281); bundle-audit clean.",
+        "attestation": ""
+      },
+      "notes": "Backfilled after remediation. CVE/dependency advisory caught by bundle-audit; fixed before it was first registered. Closure attestation pending Scot."
     }
   ]
 }
