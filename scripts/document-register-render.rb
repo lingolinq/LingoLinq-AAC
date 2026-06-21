@@ -62,6 +62,17 @@ def git_row?(doc)
   doc['canonicalSystem'].to_s == 'git'
 end
 
+def url_like?(s)
+  s.to_s.match?(%r{\Ahttps?://}i)
+end
+
+# A bundle requirement is satisfied only by an EXACT (case-insensitive) full-title
+# member - never a substring - so a coincidental shared word (e.g. "COPPA" inside a
+# Parental Consent title) can never stand in for a genuinely missing document.
+def bundle_member_present?(members, needle)
+  members.any? { |m| m['title'].to_s.casecmp?(needle.to_s) }
+end
+
 def self_row?(doc)
   git_row?(doc) && File.expand_path(doc['canonicalLocation'].to_s) == SELF_PATH
 end
@@ -109,23 +120,42 @@ def collect_problems(documents, bundle_defs)
   documents.each do |doc|
     loc = doc['canonicalLocation'].to_s
     title = doc['title'].to_s
+    sys = doc['canonicalSystem'].to_s
 
     exp = expected_id(doc)
     if doc['id'].to_s != exp
       problems << "id mismatch for #{title.inspect}: stored #{doc['id'].inspect}, expected #{exp.inspect} (run render to fix)"
     end
 
-    if git_row?(doc) && !self_row?(doc)
-      if !File.file?(loc)
-        problems << "git doc #{title.inspect} points at a missing file: #{loc}"
-      else
-        computed = Digest::SHA256.hexdigest(File.binread(loc))
-        stored = doc['contentHash'].to_s
-        if stored.empty?
-          problems << "git doc #{title.inspect} has no contentHash (run render to populate): #{loc}"
-        elsif stored != computed
-          problems << "contentHash drift for #{title.inspect}: #{loc} changed but its register row was not updated (run render)"
+    unless %w[git drive notion].include?(sys)
+      problems << "doc #{title.inspect} has invalid canonicalSystem #{sys.inspect} (expected git|drive|notion)"
+    end
+
+    if sys == 'git'
+      # A git row must be a repo path (so its bytes are hashed and CI-verified), never a URL.
+      problems << "git doc #{title.inspect} canonicalLocation looks like a URL, expected a repo path: #{loc}" if url_like?(loc)
+      if !self_row?(doc) && !url_like?(loc)
+        if !File.file?(loc)
+          problems << "git doc #{title.inspect} points at a missing file: #{loc}"
+        else
+          computed = Digest::SHA256.hexdigest(File.binread(loc))
+          stored = doc['contentHash'].to_s
+          if stored.empty?
+            problems << "git doc #{title.inspect} has no contentHash (run render to populate): #{loc}"
+          elsif stored != computed
+            problems << "contentHash drift for #{title.inspect}: #{loc} changed but its register row was not updated (run render)"
+          end
         end
+      end
+    elsif sys == 'drive' || sys == 'notion'
+      # Close the mislabel dodge: a tracked repo doc cannot escape hash verification by
+      # being relabeled drive/notion. Non-git rows must be URLs and must NOT resolve to a
+      # tracked repo file.
+      unless url_like?(loc)
+        problems << "#{sys} doc #{title.inspect} canonicalLocation must be a URL, not #{loc.inspect} (a tracked repo path must be a git row so its contentHash is verified)"
+      end
+      if !url_like?(loc) && File.file?(loc)
+        problems << "#{sys} doc #{title.inspect} resolves to a tracked repo file (#{loc}); set canonicalSystem=git so its contentHash is verified"
       end
     end
 
@@ -134,12 +164,21 @@ def collect_problems(documents, bundle_defs)
     end
   end
 
+  # id + canonicalLocation must be unique: a duplicate canonicalLocation collides ids
+  # (sha256 of the same string) and silently overwrites a row in the Notion upsert.
+  %w[id canonicalLocation].each do |field|
+    seen = Hash.new(0)
+    documents.each { |d| seen[d[field].to_s] += 1 unless d[field].to_s.empty? }
+    seen.select { |_, n| n > 1 }.each_key do |val|
+      problems << "duplicate #{field} #{val.inspect} (#{seen[val]} rows) - each document must be a single row"
+    end
+  end
+
   bundle_defs.each do |name, defn|
     members = documents.select { |d| (d['bundles'] || []).include?(name) }
     required = defn['requiredTitles'] || []
     required.each do |needle|
-      present = members.any? { |m| m['title'].to_s.downcase.include?(needle.downcase) }
-      problems << "bundle #{name.inspect} is missing a required member matching #{needle.inspect}" unless present
+      problems << "bundle #{name.inspect} is missing required member titled #{needle.inspect}" unless bundle_member_present?(members, needle)
     end
   end
 
@@ -147,10 +186,16 @@ def collect_problems(documents, bundle_defs)
 end
 
 # Advisory-only signals (never fail CI): drive/notion rows missing a supplied hash.
+# Honest about the refresh path: Notion hashes auto-refresh in the sync run; Drive hashes
+# have no automated refresh (the sync script carries no Google credentials) and must be
+# supplied by the operator.
 def collect_advisories(documents)
   documents.reject { |d| d['canonicalSystem'].to_s == 'git' }
            .select { |d| d['contentHash'].to_s.empty? }
-           .map { |d| "no supplied contentHash for #{d['canonicalSystem']} doc #{d['title'].inspect} (refreshed during the Notion-sync run)" }
+           .map do |d|
+             refresh = d['canonicalSystem'].to_s == 'notion' ? 'auto-refreshed by the Notion-sync run' : 'must be supplied by the operator (no automated Drive refresh)'
+             "no supplied contentHash for #{d['canonicalSystem']} doc #{d['title'].inspect} (#{refresh})"
+           end
 end
 
 # ---- markdown render -------------------------------------------------------------
@@ -248,7 +293,7 @@ def render_markdown(register, generated, generated_date)
     bundle_defs.each do |name, defn|
       members = documents.select { |d| (d['bundles'] || []).include?(name) }.sort_by { |d| d['title'].to_s.downcase }
       required = defn['requiredTitles'] || []
-      missing = required.reject { |needle| members.any? { |m| m['title'].to_s.downcase.include?(needle.downcase) } }
+      missing = required.reject { |needle| bundle_member_present?(members, needle) }
 
       out << "### #{name}\n\n"
       out << "#{defn['description']}\n\n" if defn['description']
@@ -277,7 +322,11 @@ if options[:mode] == :check
     problems << "render drift: #{md_path} does not match the JSON (run document-register-render.rb)"
   end
 
-  warn "  [advisory] #{advisories.size} drive/notion rows have no supplied contentHash (refreshed during the Notion-sync run)" unless advisories.empty?
+  unless advisories.empty?
+    drive_n = documents.count { |d| d['canonicalSystem'].to_s == 'drive' && d['contentHash'].to_s.empty? }
+    notion_n = advisories.size - drive_n
+    warn "  [advisory] #{advisories.size} non-git rows have no supplied contentHash (#{notion_n} notion: auto-refreshable via --refresh-notion-hashes; #{drive_n} drive: operator-supplied, no automated refresh)"
+  end
 
   if problems.empty?
     puts "document-register-render: OK (#{documents.size} docs; ids, git hashes, render, and bundles all consistent)"
@@ -302,7 +351,11 @@ File.write(md_path, render_markdown(register, generated, generated_date))
 puts "document-register-render: normalized #{register_path} and wrote #{md_path} (#{documents.size} docs)"
 
 advisories = collect_advisories(documents)
-puts "  note: #{advisories.size} drive/notion rows have no supplied contentHash (refreshed during the Notion-sync run)" unless advisories.empty?
+unless advisories.empty?
+  drive_n = documents.count { |d| d['canonicalSystem'].to_s == 'drive' && d['contentHash'].to_s.empty? }
+  notion_n = advisories.size - drive_n
+  puts "  note: #{advisories.size} non-git rows have no supplied contentHash (#{notion_n} notion: auto-refreshable; #{drive_n} drive: operator-supplied, no automated refresh)"
+end
 
 # Surface hard problems even in render mode (e.g. a dangling git path render can't fix).
 problems = collect_problems(documents, bundle_defs)

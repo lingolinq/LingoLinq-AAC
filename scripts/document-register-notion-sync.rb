@@ -27,6 +27,12 @@
 #   Bundles (multi_select), Last reviewed (date), Next due (date), Attested (rich_text),
 #   Content hash (rich_text), Mirrors (rich_text).
 #
+# Select-property note: Type/System/Status (select) and Frameworks/Bundles (multi_select) are
+# sent as plain option names; Notion auto-creates a missing option on write. Leave option
+# creation ENABLED on those properties (the default). If a DB owner locks options, a new
+# type/framework/bundle value will 400 the create/PATCH and abort the run mid-loop (the prune
+# step is gated after the loop, so a partial run never false-archives).
+#
 # Split ownership (so non-devs can use the board without the sync clobbering them): this script
 # ONLY writes the register-owned columns above. Columns reserved for humans - "Program notes",
 # "Needs Scot decision" (and any future ones) - are never sent, so the team can annotate the

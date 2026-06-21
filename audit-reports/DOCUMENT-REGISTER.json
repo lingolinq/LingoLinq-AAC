@@ -5,7 +5,7 @@
     "description": "Single source of truth for WHERE every compliance document lives across the codebase (git), Google Drive, and Notion - its canonical home, its mirrors, its owner, its review dates, and which compliance bundles it belongs to. This is the document-level analogue of audit-reports/FINDINGS.json (which tracks finding status). The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are referenced by URL, never copied. See docs/legal/COMPLIANCE_DOCS_GUIDE.md.",
     "generatedDate": "2026-06-21",
     "idAlgorithm": "id = 'DOC-' + sha256(canonicalLocation) first 10 hex chars; stable across runs so a moved/renamed doc reads as a diff. Computed and written back by scripts/document-register-render.rb.",
-    "contentHashNote": "contentHash is sha256 of the canonical content. For canonicalSystem=git rows the render script computes it from the file bytes at its repo path and CI verifies it (a tracked doc edited without updating its row fails --check). For canonicalSystem=drive/notion rows the hash is externally supplied and refreshed during the network-capable Notion-sync run (CI is network-free and cannot reach those systems); a null/empty Drive/Notion hash is allowed and surfaced as an advisory, never a CI failure.",
+    "contentHashNote": "contentHash is sha256 of the canonical content. For canonicalSystem=git rows the render script computes it from the file bytes at its repo path and CI verifies it in --check (a tracked doc edited without updating its row fails). For drive/notion rows the hash is externally supplied: Notion-row hashes can be refreshed automatically by the network-capable Notion-sync run (--refresh-notion-hashes); DRIVE-row hashes have NO automated refresh and must be supplied by the operator (the sync script carries no Google credentials), so Drive freshness is a dated review obligation, not an automated guarantee. CI is network-free: a null/empty drive/notion hash is allowed and surfaced as an advisory, never a CI failure.",
     "typeEnum": [
       "policy",
       "legal",
@@ -40,50 +40,52 @@
       "compliance-records-set-2026-06": {
         "description": "The attested, externally-released branded binder generated 2026-06-19 and held in the Drive 'Branded Records Set' folder. Frozen point-in-time records; the living sources are the git docs and the auto-synced Notion findings board.",
         "requiredTitles": [
-          "Program v1.0",
-          "Posture Report",
-          "Audit Results",
-          "Compliance Calendar",
-          "RoPA",
-          "Data Retention",
-          "Subprocessor Register",
-          "COPPA",
-          "Parental Consent",
-          "WISP",
-          "Risk Assessment",
-          "Access Control",
-          "Vendor and Subprocessor Management",
-          "AI Governance",
-          "Accessibility Conformance",
-          "Business Continuity",
-          "Breach Runbook",
-          "Incident Log"
+          "Compliance & Security Program v1.0 (Attested)",
+          "Compliance Posture Report (branded)",
+          "Audit Results Report",
+          "Compliance Calendar (branded)",
+          "Records of Processing Activities (RoPA) and Data Map",
+          "Data Retention Schedule (branded)",
+          "Subprocessor Register (branded)",
+          "COPPA Final-Rule Verification (branded)",
+          "Parental Consent (COPPA / under-13) (branded)",
+          "Written Information Security Program (WISP)",
+          "Security Risk Assessment 2026 Q2",
+          "Access Control Policy",
+          "Vendor and Subprocessor Management Policy",
+          "AI Governance Memo (branded)",
+          "Accessibility Conformance Report (ACR / VPAT) (branded)",
+          "Business Continuity and Disaster Recovery Plan",
+          "Incident Response and Breach Runbook (branded)",
+          "Incident Log (branded)"
         ]
       },
       "soc2-evidence": {
         "description": "Documents a SOC 2 readiness reviewer expects to see for the security-program controls.",
         "requiredTitles": [
-          "Access Control",
-          "Vendor",
-          "Risk Assessment",
-          "WISP",
-          "Breach Runbook",
-          "Data Retention",
-          "Incident"
+          "Access Control Policy",
+          "Vendor and Subprocessor Management Policy",
+          "Security Risk Assessment 2026 Q2",
+          "Written Information Security Program (WISP)",
+          "Incident Response and Breach Runbook",
+          "Data Retention Schedule",
+          "Incident Log"
         ]
       },
       "school-dpa-package": {
         "description": "What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).",
         "requiredTitles": [
-          "Posture Report",
-          "Subprocessor",
-          "Data Retention",
-          "COPPA",
-          "Parental Consent",
-          "Accessibility"
+          "Compliance Posture Report",
+          "Subprocessor Register",
+          "Data Retention Schedule",
+          "COPPA Final-Rule Verification",
+          "Parental Consent Email (COPPA / under-13)",
+          "Accessibility Conformance Report (ACR / VPAT)"
         ]
       }
-    }
+    },
+    "bundleMatchNote": "bundleDefinitions[*].requiredTitles are matched by EXACT case-insensitive full-title equality against bundle members (not substring), so a coincidental shared word cannot satisfy a requirement. Each requirement names the exact title of the canonical member (the branded record for the records-set bundle, the git canonical for the soc2/dpa bundles). --check fails if any requirement has no exactly-titled member.",
+    "integrityNote": "--check also enforces: every canonicalSystem is one of canonicalSystemEnum; a git row canonicalLocation is a repo path (not a URL); a drive/notion row canonicalLocation is a URL and does not resolve to a tracked repo file (so a git doc cannot dodge hash verification by being relabeled drive/notion); and id + canonicalLocation are unique across the register."
   },
   "documents": [
     {
@@ -574,7 +576,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2027-06-21",
       "attestation": {},
-      "contentHash": "e4272a755386bde0d1f222fa76a5501300152d9bf671313ee4817a0738770347",
+      "contentHash": "9ff48e5a41c7adf726853439e58d6259536a671d6fdc7f90dd42f9d6c79da9d3",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a936b01d6a"

@@ -72,10 +72,18 @@ index notices a document changed but its row did not.
 - **git docs:** the render computes the hash from the file bytes, and CI
   (`audit-artifacts-integrity`) **fails** if a tracked doc was edited without
   re-rendering. Fix: run `ruby scripts/document-register-render.rb` and commit.
-- **Drive / Notion docs:** the hash is supplied out of band. CI cannot reach
-  those systems (it runs with no network), so a missing or stale Drive/Notion
-  hash is an **advisory**, never a build failure. It is refreshed when
-  `document-register-notion-sync.rb` runs with Drive/Notion access.
+- **Notion docs:** the hash is auto-refreshed by the network-capable sync run,
+  `ruby scripts/document-register-notion-sync.rb --refresh-notion-hashes`. CI
+  itself runs with no network, so a missing/stale Notion hash is an **advisory**,
+  never a build failure.
+- **Drive docs:** there is **no automated Drive refresh** (the sync script
+  carries no Google credentials). A Drive-row hash is supplied by the operator
+  when the doc is added or reviewed, so Drive freshness is a dated review
+  obligation, not a machine guarantee. A missing Drive hash is an advisory only.
+- **The mislabel guard:** because hash verification only applies to `git` rows,
+  the gate also fails if a `git` row's location is a URL, or if a `drive`/`notion`
+  row's location resolves to a tracked repo file. A real git doc therefore cannot
+  dodge hash verification by being relabeled `drive`/`notion`.
 - **If a git hash-drift check fails:** it means a doc's content and its register
   row disagree. Re-render to reconcile, then sanity-check the review date and
   status while you are there.
@@ -90,9 +98,14 @@ is defined once in `meta.bundleDefinitions` with the titles it requires.
   any **missing required member**.
 - CI **fails** if a bundle is missing a required member, or if a document
   references a bundle that is not defined (typo guard).
+- `requiredTitles` are matched by **exact, case-insensitive full title** (not
+  substring), so a coincidental shared word cannot satisfy a requirement. Each
+  required title must be the exact title of the member that fulfills it (the
+  branded record for the records-set bundle; the git canonical for the soc2/dpa
+  bundles).
 - To define a new bundle: add it to `meta.bundleDefinitions` with a
-  `description` and `requiredTitles`, tag the member docs' `bundles`, then
-  re-render.
+  `description` and `requiredTitles` (exact member titles), tag the member docs'
+  `bundles`, then re-render.
 
 > **Why this matters:** when a school district asks for "your DPA package," you
 > read the `school-dpa-package` bundle and know instantly whether anything is
