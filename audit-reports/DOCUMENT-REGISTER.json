@@ -1,0 +1,1471 @@
+{
+  "meta": {
+    "schemaVersion": "1.0",
+    "register": "LingoLinq-AAC compliance document register",
+    "description": "Single source of truth for WHERE every compliance document lives across the codebase (git), Google Drive, and Notion - its canonical home, its mirrors, its owner, its review dates, and which compliance bundles it belongs to. This is the document-level analogue of audit-reports/FINDINGS.json (which tracks finding status). The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are referenced by URL, never copied. See docs/legal/COMPLIANCE_DOCS_GUIDE.md.",
+    "generatedDate": "2026-06-21",
+    "idAlgorithm": "id = 'DOC-' + sha256(canonicalLocation) first 10 hex chars; stable across runs so a moved/renamed doc reads as a diff. Computed and written back by scripts/document-register-render.rb.",
+    "contentHashNote": "contentHash is sha256 of the canonical content. For canonicalSystem=git rows the render script computes it from the file bytes at its repo path and CI verifies it in --check (a tracked doc edited without updating its row fails). For drive/notion rows the hash is externally supplied: Notion-row hashes can be refreshed automatically by the network-capable Notion-sync run (--refresh-notion-hashes); DRIVE-row hashes have NO automated refresh and must be supplied by the operator (the sync script carries no Google credentials), so Drive freshness is a dated review obligation, not an automated guarantee. CI is network-free: a null/empty drive/notion hash is allowed and surfaced as an advisory, never a CI failure.",
+    "typeEnum": [
+      "policy",
+      "legal",
+      "evidence",
+      "audit-artifact",
+      "agent-config",
+      "template",
+      "runbook"
+    ],
+    "canonicalSystemEnum": [
+      "git",
+      "drive",
+      "notion"
+    ],
+    "statusEnum": [
+      "draft",
+      "approved",
+      "published",
+      "superseded",
+      "archived"
+    ],
+    "frameworkEnum": [
+      "FERPA",
+      "COPPA",
+      "HIPAA",
+      "GDPR",
+      "WCAG",
+      "SOC2"
+    ],
+    "governance": "Only Scot changes a document's attestation, or moves its status to approved/published. The compliance-officer agent and the main session keep the index current (add/retire rows, refresh review dates, maintain bundles and contentHash) but never attest. Drafts stay status:draft with an empty attestation until Scot signs. No student/patient data ever appears here; entries are titles, paths/URLs, and hashes only.",
+    "bundleDefinitions": {
+      "compliance-records-set-2026-06": {
+        "description": "The attested, externally-released branded binder generated 2026-06-19 and held in the Drive 'Branded Records Set' folder. Frozen point-in-time records; the living sources are the git docs and the auto-synced Notion findings board.",
+        "requiredDocs": [
+          {
+            "title": "Compliance & Security Program v1.0 (Attested)",
+            "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
+          },
+          {
+            "title": "Compliance Posture Report (branded)",
+            "location": "https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit"
+          },
+          {
+            "title": "Audit Results Report",
+            "location": "https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit"
+          },
+          {
+            "title": "Compliance Calendar (branded)",
+            "location": "https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit"
+          },
+          {
+            "title": "Records of Processing Activities (RoPA) and Data Map",
+            "location": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit"
+          },
+          {
+            "title": "Data Retention Schedule (branded)",
+            "location": "https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit"
+          },
+          {
+            "title": "Subprocessor Register (branded)",
+            "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+          },
+          {
+            "title": "COPPA Final-Rule Verification (branded)",
+            "location": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit"
+          },
+          {
+            "title": "Parental Consent (COPPA / under-13) (branded)",
+            "location": "https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit"
+          },
+          {
+            "title": "Written Information Security Program (WISP)",
+            "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
+          },
+          {
+            "title": "Security Risk Assessment 2026 Q2",
+            "location": "https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit"
+          },
+          {
+            "title": "Access Control Policy",
+            "location": "https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit"
+          },
+          {
+            "title": "Vendor and Subprocessor Management Policy",
+            "location": "https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit"
+          },
+          {
+            "title": "AI Governance Memo (branded)",
+            "location": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit"
+          },
+          {
+            "title": "Accessibility Conformance Report (ACR / VPAT) (branded)",
+            "location": "https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit"
+          },
+          {
+            "title": "Business Continuity and Disaster Recovery Plan",
+            "location": "https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit"
+          },
+          {
+            "title": "Incident Response and Breach Runbook (branded)",
+            "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
+          },
+          {
+            "title": "Incident Log (branded)",
+            "location": "https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit"
+          }
+        ]
+      },
+      "soc2-evidence": {
+        "description": "Documents a SOC 2 readiness reviewer expects to see for the security-program controls.",
+        "requiredDocs": [
+          {
+            "title": "Access Control Policy",
+            "location": "https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit"
+          },
+          {
+            "title": "Vendor and Subprocessor Management Policy",
+            "location": "https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit"
+          },
+          {
+            "title": "Security Risk Assessment 2026 Q2",
+            "location": "https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit"
+          },
+          {
+            "title": "Written Information Security Program (WISP)",
+            "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
+          },
+          {
+            "title": "Incident Response and Breach Runbook",
+            "location": "docs/legal/BREACH_RUNBOOK.md"
+          },
+          {
+            "title": "Data Retention Schedule",
+            "location": "docs/legal/DATA_RETENTION.md"
+          },
+          {
+            "title": "Incident Log",
+            "location": "docs/legal/INCIDENT_LOG.md"
+          }
+        ]
+      },
+      "school-dpa-package": {
+        "description": "What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).",
+        "requiredDocs": [
+          {
+            "title": "Compliance Posture Report",
+            "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+          },
+          {
+            "title": "Subprocessor Register",
+            "location": "docs/legal/SUBPROCESSORS.md"
+          },
+          {
+            "title": "Data Retention Schedule",
+            "location": "docs/legal/DATA_RETENTION.md"
+          },
+          {
+            "title": "COPPA Final-Rule Verification",
+            "location": "docs/legal/COPPA_VERIFICATION_2026-04-26.md"
+          },
+          {
+            "title": "Parental Consent Email (COPPA / under-13)",
+            "location": "docs/legal/PARENTAL_CONSENT_EMAIL.md"
+          },
+          {
+            "title": "Accessibility Conformance Report (ACR / VPAT)",
+            "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
+          }
+        ]
+      }
+    },
+    "bundleMatchNote": "bundleDefinitions[*].requiredDocs binds each requirement to a specific document by canonicalLocation (identity), not free-text title, so a doc retitled to a required string cannot satisfy a requirement. Each requiredDoc carries a human-readable title that --check verifies still matches the member at that location (register-drift guard). --check fails if a requiredDoc location is not a bundle member, or its title has drifted.",
+    "integrityNote": "--check also enforces: every canonicalSystem is one of canonicalSystemEnum; a git row canonicalLocation is a repo path (not a URL); a drive/notion row canonicalLocation is a URL and does not resolve to a tracked repo file (so a git doc cannot dodge hash verification by being relabeled drive/notion); and id + canonicalLocation are unique across the register."
+  },
+  "documents": [
+    {
+      "title": "Compliance & Data Governance (COMPLIANCE.md)",
+      "description": "Top-level governance doc: data zones, external-service PII matrix, de-identification, AI rules, incident response, audit schedule, accepted risks.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "COMPLIANCE.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-04-18",
+      "nextReviewDue": "2027-04-18",
+      "attestation": {},
+      "contentHash": "a6e8b0bebcd45451e7d70472d729331d69f6b07b179b2f52e00ff54f4cb1bfba",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-9b299a785b"
+    },
+    {
+      "title": "Compliance Program",
+      "description": "Framework overview across FERPA/HIPAA/GDPR/COPPA and SOC 2 posture.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-18",
+      "nextReviewDue": "2027-06-18",
+      "attestation": {},
+      "contentHash": "5b81ecf7622dd79434d0a23e89b79b774a82926331c42805d54f4e1ceee63377",
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
+        }
+      ],
+      "id": "DOC-b61994933c"
+    },
+    {
+      "title": "Compliance Posture Report",
+      "description": "Customer-facing posture; headline is the open Critical/High count from the findings register. Attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_POSTURE_REPORT.md",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-20",
+      "nextReviewDue": "2026-09-20",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-20"
+      },
+      "contentHash": "a81f72f13bef3b5947add2eb8ee95e1ccbab953bd93fd88921d9a1658b3370be",
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit"
+        }
+      ],
+      "id": "DOC-4e3b7fb1fb"
+    },
+    {
+      "title": "AI Governance Memo",
+      "description": "Model inventory, PiiScrubber backstop, ZDR-is-not-a-BAA stance, EU AI Act Annex III classification + Article 50 plan. Attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/AI_GOVERNANCE_MEMO.md",
+      "status": "published",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-06-20",
+      "nextReviewDue": "2026-09-20",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-20"
+      },
+      "contentHash": "1d0343d1bcbc137cb550898bdb750858186d3e457b34cf0423c615b5d0b7f9c8",
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit"
+        }
+      ],
+      "id": "DOC-39f37f8200"
+    },
+    {
+      "title": "Accessibility Conformance Report (ACR / VPAT)",
+      "description": "WCAG 2.1 AA mapping for the AAC surfaces. Deliberately NOT attested: its banner requires assistive-technology user testing + adversary review to close gaps first.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md",
+      "status": "draft",
+      "frameworks": [
+        "WCAG"
+      ],
+      "lastReviewed": "2026-06-16",
+      "nextReviewDue": "2026-09-16",
+      "attestation": {},
+      "contentHash": "e68ef80b2638ddb15ccf2c351513ec83508d7073a0e6576ca2d3fdee98f815bd",
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit"
+        }
+      ],
+      "id": "DOC-a744f8f663"
+    },
+    {
+      "title": "Data Retention Schedule",
+      "description": "Retention and erasure policy; erasure is AuditEvent-logged.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/DATA_RETENTION.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "HIPAA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-06-18",
+      "nextReviewDue": "2027-06-18",
+      "attestation": {},
+      "contentHash": "14563501a6e4347d75affe5ca67c838bdb75413d61ce101298c22642c6228f63",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit"
+        }
+      ],
+      "id": "DOC-bff9acf51f"
+    },
+    {
+      "title": "Subprocessor Register",
+      "description": "Vendor / subprocessor list with data-flow and BAA/DPA status.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/SUBPROCESSORS.md",
+      "status": "approved",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-06-18",
+      "nextReviewDue": "2027-06-18",
+      "attestation": {},
+      "contentHash": "6aa015915c605ee285e6a13404377f352103c34413d43b7a43385e707f523844",
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+        }
+      ],
+      "id": "DOC-0387973005"
+    },
+    {
+      "title": "COPPA Final-Rule Verification",
+      "description": "Verification record against the amended COPPA Rule (effective 2026-04-22).",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COPPA_VERIFICATION_2026-04-26.md",
+      "status": "approved",
+      "frameworks": [
+        "COPPA"
+      ],
+      "lastReviewed": "2026-04-26",
+      "nextReviewDue": "2026-07-26",
+      "attestation": {},
+      "contentHash": "86da72955ba23901e8acaa518dbded3e59b5eee7328404f56f87deb909564f7c",
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit"
+        }
+      ],
+      "id": "DOC-407d2c2bf4"
+    },
+    {
+      "title": "Parental Consent Email (COPPA / under-13)",
+      "description": "Verifiable-parental-consent email template for under-13 users.",
+      "type": "template",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/PARENTAL_CONSENT_EMAIL.md",
+      "status": "approved",
+      "frameworks": [
+        "COPPA"
+      ],
+      "lastReviewed": "2026-06-11",
+      "nextReviewDue": "2027-06-11",
+      "attestation": {},
+      "contentHash": "9f467478159ca39d862c9a4d5cd209a6f434cd1ca94c7cfb3224cbbae54fa609",
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit"
+        }
+      ],
+      "id": "DOC-4e6c9253b9"
+    },
+    {
+      "title": "Incident Response and Breach Runbook",
+      "description": "Incident-response procedures and breach-notification runbook.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/BREACH_RUNBOOK.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-05-27",
+      "nextReviewDue": "2027-05-27",
+      "attestation": {},
+      "contentHash": "3efcaaf4a7c53016237527a5202a370bf74852f4b3e26e4346db5f418c5e263b",
+      "bundles": [
+        "soc2-evidence"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
+        }
+      ],
+      "id": "DOC-d4e3b8be32"
+    },
+    {
+      "title": "Incident Log",
+      "description": "Running log of security/privacy incidents.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/INCIDENT_LOG.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-05-27",
+      "nextReviewDue": "2026-08-27",
+      "attestation": {},
+      "contentHash": "e4e7c0b98d3fe6992eb33980597be8d1844a408fc8bd1c8205d2f214d59d9073",
+      "bundles": [
+        "soc2-evidence"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit"
+        }
+      ],
+      "id": "DOC-1ea9f75b4f"
+    },
+    {
+      "title": "AWS Business Associate Agreement (signed PDF)",
+      "description": "Signed AWS BAA covering S3/SES; the legal artifact itself.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/AWS_BAA_2026-02.pdf",
+      "status": "published",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-05-11",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-02"
+      },
+      "contentHash": "55f28e00168cfe5a1ecfaac3c56c33bd3fadd05276c8e9bcc6e678fc798b9bee",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-0ef0df93d9"
+    },
+    {
+      "title": "AWS BAA Acceptance Record",
+      "description": "Acceptance/provenance note for the signed AWS BAA.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/AWS_BAA_ACCEPTED.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-05-11",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {},
+      "contentHash": "dc6a2ba9fa167f3f2bff6ec356bbd2b8bd9f9bafcd680b15362225aeca023f3e",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-286318ff28"
+    },
+    {
+      "title": "Compliance Status Snapshot (2026-06-18)",
+      "description": "Dated status snapshot. Superseded by the attested Posture Report (PR #454); kept for history.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_STATUS_2026-06-18.md",
+      "status": "superseded",
+      "frameworks": [],
+      "lastReviewed": "2026-06-18",
+      "nextReviewDue": "",
+      "attestation": {},
+      "contentHash": "94b8288187ead04f26a0c929afab0a234b3154ed7ba0dca06adad69a50d053a6",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-d19d6ab8e6"
+    },
+    {
+      "title": "Compliance Status Snapshot (2026-04-23)",
+      "description": "Older dated status snapshot; superseded.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_STATUS_2026-04-23.md",
+      "status": "superseded",
+      "frameworks": [],
+      "lastReviewed": "2026-04-23",
+      "nextReviewDue": "",
+      "attestation": {},
+      "contentHash": "0cacd835e906fc81d94e4dc032b004245dce8092fa4949e27935292f6605564d",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-9d29260615"
+    },
+    {
+      "title": "Findings Register (FINDINGS.json)",
+      "description": "The single source of truth for finding status; citation-validated, CI-gated, mirrored one-way to the Notion findings board.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "audit-reports/FINDINGS.json",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {},
+      "contentHash": "0e21c9b0ab558ccba4fbf7deecd6b20a5824db841b7a1aaca3f9334614ee42da",
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "notion",
+          "location": "https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805"
+        }
+      ],
+      "id": "DOC-62baffb3b1"
+    },
+    {
+      "title": "Compliance Calendar (compliance-calendar.json)",
+      "description": "Regulatory dates and recurring-review cadence; source of truth for the calendar render and /compliance-status.",
+      "type": "audit-artifact",
+      "owner": "compliance-officer",
+      "canonicalSystem": "git",
+      "canonicalLocation": "audit-reports/compliance-calendar.json",
+      "status": "published",
+      "frameworks": [
+        "COPPA",
+        "GDPR",
+        "HIPAA",
+        "FERPA",
+        "WCAG"
+      ],
+      "lastReviewed": "2026-06-16",
+      "nextReviewDue": "2026-09-16",
+      "attestation": {},
+      "contentHash": "77589af62c12cda1fd6cc364f45b1710c4823ebdba2b81d937ecfb7f0f554065",
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit"
+        }
+      ],
+      "id": "DOC-94b1de84ef"
+    },
+    {
+      "title": "Audit Reports Index (audit-reports/README.md)",
+      "description": "Index and supersession guide for the findings register and dated audit reports.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "audit-reports/README.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-16",
+      "nextReviewDue": "2026-12-16",
+      "attestation": {},
+      "contentHash": "c0bcbba9cd6bdf7564365a9edd58df417dde3f7a5eb24313e2b7b866d9575dac",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-b35f7a3444"
+    },
+    {
+      "title": "Document Register (this file)",
+      "description": "The cross-system compliance document index itself (canonical copy).",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "audit-reports/DOCUMENT-REGISTER.json",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-09-21",
+      "attestation": {},
+      "contentHash": "",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-2d4e00befa"
+    },
+    {
+      "title": "Compliance Docs Guide (runbook)",
+      "description": "How the document register works: where docs live, how to add/retire one, canonical-vs-mirror rule, contentHash and bundles.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_DOCS_GUIDE.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2027-06-21",
+      "attestation": {},
+      "contentHash": "2ba6af7f0dd9f2aafa4528b3af70fbdcbdf21da34926bfd6cfb94caea1c6835e",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-a936b01d6a"
+    },
+    {
+      "title": "compliance-officer agent definition",
+      "description": "Read-mostly owner of compliance program state; drafts customer-facing artifacts and maintains this register.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/compliance-officer.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-12-21",
+      "attestation": {},
+      "contentHash": "9926d374d9f34d0e1fe68ffd4f0261f1ffacc40d0afd0b924708acf84cc5aecd",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-d9f17c6919"
+    },
+    {
+      "title": "privacy-auditor agent definition",
+      "description": "Read-only GDPR/FERPA/COPPA/HIPAA privacy finder.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/privacy-auditor.md",
+      "status": "published",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-12-21",
+      "attestation": {},
+      "contentHash": "d3228fd39e5fc2bd149cc360cb01c436d65cda14ae561d8d7b9f41be1836e5db",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-869279c9fa"
+    },
+    {
+      "title": "infra-auditor agent definition",
+      "description": "Read-only SOC2-style security and infrastructure finder.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/infra-auditor.md",
+      "status": "published",
+      "frameworks": [
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-12-21",
+      "attestation": {},
+      "contentHash": "33dc0fdd939e7673c97afd514fe3711d7ee1c6f26a780cca415fa5df889ffcf1",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-75b4889dfd"
+    },
+    {
+      "title": "api-auditor agent definition",
+      "description": "Read-only Ember<->Rails API contract finder.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/api-auditor.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-12-21",
+      "attestation": {},
+      "contentHash": "3895f7acff6a17b2d559b0f1a8fa6d84320d64bcadeea765e3050616cb63c1fb",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-ee90a1cf59"
+    },
+    {
+      "title": "dependency-auditor agent definition",
+      "description": "Read-only dependency freshness and CVE finder.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/dependency-auditor.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-12-21",
+      "attestation": {},
+      "contentHash": "60f14c798bdb796ba90c7f3a0754fd3a45546dbeda0d0e00f8eb97372e007bb1",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-2c8d32b86c"
+    },
+    {
+      "title": "accessibility-auditor agent definition",
+      "description": "Read-only WCAG 2.1 AA / EN 301 549 accessibility finder.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/accessibility-auditor.md",
+      "status": "published",
+      "frameworks": [
+        "WCAG"
+      ],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-12-21",
+      "attestation": {},
+      "contentHash": "56314be0714fc7374663bdba7fc4f3cc7efa5fabcb087f89c8b1fc873ef257d5",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-a04fd87b5c"
+    },
+    {
+      "title": "Compliance & Security Program v1.0 (Attested)",
+      "description": "Master program document, branded + attested, in the external records binder.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-12-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/COMPLIANCE_PROGRAM.md"
+        }
+      ],
+      "notes": "Externally released 2026-06-19; distribution governed by Drive folder access controls. Frozen point-in-time record.",
+      "id": "DOC-a7761b41b8"
+    },
+    {
+      "title": "Compliance & Security - Semi-Annual Program Report (H1 2026)",
+      "description": "Cover/index report for the branded records set, links the companion domain reports.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM/edit",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-12-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [],
+      "id": "DOC-a11fb54085"
+    },
+    {
+      "title": "Compliance Posture Report (branded)",
+      "description": "Branded/attested posture report in the records binder; mirrors the living git Posture Report.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+        }
+      ],
+      "notes": "Hard-codes a point-in-time posture count; the Notion findings board is the live source. Treat as a frozen record.",
+      "id": "DOC-9f6a2412ad"
+    },
+    {
+      "title": "Audit Results Report",
+      "description": "Branded audit-results summary; companion to the 5 domain reports subfolder.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://drive.google.com/drive/folders/1FNSX8BCMynkrnfyb3lOONXmnCZGuLAON"
+        }
+      ],
+      "notes": "Companion '5 Domain Reports' live in subfolder 1FNSX8BCMynkrnfyb3lOONXmnCZGuLAON.",
+      "id": "DOC-79c93a29a3"
+    },
+    {
+      "title": "Compliance Calendar (branded)",
+      "description": "Branded calendar snapshot; living source is audit-reports/compliance-calendar.json.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit",
+      "status": "published",
+      "frameworks": [
+        "COPPA",
+        "GDPR",
+        "HIPAA",
+        "FERPA",
+        "WCAG"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "audit-reports/compliance-calendar.json"
+        }
+      ],
+      "id": "DOC-df19938e01"
+    },
+    {
+      "title": "Records of Processing Activities (RoPA) and Data Map",
+      "description": "GDPR Article 30 records of processing and data-flow map.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit",
+      "status": "published",
+      "frameworks": [
+        "GDPR"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [],
+      "id": "DOC-3987298c7f"
+    },
+    {
+      "title": "Data Retention Schedule (branded)",
+      "description": "Branded retention schedule; living source is docs/legal/DATA_RETENTION.md.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "HIPAA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "soc2-evidence",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/DATA_RETENTION.md"
+        }
+      ],
+      "id": "DOC-52c8c33583"
+    },
+    {
+      "title": "Subprocessor Register (branded)",
+      "description": "Branded subprocessor register; living source is docs/legal/SUBPROCESSORS.md.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit",
+      "status": "published",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/SUBPROCESSORS.md"
+        }
+      ],
+      "id": "DOC-b0cde875f5"
+    },
+    {
+      "title": "COPPA Final-Rule Verification (branded)",
+      "description": "Branded COPPA verification; living source is docs/legal/COPPA_VERIFICATION_2026-04-26.md.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit",
+      "status": "published",
+      "frameworks": [
+        "COPPA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/COPPA_VERIFICATION_2026-04-26.md"
+        }
+      ],
+      "id": "DOC-509843e543"
+    },
+    {
+      "title": "Parental Consent (COPPA / under-13) (branded)",
+      "description": "Branded parental-consent record; living source is docs/legal/PARENTAL_CONSENT_EMAIL.md.",
+      "type": "template",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit",
+      "status": "published",
+      "frameworks": [
+        "COPPA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/PARENTAL_CONSENT_EMAIL.md"
+        }
+      ],
+      "id": "DOC-7c9b3b876c"
+    },
+    {
+      "title": "Written Information Security Program (WISP)",
+      "description": "WISP - administrative/technical/physical safeguards program (new gap-fill record).",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit",
+      "status": "published",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "soc2-evidence"
+      ],
+      "mirrors": [],
+      "id": "DOC-4aaffa8efd"
+    },
+    {
+      "title": "Security Risk Assessment 2026 Q2",
+      "description": "Annual/quarterly security risk assessment (new gap-fill record).",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit",
+      "status": "published",
+      "frameworks": [
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "soc2-evidence"
+      ],
+      "mirrors": [],
+      "id": "DOC-2ae6e003f0"
+    },
+    {
+      "title": "Access Control Policy",
+      "description": "Access-control policy (new gap-fill record); #442 admin-read/erasure gaps closed.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit",
+      "status": "published",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "soc2-evidence"
+      ],
+      "mirrors": [],
+      "id": "DOC-b8cb4b3bed"
+    },
+    {
+      "title": "Vendor and Subprocessor Management Policy",
+      "description": "Vendor-management policy (new gap-fill record).",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit",
+      "status": "published",
+      "frameworks": [
+        "SOC2",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "soc2-evidence"
+      ],
+      "mirrors": [],
+      "id": "DOC-98ec5238bb"
+    },
+    {
+      "title": "AI Governance Memo (branded)",
+      "description": "Branded AI governance memo; living source is docs/legal/AI_GOVERNANCE_MEMO.md.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit",
+      "status": "published",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/AI_GOVERNANCE_MEMO.md"
+        }
+      ],
+      "id": "DOC-082273934e"
+    },
+    {
+      "title": "Accessibility Conformance Report (ACR / VPAT) (branded)",
+      "description": "Branded ACR/VPAT. NOT attested by design (honest internal draft / Partially Supports; AT user testing still open).",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit",
+      "status": "draft",
+      "frameworks": [
+        "WCAG"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "school-dpa-package"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
+        }
+      ],
+      "notes": "Held-by-design: not a published conformance claim until assistive-technology user testing + adversary review close the gaps.",
+      "id": "DOC-6093912673"
+    },
+    {
+      "title": "Business Continuity and Disaster Recovery Plan",
+      "description": "BCP/DR plan (new gap-fill record). Proposed, not yet tested.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit",
+      "status": "published",
+      "frameworks": [
+        "SOC2"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-12-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06"
+      ],
+      "mirrors": [],
+      "notes": "Marked proposed, not yet tested - accuracy caveat preserved in the doc.",
+      "id": "DOC-c58765c47d"
+    },
+    {
+      "title": "Incident Response and Breach Runbook (branded)",
+      "description": "Branded incident-response/breach runbook; living source is docs/legal/BREACH_RUNBOOK.md.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit",
+      "status": "published",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2027-06-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "soc2-evidence"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/BREACH_RUNBOOK.md"
+        }
+      ],
+      "id": "DOC-f576f43250"
+    },
+    {
+      "title": "Incident Log (branded)",
+      "description": "Branded incident log; living source is docs/legal/INCIDENT_LOG.md.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit",
+      "status": "published",
+      "frameworks": [
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [
+        "compliance-records-set-2026-06",
+        "soc2-evidence"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/INCIDENT_LOG.md"
+        }
+      ],
+      "id": "DOC-50629fc487"
+    },
+    {
+      "title": "Compliance Program - Claim vs Code Review",
+      "description": "Line-level program-claims-vs-live-code review companion report.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg/edit",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-401893ddc9"
+    },
+    {
+      "title": "Compliance & Security Overhaul - Completion Report",
+      "description": "Combined scorecard of the audit-system modernization Phases 0-4 plus the compliance-engineering punch list.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-19"
+      },
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-450ac8e3fe"
+    },
+    {
+      "title": "Roadmap - What's Left (2026-06-19)",
+      "description": "Internal roadmap of remaining compliance work; internal-only, no attestation banner by design.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1f9haDNHifkZQ4qDbZBYMODaWO2KiuwEkrBpUq2Edq4E/edit",
+      "status": "draft",
+      "frameworks": [],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Internal roadmap; not part of the externally-released set.",
+      "id": "DOC-912b28f375"
+    },
+    {
+      "title": "Notion - Compliance Findings board (LL)",
+      "description": "One-way mirror of the findings register for board-style program management; human-owned columns (Owner, Target date, Program notes, Needs Scot decision) live here.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "notion",
+      "canonicalLocation": "https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-20",
+      "nextReviewDue": "2026-09-20",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "audit-reports/FINDINGS.json"
+        }
+      ],
+      "notes": "Auto-synced from FINDINGS.json on push to staging via .github/workflows/sync-findings-to-notion.yml. The live source for posture counts.",
+      "id": "DOC-f994e09fcf"
+    },
+    {
+      "title": "Notion - Compliance & Audits hub",
+      "description": "Top-level Notion hub page for the compliance program; carries the current-state attestation callout.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "notion",
+      "canonicalLocation": "https://www.notion.so/3655fe8215c2815a949ec8ed971d5580",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-09-19",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-8fc50f083c"
+    },
+    {
+      "title": "Notion - Compliance Engineering Onboarding/Handoff",
+      "description": "Onboarding page for a compliance dev; mirrors the brain onboarding doc.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "notion",
+      "canonicalLocation": "https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-19",
+      "nextReviewDue": "2026-12-19",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-44080e322c"
+    }
+  ]
+}
