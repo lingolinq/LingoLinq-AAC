@@ -50,15 +50,15 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-6447a21503 |  | low |  | untriaged | audit-run | Organization model declares total_extras attribute but Rails builder never emits it | `app/frontend/app/models/organization.js`:42 |
 | LL-5a173ce87f |  | low |  | untriaged | audit-run | Utterance Rails builder emits created_at but Ember model declares timestamp instead | `app/frontend/app/models/utterance.js`:15 |
 | LL-553fdc242b |  | low | SOC2 | untriaged | audit-run | davidshimjs-qrcodejs 0.0.2 is abandoned (no release since 2014, >10 years) | `app/frontend/package.json`:36 |
-| LL-257c696fe0 |  | low | SOC2 | untriaged | audit-run | eslint 5.16.0 is EOL (v5 end-of-life 2019); dev toolchain running unsupported linter | `app/frontend/package-lock.json`:18085 |
 | LL-e066ea6fa3 |  | low | SOC2 | untriaged | audit-run | http-proxy 1.18.1 (EOL, last release 2021) has CVE-2024-21943 (ReDoS via Host header); dev-only | `app/frontend/package.json`:64 |
 | LL-2695434541 |  | low | SOC2 | untriaged | audit-run | Puma Gemfile constraint permits 7.2.0 which predates the CVE-2026-47736/47737 fix; floor unset | `Gemfile`:62 |
 | LL-b0bc6880e6 |  | low | SOC2 | untriaged | audit-run | sync-render-secrets.yml (holds RENDER_API_KEY + 1Password token) declares no permissions: block, inheriting default write GITHUB_TOKEN | `.github/workflows/sync-render-secrets.yml`:14 |
 | LL-e76d6378b5 |  | low |  | untriaged | audit-run | Webhook model declares notifications and content_type attrs that Rails never serializes | `app/frontend/app/models/webhook.js`:12 |
+| LL-941001ca58 | Dep-eslint-8-eol | low | SOC2 | untriaged | audit-run | eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter | `app/frontend/package.json`:64 |
 | LL-a97357136e | P2-2 | low | SOC2 | untriaged | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | untriaged | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
 
-## Verified closed (32)
+## Verified closed (33)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -92,6 +92,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-56f0f19fca | P2-6 | medium | SOC2 | untriaged | audit-run | Registration/2fa/SAML endpoints under general throttle only | `config/initializers/throttling.rb`:18 |
 | LL-7a8effae8a | P2-9 | medium | FERPA | untriaged | audit-run | user_name exposed for expired licenses during expiration window | `lib/json_api/license.rb`:17 |
 | LL-20c48e298c |  | low | WCAG | untriaged | audit-run | Board-tile symbol image has no alt text (edit-mode board-editor path) | `app/frontend/app/templates/board/index.hbs`:123 |
+| LL-257c696fe0 |  | low | SOC2 | untriaged | audit-run | eslint 5.16.0 is EOL (v5 end-of-life 2019); dev toolchain running unsupported linter | `app/frontend/package-lock.json`:18085 |
 | LL-a25d930f21 |  | low | SOC2 | untriaged | audit-run | ember-cli-mirage 2.4.0 is abandoned for Ember 3.x (no active maintenance, last meaningful release 2021) | `app/frontend/package-lock.json`:12501 |
 | LL-53ab4ea456 |  | low | SOC2 | untriaged | audit-run | serialize-javascript 4.0.0 vulnerable to CVE-2024-11831 (XSS); dev toolchain only | `app/frontend/package-lock.json`:26437 |
 
@@ -111,4 +112,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_80 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_81 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

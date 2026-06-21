@@ -1983,7 +1983,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -1992,16 +1992,16 @@
         "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "eslint v5 has been EOL since 2019; latest stable is v9.x. Upgrading eslint within Ember 3.28 is constrained by ember-cli-eslint ^5.1.0 which requires eslint 5.x. eslint upgrade is effectively blocked on Ember 3.28 -> Ember 5 migration. Mitigation: run npm audit in CI and treat any eslint advisory as high-priority.",
         "timeframe": "blocked-on-ember-migration"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b8570e5be6b2041cc5690635da25838f12997228",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): the EOL eslint 5.16.0 is gone; eslint now declares ^8.37.0 (app/frontend/package.json:64) and resolves to 8.57.1. The 5.x-specific EOL condition is resolved. The fact that 8.57.1 is itself EOL is tracked separately as LL-941001ca58 (eol-eslint-8x).",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; eslint 5.x removed (now v8), code-verified in the 2026-06-21 triage pass. Successor v8-EOL concern re-filed as LL-941001ca58."
       },
       "notes": "Surfaced by dependency finder on 2026-06-16. eslint 5.x EOL per https://github.com/eslint/eslint/releases; ember-cli-eslint ^5 pins eslint 5. No current CVE in eslint 5.16.0 itself, but EOL means no patches for future vulnerabilities. Dev dep; no production runtime exposure. | adversary: confirmed. eslint 5.16.0 (package-lock.json:18086), long EOL. dev-tooling only, no runtime exposure."
     },
@@ -2694,6 +2694,33 @@
         "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; nokogiri CVE remediated in #460, code-verified (Gemfile.lock 1.19.4)."
       },
       "notes": "Backfilled after remediation. CVE/dependency advisory caught by bundle-audit; fixed before it was first registered. Closure attestation pending Scot."
+    },
+    {
+      "id": "LL-941001ca58",
+      "ruleKey": "eol-eslint-8x",
+      "legacyId": "Dep-eslint-8-eol",
+      "title": "eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 64,
+        "snippet": "\"eslint\": \"^8.37.0\",",
+        "sha": "b8570e5be6b2041cc5690635da25838f12997228"
+      },
+      "firstSeen": "2026-06-21",
+      "lastSeen": "2026-06-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Upgrade to eslint 9 (flat config). Entangled with the broader Ember 3.28 toolchain modernization, so not a standalone bump; dev-toolchain only (not shipped to users).",
+        "timeframe": "with toolchain modernization"
+      },
+      "notes": "Successor to LL-257c696fe0 (eol-eslint-5x, closed 2026-06-21). The v5 EOL was fixed by the v8 upgrade, but v8 reached end-of-life; tracked here so the register stays honest. Low: dev-toolchain only."
     }
   ]
 }
