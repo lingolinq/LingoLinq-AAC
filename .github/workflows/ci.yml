@@ -126,6 +126,9 @@ jobs:
       - name: Verify Notion compliance page matches register
         run: ruby scripts/compliance-notion-publish.rb --check
 
+      - name: Verify document register render + git content hashes + bundle completeness
+        run: ruby scripts/document-register-render.rb --check
+
   security-scan:
     runs-on: ubuntu-latest
     continue-on-error: true
