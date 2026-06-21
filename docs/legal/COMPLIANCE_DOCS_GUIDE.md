@@ -86,7 +86,9 @@ index notices a document changed but its row did not.
   URL host is not a real Drive host (`docs.google.com`, `drive.google.com`) or
   Notion host (`notion.so`, `www.notion.so`, `app.notion.com`, `*.notion.site`).
   A real git doc therefore cannot dodge hash verification by being relabeled
-  `drive`/`notion`, even via a self-referential GitHub blob URL.
+  `drive`/`notion`, even via a self-referential GitHub blob URL. Conversely a
+  `git` row must resolve to a real file **inside** the repo (no `..` traversal,
+  no symlink), so the `git` label always means "tracked content in this repo."
 - **If a git hash-drift check fails:** it means a doc's content and its register
   row disagree. Re-render to reconcile, then sanity-check the review date and
   status while you are there.

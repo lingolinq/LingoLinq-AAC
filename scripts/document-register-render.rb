@@ -52,6 +52,22 @@ bundle_defs = meta['bundleDefinitions'] || {}
 # The register file rewrites itself on render (id + hash backfill), so its own bytes can never
 # settle to a stored hash. Exempt that one path from content-hashing.
 SELF_PATH = File.expand_path(register_path)
+# Repo root, anchored off the register's own location (audit-reports/DOCUMENT-REGISTER.json).
+# Used to keep "canonicalSystem=git" honest: a git row must resolve to a real file INSIDE the
+# repo, never a symlink or a traversal path pointing out of the working tree.
+REPO_ROOT = File.realpath(File.expand_path(File.join(File.dirname(register_path), '..')))
+
+# True if a repo-relative path resolves (following symlinks) to a real file inside the repo.
+def in_repo_file?(loc)
+  return false if loc.to_s.include?('..')
+  return false if File.symlink?(loc)
+  return false unless File.file?(loc)
+
+  real = File.realpath(loc)
+  real == REPO_ROOT || real.start_with?(REPO_ROOT + '/')
+rescue Errno::ENOENT, Errno::ELOOP
+  false
+end
 
 # Deterministic id, shared with the Notion sync: DOC- + sha256(canonicalLocation)[0,10].
 def expected_id(doc)
@@ -96,12 +112,13 @@ def self_row?(doc)
   git_row?(doc) && File.expand_path(doc['canonicalLocation'].to_s) == SELF_PATH
 end
 
-# Compute the canonical content hash for a git row, or nil if the file is missing / exempt.
+# Compute the canonical content hash for a git row, or nil if the file is missing / exempt /
+# not a real in-repo file (a symlink or out-of-tree path is rejected by collect_problems).
 def git_content_hash(doc)
   return nil if self_row?(doc)
 
   path = doc['canonicalLocation'].to_s
-  return nil unless File.file?(path)
+  return nil unless in_repo_file?(path)
 
   Digest::SHA256.hexdigest(File.binread(path))
 end
@@ -154,8 +171,10 @@ def collect_problems(documents, bundle_defs)
       # A git row must be a repo path (so its bytes are hashed and CI-verified), never a URL.
       problems << "git doc #{title.inspect} canonicalLocation looks like a URL, expected a repo path: #{loc}" if url_like?(loc)
       if !self_row?(doc) && !url_like?(loc)
-        if !File.file?(loc)
-          problems << "git doc #{title.inspect} points at a missing file: #{loc}"
+        if !in_repo_file?(loc)
+          # Honest git label: a real, tracked-shaped file inside the repo. Rejects missing
+          # files, '..' traversal, symlinks, and paths resolving outside the working tree.
+          problems << "git doc #{title.inspect} canonicalLocation must be a real file inside the repo (no '..', no symlink): #{loc}"
         else
           computed = Digest::SHA256.hexdigest(File.binread(loc))
           stored = doc['contentHash'].to_s
