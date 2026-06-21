@@ -941,7 +941,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -950,15 +950,15 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Add POST api/v1/users, confirm_registration, 2fa, saml/consume to protected_paths or a stricter group.",
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): registration/2fa/SAML endpoints are now in throttling PROTECTED_PATHS (config/initializers/throttling.rb:33-36: api/v1/users, confirm_registration, 2fa, saml/consume), subject to PROTECTED_CUTOFF (10/3s) instead of the general throttle.",
         "attestation": ""
       },
       "notes": "Verified still open 2026-06-12: none of these paths present in protected_paths (throttling.rb:18-21). Shares anchor with P1-1/P1-4."
@@ -1547,7 +1547,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/templates/board/index.hbs",
@@ -1556,15 +1556,15 @@
         "sha": "d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Give the symbol <img> an alt equal to the button label (or alt=\"\" when the visible label is present and provides the accessible name). Ensure the tile <a> always has an accessible name even when symbols/labels are toggled.",
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): board-tile symbol images now carry an alt derived from the button label on BOTH render paths - templates/board/index.hbs:123 (alt=button.label) and the fast_html string app/frontend/app/utils/button.js (symbol_alt). WCAG non-text-content defect resolved.",
         "attestation": ""
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). The tile <a class=button> is named by the visible label span (index.hbs:141), but that span is gated by {{#unless button.hide_label}} (index.hbs:140); with hide_label set and the symbol <img> carrying no alt, the tile has NO accessible name at all (critical for symbol-only/emerging communicators). Dual render-path issue: the same defect exists in the fast_html string builder in app/frontend/app/utils/button.js. | adversary: uncertain (2026-06-16): the cited line sits inside {{#if this.app_state.edit_mode}} (index.hbs:102), an EDIT-MODE-ONLY path; the live communicator grid renders via {{board.fast_html.html}} (index.hbs:100), not this markup. The missing-alt defect is real here, but this anchor is NOT the AAC-core live surface the title/notes imply -- the live case is the separate utils/button.js fast_html finding. Recommend Scot re-anchor this to the fast_html finding or downgrade its scope to edit-mode. (Verified .hide-label = display:none at app.scss:9167.) | disposition 2026-06-16 (per Scot delegation): downgraded high->low and re-scoped to the edit-mode-only path after adversary review. The cited index.hbs:123 markup renders only under {{#if this.app_state.edit_mode}} (index.hbs:102 -- the board editor), where the button label is shown via {{label-field}} (index.hbs:135) so the control is named and the symbol img alt is decorative there. The substantive live-grid case (incl. symbol-only/hide_label, where the live tile is genuinely nameless) is the confirmed utils/button.js fast_html finding of the same ruleKey."
@@ -2014,7 +2014,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -2023,15 +2023,15 @@
         "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "ember-cli-mirage 2.x targets Ember 3.x but has seen no active security or maintenance releases since ~2021. It is used in test environments only (no production bundle inclusion). Consider migrating to MSW (Mock Service Worker) or Pretender directly when the Ember 5 migration lands.",
         "timeframe": "blocked-on-ember-migration"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): ember-cli-mirage upgraded from abandoned 2.4.0 to maintained 3.0.4 (app/frontend/package.json:50 ^3.0.4; package-lock.json resolves 3.0.4). The 2.x-specific abandonment is resolved.",
         "attestation": ""
       },
       "notes": "Surfaced by dependency finder on 2026-06-16. ember-cli-mirage 2.4.0 is a dev/test-only dep. No current CVE. Abandonment risk is test-toolchain reliability, not production security. | adversary: confirmed stale (2.4.0; current 3.0.4, two majors behind). Recommend rewording \"abandoned\" -> \"two majors behind/superseded\" (project continued via miragejs). dev/test-only."
@@ -2542,7 +2542,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -2551,15 +2551,15 @@
         "sha": "445336592ddaf838689df7e578829e94e140890d"
       },
       "firstSeen": "2026-06-19",
-      "lastSeen": "2026-06-19",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Upgrade serialize-javascript to >= 6.0.2 (fixes CVE-2024-11831 / GHSA-76p7-773f-r4q5 XSS). It is a transitive dev dep of the ember-cli/terser toolchain; add an `overrides` entry in package.json: serialize-javascript >= 6.0.2. Dev-only: not bundled to browsers, no production server exposure. Note the lockfile version (4.0.0) already matched the caret-4 range; the override must force the major bump.",
         "timeframe": "90d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): serialize-javascript is entirely absent from app/frontend/package-lock.json; terser-webpack-plugin upgraded to 5.5.0 no longer pulls the vulnerable 4.0.0 transitive dep, removing CVE-2024-11831 exposure.",
         "attestation": ""
       },
       "notes": "Surfaced by dependency finder on 2026-06-19. CVE-2024-11831 (GHSA-76p7-773f-r4q5): ReDoS via crafted input to serialize-javascript below 6.0.2. Locked at 4.0.0 (package-lock.json line 26438). Dev toolchain only (webpack/terser bundle step); exploitable only if an attacker can control the serialized data during the build process, not at runtime. Prior audit run mis-cited this CVE under a wrong id; confirmed correct CVE is CVE-2024-11831 with a 6.0.2 fix threshold. Not in register. Distinct from all existing open findings. | adversary: confirmed substance (serialize-javascript@4.0.0 dev-only, fix >=6.0.2, LOW) but CORRECTED two citation errors: GHSA-76p7-773f-r4q5 is the debug-package ReDoS (CVE-2017-16137), NOT serialize-javascript; correct advisory is GHSA-76p7-773f-r4q5 and the vuln class is XSS, not ReDoS."
