@@ -1,0 +1,313 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# document-register-render.rb - keep the compliance document register honest.
+#
+# The register (audit-reports/DOCUMENT-REGISTER.json) is the single source of truth for
+# WHERE every compliance document lives across git, Google Drive, and Notion. This script
+# is to that register what citation-check.rb is to the findings register: it normalizes the
+# JSON, renders the human-readable DOCUMENT-REGISTER.md, and (in --check mode) fails CI when
+# the register has drifted from reality.
+#
+# Two enhancements over a plain render, both deterministic and CI-safe (pure git + stdlib,
+# no network):
+#   1. contentHash - sha256 of the canonical content. For canonicalSystem=git rows the hash
+#      is computed from the file bytes and VERIFIED in --check (a tracked doc edited without
+#      updating its row fails). For drive/notion rows the hash is externally supplied and
+#      only advisory here (CI is network-free and cannot reach those systems).
+#   2. bundles - named compliance bundles (e.g. soc2-evidence). Each bundle in
+#      meta.bundleDefinitions lists requiredTitles; --check fails if a bundle is missing a
+#      required member, or if a doc references a bundle that is not defined.
+#
+# Usage:
+#   ruby scripts/document-register-render.rb [JSON]           # normalize JSON (id + git hash) and write .md
+#   ruby scripts/document-register-render.rb --check [JSON]   # exit 1 on any drift; writes nothing
+#
+# Exit codes: 0 = clean; 1 = drift / missing file / bundle gap / bad reference.
+
+require 'json'
+require 'digest'
+require 'date'
+require 'optparse'
+
+DEFAULT_REGISTER = 'audit-reports/DOCUMENT-REGISTER.json'
+
+options = { mode: :render }
+OptionParser.new do |o|
+  o.banner = 'Usage: ruby scripts/document-register-render.rb [--check] [JSON]'
+  o.on('--check', 'Exit 1 if the register or its render has drifted; write nothing') { options[:mode] = :check }
+end.parse!(ARGV)
+
+register_path = ARGV[0] || DEFAULT_REGISTER
+unless File.file?(register_path)
+  warn "document-register-render: register not found: #{register_path}"
+  exit 1
+end
+
+register = JSON.parse(File.read(register_path))
+meta = register['meta'] || {}
+documents = register['documents'] || []
+bundle_defs = meta['bundleDefinitions'] || {}
+
+# The register file rewrites itself on render (id + hash backfill), so its own bytes can never
+# settle to a stored hash. Exempt that one path from content-hashing.
+SELF_PATH = File.expand_path(register_path)
+
+# Deterministic id, shared with the Notion sync: DOC- + sha256(canonicalLocation)[0,10].
+def expected_id(doc)
+  'DOC-' + Digest::SHA256.hexdigest(doc['canonicalLocation'].to_s)[0, 10]
+end
+
+def git_row?(doc)
+  doc['canonicalSystem'].to_s == 'git'
+end
+
+def self_row?(doc)
+  git_row?(doc) && File.expand_path(doc['canonicalLocation'].to_s) == SELF_PATH
+end
+
+# Compute the canonical content hash for a git row, or nil if the file is missing / exempt.
+def git_content_hash(doc)
+  return nil if self_row?(doc)
+
+  path = doc['canonicalLocation'].to_s
+  return nil unless File.file?(path)
+
+  Digest::SHA256.hexdigest(File.binread(path))
+end
+
+def parse_date(s)
+  return nil if s.nil? || s.to_s.strip.empty?
+
+  Date.parse(s.to_s)
+rescue ArgumentError
+  nil
+end
+
+# Anchor the "overdue for review" window to meta.generatedDate (not Date.today) so the render is
+# a pure function of the JSON - the same drift-avoidance citation/calendar renders use. A present
+# but malformed generatedDate is a hand-edit mistake: fail loudly. Only a fully absent one falls
+# back to today (undated scratch JSON).
+if meta.key?('generatedDate')
+  generated_date = parse_date(meta['generatedDate']) ||
+    abort("document-register-render: meta.generatedDate present but unparseable: #{meta['generatedDate'].inspect}")
+else
+  generated_date = Date.today
+end
+generated = generated_date.strftime('%Y-%m-%d')
+
+# ---- integrity checks (used by both modes) ---------------------------------------
+
+def attested?(doc)
+  att = doc['attestation']
+  att.is_a?(Hash) && !att['attestedBy'].to_s.empty?
+end
+
+def collect_problems(documents, bundle_defs)
+  problems = []
+
+  documents.each do |doc|
+    loc = doc['canonicalLocation'].to_s
+    title = doc['title'].to_s
+
+    exp = expected_id(doc)
+    if doc['id'].to_s != exp
+      problems << "id mismatch for #{title.inspect}: stored #{doc['id'].inspect}, expected #{exp.inspect} (run render to fix)"
+    end
+
+    if git_row?(doc) && !self_row?(doc)
+      if !File.file?(loc)
+        problems << "git doc #{title.inspect} points at a missing file: #{loc}"
+      else
+        computed = Digest::SHA256.hexdigest(File.binread(loc))
+        stored = doc['contentHash'].to_s
+        if stored.empty?
+          problems << "git doc #{title.inspect} has no contentHash (run render to populate): #{loc}"
+        elsif stored != computed
+          problems << "contentHash drift for #{title.inspect}: #{loc} changed but its register row was not updated (run render)"
+        end
+      end
+    end
+
+    (doc['bundles'] || []).each do |b|
+      problems << "doc #{title.inspect} references undefined bundle #{b.inspect}" unless bundle_defs.key?(b)
+    end
+  end
+
+  bundle_defs.each do |name, defn|
+    members = documents.select { |d| (d['bundles'] || []).include?(name) }
+    required = defn['requiredTitles'] || []
+    required.each do |needle|
+      present = members.any? { |m| m['title'].to_s.downcase.include?(needle.downcase) }
+      problems << "bundle #{name.inspect} is missing a required member matching #{needle.inspect}" unless present
+    end
+  end
+
+  problems
+end
+
+# Advisory-only signals (never fail CI): drive/notion rows missing a supplied hash.
+def collect_advisories(documents)
+  documents.reject { |d| d['canonicalSystem'].to_s == 'git' }
+           .select { |d| d['contentHash'].to_s.empty? }
+           .map { |d| "no supplied contentHash for #{d['canonicalSystem']} doc #{d['title'].inspect} (refreshed during the Notion-sync run)" }
+end
+
+# ---- markdown render -------------------------------------------------------------
+
+TYPE_ORDER = %w[policy legal evidence audit-artifact runbook template agent-config].freeze
+SYSTEM_LABEL = { 'git' => 'git', 'drive' => 'Drive', 'notion' => 'Notion' }.freeze
+
+def loc_cell(doc)
+  loc = doc['canonicalLocation'].to_s
+  case doc['canonicalSystem'].to_s
+  when 'git' then "`#{loc}`"
+  else "[open](#{loc})"
+  end
+end
+
+def hash_cell(doc)
+  if doc['canonicalSystem'].to_s == 'git'
+    h = doc['contentHash'].to_s
+    h.empty? ? '(self)' : "`#{h[0, 12]}`"
+  else
+    doc['contentHash'].to_s.empty? ? '(supplied)' : "`#{doc['contentHash'].to_s[0, 12]}`"
+  end
+end
+
+def esc(str)
+  str.to_s.gsub('|', '\\|')
+end
+
+def render_markdown(register, generated, generated_date)
+  meta = register['meta'] || {}
+  documents = register['documents'] || []
+  bundle_defs = meta['bundleDefinitions'] || {}
+
+  by_system = documents.group_by { |d| d['canonicalSystem'].to_s }
+  counts_sys = %w[git drive notion].map { |s| "#{s} #{(by_system[s] || []).size}" }.join(' / ')
+
+  status_counts = Hash.new(0)
+  documents.each { |d| status_counts[d['status'].to_s] += 1 }
+  status_line = %w[draft approved published superseded archived]
+                .select { |s| status_counts[s].positive? }
+                .map { |s| "#{s} #{status_counts[s]}" }.join(', ')
+
+  overdue = documents.select do |d|
+    due = (Date.parse(d['nextReviewDue']) rescue nil)
+    due && due < generated_date && d['status'].to_s != 'superseded' && d['status'].to_s != 'archived'
+  end
+  drafts = documents.select { |d| d['status'].to_s == 'draft' }
+
+  out = +''
+  out << "# LingoLinq-AAC Compliance Document Register\n\n"
+  out << "> Generated from `audit-reports/DOCUMENT-REGISTER.json` by `scripts/document-register-render.rb`.\n"
+  out << "> Do not hand-edit; edit the JSON (the source of truth) and re-render.\n"
+  out << "> The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.\n"
+  out << ">\n"
+  out << "> Generated: #{generated} | Documents: #{documents.size} (#{counts_sys})\n\n"
+
+  out << "## Headline\n\n"
+  out << "- **Status:** #{status_line}\n"
+  if overdue.empty?
+    out << "- **Overdue for review** (as of #{generated}): none\n"
+  else
+    out << "- **Overdue for review** (as of #{generated}): " +
+           overdue.map { |d| "#{esc(d['title'])} (#{d['nextReviewDue']})" }.join('; ') + "\n"
+  end
+  if drafts.empty?
+    out << "- **Drafts awaiting attestation:** none\n"
+  else
+    out << "- **Drafts awaiting attestation:** " + drafts.map { |d| esc(d['title']) }.join('; ') + "\n"
+  end
+  out << "\n"
+
+  out << "## Documents by type\n\n"
+  ordered_types = TYPE_ORDER + (documents.map { |d| d['type'].to_s }.uniq - TYPE_ORDER)
+  ordered_types.each do |type|
+    group = documents.select { |d| d['type'].to_s == type }
+    next if group.empty?
+
+    group = group.sort_by { |d| d['title'].to_s.downcase }
+    out << "### #{type} (#{group.size})\n\n"
+    out << "| Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |\n"
+    out << "|---|---|---|---|---|---|---|---|---|---|---|\n"
+    group.each do |d|
+      att = attested?(d) ? d['attestation']['attestedDate'].to_s : 'no'
+      fw = (d['frameworks'] || []).join(', ')
+      bundles = (d['bundles'] || []).join(', ')
+      out << "| #{esc(d['title'])} | #{SYSTEM_LABEL[d['canonicalSystem'].to_s] || d['canonicalSystem']} | #{loc_cell(d)} | #{d['status']} | #{fw} | #{esc(d['owner'])} | #{d['lastReviewed']} | #{d['nextReviewDue']} | #{att} | #{hash_cell(d)} | #{esc(bundles)} |\n"
+    end
+    out << "\n"
+  end
+
+  out << "## Bundles\n\n"
+  if bundle_defs.empty?
+    out << "_No bundles defined._\n\n"
+  else
+    bundle_defs.each do |name, defn|
+      members = documents.select { |d| (d['bundles'] || []).include?(name) }.sort_by { |d| d['title'].to_s.downcase }
+      required = defn['requiredTitles'] || []
+      missing = required.reject { |needle| members.any? { |m| m['title'].to_s.downcase.include?(needle.downcase) } }
+
+      out << "### #{name}\n\n"
+      out << "#{defn['description']}\n\n" if defn['description']
+      out << "- **Members (#{members.size}):** " + (members.empty? ? '(none)' : members.map { |m| esc(m['title']) }.join('; ')) + "\n"
+      out << "- **Completeness:** " + (missing.empty? ? 'complete' : "MISSING required member(s): #{missing.join('; ')}") + "\n\n"
+    end
+  end
+
+  out << "---\n\n"
+  out << "_#{documents.size} documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._\n"
+  out
+end
+
+# ---- modes -----------------------------------------------------------------------
+
+md_path = File.join(File.dirname(register_path), 'DOCUMENT-REGISTER.md')
+
+if options[:mode] == :check
+  problems = collect_problems(documents, bundle_defs)
+  advisories = collect_advisories(documents)
+
+  rendered = render_markdown(register, generated, generated_date)
+  if !File.file?(md_path)
+    problems << "missing render #{md_path} (run document-register-render.rb)"
+  elsif File.read(md_path) != rendered
+    problems << "render drift: #{md_path} does not match the JSON (run document-register-render.rb)"
+  end
+
+  warn "  [advisory] #{advisories.size} drive/notion rows have no supplied contentHash (refreshed during the Notion-sync run)" unless advisories.empty?
+
+  if problems.empty?
+    puts "document-register-render: OK (#{documents.size} docs; ids, git hashes, render, and bundles all consistent)"
+    exit 0
+  end
+  warn 'document-register-render: DRIFT'
+  problems.each { |p| warn "  [FAIL] #{p}" }
+  exit 1
+end
+
+# render mode: normalize the JSON (id + git contentHash) in place, then write the .md.
+documents.each do |doc|
+  doc['id'] = expected_id(doc)
+  if git_row?(doc) && !self_row?(doc)
+    h = git_content_hash(doc)
+    doc['contentHash'] = h if h
+  end
+end
+
+File.write(register_path, JSON.pretty_generate(register) + "\n")
+File.write(md_path, render_markdown(register, generated, generated_date))
+puts "document-register-render: normalized #{register_path} and wrote #{md_path} (#{documents.size} docs)"
+
+advisories = collect_advisories(documents)
+puts "  note: #{advisories.size} drive/notion rows have no supplied contentHash (refreshed during the Notion-sync run)" unless advisories.empty?
+
+# Surface hard problems even in render mode (e.g. a dangling git path render can't fix).
+problems = collect_problems(documents, bundle_defs)
+unless problems.empty?
+  warn 'document-register-render: remaining issues after render:'
+  problems.each { |p| warn "  [FAIL] #{p}" }
+  exit 1
+end
