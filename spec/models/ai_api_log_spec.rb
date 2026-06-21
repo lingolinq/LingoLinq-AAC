@@ -495,4 +495,27 @@ describe AiApiLog, :type => :model do
       expect(log2.reload.ip_address).to eq('[REDACTED]')
     end
   end
+
+  describe "Article 50 fields via log_ai_call" do
+    it "persists jurisdiction, disclosure, marking, and content id when provided" do
+      log = AiApiLog.log_ai_call(
+        provider: 'claude', model: 'claude-haiku-4-5-20251001', type: 'board_generation',
+        jurisdiction: 'EU', article_50_disclosure_shown: true,
+        ai_content_marked: true, ai_generated_content_id: '1_99'
+      )
+      expect(log).to be_persisted
+      expect(log.jurisdiction).to eq('EU')
+      expect(log.article_50_disclosure_shown).to eq(true)
+      expect(log.ai_content_marked).to eq(true)
+      expect(log.ai_generated_content_id).to eq('1_99')
+    end
+
+    it "defaults the Article 50 booleans to false for existing callers (backward compatible)" do
+      log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
+      expect(log).to be_persisted
+      expect(log.jurisdiction).to be_nil
+      expect(log.article_50_disclosure_shown).to eq(false)
+      expect(log.ai_content_marked).to eq(false)
+    end
+  end
 end
