@@ -81,9 +81,12 @@ index notices a document changed but its row did not.
   when the doc is added or reviewed, so Drive freshness is a dated review
   obligation, not a machine guarantee. A missing Drive hash is an advisory only.
 - **The mislabel guard:** because hash verification only applies to `git` rows,
-  the gate also fails if a `git` row's location is a URL, or if a `drive`/`notion`
-  row's location resolves to a tracked repo file. A real git doc therefore cannot
-  dodge hash verification by being relabeled `drive`/`notion`.
+  the gate also fails if a `git` row's location is a URL; if a `drive`/`notion`
+  row's location resolves to a tracked repo file; or if a `drive`/`notion` row's
+  URL host is not a real Drive host (`docs.google.com`, `drive.google.com`) or
+  Notion host (`notion.so`, `www.notion.so`, `app.notion.com`, `*.notion.site`).
+  A real git doc therefore cannot dodge hash verification by being relabeled
+  `drive`/`notion`, even via a self-referential GitHub blob URL.
 - **If a git hash-drift check fails:** it means a doc's content and its register
   row disagree. Re-render to reconcile, then sanity-check the review date and
   status while you are there.
@@ -92,20 +95,21 @@ index notices a document changed but its row did not.
 
 A **bundle** is a named package of documents, e.g. `soc2-evidence` or
 `school-dpa-package`. Each document lists the bundles it belongs to; each bundle
-is defined once in `meta.bundleDefinitions` with the titles it requires.
+is defined once in `meta.bundleDefinitions` with the documents it requires.
 
 - The render groups documents by bundle and shows, per bundle, the members and
   any **missing required member**.
 - CI **fails** if a bundle is missing a required member, or if a document
   references a bundle that is not defined (typo guard).
-- `requiredTitles` are matched by **exact, case-insensitive full title** (not
-  substring), so a coincidental shared word cannot satisfy a requirement. Each
-  required title must be the exact title of the member that fulfills it (the
-  branded record for the records-set bundle; the git canonical for the soc2/dpa
-  bundles).
+- `requiredDocs` binds each requirement to a specific document by
+  `canonicalLocation` (identity), **not** by free-text title, so a document
+  cannot satisfy a requirement just by being retitled to the right string. Each
+  `requiredDocs` entry carries a `location` (the binding) and a human-readable
+  `title` that `--check` verifies still matches the member at that location (a
+  register-drift guard).
 - To define a new bundle: add it to `meta.bundleDefinitions` with a
-  `description` and `requiredTitles` (exact member titles), tag the member docs'
-  `bundles`, then re-render.
+  `description` and `requiredDocs` (each `{title, location}` pointing at the
+  exact member that fulfills it), tag the member docs' `bundles`, then re-render.
 
 > **Why this matters:** when a school district asks for "your DPA package," you
 > read the `school-dpa-package` bundle and know instantly whether anything is

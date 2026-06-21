@@ -39,52 +39,145 @@
     "bundleDefinitions": {
       "compliance-records-set-2026-06": {
         "description": "The attested, externally-released branded binder generated 2026-06-19 and held in the Drive 'Branded Records Set' folder. Frozen point-in-time records; the living sources are the git docs and the auto-synced Notion findings board.",
-        "requiredTitles": [
-          "Compliance & Security Program v1.0 (Attested)",
-          "Compliance Posture Report (branded)",
-          "Audit Results Report",
-          "Compliance Calendar (branded)",
-          "Records of Processing Activities (RoPA) and Data Map",
-          "Data Retention Schedule (branded)",
-          "Subprocessor Register (branded)",
-          "COPPA Final-Rule Verification (branded)",
-          "Parental Consent (COPPA / under-13) (branded)",
-          "Written Information Security Program (WISP)",
-          "Security Risk Assessment 2026 Q2",
-          "Access Control Policy",
-          "Vendor and Subprocessor Management Policy",
-          "AI Governance Memo (branded)",
-          "Accessibility Conformance Report (ACR / VPAT) (branded)",
-          "Business Continuity and Disaster Recovery Plan",
-          "Incident Response and Breach Runbook (branded)",
-          "Incident Log (branded)"
+        "requiredDocs": [
+          {
+            "title": "Compliance & Security Program v1.0 (Attested)",
+            "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
+          },
+          {
+            "title": "Compliance Posture Report (branded)",
+            "location": "https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit"
+          },
+          {
+            "title": "Audit Results Report",
+            "location": "https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit"
+          },
+          {
+            "title": "Compliance Calendar (branded)",
+            "location": "https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit"
+          },
+          {
+            "title": "Records of Processing Activities (RoPA) and Data Map",
+            "location": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit"
+          },
+          {
+            "title": "Data Retention Schedule (branded)",
+            "location": "https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit"
+          },
+          {
+            "title": "Subprocessor Register (branded)",
+            "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+          },
+          {
+            "title": "COPPA Final-Rule Verification (branded)",
+            "location": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit"
+          },
+          {
+            "title": "Parental Consent (COPPA / under-13) (branded)",
+            "location": "https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit"
+          },
+          {
+            "title": "Written Information Security Program (WISP)",
+            "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
+          },
+          {
+            "title": "Security Risk Assessment 2026 Q2",
+            "location": "https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit"
+          },
+          {
+            "title": "Access Control Policy",
+            "location": "https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit"
+          },
+          {
+            "title": "Vendor and Subprocessor Management Policy",
+            "location": "https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit"
+          },
+          {
+            "title": "AI Governance Memo (branded)",
+            "location": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit"
+          },
+          {
+            "title": "Accessibility Conformance Report (ACR / VPAT) (branded)",
+            "location": "https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit"
+          },
+          {
+            "title": "Business Continuity and Disaster Recovery Plan",
+            "location": "https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit"
+          },
+          {
+            "title": "Incident Response and Breach Runbook (branded)",
+            "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
+          },
+          {
+            "title": "Incident Log (branded)",
+            "location": "https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit"
+          }
         ]
       },
       "soc2-evidence": {
         "description": "Documents a SOC 2 readiness reviewer expects to see for the security-program controls.",
-        "requiredTitles": [
-          "Access Control Policy",
-          "Vendor and Subprocessor Management Policy",
-          "Security Risk Assessment 2026 Q2",
-          "Written Information Security Program (WISP)",
-          "Incident Response and Breach Runbook",
-          "Data Retention Schedule",
-          "Incident Log"
+        "requiredDocs": [
+          {
+            "title": "Access Control Policy",
+            "location": "https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit"
+          },
+          {
+            "title": "Vendor and Subprocessor Management Policy",
+            "location": "https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit"
+          },
+          {
+            "title": "Security Risk Assessment 2026 Q2",
+            "location": "https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit"
+          },
+          {
+            "title": "Written Information Security Program (WISP)",
+            "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
+          },
+          {
+            "title": "Incident Response and Breach Runbook",
+            "location": "docs/legal/BREACH_RUNBOOK.md"
+          },
+          {
+            "title": "Data Retention Schedule",
+            "location": "docs/legal/DATA_RETENTION.md"
+          },
+          {
+            "title": "Incident Log",
+            "location": "docs/legal/INCIDENT_LOG.md"
+          }
         ]
       },
       "school-dpa-package": {
         "description": "What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).",
-        "requiredTitles": [
-          "Compliance Posture Report",
-          "Subprocessor Register",
-          "Data Retention Schedule",
-          "COPPA Final-Rule Verification",
-          "Parental Consent Email (COPPA / under-13)",
-          "Accessibility Conformance Report (ACR / VPAT)"
+        "requiredDocs": [
+          {
+            "title": "Compliance Posture Report",
+            "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+          },
+          {
+            "title": "Subprocessor Register",
+            "location": "docs/legal/SUBPROCESSORS.md"
+          },
+          {
+            "title": "Data Retention Schedule",
+            "location": "docs/legal/DATA_RETENTION.md"
+          },
+          {
+            "title": "COPPA Final-Rule Verification",
+            "location": "docs/legal/COPPA_VERIFICATION_2026-04-26.md"
+          },
+          {
+            "title": "Parental Consent Email (COPPA / under-13)",
+            "location": "docs/legal/PARENTAL_CONSENT_EMAIL.md"
+          },
+          {
+            "title": "Accessibility Conformance Report (ACR / VPAT)",
+            "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
+          }
         ]
       }
     },
-    "bundleMatchNote": "bundleDefinitions[*].requiredTitles are matched by EXACT case-insensitive full-title equality against bundle members (not substring), so a coincidental shared word cannot satisfy a requirement. Each requirement names the exact title of the canonical member (the branded record for the records-set bundle, the git canonical for the soc2/dpa bundles). --check fails if any requirement has no exactly-titled member.",
+    "bundleMatchNote": "bundleDefinitions[*].requiredDocs binds each requirement to a specific document by canonicalLocation (identity), not free-text title, so a doc retitled to a required string cannot satisfy a requirement. Each requiredDoc carries a human-readable title that --check verifies still matches the member at that location (register-drift guard). --check fails if a requiredDoc location is not a bundle member, or its title has drifted.",
     "integrityNote": "--check also enforces: every canonicalSystem is one of canonicalSystemEnum; a git row canonicalLocation is a repo path (not a URL); a drive/notion row canonicalLocation is a URL and does not resolve to a tracked repo file (so a git doc cannot dodge hash verification by being relabeled drive/notion); and id + canonicalLocation are unique across the register."
   },
   "documents": [
@@ -576,7 +669,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2027-06-21",
       "attestation": {},
-      "contentHash": "9ff48e5a41c7adf726853439e58d6259536a671d6fdc7f90dd42f9d6c79da9d3",
+      "contentHash": "03ee0ab7fc9d21afebc6572a9295e9e5613b10af9f795a30a9b7264d0d2cd730",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a936b01d6a"

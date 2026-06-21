@@ -66,11 +66,30 @@ def url_like?(s)
   s.to_s.match?(%r{\Ahttps?://}i)
 end
 
-# A bundle requirement is satisfied only by an EXACT (case-insensitive) full-title
-# member - never a substring - so a coincidental shared word (e.g. "COPPA" inside a
-# Parental Consent title) can never stand in for a genuinely missing document.
-def bundle_member_present?(members, needle)
-  members.any? { |m| m['title'].to_s.casecmp?(needle.to_s) }
+def host_of(url)
+  url.to_s[%r{\Ahttps?://([^/]+)}i, 1].to_s.downcase
+end
+
+# Positive per-system host allowlist for non-git rows. A tracked repo file must be a
+# git row (so its bytes are content-hashed); a drive/notion URL must point at the real
+# external system, never at a github.com/raw blob of an in-repo file (which would dodge
+# hash verification while still resolving to the tracked content).
+DRIVE_HOSTS  = %w[docs.google.com drive.google.com].freeze
+NOTION_HOSTS = %w[notion.so www.notion.so app.notion.com].freeze
+
+def allowed_external_host?(sys, host)
+  case sys
+  when 'drive'  then DRIVE_HOSTS.include?(host)
+  when 'notion' then NOTION_HOSTS.include?(host) || host.end_with?('.notion.site')
+  else true
+  end
+end
+
+# A bundle requirement binds to a specific document by canonicalLocation (identity), not
+# free-text title, so a doc retitled to a required string cannot satisfy it. Returns the
+# matching member or nil.
+def bundle_member_for(members, location)
+  members.find { |m| m['canonicalLocation'].to_s == location.to_s }
 end
 
 def self_row?(doc)
@@ -151,11 +170,13 @@ def collect_problems(documents, bundle_defs)
       # Close the mislabel dodge: a tracked repo doc cannot escape hash verification by
       # being relabeled drive/notion. Non-git rows must be URLs and must NOT resolve to a
       # tracked repo file.
-      unless url_like?(loc)
+      if !url_like?(loc)
         problems << "#{sys} doc #{title.inspect} canonicalLocation must be a URL, not #{loc.inspect} (a tracked repo path must be a git row so its contentHash is verified)"
-      end
-      if !url_like?(loc) && File.file?(loc)
-        problems << "#{sys} doc #{title.inspect} resolves to a tracked repo file (#{loc}); set canonicalSystem=git so its contentHash is verified"
+        problems << "#{sys} doc #{title.inspect} resolves to a tracked repo file (#{loc}); set canonicalSystem=git so its contentHash is verified" if File.file?(loc)
+      elsif !allowed_external_host?(sys, host_of(loc))
+        # Closes the self-referential-URL dodge: a github.com/raw blob of an in-repo file
+        # would pass the must-be-URL check while still pointing at tracked content.
+        problems << "#{sys} doc #{title.inspect} URL host #{host_of(loc).inspect} is not a valid #{sys} host (a tracked repo file must be a git row; only #{sys == 'drive' ? DRIVE_HOSTS.join('/') : NOTION_HOSTS.join('/') + '/*.notion.site'} are allowed)"
       end
     end
 
@@ -176,9 +197,14 @@ def collect_problems(documents, bundle_defs)
 
   bundle_defs.each do |name, defn|
     members = documents.select { |d| (d['bundles'] || []).include?(name) }
-    required = defn['requiredTitles'] || []
-    required.each do |needle|
-      problems << "bundle #{name.inspect} is missing required member titled #{needle.inspect}" unless bundle_member_present?(members, needle)
+    (defn['requiredDocs'] || []).each do |req|
+      loc = req['location'].to_s
+      member = bundle_member_for(members, loc)
+      if member.nil?
+        problems << "bundle #{name.inspect} is missing required member #{req['title'].inspect} (#{loc})"
+      elsif req['title'] && !member['title'].to_s.casecmp?(req['title'].to_s)
+        problems << "bundle #{name.inspect} requirement #{loc} expects title #{req['title'].inspect} but its member is titled #{member['title'].inspect} (register drift; reconcile)"
+      end
     end
   end
 
@@ -292,8 +318,8 @@ def render_markdown(register, generated, generated_date)
   else
     bundle_defs.each do |name, defn|
       members = documents.select { |d| (d['bundles'] || []).include?(name) }.sort_by { |d| d['title'].to_s.downcase }
-      required = defn['requiredTitles'] || []
-      missing = required.reject { |needle| bundle_member_present?(members, needle) }
+      required = defn['requiredDocs'] || []
+      missing = required.reject { |req| bundle_member_for(members, req['location']) }.map { |req| req['title'] }
 
       out << "### #{name}\n\n"
       out << "#{defn['description']}\n\n" if defn['description']
