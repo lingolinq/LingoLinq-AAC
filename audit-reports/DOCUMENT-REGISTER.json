@@ -1466,6 +1466,29 @@
       "bundles": [],
       "mirrors": [],
       "id": "DOC-44080e322c"
+    },
+    {
+      "title": "Notion - Compliance Documents board (LL)",
+      "description": "One-way mirror of the document register itself for board-style viewing of where every compliance doc lives across git/Drive/Notion; human-owned columns (Program notes, Needs Scot decision) live here.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "notion",
+      "canonicalLocation": "https://www.notion.so/3865fe8215c28174aef3ce32239ced5c",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-06-21",
+      "nextReviewDue": "2026-09-21",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "audit-reports/DOCUMENT-REGISTER.json"
+        }
+      ],
+      "notes": "Auto-synced from DOCUMENT-REGISTER.json on push to staging via .github/workflows/sync-document-register-to-notion.yml. The team-facing board for the document index.",
+      "id": "DOC-791a05d70e"
     }
   ]
 }
