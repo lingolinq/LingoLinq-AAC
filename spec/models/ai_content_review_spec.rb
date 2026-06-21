@@ -55,6 +55,21 @@ describe AiContentReview, :type => :model do
     end
   end
 
+  describe "open-review uniqueness" do
+    it "rejects a second OPEN review for the same user and content" do
+      AiContentReview.create!(valid_attrs)
+      expect {
+        AiContentReview.create!(valid_attrs)
+      }.to raise_error(ActiveRecord::RecordNotUnique)
+    end
+
+    it "allows a new review once the prior one is completed (re-flagging)" do
+      first = AiContentReview.create!(valid_attrs)
+      first.update!(status: 'completed')
+      expect { AiContentReview.create!(valid_attrs) }.not_to raise_error
+    end
+  end
+
   describe ".request_review" do
     it "creates a pending review from a user-like object" do
       user = Struct.new(:global_id).new('1_42')

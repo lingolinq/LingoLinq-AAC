@@ -29,7 +29,14 @@ module EuJurisdiction
   # this set falls through to :unknown (disclose), so an unfamiliar or malformed value
   # (e.g. "XX", "ZZ", a full country name) can never suppress the modal. Fail-safe by
   # construction; expand this list as real non-EU jurisdictions are onboarded.
-  RECOGNIZED_NON_EU = %w[US GB CA AU NZ CH NO IS LI JP].freeze
+  #
+  # Deliberately EXCLUDES the EEA/EFTA states NO/IS/LI: the AI Act is marked "EEA
+  # relevant" and is under scrutiny for EEA incorporation (as of 2026-06), after which
+  # Art. 50 would bind them with no code change on our side. Leaving them OUT means an
+  # EEA org falls through to :unknown (disclose) today, which is the safe direction and
+  # removes the time-bomb. Switzerland (CH) is non-EEA and stays a recognized non-EU
+  # suppressor. Revisit NO/IS/LI on EEA incorporation.
+  RECOGNIZED_NON_EU = %w[US GB CA AU NZ CH JP].freeze
 
   module_function
 
@@ -92,9 +99,17 @@ module EuJurisdiction
   def locale_is_eu?(locale)
     return false if blank_value?(locale)
 
-    lang, region = locale.to_s.strip.split(/[-_]/, 2)
-    return true if region && EU_MEMBER_STATES.include?(region.strip.upcase)
-    return true if (region.nil? || region.strip.empty?) && EU_PRIMARY_LANGUAGES.include?(lang.to_s.downcase)
+    parts = locale.to_s.strip.split(/[-_]/)
+    lang = parts.first.to_s.downcase
+    subtags = parts[1..] || []
+
+    # Any subtag that is an EU member region wins (handles script subtags, e.g. de-Latn-DE,
+    # and variants, e.g. de-AT-1996), not just the second position.
+    return true if subtags.any? { |p| EU_MEMBER_STATES.include?(p.to_s.upcase) }
+
+    # A bare EU-primary language (no region/M.49 subtag at all) is an EU hint.
+    has_region_subtag = subtags.any? { |p| p.match?(/\A[A-Za-z]{2}\z/) || p.match?(/\A\d{3}\z/) }
+    return true if !has_region_subtag && EU_PRIMARY_LANGUAGES.include?(lang)
 
     false
   end
@@ -105,7 +120,16 @@ module EuJurisdiction
   end
 
   def org_jurisdiction(user)
-    org = user.respond_to?(:managing_organization) ? user.managing_organization : nil
+    return nil unless user.respond_to?(:managing_organization)
+
+    # managing_organization hits the DB (Organization.find_by_global_id); resolve a
+    # transient failure to "no signal" so status falls through to :unknown (disclose),
+    # fail-safe by construction rather than letting an exception decide the gate.
+    org = begin
+      user.managing_organization
+    rescue StandardError
+      nil
+    end
     return nil unless org.respond_to?(:settings) && org.settings.is_a?(Hash)
 
     org.settings['jurisdiction'] || org.settings['country']

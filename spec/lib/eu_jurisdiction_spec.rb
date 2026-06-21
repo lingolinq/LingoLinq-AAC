@@ -82,6 +82,29 @@ describe EuJurisdiction do
       expect(EuJurisdiction.status(user(prefs: { 'locale' => 'de_DE' }))).to eq(:eu)
       expect(EuJurisdiction.status(user(prefs: { 'locale' => 'pt-PT' }))).to eq(:eu)
     end
+
+    it "finds the EU region in script-subtag and variant locales" do
+      expect(EuJurisdiction.status(user(prefs: { 'locale' => 'de-Latn-DE' }))).to eq(:eu)
+      expect(EuJurisdiction.status(user(prefs: { 'locale' => 'fr-FR-1996' }))).to eq(:eu)
+    end
+
+    it "treats EEA states NO/IS/LI as disclose, not authoritative non-EU (pre-incorporation, fail-safe)" do
+      %w[NO IS LI].each do |code|
+        expect(EuJurisdiction.status(user(prefs: { 'jurisdiction' => code }))).to eq(:unknown)
+      end
+      # Switzerland is non-EEA and remains a recognized non-EU suppressor.
+      expect(EuJurisdiction.status(user(prefs: { 'jurisdiction' => 'CH' }))).to eq(:non_eu)
+    end
+  end
+
+  describe "error handling" do
+    it "fails safe to disclose when managing_organization raises" do
+      u = Object.new
+      u.define_singleton_method(:settings) { { 'preferences' => { 'locale' => 'en' } } }
+      u.define_singleton_method(:managing_organization) { raise 'db blip' }
+      expect(EuJurisdiction.status(u)).to eq(:unknown)
+      expect(EuJurisdiction.disclosure_required?(u)).to be(true)
+    end
   end
 
   describe ".disclosure_required?" do

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_06_21_120002) do
+ActiveRecord::Schema[7.2].define(version: 2026_06_21_120003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -81,6 +81,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_21_120002) do
     t.index ["requested_at"], name: "index_ai_content_reviews_on_requested_at"
     t.index ["reviewer_global_id", "status"], name: "index_ai_content_reviews_on_reviewer_and_status"
     t.index ["status"], name: "index_ai_content_reviews_on_status"
+    t.index ["user_global_id", "content_type", "content_global_id"], name: "index_ai_content_reviews_unique_open_per_user_content", unique: true, where: "((status)::text <> ALL ((ARRAY['completed'::character varying, 'dismissed'::character varying])::text[]))"
     t.index ["user_global_id"], name: "index_ai_content_reviews_on_user_global_id"
   end
 
