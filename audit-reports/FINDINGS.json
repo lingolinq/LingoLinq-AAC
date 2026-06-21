@@ -401,7 +401,9 @@
       "title": "consent_response accepts token/decision from multiple parameter keys",
       "severity": "high",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "accepted-risk",
       "evidence": {
         "type": "code",
@@ -437,7 +439,10 @@
       "title": "forgot_password leaks account existence via response shape and users count",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2",
+        "GDPR"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -512,7 +517,9 @@
       "title": "SNS transcoding callbacks accepted without signature verification",
       "severity": "high",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -548,7 +555,9 @@
       "title": "start_code_lookup uses a brute-forceable 5-char verification hash",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -596,7 +605,7 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-17",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Use TLS (rediss) and per-environment instances. Being overtaken by the GCP Memorystore migration (private VPC egress); reconcile rather than fix twice.",
@@ -607,7 +616,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover. | 2026-06-17 reconcile (staging tip d72463c75, RULE #0 re-verified): #410 shipped the app-side TLS CAPABILITY but NOT live closure. redis_options now enables :ssl + :ssl_params for rediss:// URIs (config/initializers/resque.rb:16-21; redis_ssl_params at :35) and every Redis.new routes through redis_options (resque.rb:79,82,116,166). A plain redis:// URI returns the option hash with no :ssl key, so live Render Redis remains plaintext (resque.rb:12 comment: 'the Render environment is unchanged'). Enabler only; NOT verified-closed. Full closure gated on the GCP Memorystore cutover (Cloud Run migration Phase 3). Disposition (Scot 2026-06-17): keep open / severity high; do not close until the rediss:// cutover lands.",
+      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover. | 2026-06-17 reconcile (staging tip d72463c75, RULE #0 re-verified): #410 shipped the app-side TLS CAPABILITY but NOT live closure. redis_options now enables :ssl + :ssl_params for rediss:// URIs (config/initializers/resque.rb:16-21; redis_ssl_params at :35) and every Redis.new routes through redis_options (resque.rb:79,82,116,166). A plain redis:// URI returns the option hash with no :ssl key, so live Render Redis remains plaintext (resque.rb:12 comment: 'the Render environment is unchanged'). Enabler only; NOT verified-closed. Full closure gated on the GCP Memorystore cutover (Cloud Run migration Phase 3). Disposition (Scot 2026-06-17): keep open / severity high; do not close until the rediss:// cutover lands. | LIVE CHECK 2026-06-21 (render-MCP list_key_value): managed lingolinq-redis (red-d46rhqer433s738dha9g, starter plan, ipAllowList=null) present; instance metadata does not expose the REDIS_URL scheme, so TLS-in-force is unconfirmed. Consistent with enabler-only status; remains open, gated on the Memorystore cutover.",
       "disposition": {
         "state": "fixed",
         "decidedBy": "Scot Wahlquist",
@@ -661,7 +670,9 @@
       "title": "Static cache_token='abc' never rotates (stale permission cache)",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "verified-closed",
       "evidence": {
         "type": "code",
@@ -697,7 +708,9 @@
       "title": "No explicit HSTS ssl_options (subdomains/preload)",
       "severity": "high",
       "confidence": "low",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "accepted-risk",
       "evidence": {
         "type": "code",
@@ -733,7 +746,9 @@
       "title": "Legacy s3 gem (0.3.29) in production",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "superseded",
       "evidence": {
         "type": "doc",
@@ -763,7 +778,10 @@
       "title": "flush_leftovers is unimplemented (orphan records accumulate)",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -793,7 +811,9 @@
       "title": "params.permit! bypasses Strong Parameters",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -918,8 +938,10 @@
       "title": "Registration/2fa/SAML endpoints under general throttle only",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -928,16 +950,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Add POST api/v1/users, confirm_registration, 2fa, saml/consume to protected_paths or a stricter group.",
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): registration/2fa/SAML endpoints are now in throttling PROTECTED_PATHS (config/initializers/throttling.rb:33-36: api/v1/users, confirm_registration, 2fa, saml/consume), subject to PROTECTED_CUTOFF (10/3s) instead of the general throttle.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; registration/2fa/SAML now in throttle PROTECTED_PATHS, code-verified in the 2026-06-21 triage pass."
       },
       "notes": "Verified still open 2026-06-12: none of these paths present in protected_paths (throttling.rb:18-21). Shares anchor with P1-1/P1-4."
     },
@@ -1485,7 +1507,9 @@
       "title": "bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1523,7 +1547,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/templates/board/index.hbs",
@@ -1532,16 +1556,16 @@
         "sha": "d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Give the symbol <img> an alt equal to the button label (or alt=\"\" when the visible label is present and provides the accessible name). Ensure the tile <a> always has an accessible name even when symbols/labels are toggled.",
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): board-tile symbol images now carry an alt derived from the button label on BOTH render paths - templates/board/index.hbs:123 (alt=button.label) and the fast_html string app/frontend/app/utils/button.js (symbol_alt). WCAG non-text-content defect resolved.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; board-tile symbol alt added on both render paths, code-verified in the 2026-06-21 triage pass."
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). The tile <a class=button> is named by the visible label span (index.hbs:141), but that span is gated by {{#unless button.hide_label}} (index.hbs:140); with hide_label set and the symbol <img> carrying no alt, the tile has NO accessible name at all (critical for symbol-only/emerging communicators). Dual render-path issue: the same defect exists in the fast_html string builder in app/frontend/app/utils/button.js. | adversary: uncertain (2026-06-16): the cited line sits inside {{#if this.app_state.edit_mode}} (index.hbs:102), an EDIT-MODE-ONLY path; the live communicator grid renders via {{board.fast_html.html}} (index.hbs:100), not this markup. The missing-alt defect is real here, but this anchor is NOT the AAC-core live surface the title/notes imply -- the live case is the separate utils/button.js fast_html finding. Recommend Scot re-anchor this to the fast_html finding or downgrade its scope to edit-mode. (Verified .hide-label = display:none at app.scss:9167.) | disposition 2026-06-16 (per Scot delegation): downgraded high->low and re-scoped to the edit-mode-only path after adversary review. The cited index.hbs:123 markup renders only under {{#if this.app_state.edit_mode}} (index.hbs:102 -- the board editor), where the button label is shown via {{label-field}} (index.hbs:135) so the control is named and the symbol img alt is decorative there. The substantive live-grid case (incl. symbol-only/hide_label, where the live tile is genuinely nameless) is the confirmed utils/button.js fast_html finding of the same ruleKey."
     },
@@ -1863,7 +1887,9 @@
       "title": "braces 2.3.2 in npm tree is vulnerable to CVE-2024-4068 (ReDoS)",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1892,7 +1918,9 @@
       "title": "moment 2.29.4 is in maintenance-only mode (effectively abandoned) and locked below the latest 2.30 maintenance patch",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1921,7 +1949,9 @@
       "title": "davidshimjs-qrcodejs 0.0.2 is abandoned (no release since 2014, >10 years)",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1950,8 +1980,10 @@
       "title": "eslint 5.16.0 is EOL (v5 end-of-life 2019); dev toolchain running unsupported linter",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -1960,16 +1992,16 @@
         "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "eslint v5 has been EOL since 2019; latest stable is v9.x. Upgrading eslint within Ember 3.28 is constrained by ember-cli-eslint ^5.1.0 which requires eslint 5.x. eslint upgrade is effectively blocked on Ember 3.28 -> Ember 5 migration. Mitigation: run npm audit in CI and treat any eslint advisory as high-priority.",
         "timeframe": "blocked-on-ember-migration"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b8570e5be6b2041cc5690635da25838f12997228",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): the EOL eslint 5.16.0 is gone; eslint now declares ^8.37.0 (app/frontend/package.json:64) and resolves to 8.57.1. The 5.x-specific EOL condition is resolved. The fact that 8.57.1 is itself EOL is tracked separately as LL-941001ca58 (eol-eslint-8x).",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; eslint 5.x removed (now v8), code-verified in the 2026-06-21 triage pass. Successor v8-EOL concern re-filed as LL-941001ca58."
       },
       "notes": "Surfaced by dependency finder on 2026-06-16. eslint 5.x EOL per https://github.com/eslint/eslint/releases; ember-cli-eslint ^5 pins eslint 5. No current CVE in eslint 5.16.0 itself, but EOL means no patches for future vulnerabilities. Dev dep; no production runtime exposure. | adversary: confirmed. eslint 5.16.0 (package-lock.json:18086), long EOL. dev-tooling only, no runtime exposure."
     },
@@ -1979,8 +2011,10 @@
       "title": "ember-cli-mirage 2.4.0 is abandoned for Ember 3.x (no active maintenance, last meaningful release 2021)",
       "severity": "low",
       "confidence": "medium",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -1989,16 +2023,16 @@
         "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "ember-cli-mirage 2.x targets Ember 3.x but has seen no active security or maintenance releases since ~2021. It is used in test environments only (no production bundle inclusion). Consider migrating to MSW (Mock Service Worker) or Pretender directly when the Ember 5 migration lands.",
         "timeframe": "blocked-on-ember-migration"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): ember-cli-mirage upgraded from abandoned 2.4.0 to maintained 3.0.4 (app/frontend/package.json:50 ^3.0.4; package-lock.json resolves 3.0.4). The 2.x-specific abandonment is resolved.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; ember-cli-mirage upgraded 2.x -> 3.0.4, code-verified in the 2026-06-21 triage pass."
       },
       "notes": "Surfaced by dependency finder on 2026-06-16. ember-cli-mirage 2.4.0 is a dev/test-only dep. No current CVE. Abandonment risk is test-toolchain reliability, not production security. | adversary: confirmed stale (2.4.0; current 3.0.4, two majors behind). Recommend rewording \"abandoned\" -> \"two majors behind/superseded\" (project continued via miragejs). dev/test-only."
     },
@@ -2221,7 +2255,9 @@
       "title": "lodash 4.18.1 resolved in package-lock.json exceeds all known published 4.x releases (latest 4.17.21)",
       "severity": "medium",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2282,7 +2318,9 @@
       "title": "http-proxy 1.18.1 (EOL, last release 2021) has CVE-2024-21943 (ReDoS via Host header); dev-only",
       "severity": "low",
       "confidence": "medium",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2311,7 +2349,9 @@
       "title": "Puma Gemfile constraint permits 7.2.0 which predates the CVE-2026-47736/47737 fix; floor unset",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -2414,7 +2454,7 @@
         "snippet": "Both Render Postgres instances (incl. the prod DB and the dev/staging DB) report ipAllowList = a single all-addresses /0 entry ('everywhere'), i.e. the database accepts TCP connections from any source IP on the public internet. No source-IP restriction is in effect. render.yaml databases block (render.yaml:101-105) declares no ipAllowList, so the public-everywhere default is the effective committed posture and is not documented as intentional in render.yaml or docs/INFRASTRUCTURE.md. Checked: ipAllowList field only; no secrets/connection strings/PII read or echoed."
       },
       "firstSeen": "2026-06-19",
-      "lastSeen": "2026-06-19",
+      "lastSeen": "2026-06-21",
       "owner": "Scot Wahlquist",
       "remediation": {
         "options": "Restrict the Render Postgres ipAllowList to known egress sources (the Render service private network / specific NAT egress CIDRs) instead of the all-addresses /0 default, via the database's Access Control settings or an ipAllowList block in render.yaml. Combined with sslmode=require (LL-ba0585ab93, no cert verification), a public-reachable DB is a real network attack surface for a credential-stuffing / brute-force path against the DB. The GCP Cloud SQL cutover removes public DB exposure entirely (private VPC + Cloud SQL connector), so for prod this reconciles with the migration rather than being fixed twice; the dev/staging DB should be restricted now regardless. Until cutover, set an allowlist or accept-risk with a dated note.",
@@ -2425,7 +2465,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-06-19. Net-new infra finding (runtime). Distinct from LL-ba0585ab93 (DB sslmode=require, encryption/cert-verification, not network reachability), LL-6619cc1811 (Redis TLS), and LL-9f83617435 (HSTS). The register has no finding covering DB network-level public exposure. Re-verify by re-running render-mcp:list_postgres_instances (workspace-independent). The prod-DB closure is gated on the GCP Memorystore/Cloud SQL cutover per project_render_cloud_migration; the dev/staging DB exposure is independently restrictable now. | adversary: confirmed (committed-config: render.yaml databases block declares no ipAllowList and INFRASTRUCTURE.md does not document the open posture as intentional). Live single-/0 runtime detail flagged uncertain pending a render-MCP re-pull. | triaged 2026-06-19: disposition=accepted (real, to remediate), owner Scot, at Scot's direction in the audit session.",
+      "notes": "Surfaced by infra finder on 2026-06-19. Net-new infra finding (runtime). Distinct from LL-ba0585ab93 (DB sslmode=require, encryption/cert-verification, not network reachability), LL-6619cc1811 (Redis TLS), and LL-9f83617435 (HSTS). The register has no finding covering DB network-level public exposure. Re-verify by re-running render-mcp:list_postgres_instances (workspace-independent). The prod-DB closure is gated on the GCP Memorystore/Cloud SQL cutover per project_render_cloud_migration; the dev/staging DB exposure is independently restrictable now. | adversary: confirmed (committed-config: render.yaml databases block declares no ipAllowList and INFRASTRUCTURE.md does not document the open posture as intentional). Live single-/0 runtime detail flagged uncertain pending a render-MCP re-pull. | triaged 2026-06-19: disposition=accepted (real, to remediate), owner Scot, at Scot's direction in the audit session. | LIVE CHECK 2026-06-21 (render-MCP list_postgres_instances): CONFIRMED both lingolinq-prod-db (dpg-d64c5i1r0fns73c5jcp0-a) and lingolinq-dev-staging-db (dpg-d64c53v5r7bs73acj600-a) have ipAllowList=[0.0.0.0/0 \"everywhere\"]. The prior \"uncertain pending re-pull\" note is resolved: the /0 exposure is real and current on both. dev/staging is restrictable now; prod gated on the Memorystore/Cloud SQL cutover. Remains open (live state cannot close it). | DECISION 2026-06-21 (Scot, /lingo session): remediate via the GCP migration, NOT an interim Render allowlist edit. Prod + dev/staging move to Cloud SQL (private-IP-only, NO public IP - confirmed in the Phase-4 dry-run plan Step 2 \"no public IP\" verify) over the next ~2 weeks, eliminating the public endpoint entirely (strictly better than a 0.0.0.0/0 -> /32 narrowing). Interim 0.0.0.0/0 exposure ACCEPTED for the cutover window (DB stays credential-gated; creds in Render env/1Password, not in repo); no interim infra change so prod is not poked right before cutover. CLOSE when: prod data is live on private-IP Cloud SQL AND the Render prod + dev-staging DBs are decommissioned/restricted (re-run render-MCP list_postgres_instances to confirm). TRIPWIRE: if the cutover has not landed by ~2026-07-05, revisit and apply the interim restriction drafted at ~/ai-company-brain/outputs/plans/2026-06-21-dev-staging-db-allowlist-restriction-plan.md.",
       "disposition": {
         "state": "accepted",
         "decidedBy": "Scot Wahlquist",
@@ -2499,8 +2539,10 @@
       "title": "serialize-javascript 4.0.0 vulnerable to CVE-2024-11831 (XSS); dev toolchain only",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -2509,16 +2551,16 @@
         "sha": "445336592ddaf838689df7e578829e94e140890d"
       },
       "firstSeen": "2026-06-19",
-      "lastSeen": "2026-06-19",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Upgrade serialize-javascript to >= 6.0.2 (fixes CVE-2024-11831 / GHSA-76p7-773f-r4q5 XSS). It is a transitive dev dep of the ember-cli/terser toolchain; add an `overrides` entry in package.json: serialize-javascript >= 6.0.2. Dev-only: not bundled to browsers, no production server exposure. Note the lockfile version (4.0.0) already matched the caret-4 range; the override must force the major bump.",
         "timeframe": "90d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): serialize-javascript is entirely absent from app/frontend/package-lock.json; terser-webpack-plugin upgraded to 5.5.0 no longer pulls the vulnerable 4.0.0 transitive dep, removing CVE-2024-11831 exposure.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; serialize-javascript removed from lockfile, code-verified in the 2026-06-21 triage pass."
       },
       "notes": "Surfaced by dependency finder on 2026-06-19. CVE-2024-11831 (GHSA-76p7-773f-r4q5): ReDoS via crafted input to serialize-javascript below 6.0.2. Locked at 4.0.0 (package-lock.json line 26438). Dev toolchain only (webpack/terser bundle step); exploitable only if an attacker can control the serialized data during the build process, not at runtime. Prior audit run mis-cited this CVE under a wrong id; confirmed correct CVE is CVE-2024-11831 with a 6.0.2 fix threshold. Not in register. Distinct from all existing open findings. | adversary: confirmed substance (serialize-javascript@4.0.0 dev-only, fix >=6.0.2, LOW) but CORRECTED two citation errors: GHSA-76p7-773f-r4q5 is the debug-package ReDoS (CVE-2017-16137), NOT serialize-javascript; correct advisory is GHSA-76p7-773f-r4q5 and the vuln class is XSS, not ReDoS."
     },
@@ -2620,6 +2662,65 @@
         "attestation": ""
       },
       "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. The #reply_icon remote-modeling button in the speak bar (a core surface used by therapists/supervisors during pairing sessions) contains only state glyphicons and an optional avatar img with no alt, and has no sr-only text/aria-label, so it has no accessible name. Renders only when this.app_state.pairing is active, hence medium severity. Distinct control from the registered #button_list vocalize anchor (sentence-box-vocalize-anchor-missing-button-role); same file, different ruleKey. | adversary: confirmed (#reply_icon has only glyphicons + an alt-less avatar img, no sr-only/aria-label; sibling #speak_options carries an sr-only i18n name). Pairing-gated, so MEDIUM."
+    },
+    {
+      "id": "LL-efef111d59",
+      "ruleKey": "cve-nokogiri-1-19-4",
+      "legacyId": "Dep-nokogiri-1194",
+      "title": "nokogiri 1.19.3 vulnerable to six published advisories (fixed in 1.19.4)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "doc",
+        "file": "Gemfile.lock",
+        "line": 281,
+        "snippet": "nokogiri (1.19.3-aarch64-linux-gnu)",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-20",
+      "lastSeen": "2026-06-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Bump nokogiri to >= 1.19.4 (done in #460).",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "5b40ce137ed73ef732b1326c65f6ee56f8b6ae78",
+        "verifierNote": "Verified 2026-06-21: nokogiri bumped 1.19.3 -> 1.19.4 in #460 (commit 5b40ce137), resolving GHSA-8678-w3jw-xfc2, GHSA-9cv2-cfxc-v4v2, GHSA-p67v-3w7g-wjg7, GHSA-phwj-rprq-35pp, GHSA-wfpw-mmfh-qq69, GHSA-wjv4-x9w8-wm3h. Gemfile.lock now pins 1.19.4 (Gemfile.lock:281); bundle-audit clean.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; nokogiri CVE remediated in #460, code-verified (Gemfile.lock 1.19.4)."
+      },
+      "notes": "Backfilled after remediation. CVE/dependency advisory caught by bundle-audit; fixed before it was first registered. Closure attestation pending Scot."
+    },
+    {
+      "id": "LL-941001ca58",
+      "ruleKey": "eol-eslint-8x",
+      "legacyId": "Dep-eslint-8-eol",
+      "title": "eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 64,
+        "snippet": "\"eslint\": \"^8.37.0\",",
+        "sha": "b8570e5be6b2041cc5690635da25838f12997228"
+      },
+      "firstSeen": "2026-06-21",
+      "lastSeen": "2026-06-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Upgrade to eslint 9 (flat config). Entangled with the broader Ember 3.28 toolchain modernization, so not a standalone bump; dev-toolchain only (not shipped to users).",
+        "timeframe": "with toolchain modernization"
+      },
+      "notes": "Successor to LL-257c696fe0 (eol-eslint-5x, closed 2026-06-21). The v5 EOL was fixed by the v8 upgrade, but v8 reached end-of-life; tracked here so the register stays honest. Low: dev-toolchain only."
     }
   ]
 }
