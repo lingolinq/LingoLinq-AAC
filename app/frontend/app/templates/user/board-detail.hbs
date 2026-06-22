@@ -867,7 +867,7 @@
             (handled by board-detail controller) so this is purely a mouse
             convenience — hide it from AT. --}}
           <div class="md-board-detail-actions-backdrop" {{on "click" (action "toggle_options_menu")}} aria-hidden="true"></div>
-          <div class="md-board-detail-actions-menu" role="menu" {{action "options_menu_keydown" on="keydown"}}>
+          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (action "options_menu_keydown")}}>
             {{#unless this.edit_mode}}
               {{!-- Edit Board — pulled out of the BOARD section per
                    design request and floated above all other items as
@@ -2105,20 +2105,20 @@
                  flips quick_sidebar) — the separate in-sidebar pin control was
                  removed to avoid duplicating that behavior. --}}
             {{#each this.app_state.sidebar_boards as |board|}}
-              {{#if board.alert}}
+              {{#if this.board.alert}}
                 <button type="button" {{on "click" (action "sidebar_alert")}} class="md-board-detail-inline-sidebar__item">
-                  <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
-                  <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
+                  <img src={{this.board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-detail-inline-sidebar__name">{{this.board.name}}</span>
                 </button>
-              {{else if board.special}}
+              {{else if this.board.special}}
                 <button type="button" class="md-board-detail-inline-sidebar__item" {{on "click" (action "sidebar_special" board)}}>
-                  <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
-                  <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
+                  <img src={{this.board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-detail-inline-sidebar__name">{{this.board.name}}</span>
                 </button>
               {{else}}
                 <button type="button" class="md-board-detail-inline-sidebar__item" {{on "click" (action "sidebar_jump" board.key board)}}>
-                  <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
-                  <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
+                  <img src={{this.board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-detail-inline-sidebar__name">{{this.board.name}}</span>
                 </button>
               {{/if}}
             {{/each}}

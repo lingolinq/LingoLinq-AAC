@@ -588,7 +588,7 @@
           class="md-searchOverlay__input"
           placeholder={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
           autofocus
-          {{action "onSearchKeydown" on="keyDown"}}
+          {{on "keyDown" (action "onSearchKeydown")}}
         />
         <button type="button" class="md-btn md-btn--ghost" {{action "closeSearch"}}>
           {{t "Close" key="close"}}

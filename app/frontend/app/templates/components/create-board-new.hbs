@@ -236,7 +236,7 @@
         {{/if}}
       </div>
       {{/unless}}
-      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{action "saveBoard" on="submit"}}>
+      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (action "saveBoard")}}>
 
         <section class="nb-section">
           <div class="nb-section__header-inline">

@@ -11,7 +11,7 @@
       <p>{{t "There was an error loading words" key="error_loading_words"}}</p>
     {{else if this.word}}
       
-      <form class="form-horizontal" {{action "save" on="submit"}}>
+      <form class="form-horizontal" {{on "submit" (action "save")}}>
         <div class='form-group'>
           <div class='col-sm-9 col-sm-offset-3'>
             <h3>{{this.word.word}} - {{this.word.locale}}</h3>

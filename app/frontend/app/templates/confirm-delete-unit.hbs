@@ -1,7 +1,7 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
-    {{#if model.lesson}}
+    {{#if this.model.lesson}}
       <h3>{{t "Remove Training" key="remove_training"}}</h3>
     {{else}}
       <h3>{{t "Delete this Room" key="delete_this_room"}}</h3>

@@ -14,7 +14,7 @@
           <button class='btn btn-default' type='button' {{action "find_url"}}>{{t "Retrieve" key="retrieve"}}</button>
         </div>
         <div>
-            <button type="button" {{action "record_sound" on="click"}} disabled={{this.recorder_unavailable}} class="btn btn-default">
+            <button type="button" {{on "click" (action "record_sound")}} disabled={{this.recorder_unavailable}} class="btn btn-default">
               <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
               {{t "Record Sound" key="record_sound"}}
             </button>

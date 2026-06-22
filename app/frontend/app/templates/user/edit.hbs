@@ -4,7 +4,7 @@
     <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="12" cy="7" r="4" stroke="#46505F"/></svg>
     <h2 class="md-edit-profile__title">{{t "User Profile for %{term}" key="profile_for" term=this.model.user_name}}</h2>
   </div>
-  <form class="form-horizontal md-edit-profile__form md-preferences__form" {{action "saveProfile" on="submit"}}>
+  <form class="form-horizontal md-edit-profile__form md-preferences__form" {{on "submit" (action "saveProfile")}}>
 
   {{!-- Section: Personal Information --}}
   {{#preference-box title="Personal Information" glyph='glyphicon glyphicon-user' title_key='profile_section_personal' open=true}}

@@ -4,7 +4,7 @@
     <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#46505F"/></svg>
     <h2 class="md-preferences__title">{{t "General Preferences" key='general_preferences'}}</h2>
   </div>
-  <form class="form-horizontal md-preferences__form" {{action "savePreferences" on="submit"}}>
+  <form class="form-horizontal md-preferences__form" {{on "submit" (action "savePreferences")}}>
   {{#preference-box title="Basics" glyph='glyphicon glyphicon-cog' title_key='basics' open=true}}
     <span style='display: none;'>{{t "Basics" key='basics'}}</span>
     <div class="form-group">
@@ -157,7 +157,7 @@
               {{/each}}
             </ul>
           </span>
-          {{#if current_skin.options}}
+          {{#if this.current_skin.options}}
             <div style='margin-left: 15px;'>
               {{#each this.current_skin.options as |option|}}
                 <div>
@@ -552,7 +552,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="logging_pin" class="col-sm-3 control-label">{{t "Logging PIN" key='logging_pin"'}}</label>
+            <label for="logging_pin" class="col-sm-3 control-label">{{t "Logging PIN" key='logging_pin'}}</label>
             <div class='col-sm-5'>
               <div class="checkbox big_checkbox">
                 <label>
@@ -1192,7 +1192,7 @@
         <div class="col-sm-5">
           <p class='form-control-static' style='margin-bottom: 12px;'>
             {{#if this.pending_preferences.tag_ids}}
-              {{t "tag" count=pending_preferences.tag_ids.length key='n_tags'}} {{t "saved" key='saved'}}
+              {{t "tag" count=this.pending_preferences.tag_ids.length key='n_tags'}} {{t "saved" key='saved'}}
             {{else}}
               <em style='color: var(--md-muted);'>{{t "No tags saved" key='no_tags_saved'}}</em>
             {{/if}}
@@ -1896,7 +1896,7 @@
           <label for="voice_output" class="col-sm-3 control-label">{{t "Voice & Output" key='voice_output'}}</label>
           <div class="col-sm-5">
             {{bound-select select_class="form-control" select_id="voice_output" content=this.audioOutputList selection=this.pending_preferences.device.voice.target action=(action (mut this.pending_preferences.device.voice.target)) }}
-            {{#if audio_switching_delays.primary}}
+            {{#if this.audio_switching_delays.primary}}
               <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
             {{/if}}
           </div>
@@ -2007,7 +2007,7 @@
             <label for="alternate_voice_output" class="col-sm-3 control-label">{{t "Secondary Voice Output" key='alternate_voice_output'}}</label>
             <div class="col-sm-5">
               {{bound-select select_class="form-control" select_id="alternate_voice_output" content=this.audioOutputList selection=this.pending_preferences.device.alternate_voice.target action=(action (mut this.pending_preferences.device.alternate_voice.target)) }}
-              {{#if audio_switching_delays.alternate}}
+              {{#if this.audio_switching_delays.alternate}}
                 <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
               {{/if}}
             </div>

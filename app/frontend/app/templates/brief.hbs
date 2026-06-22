@@ -14,7 +14,7 @@
         </button>
       {{/unless}}
       <div class="speak-bar__button-list-wrap">
-        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
+        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{on "select" (action "vocalize")}} data-placement="bottom" data-trigger="manual">
           {{#let this.app_state.button_list as |button_list|}}
             {{button-list buttonList=button_list}}
           {{/let}}
@@ -389,15 +389,15 @@
       </span>
     {{/unless}}
     {{#each this.app_state.currentUser.sidebar_boards_with_fallbacks as |board|}}
-      {{#if board.alert}}
+      {{#if this.board.alert}}
         <a href="#" {{action "alert" "sidebar"}}>
-          {{board.name}}
-          <img src={{board.image}} style="width: 50px;" alt="">
+          {{this.board.name}}
+          <img src={{this.board.image}} style="width: 50px;" alt="">
         </a>
       {{else}}
         <a href='#' {{action "jump" board.key "sidebar" board}}>
-          {{board.name}}
-          <img src={{board.image}} style="width: 50px;" alt="">
+          {{this.board.name}}
+          <img src={{this.board.image}} style="width: 50px;" alt="">
         </a>
       {{/if}}
     {{/each}}

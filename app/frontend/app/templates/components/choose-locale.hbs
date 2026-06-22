@@ -10,7 +10,7 @@
       <p class="la-support-intro">
         {{t "Choose from the list of supported languages" key="select_language"}}
       </p>
-      <form class="la-contact-form" {{action "nothing" on="submit"}}>
+      <form class="la-contact-form" {{on "submit" (action "nothing")}}>
         <div class="la-contact-form__row">
           <label for="lang" class="la-contact-form__label">{{t "Language" key="language"}}</label>
           {{bound-select select_class="la-contact-input" select_id="lang" content=this.locales selection=this.lang action=(action (mut this.lang)) }}

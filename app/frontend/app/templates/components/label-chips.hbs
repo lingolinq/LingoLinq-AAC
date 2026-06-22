@@ -2,7 +2,7 @@
 <div class="label-chips__container"
      role="group"
      aria-label={{t "Labels" key="labels"}}
-     {{action "focusInput" on="click"}}>
+     {{on "click" (action "focusInput")}}>
   {{#if this.showChips}}
     {{#each this.chip_items as |item index|}}
       {{#if (is_equal index this.editingIndex)}}

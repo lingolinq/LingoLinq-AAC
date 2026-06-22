@@ -15,7 +15,7 @@
     </div>
     <p class="md-modal-message">{{t "The sidebar is a set of quick links you can use to jump to commonly-used boards other than the home board. It can be useful for school or home-specific board sets, quick phrases, keyboard access, etc." key="sidebar_boards_explanation"}}</p>
 
-    <form {{action "nothing" on="submit"}}>
+    <form {{on "submit" (action "nothing")}}>
       <div class="md-modal-field">
         <label class="md-modal-label" for="board_key">{{t "Board" key="board"}}</label>
         <p class="md-modal-board-name">{{this.model.board.key}}</p>

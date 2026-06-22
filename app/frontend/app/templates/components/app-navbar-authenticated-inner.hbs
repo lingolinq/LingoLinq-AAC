@@ -13,7 +13,7 @@
       {{#if (persistence-online)}}
         {{#unless this.appState.super_no_linky}}
           {{#if this.application.allow_search}}
-            <form id="header_search" {{action "searchBoards" on="submit"}}>
+            <form id="header_search" {{on "submit" (action "searchBoards")}}>
               <div class="header-search-wrap">
                 <Input @type="text" @value={{this.application.searchString}} {{on "input" (action "handleSearchInput")}} @enter={{action "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
                 <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>

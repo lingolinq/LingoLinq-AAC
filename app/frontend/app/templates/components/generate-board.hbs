@@ -9,7 +9,7 @@
     </div>
     <div class="la-support-modal-body">
       <p style="margin-bottom: 16px; font-size: 14px; color: var(--md-ink);">{{t "Describe the board you want. AI will generate word labels for an AAC communication board." key="generate_board_prompt_instructions"}}</p>
-      <form class="form-horizontal la-new-board-form" {{action "createBoard" on="submit"}}>
+      <form class="form-horizontal la-new-board-form" {{on "submit" (action "createBoard")}}>
       <div class="form-group">
         <label for="generate_board_prompt" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-10">

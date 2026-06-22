@@ -251,7 +251,7 @@
         </div>
         <hr class="la-about-hero-separator" aria-hidden="true">
       </div>
-      <form {{action "authenticate" on="submit"}} autocomplete="off" id="login_form">
+      <form {{on "submit" (action "authenticate")}} autocomplete="off" id="login_form">
           {{#unless this.prompt}}
           {{#unless this.force_logout}}
             {{#if this.app_state.feature_flags.emergency_boards}}

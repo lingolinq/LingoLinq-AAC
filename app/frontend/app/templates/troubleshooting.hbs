@@ -217,10 +217,10 @@
                 <tbody>
                   {{#each this.errors as |error|}}
                     <tr>
-                      <td class="la-troubleshooting-cell la-troubleshooting-cell--narrow"><div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{error.message}}</div></td>
+                      <td class="la-troubleshooting-cell la-troubleshooting-cell--narrow"><div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{this.error.message}}</div></td>
                       <td>{{date error.date}}</td>
                       <td>
-                        <div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{#if error.stack}}{{error.stack}}{{else}}{{error.message}}{{/if}}</div>
+                        <div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{#if this.error.stack}}{{this.error.stack}}{{else}}{{this.error.message}}{{/if}}</div>
                       </td>
                     </tr>
                   {{/each}}

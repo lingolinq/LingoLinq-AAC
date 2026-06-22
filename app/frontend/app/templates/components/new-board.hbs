@@ -60,7 +60,7 @@
         {{/if}}
       </div>
       {{/unless}}
-      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{action "saveBoard" on="submit"}}>
+      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (action "saveBoard")}}>
 
         <section class="nb-section">
           <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>

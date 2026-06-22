@@ -13,7 +13,7 @@
       </div>
       <hr class="la-about-hero-separator" aria-hidden="true">
     </div>
-    <form {{action "submitKey" on="submit"}}>
+    <form {{on "submit" (action "submitKey")}}>
       {{#if this.response.email_sent}}
         <div class="form-group">
           <p>{{t "Email sent! Be sure to check your spam folder!" key="email_sent"}}</p>

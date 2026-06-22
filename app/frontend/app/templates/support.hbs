@@ -52,7 +52,7 @@
 
             <div class="la-support-page-card__section">
               <div class="la-support-page-card__body md-support-content">
-                <form class="la-contact-form la-support-form md-support-form" {{action "submit_message" on="submit"}}>
+                <form class="la-contact-form la-support-form md-support-form" {{on "submit" (action "submit_message")}}>
                   {{#if this.appState.sessionUser}}
                     {{#if this.appState.sessionUser.supervisors}}
                       <div class="la-contact-form__row">

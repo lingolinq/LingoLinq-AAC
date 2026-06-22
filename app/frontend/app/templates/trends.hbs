@@ -157,7 +157,7 @@
                 {{t "Total Logged Users" key="total_logged_users"}}
               </div>
               <div class="panel-body">
-                {{delimit trends.total_users}}
+                {{delimit this.trends.total_users}}
               </div>
             </div>
           </div>
@@ -167,7 +167,7 @@
                 {{t "Total Sessions" key="total_sessions"}}
               </div>
               <div class="panel-body">
-                {{delimit trends.total_sessions}}
+                {{delimit this.trends.total_sessions}}
               </div>
             </div>
           </div>
@@ -177,7 +177,7 @@
                 {{t "Active Researchable" key="active_researchable"}}
               </div>
               <div class="panel-body">
-                {{delimit trends.research_active_users}}
+                {{delimit this.trends.research_active_users}}
               </div>
             </div>
           </div>
@@ -187,7 +187,7 @@
                 {{t "Active Publishable" key="active_publishable"}}
               </div>
               <div class="panel-body">
-                {{delimit trends.publishing_active_users}}
+                {{delimit this.trends.publishing_active_users}}
               </div>
             </div>
           </div>
@@ -299,12 +299,12 @@
             <div class="list-group">
               {{#each this.access_methods as |access|}}
                 <span class='list-group-item'>
-                  {{access.name}}
+                  {{this.access.name}}
                   <span class='text-muted'>
                     {{#if this.showing_private_info}}
                       ({{delimit access.total}})
                     {{else}}
-                      ({{access.percent}}%)
+                      ({{this.access.percent}}%)
                     {{/if}}
                   </span>
                 </span>
@@ -324,12 +324,12 @@
               <div class="list-group">
                 {{#each this.voices as |voice|}}
                   <span class='list-group-item'>
-                    {{voice.name}}
+                    {{this.voice.name}}
                     <span class='text-muted'>
                       {{#if this.showing_private_info}}
                         ({{delimit voice.total}})
                       {{else}}
-                        ({{voice.percent}}%)
+                        ({{this.voice.percent}}%)
                       {{/if}}
                     </span>
                   </span>

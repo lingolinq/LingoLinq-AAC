@@ -118,7 +118,7 @@
                  folder strip below) come back automatically. --}}
             <div class="ub-boards-page__folders-toolbar">
               {{#if this.boardsCtrl.mineTagFolderSummaries.length}}
-                <form class="ub-boards-page__folder-filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
+                <form class="ub-boards-page__folder-filter-form" {{on "submit" (action "nothing" target=this.boardsCtrl)}}>
                   <span id="folder-filter-input-label" class="ub-boards-page__folder-filter-label">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                     {{t "Folders Filter" key="folders_filter"}}
@@ -204,7 +204,7 @@
                   </div>
                   <div class="ub-boards-page__folder-context-identity-text">
                     {{#if this.editingFolderName}}
-                      <form class="ub-boards-page__folder-rename-form" {{action "saveFolderRename" on="submit"}}>
+                      <form class="ub-boards-page__folder-rename-form" {{on "submit" (action "saveFolderRename")}}>
                         <Input class="ub-boards-page__folder-rename-input" @type="text" @value={{this.editFolderNameValue}} @enter={{action "saveFolderRename"}} />
                         <button type="submit" class="ub-boards-page__folder-rename-save" aria-label={{t "Save" key="save"}}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -569,7 +569,7 @@
              the primary affordance on first glance is the search,
              not the category switch. --}}
         <div class="ub-boards-page__boards-filter-row">
-        <form class="ub-boards-page__filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
+        <form class="ub-boards-page__filter-form" {{on "submit" (action "nothing" target=this.boardsCtrl)}}>
           <span id="{{this.filterInputId}}-label" class="ub-boards-page__filter-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             {{t "Boards Filter" key="boards_filter"}}

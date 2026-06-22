@@ -67,9 +67,9 @@
       <ul class='list-group'>
       {{#each this.result.users as |user|}}
         <li class='list-group-item'>
-          <LinkTo @route="user" @model={{user.id}}>
-            <img src={{user.avatar_url}} style='height: 30px; width: 30px; margin-right: 10px;' class='fit_image' >
-            {{user.user_name}}
+          <LinkTo @route="user" @model={{this.user.id}}>
+            <img src={{this.user.avatar_url}} style='height: 30px; width: 30px; margin-right: 10px;' class='fit_image' >
+            {{this.user.user_name}}
           </LinkTo>
         </li>
       {{/each}}

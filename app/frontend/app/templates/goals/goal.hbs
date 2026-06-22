@@ -92,7 +92,7 @@
     {{/if}}
   {{/if}}
   {{#if this.editing}}
-    <form class="form-horizontal" {{action "save" on="submit"}}>
+    <form class="form-horizontal" {{on "submit" (action "save")}}>
       {{#if this.model.template_header}}
         <div class="form-group">
           <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>

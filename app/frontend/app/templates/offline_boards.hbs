@@ -18,10 +18,10 @@
                   {{/if}}
                   <ul class="md-offline-boards__list">
                     {{#each loc.boards as |board|}}
-                      {{#if board.starter}}
+                      {{#if this.board.starter}}
                         <li class="md-offline-boards__item {{if board.chosen 'md-offline-boards__item--chosen'}}" {{action "pick" board}}>
-                          {{board.name}}
-                          {{#if board.chosen}}
+                          {{this.board.name}}
+                          {{#if this.board.chosen}}
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                           {{/if}}
                         </li>

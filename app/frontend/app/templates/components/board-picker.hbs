@@ -149,7 +149,7 @@
               {{t "No boards are tagged for this category in the catalog yet. Here are popular public boards you can start from—pick any home board you like, or search below." key="home_board_category_fallback_note"}}
             </p>
           {{/if}}
-          <form class="md-home-boards-picker__search-form" {{action "go_search_boards" on="submit"}}>
+          <form class="md-home-boards-picker__search-form" {{on "submit" (action "go_search_boards")}}>
             <label for="board-picker-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
             <Input
               id="board-picker-search-q"

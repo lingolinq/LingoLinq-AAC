@@ -51,7 +51,7 @@
             </div>
           {{/if}}
           {{#if this.filterEnabled}}
-            <form class="board-folders-section__filter-form" {{action "noop" on="submit"}}>
+            <form class="board-folders-section__filter-form" {{on "submit" (action "noop")}}>
               <span id="board-folders-section__filter-label" class="board-folders-section__filter-label">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                 {{t "Folders Filter" key="folders_filter"}}

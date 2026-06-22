@@ -71,33 +71,33 @@
     </div>
   {{/if}}
   {{#let this.model as |board|}}
-  <div style={{this.board_style}} class={{this.display_class}} data-id={{board.id}} lang={{this.app_state.board_lang}}>
-    {{#if board.has_background}}
+  <div style={{this.board_style}} class={{this.display_class}} data-id={{this.board.id}} lang={{this.app_state.board_lang}}>
+    {{#if this.board.has_background}}
       <div style={{this.bg_style}} id='board_bg' class={{this.bg_class}}>
-        {{#if board.background.text}}
-          <div class='text'><span>{{board.background.text}}</span></div>
+        {{#if this.board.background.text}}
+          <div class='text'><span>{{this.board.background.text}}</span></div>
         {{/if}}
-        {{#if board.background.image}}
-          {{#if board.background.image_exclusion}}
+        {{#if this.board.background.image}}
+          {{#if this.board.background.image_exclusion}}
             <div class='exclude'></div>
           {{/if}}
-          <img src={{board.background_image_url_with_fallback}} style={{this.bg_img_style}}>
+          <img src={{this.board.background_image_url_with_fallback}} style={{this.bg_img_style}}>
         {{/if}}
       </div>
     {{/if}}
     {{#if this.nothing_visible_not_edit}}
       <div class="board_status">
         <p>{{t "This board hasn't been set up yet, or doesn't have any visible buttons." key="no_visible_buttons"}}</p>
-        {{#if board.permissions.edit}}
+        {{#if this.board.permissions.edit}}
           {{#unless this.app_state.speak_mode}}
             <button class='btn btn-default btn-lg' {{action "toggleEditMode" }}>{{t "Edit this Board" key="edit_this_board"}}</button>
           {{/unless}}
         {{/if}}
       </div>
     {{else}}
-      {{#if board.grid}}
-        {{#if board.fast_html.html}}
-          {{board.fast_html.html}}
+      {{#if this.board.grid}}
+        {{#if this.board.fast_html.html}}
+          {{this.board.fast_html.html}}
         {{else if this.ordered_buttons}}
           {{#if this.app_state.edit_mode}}
             {{#each this.ordered_buttons as |row|}}

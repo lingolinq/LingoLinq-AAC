@@ -401,7 +401,7 @@
         {{#if (persistence-online)}}
           {{#unless @controller.app_state.super_no_linky}}
             {{#if @controller.allow_search}}
-              <form id="header_search" {{action "searchBoards" on="submit" target=@controller}}>
+              <form id="header_search" {{on "submit" (action "searchBoards" target=@controller)}}>
                 <div class="header-search-wrap">
                   <Input @type="text" @value={{@controller.searchString}} @enter={{action "searchBoards" target=@controller}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
                   <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>

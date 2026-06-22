@@ -1,20 +1,20 @@
 <div class="row">
   <div class="col-sm-8 col-sm-offset-2 col-lg-6 col-lg-offset-3">
     <h2>
-      {{#if gift.loading}}
+      {{#if this.gift.loading}}
         {{t "Loading..." key="loading"}}
-      {{else if gift.gift_types.multi_code}}
+      {{else if this.gift.gift_types.multi_code}}
         {{t "Gift Codes for" key="gift_codes_for"}}
-      {{else if gift.gift_types.discount}}
+      {{else if this.gift.gift_types.discount}}
         {{t "Discount Redemptions for" key="discounts_for"}}
-      {{else if gift.gift_types.user_gift}}
+      {{else if this.gift.gift_types.user_gift}}
         {{t "Gift Code"}}
-        {{#if gift.giver}}
+        {{#if this.gift.giver}}
           {{t "from" key="from"}}
-          {{#if gift.giver.name}}
-            {{gift.giver.name}}
-          {{else if gift.giver.email}}
-            {{gift.giver.email}}
+          {{#if this.gift.giver.name}}
+            {{this.gift.giver.name}}
+          {{else if this.gift.giver.email}}
+            {{this.gift.giver.email}}
           {{else}}
             {{t "Unknown User" key="unknown_user"}}
           {{/if}}
@@ -23,74 +23,74 @@
         {{t "%app_name% Purchase, " key="lingolinq_purchase"}}
       {{/if}}
 
-      {{#if gift.organization}}
-        {{gift.organization}}
+      {{#if this.gift.organization}}
+        {{this.gift.organization}}
       {{/if}}
     </h2>
-    {{#if gift.gift_types.multi_code}}
+    {{#if this.gift.gift_types.multi_code}}
       <span class="glyphicon glyphicon-th" style="font-size: 50px; float: left; margin: 5px 15px 5px 0;"></span>
       <p style='margin-bottom: 20px;'>
         {{t "Thank you for using %app_name%! This organization" key="multi_code_intro"}}
-        {{#if gift.organization}}
-          <b>( {{gift.organization}} )</b>
+        {{#if this.gift.organization}}
+          <b>( {{this.gift.organization}} )</b>
         {{/if}}
         {{t "has been set up with multiple gifts code for use within %app_name%. You can distribute these gift codes to users who can enter them when they sign up to get free access to %app_name%'s communication features." key="multi_code_intro2"}}
-        {{t "Each gift code includes <b>%{dur}</b> of free access to %app_name%'s cloud extras features." dur=gift.duration key="cloud_extras_duration"}}
-        {{#if gift.include_extras}}
+        {{t "Each gift code includes <b>%{dur}</b> of free access to %app_name%'s cloud extras features." dur=this.gift.duration key="cloud_extras_duration"}}
+        {{#if this.gift.include_extras}}
           {{t "Each gift code also includes access to premium symbols." key="extras_included"}}
         {{/if}}
       </p>
-    {{else if gift.gift_types.discount}}
+    {{else if this.gift.gift_types.discount}}
       <span class="glyphicon glyphicon-scissors" style="font-size: 50px; float: left; margin: 5px 15px 5px 0;"></span>
       <p style='margin-bottom: 20px;'>
         {{t "Thank you for using %app_name%! This organization" key="discounts_intro"}}
-        {{#if gift.organization}}
-          <b>( {{gift.organization}} )</b>
+        {{#if this.gift.organization}}
+          <b>( {{this.gift.organization}} )</b>
         {{/if}}
         {{t "has been granted a discounted rate to offer to its users. When people purchase a long-term license with %app_name% they can enter the provided code to receive a discount on their purchase amount." key="discounts_intro2"}}
       </p>
-    {{else if gift.gift_types.user_gift}}
+    {{else if this.gift.gift_types.user_gift}}
       <span class="glyphicon glyphicon-gift" style="font-size: 50px; float: left; margin: 5px 15px 5px 0;"></span>
       <p style='margin-bottom: 20px;'>
         {{t "The code you entered is tied to a one-time gift code," key="user_gift_intro"}}
-        {{t "and code includes <b>%{dur}</b> of free access to %app_name%'s cloud extras features." dur=gift.duration key="cloud_extras_gift_duration"}}
-        {{#if gift.include_extras}}
+        {{t "and code includes <b>%{dur}</b> of free access to %app_name%'s cloud extras features." dur=this.gift.duration key="cloud_extras_gift_duration"}}
+        {{#if this.gift.include_extras}}
           {{t "The gift code also includes access to premium symbols." key="single_extras_included"}}
         {{/if}}
-        {{#if gift.active}}
+        {{#if this.gift.active}}
           {{t "This gift code has not yet been redeemed." key="gift_still_active"}}
-        {{else if gift.recipient}}
+        {{else if this.gift.recipient}}
           {{t "This gift code has been redeemed by" key="gift_redeemed_by"}}
-          <LinkTo @route="user" @model={{gift.recipient.user_name}}>
-            <b>{{gift.recipient.user_name}}</b>
+          <LinkTo @route="user" @model={{this.gift.recipient.user_name}}>
+            <b>{{this.gift.recipient.user_name}}</b>
           </LinkTo>{{t "." key="period"}}
-          {{#if gift.recipient.redeemed_at}}
+          {{#if this.gift.recipient.redeemed_at}}
               {{t "It was redeemed" key="it_was_redeemed"}}
-              {{date gift.recipient.redeemed_at "day"}}
+              {{date this.gift.recipient.redeemed_at "day"}}
           {{/if}}
         {{else}}
           {{t "This gift code is no longer active or redeemable." key="gift_not_active"}}
         {{/if}}
       </p>
     {{else}}
-      {{#unless gift.loading}}
+      {{#unless this.gift.loading}}
         <span class="glyphicon glyphicon-paperclip" style="font-size: 50px; float: left; margin: 5px 15px 5px 0;"></span>
         <p style='margin-bottom: 20px;'>
           {{t "Thank you for your interest in purchasing %app_name%! %app_name% is a powerful tool for developing communicators, and the support team around them. We are confident that %app_name% can make a difference for the communicators you work with. Please enter the following information to complete your purchase. If you have any questions, feel free to contact our support team." key="bulk_purchase_intro"}}
         </p>
       {{/unless}}
     {{/if}}
-    {{#if gift.loading}}
+    {{#if this.gift.loading}}
       <p>{{t "Loading purchase information..." key="loading_purchase"}}</p>
-    {{else if gift.error}}
+    {{else if this.gift.error}}
       <p>{{t "This purchase link appears to have been disabled or is an invalid link. If you believe there is an error, please contact our support team." key="invalid_or_disabled_gift"}}</p>
-    {{else if gift.gift_types.multi_code}}
+    {{else if this.gift.gift_types.multi_code}}
       <h4>{{t "Gift Codes" key="gift_codes"}}</h4>
       <div style='margin-top: -5px; margin-bottom: 15px;'>
-        {{gift.redeemed_codes}} {{t "out of" key="out_of"}} {{gift.total_codes}} {{t "redeemed" key="redeemed_lower"}}
+        {{this.gift.redeemed_codes}} {{t "out of" key="out_of"}} {{this.gift.total_codes}} {{t "redeemed" key="redeemed_lower"}}
       </div>
       <ul class='list-group'>
-      {{#each gift.codes as |code|}}
+      {{#each this.gift.codes as |code|}}
         <li class='list-group-item'>
           {{#if code.redeemed}}
             <span style='text-decoration: line-through;'>{{code.code}}</span>
@@ -111,34 +111,34 @@
         </li>
       {{/each}}
       </ul>
-    {{else if gift.gift_types.discount}}
+    {{else if this.gift.gift_types.discount}}
       <dl class='dl-horizontal'>
         <dt>{{t "Organization" key="organizaton"}}</dt>
-          <dd>{{gift.organization}}</dd>
-        {{#if gift.email}}
+          <dd>{{this.gift.organization}}</dd>
+        {{#if this.gift.email}}
           <dt>{{t "Email" key="org_email"}}</dt>
-            <dd>{{gift.email}}</dd>
+            <dd>{{this.gift.email}}</dd>
         {{/if}}
         <dt>{{t "Code" key="code"}}</dt>
-          <dd>{{gift.code}}</dd>
+          <dd>{{this.gift.code}}</dd>
         <dt>{{t "Discount" key="discount"}}</dt>
-          <dd>{{gift.discount_hundred}}% {{t "off" key="off"}}</dd>
-        {{#if gift.expires}}
+          <dd>{{this.gift.discount_hundred}}% {{t "off" key="off"}}</dd>
+        {{#if this.gift.expires}}
           <dt>{{t "Expires" key="expires"}}</dt>
-            <dd>{{date gift.expires "day"}}</dd>
+            <dd>{{date this.gift.expires "day"}}</dd>
         {{/if}}
         <dt>{{t "Redeemed" key="redeemed"}}</dt>
           <dd>
-            {{gift.activated_discounts}}
-            {{#if gift.limit}}
-              / {{gift.limit}}
+            {{this.gift.activated_discounts}}
+            {{#if this.gift.limit}}
+              / {{this.gift.limit}}
             {{/if}}
             {{t "activations" key="activations"}}
           </dd>
         
       </dl>
       <ul class='list-group'>
-      {{#each gift.activations as |code|}}
+      {{#each this.gift.activations as |code|}}
         <li class='list-group-item'>
           <span class='text-muted'>
             <LinkTo @route="user" @model={{code.receiver.user_name}}>
@@ -153,9 +153,9 @@
         </li>
       {{/each}}
       </ul>
-    {{else if gift.gift_types.user_gift}}
-    {{else if gift.active}}
-      {{#if subscription.purchase_complete}}
+    {{else if this.gift.gift_types.user_gift}}
+    {{else if this.gift.active}}
+      {{#if this.subscription.purchase_complete}}
         <div style="margin: 50px 0;">
           <h4>
             <span class="glyphicon glyphicon-ok"></span>
@@ -163,7 +163,7 @@
           </h4>
           <p>{{t "You should receive an email with the details of this purchase. Make sure to check your spam box if you're not seeing the email come through within a few minutes." key="purchase_in_email"}}</p>
         </div>
-      {{else if subscription.finalizing_purchase}}
+      {{else if this.subscription.finalizing_purchase}}
         <div style="margin: 50px 0;">
           <h4>
             <span class="glyphicon glyphicon-refresh spinning"></span>
@@ -171,11 +171,11 @@
           </h4>
         </div>
       {{else}}
-        <form {{action "purchase" on="submit"}}>
-          {{#if purchase_error}}
+        <form {{on "submit" (action "purchase")}}>
+          {{#if this.purchase_error}}
             <div class="form-group">
               <div class="col-sm-9" style="padding-top: 30px;">
-                <p class='text-danger'>{{purchase_error}}</p>
+                <p class='text-danger'>{{this.purchase_error}}</p>
               </div>
             </div>
           {{/if}}
@@ -183,7 +183,7 @@
             <div class="col-sm-9" style="padding-top: 30px;">
               <label>{{t "Your Email" key="your_email"}}</label><br>
               <span style="display: inline-block; width: 300px;">
-                <Input @type="text" @value={{subscription.email}} class="form-control input-lg" placeholder="email@example.com" />
+                <Input @type="text" @value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" />
               </span>
             </div>
           </div>
@@ -191,10 +191,10 @@
             <div class="col-sm-12" style="padding-top: 30px;">
               <label>{{t "Total Licenses" key="total_licenses"}}</label><br>
               <p style='font-size: 30px;'>
-                {{t "license" count=subscription.purchase_licenses key="n_licenses"}}
+                {{t "license" count=this.subscription.purchase_licenses key="n_licenses"}}
               </p>
-              {{#if gift.memo}}
-                <div style='font-size: 16px; margin-top: -10px;' class='text-muted'>{{gift.memo}}</div>
+              {{#if this.gift.memo}}
+                <div style='font-size: 16px; margin-top: -10px;' class='text-muted'>{{this.gift.memo}}</div>
               {{/if}}
             </div>
           </div>
@@ -202,7 +202,7 @@
             <div class="col-sm-12" style="padding-top: 30px;">
               <label>{{t "Purchase Amount" key="purchase_amount"}}</label><br>
               <p style='font-size: 30px;'>
-                {{t "$" key="dollars"}}{{delimit subscription.subscription_custom_amount "full"}}
+                {{t "$" key="dollars"}}{{delimit this.subscription.subscription_custom_amount "full"}}
               </p>
             </div>
           </div>

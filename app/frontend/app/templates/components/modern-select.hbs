@@ -11,7 +11,7 @@
     <span class="modern-select__trigger-text {{unless this.selectedItem 'modern-select__trigger-text--placeholder'}}">{{this.triggerLabel}}</span>
   </button>
   {{#if this.isOpen}}
-    <ul class="modern-select__list {{if this.searchable "modern-select__list--searchable"}}" role="listbox" {{action "stopPropagation" on="click"}} {{action "list_keydown" on="keydown"}}>
+    <ul class="modern-select__list {{if this.searchable "modern-select__list--searchable"}}" role="listbox" {{on "click" (action "stopPropagation")}} {{on "keydown" (action "list_keydown")}}>
       {{#if this.searchable}}
         {{!-- Filter row pinned at the top of the open dropdown. The
              outer <li role="none"> takes the row out of the listbox
@@ -33,7 +33,7 @@
             @value={{this.searchString}}
             placeholder={{this.searchPlaceholder}}
             aria-label={{this.searchPlaceholder}}
-            {{action "search_keydown" on="keydown"}}
+            {{on "keydown" (action "search_keydown")}}
           />
         </li>
       {{/if}}

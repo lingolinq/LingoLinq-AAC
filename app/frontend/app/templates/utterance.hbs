@@ -28,7 +28,7 @@
       {{#if this.single_button_full_sentence}}
         <div style='margin-bottom: 50px;'>{{this.model.sentence}}</div>
       {{else}}
-        <div id="utterance" class="button_list" {{ action "vocalize"}}>
+        <div id="utterance" class="button_list" {{action "vocalize"}}>
           {{#let this.model.button_list as |button_list|}}
             {{#if button_list}}
               {{button-list buttonList=button_list}}
@@ -101,7 +101,7 @@
       {{#if this.model.permissions.edit}}
         {{#unless this.single_button_full_sentence}}
           <div class="row"><div class="col-sm-6">
-          <form class="form-horizontal well" {{action "update_utterance" on="submit"}} style="margin-top: 20px;">
+          <form class="form-horizontal well" {{on "submit" (action "update_utterance")}} style="margin-top: 20px;">
             <div class="form-group">
               <div class="col-sm-8">
                 <h2>{{t "Sentence settings" key="sentence_settings"}}</h2>

@@ -6,7 +6,7 @@
       <h1 class="la-hero-title">{{t "Search for " key="search_for_boards_prefix"}}<span class="ub-search-page__title-boards">{{t "Boards" key="boards"}}</span><span class="ub-search-page__title-boards ub-search-page__title-boards--note">{{t "(Page-Sets & Vocabularies)" key="page_sets_and_vocabularies"}}</span></h1>
     </div>
     <div class="ub-search-page__form-wrap">
-      <form class="ub-search-page__form" {{action "searchBoards" on="submit"}}>
+      <form class="ub-search-page__form" {{on "submit" (action "searchBoards")}}>
         <div class="ub-search-page__form-row">
           <SearchBoardJump
             @query={{this.searchString}}

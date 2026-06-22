@@ -1,4 +1,4 @@
-<form class="la-contact-form la-support-form md-support-form" {{action "submit_feedback" on="submit"}} {{on "paste" (action "screenshotPaste")}} novalidate>
+<form class="la-contact-form la-support-form md-support-form" {{on "submit" (action "submit_feedback")}} {{on "paste" (action "screenshotPaste")}} novalidate>
   {{#if this.hasAnyError}}
     <div class="la-beta-feedback__validation-banner" role="alert">
       {{t "Please review the highlighted fields below and fix any issues before sending." key="beta_feedback_validation_banner"}}

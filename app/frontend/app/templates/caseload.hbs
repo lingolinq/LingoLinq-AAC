@@ -225,7 +225,7 @@
                      full card width, between the identity header
                      above and the goals/actions sections below. --}}
                 <div class="md-caseload__options-row">
-                  <div class="md-caseload__extras-dropdown" {{action "extras_dropdown_keydown" on="keyDown"}}>
+                  <div class="md-caseload__extras-dropdown" {{on "keyDown" (action "extras_dropdown_keydown")}}>
                     <button type="button" class="md-caseload__action md-caseload__action--corner-extras" data-toggle="dropdown" aria-haspopup="menu" aria-expanded="false" aria-label={{t "More options for %{name}" key="more_options_for_name" name=supervisee.user_name}} title={{t "Extras" key="extras"}}>
                       <span class="md-caseload__action--corner-extras__label">{{t "OPTIONS" key="options_eyebrow"}}</span>
                       <svg class="md-caseload__action--corner-extras__chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>

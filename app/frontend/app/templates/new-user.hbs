@@ -4,7 +4,7 @@
     <h3>{{t "New User" key="new_user"}}</h3>
   </div>
   <div class="modal-body">
-    <form class="form-horizontal" {{action "add" on="submit"}}>
+    <form class="form-horizontal" {{on "submit" (action "add")}}>
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Full Name" key="full_name"}}</label>
         <div class="col-sm-6">

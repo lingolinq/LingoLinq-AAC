@@ -83,7 +83,7 @@
         </div>
       {{/if}}
       <div class="speak-bar__button-list-wrap">
-        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
+        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{on "select" (action "vocalize")}} data-placement="bottom" data-trigger="manual">
           {{#unless this.app_state.button_list}}
             {{#if this.app_state.embedded}}
               <div style='float: left; margin: 5px; opacity: 0.7;'>
@@ -166,7 +166,7 @@
           {{else if this.app_state.followers.active}}
             <div class='label label-info over clear' id='reply_icon'>
               {{#each this.app_state.followers.active as |user|}}
-                <img src={{user.avatar_url}} class='follower' >
+                <img src={{this.user.avatar_url}} class='follower' >
               {{/each}}
             </div>
           {{else if this.app_state.clearable_history}}
@@ -693,7 +693,7 @@
         {{#if (persistence-online)}}
           {{#unless this.app_state.super_no_linky}}
             {{#if this.allow_search}}
-              <form id="header_search" {{action "searchBoards" on="submit"}}>
+              <form id="header_search" {{on "submit" (action "searchBoards")}}>
                 <div class="header-search-wrap">
                   <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
                   <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
@@ -1469,28 +1469,28 @@
       </button>
     </span>
     {{#each this.app_state.sidebar_boards as |board|}}
-      {{#if board.alert}}
+      {{#if this.board.alert}}
         <a href="#" {{action "alert" "sidebar"}} class='sidebar_item'>
           <span class="glyphicon glyphicon-bullhorn"></span>
-          <img src={{board.image}} class='pic' alt="">
-          {{board.name}}
+          <img src={{this.board.image}} class='pic' alt="">
+          {{this.board.name}}
         </a>
-      {{else if board.special}}
+      {{else if this.board.special}}
         <a href="#" {{action "special" board}} class='sidebar_item'>
           <span class="glyphicon glyphicon-flash"></span>
-          <img src={{board.image}} class='pic' alt="">
-          {{board.name}}
+          <img src={{this.board.image}} class='pic' alt="">
+          {{this.board.name}}
         </a>
       {{else}}
         <a href="#" class='sidebar_item' {{action "jump" board.key "sidebar" board}} data-key={{board.key}}>
-          {{#if board.home_lock}}
+          {{#if this.board.home_lock}}
             <span class="glyphicon glyphicon-home"></span>
           {{/if}}
-          {{#if board.fenced}}
+          {{#if this.board.fenced}}
             <span class="glyphicon glyphicon-map-marker"></span>
           {{/if}}
-          <img src={{board.image}} class='pic' alt="">
-          {{board.name}}
+          <img src={{this.board.image}} class='pic' alt="">
+          {{this.board.name}}
         </a>
       {{/if}}
     {{/each}}

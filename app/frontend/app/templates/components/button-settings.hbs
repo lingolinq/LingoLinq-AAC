@@ -137,7 +137,7 @@
         </form>
 
         {{!-- Picture tab content (inlined) --}}
-        <form class="form-horizontal" {{action "nothing" on="submit"}}>
+        <form class="form-horizontal" {{on "submit" (action "nothing")}}>
         <div class={{if this.pictureState "active" "hidden"}}>
   {{#if this.show_libraries}}
     {{#if this.image_libraries}}
@@ -185,7 +185,7 @@
       {{/if}}
     </span>
     <button type="button" class='btn btn-default' {{action "find_picture"}}>{{t "Search" key="search"}}</button>
-    <button type="button" {{action "webcamPicture" on="click"}} disabled={{this.webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
+    <button type="button" {{on "click" (action "webcamPicture")}} disabled={{this.webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
       <img src={{path "images/camera.svg"}} style="height: 42px; margin: -13px;" alt="take a picture">
     </button>
     <span class="file_select_holder">
@@ -541,7 +541,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "pending_board.grid.rows"}}>-</button>
             </span>
-            <Input @value={{pending_board.grid.rows}} class="form-control" id="pending_board_rows" placeholder="##" title="rows" />
+            <Input @value={{this.pending_board.grid.rows}} class="form-control" id="pending_board_rows" placeholder="##" title="rows" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.rows"}}>+</button>
             </span>
@@ -554,7 +554,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "pending_board.grid.columns"}}>-</button>
             </span>
-            <Input @value={{pending_board.grid.columns}} class="form-control" id="pending_board_columns" placeholder="##" title="columns" />
+            <Input @value={{this.pending_board.grid.columns}} class="form-control" id="pending_board_columns" placeholder="##" title="columns" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.columns"}}>+</button>
             </span>
@@ -566,7 +566,7 @@
         <div class="col-sm-10 col-sm-offset-2">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @checked={{pending_board.copy_access}} @type="checkbox" />
+              <Input @checked={{this.pending_board.copy_access}} @type="checkbox" />
               {{t "Use same license and access settings as are set for this board" key="use_same_license"}}
             </label>
           </div>
@@ -1004,7 +1004,7 @@
         </form>
 
         {{!-- Sound tab content (inlined) --}}
-        <form class="form-horizontal" {{action "nothing" on="submit"}}>
+        <form class="form-horizontal" {{on "submit" (action "nothing")}}>
 <div class={{if this.soundState "active" "hidden"}}>
   <div class="form-group">
     <label for="vocalization" class="col-sm-2 control-label">{{t "Speak" key="speak"}}</label>
@@ -1012,7 +1012,7 @@
       <span class="vocalization_field">
         <Input @value={{this.model.vocalization}} class="form-control inline" id="vocalization" placeholder={{this.label}} />
       </span>
-      <button type="button" {{action "record_sound" on="click"}} disabled={{this.recorder_unavailable}} class="btn btn-default">
+      <button type="button" {{on "click" (action "record_sound")}} disabled={{this.recorder_unavailable}} class="btn btn-default">
         <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
       </button>
       <span class="file_select_holder">

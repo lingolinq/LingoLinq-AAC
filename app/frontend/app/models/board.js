@@ -16,7 +16,7 @@ import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
 import boundClasses from '../utils/bound_classes';
 import word_suggestions from '../utils/word_suggestions';
-import ButtonSet from '../models/buttonset';
+import Buttonset from '../models/buttonset';
 import Utils from '../utils/misc';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
@@ -1323,7 +1323,11 @@ LingoLinq.Board = BaseModel.extend({
         } else{
         }
       }
-      var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision'), skipEmberRecordReload).then(function(button_set) {
+      var buttonset = LingoLinq.Buttonset || Buttonset;
+      if(!buttonset || typeof buttonset.load_button_set !== 'function') {
+        return RSVP.reject({error: 'buttonset module not loaded'});
+      }
+      var res = buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision'), skipEmberRecordReload).then(function(button_set) {
         _this.set('button_set', button_set);
         return sync_buttons_from_set(button_set);
       });

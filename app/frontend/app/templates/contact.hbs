@@ -17,7 +17,7 @@
 
         <div class="la-contact-form-wrapper">
           <div class="la-about-glass-card la-contact-form-card">
-            <form class="la-contact-form" {{action "submit_message" on="submit"}}>
+            <form class="la-contact-form" {{on "submit" (action "submit_message")}}>
               <div class="la-contact-form__row">
                 <label for="contact_name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
                 <Input @value={{this.name}} class="la-contact-input" id="contact_name" placeholder={{t "Your Name" key="your_name"}} />
