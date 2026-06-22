@@ -1457,6 +1457,42 @@ describe Api::OrganizationsController, :type => :controller do
     end
   end
 
+  describe "licenses" do
+    it "omits external_reference for ordinary organization editors" do
+      token_user
+      o = Organization.create
+      o.add_manager(@user.user_name)
+      License.create!(
+        organization: o,
+        seat_type: 'student',
+        status: 'active',
+        external_reference: 'PO-EDITOR-HIDDEN'
+      )
+
+      get :licenses, params: {:organization_id => o.global_id}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['license'].first).to_not have_key('external_reference')
+    end
+
+    it "includes external_reference for license administrators" do
+      token_user
+      o = Organization.create(:admin => true)
+      Organization.admin.add_manager(@user.user_name, true)
+      License.create!(
+        organization: o,
+        seat_type: 'student',
+        status: 'active',
+        external_reference: 'PO-ADMIN-VISIBLE'
+      )
+
+      get :licenses, params: {:organization_id => o.global_id}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['license'].first['external_reference']).to eq('PO-ADMIN-VISIBLE')
+    end
+  end
+
   describe "extras" do
     it "should require api token" do
       get :extras, params: {:organization_id => 1}
