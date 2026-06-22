@@ -108,8 +108,8 @@ export default Controller.extend({
   public_boards_count: computed('model.my_boards.[]', function() {
     var boards = this.get('model.my_boards');
     if(!boards) { return 0; }
-    var arr = (typeof boards.toArray === 'function') ? boards.toArray()
-            : (typeof boards.forEach === 'function') ? boards
+    var arr = (typeof boards.slice === 'function') ? boards.slice()
+            : Array.isArray(boards) ? boards
             : null;
     if(!arr) { return 0; }
     var count = 0;
@@ -966,7 +966,7 @@ export default Controller.extend({
         _this.set('model.goals', {loading: true});
       }
       this.store.query('goal', {user_id: this.get('model.id'), per_page: 3}).then(function(goals) {
-        _this.set('model.goals', goals.map(function(i) { return i; }).filter(function(g) { return g.get('active'); }));
+        _this.set('model.goals', goals.slice().filter(function(g) { return g.get('active'); }));
       }, function(err) {
         if(!(_this.get('model.goals') || {}).length) {
           _this.set('model.goals', {error: true});
@@ -1005,8 +1005,8 @@ export default Controller.extend({
           prior = [];
         }
 
-        prior.pushObjects(boards.map(function(i) { return i; }));
-//        var result = prior.concat(boards.map(function(i) { return i; }));
+        prior.pushObjects(boards.slice());
+//        var result = prior.concat(boards.slice());
         prior.user_id = _this.get('model.id');
         _this.set(list_name, prior);
         var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');

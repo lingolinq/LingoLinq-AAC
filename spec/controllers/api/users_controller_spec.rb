@@ -786,6 +786,109 @@ describe Api::UsersController, :type => :controller do
         body = JSON.parse(response.body)
         expect(body['coppa_parental_consent_pending']).to eq(true)
       end
+
+      it "treats a present-but-invalid authored_organization_id as NO authorization (COPPA still applies)" do
+        # Regression: a non-blank but invalid org id must NOT skip the COPPA gate.
+        # Under-13 with a bogus org id and no parent email must be rejected, proving
+        # the gate ran despite the non-blank authored_organization_id.
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_bogus_org',
+          'email' => 'kid_bogus_org@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => 'invalid_org_999',
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "treats an unauthorized author's authored_organization_id as NO authorization (COPPA still applies)" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        # @user is NOT a manager of o, so the claimed authorization is invalid.
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_unauth_org',
+          'email' => 'kid_unauth_org@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "skips COPPA and records an auditable school_authorization for a valid org-authored minor" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        post :create, params: {:user => {
+          'name' => 'school_kid',
+          'email' => 'school_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to be_falsey
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+        sa = u.settings['school_authorization']
+        expect(sa).to be_a(Hash)
+        expect(sa['basis']).to eq('school_official')
+        expect(sa['organization_id']).to eq(o.global_id)
+        expect(sa['authorized_by']).to eq(@user.global_id)
+        ev = AuditEvent.where(:event_type => 'school_authorization', :record_id => sa['record_id']).first
+        expect(ev).to be_present
+        expect(ev.user_key).to eq(u.global_id)
+        expect(ev.data['organization_id']).to eq(o.global_id)
+      end
+
+      it "currently allows an assistant-level manager to author a minor (Phase 1 will decide if a full manager should be required)" do
+        # Documents the preserved authoring scope: 'edit' is satisfied by assistant
+        # managers (add_manager(..., false)), not only full managers. This is the
+        # pre-existing behavior; tightening to full-manager-only is a Phase 1 decision.
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, false)
+        post :create, params: {:user => {
+          'name' => 'assistant_authored_kid',
+          'email' => 'assistant_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
+
+      it "does not orphan or 500 the child account when the school_authorization audit fails (fail-open)" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        allow(AuditEvent).to receive(:create!).and_call_original
+        expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'school_authorization')).and_raise(StandardError.new('boom'))
+        post :create, params: {:user => {
+          'name' => 'audit_fail_kid',
+          'email' => 'audit_fail_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u).to be_present
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
     end
 
     it "should error on invalid start code" do
@@ -1401,87 +1504,92 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
     end
     
-    it "should throttle token creation and emailing" do
+    it "should not email a throttled user but should still return a uniform response" do
       u = User.create
       10.times{|i| u.generate_password_reset }
       u.save
       expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
-      expect(response).not_to be_successful
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('The user matching that name or email has had too many password resets. Please wait at least three hours and try again.')
+      expect(json).to eq({'email_sent' => true})
     end
-    
-    it "should return message when no users found" do
+
+    it "should not email for an unknown username but should still return a uniform response" do
+      expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => 'shoelace'}
-      expect(response).not_to be_successful
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('No users found with that name or email.')
+      expect(json).to eq({'email_sent' => true})
     end
-    
-    
+
+    it "should not leak account existence (identical response for real and bogus keys)" do
+      u = User.create(:settings => {'email' => 'bob@example.com'})
+      post :forgot_password, params: {:key => u.user_name}
+      real = JSON.parse(response.body)
+      real_status = response.status
+      post :forgot_password, params: {:key => 'definitely-not-a-user'}
+      bogus = JSON.parse(response.body)
+      expect(response.status).to eq(real_status)
+      expect(bogus).to eq(real)
+      expect(real).to eq({'email_sent' => true})
+    end
+
     it "should schedule a message delivery when non-throttled user is found" do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       expect(UserMailer).to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
       expect(response).to be_successful
     end
-    
+
     it "should return a success message when no users found but an email address provided" do
       post :forgot_password, params: {:key => 'shoelace@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['email_sent']).to eq(true)
     end
-    
+
     it "should schedule a message delivery when no user found by an email address provided" do
       expect(UserMailer).to receive(:schedule_delivery).with(:login_no_user, 'shoelace@example.com')
       post :forgot_password, params: {:key => 'shoelace@example.com'}
       expect(response).to be_successful
     end
 
-    it "should not include disabled emails" do
+    it "should not email disabled accounts but should still return a uniform response" do
       u = User.create(:settings => {'email' => 'bob@example.com', 'email_disabled' => true})
       expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
-      expect(response).not_to be_successful
-      json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('The email address for that account has been manually disabled.')
-    end
-    
-    it "should include possibly-multiple users for the given email address" do
-      u = User.create(:settings => {'email' => 'bob@example.com'})
-      post :forgot_password, params: {:key => u.user_name}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(1)
-      
+      expect(json).to eq({'email_sent' => true})
+    end
+
+    it "should email all matching users for the given email address" do
+      u = User.create(:settings => {'email' => 'bob@example.com'})
       u2 = User.create(:settings => {'email' => 'bob@example.com'})
+      expect(UserMailer).to receive(:schedule_delivery) do |template, ids|
+        expect(template).to eq(:forgot_password)
+        expect(ids.sort).to eq([u.global_id, u2.global_id].sort)
+      end
       post :forgot_password, params: {:key => 'bob@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(2)
+      expect(json).to eq({'email_sent' => true})
     end
-    it "should provide helpful message if some user accounts but not others were throttled" do
+
+    it "should still email non-throttled users when some accounts are throttled" do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       u2 = User.create(:settings => {'email' => 'bob@example.com'})
       10.times{|i| u.generate_password_reset }
       u.save
-      expect(UserMailer).to receive(:schedule_delivery)
+      expect(UserMailer).to receive(:schedule_delivery) do |template, ids|
+        expect(template).to eq(:forgot_password)
+        expect(ids).to eq([u2.global_id])
+      end
       post :forgot_password, params: {:key => 'bob@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(2)
-      expect(json['message']).to eq("One or more of the users matching that name or email have had too many password resets, so those links weren't emailed to you. Please wait at least three hours and try again.")
+      expect(json).to eq({'email_sent' => true})
     end
   end
 
@@ -1707,8 +1815,19 @@ describe Api::UsersController, :type => :controller do
       expect(progress.settings['method']).to eq('flush_user_logs')
       expect(progress.settings['arguments']).to eq([@user.global_id, @user.user_name])
     end
+
+    it "should log an audit event when scheduling a log flush" do
+      token_user
+      AuditEvent.delete_all
+      post :flush_logs, params: {:user_id => @user.global_id, :confirm_user_id => @user.global_id, :user_name => @user.user_name}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_logs_flush_scheduled' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(@user.global_id)
+    end
   end
-  
+
   describe "flush_user" do
     it "should require api token" do
       post :flush_user, params: {:user_id => 1}
@@ -1747,6 +1866,17 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json).to eq({'flushed' => 'pending'})
+    end
+
+    it "should log an audit event when scheduling account deletion" do
+      token_user
+      AuditEvent.delete_all
+      post :flush_user, params: {:user_id => @user.global_id, :confirm_user_id => @user.global_id, :user_name => @user.user_name}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_deletion_scheduled' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(@user.global_id)
     end
   end
 
@@ -2699,6 +2829,29 @@ describe Api::UsersController, :type => :controller do
       expect(json['log']).to_not eq(nil)
     end
 
+    it "should log an admin-support audit event for a cross-user daily_use read" do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, true)
+      u = User.create
+      AuditEvent.delete_all
+      get :daily_use, params: {:user_id => u.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_daily_use_read' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(u.global_id)
+    end
+
+    it "should not log an admin-support audit event for a self daily_use read" do
+      token_user
+      AuditEvent.delete_all
+      get :daily_use, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_daily_use_read' }
+      expect(ev).to eq(nil)
+    end
+
     it 'should return data if available' do
       token_user
       d = Device.create(:user => @user)
@@ -2748,6 +2901,20 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['userversion']).to eq([])
+    end
+
+    it 'should log an admin-support audit event for a cross-user history read' do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, true)
+      u = User.create
+      AuditEvent.delete_all
+      get 'history', :params => {'user_id' => u.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_history_read' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(u.global_id)
     end
   end
   

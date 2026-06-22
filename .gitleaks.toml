@@ -21,3 +21,12 @@ targetRules = ["generic-api-key"]
 paths = [
   '''public/locales/.*\.json''',
 ]
+
+[[allowlists]]
+description = "Audit findings register: `ruleKey` values (e.g. cve-braces-2024-4068) are stable finding identifiers, not secrets. The register is mechanically generated and forbids secrets/PII at merge (scripts/audit-merge.rb refuses them; scripts/citation-check.rb keeps it code-only). Same narrow scope as above: only generic-api-key is relaxed, only the generated register artifacts are exempted, every other rule (AWS keys, private keys, tokens) still scans them."
+targetRules = ["generic-api-key"]
+paths = [
+  '''audit-reports/FINDINGS\.json''',
+  '''audit-reports/FINDINGS\.md''',
+  '''audit-reports/run-log/.*\.jsonl''',
+]

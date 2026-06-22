@@ -135,7 +135,7 @@ export default Controller.extend({
       this.set('logs', {loading: true});
 
       this.store.query('log', args).then(function(list) {
-        controller.set('logs', list.map(function(i) { return i; }));
+        controller.set('logs', list.slice());
         var meta = $.extend({}, list.meta);
         controller.set('meta', meta);
         // weird things happen if we try to observe meta.next_url, it stops
@@ -177,7 +177,7 @@ export default Controller.extend({
         if(this.get('location_id')) { args.location_id = this.get('location_id'); }
         var find = this.store.query('log', args);
         find.then(function(list) {
-          _this.set('logs', _this.get('logs').concat(list.map(function(i) { return i; })));
+          _this.set('logs', _this.get('logs').concat(list.slice()));
           var meta = $.extend({}, list.meta);
           _this.set('meta', meta);
           _this.set('more_available', !!meta.next_url);

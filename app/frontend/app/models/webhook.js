@@ -1,9 +1,10 @@
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 
 import { computed } from '@ember/object';
 
-LingoLinq.Webhook = DS.Model.extend({
+LingoLinq.Webhook = BaseModel.extend({
   name: DS.attr('string'),
   user_id: DS.attr('string'),
   url: DS.attr('string'),

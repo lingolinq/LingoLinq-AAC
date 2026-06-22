@@ -594,7 +594,7 @@ export default Controller.extend({
   raw_core_word_list: computed('core_lists.for_user', function() {
     var list = this.get('core_lists.for_user') || [];
     var div = document.createElement('div');
-    var arr = list.toArray ? list.toArray() : (Array.isArray(list) ? list : []);
+    var arr = list.slice ? list.slice() : (Array.isArray(list) ? list : []);
     arr.forEach(function(w) {
       var span = document.createElement('span');
       span.innerText = w + ' ';

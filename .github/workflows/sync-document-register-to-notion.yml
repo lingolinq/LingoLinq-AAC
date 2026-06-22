@@ -1,0 +1,39 @@
+name: Sync document register to Notion
+
+# Keeps the "LingoLinq Compliance Documents (LL)" Notion board in sync with the SSOT
+# (audit-reports/DOCUMENT-REGISTER.json) whenever the register changes on staging. One-way:
+# register -> Notion. Only writes register-owned columns; human-owned columns (Program notes,
+# Needs Scot decision) are never touched. Compliance content stays Claude-only; the register is
+# PII-free (titles, paths/URLs, hashes).
+#
+# Inert until set up: the job is guarded on the NOTION_DOCS_DB_ID repo variable, so it is a
+# no-op until Scot (1) creates the Notion DB with the schema in document-register-notion-sync.rb,
+# (2) shares it with the COMPLIANCE API integration, and (3) sets the repo variable
+# NOTION_DOCS_DB_ID. The NOTION_TOKEN secret is already configured for the findings sync.
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - 'audit-reports/DOCUMENT-REGISTER.json'
+  workflow_dispatch: {}
+
+concurrency:
+  group: notion-document-register-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: ${{ vars.NOTION_DOCS_DB_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.3'
+          bundler-cache: false
+      - name: Sync register -> Notion documents board
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DOCS_DB_ID: ${{ vars.NOTION_DOCS_DB_ID }}
+        run: ruby scripts/document-register-notion-sync.rb --prune

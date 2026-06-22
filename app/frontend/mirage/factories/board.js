@@ -1,4 +1,4 @@
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 
 export default Factory.extend({
   // Defaults for a minimal valid board. Override in tests via server.create('board', { ... }).

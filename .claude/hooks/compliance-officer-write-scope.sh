@@ -50,6 +50,7 @@ exec ruby -rjson -rpathname -e '
     %r{\Aaudit-reports/compliance-[a-z0-9-]+\.md\z},
     %r{\Aaudit-reports/regulatory-watch-[0-9]{4}-[0-9]{2}-[0-9]{2}\.md\z},
     %r{\Aaudit-reports/self-findings-triage-[0-9]{4}-[0-9]{2}-[0-9]{2}\.md\z},
+    %r{\Aaudit-reports/DOCUMENT-REGISTER\.(json|md)\z},
     %r{\Adocs/legal/[A-Za-z0-9_.-]+\.md\z},
   ].freeze
 

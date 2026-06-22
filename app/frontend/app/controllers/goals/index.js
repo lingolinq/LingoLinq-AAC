@@ -12,7 +12,7 @@ export default Controller.extend({
     var _this = this;
     _this.set('goals', {loading: true});
     LingoLinq.store.query('goal', {template_header: true}).then(function(data) {
-      _this.set('goals', data.map(function(i) { return i; }));
+      _this.set('goals', data.slice());
       _this.set('goals.meta', data.meta);
     }, function(err) {
       _this.set('goals', {error: true});
@@ -20,7 +20,7 @@ export default Controller.extend({
     if(app_state.get('currentUser.permissions.admin_support_actions')) {
       _this.set('global_goals', {loading: true});
       LingoLinq.store.query('goal', {global: true}).then(function(data) {
-        _this.set('global_goals', data.map(function(i) { return i; }));
+        _this.set('global_goals', data.slice());
         _this.set('global_goals.meta', data.meta);
       }, function(err) {
         _this.set('global_goals', {error: true});

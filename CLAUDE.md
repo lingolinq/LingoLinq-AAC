@@ -414,7 +414,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 ### Directory Layout (current)
 | Path | Purpose |
 |------|---------|
-| `.claude/agents/*-auditor.md` | Read-only domain finder agents (privacy, infra, api, dependency) |
+| `.claude/agents/*-auditor.md` | Read-only domain finder agents (privacy, infra, api, dependency, accessibility) |
 | `.claude/skills/<domain>-audit/SKILL.md` | Per-domain checklists with the register schema embedded |
 | `.claude/skills/audit-run/SKILL.md` | `/audit-run` orchestrator (replaces `workflows/full-audit.md`) |
 | `.claude/hooks/audit-readonly-guard.sh` | PreToolUse write-blocker wired into each finder |
@@ -423,7 +423,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
 
 ### Running a Full Audit
-1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the four
+1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the five
    read-only finders in parallel, reconciles results into `audit-reports/FINDINGS.json` via
    `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
    `scripts/citation-check.rb`.
@@ -437,6 +437,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `infra-auditor` | SOC2-style security + infrastructure | `soc2-security-audit` |
 | `api-auditor` | Ember<->Rails API contract | `api-contract-audit` |
 | `dependency-auditor` | Dependency freshness + CVEs | `dependency-audit` |
+| `accessibility-auditor` | WCAG 2.1 AA / EN 301 549 (static markup/SCSS) | `accessibility-audit` |
 
 Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
 and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).

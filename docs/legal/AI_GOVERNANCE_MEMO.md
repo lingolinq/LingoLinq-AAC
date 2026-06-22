@@ -1,12 +1,16 @@
 # LingoLinq AAC AI Governance Memo
 
-> **DRAFT, awaiting attestation.** Phase 3 deliverable. This memo documents how LingoLinq uses
-> AI models, the controls that keep identifiable data out of external models, and the EU AI Act
-> classification analysis. It is a living document. Every model id and code citation must be
-> re-verified against live code before this memo is shared externally. Drafted by the
-> compliance-officer; goes through adversary review before reaching Scot.
+> **ATTESTED 2026-06-19 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
+> the EU AI Act classification analysis. It is a living document; model ids and code citations are
+> point-in-time and were re-verified against live code on 2026-06-19 prior to attestation (see the
+> note at section 8). Drafted by the compliance-officer; adversary-reviewed; attested by the CEO.
+> One governance item (the DeepSeek-vs-compliance-surface discrepancy, section 4.1) remains open
+> and is attested as documented-open, not resolved.
 >
-> Draft date: 2026-06-13. Operative reference: NIST AI RMF plus the Generative AI Profile
+> Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
+> #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
+> and attested 2026-06-19. Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 
@@ -25,9 +29,10 @@ Verified against code at draft time. Re-verify before publishing.
 
 | Use | Model(s) | Where | Sees user data? | Control |
 |---|---|---|---|---|
-| Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), Gemini 2.0 Flash fallback | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. |
-| Offline prediction dictionary generation | Claude Haiku 4.5, Gemini 2.0 Flash | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
-| Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. Never used on any compliance surface. |
+| Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), Gemini 2.5 Flash fallback | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. |
+| Offline prediction dictionary generation | Claude Haiku 4.5, Gemini 2.5 Flash | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
+| Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default, `EVAL_NARRATOR_MODEL` override), Anthropic | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress; every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user (client-asserted student name dropped); org opt-out via the `comprehensive_eval_ai` feature flag. Residual consent-binding gap tracked as LL-11db0dc848. Brought under governance by #411/#412; three findings verified-closed in #413. |
+| Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. Intended never to touch a compliance surface, **but see the open discrepancy in section 4 regarding the n8n PR-review bot's DeepSeek pass on register-only diffs.** |
 
 Notes:
 - The runtime path can call **Google Gemini** as a fallback. Gemini API data-handling terms and
@@ -83,6 +88,28 @@ The stance LingoLinq takes, and that this memo records:
 - This is why the developer reviewer is restricted to sanitized diffs and is barred from every
   audit and compliance surface.
 
+### 4.1 Open discrepancy: DeepSeek and the audit register (Scot to resolve)
+
+This memo states that the DeepSeek/OpenRouter reviewer is "never used on any compliance surface."
+The n8n PR-review bot (workflow `lbyA52atQjQ8MCqy`) runs a DeepSeek adversary pass on **every** PR
+diff, and recent compliance PRs (#413 register reconcile, #415 register re-stamp) were
+register-only diffs. The register carries no student or patient data and the diffs were code and
+JSON only, so no PHI or student data left the boundary. The issue is narrower: a register-only
+diff **is** a compliance surface, so as worded the policy and the running automation disagree.
+
+Two ways to reconcile, Scot's call (do not self-resolve):
+
+1. **Fix the bot.** Have the PR-review workflow skip the DeepSeek pass when a PR touches only
+   `audit-reports/**` or `docs/legal/**` (Claude-only review on compliance-surface diffs). Keeps
+   the memo's wording true and tightens the control.
+2. **Revise the memo.** Narrow the claim to "no student or patient data, and no finding evidence
+   snippets, are ever routed to DeepSeek" and explicitly permit DeepSeek to see register
+   *structure* (status/severity/IDs, no PII) on register-only diffs. Documents the real behavior
+   without changing the automation.
+
+Tracked in section 7 and in the task log for this refresh. Until resolved, treat the section 2
+wording as the intended policy and this note as the known exception.
+
 ## 5. EU AI Act classification memo
 
 ### 5.1 Annex III (high-risk) classification
@@ -134,15 +161,25 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
       OpenRouter), with renewal tracking.
 - [ ] Finalize the Article 50 applicability decision before 2026-08-02.
 - [ ] Model inventory kept current as models are upgraded (the ids above are point-in-time).
+- [ ] Resolve the eval-narration consent-binding residual (LL-11db0dc848): bind the COPPA/consent
+      gate subject to the eval content actually egressed, via server-side eval persistence
+      (migration follow-up Phase 1B). Until then the control gates on a caller-asserted user_id.
+- [ ] Resolve the DeepSeek-vs-compliance-surface discrepancy in section 4.1: either exclude
+      `audit-reports/**` and `docs/legal/**` diffs from the PR-review bot's DeepSeek pass, or
+      revise this memo's wording to match the running automation. Scot decides.
 
 ## 8. Attestation
 
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer agent (draft) |
-| Reviewed by | adversary agent (pending) |
-| Attested by | _Scot Wahlquist (pending signature)_ |
-| Attestation date | _pending_ |
+| Reviewed by | adversary agent |
+| Attested by | **Scot Wahlquist, CEO** |
+| Attestation date | **2026-06-19** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
-and 1.8). Model ids and code citations are point-in-time and must be re-verified at publish._
+and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
+attestation (confirmed: `claude-haiku-4-5-20251001`, `gemini-2.5-flash`, `claude-opus-4-7` with
+the `EVAL_NARRATOR_MODEL` override; `PiiScrubber.redact_for_ai` at `lib/ai_word_predictor.rb:55`;
+LL-11db0dc848 and LL-6619cc1811 open). They remain point-in-time and must be re-verified at each
+future publish._

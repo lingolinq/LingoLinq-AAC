@@ -101,9 +101,9 @@ out << "- **Source of truth:** the git register. This page is a generated read-o
 out << "  carries no evidence snippets, no finding notes, and no student/patient data.\n"
 out << "- **Closed / accepted / superseded findings** are intentionally omitted here; see\n"
 out << "  `audit-reports/FINDINGS.md` for the full lifecycle.\n"
-out << "- **Compliance Posture Report** (`docs/legal/COMPLIANCE_POSTURE_REPORT.md`) stays **DRAFT /\n"
-out << "  unattested** until Scot signs; it is linked, never embedded, and is not published\n"
-out << "  externally until attested.\n"
+out << "- **Compliance Posture Report** (`docs/legal/COMPLIANCE_POSTURE_REPORT.md`) is **CEO-attested**\n"
+out << "  (Scot Wahlquist, 2026-06-19); it is linked from this summary, never embedded. External\n"
+out << "  distribution remains the CEO's decision at attestation time.\n"
 
 render_path = File.join('audit-reports', 'notion', 'compliance-audit-page.md')
 

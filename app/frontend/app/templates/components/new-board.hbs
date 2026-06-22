@@ -15,6 +15,9 @@
           <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
             {{t "Paste HTML" key="paste_html"}}
           </button>
+          <button type="button" class="btn btn-default" {{action "importFromJsonBundle"}}>
+            {{t "Import JSON Bundle" key="import_json_bundle"}}
+          </button>
         {{/if}}
         {{#if this.ai_board_generation_enabled}}
           <button type="button" class="btn btn-default" {{action "generateWithAi"}}>
@@ -45,6 +48,9 @@
         {{#if this.paste_html_import_enabled}}
           <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
             {{t "Paste HTML" key="paste_html"}}
+          </button>
+          <button type="button" class="la-btn la-btn--ghost" {{action "importFromJsonBundle"}}>
+            {{t "Import JSON Bundle" key="import_json_bundle"}}
           </button>
         {{/if}}
         {{#if this.ai_board_generation_enabled}}

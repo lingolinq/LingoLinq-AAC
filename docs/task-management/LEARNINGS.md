@@ -4600,8 +4600,48 @@ moving/occluding element sits between the cursor and the target.
 "deeper" + adversarial-review sections). User-verified working after the
 geometry + re-wire fixes.
 
-**Related:** [Custom-JS drag works on desktop but not in touch emulation](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
+**Related:** [Custom-JS drag works on desktop but not in touch-emulation](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
 (touch-action), [Dashboard card order is driven by grid-template-areas](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom).
+
+### JSON bundle import: images missing when S3 upload fails locally
+
+**Symptom:** JSON bundle import creates boards and `image_id` on buttons, but
+buttons show no symbols. `ButtonImage` rows have `pending: true`, `url: nil`,
+`errored_pending_url` set to the CloudFront source URL.
+
+**Root cause:** `upload_to_remote` successfully fetches OpenSymbols /
+CloudFront URLs during import, but when the S3 post fails (common in local dev
+without upload creds) it only recorded `errored_pending_url` for http(s)
+sources — leaving the image stuck pending with nothing displayable.
+
+**Fix:** `Uploadable#store_downloaded_file_fallback!` — on S3 failure after a
+successful fetch, store bytes as a `data_uri` (≤512KB) or keep a trusted
+symbol-CDN URL with `pending: false`. Also normalize synthesized bundle URLs
+in `ApiJsonBundle#coalesce_media` via `encode_import_url`.
+
+**Re-import required** after pulling the fix; existing pending images on a test
+account won't self-heal unless you re-import or run `upload_to_remote` again.
+
+### JSON bundle import: custom photos replaced by OpenSymbols after import
+
+**Symptom:** Imported custom button images (e.g. teacher photos) display
+correctly at first, then swap to stock symbols (e.g. dart for "Miss") minutes
+later or after reload.
+
+**Root cause:** `ButtonImage#ensure_library_url_for_skin!` runs on a slow job
+after board API load when `needs_library_url_enrichment?` is true (S3-hosted
+import copies). It searches OpenSymbols by button label and stores
+`library_alternates`. With `preferred_symbols: opensymbols` (default), the
+client renders the alternate URL, not the imported photo. `Board#swap_images`
+can also replace `image_id` by label lookup (only skips `lingolinq-usercontent`
+URLs).
+
+**Fix:** JSON bundle import sets `ButtonImage#settings['preserve_source_image']`.
+That flag skips skin enrichment, keeps `settings_for` on the original URL, and
+skips `swap_images` replacement. Re-import affected boards after deploying.
+
+**Evidence:** `lib/converters/lingo_linq.rb`, `app/models/button_image.rb`,
+`app/models/board.rb#swap_images`, task log `2026-06-13-json-bundle-import.md`.
 
 ---
 
@@ -5218,3 +5258,137 @@ use the shared `md-modal-*` system.
   (equal specificity → source order wins); the supervisor/admin thumb is a (0,4,0)
   `.md-grid--dashboard.md-grid--with-caseload/--with-org-mgmt` rule, so a Gentle override
   of the thumb must also be (0,4,0) to win.
+---
+
+## Gotcha: EN 301 549 clause numbers (9.x.x.x) trip the register's IP-address PII scrubber
+
+When the `accessibility-auditor` finder emits a WCAG finding, any four-part dotted number in the
+finding text - notably an EN 301 549 clause like `9.1.4.3` - matches `audit-merge.rb`'s IP regex
+(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`) and the ENTIRE finding is REFUSED as `pii:ip` (it
+silently never lands in the register; merge reports `skipped`, citation-check stays green only
+because the finding is absent). WCAG success-criterion numbers (`1.4.3`, `2.4.7`) are at most 3
+dotted groups and are always safe; the EN 301 549 web mapping (`9.1.x.x`) is the one that bites.
+Fix (no Ruby change, scrubber is correct defense-in-depth): the `accessibility-audit` skill + agent
+instruct finders to cite the WCAG SC number in emitted fields and reference EN 301 549 only at the
+3-part parent clause (`9.1.4`) or in prose. Verified 2026-06-15 via a /tmp dry-run: with `9.1.4.3`
+in `notes` -> merge `skipped=1 (refused: pii:ip)`; with `9.1.4` -> merge `new=1`, citation-check
+PASS. Evidence: `scripts/audit-merge.rb` PII_PATTERNS[:ip]; `.claude/skills/accessibility-audit/SKILL.md`.
+
+## Gotcha: `Worker.scheduled?` specs flake repo-wide off BoyBand's stale 30s `sizeof/<queue>` cache
+
+`Worker.scheduled?` -> `BoyBand::WorkerMethods#scheduled_for?` short-circuits with
+`return false if idx > 500`, where `idx = queue_size(queue)` reads a Redis cache
+`sizeof/<queue>` with a **30-second TTL** that only recomputes when the cached value is `0`.
+`Worker.flush_queues` (run in `spec_helper.rb` `before(:each)`) empties the queue LISTS but
+never clears that cache. So one earlier example that pushes `sizeof/default` past 500 makes
+EVERY `Worker.scheduled?` return a FALSE NEGATIVE (`expected true, got false`) for the next 30
+WALL-CLOCK seconds - regardless of the flushed queue. Whether a given spec lands in that window
+varies run-to-run, so it presents as a random "timing" flake that passes on re-run. It is
+repo-wide: 38 spec files / 201 `scheduled?` assertion sites are exposed; `external_tracker_spec:16`
+and `flusher_spec:403` are just the most frequently bitten. Two traps: (1) "force Resque inline"
+is the WRONG fix - these specs assert the job IS queued, and inline runs it and empties the queue,
+failing them deterministically; (2) `config.order = "defined"` + single-process CI + fresh Redis
+rules out order-dependence and cross-process races, so the only nondeterminism is wall-clock vs the
+TTL. Fix (verified): in `before(:each)` after `flush_queues`, also
+`Resque.redis.keys('sizeof/*').each{|k| Resque.redis.del(k)}` and the same for `*_queue_size`
+(`RedisInit#queue_size`'s separate 5-min cache). Deterministic repro:
+`redis-cli set lingolinq-test:sizeof/default 600` then run the two specs -> exact CI failure;
+clearing the cache makes them pass. Evidence: `boy_band-0.1.16/lib/boy_band.rb:43,266`;
+`spec/spec_helper.rb` before(:each); CI run 27601259798.
+
+## Gotcha: local `lingolinq-test` `bad decrypt` at boot from a stale `encryption_hash` sentinel row
+
+Running rspec locally can fail at environment load with
+`OpenSSL::Cipher::CipherError: bad decrypt` in `Setting.get` (config/environment.rb -> spec_helper).
+Cause: the test DB holds a single `settings` row `key='encryption_hash'` (GoSecure's
+key-validation sentinel) encrypted with a SECURE key pair that no longer matches the effective env.
+`spec_helper` loads `.env.op.template` BEFORE `.env`, and dotenv does not override already-set vars,
+so `.env.op.template`'s `SECURE_NONCE_KEY` shadows `.env`'s and breaks the encryption pair. CI never
+hits this because it uses `db:create db:schema:load` (fresh DB, no `encryption_hash` row -> no
+decrypt). Local fix (test DB only, regenerates on boot):
+`psql -U scotw -d lingolinq-test -c "delete from settings where key='encryption_hash'"`. Do not
+"fix" it by editing the dotenv load order in spec_helper.
+
+## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)
+
+The canonical AI egress shape is fixed across call sites (`lib/ai_word_predictor.rb`,
+`lib/ai_board_generator.rb`): (1) `FeatureFlags.ai_feature_enabled_for?(feature, user)` for the
+feature flag + org `disable_ai_features` opt-out, (2) `FeatureFlags.coppa_blocks_ai_for?(user)`
+short-circuit (default-ON via `COPPA_AI_HARD_GATE`) BEFORE any provider call, (3)
+`PiiScrubber.redact_for_ai` on the payload with the user's names + any free-text person name added
+via `PiiScrubber.configure_blocklist`, and (4) an `AiApiLog.log_ai_call(provider: 'claude', ...)`
+row in an `ensure` so success AND failure are audited. `lib/eval_narrator.rb` was the lone exception
+(finding LL-2e4c14d370 et al.); when adding a NEW AI call site, copy this shape exactly rather than
+inventing a new flag. Gate on whoever's data leaves (the evaluated student), not necessarily the
+requesting user. When no data subject can be resolved, refuse the external call and fall back to a
+local/deterministic path rather than sending ungated.
+
+## Gotcha: `ai_feature_enabled_for?` silently returns false unless the flag is in `FeatureFlags::AI_FEATURES`
+
+`FeatureFlags.ai_feature_enabled_for?(feature, user)` first does `return false unless
+AI_FEATURES.include?(feature)` (`feature_flags.rb:139`). A flag can be live in
+`AVAILABLE_FRONTEND_FEATURES`/`ENABLED_FRONTEND_FEATURES` yet still be denied by the AI gate because
+it was never added to the `AI_FEATURES` allowlist (`:77`). Adding a feature to the AI gate means
+registering it in `AI_FEATURES`. `system_feature_registry.rb:80` also derives its `ai_feature:`
+flag from this list, so registering there correctly tags it in the admin registry.
+
+## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
+
+`lib/eval_narrator.rb#draft_via_anthropic` originally used `Anthropic::Client.new(access_token:)` +
+`client.messages(parameters: {...})` + a Hash response (the alexrudall `ruby-anthropic` gem). The
+Gemfile pins official `anthropic ~> 1.23`, whose API is `Anthropic::Client.new(api_key:)` +
+`client.messages.create(...)`, with `response.content` an array of blocks (`#type`/`#text`) and
+`response.usage.input_tokens/output_tokens`. The old call raised and soft-fell-back to the template,
+so the AI path was dead. Match the sibling AI libs' usage; isolate the SDK call behind a
+`call_anthropic` method so specs can stub the network boundary.
+
+## Gotcha: eval `narrate` gates on `user_id` but ships the unbound `eval_session` payload (identity/payload decoupling)
+
+Adversary verification of the #411 COPPA fix found the gate and PII blocklist were bypassable:
+`Api::EvalSessionsController#narrate` resolves the student from `params['user_id']` and runs the
+COPPA consent, org AI opt-out, and supervise checks against THAT user, but the data actually sent
+to Anthropic is the independent free-text `params['eval_session']` payload. Nothing bound the two,
+so a clinician supervising a consented student A could pass `user_id=A` (gate passes) while the
+payload carried a different, non-consented child B's eval data. Lesson: when a compliance gate keys
+on a caller-asserted identity, the egressed data must be DERIVED from that identity, not accepted
+independently from the same request. Hardening applied (`scot/security/eval-narrator-payload-binding`):
+(1) external narration is now OPT-IN (`payload['use_anthropic'] == true`; the controller coerces the
+client flag to a strict boolean and the frontend sends it only on the SLP's explicit "Generate"
+click) so nothing egresses by default; (2) `payload_for_prompt` drops the client-asserted
+`sett.student` name entirely (subject identity comes only from the resolved user record, whose name
+is blocklisted), so a mismatched request cannot leak the payload subject's name via the structured
+field. RESIDUAL (still open, needs a larger follow-up): the consent decision is still keyed to the
+caller-asserted `user_id`; fully binding eval-data provenance to the gated user requires persisting
+the eval server-side against that user rather than trusting a client payload. Arbitrary third-party
+names typed into `slp_notes` free text remain a surface-wide NER limitation, not eval-specific.
+
+## Gotcha: in an EnterWorktree session, Edit/Write to absolute PRIMARY paths hits the primary checkout, not the worktree
+
+When the session is inside an `EnterWorktree` worktree (`.claude/worktrees/...`), `Edit` and `Write`
+calls that pass an absolute path into the primary checkout
+(`/mnt/c/.../LingoLinq-AAC/docs/...`) write to the primary checkout, NOT the worktree, even though
+cwd is the worktree. Relative-path tools (Bash scripts run after `cd`, render scripts) correctly hit
+the worktree, so you end up with a split: some changes in the worktree, some in primary. Symptom:
+`git status` in the worktree shows only the relative-path changes; a `grep` of the worktree file
+shows the edit "missing." Recovery without disturbing other tabs sharing the primary checkout:
+`cp primary/file worktree/file` for each edited file, then `git -C primary checkout HEAD -- <tracked
+files>` and `rm` any stray new files from primary (a path-level restore, not a branch switch, so
+co-tenant tabs are safe). Prevention: once in a worktree, address files by their worktree path
+(`.claude/worktrees/<name>/...`) for Edit/Write, or Read the worktree path first so the harness
+tracks that copy. Confirmed 2026-06-18 during the compliance-docs refresh.
+
+## Pattern: the compliance register is the source of truth; the legal docs and Notion page are renders or hand-anchored drafts
+
+`audit-reports/FINDINGS.json` is the single source of truth for finding status/counts. `FINDINGS.md`,
+`audit-reports/compliance-calendar.md`, and `audit-reports/notion/compliance-audit-page.md` are
+deterministic renders; never hand-edit them. Regenerate via `ruby scripts/citation-check.rb
+<json> --render`, `ruby scripts/compliance-calendar-render.rb <json>`, and `ruby
+scripts/compliance-notion-publish.rb <json>` (the last stamps a fresh `Time.now` so its `--check`
+ignores the timestamp). The `docs/legal/*` artifacts (Posture Report, AI Governance Memo,
+Subprocessors, dated status snapshots) are hand-authored DRAFTS that must (a) read headline counts
+from the register, not from prose, (b) stay DRAFT/unattested until Scot signs, and (c) never close,
+triage, or attest a finding, which is Scot-only. When refreshing them, recompute per-framework
+open/high counts straight from the JSON (a `ruby -rjson` tally) rather than carrying old numbers
+forward; the 2026-06-13 posture report had stale 0/13 + FERPA 8/4 figures that did not match the
+register's 0/16 + FERPA 10/5. Run all three `--check` renders + `citation-check` green before
+committing. Confirmed 2026-06-18.

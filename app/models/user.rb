@@ -1251,8 +1251,33 @@ class User < ApplicationRecord
       end
       self.settings['email'] = process_string(new_email)
     end
-    # Use blank? so empty string from the client does not skip COPPA (!"" is false in Ruby).
-    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored_organization_id'].blank?
+    # Determine up front whether this is a VALID organization-authored creation (a
+    # school/district manager creating a managed user under the FERPA school-official
+    # exception). The COPPA parental-consent gate is skipped ONLY for a validated org
+    # authorization. Previously the skip keyed on the raw authored_organization_id
+    # param being non-blank while the org/author validation ran later (see below), so
+    # a present-but-invalid or unauthorized org id bypassed the COPPA gate AND recorded
+    # nothing. Compute the validated result once and reuse it for both decisions.
+    org_authorized = false
+    authoring_org = nil
+    if !self.id && params['authored_organization_id'].present?
+      authoring_org = Organization.find_by_global_id(params['authored_organization_id'])
+      # NOTE: 'edit' is satisfied by assistant-level managers, not only full managers
+      # (Organization adds 'edit' for assistant? at organization.rb:43; 'manage' is the
+      # full-manager-only level at :44). This preserves the pre-existing authoring scope.
+      # Whether the school-official exception should be restricted to full managers, and
+      # gated on a signed-contract/DPA flag, is the Phase 1 decision (see
+      # outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md); do not silently change
+      # the scope here. Any code path that sets settings['school_authorization'] below
+      # must also emit the school_authorization AuditEvent (today the only creator path
+      # is api/users#create, which does).
+      if authoring_org && non_user_params[:author] && authoring_org.allows?(non_user_params[:author], 'edit')
+        org_authorized = true
+      end
+    end
+    # Use !org_authorized (not authored_organization_id.blank?) so an empty string OR a
+    # present-but-invalid/unauthorized org id both fall through to the COPPA gate.
+    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized
       # Ember may send snake_case, dasherized, or camelCase JSON keys depending on serializer/version.
       minor_flag = params['coppa_under_13'] || params['coppa-under-13'] || params['coppaUnder13']
       wants_minor = [true, 'true', '1', 1].include?(minor_flag)
@@ -1290,12 +1315,20 @@ class User < ApplicationRecord
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']
-    if params['authored_organization_id'].present? && !self.id
-      org = Organization.find_by_global_id(params['authored_organization_id'])
-      if org && non_user_params[:author] && org.allows?(non_user_params[:author], 'edit')
-        self.settings['authored_organization_id'] = org.global_id
-        self.settings['pending'] = false
-      end
+    if org_authorized
+      self.settings['authored_organization_id'] = authoring_org.global_id
+      self.settings['pending'] = false
+      # Record the school-authorization basis explicitly so the school-official
+      # exception is auditable (who authorized it, when, and on what basis) instead
+      # of silently skipping COPPA with no record. The matching immutable AuditEvent
+      # is emitted post-save in api/users#create (no global_id exists yet here).
+      self.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => authoring_org.global_id,
+        'authorized_by' => (non_user_params[:author] && non_user_params[:author].global_id),
+        'authorized_at' => Time.now.utc.iso8601,
+        'record_id' => SecureRandom.uuid
+      }
     end
     if params['last_message_read']
       last_message_read = params['last_message_read'].to_i
@@ -1643,6 +1676,10 @@ class User < ApplicationRecord
     if params['password'] && params['password'] != ""
       if !self.settings['password'] || valid_password?(params['old_password']) || non_user_params[:allow_password_change]
         @password_changed = !!self.settings['password']
+        # Remember whether this was a self-service change (old password verified)
+        # vs. a forced change without the old password (admin reset / forgot-password
+        # token). Recorded in the audit trail by notify_of_changes (LL-747bb0e02d).
+        @password_change_self_service = @password_changed && !non_user_params[:allow_password_change]
         self.generate_password(params['password'])
       else
         add_processing_error("incorrect current password")
@@ -2260,7 +2297,18 @@ class User < ApplicationRecord
   def notify_of_changes
     if @password_changed
       UserMailer.schedule_delivery(:password_changed, self.global_id)
+      # Record an immutable audit trail entry for every password change, including
+      # admin-initiated / token resets (LL-747bb0e02d). log_command is best-effort
+      # (it rescues and never raises), so a failed audit insert can never break the
+      # password change or alter the existing mailer behavior. No password material
+      # or PII is stored - only the change type and self-service flag; user_key is
+      # the opaque global_id.
+      AuditEvent.log_command(self.global_id, {
+        'type' => 'password_changed',
+        'self_service' => !!@password_change_self_service
+      })
       @password_changed = false
+      @password_change_self_service = false
     end
     if @email_changed
       # TODO: should have confirmation flow for new email address

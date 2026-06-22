@@ -161,5 +161,18 @@ module Worker
       Resque::Failure.remove(0)
     end
   end
+
+  # boy_band's flush_queues empties Resque lists but leaves sizeof/{queue} cache
+  # entries behind. scheduled_for? trusts that cache and returns false when it
+  # still reads >500 even though the queue was just flushed — flaky scheduled? in
+  # specs and any code that flushes then immediately checks scheduling.
+  def self.flush_queues
+    super
+    return unless Resque.redis
+
+    Resque.queues.each do |key|
+      Resque.redis.del("sizeof/#{key}")
+    end
+  end
 end
 

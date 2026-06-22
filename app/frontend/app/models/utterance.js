@@ -1,10 +1,11 @@
 import { later as runLater } from '@ember/runloop';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import { computed, set as emberSet } from '@ember/object';
 
-LingoLinq.Utterance = DS.Model.extend({
+LingoLinq.Utterance = BaseModel.extend({
   button_list: DS.attr('raw'),
   sentence: DS.attr('string'),
   link: DS.attr('string'),

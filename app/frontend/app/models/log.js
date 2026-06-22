@@ -2,6 +2,7 @@ import EmberObject from '@ember/object';
 import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import { htmlSafe } from '@ember/template';
 import { computed, observer } from '@ember/object';
@@ -11,7 +12,7 @@ import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 
-LingoLinq.Log = DS.Model.extend({
+LingoLinq.Log = BaseModel.extend({
   persistence: service('persistence'),
   type: DS.attr('string'),
   message_type: DS.attr('boolean'),

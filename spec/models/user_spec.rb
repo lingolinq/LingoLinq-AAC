@@ -700,7 +700,52 @@ describe User, :type => :model do
       }, {}) }.to_not raise_error
       expect(u.valid_password?('braised-beef')).to eq(true)
     end
-    
+
+    describe "password-change audit trail (LL-747bb0e02d)" do
+      # AuditEvent.log_command commits outside the per-example transaction, so
+      # rows leak across examples and inflate counts. Scope the reset to this
+      # describe block (not globally) per the AuditEvent testing convention.
+      before(:each) { AuditEvent.delete_all }
+
+      it "logs an AuditEvent when an existing password is changed by the user" do
+        u = User.create
+        u.generate_password('horseradish')
+        u.save!
+        expect(AuditEvent.count).to eq(0)
+        expect(u.process_params({'password' => 'chicken', 'old_password' => 'horseradish'}, {})).to_not eq(false)
+        u.save!
+        expect(u.valid_password?('chicken')).to eq(true)
+        expect(AuditEvent.count).to eq(1)
+        ae = AuditEvent.last
+        expect(ae.user_key).to eq(u.global_id)
+        expect(ae.data['type']).to eq('password_changed')
+        expect(ae.data['self_service']).to eq(true)
+      end
+
+      it "logs an AuditEvent for an admin-initiated / forced reset without the old password" do
+        u = User.create
+        u.generate_password('horseradish')
+        u.save!
+        expect(AuditEvent.count).to eq(0)
+        expect(u.process_params({'password' => 'chicken-little'}, {:allow_password_change => true})).to_not eq(false)
+        u.save!
+        expect(u.valid_password?('chicken-little')).to eq(true)
+        expect(AuditEvent.count).to eq(1)
+        ae = AuditEvent.last
+        expect(ae.data['type']).to eq('password_changed')
+        expect(ae.data['self_service']).to eq(false)
+      end
+
+      it "does not log an AuditEvent when an initial password is first set" do
+        u = User.create
+        expect(u.settings['password']).to be_nil
+        expect(u.process_params({'password' => 'first-pass'}, {})).to_not eq(false)
+        u.save!
+        expect(u.valid_password?('first-pass')).to eq(true)
+        expect(AuditEvent.count).to eq(0)
+      end
+    end
+
     it "should generate a username only if none yet and provided or forced" do
       u = User.new
       u.process_params({

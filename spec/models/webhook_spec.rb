@@ -5,8 +5,15 @@ describe Webhook, :type => :model do
     it "should register the webhook" do
       u = User.create
       expect(Webhook.count).to eq(0)
-      Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})
+      Webhook.register(u, u, {:callback => 'https://www.example.com/ping', :notification_type => 'swinging'})
       expect(Webhook.count).to eq(1)
+    end
+
+    it "should reject a plaintext http:// callback" do
+      u = User.create
+      expect(Webhook.count).to eq(0)
+      expect(Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})).to eq(nil)
+      expect(Webhook.count).to eq(0)
     end
     
     it "should register an internal webhook" do
@@ -21,7 +28,7 @@ describe Webhook, :type => :model do
     it "should return a token" do
       u = User.create
       expect(Webhook.count).to eq(0)
-      t = Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})
+      t = Webhook.register(u, u, {:callback => 'https://www.example.com/ping', :notification_type => 'swinging'})
       expect(t).not_to eq(nil)
       expect(t).to be_is_a(String)
       expect(Webhook.count).to eq(1)
@@ -30,9 +37,9 @@ describe Webhook, :type => :model do
     it "should log repeat registrations only once" do
       u = User.create
       expect(Webhook.count).to eq(0)
-      t = Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})
-      t2 = Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})
-      t3 = Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})
+      t = Webhook.register(u, u, {:callback => 'https://www.example.com/ping', :notification_type => 'swinging'})
+      t2 = Webhook.register(u, u, {:callback => 'https://www.example.com/ping', :notification_type => 'swinging'})
+      t3 = Webhook.register(u, u, {:callback => 'https://www.example.com/ping', :notification_type => 'swinging'})
       expect(t).not_to eq(nil)
       expect(t).to be_is_a(String)
       expect(t).to eq(t2)
@@ -41,7 +48,7 @@ describe Webhook, :type => :model do
       h = Webhook.last
       expect(h.settings['notifications']['swinging'].length).to eq(1)
       expect(h.settings['callback_token']).to eq(t)
-      expect(h.settings['notifications']['swinging'][0]['callback']).to eq("http://www.example.com/ping")
+      expect(h.settings['notifications']['swinging'][0]['callback']).to eq("https://www.example.com/ping")
     end
   end
   
@@ -177,27 +184,27 @@ describe Webhook, :type => :model do
   describe "notify" do
     it "should post to external services for external callbacks" do
       u = User.create
-      token = Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})
+      token = Webhook.register(u, u, {:callback => 'https://www.example.com/ping', :notification_type => 'swinging'})
       w = Webhook.last
       expect(Typhoeus).to receive(:post){|url, args|
-        expect(url).to eq('http://www.example.com/ping')
+        expect(url).to eq('https://www.example.com/ping')
         expect(args[:body][:token]).to eq(token)
       }.and_return(OpenStruct.new(code: 200))
       res = w.notify('swinging', w, {})
-      expect(res).to eq([{:url=>"http://www.example.com/ping", :response_code=>200, :response_body=>nil}])
+      expect(res).to eq([{:url=>"https://www.example.com/ping", :response_code=>200, :response_body=>nil}])
     end
     
     it "should error on slow external responses" do
       u = User.create
-      token = Webhook.register(u, u, {:callback => 'http://www.example.com/ping', :notification_type => 'swinging'})
+      token = Webhook.register(u, u, {:callback => 'https://www.example.com/ping', :notification_type => 'swinging'})
       w = Webhook.last
       expect(Typhoeus).to receive(:post){|url, args|
-        expect(url).to eq('http://www.example.com/ping')
+        expect(url).to eq('https://www.example.com/ping')
         expect(args[:body][:token]).to eq(token)
         raise Timeout::Error.new('asdf')
       }.and_return(OpenStruct.new(code: 200))
       res = w.notify('swinging', w, {})
-      expect(res).to eq([{:url=>"http://www.example.com/ping", :response_code=>0, :response_body=>"Timeout, request took more than 10 seconds"}])
+      expect(res).to eq([{:url=>"https://www.example.com/ping", :response_code=>0, :response_body=>"Timeout, request took more than 10 seconds"}])
     end
 
     it "should handle internal service callbacks as well" do
@@ -361,18 +368,18 @@ describe Webhook, :type => :model do
       u = User.create
       h = Webhook.process_new({
         'webhooks' => ['new_session', 'new_board'],
-        'url' => 'http://www.example.com/callback',
+        'url' => 'https://www.example.com/callback',
         'include_content' => true,
         'webhook_type' => 'user'
       }, {'user' => u})
       expect(h).to_not eq(nil)
       expect(h.settings).to_not eq(nil)
       expect(h.settings['include_content']).to eq(true)
-      expect(h.settings['url']).to eq('http://www.example.com/callback')
+      expect(h.settings['url']).to eq('https://www.example.com/callback')
       expect(h.settings['webhook_type']).to eq('user')
       expect(h.settings['notifications']).to eq({
         'new_session' => [
-          {'callback' => 'http://www.example.com/callback', 'include_content' => true, 'content_type' => nil}
+          {'callback' => 'https://www.example.com/callback', 'include_content' => true, 'content_type' => nil}
         ]
       })
     end
@@ -385,16 +392,16 @@ describe Webhook, :type => :model do
         'user' => u,
         'notifications' => {
           '*' => {
-            'callback' => 'http://www.example.com/1',
+            'callback' => 'https://www.example.com/1',
             'include_content' => true,
             'content_type' => 'asdf'
           },
           'bacon' => {
-            'callback' => 'http://www.example.com/2',
+            'callback' => 'https://www.example.com/2',
             'include_content' => false
           },
           'new_session' => {
-            'callback' => 'http://www.example.com/3'
+            'callback' => 'https://www.example.com/3'
           }
         }
         
@@ -402,12 +409,12 @@ describe Webhook, :type => :model do
       expect(h.settings).to_not eq(nil)
       expect(h.settings['notifications']).to eq({
         '*' => [
-          'callback' => 'http://www.example.com/1',
+          'callback' => 'https://www.example.com/1',
           'include_content' => true,
           'content_type' => 'asdf'
         ],
         'new_session' => [
-          'callback' => 'http://www.example.com/3',
+          'callback' => 'https://www.example.com/3',
           'include_content' => nil,
           'content_type' => nil
         ]

@@ -1759,6 +1759,12 @@ export default Component.extend({
       }
       modalUtil.open('import-from-html');
     },
+    importFromJsonBundle: function() {
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
+      modalUtil.open('import-from-json-bundle');
+    },
     // Legacy entry point — now just switches the page into AI mode
     // instead of opening the old generate-board modal.
     generateWithAi: function() {
@@ -2165,6 +2171,16 @@ export default Component.extend({
     // "Import Board(s)" → open the native board-file picker (#board_upload is
     // always rendered behind the chooser; content-grabbers.js handles the upload
     // on change). Clicked synchronously so it stays inside the user gesture.
+    choose_paste_html: function() {
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+      this.send('importFromHtml');
+    },
+    choose_json_bundle: function() {
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+      this.send('importFromJsonBundle');
+    },
     choose_import: function() {
       this.set('via_create_own', false);
       this.set('show_create_chooser', false);

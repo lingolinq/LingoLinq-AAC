@@ -327,11 +327,12 @@ module Converters::LingoLinq
     end
 
     hashes = {}
-    hashes['images_hash_ids'] = obj['buttons'].map{|b| b && b['image_id'] }.compact
-    hashes['sounds_hash_ids'] = obj['buttons'].map{|b| b && b['sound_id'] }.compact
+    hashes['images_hash_ids'] = obj['buttons'].map { |b| b && b['image_id'] }.compact.map(&:to_s)
+    hashes['sounds_hash_ids'] = obj['buttons'].map { |b| b && b['sound_id'] }.compact.map(&:to_s)
     [['images_hash', ButtonImage], ['sounds_hash', ButtonSound]].each do |list, klass|
       (obj[list] || {}).each do |id, item|
-        next unless hashes["#{list}_ids"].include?(item['id'])
+        item_id = item['id'].to_s
+        next unless hashes["#{list}_ids"].include?(item_id)
         record = Converters::Utils.find_by_data_url(item['data_url'])
         protected_val =
           if item.key?('ext_lingolinq_protected')
@@ -352,7 +353,7 @@ module Converters::LingoLinq
         end
         if record
           obj[list][item['id']]['id'] = record.global_id
-          hashes[item['id']] = record.global_id
+          hashes[item_id] = record.global_id
         elsif item['data']
           record = klass.create(:user => opts['user'])
           item['ref_url'] = item['data']
@@ -360,7 +361,7 @@ module Converters::LingoLinq
           record = klass.create(:user => opts['user'])
           item['ref_url'] = item['ext_lingolinq_unskinned_url'] || item['url']
         end
-        if record && !hashes[item['id']]
+        if record && !hashes[item_id]
           data_uri = item.delete('data') || item['ref_url']
           item.delete('url')
 
@@ -377,10 +378,15 @@ module Converters::LingoLinq
 
           record.process(item)
 
+          if opts['json_bundle_import'] && klass == ButtonImage
+            record.settings['preserve_source_image'] = true
+            record.save
+          end
+
           if item['ref_url']
             record.upload_to_remote(item['ref_url']) if item['ref_url']
           end
-          hashes[item['id']] = record.global_id
+          hashes[item_id] = record.global_id
           obj[list][item['id']]['id'] = record.global_id
         end
       end
@@ -425,10 +431,12 @@ module Converters::LingoLinq
         new_button['vocalization'] = button['vocalization']
       end
       if button['image_id']
-        new_button['image_id'] = hashes[button['image_id']]
+        mapped_image_id = hashes[button['image_id'].to_s]
+        new_button['image_id'] = mapped_image_id if mapped_image_id
       end
       if button['sound_id']
-        new_button['sound_id'] = hashes[button['sound_id']]
+        mapped_sound_id = hashes[button['sound_id'].to_s]
+        new_button['sound_id'] = mapped_sound_id if mapped_sound_id
       end
       EXT_PARAMS.each do |param|
         val = Converters::LingoLinq.ext_attr(button, param)
@@ -463,10 +471,14 @@ module Converters::LingoLinq
       end
 
       if button['load_board']
-        if opts['boards'] && opts['boards'][button['load_board']['id']]
-          new_button['load_board'] = opts['boards'][button['load_board']['id']]
+        load_board = button['load_board']
+        target_id = load_board['id'].to_s
+        mapped = opts['boards'] && opts['boards'][target_id]
+        mapped ||= opts['boards_by_key'] && load_board['key'] && opts['boards_by_key'][load_board['key']]
+        if mapped
+          new_button['load_board'] = mapped
         else
-          link = Board.find_by_path(button['load_board']['key'] || button['load_board']['id'])
+          link = Board.find_by_path(load_board['key'] || load_board['id'])
           if link
             new_button['load_board'] = {
               'id' => link.global_id,
@@ -588,8 +600,9 @@ module Converters::LingoLinq
     
     # pre-load all the boards so they already exist when we go to look for them as links
     content['boards'].each do |obj|
-      if opts['boards'] && opts['boards'][obj['id']]
-        board = Board.find_by_path(opts['boards'][obj['id']]['id']) || Board.find_by_path(opts['boards'][obj['id']]['key'])
+      board_id = obj['id'].to_s
+      if opts['boards'] && opts['boards'][board_id]
+        board = Board.find_by_path(opts['boards'][board_id]['id']) || Board.find_by_path(opts['boards'][board_id]['key'])
       else
         non_user_params = {'user' => opts['user']}
         preload_settings = Converters::LingoLinq.ext_attr(obj, 'settings') || {}
@@ -601,10 +614,15 @@ module Converters::LingoLinq
       if board
         board.reload
         opts['boards'] ||= {}
-        opts['boards'][obj['id']] = {
+        opts['boards'][board_id] = {
           'id' => board.global_id,
           'key' => board.key
         }
+        source_key = obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key']
+        if source_key.present?
+          opts['boards_by_key'] ||= {}
+          opts['boards_by_key'][source_key] = opts['boards'][board_id]
+        end
       end
     end
     

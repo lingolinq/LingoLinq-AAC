@@ -61,7 +61,7 @@ export default Controller.extend({
       _this.store.query('goal', {template_header_id: header_id}).then(function(list) {
         _this.set('status', null);
         var res = [{id: '', name: i18n.t('none_set', "None Set")}];
-        list = list.map(function(i) { return i; });
+        list = list.slice();
         list.forEach(function(g) {
           if(!g.get('related')) { g.set('related', {}); }
           if(!g.get('related.next') && g.get('next_template_id')) {

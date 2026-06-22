@@ -71,6 +71,7 @@ export default Component.extend({
   }),
 
   actions: {
+    nothing() {},
     close() {
       this.get('modal').close();
     },

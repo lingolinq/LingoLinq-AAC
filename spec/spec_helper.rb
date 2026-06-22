@@ -57,6 +57,23 @@ RSpec.configure do |config|
     ENV['DEFAULT_HOST'] ||= 'http://test.host'  # ensure URL generation is consistent in specs
     Time.zone = nil
     Worker.flush_queues
+    # flush_queues empties the queue lists but leaves two separate Redis size
+    # caches in place, and neither recomputes until its cached value reaches 0:
+    #   * BoyBand's `sizeof/<queue>` (30s TTL) is read by `scheduled_for?`, which
+    #     short-circuits `return false if idx > 500`. A single earlier example
+    #     that inflates the cached size past 500 then makes EVERY Worker.scheduled?
+    #     report false negatives for the rest of that 30s window -- a wall-clock
+    #     -timed flake that fails scheduling assertions at random (see
+    #     external_tracker_spec:16, flusher_spec:403). This is the cache that
+    #     drives the flake.
+    #   * RedisInit's `<queue>_queue_size` (5min TTL) is read by
+    #     `any_queue_pressure?` (not by scheduled?), which gates whether some jobs
+    #     get scheduled at all. `reset_queue_pressure_cache!` below only clears the
+    #     in-process memo, not this Redis key, so clearing it here closes a
+    #     separate staleness gap.
+    # Clearing both forces a recompute against the real (just-flushed) queue.
+    Resque.redis.keys('sizeof/*').each { |k| Resque.redis.del(k) }
+    Resque.redis.keys('*_queue_size').each { |k| Resque.redis.del(k) }
     # When S3 credentials aren't configured (e.g. CI/GitHub Actions), stub remote_upload_params
     # so tests that exercise upload JSON paths don't fail. In development with .env loaded,
     # real credentials are used when available.

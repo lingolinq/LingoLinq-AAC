@@ -1,5 +1,6 @@
 import RSVP from 'rsvp';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import rewriteBrokenSymbolUrl from '../utils/symbol-url';
 import i18n from '../utils/i18n';
@@ -7,7 +8,7 @@ import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Image = DS.Model.extend({
+LingoLinq.Image = BaseModel.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
 
@@ -178,26 +179,24 @@ LingoLinq.Image = DS.Model.extend({
   })
 });
 
-LingoLinq.Image.reopenClass({
-  personalize_url: function(url, token, skin, unskin) {
-    url = url || '';
-    var res = url;
-    if(url.match(/api\/v1\//) && url.match(/lessonpix/) && token) {
-      res = url + "?user_token=" + token;
-    }
-    if(skin && skin != 'default') {
-      var which_skin = LingoLinq.Board.which_skinner(skin);
-      res = LingoLinq.Board.skinned_url(url, which_skin, unskin);
-    }
-    return res;
-  },
-  mimic_server_processing: function(record, hash) {
-    if(record.get('data_url')) {
-      hash.image.url = record.get('data_url');
-      hash.image.data_url = hash.image.url;
-    }
-    return hash;
+LingoLinq.Image.personalize_url = function(url, token, skin, unskin) {
+  url = url || '';
+  var res = url;
+  if(url.match(/api\/v1\//) && url.match(/lessonpix/) && token) {
+    res = url + "?user_token=" + token;
   }
-});
+  if(skin && skin != 'default') {
+    var which_skin = LingoLinq.Board.which_skinner(skin);
+    res = LingoLinq.Board.skinned_url(url, which_skin, unskin);
+  }
+  return res;
+};
+LingoLinq.Image.mimic_server_processing = function(record, hash) {
+  if(record.get('data_url')) {
+    hash.image.url = record.get('data_url');
+    hash.image.data_url = hash.image.url;
+  }
+  return hash;
+};
 
 export default LingoLinq.Image;
