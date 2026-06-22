@@ -5130,3 +5130,91 @@ SKIPS on `token = SecureRandom.hex` disables review on a large fraction of norma
 worked: require a QUOTED value for generic credential assignments (`["'][^"'\s]{8,}["']`), and require
 20+ token chars after `Bearer`. Always test a new scrub regex for BOTH catch and no-false-trip on
 ordinary code before shipping. Evidence: H4, node `PII Pre-Scrub (DeepSeek)` SECRETS/PII arrays.
+
+---
+
+## Pattern: Modernizing a legacy `la-*`/Bootstrap modal → the `md-modal-*` family
+
+**When:** a modal still uses the old `la-<name>-modal-*` wrapper + Bootstrap
+`form-horizontal`/`col-sm-*` grid (e.g. record-note), while newer modals (quick-assessment)
+use the shared `md-modal-*` system.
+
+**Recipe:**
+- Reuse the shared classes — they're already styled: `modal-header md-modal-header`,
+  `md-modal-icon-circle` (+ a `md-<name>-icon` tint), `md-modal-title`, `la-modal-close`
+  (shared SVG × close — keep it), `modal-body md-modal-body`, `md-modal-form`,
+  `md-modal-field` + `md-modal-label`, `modal-footer md-modal-footer`, `md-modal-btn`
+  (`--cancel`/`--primary`/`--secondary`), `md-modal-check`/`md-modal-check__input/__label`.
+- Add only a small `md-<name>-*` block for the bits unique to that modal; mirror
+  **quick-assessment** (`.md-quick-assess-*`, app.scss ~79839) for the design language
+  (verdigris icon tint `rgba($brand-verdigris,0.14)`, attached-dropdown, flow-anchored
+  `*-list` menu, steppers).
+- **Gotcha:** a `bound-select` / `.bound-select__list` inside the modal clips on the
+  body's `overflow:hidden` → set it `position: static` (flow-positioned) so it pushes
+  the form down (styling-recurring-problems.md #1).
+- **Gotcha:** the goal-status emoji is the `faces.png` sprite, scoped by `.face_button
+  .face` (app.scss ~8748). It only renders if the button keeps the `face_button` class
+  (it comes from the controller's `button_display_class`, which also carries `btn-primary`
+  for the active one — style `.md-<name>-status.btn-primary` for the selected look).
+- **Don't blindly delete** the old `.la-<name>-*` rules: some (e.g.
+  `.la-record-note-cancel-btn`/`-save-btn`) are reused by OTHER modals (assign-lesson).
+  Check usages first; leaving inert rules is safer than a cross-modal regression.
+
+## Image optimization (only ImageMagick available; no pngquant/optipng/pngcrush)
+- This box has **only `convert` (ImageMagick)** for image work — `pngquant`, `optipng`,
+  `pngcrush`, `zopflipng`, `magick` are all absent. Plan optimization around `convert`.
+- **Never use `PNG8:` for icons with soft/anti-aliased edges** — it forces **1-bit
+  (binary) alpha**, so smooth edges go jagged (verified: `-channel A -separate -format %k`
+  dropped to 2 alpha levels). Instead quantize colors WITHOUT the `PNG8:` prefix:
+  `convert in.png -strip -resize 256x256 -colors 256 -define png:compression-level=9 out.png`
+  keeps 8-bit alpha (~32 levels) while still cutting size dramatically (212KB→24KB, ~9×).
+- **Verify quality numerically**, don't guess: alpha richness via
+  `convert f.png -channel A -separate -format "%k" info:` (more = smoother edges) and total
+  colors via `identify -format "%k" f.png`. Then eyeball the result with the Read tool.
+- **Size for the display use, with retina headroom**: an 88px icon → 256px covers ~3×.
+- **Images must live in BOTH trees** to render on Ember and Rails:
+  `app/frontend/public/images/` (Ember source → built into `dist/images/`) AND
+  `public/images/` (Rails). SCSS `url(../images/<name>.png)` resolves against the compiled
+  CSS location in each. `dist/` is a gitignored build artifact — don't hand-edit it.
+- When swapping an asset, **re-check filters tuned for the OLD asset** (e.g. a
+  `filter: brightness(1.15)` added to lift a dull grayscale image will wash out a new
+  vivid color image — remove it rather than carry it over).
+
+## Cloning one dashboard card's styling onto another (e.g. Org card → Rooms card)
+- **Reuse the source card's CSS classes in the new markup** (`.md-card--rooms__top`,
+  `.md-rooms__grid`, `.md-room-card`, `.md-rooms__count`, `.md-rooms__all`) rather than
+  duplicating rules. Global (unscoped) classes work as-is; only the rules **scoped under
+  the source card** (`.md-grid .md-card.md-card--rooms .md-room-card`, …__head, divider,
+  :hover) need the new card's selector appended.
+- **Grid-area names ≠ section keys.** `dashboard_sections.js`'s `AREA` map renames some:
+  `org → org_mgmt`. The card's `grid-area` must match the `AREA` value, or it won't land
+  in the grid. Check `AREA` before assuming the class name equals the area name.
+- **Section background needs (0,3,0) specificity.** The base `.md-grid .md-card { background … !important }`
+  is (0,2,0); a card section rule must be `.md-grid .md-card.md-card--X` (0,3,0) to win
+  (Rooms does this; mirror it for the clone).
+- **Card-as-button → card conversion is low-risk for old CSS:** most legacy rules are
+  `.md-card--<name>.md-card--as-button …`-qualified, so they go **inert automatically**
+  once the element drops `md-card--as-button`. Only remove the rules that match the bare
+  `.md-card--<name>` and conflict (e.g. an old `display/justify/min-height` layout rule).
+- **Match peer buttons, don't assume a shared rule covers them:** Rooms' "View all" uses
+  the *generic* `.md-btn--primary` — Rooms is NOT in the speak/boards/caseload/org
+  denim-pill rule. To match Rooms, drop the clone from that rule rather than add Rooms in.
+
+## Boards strip: dashboard vs boards-page are DIFFERENT components
+- The dashboard Boards card and the actual boards page render board tiles with
+  **different** markup/classes — they do NOT share a component:
+  - Dashboard: `components/dashboard/authenticated-view.hbs` → `.md-strip` / `.md-strip__item`
+    / `.md-strip__home-badge` / `.md-strip__heart` (data from the `previewBoards` computed).
+  - Boards page: `components/available-boards-section.hbs` → `.ub-boards-page__board-item*`
+    / `.ub-boards-page__board-item-home-badge` (nested SCSS `&__board-item-home-badge`
+    ~app.scss:64196, NOT a flat selector — grep the `&__…` fragment, not the full class).
+  - So a "make X on the boards page match the home page" request means editing BOTH
+    selectors, not one shared rule.
+- The dashboard strip's HOME-board tile is flagged by `isHome`; the system Crisis/
+  Emergency tile is appended in `previewBoards` (key ends `crisis-vocabulary`). To target
+  it in CSS, add a flag there (`isEmergency`) + a template class — there's no built-in one.
+- Gentle-vs-Focused board sizing: dashboard rules are `.md-grid--dashboard …` (BOTH
+  layouts). To change Gentle only, add `.md-grid--layout-gentle …` rules AFTER them
+  (equal specificity → source order wins); the supervisor/admin thumb is a (0,4,0)
+  `.md-grid--dashboard.md-grid--with-caseload/--with-org-mgmt` rule, so a Gentle override
+  of the thumb must also be (0,4,0) to win.

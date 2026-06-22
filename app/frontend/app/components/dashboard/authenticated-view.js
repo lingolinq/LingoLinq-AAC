@@ -15,7 +15,7 @@ import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
-import { availableHomeSections, sectionHidden, gridLayoutState } from '../../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, gridLayoutState, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 
 export default Component.extend({
   tagName: '',
@@ -47,6 +47,79 @@ export default Component.extend({
     return 'md-grid--layout-' + this.get('effectiveLayout');
   }),
 
+  // Counts for the supervisor home header subheader. Rooms are the supervisor's org
+  // units (supervised_units); communicators are the people they supervise (supervisees).
+  // Both default to 0 when the raw arrays are absent.
+  slpRoomCount: computed('appState.currentUser.supervised_units', function() {
+    return (this.get('appState.currentUser.supervised_units') || []).length;
+  }),
+  slpCommunicatorCount: computed('appState.currentUser.supervisees', function() {
+    return (this.get('appState.currentUser.supervisees') || []).length;
+  }),
+  // The supporter's actual role label for the home subheader, instead of a
+  // hardcoded "Supervisor": site admins read "Admin", anyone who manages an org
+  // reads "Manager", and everyone else (supervises only) keeps "Supervisor".
+  roleName: computed(
+    'appState.currentUser.admin',
+    'appState.currentUser.is_admin',
+    'appState.currentUser.org_manager',
+    'appState.currentUser.managed_orgs.[]',
+    function() {
+      var user = this.get('appState.currentUser');
+      if (!user) { return i18n.t('slp_role', "Supervisor"); }
+      if (user.get('admin') || user.get('is_admin')) { return i18n.t('org_admin', "Admin"); }
+      if (user.get('org_manager') || (user.get('managed_orgs') || []).length > 0) { return i18n.t('org_manager', "Manager"); }
+      return i18n.t('slp_role', "Supervisor");
+    }
+  ),
+
+  // First name for the supervisor home greeting. The model has no first_name field, so
+  // take the leading word of the full `name`; fall back to user_name when name is blank.
+  slpFirstName: computed('appState.currentUser.name', 'appState.currentUser.user_name', function() {
+    var name = (this.get('appState.currentUser.name') || '').trim();
+    if (name) { return name.split(/\s+/)[0]; }
+    return this.get('appState.currentUser.user_name');
+  }),
+
+  // Rooms (supervised org units) for the home Rooms card. Natural-sorted by name so
+  // embedded room numbers order numerically (112 before 1012) via Intl.Collator numeric
+  // collation, then sliced to the first 5 with an overflow count for the "view all"
+  // affordance. roomsAllOrgId points the "view all" link at the org rooms page (rooms
+  // are org-scoped; the first room's org covers the common single-org case).
+  sortedRooms: computed('appState.currentUser.supervised_units.[]', function() {
+    var units = (this.get('appState.currentUser.supervised_units') || []).slice();
+    var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    units.sort(function(a, b) { return collator.compare((a && a.name) || '', (b && b.name) || ''); });
+    return units;
+  }),
+  roomsShown: computed('sortedRooms.[]', function() {
+    return (this.get('sortedRooms') || []).slice(0, 4);
+  }),
+  roomsOverflowCount: computed('sortedRooms.[]', function() {
+    return Math.max(0, (this.get('sortedRooms') || []).length - 4);
+  }),
+  roomsAllOrgId: computed('sortedRooms.[]', function() {
+    var first = (this.get('sortedRooms') || [])[0];
+    return first && first.organization_id;
+  }),
+
+  // Communicators whose org_status needs attention (see communicatorsNeedingAttention /
+  // ATTENTION_STATUS_IDS in dashboard_sections). Each maps to the bits the card renders:
+  // name, avatar, and the human status label (from LingoLinq.user_statuses).
+  attentionCommunicators: computed('appState.currentUser.supervisees.[]', function() {
+    var statusMap = {};
+    (LingoLinq.user_statuses || []).forEach(function(s) { statusMap[s.id] = s.label; });
+    return communicatorsNeedingAttention(this.get('appState.currentUser')).map(function(s) {
+      var state = s.org_status && s.org_status.state;
+      return {
+        user_name: s.user_name,
+        avatar_url: s.avatar_url,
+        status_state: state,
+        status_label: statusMap[state] || state
+      };
+    });
+  }),
+
   // "Reports" appears in the primary pill-nav (and its responsive dropdown) for
   // EVERYONE — supporters and communicators alike, on every layout including Focused
   // View. Communicators ALSO keep a Reports card in Extras (see extrasItems), so for
@@ -72,6 +145,8 @@ export default Component.extend({
     'effectiveLayout',
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
+    'appState.currentUser.managing_supervision_orgs',
+    'appState.currentUser.supervisees',
     function() {
       var user = this.get('appState.currentUser');
       var vis = {};
@@ -139,6 +214,9 @@ export default Component.extend({
     'appState.currentUser',
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
+    'appState.currentUser.managing_supervision_orgs',
+    'appState.currentUser.supervised_units',
+    'appState.currentUser.supervisees',
     function() {
       var user = this.get('appState.currentUser');
       var map = {};
@@ -160,7 +238,7 @@ export default Component.extend({
     var HIDDEN = htmlSafe('display: none !important;');
     var SHOWN = htmlSafe('');
     var map = {};
-    ['boards', 'speak', 'extras', 'caseload', 'org', 'account', 'createboard', 'reports', 'editdashboard'].forEach(function(k) {
+    ['boards', 'speak', 'extras', 'caseload', 'rooms', 'attention', 'org', 'account', 'createboard', 'reports', 'editdashboard'].forEach(function(k) {
       map[k] = vis[k] ? SHOWN : HIDDEN;
     });
     return map;
@@ -658,6 +736,36 @@ export default Component.extend({
   multipleOrgs: computed('all_orgs.length', function() {
     return (this.get('all_orgs.length') || 0) > 1;
   }),
+  // True when there are more organizations than the 4 shown on the card, so the
+  // "View all organizations" button only appears when it has somewhere extra to go.
+  orgsOverflow: computed('all_orgs.length', function() {
+    return (this.get('all_orgs.length') || 0) > 4;
+  }),
+  // First 4 organizations the user manages/supervises, for the Rooms-style My
+  // Organizations card tiles (mirrors roomsShown). Count shown is all_orgs.length.
+  // `desc` is a "main-line" info string under the org name — the user's ROLE in
+  // that org, the number of rooms they have IN that org (supervised_units matched
+  // by organization_id), and the org's plan — joined with " · " to fill the tile.
+  orgsShown: computed('all_orgs.[]', 'appState.currentUser.supervised_units.[]', function() {
+    var units = this.get('appState.currentUser.supervised_units') || [];
+    return (this.get('all_orgs') || []).slice(0, 4).map(function(o) {
+      var role;
+      if (o.type == 'manager') {
+        role = o.admin ? i18n.t('org_admin', "Admin") : i18n.t('org_manager', "Manager");
+      } else if (o.type == 'supervisor') {
+        role = i18n.t('org_supervisor', "Supervisor");
+      } else {
+        role = i18n.t('org_member', "Member");
+      }
+      var bits = [role];
+      var roomCount = units.filter(function(u) { return u && u.organization_id == o.id; }).length;
+      if (roomCount > 0) {
+        bits.push(roomCount + ' ' + (roomCount === 1 ? i18n.t('room_lc', "room") : i18n.t('rooms_lc', "rooms")));
+      }
+      if (o.premium) { bits.push(i18n.t('premium', "Premium")); }
+      return { id: o.id, name: o.name, desc: bits.join(' · ') };
+    });
+  }),
   orgDropdownOpen: false,
   autoOpenSpeakMode: computed('appState.currentUser.preferences.auto_open_speak_mode', {
     get() {
@@ -918,18 +1026,21 @@ export default Component.extend({
       // dependent-keys comment above for why.
       var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred_for_current_user'); }).sort(alphaByName);
       var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred_for_current_user'); }).sort(alphaByName);
+      // Cap the home + middle section at 4 (home board + up to 3 favourites,
+      // falling back to 3 others from the collection) so that, with the Crisis
+      // board appended below, the strip shows exactly FIVE tiles total.
       starredAlpha.forEach(function(board) {
-        if (ordered.length >= 5) { return; }
+        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
       othersAlpha.forEach(function(board) {
-        if (ordered.length >= 5) { return; }
+        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
 
-      var top = ordered.slice(0, 5);
-      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as a
-      // 6th tile at the END of the list — same key/name/image the sidebar uses.
+      var top = ordered.slice(0, 4);
+      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as the
+      // 5th/last tile — same key/name/image the sidebar uses.
       try {
         var sidebars = this.appState.get('sidebar_boards') || [];
         var crisis = null;
@@ -946,7 +1057,11 @@ export default Component.extend({
               imageUrl: emberGet(crisis, 'image') || '',
               key: crisisKey,
               languageLabel: null,
-              isHome: false
+              isHome: false,
+              // The system Crisis/Emergency board — flagged so the strip can keep
+              // showing it (alongside the home board) when the small-screen rule
+              // hides the other tiles (see ≤1024px rule in app.scss).
+              isEmergency: true
             }]);
           }
         }
@@ -1313,6 +1428,21 @@ export default Component.extend({
       var user = appState.get('currentUser');
       var userName = user && user.get('user_name');
       var userId = user && user.get('id');
+      // Drop focus from the activating card before running the action. Several of
+      // these actions open a modal, and modal-dialog returns focus to the
+      // previously-focused element when it closes (WCAG focus-return,
+      // modal-dialog.js:144). That left the clicked extras card stuck showing a
+      // persistent focus state after the modal closed. modal-dialog only records a
+      // restore target when document.activeElement !== document.body at capture time
+      // (modal-dialog.js:30), so blurring the card here means body is active when the
+      // modal captures focus and nothing is restored to the card. Navigation actions
+      // are unaffected (the route change moves focus regardless).
+      try {
+        var active = (typeof document !== 'undefined') && document.activeElement;
+        if (active && active.blur && active.closest && active.closest('.md-extras-card')) {
+          active.blur();
+        }
+      } catch(e) { }
       if (name === 'intro') {
         this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
       } else if (name === 'newBoard') {

@@ -5598,6 +5598,9 @@ tr.accuracy_non_mastered {
     linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(248, 250, 252, 0.5));
   backdrop-filter: blur(18px) saturate(1.12);
   -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow:
     0 24px 64px rgba(15, 23, 42, 0.08),
@@ -5993,6 +5996,9 @@ tr.accuracy_non_mastered {
   background: rgba(255, 255, 255, 0.62);
   backdrop-filter: blur(20px) saturate(1.1);
   -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   /* Inset/recessed look — the panel reads as carved INTO the page rather than
      floating on it: a soft neutral groove border, inner shadow at the top inner
      edge (deepest at the top, fading down), and a thin light "lip" along the
@@ -17687,6 +17693,9 @@ body:-ms-fullscreen {
   box-shadow: var(--ll-bento-shadow-lg);
   backdrop-filter: blur(13.5px);
   -webkit-backdrop-filter: blur(13.5px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   position: relative;
 }
 
@@ -21474,6 +21483,9 @@ header.header--unauthenticated ~ #content .la-topbar {
               var(--ll-bento-material-counter-shadow);
   backdrop-filter: blur(var(--ll-bento-material-blur));
   -webkit-backdrop-filter: blur(var(--ll-bento-material-blur));
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .ll-bento-boards-toolbar__search {
@@ -22087,6 +22099,9 @@ header.header--unauthenticated ~ #content .la-topbar {
   box-shadow: var(--ll-bento-shadow-md);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   overflow: hidden;
 
   &__row {
@@ -26682,6 +26697,9 @@ header.header--unauthenticated ~ #content .la-topbar {
   background: rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba(0, 0, 0, 0.04);
   box-shadow:
     0 4px 56px rgba(0, 0, 0, 0.012),
@@ -26741,6 +26759,9 @@ header.header--unauthenticated ~ #content .la-topbar {
       );
     backdrop-filter: blur(24px) saturate(1.4);
     -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+    will-change: transform;
+    transform: translateZ(0);
     border: 1px solid rgba(255, 255, 255, 0.6);
     border-top-color: rgba(255, 255, 255, 0.85);
     box-shadow:
@@ -27008,6 +27029,9 @@ header.header--unauthenticated ~ #content .la-topbar {
       );
     backdrop-filter: blur(24px) saturate(1.4);
     -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+    will-change: transform;
+    transform: translateZ(0);
     border: 1px solid rgba(255, 255, 255, 0.6);
     border-top-color: rgba(255, 255, 255, 0.85);
     box-shadow:
@@ -30534,6 +30558,32 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   opacity: 0;
   animation: md-hero-from-right 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s forwards;
 }
+/* ── Supervisor home header (Gentle view) ───────────────────────────────────────
+   Centered stacked title ("Welcome back, …") + subheader (role · rooms · communicators).
+   The title keeps its from-left motion and the subheader its from-right motion (rules
+   above, since this stays inside .md-hero--dashboard). */
+.md-slp-hero {
+  text-align: center;
+}
+.md-slp-hero__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.md-slp-hero__title {
+  margin: 0;
+}
+/* Subheader in the brand slate blue (#5A6A85, ~5.2:1 on white — passes WCAG AA). Needs
+   0,2,0 + !important to beat the base `.md-hero__sub { color: var(--md-muted) !important }`. */
+.md-slp-hero .md-slp-hero__sub {
+  margin: 4px 0 0 !important;
+  color: $brand-slate-blue !important;
+}
+.md-slp-hero__dot {
+  margin: 0 9px;
+  color: rgba($brand-slate-blue, 0.5);
+  font-weight: 700;
+}
 /* ≤1024px hero layout: pull the .md-tour__trigger out of its absolute
    top-right pin (where it lives via .md-tour__trigger position:
    absolute / top:16 / right:16 at l. ~89271) and into the document
@@ -31064,6 +31114,9 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   background: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: $aac-radius-xl;
   padding: $aac-spacing-28 $aac-spacing-24;
@@ -40323,6 +40376,9 @@ a.la-footer-bottom-a11y-wcag {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(232, 239, 247, 0.40) 100%);
   backdrop-filter: blur(28px) saturate(1.5);
   -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow:
     0 36px 90px rgba(15, 23, 42, 0.14),
@@ -40496,6 +40552,9 @@ a.la-footer-bottom-a11y-wcag {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.82));
   backdrop-filter: blur(12px) saturate(1.1);
   -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   box-shadow:
     0 18px 40px rgba(15, 23, 42, 0.06),
     0 6px 18px rgba(15, 23, 42, 0.04),
@@ -40718,6 +40777,9 @@ a.la-footer-bottom-a11y-wcag {
     linear-gradient(180deg, rgba(255, 255, 255, 0.90), rgba(248, 250, 252, 0.82));
   backdrop-filter: blur(14px) saturate(1.08);
   -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba(255, 255, 255, 0.62);
   box-shadow:
     0 18px 48px rgba(15, 23, 42, 0.07),
@@ -40816,6 +40878,9 @@ a.la-footer-bottom-a11y-wcag {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(248, 250, 252, 0.54));
   backdrop-filter: blur(12px) saturate(1.08);
   -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow:
     0 14px 36px rgba(15, 23, 42, 0.05),
@@ -40878,6 +40943,9 @@ a.la-footer-bottom-a11y-wcag {
      carries the warning color so it stands apart from the neutral blocks. */
   backdrop-filter: blur(12px) saturate(1.08);
   -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   box-shadow:
     0 14px 36px rgba(15, 23, 42, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -41461,6 +41529,11 @@ a.la-footer-bottom-a11y-wcag {
   backdrop-filter: blur(12px) !important;
 
   -webkit-backdrop-filter: blur(12px) !important;
+
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform !important;
+
+  transform: translateZ(0) !important;
 
   border: 1px solid rgba($la-navy, 0.12) !important;
 
@@ -42704,6 +42777,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-grid.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph {
     display: none !important;
   }
+  /* My Caseload full-span hero (Gentle supervisor home) — mirrors the full-span Speak
+     card: centered head, 230px min-height, and the icon replaced by the
+     caseload circle image. The visible variant is --caseload-as-button
+     (--caseload-wide-only is display:none, ~43219), exactly like Speak. Scoped to Gentle
+     (md-grid--layout-gentle) so Focused keeps its existing caseload treatment until its
+     own supervisor view is built. */
+  .md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button .md-card__head {
+    justify-content: center !important;
+  }
+  .md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button .md-card__titles {
+    text-align: left !important;
+  }
+  .md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button {
+    min-height: 190px !important;
+  }
+  .md-grid.md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button .md-card__icon {
+    width: 140px !important;
+    height: 140px !important;
+    background: url(../images/caseload-light.png) center / contain no-repeat !important;
+    border: none !important;
+    box-shadow: none !important;
+    filter: saturate(1.10) !important;
+  }
+  .md-grid.md-grid--layout-gentle.md-grid--fullspan-caseload .md-card.md-card--caseload.md-card--caseload-as-button .md-card__icon > svg {
+    display: none !important;
+  }
 }
 /* ≤950px (Gentle single-column stack) — the full-span treatment above is gated to
    ≥951px, so at this width the full-span Speak card would otherwise revert to the normal
@@ -42724,6 +42823,58 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon-glyph {
     display: none !important;
   }
+}
+/* Supervisor home (with-caseload): Speak Mode stays FULL-WIDTH but is Tier 2 — scale
+   its full-span hero DOWN to medium (icon + height) so it reads below the Tier-1
+   Caseload/Rooms/Attention cards. (0,6,0) beats the Tier-1 full-span Speak rules above
+   in both the ≥951px and ≤950px media blocks. */
+.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button {
+  min-height: 150px !important;
+}
+.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-speak .md-card.md-card--speak.md-card--speak-as-button .md-card__icon {
+  width: 110px !important;
+  height: 110px !important;
+}
+/* Slightly darker "Speak Mode" title on the supervisor card so it reads a touch
+   stronger than the inherited navy. */
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--speak-as-button .md-card__title {
+  color: color.adjust($la-navy, $lightness: -10%) !important;
+}
+/* Edit Dashboard (full-width) icon on the supervisor home — its fullspan tile
+   (96px/33px-radius) felt oversized and used a different corner radius than the
+   other action-button icons. Shrink the tile/glyph and match the 22px radius the
+   paired button icons use. (0,6,0) ties the fullspan icon rule but wins on source
+   order. */
+.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-editdashboard .md-card--edit-dashboard.md-card--as-button .md-card__icon {
+  width: 66px !important;
+  height: 66px !important;
+  border-radius: 22px !important;
+}
+.md-grid--with-caseload.md-grid--layout-gentle.md-grid--fullspan-editdashboard .md-card--edit-dashboard.md-card--as-button .md-card__icon-glyph {
+  width: 34px !important;
+  height: 34px !important;
+}
+/* Supervisor (with-caseload) Gentle home action buttons (Account / Create a Board /
+   Reports / Edit Dashboard / Extras): compact, fixed 150px tall (matching the Speak
+   Mode card) whether paired or stretched to two columns, with header −6px (24→18,
+   from the 24px rule at ~app.scss:48450) and subheader −6px (18→12, from the 18px
+   rule at ~app.scss:54210). The leading `.md-grid--dashboard` lifts these to (0,6,0)
+   so they beat those equal-specificity 24/18px rules that sit LATER in the file. */
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--badge-action.md-card--as-button,
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--extras.md-card--as-button {
+  min-height: 125px !important;
+  /* Pull the action cards up so they sit closer together and read as one
+     grouping (the grid's row gap is 28px; -14px halves the vertical spacing
+     between these rows). */
+  margin-top: -14px !important;
+}
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--badge-action.md-card--as-button .md-card__title,
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--extras.md-card--as-button .md-card__title {
+  font-size: 18px !important;
+}
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--badge-action.md-card--as-button .md-card__sub,
+.md-grid--dashboard.md-grid--with-caseload.md-grid--layout-gentle .md-card--extras.md-card--as-button .md-card__sub {
+  font-size: 14px !important;
 }
 /* ≤640px (Gentle single-column) — stack each action card's head: the icon (or the Speak
    image) sits CENTERED on its own row, and the title + subtitle wrap to a CENTERED row
@@ -42938,6 +43089,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%) !important;
   backdrop-filter: blur(12px) saturate(115%);
   -webkit-backdrop-filter: blur(12px) saturate(115%);
+  /* Promote to its own GPU layer so the backdrop-filter result is rasterized and held
+     across scroll. Without it, scrolling this card out of view and back makes the browser
+     RE-COMPUTE the backdrop-filter, briefly flashing the solid base gradient before the
+     blur/saturate re-applies (the "no-styling then styled" flicker). Same fix the
+     .la-pricing-card uses (app.scss ~27720). */
+  will-change: transform;
+  transform: translateZ(0);
 }
 .md-grid .md-card.md-card--caseload-as-button .md-card__head {
   margin-top: 6px !important;
@@ -42952,8 +43110,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 2px 6px rgba(15, 23, 42, 0.06),
     0 0 12px rgba(42, 157, 143, 0.12) !important;
 }
-.md-grid .md-card.md-card--caseload-as-button .md-card__title {
-  font-size: 21px !important;
+.md-grid .md-card.md-card--caseload-as-button .md-card__title,
+.md-grid .md-card.md-card--rooms .md-card__title {
+  font-size: 28px !important;
+  line-height: 1.15 !important;
+}
+/* My Caseload hero title (26px) — reduced with the caseload card. */
+.md-grid.md-grid--layout-gentle.md-grid--fullspan-caseload .md-card--caseload.md-card--caseload-as-button .md-card__title {
+  font-size: 26px !important;
+}
+/* Rooms title 22px (rooms-only override after the shared caseload+rooms rule;
+   caseload keeps its own size). */
+.md-grid .md-card.md-card--rooms .md-card__title {
+  font-size: 22px !important;
 }
 /* Divider below the title — same brand highlight gradient + right-fade mask. */
 .md-grid .md-card.md-card--caseload-as-button .md-card__title::after {
@@ -42973,18 +43142,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Subline → styled like the Speak status line (verdigris-aa pill + leading
    dot), keeping the caseload wording. The dot is a ::before (the sub has no
    dot element in markup). */
-.md-grid .md-card.md-card--caseload-as-button .md-card__sub {
+.md-grid .md-card.md-card--caseload-as-button .md-card__sub,
+.md-grid .md-card.md-card--rooms .md-card__sub,
+.md-grid .md-card.md-card--attention .md-card__sub {
   display: inline-flex !important;
   align-items: center;
   gap: 7px;
   margin-top: 7px !important;
   margin-left: 12px !important;
-  font-size: 14px !important;
   font-weight: 600 !important;
   letter-spacing: 0.02em;
-  color: $brand-verdigris-aa !important;
 }
-.md-grid .md-card.md-card--caseload-as-button .md-card__sub::before {
+.md-grid .md-card.md-card--caseload-as-button .md-card__sub::before,
+.md-grid .md-card.md-card--rooms .md-card__sub::before,
+.md-grid .md-card.md-card--attention .md-card__sub::before {
   content: "";
   flex: 0 0 auto;
   width: 7px;
@@ -42992,6 +43163,373 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 50%;
   background: $brand-verdigris;
   box-shadow: 0 0 6px rgba(42, 157, 143, 0.55);
+}
+/* Subtitle colour + size diverge per card (structure + dot above stay shared): My
+   Caseload keeps the verdigris-aa accent at 18px; Rooms + Communicators Need Attention
+   use the brand slate blue at 17px. */
+.md-grid .md-card.md-card--caseload-as-button .md-card__sub {
+  color: $brand-verdigris-aa !important;
+  font-size: 18px !important;
+}
+.md-grid .md-card.md-card--rooms .md-card__sub,
+.md-grid .md-card.md-card--attention .md-card__sub {
+  color: $brand-slate-blue !important;
+  font-size: 16px !important;
+  /* Tighter title→subtitle gap for a compact header (caseload keeps its 7px). */
+  margin-top: 2px !important;
+}
+
+/* ── Rooms card (supervisor home, full-width directly below My Caseload) ─────────
+   Surface mirrors the Boards card: a flat white→light-grey gradient with the standard
+   line outline + a slightly heavier bottom border, and NO glow/shadow/blur/hover. Keeps
+   the Rooms-specific column layout (head + tile grid + "View all" button). grid-area: rooms. */
+.md-grid .md-card.md-card--rooms {
+  grid-area: rooms !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  padding: 20px 24px !important;
+  border-radius: var(--md-r-lg) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
+  border: 1.5px solid rgba($la-navy, 0.10) !important;
+  border-bottom: 2.5px solid rgba($la-navy, 0.12) !important;
+}
+/* Scoped under .md-card--rooms (0,2,0) so `border-bottom: none` beats the generic
+   `.md-card__head { border-bottom: 1px … !important }` base (0,1,0, later in source). */
+.md-card--rooms .md-card--rooms__head,
+.md-card--org-management .md-card--rooms__head {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 14px !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+/* Top row: header/subheader on the left, the "View all rooms" button on the right. */
+.md-card--rooms__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+/* Full-width divider below the header (reuses the Boards card's gradient line). The
+   card's small flex `gap` (8px) sets the tight space ABOVE it; a positive margin-bottom
+   restores fuller breathing room BELOW, before the tile grid (8px gap + 8px = 16px). */
+.md-grid .md-card.md-card--rooms .md-card--boards__divider,
+.md-grid .md-card.md-card--org-management .md-card--boards__divider {
+  margin: 0 0 8px;
+}
+/* Main Rooms-card icon = the classroom illustration (the image IS the icon — no tile,
+   border, or shadow). Higher specificity + !important beats the base `.md-card__icon`
+   white-tile rule (app.scss ~48279, !important, later in source); the inner door SVG is
+   hidden so only the image shows. */
+.md-grid .md-card.md-card--rooms .md-card__icon--rooms {
+  width: 122px !important;
+  height: 122px !important;
+  background: url(../images/classroom.png) center / contain no-repeat !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: brightness(1.05);
+}
+.md-grid .md-card.md-card--rooms .md-card__icon--rooms > svg {
+  display: none !important;
+}
+/* Room tiles: responsive auto-fill grid of clickable cards. */
+.md-rooms__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 12px;
+}
+.md-grid .md-card.md-card--rooms .md-room-card,
+.md-grid .md-card.md-card--org-management .md-room-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  /* Match the My Account icon exactly: white→denim gradient + top-left radial highlight,
+     a soft denim outline, and the icon's raised "lift" shadow (inset highlight + soft drop
+     + denim glow). */
+  background:
+    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
+    linear-gradient(140deg, #ffffff 0%, #eef3fc 52%, #dbe7f8 100%);
+  border: 1px solid rgba(76, 134, 216, 0.20);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -3px 5px rgba(76, 134, 216, 0.10),
+    0 3px 9px rgba(15, 23, 42, 0.08),
+    0 0 16px rgba(76, 134, 216, 0.16);
+  color: $la-navy;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 16px;
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+/* Hover = the My Account card's lift: stronger raised shadow + denim glow + a 1px rise. */
+.md-grid .md-card.md-card--rooms .md-room-card:hover,
+.md-grid .md-card.md-card--rooms .md-room-card:focus-visible,
+.md-grid .md-card.md-card--org-management .md-room-card:hover,
+.md-grid .md-card.md-card--org-management .md-room-card:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($la-navy, 0.07),
+    0 2px 4px rgba($la-navy, 0.06),
+    0 8px 18px rgba($la-navy, 0.10),
+    0 20px 44px rgba($la-navy, 0.14),
+    0 0 30px rgba(76, 134, 216, 0.24);
+  transform: translateY(-1px);
+  outline: none;
+}
+.md-room-card__icon {
+  flex: 0 0 auto;
+  width: 55px;
+  height: 55px;
+  background: url(../images/door.png) center / contain no-repeat;
+  filter: brightness(1.10) saturate(0.8);
+}
+/* Room tiles run ~18% shorter than the shared .md-room-card height — their label
+   is just the room name (no "· role" second piece like the org tiles), so a
+   smaller icon + tighter vertical padding reads less empty. Rooms-scoped; org
+   tiles keep the full size. (0,4,0) beats the shared .md-room-card padding. */
+.md-grid .md-card.md-card--rooms .md-rooms__grid .md-room-card {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.md-card--rooms .md-room-card__icon {
+  width: 46px;
+  height: 46px;
+}
+/* Org tiles reuse .md-room-card chrome but swap the room door for the single
+   organization illustration (the header keeps the plural organizations.png). */
+.md-card--org-management .md-room-card__icon {
+  background: url(../images/organization.png) center / contain no-repeat !important;
+  filter: saturate(1.25) brightness(1.05) !important;
+}
+/* Organizations are fewer than rooms, so each org tile spans the full card width
+   (single column) rather than the Rooms grid's multi-column auto-fill. */
+.md-card--org-management .md-rooms__grid {
+  grid-template-columns: 1fr;
+}
+/* Org tile is two lines: the org name above an info line (role · N rooms · plan),
+   stacked in a flex column beside the icon so the tile reads fuller. */
+.md-org-card__text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+/* Individual organization name (per tile) — 18px. */
+.md-grid .md-card.md-card--org-management .md-room-card__name {
+  font-size: 18px !important;
+}
+.md-org-card__desc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-slate-blue;
+}
+/* The image IS the per-room icon now — hide the inline door SVG it wraps. */
+.md-room-card__icon > svg {
+  display: none;
+}
+.md-room-card__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-rooms__all {
+  flex-shrink: 0;
+}
+/* Room count — a styled pill sitting to the right of the "Rooms" header. */
+/* .md-rooms__count is styled together with .md-attention__count below (shared
+   pill rule) so the two counts stay in lockstep. */
+
+/* ── Communicators Need Attention card (supervisor home, after Rooms) ────────────
+   Same flat boards-style surface as the Rooms card, with a danger/attention accent on
+   the icon + count. Lists flagged communicators (name + org-status label); each links to
+   that communicator. */
+.md-grid .md-card.md-card--attention {
+  grid-area: attention !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  padding: 20px 24px !important;
+  border-radius: var(--md-r-lg) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
+  border: 1.5px solid rgba($la-navy, 0.10) !important;
+  border-bottom: 2.5px solid rgba($la-navy, 0.12) !important;
+}
+.md-card--attention .md-card--attention__head {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 14px !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+/* Title matches the Rooms/Caseload header size for consistency down the column.
+   Tight line-height so the header block (title + subtitle) reads compactly. */
+.md-grid .md-card.md-card--attention .md-card__title {
+  font-size: 22px !important;
+  line-height: 1.15 !important;
+}
+.md-grid .md-card.md-card--attention .md-card--boards__divider {
+  margin: 0 0 8px;
+}
+/* Main icon = the communicators illustration (the image IS the icon — no tile, border,
+   or shadow); the inner info SVG is hidden. */
+.md-grid .md-card.md-card--attention .md-card__icon--attention {
+  width: 122px !important;
+  height: 122px !important;
+  background: url(../images/communicators.png) center / contain no-repeat !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.md-grid .md-card.md-card--attention .md-card__icon--attention > svg {
+  display: none !important;
+}
+/* Count pill beside the title — shared by Communicators Need Attention and the
+   Rooms card so the two stay identical (one authoritative rule, no drift). */
+.md-attention__count,
+.md-rooms__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  min-width: 26px;
+  height: 26px;
+  margin-left: 12px;
+  padding: 0 8px;
+  border-radius: 999px;
+  /* Solid verdigris fill + white text — high contrast so the count reads as an
+     actionable indicator rather than a decorative tint. */
+  background: $brand-verdigris;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba($brand-verdigris, 0.45);
+}
+.md-attention__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.md-grid .md-card.md-card--attention .md-attention-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  /* Surface + highlight match the Speak Mode card (.md-card--speak-as-button, ~48246):
+     the same cool-white→warm-gray base with the teal/denim atmospheric radials, the
+     layered navy depth shadow, and the verdigris showcase halo. The GPU layer holds the
+     backdrop blur across scroll so it doesn't flash (same fix as the Speak card). */
+  background:
+    radial-gradient(56% 78% at 22% 42%, rgba(42, 157, 143, 0.07), transparent 62%),
+    radial-gradient(44% 82% at 90% 46%, rgba(76, 134, 216, 0.06), transparent 70%),
+    radial-gradient(30% 52% at 80% 82%, rgba(42, 157, 143, 0.045), transparent 72%),
+    linear-gradient(96deg, rgba(42, 157, 143, 0.05) 0%, rgba(76, 134, 216, 0.03) 42%, rgba(42, 157, 143, 0) 78%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%);
+  backdrop-filter: blur(12px) saturate(115%);
+  -webkit-backdrop-filter: blur(12px) saturate(115%);
+  will-change: transform;
+  transform: translateZ(0);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 10px rgba($la-navy, 0.08),
+    0 12px 28px rgba($la-navy, 0.10),
+    0 0 36px rgba($brand-slate-blue, 0.09);
+  color: $la-navy;
+  text-decoration: none;
+  transition: box-shadow 180ms ease-out, transform 140ms ease-out;
+}
+/* Hover = lift: the Speak card's intensified shadow stack + verdigris halo + 1px rise. */
+.md-grid .md-card.md-card--attention .md-attention-item:hover,
+.md-grid .md-card.md-card--attention .md-attention-item:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($la-navy, 0.07),
+    0 2px 4px rgba($la-navy, 0.06),
+    0 8px 18px rgba($la-navy, 0.10),
+    0 20px 44px rgba($la-navy, 0.14),
+    0 0 48px rgba($brand-slate-blue, 0.15);
+  transform: translateY(-1px);
+  outline: none;
+}
+.md-attention-item__avatar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--md-line);
+  /* Soft halo behind each avatar, tinted to that avatar's own dominant color.
+     Dashboard::GlowAvatar extracts the color and sets --avatar-glow-rgb per
+     image; the terracotta fallback applies when extraction can't run. Two
+     layered glows (tight + wide) so it diffuses into the card rather than
+     reading as a hard ring. */
+  box-shadow:
+    0 0 12px 0 var(--avatar-glow-strong, rgba(214, 138, 79, 0.18)),
+    0 0 24px 2px var(--avatar-glow-soft, rgba(214, 138, 79, 0.09));
+}
+.md-attention-item__text {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.md-attention-item__name {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.2;
+}
+/* Status as a semantic tinted pill — colour encodes meaning so the status is
+   recognizable at a glance without reading every label, kept low-saturation
+   (≤16% tint) to preserve the calm dashboard feel. The hue is chosen per
+   org_status via [data-status]; the base here is the neutral slate fallback
+   (e.g. unchecked/unknown). Text uses a darker shade of the same hue for AA
+   contrast on the light tint. */
+.md-attention-item__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: rgba($brand-slate-blue, 0.14);
+  color: $brand-slate-blue;
+}
+/* Amber — evaluation-related waits (Waiting for Evaluation / for Recommendation). */
+.md-attention-item__status[data-status="hourglass"],
+.md-attention-item__status[data-status="equalizer"] {
+  background: rgba($brand-honey-bronze, 0.18);
+  color: color.adjust($brand-honey-bronze, $lightness: -32%);
+}
+/* Blue — resource waits (Waiting for Device / for Funding). */
+.md-attention-item__status[data-status="phone"],
+.md-attention-item__status[data-status="piggy-bank"] {
+  background: rgba($brand-dusty-denim, 0.12);
+  color: $brand-dusty-denim-aa;
+}
+/* Teal — needing additional support. */
+.md-attention-item__status[data-status="exclamation-sign"] {
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris-aa;
 }
 /* ≤1024px — enlarge the icon + widen the icon→text gap, matching Speak/Extras. */
 @media (max-width: 1024px) {
@@ -43010,15 +43548,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    + hover; these refinements mirror the Extras card (coral soft-glass icon
    tile + glow, brand gradient divider, status-styled subline, 32px padding,
    centered head). Only the org building-icon glyph and wording differ. */
-.md-grid--dashboard .md-card--org-management {
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-  /* Left-align the head (the org-management base rule sets align-items:center,
-     which in this flex column would center the icon+text horizontally). */
-  align-items: stretch !important;
-  padding: 20px 32px !important;
-  min-height: 180px !important;
+/* Main My Organizations icon = the organizations illustration (image IS the icon —
+   no tile/border/shadow), mirroring the Rooms card's classroom icon. */
+.md-grid .md-card.md-card--org-management .md-card__icon--org {
+  width: 92px !important;
+  height: 92px !important;
+  background: url(../images/organizations.png) center / contain no-repeat !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: saturate(1.25) brightness(1.05);
+}
+.md-grid .md-card.md-card--org-management .md-card__icon--org > svg {
+  display: none !important;
+}
+/* Tier-2 title scale (between Tier-1 Rooms/Attention at 28px and Tier-3 utility
+   cards at 18px) — see the section-hierarchy scale. */
+.md-grid .md-card.md-card--org-management .md-card__title {
+  font-size: 22px !important;
+  line-height: 1.15 !important;
+}
+/* "Manage your organizations" header subtitle — 16px (the per-tile info line uses
+   .md-org-card__desc, so this only touches the card's header sub). */
+.md-grid .md-card.md-card--org-management .md-card__sub {
+  font-size: 16px !important;
 }
 .md-card--org-management .md-card__head {
   /* No divider line under the head — the whole card is the button. */
@@ -43037,11 +43589,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid .md-card.md-card--org-management.md-card--as-button .md-card__title::after {
   content: "";
   display: block;
-  width: 260px;
+  /* Uniform home-card accent divider (shared dimensions with the Account /
+     Create a Board / Reports / Extras dividers). Speak Mode + My Caseload keep
+     their own heavier hero dividers. */
+  width: 208px;
   max-width: 100%;
   height: 2px;
   margin-top: 8px;
   border-radius: 2px;
+  opacity: 0.7;
   /* Reversed brand gradient (denim → verdigris) — see the Speak divider. */
   background: linear-gradient(90deg, #4C86D8, #2A9D8F);
   -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
@@ -43123,18 +43679,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    Was previously scoped to ≤1024px where the as-buttons used to live. */
 .md-grid.md-grid--dashboard { overflow: visible !important; }
 /* Org management card: full-width like getting-started */
-.md-card--org-management {
+/* My Organizations card — same flat boards-style surface + column layout as the
+   Rooms card (header + divider + tile grid). grid-area: org_mgmt. (0,3,0) so it
+   beats the base `.md-grid .md-card { background … !important }`, mirroring Rooms. */
+.md-grid .md-card.md-card--org-management {
   grid-area: org_mgmt !important;
   display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  flex-wrap: wrap !important;
-  gap: 16px !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
   padding: 20px 24px !important;
   border-radius: var(--md-r-lg) !important;
-  background: linear-gradient(135deg, rgba($brand-dusty-denim, 0.08) 0%, rgba($brand-verdigris, 0.06) 100%) !important;
-  border: 1px solid rgba($brand-dusty-denim, 0.12) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
+  border: 1.5px solid rgba($la-navy, 0.10) !important;
+  border-bottom: 2.5px solid rgba($la-navy, 0.12) !important;
 }
 .md-card--org-management .md-card__head {
   flex: 1 1 auto !important;
@@ -46422,6 +46981,9 @@ a.md-goal-nav-action:hover,
   background: rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba(0, 0, 0, 0.04);
   box-shadow:
     0 4px 56px rgba(0, 0, 0, 0.012),
@@ -47499,6 +48061,9 @@ a.md-goal-nav-action:hover,
     0 6px 16px rgba($focus-shadow-ink, 0.08) !important;
   backdrop-filter: blur(14px) saturate(1.3) !important;
   -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform !important;
+  transform: translateZ(0) !important;
   /* Positioning context for the absolutely-placed "View All Boards" button below. */
   position: relative !important;
 }
@@ -47683,27 +48248,66 @@ a.md-goal-nav-action:hover,
 .md-grid .md-card.md-card--speak-as-button:focus-visible,
 .md-grid .md-card.md-card--badge-action.md-card--as-button:hover,
 .md-grid .md-card.md-card--badge-action.md-card--as-button:focus-visible {
+  /* Stronger lift + deeper drop shadow on hover/focus so these primary actions
+     read clearly as interactive (vs. informative). */
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -1px 0 rgba($la-navy, 0.07),
-    0 2px 4px rgba($la-navy, 0.06),
-    0 8px 18px rgba($la-navy, 0.10),
-    0 20px 44px rgba($la-navy, 0.14),
-    0 0 52px rgba($brand-verdigris, 0.44) !important;
-  transform: translateY(-1px);
+    0 3px 6px rgba($la-navy, 0.08),
+    0 10px 22px rgba($la-navy, 0.13),
+    0 26px 54px rgba($la-navy, 0.18),
+    0 0 56px rgba($brand-verdigris, 0.46) !important;
+  transform: translateY(-2px);
 }
 .md-grid .md-card.md-card--speak-as-button:active,
 .md-grid .md-card.md-card--badge-action.md-card--as-button:active {
   transform: translateY(0.5px);
+  /* Pressed state: a faint denim border ring (inset so there's no layout shift)
+     plus a tightened shadow, so a tap reads as a real button press. */
   box-shadow:
+    inset 0 0 0 1.5px rgba($brand-dusty-denim, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     inset 0 -1px 0 rgba($la-navy, 0.05),
     0 1px 2px rgba($la-navy, 0.05),
     0 2px 6px rgba($la-navy, 0.08) !important;
 }
-.md-grid .md-card.md-card--speak-as-button:focus-visible {
+/* Focus: a clear denim outline around the whole card (keyboard + assistive nav). */
+.md-grid .md-card.md-card--speak-as-button:focus-visible,
+.md-grid .md-card.md-card--badge-action.md-card--as-button:focus-visible {
   outline: 2px solid rgba($brand-dusty-denim, 0.55);
   outline-offset: 3px;
+}
+/* "→" affordance arrow in the action-card titles (Speak / Account / Create a
+   Board / Reports / Edit Dashboard). Bolder, larger, and brand-blue so the card
+   reads as a button, with a subtle slide on hover/focus reinforcing "go". The
+   arrow is the only bare <span> inside these titles (counts/dots are classed). */
+.md-grid .md-card.md-card--speak-as-button .md-card__title > span,
+.md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__title > span,
+.md-grid .md-card.md-card--extras.md-card--as-button .md-card__title > span {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 1.3em;
+  font-weight: 900;
+  color: $brand-dusty-denim;
+  transition: transform 140ms ease-out;
+}
+.md-grid .md-card.md-card--speak-as-button:hover .md-card__title > span,
+.md-grid .md-card.md-card--speak-as-button:focus-visible .md-card__title > span,
+.md-grid .md-card.md-card--badge-action.md-card--as-button:hover .md-card__title > span,
+.md-grid .md-card.md-card--badge-action.md-card--as-button:focus-visible .md-card__title > span,
+.md-grid .md-card.md-card--extras.md-card--as-button:hover .md-card__title > span,
+.md-grid .md-card.md-card--extras.md-card--as-button:focus-visible .md-card__title > span {
+  transform: translateX(4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-grid .md-card.md-card--speak-as-button:hover .md-card__title > span,
+  .md-grid .md-card.md-card--speak-as-button:focus-visible .md-card__title > span,
+  .md-grid .md-card.md-card--badge-action.md-card--as-button:hover .md-card__title > span,
+  .md-grid .md-card.md-card--badge-action.md-card--as-button:focus-visible .md-card__title > span,
+  .md-grid .md-card.md-card--extras.md-card--as-button:hover .md-card__title > span,
+  .md-grid .md-card.md-card--extras.md-card--as-button:focus-visible .md-card__title > span {
+    transform: none;
+  }
 }
 /* Account / Create-a-Board / Reports — same glassy chrome as Speak Mode but a
    SOFTER verdigris glow (Speak stays the page's primary action). Also kills the
@@ -47848,6 +48452,13 @@ a.md-goal-nav-action:hover,
     linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 55%, rgba(245, 246, 249, 0.88) 100%) !important;
   backdrop-filter: blur(12px) saturate(115%);
   -webkit-backdrop-filter: blur(12px) saturate(115%);
+  /* Promote to its own GPU layer so the backdrop-filter result is rasterized and held
+     across scroll. Without it, scrolling this card out of view and back makes the browser
+     RE-COMPUTE the backdrop-filter, briefly flashing the solid base gradient before the
+     blur/saturate re-applies (the "no-styling then styled" flicker). Same fix the
+     .la-pricing-card uses (app.scss ~27720). */
+  will-change: transform;
+  transform: translateZ(0);
 }
 /* Keep the existing top wave faint so it doesn't compete with the new
    left/right atmosphere — calm, layered depth rather than busy. */
@@ -47901,6 +48512,18 @@ a.md-goal-nav-action:hover,
   -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
   mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
 }
+/* On the supervisor (non-communicator) home — `md-grid--with-caseload`, where My
+   Caseload is the hero and Speak is just another card — drop Speak's heavier hero
+   divider down to the uniform home-card accent (matching Organizations / Account /
+   etc.). The communicator home (no with-caseload) keeps the hero divider above. */
+.md-grid.md-grid--with-caseload .md-card.md-card--speak-as-button .md-card__title::after {
+  width: 208px;
+  height: 2px;
+  border-radius: 2px;
+  opacity: 0.7;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
+}
 /* Single supporting accent — a low-priority "ready" status line (muted
    teal + soft dot). Signals the card is active, no interactive UI added.
    Indented slightly so it sits offset from the title's left edge. */
@@ -47931,11 +48554,14 @@ a.md-goal-nav-action:hover,
 .md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__title::after {
   content: "";
   display: block;
-  width: 260px;
+  /* Uniform home-card accent divider — matches the My Organizations divider.
+     Speak Mode + My Caseload keep their own heavier hero dividers. */
+  width: 208px;
   max-width: 100%;
   height: 2px;
   margin-top: 8px;
   border-radius: 2px;
+  opacity: 0.7;
   /* Reversed brand gradient (denim → verdigris) — see the Speak divider. */
   background: linear-gradient(90deg, #4C86D8, #2A9D8F);
   -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 55%, transparent 100%);
@@ -48124,28 +48750,28 @@ a.md-goal-nav-action:hover,
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
     linear-gradient(140deg, #ffffff 0%, #edf6f4 52%, #d8ece8 100%) !important;
   border: 1px solid rgba(42, 157, 143, 0.20) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(42, 157, 143, 0.10), 0 3px 9px rgba(15, 23, 42, 0.08), 0 0 16px rgba(42, 157, 143, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(42, 157, 143, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(42, 157, 143, 0.16) !important;
 }
 .md-grid .md-card.md-card--extras.md-card--as-button .md-card__icon {
   background:
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
     linear-gradient(140deg, #ffffff 0%, #fdf2ef 52%, #fae0db 100%) !important;
   border: 1px solid rgba(240, 106, 91, 0.20) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(240, 106, 91, 0.10), 0 3px 9px rgba(15, 23, 42, 0.08), 0 0 16px rgba(240, 106, 91, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(240, 106, 91, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(240, 106, 91, 0.16) !important;
 }
 .md-grid .md-card.md-card--account.md-card--as-button .md-card__icon {
   background:
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
     linear-gradient(140deg, #ffffff 0%, #eef3fc 52%, #dbe7f8 100%) !important;
   border: 1px solid rgba(76, 134, 216, 0.20) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 3px 9px rgba(15, 23, 42, 0.08), 0 0 16px rgba(76, 134, 216, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(76, 134, 216, 0.16) !important;
 }
 .md-grid .md-card.md-card--create-board.md-card--as-button .md-card__icon {
   background:
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
     linear-gradient(140deg, #ffffff 0%, #ecf6f2 52%, #d6efe8 100%) !important;
   border: 1px solid rgba(42, 157, 143, 0.20) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(42, 157, 143, 0.10), 0 3px 9px rgba(15, 23, 42, 0.08), 0 0 16px rgba(42, 157, 143, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(42, 157, 143, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(42, 157, 143, 0.16) !important;
 }
 .md-grid .md-card.md-card--reports.md-card--as-button .md-card__icon,
 .md-grid .md-card.md-card--edit-dashboard.md-card--as-button .md-card__icon {
@@ -48153,7 +48779,7 @@ a.md-goal-nav-action:hover,
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
     linear-gradient(140deg, #ffffff 0%, #eef3fc 52%, #dbe7f8 100%) !important;
   border: 1px solid rgba(76, 134, 216, 0.20) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 3px 9px rgba(15, 23, 42, 0.08), 0 0 16px rgba(76, 134, 216, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(76, 134, 216, 0.16) !important;
 }
 /* Focused View — DARK glassy/glossy icon tiles on the dark action cards (was the
    light white tiles above). A translucent navy→verdigris glass with a strong
@@ -48424,6 +49050,9 @@ body.ll-layout-focused .md-pending-notice {
     linear-gradient(180deg, rgba($focus-surface-top, 0.7) 0%, rgba($focus-surface-bottom, 0.6) 100%);
   backdrop-filter: blur(14px) saturate(1.3);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
 }
 body.ll-layout-focused .md-pending-notice__icon {
   background: rgba($focus-accent, 0.16);
@@ -48466,6 +49095,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-grid--dashboard .md-card--speak .md-btn--primary,
 .md-grid--dashboard .md-card--boards .md-btn--primary,
 .md-grid--dashboard .md-card--caseload .md-btn--primary,
+.md-grid--dashboard .md-card--rooms .md-btn--primary,
 .md-grid--dashboard .md-card--org-management .md-btn--primary {
   background: rgba($brand-dusty-denim, 0.3) !important;
 
@@ -48487,6 +49117,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-grid--dashboard .md-card--speak .md-btn--primary:hover,
 .md-grid--dashboard .md-card--boards .md-btn--primary:hover,
 .md-grid--dashboard .md-card--caseload .md-btn--primary:hover,
+.md-grid--dashboard .md-card--rooms .md-btn--primary:hover,
 .md-grid--dashboard .md-card--org-management .md-btn--primary:hover {
   background: rgba($brand-dusty-denim, 0.4) !important;
   text-decoration: none !important;
@@ -48500,12 +49131,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-grid--dashboard .md-card--speak .md-btn--primary:active,
 .md-grid--dashboard .md-card--boards .md-btn--primary:active,
 .md-grid--dashboard .md-card--caseload .md-btn--primary:active,
+.md-grid--dashboard .md-card--rooms .md-btn--primary:active,
 .md-grid--dashboard .md-card--org-management .md-btn--primary:active {
   transform: translateY(0) !important;
 }
 .md-grid--dashboard .md-card--speak .md-btn--primary:focus-visible,
 .md-grid--dashboard .md-card--boards .md-btn--primary:focus-visible,
 .md-grid--dashboard .md-card--caseload .md-btn--primary:focus-visible,
+.md-grid--dashboard .md-card--rooms .md-btn--primary:focus-visible,
 .md-grid--dashboard .md-card--org-management .md-btn--primary:focus-visible {
   outline: none !important;
   box-shadow:
@@ -48513,37 +49146,22 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     0 6px 16px rgba($brand-dusty-denim, 0.20) !important;
 }
-/* New Board pill — carved out of the extras-style group above to instead match
-   the boards-page "Change Home Board" button (.ub-boards-page__set-home-btn):
-   white-edged glass pill with a navy-tinted raised lift. Its own verdigris
-   background colour is intentionally KEPT (per request); only the border,
-   shadow, padding and weight adopt the set-home treatment. This rule sits
-   AFTER the extras-style group and shares its (0,3,0) specificity, so its
-   box-shadow/border win the source-order tiebreak. */
+/* "Create a Board" pill now matches the "View All Boards" button — it shares the
+   `.md-grid--dashboard .md-card--boards .md-btn--primary` rule above (same shape,
+   outline, lift, shadow, transition, focus). This carve-out keeps ONLY the
+   verdigris BACKGROUND (per request) and disables the pill's backdrop blur so the
+   surface matches View All; everything else falls through to that rule. (0,3,0)
+   ties the primary rule and wins the bg via source order. */
 .md-grid--dashboard .md-card--boards .md-btn--pill {
   background: rgba(44, 183, 176, 0.22) !important;
-
-  color: $la-navy !important;
-
-  border-color: rgba(255, 255, 255, 0.5) !important;
-
-  padding: 8px 14px !important;
-  min-height: 44px !important;
-  font-weight: 600 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 1px 2px rgba($la-navy, 0.12),
-    0 6px 14px rgba($la-navy, 0.22) !important;
+  font-size: 14px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
 }
 .md-grid--dashboard .md-card--boards .md-btn--pill:hover {
   background: rgba(44, 183, 176, 0.30) !important;
-  transform: none !important;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.65) inset,
-    0 2px 4px rgba($la-navy, 0.14),
-    0 10px 22px rgba($la-navy, 0.28) !important;
 }
 .md-grid--dashboard .md-card--boards {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
@@ -50126,6 +50744,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     );
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   color: var(--md-ink, #1f2933);
   cursor: text;
   box-shadow:
@@ -51770,6 +52391,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     );
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 0 rgba(255, 255, 255, 0.15),
@@ -51800,6 +52424,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     );
   backdrop-filter: blur(8px) saturate(140%);
   -webkit-backdrop-filter: blur(8px) saturate(140%);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
@@ -53594,9 +54221,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-grid--dashboard .md-card--boards .md-card__title {
   color: $la-navy !important;
 }
-/* Gentle layout: larger boards title (26px) + (Page-sets) clarifier (22px). */
+/* Gentle layout: Tier-2 boards title (22px) + (Page-sets) clarifier (22px). */
 .md-grid--layout-gentle .md-card--boards .md-card__title {
-  font-size: 24px !important;
+  font-size: 22px !important;
 }
 .md-grid--layout-gentle .md-card--boards .md-card__title-accent--verdigris {
   font-size: 22px !important;
@@ -53732,41 +54359,46 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     var(--md-shadow-2) !important;
 }
 .md-strip__home-badge {
+  /* Small pill centered near the top of the tile (was a larger crowning
+     "ribbon"). Reads as a quiet tag, not a banner. */
   position: absolute;
-  top: -10px;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
   color: #fff;
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  padding: 4px 10px;
+  padding: 2px 7px;
   border-radius: 999px;
-  box-shadow: 0 2px 6px rgba($la-navy, 0.22);
+  box-shadow: 0 1px 3px rgba($la-navy, 0.20);
   white-space: nowrap;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 .md-strip__label {
   margin-top: 10px; /* 8 * 1.2 */
   font-weight: 800;
   color: $la-navy;
   text-align: center;
-  /* Names that fall back to their key path (e.g. "user_name/board-slug")
-     can be ~30 chars and overflow the 150px tile. Allow wrapping at any
-     point if needed; in practice the JS layer inserts a zero-width space
-     after each `/` (see authenticated-view.js `add()`), so the natural
-     break point is the slash. This `break-word` is a safety net for names
-     without slashes that still exceed the tile width. */
-  overflow-wrap: break-word;
-  word-wrap: break-word;
+}
+/* Clean single-line truncation for the board name — one line with an ellipsis
+   rather than the old multi-line break-word wrap, so every tile's title row is
+   the same height and reads tidily. The full name is still available via the
+   tile's title/aria. */
+.md-strip__name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .md-strip__lang {
   display: block;
   margin-top: 2px;
-  font-size: 0.85rem;
+  font-size: 10px;
   font-weight: 600;
   color: rgba($la-navy, 0.65);
 }
@@ -53862,6 +54494,49 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-grid--dashboard .md-card--boards .md-strip__label {
   margin-top: 7px; /* 6 * 1.2 */
+}
+
+/* ── Boards card — Gentle View premium pass (all home pages) ─────────────────
+   Slightly larger tiles + a stronger, layered card shadow so the board strip
+   reads as part of the same premium card family as the rest of the dashboard.
+   Scoped to Gentle View; Focused View keeps its own sizing. Source-ordered after
+   the .md-grid--dashboard rules above so the equal-specificity sizes win. */
+.md-grid--layout-gentle .md-card--boards .md-strip__item {
+  min-width: 188px !important;
+  max-width: 196px !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.06),
+    0 6px 16px rgba($la-navy, 0.10),
+    0 18px 36px rgba($la-navy, 0.12) !important;
+}
+/* Boards spanning both columns (boards-full, e.g. supervisor home) — keep the
+   larger fixed tile basis (overrides the 160px boards-full rule above). */
+.md-grid--layout-gentle.md-grid--boards-full .md-card--boards .md-strip__item {
+  flex: 0 0 188px !important;
+  min-width: 188px !important;
+  max-width: 196px !important;
+}
+/* Taller thumbnail to match the bigger tile (0,4,0 beats the 80px base + the
+   96px supervisor/admin rule). */
+.md-grid--layout-gentle.md-grid--dashboard .md-card--boards .md-thumb {
+  height: 106px !important;
+}
+/* ≤1024px: trim the strip to Home Board + the first preferred board + the
+   Emergency/Crisis board (3 total). The sibling combinator hides every regular
+   tile that FOLLOWS another regular tile, so only the first preferred one (the
+   top favourite/other) survives alongside Home and Emergency. */
+@media (max-width: 1024px) {
+  .md-grid--layout-gentle .md-card--boards .md-strip__item:not(.md-strip__item--home):not(.md-strip__item--emergency) ~ .md-strip__item:not(.md-strip__item--home):not(.md-strip__item--emergency) {
+    display: none !important;
+  }
+}
+/* ≤768px: drop the preferred board too — just Home + Emergency (2 total). The
+   rest stay reachable via "View All Boards". */
+@media (max-width: 768px) {
+  .md-grid--layout-gentle .md-card--boards .md-strip__item:not(.md-strip__item--home):not(.md-strip__item--emergency) {
+    display: none !important;
+  }
 }
 
 .md-thumb {
@@ -56774,6 +57449,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     gap: 16px !important;
   }
   .md-grid--layout-gentle > .md-card--caseload { order: var(--ord-caseload, 1) !important; }
+  .md-grid--layout-gentle > .md-card--rooms { order: var(--ord-rooms, 2) !important; }
+  .md-grid--layout-gentle > .md-card--attention { order: var(--ord-attention, 3) !important; }
   .md-grid--layout-gentle > .md-card--account { order: var(--ord-account, 2) !important; }
   .md-grid--layout-gentle > .md-card--speak { order: var(--ord-speak, 3) !important; }
   .md-grid--layout-gentle > .md-card--org-management { order: var(--ord-org, 4) !important; }
@@ -61579,6 +62256,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     padding: 24px 28px;
     background: rgba(255,255,255,0.82);
     backdrop-filter: blur(10px);
+    /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+    will-change: transform;
+    transform: translateZ(0);
     border-radius: 18px;
     border: 1px solid rgba($brand-blue-black, 0.07);
     box-shadow: 0 4px 20px rgba($brand-blue-black, 0.06);
@@ -63618,25 +64298,23 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     }
   }
   &__board-item-home-badge {
+    /* Small centered pill — mirrors the home-page strip's .md-strip__home-badge
+       (was a larger crowning "ribbon"). */
     position: absolute;
-    top: -10px;
+    top: 8px;
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
     color: #fff;
-    font-size: 12px;
+    font-size: 9.5px;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    padding: 4px 10px;
+    padding: 2px 7px;
     border-radius: 999px;
-    box-shadow: 0 2px 6px rgba($la-navy, 0.22);
+    box-shadow: 0 1px 3px rgba($la-navy, 0.20);
     white-space: nowrap;
     pointer-events: none;
-    /* Sit above the tabs-row gradient seam (.ub-boards-page__tabs-row::after)
-       that the top row's badge floats up into — its opaque pill then covers
-       the divider behind the text instead of the line showing through.
-       (The home-page strip badge is a separate selector and stays as-is.) */
     z-index: 30;
   }
   /* Defensive override: the boards-page parent grid sets
@@ -65483,6 +66161,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   background: rgba(110, 122, 140, 0.32);
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   color: #fff;
   margin-bottom: 0;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -67124,6 +67805,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 0 26px rgba($brand-verdigris, 0.18);
   -webkit-backdrop-filter: blur(8px) saturate(1.2);
   backdrop-filter: blur(8px) saturate(1.2);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
 }
 .md-board-detail--dark .md-board-edit-session {
   background: rgba(143, 228, 223, 0.11);
@@ -68540,6 +69224,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba(255, 255, 255, 0.80);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba($la-navy, 0.08);
   box-shadow: 0 2px 12px rgba($la-navy, 0.06);
   animation: md-board-detail-legend-in 0.2s ease;
@@ -69002,6 +69689,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba($la-navy, 0.06);
   box-shadow:
     0 1px 2px rgba($la-navy, 0.04),
@@ -69554,6 +70244,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba($la-navy, 0.08);
   border-radius: 14px;
   box-shadow:
@@ -79971,6 +80664,187 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 6px 14px rgba($la-navy, 0.18);
 }
 
+/* ── Record Note modal (record-note) — modernized to the md-modal-* family ──────
+   Reuses the shared md-modal-header / md-modal-icon-circle / md-modal-title /
+   md-modal-body / md-modal-field / md-modal-label / md-modal-footer / md-modal-btn /
+   md-modal-check classes; these md-record-note-* rules add only the bits unique to
+   this modal (header row, segmented Type toggle, goal-status pills, "From Template"
+   dropdown, prior-note panel), mirroring the quick-assessment modal's design language. */
+.md-record-note-header__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.md-record-note-icon {
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris;
+  flex: 0 0 auto;
+}
+.md-record-note-body {
+  text-align: left;
+}
+.md-record-note-textarea {
+  resize: vertical;
+}
+/* The bound-select Topic dropdown floats with position:absolute; inside the modal's
+   rounded/overflow-hidden body it would clip. Flow-position its menu so it pushes the
+   form down instead (docs/styling-recurring-problems.md #1). */
+.md-record-note-body .bound-select__list {
+  position: static;
+}
+
+/* Type segmented control [ Text | Video ] + optional "From Template" dropdown. */
+.md-record-note-type-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.md-record-note-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  padding: 3px;
+  gap: 3px;
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
+}
+.md-record-note-seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-record-note-seg__icon {
+  opacity: 0.85;
+}
+.md-record-note-seg:hover {
+  background: rgba($la-navy, 0.06);
+}
+.md-record-note-seg:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.18);
+}
+.md-record-note-seg--active {
+  background: #fff;
+  color: $brand-verdigris;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.10),
+    0 2px 6px rgba($la-navy, 0.08);
+}
+
+/* "From Template" dropdown — secondary md-modal button + a flow-anchored menu that
+   mirrors the quick-assessment goal dropdown. */
+.md-record-note-template-btn {
+  white-space: nowrap;
+}
+.md-record-note-template-list {
+  right: 0;
+  left: auto;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.10);
+  box-shadow:
+    0 8px 24px rgba($la-navy, 0.18),
+    0 2px 6px rgba($la-navy, 0.08);
+  padding: 6px;
+}
+.md-record-note-template-list > li > a {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $la-navy;
+  border-radius: 8px;
+}
+.md-record-note-template-list > li > a:hover,
+.md-record-note-template-list > li > a:focus {
+  background: rgba($brand-verdigris, 0.08);
+  color: $brand-verdigris;
+}
+
+/* Goal-status pills (shown once a Topic/goal is picked). The 50px faces.png sprite
+   is rendered by the existing `.face_button .face` rule (app.scss ~8748); these rules
+   reset the legacy Bootstrap `.btn` look and give a modern selectable pill. The active
+   one carries `.btn-primary` (from button_display_class). */
+.md-record-note-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.md-record-note-status {
+  flex: 1 1 0;
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 10px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  color: $la-navy;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.md-record-note-status:hover {
+  border-color: rgba($brand-verdigris, 0.45);
+  box-shadow: 0 2px 8px rgba($la-navy, 0.10);
+}
+.md-record-note-status:active {
+  transform: translateY(1px);
+}
+.md-record-note-status:focus-visible {
+  outline: none;
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.18);
+}
+.md-record-note-status.btn-primary {
+  border-color: $brand-verdigris;
+  background: rgba($brand-verdigris, 0.10);
+  box-shadow: 0 2px 8px rgba($brand-verdigris, 0.16);
+}
+.md-record-note-status__text {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* Previous-note panel — a quiet quoted card so the prior note reads as reference. */
+.md-record-note-prior {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba($la-navy, 0.03);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-left: 4px solid rgba($brand-verdigris, 0.5);
+  border-radius: 12px;
+  color: var(--md-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+.md-record-note-prior__mark {
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 800;
+  color: rgba($brand-verdigris, 0.7);
+  flex-shrink: 0;
+}
+.md-record-note-prior__text {
+  flex: 1 1 auto;
+}
+
 /* Premium Required modal — gold-tinted icon and text overrides. The
    modal uses .md-modal-* base styles; these rules add the premium
    accent and tighten paragraph spacing for the multi-paragraph body. */
@@ -80786,6 +81660,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      so the card edges and content read with more crispness. */
   backdrop-filter: blur(6px) saturate(1.05);
   -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba($la-navy, 0.11);
   border-radius: var(--md-r-lg, 18px);
   padding: 20px 22px 18px;
@@ -80923,6 +81800,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      defined against the card behind it. */
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba($brand-verdigris, 0.28);
   box-shadow:
     -1px 1px 2px rgba($la-navy, 0.03),
@@ -81194,6 +82074,9 @@ a.md-caseload__quick-action:hover,
      so the card edges and content read with more crispness. */
   backdrop-filter: blur(6px) saturate(1.05);
   -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba($la-navy, 0.11);
   border-radius: var(--md-r-lg, 18px);
   padding: 20px 22px 18px;
@@ -81359,6 +82242,9 @@ a.md-caseload__quick-action:hover,
      defined against the card behind it. */
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
   border: 1px solid rgba($brand-verdigris, 0.28);
   box-shadow:
     -1px 1px 2px rgba($la-navy, 0.03),
@@ -92754,7 +93640,7 @@ body.ll-layout-focused .shepherd-element.md-ds-modal {
   background:
     radial-gradient(120% 75% at 50% 0%, rgba($focus-accent, 0.12) 0%, rgba($focus-accent, 0) 62%),
     radial-gradient(90% 80% at 100% 16%, rgba($focus-nav-accent-to, 0.12) 0%, rgba($focus-nav-accent-to, 0) 55%),
-    linear-gradient(180deg, rgba(mix(#fff, $focus-surface-top, 10%), 0.97) 0%, rgba(mix(#fff, $focus-surface-bottom, 10%), 0.95) 100%);
+    linear-gradient(180deg, rgba(color.mix(#fff, $focus-surface-top, 10%), 0.97) 0%, rgba(color.mix(#fff, $focus-surface-bottom, 10%), 0.95) 100%);
 }
 .shepherd-element.md-tour__step--focused .shepherd-content .shepherd-header::after,
 body.ll-layout-focused .shepherd-element.md-ds-modal .shepherd-content .shepherd-header::after {

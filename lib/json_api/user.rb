@@ -215,7 +215,17 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         supervisees.each do |sup|
           json['premium_voices']['claimed'] = json['premium_voices']['claimed'] | ((sup.settings['premium_voices'] || {})['claimed'] || [])
         end
-        json['supervisees'] = supervisees[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisor: user) }
+        json['supervisees'] = supervisees[0, 10].map{|u|
+          sup_json = JsonApi::User.as_json(u, limited_identity: true, supervisor: user)
+          # Include each communicator's org status (from their org membership) so the
+          # supervisor home can flag who needs attention. Mirrors the org-managed
+          # default: tree-deciduous ("making progress") when a home board is set, else
+          # unchecked. org_status is a hash like {'state' => '<status-id>', 'note' => ...}.
+          status_link = UserLink.links_for(u).detect{|l| l['type'] == 'org_user' && l['state'] && l['state']['status'] }
+          sup_json['org_status'] = (status_link ? status_link['state']['status'] : nil) ||
+              {'state' => (u.settings['preferences'] && u.settings['preferences']['home_board'] ? 'tree-deciduous' : 'unchecked')}
+          sup_json
+        }
         json['supervised_units'] = OrganizationUnit.supervised_units(user).map{|ou|
           {
             'id' => ou.global_id,
