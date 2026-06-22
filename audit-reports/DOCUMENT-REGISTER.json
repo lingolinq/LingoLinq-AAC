@@ -204,7 +204,12 @@
       },
       "contentHash": "a6e8b0bebcd45451e7d70472d729331d69f6b07b179b2f52e00ff54f4cb1bfba",
       "bundles": [],
-      "mirrors": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
+        }
+      ],
       "id": "DOC-9b299a785b"
     },
     {
@@ -681,7 +686,12 @@
       "attestation": {},
       "contentHash": "",
       "bundles": [],
-      "mirrors": [],
+      "mirrors": [
+        {
+          "system": "notion",
+          "location": "https://www.notion.so/3865fe8215c28174aef3ce32239ced5c"
+        }
+      ],
       "id": "DOC-2d4e00befa"
     },
     {
