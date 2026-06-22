@@ -25,7 +25,8 @@
 #   Doc ID (title), Title (rich_text), Type (select), System (select), Owner (rich_text),
 #   Canonical location (rich_text), Status (select), Frameworks (multi_select),
 #   Bundles (multi_select), Last reviewed (date), Next due (date), Attested (rich_text),
-#   Content hash (rich_text), Mirrors (rich_text).
+#   Content hash (rich_text), Readable copy (rich_text; renamed from "Mirrors" 2026-06-21
+#   for non-dev clarity - holds the human-readable Drive/Notion copy of a git-canonical doc).
 #
 # Select-property note: Type/System/Status (select) and Frameworks/Bundles (multi_select) are
 # sent as plain option names; Notion auto-creates a missing option on write. Leave option
@@ -103,7 +104,7 @@ def properties_for(doc)
     'Next due'           => date_prop(doc['nextReviewDue']),
     'Attested'           => { 'rich_text' => rich(attested_str(doc)) },
     'Content hash'       => { 'rich_text' => rich(doc['contentHash'].to_s[0, 16]) },
-    'Mirrors'            => { 'rich_text' => rich(mirrors_str(doc)) }
+    'Readable copy'      => { 'rich_text' => rich(mirrors_str(doc)) }
   }
 end
 
