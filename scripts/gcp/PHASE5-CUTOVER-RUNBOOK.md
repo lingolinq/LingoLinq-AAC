@@ -54,11 +54,12 @@ is not schedulable to a firm date until this passes.
 
 **Two write-freeze go/no-go checks to add to this rehearsal (dual-review of PR #472/#473):**
 
-- **Client 503 re-queue (hard gate).** With `WRITE_FREEZE` on, drive a real client write (board
-  save and a `LogSession` create) and confirm the client treats the `503` + `Retry-After` as
-  "retry later" and the write eventually lands on Cloud SQL - it is NOT silently dropped. The one
-  error path found in `persistence.js` retries only ~3x/~7s and ignores `Retry-After`, so this must
-  be proven before trusting the freeze. If the write drops, do not flip `WRITE_FREEZE` on in prod.
+- **Client 503 re-queue (confirm; code trace says it already re-queues).** With `WRITE_FREEZE` on,
+  drive a real offline edit (board save) and a `LogSession` create, then confirm the write lands on
+  Cloud SQL on the next sync and is NOT dropped. The offline path is expected to pass: `sync_changed`
+  leaves a record `changed` on save failure and retries it, and the `big_logs` stash re-stashes logs
+  on failure (see step-1 residual note). Also spot-check an ONLINE direct board save under the freeze
+  (it should error and be re-saveable, not silently lost). Only a confirmed DROP here is a no-go.
 - **Worker requeue + shutdown budget.** Enqueue a synthetic long slow-queue job, replace the
   worker-pool instance (redeploy) mid-job, and confirm: (a) the job re-runs after the new instance
   comes up, and (b) actual shutdown wall-clock stays under Cloud Run's fixed 10s under live
@@ -193,16 +194,28 @@ The freeze, in order:
 > that is unacceptable, block `saml/consume` too. Record the accepted-loss decision here before the
 > window.
 
-> **Residual note (corrected by dual-review, PR #472):** keeping Render up in write-reject mode +
-> 60s TTL closes the post-dump-write data-loss class ONLY IF the client treats a `503` +
-> `Retry-After` as "retry later," not "drop the write." **This is NOT yet verified and is a hard
-> go/no-go gate.** The one client error path found (`app/frontend/app/utils/persistence.js`) retries
-> a 5xx with bounded exponential backoff (~3 tries / ~7s), does **not** read `Retry-After`, and
-> stops after `maxRetries` - if the queued write is not re-stashed offline at that point it is
-> dropped, the exact failure this freeze exists to prevent. Trace the real sync-queue write path end
-> to end in the dress rehearsal (0a) and confirm a 503 re-queues; do not flip `WRITE_FREEZE` on in
-> prod until it does. On the happy path the only manual reconciliation is on **rollback** (see
-> Rollback).
+> **Residual note (dual-review of PR #472, then code-traced):** keeping Render up in write-reject
+> mode + 60s TTL closes the post-dump-write data-loss class ONLY IF the client retains a rejected
+> write and retries it rather than dropping it. **Code trace says the offline write path already
+> does this** (so this is a confirm-in-rehearsal item, NOT a likely blocker):
+> - Offline record edits: `persistence.sync_changed` (`app/frontend/app/utils/persistence.js:3587`)
+>   saves each locally-`changed` record; on save failure it rejects WITHOUT removing the local
+>   record or clearing its `changed` marker (`:3651`), and uses `RSVP.all_wait` so one failure does
+>   not abort the rest. The record stays `changed` and is re-picked-up by `find_changed` on the next
+>   sync, which (after the 60s TTL moves DNS to GCP) lands on Cloud SQL. Not dropped.
+> - Usage logs: the `big_logs` stash observer re-stashes logs on a failed push
+>   (`persistence.js:~286`, `concat` back), so logs are retried too.
+> - The "~3 tries then stop, ignores Retry-After" path the review first flagged is
+>   `persistence.handleTokenError` - a TOKEN/auth-flow helper, NOT the data-write path; it does not
+>   govern board/log writes.
+>
+> Residual caveats to still check in 0a: (1) an ONLINE direct save (e.g. a board edit made while
+> online) that 503s surfaces as a save error and relies on user/app re-save - that is a UX retry,
+> not a silent write to the abandoned Render DB (the freeze's actual goal is met either way); (2)
+> `sync_changed` saves with `setProperties` + `save()` and no conflict check ("TODO: check for
+> conflicts before saving", `:3630`), so offline-replay is last-writer-wins - minimized by dump
+> timing but worth a spot-check. On the happy path the only manual reconciliation is on **rollback**
+> (see Rollback).
 
 ### 2. Fresh prod `pg_dump`  (GATE: real data move)
 
@@ -469,10 +482,11 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       pending merge to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
       Retry-After on mutating verbs AND side-effect GETs incl. the `lib/json_api` write paths;
       reads pass; auth allowlist). Re-confirm endpoint coverage in the rehearsal.
-- [ ] **Client 503 re-queue verified in the dress rehearsal (HARD GATE):** a frozen board-save /
-      LogSession write is retried and lands on Cloud SQL, NOT dropped (`persistence.js` ignores
-      `Retry-After` and stops after ~3 tries; must be proven). Do not flip `WRITE_FREEZE` on until
-      green.
+- [ ] **Client 503 re-queue confirmed in the dress rehearsal:** a frozen offline board-save /
+      LogSession write lands on Cloud SQL on the next sync, NOT dropped. Code trace shows the
+      offline path already re-queues (`sync_changed` keeps the record `changed` on failure; logs
+      re-stashed), so this is a confirmation, not a likely blocker; a confirmed DROP is the only
+      no-go. Also spot-check an online direct save under the freeze.
 - [ ] **Accepted-loss set recorded + signed off:** existing-user login Device/token writes and
       `saml/consume` SSO linkage land on Render during the soak and are lost on rollback (re-login
       after); `auth/google/signup` is blocked. Confirm `saml/consume` stays allowlisted (or block
