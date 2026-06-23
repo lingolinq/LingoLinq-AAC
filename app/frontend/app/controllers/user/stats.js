@@ -12,8 +12,10 @@ import Utils from '../../utils/misc';
 import Stats from '../../utils/stats';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  router: service('router'),
   title: computed('model.user_name', function() {
     if(this.get('model.user_name')) {
       return this.get('model.user_name') + "'s Activity";
@@ -419,7 +421,7 @@ export default Controller.extend({
     },
     show_logs: function(opts) {
       opts = opts || {};
-      this.transitionToRoute('user.logs', this.get('model.user_name'), {queryParams: {start: opts.start, end: opts.end, device_id: opts.device_id, location_id: opts.location_id, highlighted: null, type: 'session'}});
+      this.router.transitionTo('user.logs', this.get('model.user_name'), {queryParams: {start: opts.start, end: opts.end, device_id: opts.device_id, location_id: opts.location_id, highlighted: null, type: 'session'}});
     },
     modify_core: function() {
       var _this = this;

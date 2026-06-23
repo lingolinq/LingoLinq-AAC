@@ -14,6 +14,7 @@ import evaluation from '../../utils/eval';
 import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  router: service('router'),
   store: service(),
   queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],
   user: reads('model'),
@@ -202,7 +203,7 @@ export default Controller.extend({
       var user_id = _this.get('model.id');
       LingoLinq.Log.import(file, log_type, user_id).then(function(logs) {
         if(logs.length == 1) {
-          _this.transitionToRoute('user.log', _this.get('model.user_name'), logs[0]);
+          _this.router.transitionTo('user.log', _this.get('model.user_name'), logs[0]);
         } else {
           _this.send('refresh');
           modal.success(i18n.t('logs_imported', "Your logs have been imported!"));

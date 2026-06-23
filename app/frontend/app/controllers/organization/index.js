@@ -7,6 +7,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  router: service('router'),
   app_state: service('app-state'),
   refresh_lists: function() {
     this.set('logs', {});
@@ -144,7 +145,7 @@ export default Controller.extend({
       });
     },
     edit_org: function() {
-      this.transitionToRoute('organization.settings', this.get('model.id'));
+      this.router.transitionTo('organization.settings', this.get('model.id'));
     }
   }
 });

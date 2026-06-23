@@ -6,8 +6,10 @@ import i18n from '../../utils/i18n';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  router: service('router'),
   opening: function() {
     var users = this.get('model.users');
 
@@ -330,7 +332,7 @@ export default modal.ModalController.extend({
       var _this = this;
       modal.open('new-goal', {users: _this.get('model.users') }).then(function(res) {
         if(res && res.get('id') && res.get('set_badges')) {
-          _this.transitionToRoute('user.goal', _this.get('model.user_name'), res.get('id'));
+          _this.router.transitionTo('user.goal', _this.get('model.user_name'), res.get('id'));
         } else if(res) {
           modal.success(i18n.t('goal_added', "Goal added! Check back with Modeling Ideas soon to see updated ideas based on the new goal."));
         }

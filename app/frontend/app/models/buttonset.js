@@ -4,7 +4,7 @@ import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import $ from 'jquery';
 import RSVP from 'rsvp';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
 import BaseModel from './base';
 import LingoLinq from '../app';
 import LingoLinqImage from '../models/image';
@@ -25,18 +25,18 @@ LingoLinq.Buttonset = BaseModel.extend({
   stashes: service('stashes'),
   appState: service('app-state'),
   /** When loaded by board key, API id is global_id; serializer stores it here (see application serializer). */
-  _actual_id: DS.attr('string'),
+  _actual_id: attr('string'),
   /** Global board id for comparisons with button.board_id and app state (see Board#global_id). */
   global_id: computed('id', '_actual_id', function() {
     return this.get('_actual_id') || this.get('id');
   }),
-  key: DS.attr('string'),
-  root_url: DS.attr('string'),
-  buttons: DS.attr('raw'),
-  remote_enabled: DS.attr('boolean'),
-  name: DS.attr('string'),
-  full_set_revision: DS.attr('string'),
-  encryption_settings: DS.attr('raw'),
+  key: attr('string'),
+  root_url: attr('string'),
+  buttons: attr('raw'),
+  remote_enabled: attr('boolean'),
+  name: attr('string'),
+  full_set_revision: attr('string'),
+  encryption_settings: attr('raw'),
   board_ids: computed('buttons', function() {
     return this.board_ids_for(null);
   }),

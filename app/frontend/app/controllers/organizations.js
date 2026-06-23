@@ -7,6 +7,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 
 export default Controller.extend({
+  router: service('router'),
   app_state: service('app-state'),
   store: service('store'),
 
@@ -121,7 +122,7 @@ export default Controller.extend({
           }
           org.save().then(function() {
             _this.refresh_orgs();
-            _this.transitionToRoute('organization', org.get('id'));
+            _this.router.transitionTo('organization', org.get('id'));
           }, function(err) {
             console.log(err);
             modal.error(i18n.t('add_org_manager_failed', "Adding organization manager failed unexpectedly"));

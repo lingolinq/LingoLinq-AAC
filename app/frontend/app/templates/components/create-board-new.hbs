@@ -108,7 +108,20 @@
     <div class="modal-header md-modal-header nb-create-header">
       <div class="nb-create-header__intro">
         <h3>{{#if this.ai_mode}}{{t "Create a New Board with AI" key="create_a_new_board_with_ai"}}{{else if this.via_create_own}}{{t "Create My Own Board" key="create_my_own_board"}}{{else}}{{t "Create a New Board" key="create_a_new_board"}}{{/if}}</h3>
-        <p class="nb-create-header__subtitle">{{#if this.ai_mode}}{{t "Describe your board for AI — who it's for, the setting, the vocabulary focus." key="create_board_intro_subtitle_ai"}}{{else}}{{t "Build from scratch, paste labels, import a CSV, or choose from core lists." key="create_board_intro_subtitle"}}{{/if}}</p>
+        {{#if this.ai_mode}}
+          <ul class="la-checklist">
+            <li>
+              <span class="la-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              {{t "Generate this board's buttons from your description using AI" key="ai_intro_check_generate"}}
+            </li>
+            <li>
+              <span class="la-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              {{t "You'll be able to review and edit everything before creating the board" key="ai_intro_check_review"}}
+            </li>
+          </ul>
+        {{else}}
+          <p class="nb-create-header__subtitle">{{t "Build from scratch, paste labels, import a CSV, or choose from core lists." key="create_board_intro_subtitle"}}</p>
+        {{/if}}
       </div>
       <div class="create-board-actions">
         {{#if this.ai_mode}}
@@ -562,11 +575,16 @@
                              mode's sentence box. Falls back to text-only when a
                              button has no symbol. --}}
                         {{#each this._speak_words as |word|}}
-                          <span class="md-board-detail-sentence-bar__chip">
+                          <span class="md-board-detail-sentence-bar__chip {{if this.utterance_text_on_top "md-board-detail-sentence-bar__chip--text-top"}}">
+                            {{#if this.utterance_text_on_top}}
+                              <span class="md-board-detail-sentence-bar__chip-label">{{word.label}}</span>
+                            {{/if}}
                             {{#if word.image_url}}
                               <img src={{word.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
                             {{/if}}
-                            <span class="md-board-detail-sentence-bar__chip-label">{{word.label}}</span>
+                            {{#unless this.utterance_text_on_top}}
+                              <span class="md-board-detail-sentence-bar__chip-label">{{word.label}}</span>
+                            {{/unless}}
                           </span>
                         {{/each}}
                       {{else}}
@@ -965,6 +983,13 @@
                                  `paint_button(label)`. Same actions and
                                  bindings the component already exposes. --}}
                             <div class="md-board-detail-edit-toolbar__dropdown-wrap--paint">
+                              {{!-- Name of the currently-picked paint color shown ABOVE the
+                                   swatch so the user can see which preset they chose (the
+                                   swatch's POS label, e.g. "Pronoun"/"Verb", or "Custom" for a
+                                   hand-picked hex). Only rendered once a color is armed. --}}
+                              {{#if this.paint_mode.label}}
+                                <div class="md-board-edit-right-panel__paint-selected" aria-live="polite">{{this.paint_mode.label}}</div>
+                              {{/if}}
                               <div class="md-board-edit-right-panel__paint-row">
                                 <button type="button"
                                   class="md-board-edit-right-panel__palette {{if this.show_paint_dropdown 'md-board-edit-right-panel__palette--open'}}"
@@ -987,7 +1012,7 @@
                                       role="menuitem"
                                       class="md-board-edit-right-panel__paint-pill {{if (is-equal this.paint_mode.fill swatch.bg) 'md-board-edit-right-panel__paint-pill--active'}}"
                                       aria-label={{swatch.label}}
-                                      {{action "set_paint_mode" swatch.bg swatch.border swatch.pos_class}}>
+                                      {{action "set_paint_mode" swatch.bg swatch.border swatch.pos_class swatch.label}}>
                                       <span class="md-board-edit-right-panel__paint-pill-dot" style={{safe-style (concat "background-color:" swatch.bg ";border-color:" swatch.border)}}></span>
                                       <span class="md-board-edit-right-panel__paint-pill-label">{{swatch.label}}</span>
                                     </button>

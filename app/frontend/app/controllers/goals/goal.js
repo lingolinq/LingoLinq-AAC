@@ -6,9 +6,11 @@ import i18n from '../../utils/i18n';
 import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  router: service('router'),
   advance_options: [
     {name: i18n.t('never', "Never"), id: "none"},
     {name: i18n.t('on_the_date', "On the Date"), id: "date"},
@@ -132,7 +134,7 @@ export default Controller.extend({
       var _this = this;
       modal.open('modals/confirm-remove-goal', {source_type: 'unit', source: {id: _this.get('model.unit_id'), name: _this.get('model.unit_name')}, goal: _this.get('model')}).then(function(res) {
         if(res.confirmed) {
-          _this.transitionToRoute('organization.room', _this.get('model.unit_org_id'), _this.get('model.unit_id'));
+          _this.router.transitionTo('organization.room', _this.get('model.unit_org_id'), _this.get('model.unit_id'));
         }
       });
     },
