@@ -188,7 +188,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "COMPLIANCE.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -196,9 +196,12 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-04-18",
-      "nextReviewDue": "2027-04-18",
-      "attestation": {},
+      "lastReviewed": "2026-06-23",
+      "nextReviewDue": "2027-06-23",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-06-23"
+      },
       "contentHash": "2823383621e2e5162bdfb8388b15f1840d9654185194cf3569190941b82d7999",
       "bundles": [],
       "mirrors": [
