@@ -24,6 +24,29 @@ export default Component.extend({
 
   isOpen: false,
 
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.onToggle = function(ev) {
+      self.send('toggle', ev);
+    };
+    this.onStopPropagation = function(ev) {
+      self.send('stopPropagation', ev);
+    };
+    this.onListKeydown = function(ev) {
+      self.send('list_keydown', ev);
+    };
+    this.onSearchKeydown = function(ev) {
+      self.send('search_keydown', ev);
+    };
+    this.onChoose = function(item, ev) {
+      self.send('choose', item, ev);
+    };
+    this.onOptionKeydown = function(item, ev) {
+      self.send('option_keydown', item, ev);
+    };
+  },
+
   /** Live filter string typed into the search input. Cleared
    *  whenever the dropdown closes so reopening starts fresh. */
   searchString: '',

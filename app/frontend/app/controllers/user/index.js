@@ -1005,8 +1005,12 @@ export default Controller.extend({
           prior = [];
         }
 
-        prior.pushObjects(boards.slice());
-//        var result = prior.concat(boards.slice());
+        var chunk = boards.slice();
+        if (append && prior.length) {
+          prior = prior.concat(chunk);
+        } else {
+          prior = chunk;
+        }
         prior.user_id = _this.get('model.id');
         _this.set(list_name, prior);
         var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');

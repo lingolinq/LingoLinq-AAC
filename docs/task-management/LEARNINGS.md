@@ -3919,9 +3919,39 @@ first run and left the file untouched.
 
 **Root cause:** Classic boards wrap the grid in `.advanced_selection`, which blocks native clicks and routes selection only through `raw_events`. board-detail omits that wrapper so Ember `{{action "select_button"}}` works, but symbol cards still carry class `.button`. On **mouse**, `raw_events` `touch_release` → `buttonSelect` runs on `mouseup`, then the native `click` fires the same Ember action — two `utterance.add_button` calls (often one capitalized, one not). On **touch**, `preventDefault` on `touchend` suppresses the synthesized click, so `raw_events` must remain the sole path.
 
-**Fix recipe:** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
+**Fix recipe (pre–Ember 5):** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
 
-**Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; task log `2026-06-09-board-detail-speak-bar-double-add.md`.
+**Ember 5 regression (2026-06-22):** The defer-to-Ember `{{on "click"}}` path silently stopped working — `preventDefault` on `mouseup` cancels the native click, and `dispatchPassThroughClick` does not reach Ember 5 co-located classic component listeners (runtime-verified). **Fix:** Revert defer; always route speak-mode releases through `buttonSelect`. `preventDefault` on `mouseup` still suppresses duplicate native click, so no double speak-bar add.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/components/board-detail-grid.hbs`; task logs `2026-06-09-board-detail-speak-bar-double-add.md`, `2026-06-17-ember5-upgrade.md`.
+
+---
+
+## Pattern: board-detail chrome + speak header — route `controller.send`, not synthetic click
+
+**Surface:** board-detail page chrome (sentence bar tools, options menu, sidebar toggle, local home/back) and application `#speak` header (home, back, clear, backspace, speak options) while `#within_ember` carries `.board-detail-view`.
+
+**Root cause:** Same Ember 5 failure as the grid: `preventDefault` on `mouseup` cancels the browser click, and `dispatchPassThroughClick` does not reach `{{on "click" (fn this.ctrlAction …)}}` on co-located classic templates (runtime-verified: pass-through logs fire, zero `ctrlAction` logs).
+
+**Fix recipe:** In `raw_events.js`, `boardDetailChromeRelease()` maps pointer releases inside `.board-detail-view` (excluding grid `.button` targets) directly to `controller.send`:
+- Application speak header IDs → `appState.controller` (`home`, `clear`, `backspace`, `speakOptions`, …).
+- Board-detail controls → `editManager.controller` via class/id maps for stable chrome (sentence bar, options toggle, sidebar) and `data-bd-action` / `data-bd-arg` on menu/sidebar buttons (100+ `ctrlAction` targets).
+
+Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events paths; raw_events is the sole mouse/touch path in speak mode.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js` (`resolveBoardDetailChromeAction`, `boardDetailChromeRelease`), `application.hbs`, `board-detail.hbs`; debug session `bcf18d` (2026-06-22).
+
+---
+
+## Pattern: `EXTEND_PROTOTYPES: false` — Ember Array methods on native arrays
+
+**Surface:** speak mode button taps, speak-bar backspace, any `utterance.add_button` path.
+
+**Root cause:** `config/environment.js` sets `EXTEND_PROTOTYPES: false`. `rawButtonList` / `working_vocalization` are native arrays. Calls like `pushObject`, `insertAt`, `removeAt`, `popObject`, `pushObjects` throw (`… is not a function`), aborting `activate_button` after entry — silent failure (no console error if uncaught in async path). Folder navigation still works because it returns before `activateButton`.
+
+**Fix recipe:** Use native array ops (`push`, `splice`, `pop`, `concat`) and `this.set('rawButtonList', nextList)` so `rawButtonList.[]` observers fire. Same class of bug as `.uniq()` on `board.js` and `pushObjects` on `user/index`.
+
+**Evidence:** `app/frontend/app/utils/utterance.js` (`add_button`, `backspace`); runtime logs `post-fix4` (`add_button done`, `btnListLen` 1→7); task log `2026-06-17-ember5-upgrade.md`.
 
 ---
 
@@ -5303,3 +5333,17 @@ open/high counts straight from the JSON (a `ruby -rjson` tally) rather than carr
 forward; the 2026-06-13 posture report had stale 0/13 + FERPA 8/4 figures that did not match the
 register's 0/16 + FERPA 10/5. Run all three `--check` renders + `citation-check` green before
 committing. Confirmed 2026-06-18.
+
+### Ember 5: classic `extend` callback props need `init()` arrow bindings
+
+On `Controller.extend` / `Component.extend`, methods passed as **callback props** to child components (e.g. `opening-observer` `opening`/`closing`, `@onClose`, yielded `closeDrawer`) lose `this` when the child invokes them. Ember 5 dev asserts if you use `(fn this.method)` with unbound prototype methods. Fix: assign arrow functions in `init()`, and **capture services/locals in closure** — do not reference `this.appState` (or other injected services) inside the arrow body when the callback is passed as a component arg; Ember's `fn` wrapper still asserts on `this.*` access:
+
+```javascript
+init() {
+  this._super(...arguments);
+  var appState = this.appState;
+  this.opening_index = () => { appState.set('index_view', true); };
+}
+```
+
+`{{on "click" this.method}}` on the same component often still works; the issue is specifically **callbacks passed to children**. Store service must re-export `ember-data/store` (not `@ember-data/store`) until full legacy-compat migration. Custom `transforms/raw.js` must use **default** import: `import Transform from '@ember-data/serializer/transform'` — `{ Transform }` is undefined (`Transform.extend` crash on user fetch). See `docs/task-management/2026-06-17-ember5-upgrade.md`.

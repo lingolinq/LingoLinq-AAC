@@ -52,29 +52,29 @@
                 </ul>
               </span>
             </span>
-            <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key="fsa_open_menu"}} aria-expanded={{this.isLandingDrawerOpen}} {{action "toggleLandingDrawer"}}>
+            <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key="fsa_open_menu"}} aria-expanded={{this.isLandingDrawerOpen}} {{on "click" this.toggleLandingDrawer}}>
               <span class="la-topbar-hamburger__bar"></span>
               <span class="la-topbar-hamburger__bar"></span>
               <span class="la-topbar-hamburger__bar"></span>
             </button>
           </div>
-          <LaMobileDrawer @isOpen={{this.isLandingDrawerOpen}} @onClose={{action "closeLandingDrawer"}}>
-            <LinkTo @route="demo.speak" @query={{hash board=null source=null}} class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Try a Demo" key="demo_try_speak_mode"}}</LinkTo>
-            <LinkTo @route="features" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Features" key="fsa_nav_features"}}</LinkTo>
-            {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
-            <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "About" key="fsa_nav_about"}}</LinkTo>
-            <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+          <LaMobileDrawer @isOpen={{this.isLandingDrawerOpen}} @onClose={{this.closeLandingDrawer}}>
+            <LinkTo @route="demo.speak" @query={{hash board=null source=null}} class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Try a Demo" key="demo_try_speak_mode"}}</LinkTo>
+            <LinkTo @route="features" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Features" key="fsa_nav_features"}}</LinkTo>
+            {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
+            <LinkTo @route="about" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "About" key="fsa_nav_about"}}</LinkTo>
+            <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
             <div class="la-mobile-drawer__divider"></div>
-            <LinkTo @route="login" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Sign In" key="login"}}</LinkTo>
-            <LinkTo @route="register" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Register" key="register"}}</LinkTo>
-            <LinkTo @route="register" class="la-mobile-drawer__cta" {{action "closeLandingDrawer"}}>{{t "Try Free" key="fsa_try_free"}} →</LinkTo>
+            <LinkTo @route="login" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Sign In" key="login"}}</LinkTo>
+            <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" this.closeLandingDrawer}}>{{t "Register" key="register"}}</LinkTo>
+            <LinkTo @route="register" class="la-mobile-drawer__cta" {{on "click" this.closeLandingDrawer}}>{{t "Try Free" key="fsa_try_free"}} →</LinkTo>
           </LaMobileDrawer>
         {{/unless}}
       {{/unless}}
     {{/unless}}
   {{/if}}
   {{#if this.showBetaFeedbackDrawerTab}}
-    <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--navbar {{if this.application.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{action "toggleBetaFeedbackDrawer"}} aria-expanded={{if this.application.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
+    <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--navbar {{if this.application.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.toggleBetaFeedbackDrawer}} aria-expanded={{if this.application.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       <span>{{t "Beta feedback" key="beta_feedback_nav"}}</span>
       <svg class="beta-feedback-drawer-tab__caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>

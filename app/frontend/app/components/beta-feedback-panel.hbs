@@ -44,7 +44,7 @@
       </div>
     </div>
     {{#if @onClose}}
-      <button type="button" class="beta-feedback-panel__close" {{action @onClose}} aria-label={{if @isDrawer (t "Hide feedback form" key="beta_feedback_hide_form") (t "Close" key="close")}}>
+      <button type="button" class="beta-feedback-panel__close" {{on "click" @onClose}} aria-label={{if @isDrawer (t "Hide feedback form" key="beta_feedback_hide_form") (t "Close" key="close")}}>
         {{#if @isDrawer}}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"/></svg>
         {{else}}

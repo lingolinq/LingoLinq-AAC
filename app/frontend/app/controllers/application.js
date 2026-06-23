@@ -73,6 +73,7 @@ export default Controller.extend({
   showSystemSettingsLink: alias('showBetaFeedbackAdminLink'),
 
   landingNavOpen: false,
+
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
   betaFeedbackDrawerOpen: false,
 
@@ -166,6 +167,27 @@ export default Controller.extend({
         configurable: true
       });
     }
+
+    var router = this.router;
+    var self = this;
+    this.support = () => {
+      router.transitionTo('support');
+    };
+    this.language = () => {
+      modal.open('modals/choose-locale');
+    };
+    this.toggleLandingNav = () => {
+      self.set('landingNavOpen', !self.get('landingNavOpen'));
+    };
+    this.closeLandingNav = () => {
+      self.set('landingNavOpen', false);
+    };
+    this.onCloseBetaFeedbackDrawer = () => {
+      self.send('closeBetaFeedbackDrawer');
+    };
+    this.onToggleBetaFeedbackDrawer = () => {
+      self.send('toggleBetaFeedbackDrawer');
+    };
   },
   updateTitle: function(str) {
     if(!isTesting()) {
@@ -509,6 +531,23 @@ export default Controller.extend({
     var s = this.get('session.isAuthenticated') ? 'margin-top: -10px; font-size: 14px;' : 'font-size: 14px;';
     return htmlSafe(s);
   }),
+
+  init: function() {
+    this._super(...arguments);
+    var _this = this;
+    _this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        _this.send.apply(_this, [actionName].concat(args));
+      };
+    };
+  },
+
   actions: {
     invalidateSession: function() {
       var sess = this.get('session');
@@ -1675,7 +1714,13 @@ export default Controller.extend({
       key: board.get('key'),
       parent_id: board.get('parent_board_id')
     };
-    var image_url = button.image;
+    var image_url = (button.get && (button.get('local_image_url') || button.get('image_url'))) ||
+      button.local_image_url ||
+      button.image_url ||
+      button.image;
+    if(image && image.get && image.get('best_url') && !image_url) {
+      image_url = image.get('best_url');
+    }
     if(image && image.get('personalized_url') && !button.no_skin) {
       image_url = image.get('personalized_url');
     } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {

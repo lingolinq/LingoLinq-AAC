@@ -4,7 +4,7 @@
     <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="12" cy="7" r="4" stroke="#46505F"/></svg>
     <h2 class="md-edit-profile__title">{{t "User Profile for %{term}" key="profile_for" term=this.model.user_name}}</h2>
   </div>
-  <form class="form-horizontal md-edit-profile__form md-preferences__form" {{on "submit" (action "saveProfile")}}>
+  <form class="form-horizontal md-edit-profile__form md-preferences__form" {{on "submit" this.onSaveProfile}}>
 
   {{!-- Section: Personal Information --}}
   {{#preference-box title="Personal Information" glyph='glyphicon glyphicon-user' title_key='profile_section_personal' open=true}}
@@ -41,7 +41,7 @@
     <div class="form-group">
       <span class="col-sm-3 control-label">{{t "Login Role" key="login_is_for"}}</span>
       <div class="col-sm-5">
-        {{modern-select selectId="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
+        {{modern-select selectId="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=this.onRegistrationTypeChange }}
       </div>
     </div>
     {{#unless this.change_password}}
@@ -49,7 +49,7 @@
         <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-5">
           <p class="form-control-static">
-            <a href="#" {{action "enable_change_password"}}>change password</a>
+            <a href="#" {{on "click" (fn this.ctrlAction "enable_change_password")}}>change password</a>
           </p>
         </div>
       </div>
@@ -84,7 +84,7 @@
             {{#if this.status_2fa.error}}
               <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
             {{/if}}
-            <button class='btn btn-default' {{action "update_2fa" "confirm"}}>{{t "Confirm" key="confirm"}}</button>
+            <button class='btn btn-default' {{on "click" (fn this.ctrlAction "update_2fa" "confirm")}}>{{t "Confirm" key="confirm"}}</button>
           {{else}}
             {{#if this.model.permissions.edit}}
               {{#if this.model.state_2fa.required}}
@@ -94,12 +94,12 @@
                   {{t "Currently Enabled" key="currently_enabled"}}
                 {{/if}}
                 {{#unless this.model.state_2fa.mandatory}}
-                  <button class='btn btn-default' {{action "update_2fa" "disable"}}>{{t "Disable" key="disable_2fa"}}</button>
+                  <button class='btn btn-default' {{on "click" (fn this.ctrlAction "update_2fa" "disable")}}>{{t "Disable" key="disable_2fa"}}</button>
                 {{/unless}}
-                <button class='btn btn-default' {{action "update_2fa" "reset"}}>{{t "Reset" key="reset_2fa"}}</button>
+                <button class='btn btn-default' {{on "click" (fn this.ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
               {{else}}
                 {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
-                <button class='btn btn-default' {{action "update_2fa" "enable"}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
+                <button class='btn btn-default' {{on "click" (fn this.ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
               {{/if}}
             {{/if}}
             {{#if this.status_2fa.error}}
@@ -137,7 +137,7 @@
       <span class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</span>
       <div class="col-sm-5">
         <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
-        <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
+        <a href="#" {{on "click" (fn this.ctrlAction "pick_avatar")}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
         <a href="https://www.gravatar.com" target="_blank" style="display: none;" rel="noopener">{{t "Change your avatar at Gravatar.com" key="change_at_gravatar"}}</a>
       </div>
     </div>
@@ -178,13 +178,13 @@
               <li class='list-group-item'>
                 <div style='float: right;'>
                   {{#unless contact.temporary}}
-                    <button class='btn btn-default' {{action "message_link" contact}} title={{t "Send message link to contact" key="send_message_link_to_contact"}} style='position: relative;'>
+                    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "message_link" contact)}} title={{t "Send message link to contact" key="send_message_link_to_contact"}} style='position: relative;'>
                       <span class='glyphicon glyphicon-envelope' style='position: absolute;top: 3px;left: 3px;'></span>
                       <span class='glyphicon glyphicon-link' style='margin-right: -7px;margin-left: 7px;'></span>
                       <span class='sr-only'>{{t "Send message link to contact" key="send_message_link_to_contact"}}</span>
                     </button>
                   {{/unless}}
-                  <button class='btn btn-default' {{action "remove_contact" contact}}>
+                  <button class='btn btn-default' {{on "click" (fn this.ctrlAction "remove_contact" contact)}}>
                     <span class='glyphicon glyphicon-trash'></span>
                     <span class='sr-only'>{{t "Remove contact" key="remove_contact"}}</span>
                   </button>
@@ -218,7 +218,7 @@
           <span style="font-size: 14px; color: #888;">+country prefix for non-US</span>
         </div>
         <div class='col-sm-3'>
-          <button class='btn btn-default' {{action "set_picture"}} style='width: 100%;'>
+          <button class='btn btn-default' {{on "click" (fn this.ctrlAction "set_picture")}} style='width: 100%;'>
             <span class='glyphicon glyphicon-camera'></span>
             {{t "Set Picture & Add" key="set_picture"}}
           </button>
@@ -251,7 +251,7 @@
             </button>
             <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
               {{#each this.device_options as |option|}}
-                <li><a href='#' {{action "set_device" option}}>{{option.name}}</a></li>
+                <li><a href='#' {{on "click" (fn this.ctrlAction "set_device" option)}}>{{option.name}}</a></li>
               {{/each}}
             </ul>
           </div>
@@ -270,7 +270,7 @@
               </button>
               <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
                 {{#each this.vocab_options as |option|}}
-                  <li><a href='#' {{action "set_vocab" option}}>{{option.name}}</a></li>
+                  <li><a href='#' {{on "click" (fn this.ctrlAction "set_vocab" option)}}>{{option.name}}</a></li>
                 {{/each}}
               </ul>
             </div>
@@ -289,7 +289,7 @@
       <div class="form-group">
         <span class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</span>
         <div class="col-sm-6">
-          {{modern-select selectId="external_access_method" content=this.access_methods selection=this.external_access_method action=(action (mut this.external_access_method)) }}
+          {{modern-select selectId="external_access_method" content=this.access_methods selection=this.external_access_method action=this.onExternalAccessMethodChange }}
         </div>
       </div>
     {{/if}}
@@ -334,7 +334,7 @@
             {{/if}}
           </div>
           <div class="col-sm-2">
-            <button type='button' class='btn btn-default' {{action "generate_qr"}}>{{t "Generate QR Code" key="generate_qr_code"}}</button>
+            <button type='button' class='btn btn-default' {{on "click" (fn this.ctrlAction "generate_qr")}}>{{t "Generate QR Code" key="generate_qr_code"}}</button>
           </div>
         </div>
       {{/if}}
@@ -388,7 +388,7 @@
             {{/if}}
           </div>
           <div class="col-sm-2">
-            <button type='button' class='btn btn-default' {{action "generate_qr"}}>{{t "Generate QR Code" key="generate_qr_code"}}</button>
+            <button type='button' class='btn btn-default' {{on "click" (fn this.ctrlAction "generate_qr")}}>{{t "Generate QR Code" key="generate_qr_code"}}</button>
           </div>
         </div>
 
@@ -424,7 +424,7 @@
       <div class="form-group">
         <div class="col-sm-8">
           {{#each this.tools as |tool|}}
-            <div style='float: left; cursor: pointer;' {{action "integration_details" tool}}>
+            <div style='float: left; cursor: pointer;' {{on "click" (fn this.ctrlAction "integration_details" tool)}}>
               <img src={{tool.icon_url}} alt={{tool.name}} title={{tool.name}} style='height: 50px; width: 50px; object-fit: contain; border: 1px solid #ccc; border-radius: 3px; padding: 5px; margin-right: 5px;'>
             </div>
           {{/each}}
@@ -438,18 +438,18 @@
   {{/if}}
   <div class="md-edit-profile__actions">
     <button type="submit" class="btn btn-primary">{{t "Save Profile" key="save_profile"}}</button>
-    <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key="cancel"}}</button>
+    <button type="button" class="btn btn-default" {{on "click" (fn this.ctrlAction "cancelSave")}}>{{t "Cancel" key="cancel"}}</button>
   </div>
   </form>
 
   <hr class="md-edit-profile__divider" aria-hidden="true">
   {{#preference-box title="Integrations" glyph='glyphicon glyphicon-link' title_key='integrations_heading'}}
     <div class="md-edit-profile__integrations-row">
-      <button class='md-edit-profile__integration-btn' {{action "browse_tools" "lessonpix"}}>
+      <button class='md-edit-profile__integration-btn' {{on "click" (fn this.ctrlAction "browse_tools" "lessonpix")}}>
         <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' class="md-edit-profile__integration-icon">
         {{t "Connect To LessonPix" key="connect_lessonpix"}}
       </button>
-      <button class='md-edit-profile__integration-btn' {{action "browse_tools" "ifttt"}}>
+      <button class='md-edit-profile__integration-btn' {{on "click" (fn this.ctrlAction "browse_tools" "ifttt")}}>
         <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' class="md-edit-profile__integration-icon">
         {{t "Connect to IFTTT" key="connect_ifttt"}}
       </button>
@@ -467,7 +467,7 @@
           {{else if this.model.integrations}}
             <ul class="md-edit-profile__conn-list">
               {{#each this.model.integrations as |integration|}}
-                <li class="md-edit-profile__conn-item" {{action "integration_details" integration}}>
+                <li class="md-edit-profile__conn-item" {{on "click" (fn this.ctrlAction "integration_details" integration)}}>
                   <div class="md-edit-profile__conn-item-info">
                     {{#if integration.icon_url}}
                       <img src={{integration.icon_url}} class="md-edit-profile__conn-item-icon">
@@ -496,7 +496,7 @@
                     </div>
                   </div>
                   {{#if this.model.permissions.edit}}
-                    <button class="md-edit-profile__conn-remove" {{action "delete_integration" integration}}>
+                    <button class="md-edit-profile__conn-remove" {{on "click" (fn this.ctrlAction "delete_integration" integration)}}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       <span class='sr-only'>{{t "delete connected tool" key="delete_connected_tool"}}</span>
                     </button>
@@ -509,8 +509,8 @@
           {{/if}}
           {{#if this.model.permissions.edit}}
             <div class="md-edit-profile__conn-actions">
-              <a href="#" class='md-edit-profile__integration-btn' {{action "browse_tools"}}>{{t "browse tools" key="browse_tools_lower"}}</a>
-              <a href="#" class='md-edit-profile__integration-btn' {{action "add_integration"}}>{{t "add custom tool" key="add_custom_tool"}}</a>
+              <a href="#" class='md-edit-profile__integration-btn' {{on "click" (fn this.ctrlAction "browse_tools")}}>{{t "browse tools" key="browse_tools_lower"}}</a>
+              <a href="#" class='md-edit-profile__integration-btn' {{on "click" (fn this.ctrlAction "add_integration")}}>{{t "add custom tool" key="add_custom_tool"}}</a>
             </div>
           {{/if}}
         </div>
@@ -543,10 +543,10 @@
                   </div>
                   <div class="md-edit-profile__conn-item-actions">
                     {{#if webhook.custom_configuration}}
-                      <a href="#" class="md-edit-profile__conn-test" {{action "test_webhook" webhook}}>{{t "test" key="test"}}</a>
+                      <a href="#" class="md-edit-profile__conn-test" {{on "click" (fn this.ctrlAction "test_webhook" webhook)}}>{{t "test" key="test"}}</a>
                     {{/if}}
                     {{#if this.model.permissions.edit}}
-                      <button class="md-edit-profile__conn-remove" {{action "delete_webhook" webhook}}>
+                      <button class="md-edit-profile__conn-remove" {{on "click" (fn this.ctrlAction "delete_webhook" webhook)}}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         <span class='sr-only'>{{t "delete event handler" key="delete_event_handler_lower"}}</span>
                       </button>
@@ -560,18 +560,18 @@
           {{/if}}
           {{#if this.model.permissions.edit}}
             <div class="md-edit-profile__conn-actions">
-              <a href="#" class='md-edit-profile__integration-btn' {{action "add_webhook"}}>{{t "add custom handler" key="add_handler"}}</a>
+              <a href="#" class='md-edit-profile__integration-btn' {{on "click" (fn this.ctrlAction "add_webhook")}}>{{t "add custom handler" key="add_handler"}}</a>
             </div>
           {{/if}}
         </div>
       </div>
     {{else}}
-      <div style="padding: 0 20px 12px;"><a href="#" class='md-edit-profile__integration-btn' {{action "manage_connections"}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a></div>
+      <div style="padding: 0 20px 12px;"><a href="#" class='md-edit-profile__integration-btn' {{on "click" (fn this.ctrlAction "manage_connections")}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a></div>
     {{/if}}
   {{/preference-box}}
   {{#if this.model.permissions.delete}}
     <div class="md-edit-profile__delete-row">
-      <a href="#" class="md-edit-profile__delete-btn" {{action "delete_user"}}>{{t "Delete My Account" key="delete_my_account"}}</a>
+      <a href="#" class="md-edit-profile__delete-btn" {{on "click" (fn this.ctrlAction "delete_user")}}>{{t "Delete My Account" key="delete_my_account"}}</a>
     </div>
   {{/if}}
 </div>

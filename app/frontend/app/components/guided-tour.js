@@ -712,6 +712,13 @@ export default Component.extend({
     this._super.apply(this, arguments);
   },
 
+  init() {
+    this._super(...arguments);
+    this.onStartTour = () => {
+      this.send('startTour');
+    };
+  },
+
   actions: {
     startTour: function() {
       this._startTour();

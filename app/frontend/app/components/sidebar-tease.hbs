@@ -2,7 +2,7 @@
   {{#unless this.appState.currentUser.preferences.disable_quick_sidebar}}
     {{#unless this.appState.sidebar_relegated}}
       {{#unless this.appState.eval_mode}}
-        <button type="button" id="sidebar_tease" class={{if this.appState.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}} {{action "toggleSidebar"}} aria-label={{t "Open sidebar" key="open_sidebar"}}>
+        <button type="button" id="sidebar_tease" class={{if this.appState.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}} {{on "click" this.toggleSidebar}} aria-label={{t "Open sidebar" key="open_sidebar"}}>
           {{#if this.appState.fenced_sidebar_board}}
             <span class='glyphicon glyphicon-map-marker' style='font-size: 20px; vertical-align: middle;' aria-hidden="true"></span>
           {{/if}}

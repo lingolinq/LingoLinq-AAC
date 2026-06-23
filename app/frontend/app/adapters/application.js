@@ -1,8 +1,8 @@
-import DS from "ember-data";
+import RESTAdapter from '@ember-data/adapter/rest';
 import persistence from '../utils/persistence';
 import $ from 'jquery';
 
-var res = DS.RESTAdapter.extend({
+var res = RESTAdapter.extend({
   namespace: 'api/v1',
   // Override ajax to use $.ajax which is overridden by extras.js to add Authorization headers
   // Note: We directly call $.ajax (not this._super) to ensure the extras.js override is used

@@ -10,12 +10,14 @@ export default Component.extend({
 
   isDrawerOpen: false,
 
-  actions: {
-    toggleDrawer() {
-      this.set('isDrawerOpen', !this.get('isDrawerOpen'));
-    },
-    closeDrawer() {
-      this.set('isDrawerOpen', false);
-    }
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.toggleDrawer = () => {
+      self.set('isDrawerOpen', !self.get('isDrawerOpen'));
+    };
+    this.closeDrawer = () => {
+      self.set('isDrawerOpen', false);
+    };
   }
 });

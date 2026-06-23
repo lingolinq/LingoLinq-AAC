@@ -16,7 +16,7 @@
             {{/if}}
           {{/unless}}
         {{/unless}}
-        <span class="page-footer__hide-at-sm"><a href="#" {{action "support"}}>{{t "Support" key="support"}}</a> <span class='text-muted'>|</span></span>
+        <span class="page-footer__hide-at-sm"><a href="#" {{on "click" this.supportAction}}>{{t "Support" key="support"}}</a> <span class='text-muted'>|</span></span>
         {{#unless this.app_state.installed_app}}
           <span class="page-footer__hide-at-sm"><LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo></span>
         {{/unless}}
@@ -40,7 +40,7 @@
         {{/unless}}
       {{/if}}
       <div class='col-sm-4 page-footer__right-links' style="text-align: right;">
-        <a href='#' {{action "language"}} style='margin-right: 10px;'>
+        <a href='#' {{on "click" this.languageAction}} style='margin-right: 10px;'>
           <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon" alt="Language">
           {{this.app_state.current_locale_string}}
         </a>
@@ -64,7 +64,7 @@
           <LinkTo @route="about">{{t "About" key="about"}}</LinkTo>
         </li>
         <li class="page-footer__menu-top-at-sm">
-          <a href="#" {{action "support"}}>{{t "Support" key="support"}}</a>
+          <a href="#" {{on "click" this.supportAction}}>{{t "Support" key="support"}}</a>
         </li>
         {{#unless this.app_state.installed_app}}
           {{#if this.app_state.feature_flags.subscriptions}}
@@ -109,7 +109,7 @@
         {{/unless}}
         <li class="divider" role="separator"></li>
         <li class="page-footer__menu-lang-at-bottom">
-          <a href='#' {{action "language"}}>
+          <a href='#' {{on "click" this.languageAction}}>
             <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon page-footer__language-icon--dropdown" alt="Language">
             {{this.app_state.current_locale_string}}
           </a>

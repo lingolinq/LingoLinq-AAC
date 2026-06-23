@@ -50,6 +50,30 @@ export default Component.extend({
         email: u.get('email')
       });
     }
+    var self = this;
+    var send = function(action) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      self.send.apply(self, [action].concat(args));
+    };
+    this.onSubmitFeedback = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('submit_feedback');
+    };
+    this.onScreenshotPaste = function(event) { send('screenshotPaste', event); };
+    this.onChooseReaction = function(id) { send('chooseReaction', id); };
+    this.onToggleFeedbackTypeDropdown = function() { send('toggleFeedbackTypeDropdown'); };
+    this.onSelectFeedbackType = function(id) { send('selectFeedbackType', id); };
+    this.onClearFieldErrorDetails = function() { send('clearFieldError', 'details'); };
+    this.onAttachmentDragEnter = function(event) { send('attachmentDragEnter', event); };
+    this.onAttachmentDragOver = function(event) { send('attachmentDragOver', event); };
+    this.onAttachmentDragLeave = function(event) { send('attachmentDragLeave', event); };
+    this.onAttachmentDrop = function(event) { send('attachmentDrop', event); };
+    this.onAttachmentsChanged = function(event) { send('attachmentsChanged', event); };
+    this.onClearScreenshot = function() { send('clearScreenshot'); };
+    this.onClearRecording = function() { send('clearRecording'); };
+    this.onToggleRecordingConsent = function(event) { send('toggleRecordingConsent', event); };
+    this.onStopRecording = function() { send('stopRecording'); };
+    this.onStartRecording = function() { send('startRecording'); };
   },
 
   clearAllErrors() {

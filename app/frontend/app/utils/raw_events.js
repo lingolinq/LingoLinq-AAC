@@ -61,6 +61,118 @@ function dispatchPassThroughClick(dom, clientX, clientY) {
   dom.dispatchEvent(evt);
 }
 
+// Ember 5 {{on}} on board-detail chrome does not receive synthetic clicks
+// (same as grid symbol cards — see LEARNINGS.md). Route pointer releases
+// directly to controller.send when data-bd-action or class/id maps match.
+function applicationSpeakHeaderAction(dom) {
+  var btn = dom;
+  if (dom && dom.closest) {
+    btn = dom.closest('#speak .btn, #speak #button_list, #speak .extra-btn');
+  }
+  if (!btn || !btn.id) { return null; }
+  switch (btn.id) {
+    case 'back_button': return { controller: 'app', action: 'back', args: [] };
+    case 'speak_options': return { controller: 'app', action: 'speakOptions', args: [] };
+    case 'backspace_button': return { controller: 'app', action: 'backspace', args: [] };
+    case 'clear_button': return { controller: 'app', action: 'clear', args: [] };
+    case 'speak_mode_notification': return { controller: 'app', action: 'speak_mode_notification', args: [] };
+    case 'reply_icon': return { controller: 'app', action: 'remote_modeling', args: [] };
+    case 'eval_intro_start': return { controller: 'app', action: 'eval_intro_header_start', args: [] };
+    case 'eval_intro_skip': return { controller: 'app', action: 'eval_intro_header_skip', args: [] };
+    case 'eval_prev_section': return { controller: 'app', action: 'change_section', args: ['back'] };
+    case 'eval_next_section': return { controller: 'app', action: 'change_section', args: ['forward'] };
+    case 'eval_open_settings': return { controller: 'app', action: 'assessment_settings', args: [] };
+    case 'home_button':
+      if (btn.querySelector && btn.querySelector('path[fill-rule="evenodd"]')) {
+        return { controller: 'app', action: 'openMyBoards', args: [] };
+      }
+      return { controller: 'app', action: 'home', args: [] };
+    default:
+      return null;
+  }
+}
+
+function resolveBoardDetailChromeAction(dom) {
+  if (!dom) { return null; }
+
+  var appHeader = applicationSpeakHeaderAction(dom);
+  if (appHeader) { return appHeader; }
+
+  var el = dom;
+  while (el && el !== document.body) {
+    if (el.dataset && el.dataset.bdAction) {
+      var dataArgs = [];
+      if (el.dataset.bdArg !== undefined) { dataArgs.push(el.dataset.bdArg); }
+      var dataController = el.dataset.bdController === 'app' ? 'app' : 'board';
+      return { controller: dataController, action: el.dataset.bdAction, args: dataArgs };
+    }
+    el = el.parentElement;
+  }
+
+  if (!dom.closest) { return null; }
+  var target = dom.closest('button, [role="menuitem"], .md-board-detail-sentence-bar__text, .md-board-detail-actions-backdrop, a#button_list, [role="button"].extra-btn');
+  if (!target || target.disabled) { return null; }
+  var cn = target.className || '';
+
+  if (cn.indexOf('md-board-detail-home-btn') >= 0) { return { controller: 'board', action: 'go_home', args: [] }; }
+  if (cn.indexOf('md-board-detail-nav-stack__back') >= 0) { return { controller: 'board', action: 'go_back', args: [] }; }
+  if (cn.indexOf('md-board-detail-actions-toggle') >= 0) { return { controller: 'board', action: 'toggle_options_menu', args: [] }; }
+  if (cn.indexOf('md-board-detail-actions-backdrop') >= 0) { return { controller: 'board', action: 'toggle_options_menu', args: [] }; }
+  if (cn.indexOf('md-board-detail-sidebar-toggle') >= 0) { return { controller: 'board', action: 'toggleInlineSidebar', args: [] }; }
+  if (cn.indexOf('md-board-detail-sentence-bar__btn--speak') >= 0) { return { controller: 'board', action: 'speak_sentence', args: [] }; }
+  if (cn.indexOf('md-board-detail-sentence-bar__text') >= 0) { return { controller: 'board', action: 'speak_sentence', args: [] }; }
+  if (cn.indexOf('md-board-detail-sentence-bar__tool-btn--chevron') >= 0) { return { controller: 'board', action: 'toggle_quick_actions', args: [] }; }
+
+  if (cn.indexOf('md-board-detail-sentence-bar__quick-action') >= 0) {
+    var quickMenu = target.closest('.md-board-detail-sentence-bar__quick-actions');
+    if (quickMenu) {
+      var quickItems = quickMenu.querySelectorAll('.md-board-detail-sentence-bar__quick-action');
+      var quickIdx = Array.prototype.indexOf.call(quickItems, target);
+      if (quickIdx === 0) { return { controller: 'board', action: 'speak_sentence', args: [] }; }
+      if (quickIdx === 1) { return { controller: 'board', action: 'backspace_sentence', args: [] }; }
+      if (quickIdx === 2) { return { controller: 'board', action: 'clear_sentence', args: [] }; }
+    }
+  }
+
+  if (cn.indexOf('md-board-detail-sentence-bar__tool-btn') >= 0) {
+    var tools = target.parentElement;
+    if (tools) {
+      var toolButtons = tools.querySelectorAll('.md-board-detail-sentence-bar__tool-btn:not(.md-board-detail-sentence-bar__tool-btn--chevron)');
+      var toolIdx = Array.prototype.indexOf.call(toolButtons, target);
+      if (toolIdx === 0) { return { controller: 'board', action: 'backspace_sentence', args: [] }; }
+      if (toolIdx === 1) { return { controller: 'board', action: 'clear_sentence', args: [] }; }
+      if (toolIdx === 2) { return { controller: 'board', action: 'open_speak_menu', args: [] }; }
+    }
+  }
+
+  if (cn.indexOf('md-board-detail-actions-menu__item--edit') >= 0) { return { controller: 'board', action: 'enter_edit_mode', args: [] }; }
+  if (cn.indexOf('md-board-detail-inline-sidebar__item') >= 0 || cn.indexOf('md-board-detail-sidebar__item') >= 0) {
+    if (target.dataset && target.dataset.bdAction) {
+      var sidebarArgs = [];
+      if (target.dataset.bdArg !== undefined) { sidebarArgs.push(target.dataset.bdArg); }
+      return { controller: 'board', action: target.dataset.bdAction, args: sidebarArgs };
+    }
+  }
+
+  return null;
+}
+
+function boardDetailChromeRelease(elem_wrap) {
+  var resolved = resolveBoardDetailChromeAction(elem_wrap.dom);
+  if (!resolved || !resolved.action) { return false; }
+
+  var ctrl;
+  if (resolved.controller === 'app') {
+    ctrl = buttonTracker.appState && buttonTracker.appState.controller;
+  } else {
+    ctrl = editManager.controller;
+  }
+  if (!ctrl || typeof ctrl.send !== 'function') { return false; }
+
+  ctrl.send.apply(ctrl, [resolved.action].concat(resolved.args || []));
+  return true;
+}
+
 var $board_canvas = null;
 
 var eat_events = function(event) {
@@ -1313,21 +1425,13 @@ var buttonTracker = EmberObject.extend({
             // Synthetic native click so Ember actions (e.g. toggleSidebar) run
             event.preventDefault();
             dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
-          } else if(event_source === 'click' && event.type === 'mouseup' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view')) {
-            // Board-detail chrome (options menu, sentence-bar tools, sidebar
-            // toggle, etc.) on a MOUSE release: the browser's native click fires
-            // regardless of preventDefault, AND the `.board-detail-view` carve-out
-            // in eat_events keeps it alive — so synthesizing another click here
-            // would fire the Ember {{action}} TWICE (options menu opens then
-            // instantly closes). Do nothing; let the single native mouse click
-            // drive it.
-            //   IMPORTANT — only skip for `mouseup`. On TOUCH (touchend) the
-            // preventDefault above CANCELS the browser's synthesized click, so the
-            // synthetic dispatchPassThroughClick below is the ONLY click; touch
-            // (real tablets AND devtools device-emulation) MUST fall through and
-            // synthesize, or board-detail chrome stops responding to taps.
-            // Dwell / eye-gaze / scanning use a different event_source and also
-            // fall through (no native click of any kind).
+          } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view') && !buttonTracker.board_detail_grid_target(elem_wrap)) {
+            // Board-detail chrome: Ember 5 {{on}} does not receive synthetic
+            // clicks; route directly to controller.send (see boardDetailChromeRelease).
+            event.preventDefault();
+            if(!boardDetailChromeRelease(elem_wrap)) {
+              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            }
           } else {
             event.preventDefault();
             // Speak menu links (Un-Flip, Cancel, etc.) and other non-button targets
@@ -2203,6 +2307,23 @@ var buttonTracker = EmberObject.extend({
       if($target.closest('#speak.md-board-detail-sentence-row').length > 0) {
         return buttonTracker.speak_bar_element_from_event($target);
       }
+      // board-detail chrome (inline sidebar, left nav, options menu, predictions,
+      // speak header controls): omitted from .advanced_selection so these taps
+      // must be wrapped here or element_release never runs (Ember {{on}} also
+      // misses the synthetic click — see boardDetailChromeRelease).
+      if($target.closest('.board-detail-view').length > 0) {
+        var chromeEl = $target.closest([
+          'button',
+          '[role="menuitem"]',
+          '.md-board-detail-sentence-bar__text',
+          '.md-board-detail-actions-backdrop',
+          'a#button_list',
+          '[role="button"].extra-btn'
+        ].join(','))[0];
+        if(chromeEl && !chromeEl.disabled && $target.closest('.md-board-detail-grid .button').length === 0) {
+          return buttonTracker.element_wrap(chromeEl);
+        }
+      }
     }
     return null;
   },
@@ -2351,13 +2472,12 @@ var buttonTracker = EmberObject.extend({
     }
     return res;
   },
-  // board-detail grid omits .advanced_selection so Ember {{action "select_button"}}
-  // handles pointer clicks. Symbol cards still carry .button, so raw_events also
-  // routes speak-mode releases through buttonSelect — duplicating utterance adds
-  // on mouse (mouseup + synthesized click). Touch suppresses click via
-  // preventDefault on touchend, so raw_events must remain the sole path there.
-  // Dwell, scanning, keyboard, and long-press use non-'click' sources and must
-  // still route through buttonSelect because Ember actions never fire for them.
+  // board-detail grid omits .advanced_selection. Symbol cards carry .button, so
+  // raw_events routes speak-mode pointer releases through buttonSelect.
+  // On mouse, preventDefault on mouseup suppresses the duplicate native click;
+  // buttonSelect is the sole path (defer-to-Ember {{on}} broke under Ember 5 —
+  // see LEARNINGS.md). Touch uses buttonSelect via touchend (click suppressed).
+  // Dwell, scanning, keyboard, and long-press use non-'click' sources.
   board_detail_grid_target: function(elem) {
     if(!elem) { return false; }
     var dom = elem.dom || elem;
@@ -2397,9 +2517,10 @@ var buttonTracker = EmberObject.extend({
           return;
         }
         if(buttonTracker.appState.get('speak_mode')) {
-          if(buttonTracker.defer_board_detail_click_to_ember(elem, source)) {
-            return;
-          }
+          // board-detail grid: route all speak-mode pointer releases through
+          // buttonSelect (see comment on board_detail_grid_target). Ember 5
+          // {{on}} on co-located classic components does not receive mouse
+          // clicks; preventDefault on mouseup blocks duplicate native click.
           editManager.controller.send('buttonSelect', id, args || null);
           return;
         }

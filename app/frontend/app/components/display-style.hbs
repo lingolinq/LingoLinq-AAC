@@ -8,7 +8,7 @@
   type="button"
   class="md-display-style__trigger display-style"
   aria-label={{t "Display Style" key="display_style"}}
-  {{action "startDisplayStyle"}}
+  {{on "click" this.onStartDisplayStyle}}
 >
   {{!-- The standard "layout" glyph (Feather/Lucide `layout`): a page frame with a
         top header bar and a sidebar in the lower-left. The vertical divider only

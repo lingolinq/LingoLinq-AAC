@@ -459,6 +459,47 @@ export default Controller.extend(prefClasses, {
     this.set('weekly_goals', []);
     this.set('todays_schedule', []);
     var _this = this;
+    _this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        _this.send.apply(_this, [actionName].concat(args));
+      };
+    };
+    _this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        _this.send.apply(_this, [actionName].concat(bound));
+      };
+    };
+    _this.onUpdateCustomPaintColor = function(event) {
+      var value = event && event.target && event.target.value;
+      _this.send('update_custom_paint_color', value);
+    };
+    _this.onFilterDisplayFonts = function(event) {
+      var value = event && event.target && event.target.value;
+      _this.send('filter_display_fonts', value);
+    };
+    _this.onFontDropdownKeydown = function(event) {
+      _this.send('font_dropdown_keydown', event);
+    };
+    _this.onToggleSkinSuboption = function(option) {
+      return function(event) {
+        _this.send('toggle_skin_suboption', option, event);
+      };
+    };
+    _this.onCloseBoardCollection = function() {
+      _this.send('close_board_collection');
+    };
+    _this.onSelectBoardFromCollection = function(board) {
+      _this.send('select_board_from_collection', board);
+    };
     this._closeDropdownsHandler = function(e) {
       if(_this.get('details_dropdown_open') && !e.target.closest('.md-board-detail-details-dropdown-wrap')) {
         _this.set('details_dropdown_open', false);
@@ -2044,7 +2085,8 @@ export default Controller.extend(prefClasses, {
       };
     });
     if(result && result.length > 0) {
-      _this.set('suggestions', { ready: true, list: _this._decorate_suggestion_images(result) });
+      var decorated = _this._decorate_suggestion_images(result);
+      _this.set('suggestions', { ready: true, list: decorated });
       return;
     }
     if(!sentence) {
@@ -4256,6 +4298,16 @@ export default Controller.extend(prefClasses, {
       appController = getOwner(this).lookup('controller:application');
     }
     return appController;
+  },
+
+  _sidebar_board_by_key: function(key) {
+    if(!key) { return null; }
+    var boards = this.get('app_state.sidebar_boards') || [];
+    for(var idx = 0; idx < boards.length; idx++) {
+      var b = boards[idx];
+      if(b && b.key === key) { return b; }
+    }
+    return { key: key };
   },
 
   _maybeCloseInlineSidebarAfterAction: function() {
@@ -6570,7 +6622,9 @@ export default Controller.extend(prefClasses, {
       }
     },
     sidebar_jump: function(key, board) {
+      if(!key && board && board.key) { key = board.key; }
       if(!key) { return; }
+      board = board || this._sidebar_board_by_key(key);
       this._push_nav_history();
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
@@ -6579,6 +6633,9 @@ export default Controller.extend(prefClasses, {
       this._maybeCloseInlineSidebarAfterAction();
     },
     sidebar_special: function(board) {
+      if(typeof board === 'string') {
+        board = this._sidebar_board_by_key(board);
+      }
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
         appController.send('special', board);

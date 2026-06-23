@@ -7,6 +7,13 @@ import modal from '../utils/modal';
 import { observer } from '@ember/object';
 
 export default Component.extend({
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.onAnySelect = function(e) {
+      self.send('any_select', e);
+    };
+  },
   didRender: function() {
     if(!this || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) { return; }
     if (this.get('standalone')) {

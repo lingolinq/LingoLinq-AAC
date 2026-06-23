@@ -6,12 +6,12 @@
     aria-haspopup="listbox"
     aria-expanded={{this.isOpen}}
     aria-label={{this.ariaLabel}}
-    {{action "toggle" preventDefault=false}}
+    {{on "click" this.onToggle}}
   >
     <span class="modern-select__trigger-text {{unless this.selectedItem 'modern-select__trigger-text--placeholder'}}">{{this.triggerLabel}}</span>
   </button>
   {{#if this.isOpen}}
-    <ul class="modern-select__list {{if this.searchable "modern-select__list--searchable"}}" role="listbox" {{on "click" (action "stopPropagation")}} {{on "keydown" (action "list_keydown")}}>
+    <ul class="modern-select__list {{if this.searchable "modern-select__list--searchable"}}" role="listbox" {{on "click" this.onStopPropagation}} {{on "keydown" this.onListKeydown}}>
       {{#if this.searchable}}
         {{!-- Filter row pinned at the top of the open dropdown. The
              outer <li role="none"> takes the row out of the listbox
@@ -33,7 +33,7 @@
             @value={{this.searchString}}
             placeholder={{this.searchPlaceholder}}
             aria-label={{this.searchPlaceholder}}
-            {{on "keydown" (action "search_keydown")}}
+            {{on "keydown" this.onSearchKeydown}}
           />
         </li>
       {{/if}}
@@ -43,8 +43,8 @@
           role="option"
           tabindex="0"
           aria-selected={{is-equal this.selection item.id}}
-          {{action "choose" item preventDefault=false}}
-          {{action "option_keydown" item on="keydown"}}
+          {{on "click" (fn this.onChoose item)}}
+          {{on "keydown" (fn this.onOptionKeydown item)}}
         >
           {{item.name}}
         </li>

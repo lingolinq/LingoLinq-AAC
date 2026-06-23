@@ -8,7 +8,7 @@
   type="button"
   class="md-tour__trigger"
   aria-label={{t "Take a tour of the dashboard" key="home_tour_trigger_aria"}}
-  {{action "startTour"}}
+  {{on "click" this.onStartTour}}
 >
   {{!-- Map icon — reads as a guided tour / walkthrough. Two-tone like the
        dashboard card icons: brand-blue outline (#4C86D8) + charcoal fold

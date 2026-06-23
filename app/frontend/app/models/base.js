@@ -1,4 +1,4 @@
-import DS from 'ember-data';
+import Model, { attr } from '@ember-data/model';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
@@ -26,7 +26,7 @@ function attributeValuesForRecord(record) {
   return attrs;
 }
 
-const BaseModel = DS.Model.extend({
+const BaseModel = Model.extend({
   reload: function(ignore_local) {
     if(ignore_local === false) {
       persistence.force_reload = null;
@@ -38,7 +38,7 @@ const BaseModel = DS.Model.extend({
     }
     return this._super();
   },
-  retrieved: DS.attr('number'),
+  retrieved: attr('number'),
   fresh: computed('retrieved', 'app_state.refresh_stamp', function() {
     var retrieved = this.get('retrieved');
     var now = (new Date()).getTime();

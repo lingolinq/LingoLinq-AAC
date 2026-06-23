@@ -653,6 +653,40 @@ export default Component.extend({
     var timeoutPromise = new RSVP.Promise(function(resolve) { runLater(resolve, 6000); });
     RSVP.race([wait, timeoutPromise]).then(doNext, function() { doReload(); });
   },
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    var send = function(name) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      self.send.apply(self, [name].concat(args));
+    };
+    this.loginFollowupTrue = () => { send('login_followup', true); };
+    this.loginFollowupFalse = () => { send('login_followup', false); };
+    this.loginForceLogoutYes = () => { send('login_force_logut', true); };
+    this.loginForceLogoutNo = () => { send('login_force_logut', false); };
+    this.onGoogleLinkUserSelect = (event) => {
+      var userName = event && event.target && event.target.value;
+      if (userName) { send('select_google_link_user', userName); }
+    };
+    this.onGoogleLinkUserPick = (event) => {
+      var userName = event && event.target && event.target.value;
+      if (userName) { self.set('google_link_selected_user_name', userName); }
+    };
+    this.onAuthenticateSubmit = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('authenticate');
+    };
+    this.onConfirmGoogleLink = () => { send('confirm_google_link'); };
+    this.onCancelGoogleLink = () => { send('cancel_google_link'); };
+    this.onStartGoogleLinkAnother = () => { send('start_google_link_another'); };
+    this.onStartGoogleSignup = () => { send('start_google_signup'); };
+    this.onConfirm2fa = () => { send('confirm_2fa'); };
+    this.onResendParentConsentEmail = () => { send('resendParentConsentEmail'); };
+    this.onLogout = () => { send('logout'); };
+    this.onContinueWithGoogle = (event) => { send('continue_with_google', event); };
+  },
+
   actions: {
     login_success: function(reload) {
       var _this = this;

@@ -1,4 +1,4 @@
-<form class="la-contact-form la-support-form md-support-form" {{on "submit" (action "submit_feedback")}} {{on "paste" (action "screenshotPaste")}} novalidate>
+<form class="la-contact-form la-support-form md-support-form" {{on "submit" this.onSubmitFeedback}} {{on "paste" this.onScreenshotPaste}} novalidate>
   {{#if this.hasAnyError}}
     <div class="la-beta-feedback__validation-banner" role="alert">
       {{t "Please review the highlighted fields below and fix any issues before sending." key="beta_feedback_validation_banner"}}
@@ -24,7 +24,7 @@
     <legend class="la-contact-form__label">{{t "How did this beta session feel?" key="beta_feedback_reaction_label"}}</legend>
     <div class="la-beta-feedback__reaction-options">
       {{#each this.reactionOptions as |opt|}}
-        <button type="button" class="la-beta-feedback__reaction-btn la-beta-feedback__reaction-btn--{{opt.tone}} {{if (is-equal this.reaction opt.id) "la-beta-feedback__reaction-btn--selected"}}" {{action "chooseReaction" opt.id}} aria-pressed={{if (is-equal this.reaction opt.id) "true" "false"}}>
+        <button type="button" class="la-beta-feedback__reaction-btn la-beta-feedback__reaction-btn--{{opt.tone}} {{if (is-equal this.reaction opt.id) "la-beta-feedback__reaction-btn--selected"}}" {{on "click" (fn this.onChooseReaction opt.id)}} aria-pressed={{if (is-equal this.reaction opt.id) "true" "false"}}>
           <span class="la-beta-feedback__reaction-face la-beta-feedback__reaction-face--{{opt.face}}" aria-hidden="true">
             {{#if (is-equal opt.face "smile")}}
               <svg class="la-beta-feedback__reaction-icon" viewBox="0 0 36 36" focusable="false" aria-hidden="true">
@@ -65,7 +65,7 @@
         class="md-dropdown__trigger"
         aria-haspopup="listbox"
         aria-expanded={{if this.feedbackTypeOpen "true" "false"}}
-        {{action "toggleFeedbackTypeDropdown"}}>
+        {{on "click" this.onToggleFeedbackTypeDropdown}}>
         <span class="md-dropdown__value">{{this.selectedFeedbackTypeLabel}}</span>
         <svg class="md-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -76,7 +76,7 @@
               role="option"
               tabindex="0"
               aria-selected={{if (is-equal this.feedback_type opt.id) "true" "false"}}
-              {{action "selectFeedbackType" opt.id}}>
+              {{on "click" (fn this.onSelectFeedbackType opt.id)}}>
               <span class="md-dropdown__option-check" aria-hidden="true">
                 {{#if (is-equal this.feedback_type opt.id)}}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -91,7 +91,7 @@
   </div>
   <div class="la-contact-form__row {{if this.errors.details "la-contact-form__row--error"}}">
     <label for="beta_general" class="la-contact-form__label">{{t "What happened, or what would you like us to know?" key="beta_feedback_main_prompt_label"}}</label>
-    <Textarea @value={{this.general_feedback}} class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_general" placeholder={{t "Tell us what you tried, what felt confusing, or what worked well." key="beta_feedback_main_prompt_placeholder"}} rows={{5}} maxlength="20000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" (action "clearFieldError" "details")}} />
+    <Textarea @value={{this.general_feedback}} class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_general" placeholder={{t "Tell us what you tried, what felt confusing, or what worked well." key="beta_feedback_main_prompt_placeholder"}} rows={{5}} maxlength="20000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" this.onClearFieldErrorDetails}} />
     {{#if this.errors.details}}
       <p class="la-contact-form__field-error" id="beta_details_error">{{t "Please add at least a few words about what happened." key="beta_feedback_validation_details_simple"}}</p>
     {{/if}}
@@ -107,20 +107,20 @@
       tabindex="0"
       role="region"
       aria-label={{t "Drop an image or video file here or paste an image from the clipboard" key="beta_feedback_attachments_dropzone_aria"}}
-      {{on "dragenter" (action "attachmentDragEnter")}}
-      {{on "dragover" (action "attachmentDragOver")}}
-      {{on "dragleave" (action "attachmentDragLeave")}}
-      {{on "drop" (action "attachmentDrop")}}
+      {{on "dragenter" this.onAttachmentDragEnter}}
+      {{on "dragover" this.onAttachmentDragOver}}
+      {{on "dragleave" this.onAttachmentDragLeave}}
+      {{on "drop" this.onAttachmentDrop}}
     >
       <p class="la-beta-feedback__dropzone-hint">{{t "Drop a screenshot or video here, paste an image from the clipboard (when not typing in a field), or choose files." key="beta_feedback_attachments_dropzone_hint"}}</p>
-      <input type="file" multiple class="la-contact-input la-contact-input--file la-beta-feedback__file-input" id="beta_feedback_attachments" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,video/webm,video/mp4,video/quicktime,video/*" disabled={{or this.disabled this.recordingUploading this.isRecording}} {{on "change" (action "attachmentsChanged")}} />
+      <input type="file" multiple class="la-contact-input la-contact-input--file la-beta-feedback__file-input" id="beta_feedback_attachments" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,video/webm,video/mp4,video/quicktime,video/*" disabled={{or this.disabled this.recordingUploading this.isRecording}} {{on "change" this.onAttachmentsChanged}} />
     </div>
     <p class="la-contact-form__hint">{{t "Images should be PNG, JPG, GIF, or WebP, about 1.5 MB or smaller. Videos should be WebM, MP4, or MOV, up to 100 MB." key="beta_feedback_attachments_hint"}}</p>
     <p class="la-contact-form__hint">{{t "Attachments may show personal or sensitive information—only attach what you are comfortable sharing." key="beta_feedback_attachments_sensitive_hint"}}</p>
     {{#if this.screenshotData}}
       <div class="la-beta-feedback__screenshot-preview">
         <img src={{this.screenshotData}} alt="" class="la-beta-feedback__screenshot-img" aria-hidden="true">
-        <button type="button" class="la-btn la-btn--ghost la-beta-feedback__clear-shot" {{action "clearScreenshot"}}>{{t "Remove image" key="beta_feedback_clear_screenshot"}}</button>
+        <button type="button" class="la-btn la-btn--ghost la-beta-feedback__clear-shot" {{on "click" this.onClearScreenshot}}>{{t "Remove image" key="beta_feedback_clear_screenshot"}}</button>
       </div>
     {{/if}}
     {{#if this.recordingUrl}}
@@ -128,7 +128,7 @@
         <video src={{this.recordingUrl}} controls class="la-beta-feedback__recording-video"></video>
         <p class="la-contact-form__hint">{{t "Recording size: %{size}" key="beta_feedback_recording_size_label" size=this.recordingSizeLabel}}</p>
         <p class="la-contact-form__hint">{{t "The recording is attached and will upload when you send beta feedback." key="beta_feedback_recording_upload_hint"}}</p>
-        <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingUploading}} {{action "clearRecording"}}>{{t "Remove recording" key="beta_feedback_recording_remove"}}</button>
+        <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingUploading}} {{on "click" this.onClearRecording}}>{{t "Remove recording" key="beta_feedback_recording_remove"}}</button>
       </div>
     {{/if}}
   </div>
@@ -136,7 +136,7 @@
     <label class="la-contact-form__label">{{t "Screen recording (optional)" key="beta_feedback_recording_label"}}</label>
     <p class="la-contact-form__hint">{{t "Recordings can help us understand beta issues, but they may include personal or sensitive information. If your browser offers audio, choose a browser tab and share tab audio so Speak Mode sound can be heard. You can also allow microphone audio." key="beta_feedback_recording_sensitive_hint_audio"}}</p>
     <label class="la-beta-feedback__consent" id="beta_recording_consent">
-      <Input @type="checkbox" @checked={{this.recordingConsent}} {{on "change" (action "toggleRecordingConsent")}} />
+      <Input @type="checkbox" @checked={{this.recordingConsent}} {{on "change" this.onToggleRecordingConsent}} />
       <span>{{t "I am 13 or older, or I am a parent/guardian/authorized adult, and I consent to upload this recording with my beta feedback. I understand it may include personal or sensitive information, including browser audio or microphone audio if I allow it." key="beta_feedback_recording_consent_upload"}}</span>
     </label>
     {{#if this.errors.recording}}
@@ -145,10 +145,10 @@
     {{#if this.recordingSupported}}
       <div class="la-beta-feedback__recording-actions">
         {{#if this.isRecording}}
-          <button type="button" class="la-btn la-btn--ghost" {{action "stopRecording"}}>{{t "Stop recording" key="beta_feedback_recording_stop"}}</button>
+          <button type="button" class="la-btn la-btn--ghost" {{on "click" this.onStopRecording}}>{{t "Stop recording" key="beta_feedback_recording_stop"}}</button>
           <span class="la-beta-feedback__recording-status" aria-live="polite">{{t "Recording..." key="beta_feedback_recording_in_progress"}}</span>
         {{else}}
-          <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingStartDisabled}} {{action "startRecording"}}>{{t "Start screen recording" key="beta_feedback_recording_start"}}</button>
+          <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingStartDisabled}} {{on "click" this.onStartRecording}}>{{t "Start screen recording" key="beta_feedback_recording_start"}}</button>
         {{/if}}
       </div>
       {{#if this.recordingBrowserSoundHint}}
@@ -169,7 +169,7 @@
   {{/if}}
   <p class="la-contact-form__hint la-beta-feedback__submit-context-note">{{t "When you send your feedback, we'll add a few details about your device and the page you were on (viewport, time zone, app route, path, and online status). This helps us figure out what was happening on your end." key="beta_feedback_device_auto_hint"}}</p>
   <div class="la-contact-form__actions la-support-form__actions md-support-form__actions">
-    <button disabled={{this.disabled}} type="button" class="la-btn la-btn--primary" {{on "click" (action "submit_feedback")}}>
+    <button disabled={{this.disabled}} type="button" class="la-btn la-btn--primary" {{on "click" this.onSubmitFeedback}}>
       {{#if this.disabled}}
         {{t "Sending..." key="sending"}}
       {{else}}
@@ -177,7 +177,7 @@
       {{/if}}
     </button>
     {{#if this.onCancel}}
-      <button type="button" class="la-btn la-btn--ghost" {{action this.onCancel}}>
+      <button type="button" class="la-btn la-btn--ghost" {{on "click" this.onCancel}}>
         {{#if this.isDrawer}}
           {{t "Hide" key="hide"}}
         {{else}}

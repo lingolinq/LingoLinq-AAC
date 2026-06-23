@@ -67,6 +67,23 @@ export default Controller.extend({
         console.log('[INDEX CONTROLLER] Initial sessionUser:', this.appState.get('sessionUser') ? 'has user' : 'no user');
       }
     }
+
+    var appState = this.appState;
+    this.hide_login = () => {
+      appState.set('login_modal', false);
+      var html = document.querySelector('html');
+      var body = document.querySelector('body');
+      if (html) { html.style.overflow = ''; }
+      if (body) { body.style.overflow = ''; }
+      var overlay = document.getElementById('login_overlay');
+      if (overlay) { overlay.remove(); }
+    };
+    this.opening_index = () => {
+      appState.set('index_view', true);
+    };
+    this.closing_index = () => {
+      appState.set('index_view', false);
+    };
   },
   
   update_selected: function() {
@@ -94,23 +111,5 @@ export default Controller.extend({
     if(user && user.get('id')) {
       // badge updates happen through the user model
     }
-  },
-  actions: {
-    hide_login: function() {
-      this.appState.set('login_modal', false);
-      var html = document.querySelector('html');
-      var body = document.querySelector('body');
-      if(html) { html.style.overflow = ''; }
-      if(body) { body.style.overflow = ''; }
-      var overlay = document.getElementById('login_overlay');
-      if(overlay) { overlay.remove(); }
-    },
-    opening_index: function() {
-      this.appState.set('index_view', true);
-    },
-    closing_index: function() {
-      this.appState.set('index_view', false);
-    }
-
   }
 });
