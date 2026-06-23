@@ -204,12 +204,7 @@
       },
       "contentHash": "2823383621e2e5162bdfb8388b15f1840d9654185194cf3569190941b82d7999",
       "bundles": [],
-      "mirrors": [
-        {
-          "system": "drive",
-          "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
-        }
-      ],
+      "mirrors": [],
       "id": "DOC-9b299a785b"
     },
     {
@@ -237,12 +232,7 @@
       "bundles": [
         "compliance-records-set-2026-06"
       ],
-      "mirrors": [
-        {
-          "system": "drive",
-          "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
-        }
-      ],
+      "mirrors": [],
       "id": "DOC-b61994933c"
     },
     {
