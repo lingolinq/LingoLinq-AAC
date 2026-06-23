@@ -56,7 +56,6 @@
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-06-21. |
 | Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-06-21. |
 | COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | 2026-04-26 | approved | Review date is older than 2026-06-21. |
-| Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | 2026-04-18 | approved | Review date is older than 2026-06-21. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-06-21. |
 | Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | 2026-06-20 | published | Review date is older than 2026-06-21. |
 | Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-06-18 | approved | Review date is older than 2026-06-21. |
@@ -135,4 +134,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_53 documents tracked. 41 stale review item(s). 22 Drive refresh item(s). 4 Notion hash item(s)._
+_53 documents tracked. 40 stale review item(s). 22 Drive refresh item(s). 4 Notion hash item(s)._
