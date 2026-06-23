@@ -1,4 +1,4 @@
-/* global QUnit */
+import * as QUnit from 'qunit';
 import Test from 'ember-testing';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';

@@ -56,6 +56,23 @@ export default Controller.extend({
   router: service('router'),
   appState: service('app-state'),
   persistence: service('persistence'),
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.onNothing = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('nothing');
+    };
+  },
+
   // Explicit injection for app_state to avoid implicit injection deprecation warning
 
   // Explicit injection for persistence to avoid implicit injection deprecation warning

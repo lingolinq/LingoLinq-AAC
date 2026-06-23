@@ -188,6 +188,19 @@ export default Controller.extend({
     this.onToggleBetaFeedbackDrawer = () => {
       self.send('toggleBetaFeedbackDrawer');
     };
+
+    var _this = this;
+    _this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        _this.send.apply(_this, [actionName].concat(args));
+      };
+    };
   },
   updateTitle: function(str) {
     if(!isTesting()) {
@@ -531,22 +544,6 @@ export default Controller.extend({
     var s = this.get('session.isAuthenticated') ? 'margin-top: -10px; font-size: 14px;' : 'font-size: 14px;';
     return htmlSafe(s);
   }),
-
-  init: function() {
-    this._super(...arguments);
-    var _this = this;
-    _this.ctrlAction = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        var args = bound.concat(Array.prototype.slice.call(arguments));
-        var evt = args[args.length - 1];
-        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-          args.pop();
-        }
-        _this.send.apply(_this, [actionName].concat(args));
-      };
-    };
-  },
 
   actions: {
     invalidateSession: function() {

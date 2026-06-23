@@ -1,5 +1,5 @@
 {{#grid-listener gridEvent=(action "grid_event")}}
-{{#modal-dialog standalone=this.standalone action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog standalone=this.standalone action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="board_drop {{if this.standalone "new-board--modern" "la-new-board-modal-wrap"}}">
     {{#if this.standalone}}
     <div class="modal-header md-modal-header">
@@ -12,15 +12,15 @@
           <input type="file" name="board_upload" id="board_upload" tabindex="-1">
         </span>
         {{#if this.paste_html_import_enabled}}
-          <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
+          <button type="button" class="btn btn-default" {{on "click" (fn this.ctrlAction "importFromHtml")}}>
             {{t "Paste HTML" key="paste_html"}}
           </button>
-          <button type="button" class="btn btn-default" {{action "importFromJsonBundle"}}>
+          <button type="button" class="btn btn-default" {{on "click" (fn this.ctrlAction "importFromJsonBundle")}}>
             {{t "Import JSON Bundle" key="import_json_bundle"}}
           </button>
         {{/if}}
         {{#if this.ai_board_generation_enabled}}
-          <button type="button" class="btn btn-default" {{action "generateWithAi"}}>
+          <button type="button" class="btn btn-default" {{on "click" (fn this.ctrlAction "generateWithAi")}}>
             {{t "Generate with AI" key="generate_with_ai"}}
           </button>
         {{/if}}
@@ -30,7 +30,7 @@
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Create a New Board" key="create_a_new_board"}}</span>
       <div class="la-support-modal-header-meta">
-        <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+        <button type="button" class="la-modal-close" {{on "click" (fn this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
       </div>
@@ -46,15 +46,15 @@
           <input type="file" name="board_upload" id="board_upload" tabindex="-1">
         </span>
         {{#if this.paste_html_import_enabled}}
-          <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
+          <button type="button" class="la-btn la-btn--ghost" {{on "click" (fn this.ctrlAction "importFromHtml")}}>
             {{t "Paste HTML" key="paste_html"}}
           </button>
-          <button type="button" class="la-btn la-btn--ghost" {{action "importFromJsonBundle"}}>
+          <button type="button" class="la-btn la-btn--ghost" {{on "click" (fn this.ctrlAction "importFromJsonBundle")}}>
             {{t "Import JSON Bundle" key="import_json_bundle"}}
           </button>
         {{/if}}
         {{#if this.ai_board_generation_enabled}}
-          <button type="button" class="la-btn la-btn--ghost" {{action "generateWithAi"}}>
+          <button type="button" class="la-btn la-btn--ghost" {{on "click" (fn this.ctrlAction "generateWithAi")}}>
             {{t "Generate with AI" key="generate_with_ai"}}
           </button>
         {{/if}}
@@ -93,21 +93,21 @@
             <div class="new-board-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
               <div class="nb-stepper-mini">
                 <span class="nb-stepper-mini__label" id="nb-rows-label">{{t "Rows" key="rows"}}</span>
-                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "minus" "model.grid.rows"}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (fn this.ctrlAction "plus_minus" "minus" "model.grid.rows")}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
                 <Input @type="number" @value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" />
-                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "plus" "model.grid.rows"}} aria-label={{t "Increase rows" key="increase_rows"}}>
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (fn this.ctrlAction "plus_minus" "plus" "model.grid.rows")}} aria-label={{t "Increase rows" key="increase_rows"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
               </div>
               <div class="nb-stepper-mini">
                 <span class="nb-stepper-mini__label" id="nb-cols-label">{{t "Cols" key="cols_short"}}</span>
-                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "minus" "model.grid.columns"}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (fn this.ctrlAction "plus_minus" "minus" "model.grid.columns")}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
                 <Input @type="number" @value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" />
-                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "plus" "model.grid.columns"}} aria-label={{t "Increase columns" key="increase_columns"}}>
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (fn this.ctrlAction "plus_minus" "plus" "model.grid.columns")}} aria-label={{t "Increase columns" key="increase_columns"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
               </div>
@@ -151,16 +151,16 @@
                         {{this.label_count}} {{t "labels" key="label_count"}}
                       </span>
                       <span class="nb-field__sep" aria-hidden="true">·</span>
-                      <button type="button" class="nb-link" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
+                      <button type="button" class="nb-link" data-count={{this.label_count}} {{on "click" (fn this.ctrlAction "pick_core")}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
                       {{#if this.speech}}
                         <span class="nb-field__sep" aria-hidden="true">·</span>
-                        <button type="button" class="nb-link" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
+                        <button type="button" class="nb-link" data-count={{this.label_count}} {{on "click" (fn this.ctrlAction "record_words")}}>{{t "speech recognition" key="record_words"}}</button>
                       {{/if}}
                       {{#if this.label_count}}
                         <span class="nb-field__sep" aria-hidden="true">·</span>
                         <button type="button"
                                 class="nb-link nb-link--danger"
-                                {{action "clearGrid"}}
+                                {{on "click" (fn this.ctrlAction "clearGrid")}}
                                 aria-label={{t "Clear all labels" key="clear_all_labels"}}>
                           <svg class="nb-link__icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
                             <path d="M3 4 L3 12 Q3 13 4 13 L10 13 Q11 13 11 12 L11 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -171,7 +171,7 @@
                           <span>{{t "clear grid" key="clear_grid"}}</span>
                         </button>
                       {{/if}}
-                      <button type="button" class="nb-link" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
+                      <button type="button" class="nb-link" style="display: none;" {{on "click" (fn this.ctrlAction "import_from_pdf")}}>{{t "import from pdf" key="import_from_pdf"}}</button>
                     </div>
                     <span class="nb-field__label-row__spacer" aria-hidden="true"></span>
                   </div>
@@ -209,7 +209,7 @@
                 <ul class="nav nav-pills">
                   {{#each this.core_words as |core_word|}}
                     <li class={{if core_word.active "active"}}>
-                      <button type="button" class="md-link-btn-pill" {{action "enable_word" core_word.id}} aria-pressed={{if core_word.active "true" "false"}}>{{ core_word.label }}</button>
+                      <button type="button" class="md-link-btn-pill" {{on "click" (fn this.ctrlAction "enable_word" core_word.id)}} aria-pressed={{if core_word.active "true" "false"}}>{{ core_word.label }}</button>
                     </li>
                   {{/each}}
                 </ul>
@@ -219,13 +219,13 @@
                 <div class="nb-field">
                   <div style="margin-bottom: 5px;">
                     {{t "Listening..." key="listening"}}
-                    <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
+                    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
                     {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
                   </div>
                   <ul class="nav nav-pills">
                     {{#each this.speech.words as |word|}}
                       <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
-                        <button type="button" class="md-link-btn-pill" {{action "remove_word" word.id}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
+                        <button type="button" class="md-link-btn-pill" {{on "click" (fn this.ctrlAction "remove_word" word.id)}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
                           {{word.label}}
                           <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
                         </button>
@@ -270,7 +270,7 @@
                     {{else}}
                       <button type="button"
                               class="new-board-preview__label-btn"
-                              {{action "startCellEdit" cell.idx bubbles=false}}
+                              {{on "click" (fn this.ctrlActionNoBubble "startCellEdit" cell.idx)}}
                               aria-label={{t "Edit %{word}" key="edit_cell_label_named" word=cell.label}}>
                         <span class="new-board-preview__label">{{cell.label}}</span>
                       </button>
@@ -296,7 +296,7 @@
           <div class="nb-section__head">
             <h4 class="nb-section__title">{{t "Advanced options" key="new_board_section_advanced"}}</h4>
             {{#unless this.more_options}}
-              <button type="button" class="md-link-btn nb-section__toggle" {{action "more_options"}}>{{t "Show advanced options" key="show_advanced_options"}}</button>
+              <button type="button" class="md-link-btn nb-section__toggle" {{on "click" (fn this.ctrlAction "more_options")}}>{{t "Show advanced options" key="show_advanced_options"}}</button>
             {{/unless}}
           </div>
           {{#if this.more_options}}
@@ -353,7 +353,7 @@
     </div>
     <div class="{{if this.standalone "modal-footer" "la-new-board-modal-footer"}}">
       {{#if this.standalone}}
-      <button {{action "saveBoard"}} class="btn btn-primary new-board__submit" disabled={{this.createBoardDisabled}}>
+      <button {{on "click" (fn this.ctrlAction "saveBoard")}} class="btn btn-primary new-board__submit" disabled={{this.createBoardDisabled}}>
         {{#if this.status.saving}}
           {{t "Creating Board..." key="creating_board"}}
         {{else if this.status.error}}
@@ -364,8 +364,8 @@
       </button>
       {{else}}
       <div class="la-new-board-modal-footer__actions">
-        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-        <button type="button" {{action "saveBoard"}} class="la-btn la-btn--primary new-board__submit" disabled={{this.createBoardDisabled}}>
+        <button type="button" class="la-btn la-btn--ghost" {{on "click" (fn this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+        <button type="button" {{on "click" (fn this.ctrlAction "saveBoard")}} class="la-btn la-btn--primary new-board__submit" disabled={{this.createBoardDisabled}}>
           {{#if this.status.saving}}
             {{t "Creating Board..." key="creating_board"}}
           {{else if this.status.error}}

@@ -1,6 +1,4 @@
-/*jshint -W079 */
-// Must use the same QUnit instance as ember-qunit/test-helper so jasmine-style tests register
-// and run. window.QUnit (qunit-standalone.js) can be a different instance than the 'qunit' module.
+// Use the same QUnit instance as ember-qunit/test-helper so jasmine-style tests register and run.
 import * as QUnit from 'qunit';
 import { setupRenderingTest, setupTest, setupApplicationTest } from 'ember-qunit';
 import EmberObject from '@ember/object';

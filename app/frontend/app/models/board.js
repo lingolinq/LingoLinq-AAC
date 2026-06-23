@@ -416,7 +416,7 @@ LingoLinq.Board = BaseModel.extend({
         }
       }
     });
-    result = result.uniq();
+    result = Utils.uniq(result, function(r) { return r.get('id'); });
     result.some_missing = missing;
     return result;
   }),

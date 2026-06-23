@@ -74,10 +74,5 @@ module.exports = function (defaults) {
   app.import('vendor/speak_js/speakClient.js');
   app.import('vendor/speech/speech.js');
 
-  app.import('node_modules/qunit/qunit/qunit.js', {
-    type: 'vendor',
-    outputFile: 'assets/qunit-standalone.js'
-  });
-
   return app.toTree();
 };

@@ -1,12 +1,7 @@
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { visit } from '@ember/test-helpers';
-
-// In this project the `qunit` ES module and `window.QUnit` are separate instances.
-// Ember's test runner via testem + qunit-standalone.js reads from window.QUnit, so
-// tests registered against the ES module instance are silently dropped. Register
-// against window.QUnit explicitly so tests are discovered at runtime.
-const QUnit = window.QUnit;
+import * as QUnit from 'qunit';
 
 // Smoke test — proves registration + runner wiring. If this passes and the
 // application-boot tests below hang, the infrastructure is healthy; the hang is
@@ -14,7 +9,7 @@ const QUnit = window.QUnit;
 // future work needs to mock/stub before `visit()` resolves.
 QUnit.module('Acceptance | smoke', function() {
   QUnit.test('smoke: arithmetic works', function(assert) {
-    assert.strictEqual(1 + 1, 2, 'basic arithmetic — proves QUnit.test registers with window.QUnit and runs via testem');
+    assert.strictEqual(1 + 1, 2, 'basic arithmetic — proves QUnit.test registers and runs via testem');
   });
 });
 

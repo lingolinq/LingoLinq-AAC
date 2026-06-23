@@ -35,10 +35,26 @@ export default Component.extend({
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
     this.set('model', options);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.onNothing = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('nothing');
+    };
   },
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     var opts = this.get('model');
     var button = opts && opts.button;
     if (!button) { return; }
@@ -219,6 +235,9 @@ export default Component.extend({
 
   willDestroyElement() {
     this._super(...arguments);
+    this.onClose = null;
+    this.onOpening = null;
+    this.onClosing = null;
     if (this.get('model') && this.get('model.id')) {
       this._runClosing();
     }
