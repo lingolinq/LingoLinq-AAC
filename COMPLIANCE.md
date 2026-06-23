@@ -1,4 +1,4 @@
-# LingoLinq AAC -- Compliance & Data Governance
+# LingoLinq AAC: Compliance & Data Governance
 
 **Last updated:** 2026-04-18
 **Owner:** Scott W.
@@ -71,7 +71,7 @@ Payment card data is handled entirely by Stripe. LingoLinq never sees, stores, o
 
 All systems, services, and tools used in LingoLinq development and operations are classified into three zones based on their potential exposure to user data.
 
-### SAFE ZONE -- No User Data
+### SAFE ZONE: No User Data
 
 These tools and services never contain, process, or have access to user data. They operate exclusively on source code, public information, or developer-only content.
 
@@ -87,7 +87,7 @@ These tools and services never contain, process, or have access to user data. Th
 | Chrome DevTools        | Browser debugging              | Used against local dev environment only              |
 | Jotform                | Form building                  | Marketing/feedback forms; no user data collected     |
 
-### CAUTION ZONE -- May Contain PII in Context
+### CAUTION ZONE: May Contain PII in Context
 
 These services are used for business operations and may contain business contact information (names, emails of school administrators, sales contacts). They must **never** be used to store student, patient, or end-user data.
 
@@ -99,7 +99,7 @@ These services are used for business operations and may contain business contact
 | n8n            | Workflow automation    | Workflows could be configured to move user data   | Self-hosted on Render; workflows reviewed in audit  |
 | Slack          | Team communication     | Screenshots or pastes could contain user data     | Policy: NEVER paste user data into Slack           |
 
-### RESTRICTED ZONE -- Contains FERPA/HIPAA-Protected Data
+### RESTRICTED ZONE: Contains FERPA/HIPAA-Protected Data
 
 These systems store or process actual user data. They require the highest level of protection, access control, and (where applicable) BAAs.
 
@@ -122,9 +122,9 @@ This table maps every external service to the data it receives, its BAA status, 
 | **Anthropic (Claude)** | Developer queries only; code assistance           | No BAA needed               | Max plan; no user data ever sent; dev use only  |
 | **Google (Gemini)**  | Developer queries only; code assistance             | No BAA needed               | No user data ever sent; dev use only            |
 | **HubSpot**          | Business contacts: admin names, school/hospital emails, deal info | No BAA needed | Business contacts only; never student/patient data |
-| **Stripe**           | Institutional payment data (org name, billing email, card via Stripe.js) | N/A -- PCI-DSS handled by Stripe | LingoLinq never handles raw card data; Stripe is PCI Level 1 |
+| **Stripe**           | Institutional payment data (org name, billing email, card via Stripe.js) | N/A: PCI-DSS handled by Stripe | LingoLinq never handles raw card data; Stripe is PCI Level 1 |
 | **Notion**           | Project plans, specs, internal notes                | No BAA needed               | Policy: NEVER put user/student/patient data in Notion |
-| **n8n (self-hosted)**| Workflow definitions; data depends on workflow config | N/A -- self-hosted on Render | Covered by Render BAA; audit workflows quarterly |
+| **n8n (self-hosted)**| Workflow definitions; data depends on workflow config | N/A: self-hosted on Render | Covered by Render BAA; audit workflows quarterly |
 | **Slack**            | Team chat, notifications                            | No BAA needed               | Policy: NEVER paste user data; use DM links to Rails admin instead |
 | **GitHub**           | Source code, issues, PRs                            | No BAA needed               | No user data in repos; .gitignore enforced for data files |
 | **Perplexity**       | Web search queries (research only)                  | No BAA needed               | Never submit user data as search queries        |
@@ -175,14 +175,14 @@ User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  Anthropic Claude API 
 
 All data leaving the Rails application passes through a centralized de-identification layer:
 
-**`lib/pii_scrubber.rb`** -- the single enforcement point for PII removal.
+**`lib/pii_scrubber.rb`**: the single enforcement point for PII removal.
 
 This module is responsible for:
 
-1. **Stripping direct identifiers** -- Removes names, emails, SSO subject IDs, and any other directly identifying fields before data is sent to any AI API.
-2. **Replacing with opaque tokens** -- Where context requires a notion of "this user" vs. "that user" (e.g., for usage-pattern analysis), the scrubber replaces real IDs with opaque, non-reversible tokens (SHA-256 hash with a rotating salt).
-3. **Scrubbing board content** -- Family names that appear in board labels or custom vocabulary are detected and replaced with generic placeholders (e.g., "[FAMILY_NAME]") before any content-based prediction request.
-4. **Audit logging** -- Every scrub operation is logged (what was removed, which AI API call it was for, timestamp) without recording the original PII values.
+1. **Stripping direct identifiers**: Removes names, emails, SSO subject IDs, and any other directly identifying fields before data is sent to any AI API.
+2. **Replacing with opaque tokens**: Where context requires a notion of "this user" vs. "that user" (e.g., for usage-pattern analysis), the scrubber replaces real IDs with opaque, non-reversible tokens (SHA-256 hash with a rotating salt).
+3. **Scrubbing board content**: Family names that appear in board labels or custom vocabulary are detected and replaced with generic placeholders (e.g., "[FAMILY_NAME]") before any content-based prediction request.
+4. **Audit logging**: Every scrub operation is logged (what was removed, which AI API call it was for, timestamp) without recording the original PII values.
 
 ### What Each Layer Sees
 
@@ -203,10 +203,10 @@ This module is responsible for:
 
 All AI-powered features that analyze user behavior or content are:
 
-1. **Off by default** -- Every AI feature is behind a feature flag.
-2. **Opt-in at the organization level** -- A school district or hospital must explicitly enable each AI feature.
-3. **Explained in plain language** -- The opt-in screen describes what data is used, how it is de-identified, and what the feature does.
-4. **Reversible** -- Disabling a feature purges any cached de-identified data associated with that organization.
+1. **Off by default**: Every AI feature is behind a feature flag.
+2. **Opt-in at the organization level**: A school district or hospital must explicitly enable each AI feature.
+3. **Explained in plain language**: The opt-in screen describes what data is used, how it is de-identified, and what the feature does.
+4. **Reversible**: Disabling a feature purges any cached de-identified data associated with that organization.
 
 ---
 
@@ -242,7 +242,7 @@ These rules are **non-negotiable**. Any violation is treated as a security incid
 
 Each AI platform used in LingoLinq development or research has specific guardrails.
 
-### Claude Code (Anthropic) -- Primary Development Tool
+### Claude Code (Anthropic): Primary Development Tool
 
 - **Role:** Primary AI coding assistant for all development work.
 - **MCP access:** All local MCPs (GitHub, Render, Notion, n8n, Filesystem, Sequential-thinking, Perplexity, DeepWiki, Chrome DevTools, Mermaid Chart, Jotform, Slack).
@@ -250,26 +250,26 @@ Each AI platform used in LingoLinq development or research has specific guardrai
 - **Plan:** Anthropic Max plan. No BAA needed because no user data is ever sent.
 - **Database access:** Dev database only (via MCPs connected to dev environment).
 
-### Gemini CLI (Google) -- Secondary Development Tool
+### Gemini CLI (Google): Secondary Development Tool
 
 - **Role:** Secondary AI coding assistant; used for the same development tasks as Claude Code.
 - **MCP access:** Same MCP set as Claude Code for development purposes.
 - **Data rule:** NEVER send user data. Same restrictions as Claude Code.
 - **Database access:** Dev database only.
 
-### Genspark -- Research
+### Genspark: Research
 
 - **Role:** Research tool for exploring AAC domain, competitor analysis, regulatory guidance.
 - **Data rule:** Research queries only. NEVER submit student names, patient information, or any data from the LingoLinq user database.
 - **Access:** Web-based; no MCP integration; no access to any LingoLinq system.
 
-### Manus -- Browser Automation
+### Manus: Browser Automation
 
 - **Role:** Browser automation for testing and research tasks.
 - **Data rule:** NEVER automate authenticated LingoLinq sessions (dev or production). NEVER interact with pages that display user data.
 - **Permitted use:** Automating public web research, testing public-facing marketing pages, generating screenshots of competitor products.
 
-### Perplexity -- Web Research (MCP-Integrated)
+### Perplexity: Web Research (MCP-Integrated)
 
 - **Role:** Web research via MCP integration.
 - **Data rule:** No user data in search queries. Queries must be about technology, AAC practices, compliance requirements, or general research topics.
