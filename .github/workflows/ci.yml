@@ -129,6 +129,9 @@ jobs:
       - name: Verify document register render + git content hashes + bundle completeness
         run: ruby scripts/document-register-render.rb --check
 
+      - name: Verify compliance publication status report
+        run: ruby scripts/compliance-publication-status.rb --check
+
   security-scan:
     runs-on: ubuntu-latest
     continue-on-error: true

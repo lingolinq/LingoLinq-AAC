@@ -36,6 +36,8 @@ copy; never hand-edit a mirror to "fix" a difference.
 | The index (readable render) | `audit-reports/DOCUMENT-REGISTER.md` |
 | Render / validate tool | `scripts/document-register-render.rb` |
 | Notion mirror tool | `scripts/document-register-notion-sync.rb` |
+| Publication status / stale-doc queue | `audit-reports/COMPLIANCE-PUBLICATION-STATUS.md` |
+| Publication status tool | `scripts/compliance-publication-status.rb` |
 | Living legal/policy docs | `docs/legal/*.md` (+ the signed BAA PDF) |
 | Findings register (status SSOT) | `audit-reports/FINDINGS.json` |
 | Branded external records set | Google Drive "Branded Records Set" folder |
@@ -92,6 +94,38 @@ index notices a document changed but its row did not.
 - **If a git hash-drift check fails:** it means a doc's content and its register
   row disagree. Re-render to reconcile, then sanity-check the review date and
   status while you are there.
+
+## Publication status
+
+The findings and document registers do not automatically rewrite every downstream
+Google Doc or Notion page. They do automatically keep the two team-facing Notion
+boards current:
+
+- `FINDINGS.json` -> "LingoLinq Compliance Findings (LL)" via
+  `.github/workflows/sync-findings-to-notion.yml`.
+- `DOCUMENT-REGISTER.json` -> "LingoLinq Compliance Documents (LL)" via
+  `.github/workflows/sync-document-register-to-notion.yml` when the
+  `NOTION_DOCS_DB_ID` repo variable is configured.
+
+Everything else is tracked through the publication status report:
+
+```bash
+ruby scripts/compliance-publication-status.rb
+ruby scripts/compliance-publication-status.rb --check
+```
+
+That report is the compliance-agent work queue. It lists which surfaces update
+automatically, which Drive docs need an operator refresh, which Notion rows need
+hash refresh, and which active documents have a `lastReviewed` date older than
+the latest register source date. CI blocks if the committed report drifts from
+the registers.
+
+Until a Google Docs publisher exists, Drive-canonical docs are either:
+
+- **Frozen point-in-time records:** keep the body as-is, and say so in `notes`.
+- **Living docs:** refresh the Google Doc body manually or through a future
+  Google Docs workflow, then update `lastReviewed` and `contentHash` when
+  available.
 
 ## bundles (completeness reporting)
 
