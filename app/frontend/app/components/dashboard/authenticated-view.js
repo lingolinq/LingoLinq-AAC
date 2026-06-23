@@ -8,6 +8,7 @@ import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import { board_view_route } from '../../utils/board_view';
 import Badge from '../../models/badge';
 import Log from '../../models/log';
 import session from '../../utils/session';
@@ -1222,8 +1223,11 @@ export default Component.extend({
       if (boardKey) {
         var parts = boardKey.split('/');
         if(parts.length === 2) {
-          this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
+          // Open in the user's preferred view: board-detail (modern) by default,
+          // board-alt (classic) only when board_view_style === 'classic'.
+          this.get('router').transitionTo(board_view_route(this.get('appState.currentUser')), parts[0], parts[1]);
         } else {
+          // Canonical /key route — routes/board.js already redirects by preference.
           this.get('router').transitionTo('board', boardKey);
         }
       }

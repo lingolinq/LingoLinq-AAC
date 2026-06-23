@@ -72032,45 +72032,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
   height: calc(100dvh - 180px) !important;
 }
-/* At <=500px height the sentence-bar shrink (the <=500h block ~62404) frees
-   27-60px (by size class) above the grid, but the grid's fixed
-   `height: calc(100dvh - 120px)` can't reclaim it, leaving a gap below the
-   board. The size class lives only on the #speak row, so the grid can't match
-   it via a calc. Instead, in speak mode, fill the flexed wrap: stretch the
-   grid-fade to the row height and turn it + the button-listener <div> wrapper
-   into a flex column so the grid's existing `flex: 1 1 0` distributes over that
-   definite height (height:auto drops the fixed calc so flex can size it). Edit
-   mode deliberately does NOT fill — it keeps consistent button heights and
-   scrolls instead; see the edit rules at the end of this block. */
-@media (max-height: 500px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap > .md-board-detail-grid-fade {
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-fade > * {
-    flex: 1 1 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
-    height: auto;
-  }
-  /* Edit mode: do NOT fill like speak. The board should keep comfortable,
-     consistent button heights and let <main> (overflow-y:auto) SCROLL when they
-     don't fit the short viewport. The base grid `calc(100dvh - 180px)` would
-     compress the 1fr rows into thin strips at short heights, so drop it to auto
-     (grid sizes to content) and floor each cell so buttons stay usable; the
-     content then grows past the viewport and main scrolls. */
-  .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
-    height: auto !important;
-  }
-  .md-shell--board-detail-edit .md-board-detail-grid__cell {
-    min-height: 96px;
-  }
-}
+/* Short-VIEWPORT-HEIGHT handling for the board grid lives in the square-collapse
+   block below (the `@media (max-width: 1024px), (max-height: …)` rule): it makes
+   the buttons square, collapses the grid to the squares' natural height (so there
+   are NO inter-row gaps), and lets <main> scroll. We deliberately do NOT floor the
+   grid height here — an earlier attempt did and it forced the 1fr rows taller than
+   the square cards, opening exactly the inter-row gaps we want to avoid. */
 
 /* Inflections / raw_events: grid uses legacy `.board` + `.button` hooks; cancel global `.board` rules */
 #within_ember.board-detail-view .md-board-detail-grid.board {
@@ -72170,8 +72137,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      is then exactly as tall as the squares — no tall cells, no inter-row gaps —
      and <main> (overflow-y:auto) scrolls when the squares exceed the viewport.
    Shell-prefixed (0,3,0) + !important on height so it beats both the speak base
-   height and edit's own !important calc; later in source than the edit calc. */
-@media (max-width: 1024px) {
+   height and edit's own !important calc; later in source than the edit calc.
+   Also triggered on SHORT viewport heights (`(max-height: 700px)`) so a wide-but-
+   short window gets the same square + scroll treatment instead of stretching the
+   rows tall (which opens inter-row gaps under aspect-squared cards). */
+@media (max-width: 1024px), (max-height: 700px) {
   .md-shell--board-detail .md-board-detail-grid.md-board-detail-grid--shape-square {
     height: auto !important;
     align-content: start;

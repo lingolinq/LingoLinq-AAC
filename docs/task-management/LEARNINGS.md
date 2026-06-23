@@ -5488,3 +5488,27 @@ v2-format addons don't expose a classic `addon/` AMD module, so a plain
   (ships a real `addon/` tree the loader resolves), not v4.
 - After uninstalling/installing an addon, RESTART `ember serve` — it doesn't reliably pick up
   node_modules/package.json changes on a hot rebuild.
+
+## board-detail short-height scroll: speak FILLS, edit SCROLLS (deliberate)
+The board-detail page is a viewport-pinned layout (`.md-board-detail-layout` =
+`calc(100dvh - topbar)`) whose **only** intended scroller is `<main
+class="md-board-detail-main">` (`overflow-y:auto`). The scroll chain is already
+built for small viewports: `.md-board-detail-grid-sidebar-wrap` is `flex:1 0 auto`
+("stays at content height when main is over-constrained", app.scss:69729) and
+`.md-board-detail-grid-fade` is opacity-only (app.scss:2901, no clip). The board
+ONLY fails to scroll because the grid (`grid-template-rows: minmax(0,1fr)`)
+collapses to fit. At `@media (max-height:500px)` the two modes were intentionally
+OPPOSITE: **edit** drops `height:auto` + floors `.md-board-detail-grid__cell {
+min-height:96px }` so it overflows and main scrolls; **speak** flexed the
+grid-fade column to FILL (shrink buttons, no scroll). The board's REAL short/narrow
+mechanism is the square-collapse block (`@media (max-width:1024px)` ~app.scss:72143):
+default boards are `--shape-square` (from `stretch_buttons` pref); it makes cards
+`aspect-ratio:1` and the grid `height:auto` + `align-content:start`, so the `minmax(0,1fr)`
+rows resolve to the squares' aspect height — grid is exactly as tall as the squares (no
+inter-row gaps) and `main` (overflow-y:auto) scrolls. To get scroll on SHORT screens, add a
+`(max-height: …)` arm to THAT media query — do NOT invent a new floor. **Gap trap:** under
+aspect-squared cards, ANY rule that makes a row taller than the square opens an inter-row gap.
+Two wrong tries proved it: (a) `height:auto` + cell `min-height:96px`, (b) grid
+`min-height: calc(--board-rows*104px)` — both forced rows taller than the squares → gaps. The
+only gap-free path is the grid collapsing to the squares' own height. `computeHeight()` is
+EMPTY (board-detail.js:1920) so sizing is pure CSS; `--board-rows` is set by JS (board-detail.js:3044).

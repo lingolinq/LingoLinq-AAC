@@ -5,6 +5,7 @@ import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
+import { board_view_route } from '../utils/board_view';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -194,10 +195,15 @@ export default Component.extend({
         transition: function() {
           // router.transitionTo returns a Transition, so the overlay's
           // promise chain still works. (appController is the application
-          // controller, which injects the router service.)
+          // controller, which injects the router service.) Open in the user's
+          // preferred view: board-detail (modern) by default, board-alt (classic)
+          // only when board_view_style === 'classic'.
+          var user = appStateService && appStateService.get && appStateService.get('currentUser');
+          var route = board_view_route(user);
           if(parts.length === 2) {
-            return appController.router.transitionTo('user.board-detail', parts[0], parts[1]);
+            return appController.router.transitionTo(route, parts[0], parts[1]);
           } else {
+            // Canonical /key route — routes/board.js already redirects by preference.
             return appController.router.transitionTo('board', key);
           }
         }
