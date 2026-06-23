@@ -8525,14 +8525,18 @@ body > .popover.bottom {
   filter: contrast(4.0) saturate(100);
 }
 
-/* Colored mode: remove opaque white PNG mattes without tinting symbol
-   colors (multiply tints the whole image with the button fill). SVG filter
-   adjusts alpha only; scoped to raster symbols. White/Black/HC modes unchanged. */
-.symbol_background_clear .button img.symbol[src*=".png"] {
-  filter: url(#ll-symbol-white-matte);
-}
-.symbol_background_clear .button img.symbol[src$="square.svg"] {
-  filter: none;
+/* Colored mode: white backing INSIDE the symbol's own outline. The
+   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   the symbol's own alpha, then draws the symbol on top — so transparent /
+   anti-aliased regions don't bleed the button fill, while white never extends
+   past the symbol's outline (no halo, no square). Mirrors the board-detail
+   grid treatment and replaces the prior ll-symbol-white-matte knockout filter
+   (which couldn't fill genuinely transparent pixels). Works regardless of the
+   object-fit letterbox — the filter acts on rendered alpha, so empty letterbox
+   bars stay empty. square.svg fallback excluded (no white behind the broken-
+   image placeholder). White/Black/HC modes use separate selectors. */
+.symbol_background_clear .button img.symbol:not([src$="square.svg"]) {
+  filter: url(#ll-symbol-white-backing);
 }
 .symbol_background_white .button img.symbol {
   background: #fff;
@@ -72418,39 +72422,43 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   opacity: 1;
   transition: opacity 180ms ease, filter 180ms ease;
 }
-.symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src*=".png"] {
-  filter: url(#ll-symbol-white-matte);
-}
-.symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src$="square.svg"] {
-  filter: none;
+/* Colored mode: white backing INSIDE the symbol's own outline. The
+   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   the symbol's own alpha, then draws the symbol on top — so transparent /
+   anti-aliased regions don't bleed the Fitzgerald card color, while white
+   never extends past the symbol's outline (no halo, no square). Because the
+   filter runs per-pixel on this exact element it stays perfectly registered
+   with the rendered image (a separately-masked layer drifted into a halo).
+   The old knockout filter is replaced by this. Limitation (accepted):
+   fully-enclosed transparent interiors get no white — there's no alpha there.
+   square.svg empty placeholder excluded so blank cells keep their card
+   surface. Cross-origin S3 symbols are fine — these filter primitives
+   (feFlood/feComposite/feMerge on SourceAlpha) don't taint. */
+.symbol_background_clear .md-board-detail-symbol-card__image img.symbol:not([src$="square.svg"]) {
+  filter: url(#ll-symbol-white-backing);
 }
 /* Dark-mode icon halo for the button grid — adds a soft white
    drop-shadow around the visible pixels of every symbol icon. This
    is the AAC-safe alternative to inverting hues (which would change
    semantic meaning): the halo lifts dark line art off any dark card
-   surface without recoloring the icon itself. The two rules below
-   mirror the existing filter rules above so CSS-filter chains stay
-   intact:
-     - Clear mode PNG: keep the matte-knockoff filter AND add the halo
-     - Anything else in dark mode: halo only
-   Both exclude the `square.svg` placeholder (empty cells get no halo). */
+   surface without recoloring the icon itself. Excludes the
+   `square.svg` placeholder (empty cells get no halo). NOTE: the
+   Colored-mode clear-PNG matte-knockout filter was removed — Colored mode
+   now backs symbols via the ll-symbol-white-backing filter (above), which
+   in dark+Colored overrides this halo (higher specificity), so a white-
+   backed symbol shows no halo. Non-Colored dark modes keep the halo. */
 .md-board-detail--dark .md-board-detail-symbol-card__image img.symbol {
   filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.65));
-}
-.md-board-detail--dark .symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src*=".png"] {
-  filter: url(#ll-symbol-white-matte) drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.65));
 }
 .md-board-detail--dark .md-board-detail-symbol-card__image img.symbol[src$="square.svg"] {
   filter: none;
 }
-/* "Colored" / "Colored Soft" (symbol_background_clear, the latter
-   also carries .fitzgerald-soft): opaque white mattes in imported PNG
-   symbols are knocked out via the ll-symbol-white-matte filter (alpha
-   only — symbol colors preserved). White, Black, and High Contrast
-   modes use separate selectors and are not affected. */
-/* Colored mode: image band matches the Fitzgerald button fill so
-   transparent matte pixels (after ll-symbol-white-matte) show the
-   button color — not black from the dark board shell or filter backdrop. */
+/* Colored mode ("Colored" / "Colored Soft", the latter also carries
+   .fitzgerald-soft): the image band is painted the Fitzgerald button fill so
+   the area AROUND the symbol's white backing (the ll-symbol-white-backing
+   filter above) reads as the button color, not black from the dark board
+   shell. White, Black, and High Contrast modes use separate selectors and
+   are unaffected. */
 .symbol_background_clear .md-board-detail-symbol-card__image,
 .symbol_background_clear .md-board-detail-symbol-card__image--placeholder {
   background: var(--btn-bg, transparent) !important;

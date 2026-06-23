@@ -453,6 +453,20 @@
           </feComponentTransfer>
           <feComposite in="SourceGraphic" in2="alphaMask" operator="in"/>
         </filter>
+        <!-- AAC symbol white backing: fills white EXACTLY within the symbol's own
+             alpha (no halo, no square), then draws the symbol on top. Used in
+             Colored mode so transparent regions don't bleed the button fill, while
+             white never extends past the symbol's outline. Operates per-pixel on
+             the same element, so it stays pixel-registered with the rendered image
+             (unlike a separately-masked backing layer). -->
+        <filter id="ll-symbol-white-backing" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+          <feFlood flood-color="#ffffff" result="whiteFill"/>
+          <feComposite in="whiteFill" in2="SourceAlpha" operator="in" result="whiteBacking"/>
+          <feMerge>
+            <feMergeNode in="whiteBacking"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
       </defs>
     </svg>
 

@@ -5512,3 +5512,21 @@ Two wrong tries proved it: (a) `height:auto` + cell `min-height:96px`, (b) grid
 `min-height: calc(--board-rows*104px)` — both forced rows taller than the squares → gaps. The
 only gap-free path is the grid collapsing to the squares' own height. `computeHeight()` is
 EMPTY (board-detail.js:1920) so sizing is pure CSS; `--board-rows` is set by JS (board-detail.js:3044).
+
+## Pattern: white symbol matte and the `ll-symbol-white-matte` filter are mutually exclusive on one element
+
+A symbol image with transparent regions bleeds the button's Fitzgerald fill through its
+face in Colored mode (`symbol_background_clear`). The legacy classic board fixed this with
+an unconditional `.button img.symbol { background:#fff }` (first commit
+`coughdrop.css.scss:573`); that survives today as the `symbol_background_white` mode.
+Colored mode instead uses the `#ll-symbol-white-matte` SVG filter (alpha-only white
+knockout, defined in `app/frontend/app/index.html`). The trap: you cannot add
+`background:#fff` to an element that also carries that filter — CSS `filter` processes the
+element's own background, so the matte filter knocks the white right back out. To restore a
+white matte in Colored mode you must DROP the filter and paint white on a filter-free
+element. In the board-detail grid the symbol `<img>` is content-sized
+(`width/height:auto` + `object-fit:contain`), so a `background:#fff` on the img sits
+exactly behind the rendered image — no wrapper, and it does NOT stretch to the whole image
+band the way a container fill (`.md-board-detail-symbol-card__image`) would. Default for
+new users is `symbol_background = 'clear'` (`lib/json_api/user.rb:89`), so Colored mode is
+the common case. See [`2026-06-23-symbol-transparency-bleed-legacy.md`](./2026-06-23-symbol-transparency-bleed-legacy.md).
