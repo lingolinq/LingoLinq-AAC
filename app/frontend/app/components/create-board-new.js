@@ -2299,6 +2299,11 @@ export default Component.extend({
     apply_custom_paint_color: function() {
       var color = (this.get('custom_paint_color') || '').trim();
       if(!color) { return; }
+      // Defense-in-depth: the swatch comes from <input type="color"> (browser-
+      // enforced hex), but the paired hex text field is hand-editable — only
+      // apply a value the browser parses as a bare CSS color so it can't smuggle
+      // extra declarations into a painted button's inline style.
+      if(window.CSS && window.CSS.supports && !window.CSS.supports('color', color)) { return; }
       this.send('set_paint_mode', color, null, null, i18n.t('paint_color_custom', "Custom"));
     },
 

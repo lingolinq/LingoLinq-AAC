@@ -761,7 +761,10 @@ export default Component.extend({
       var bits = [role];
       var roomCount = units.filter(function(u) { return u && u.organization_id == o.id; }).length;
       if (roomCount > 0) {
-        bits.push(roomCount + ' ' + (roomCount === 1 ? i18n.t('room_lc', "room") : i18n.t('rooms_lc', "rooms")));
+        // Use i18n count-pluralization (prepends the number + picks the right
+        // plural form) instead of concatenating a singular/plural ternary, so
+        // locales with different plural rules / word order render correctly.
+        bits.push(i18n.t('n_rooms', "room", {count: roomCount}));
       }
       if (o.premium) { bits.push(i18n.t('premium', "Premium")); }
       return { id: o.id, name: o.name, desc: bits.join(' · ') };

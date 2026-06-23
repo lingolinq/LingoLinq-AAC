@@ -67,6 +67,7 @@ export default Component.extend({
   }),
 
   _applyGlow() {
+    var _this = this;
     var element = this.element;
     var src = this.get('src');
     if(!element || !src) { return; }
@@ -75,6 +76,10 @@ export default Component.extend({
     var loader = new Image();
     loader.crossOrigin = 'anonymous';
     loader.onload = function() {
+      // Stale-callback guard: if the component was torn down or `src` changed
+      // to a different avatar while this image decoded, don't paint this
+      // (now-outdated) glow onto the element showing a different avatar.
+      if(_this.isDestroyed || _this.isDestroying || _this.get('src') !== src) { return; }
       try {
         var size = 24;
         var canvas = document.createElement('canvas');
