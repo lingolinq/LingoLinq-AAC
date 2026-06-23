@@ -27,7 +27,15 @@ export default Component.extend({
   syncHighlightControllerModel: observer('settings', 'highlightController', function() {
     var ctrl = this.get('highlightController');
     if(!ctrl) { return; }
-    ctrl.set('model', this.get('settings'));
+    var settings = this.get('settings');
+    if(settings) {
+      ctrl.set('model', settings);
+      return;
+    }
+    if(ctrl.get('model') && ctrl.closing) {
+      ctrl.closing();
+    }
+    ctrl.set('model', null);
   }),
 
   init() {
