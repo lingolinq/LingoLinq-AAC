@@ -29,7 +29,8 @@ gem 'benchmark'
 gem 'mutex_m'
 gem 'matrix'
 
-gem 'concurrent-ruby', '~> 1.3'
+# CVE-2026-54904/54905/54906; bundler-audit minimum
+gem 'concurrent-ruby', '>= 1.3.7'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
@@ -39,7 +40,8 @@ gem 'json', '>= 2.19.2'
 # oj is a faster JSON parser/generator (5-10x faster than stdlib json).
 # Used via Oj.mimic_JSON in config/initializers/oj.rb to transparently
 # replace the JSON module across the app, including Rails internals.
-gem 'oj', '~> 3.16'
+# CVE-2026-54500/54502/54592; bundler-audit minimum
+gem 'oj', '>= 3.17.3'
 # GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
 gem 'loofah', '>= 2.25.1'
 # ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
@@ -84,6 +86,8 @@ gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
 gem 'googleauth', '~> 1.11'
+# CVE-2026-54297; bundler-audit minimum (transitive via googleauth, stripe, etc.)
+gem 'faraday', '>= 2.14.3'
 
 gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
