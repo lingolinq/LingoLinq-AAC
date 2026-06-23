@@ -2721,6 +2721,50 @@
         "timeframe": "with toolchain modernization"
       },
       "notes": "Successor to LL-257c696fe0 (eol-eslint-5x, closed 2026-06-21). The v5 EOL was fixed by the v8 upgrade, but v8 reached end-of-life; tracked here so the register stays honest. Low: dev-toolchain only."
+    },
+    {
+      "id": "LL-7f7372e3eb",
+      "ruleKey": "audit-console-targets-heroku-not-render",
+      "title": "Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "bin/audit_console",
+        "line": 7,
+        "snippet": "heroku_id=`heroku auth:whoami`",
+        "sha": "3e59c0543daa29efe9d5b5512853be0ded030fab"
+      },
+      "firstSeen": "2026-06-23",
+      "lastSeen": "2026-06-23",
+      "owner": "scot",
+      "remediation": {
+        "options": "Rewrite bin/audit_console to attach to a Render service shell while still exporting USER_KEY so the Rails console records an AuditEvent per session, or replace it with a Render-native audited console path; until then, privileged console access on Render is not captured by this wrapper.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "audit-review",
+        "pr": null,
+        "reviewer": "claude-compliance-officer",
+        "promotedDate": "2026-06-23"
+      },
+      "notes": "Promoted from claude-compliance-officer review on 2026-06-23. bin/audit_console is the documented audited-console wrapper (CLAUDE.md Security section: console access audited via AuditEvent). It still shells to the Heroku CLI (heroku auth:whoami; heroku run -a lingolinq). LingoLinq runs on Render and the legacy Heroku app is gone, so the wrapper cannot attach a console in the live environment and the per-session AuditEvent it is meant to record is not produced on Render. Net effect: the audited-console control is not operative on the current platform; privileged console access to a system holding regulated student/patient data is not captured by this path. Code/path evidence only."
     }
   ]
 }
