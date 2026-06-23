@@ -9,7 +9,7 @@ export default Component.extend({
       // Use runLater to avoid setting attributes during render
       runLater(function() {
         _this.set('already_opened', true);
-        if(typeof _this.opening === 'function') {
+        if(_this.opening) {
           _this.opening();
         }
       });
@@ -17,7 +17,7 @@ export default Component.extend({
     if(!this.get('already_done_opening')) {
       runLater(function() {
         _this.set('already_done_opening', true);
-        if(typeof _this.done_opening === 'function') {
+        if(_this.done_opening) {
           _this.done_opening();
         }
       });
@@ -27,7 +27,7 @@ export default Component.extend({
     this._super(...arguments);
     if(!this.get('already_closed')) {
       this.set('already_closed', true);
-      if(typeof this.closing === 'function') {
+      if(this.closing) {
         this.closing();
       }
     }

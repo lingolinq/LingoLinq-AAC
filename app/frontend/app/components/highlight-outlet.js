@@ -27,15 +27,7 @@ export default Component.extend({
   syncHighlightControllerModel: observer('settings', 'highlightController', function() {
     var ctrl = this.get('highlightController');
     if(!ctrl) { return; }
-    var settings = this.get('settings');
-    if(settings) {
-      ctrl.set('model', settings);
-      return;
-    }
-    if(ctrl.get('model') && ctrl.closing) {
-      ctrl.closing();
-    }
-    ctrl.set('model', null);
+    ctrl.set('model', this.get('settings'));
   }),
 
   init() {
@@ -43,31 +35,19 @@ export default Component.extend({
     this.syncHighlightControllerModel();
 
     this.openingHandler = () => {
-      var ctrl = this.get('highlightController');
-      if(!ctrl || !this.get('settings')) { return; }
-      if(ctrl.opening) {
-        ctrl.opening();
-      }
+      this.get('highlightController').send('opening');
     };
     this.closingHandler = () => {
-      var ctrl = this.get('highlightController');
-      if(!ctrl || !ctrl.closing) { return; }
-      ctrl.closing();
+      this.get('highlightController').send('closing');
     };
     this.selectReleaseHandler = (event) => {
-      var ctrl = this.get('highlightController');
-      if(!ctrl) { return; }
-      ctrl.send('select_release', event);
+      this.get('highlightController').send('select_release', event);
     };
     this.closeHighlight = () => {
-      var ctrl = this.get('highlightController');
-      if(!ctrl) { return; }
-      ctrl.send('close');
+      this.get('highlightController').send('close');
     };
     this.selectHighlight = () => {
-      var ctrl = this.get('highlightController');
-      if(!ctrl) { return; }
-      ctrl.send('select');
+      this.get('highlightController').send('select');
     };
   }
 });
