@@ -41,4 +41,17 @@ describe 'worker SIGTERM requeue safety net' do
 
     Worker.perform(*job_args)
   end
+
+  it 'preserves trailing domain:: / chain:: routing args on requeue' do
+    # Real jobs carry appended domain::/chain:: markers; perform_at strips them
+    # from the dispatch args but the requeue must re-enqueue the ORIGINAL args so
+    # the marker context survives the interrupt.
+    full_args = ['BoardDownstreamButtonSet', 'update_for', '1_2', true, 'domain::1_5', 'chain::abc']
+    expect(BoardDownstreamButtonSet).to receive(:update_for)
+      .with('1_2', true)
+      .and_raise(Resque::TermException.new('SIGTERM'))
+    expect(Resque).to receive(:enqueue).with(Worker, *full_args)
+
+    Worker.perform(*full_args)
+  end
 end
