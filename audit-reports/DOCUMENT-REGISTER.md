@@ -4,11 +4,11 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-06-21 | Documents: 52 (git 26 / drive 22 / notion 4)
+> Generated: 2026-06-21 | Documents: 53 (git 26 / drive 23 / notion 4)
 
 ## Headline
 
-- **Status:** draft 2, approved 10, published 38, superseded 2
+- **Status:** draft 2, approved 11, published 38, superseded 2
 - **Overdue for review** (as of 2026-06-21): none
 - **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded)
 
@@ -54,7 +54,7 @@
 | Incident Log (branded) | Drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | published | HIPAA, GDPR | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Security Risk Assessment 2026 Q2 | Drive | [open](https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 
-### audit-artifact (15)
+### audit-artifact (16)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -67,6 +67,7 @@
 | Compliance Program - Claim vs Code Review | Drive | [open](https://docs.google.com/document/d/1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg/edit) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) |  |
 | Compliance Status Snapshot (2026-04-23) | git | `docs/legal/COMPLIANCE_STATUS_2026-04-23.md` | superseded |  | Scot Wahlquist | 2026-04-23 |  | no | `0cacd835e906` |  |
 | Compliance Status Snapshot (2026-06-18) | git | `docs/legal/COMPLIANCE_STATUS_2026-06-18.md` | superseded |  | Scot Wahlquist | 2026-06-18 |  | no | `94b8288187ea` |  |
+| Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `a2b6d15d0320` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
@@ -78,7 +79,7 @@
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | published |  | Scot Wahlquist | 2026-06-21 | 2027-06-21 | no | `2ba6af7f0dd9` |  |
+| Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | published |  | Scot Wahlquist | 2026-06-21 | 2027-06-21 | no | `05c98f8f40f8` |  |
 | Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-05-27 | 2027-05-27 | 2026-06-21 | `3efcaaf4a7c5` | soc2-evidence |
 | Incident Response and Breach Runbook (branded) | Drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | published | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Notion - Compliance Engineering Onboarding/Handoff | Notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | published |  | Scot Wahlquist | 2026-06-19 | 2026-12-19 | no | (supplied) |  |
@@ -126,4 +127,4 @@ What a US school-district diligence / DPA review asks for (FERPA / COPPA / acces
 
 ---
 
-_52 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_53 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._

@@ -706,7 +706,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2027-06-21",
       "attestation": {},
-      "contentHash": "2ba6af7f0dd9f2aafa4528b3af70fbdcbdf21da34926bfd6cfb94caea1c6835e",
+      "contentHash": "05c98f8f40f85ddbdae308e2a8721467377f92b9a286cf51501111ff66f5d5c5",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a936b01d6a"
@@ -1449,6 +1449,29 @@
       "mirrors": [],
       "notes": "Internal roadmap; not part of the externally-released set. Attested by Scot Wahlquist 2026-06-21 per CEO direction.",
       "id": "DOC-912b28f375"
+    },
+    {
+      "title": "Data & Compliance Pipeline - Build Inventory (dated)",
+      "description": "Dated Drive inventory of the compliance/data pipeline build-out; tracked so downstream docs that cite the pipeline inventory do not drift invisibly.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit",
+      "status": "approved",
+      "frameworks": [],
+      "lastReviewed": "2026-06-22",
+      "nextReviewDue": "2026-09-22",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1ZcYdaCc2eo5EGoaqlOgTLo9IXsbAvb-myw6pgO9Urtw/edit"
+        }
+      ],
+      "notes": "Current Drive search also shows an undated companion document, LingoLinq Data & Compliance Pipeline - Build Inventory, at 1ZcYdaCc2eo5EGoaqlOgTLo9IXsbAvb-myw6pgO9Urtw. Treat this dated row as the tracked review artifact until the living/frozen ownership split is reconciled.",
+      "id": "DOC-71d0861ff9"
     },
     {
       "title": "Notion - Compliance Findings board (LL)",
