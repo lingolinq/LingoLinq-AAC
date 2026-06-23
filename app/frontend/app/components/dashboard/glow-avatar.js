@@ -87,6 +87,13 @@ export default Component.extend({
         canvas.height = size;
         var ctx = canvas.getContext('2d');
         ctx.drawImage(loader, 0, 0, size, size);
+        // SECURITY: this is NOT a cross-origin read primitive and cannot leak
+        // pixel data. getImageData() THROWS SecurityError on a canvas tainted by
+        // a cross-origin image, so it only ever succeeds when the avatar server
+        // opted in via CORS (crossOrigin='anonymous' above). The result also
+        // never leaves the client — we reduce the pixels to a single averaged
+        // RGB and write it as a CSS custom property on this element. A non-CORS
+        // avatar simply throws here and falls back to the SCSS default glow.
         var data = ctx.getImageData(0, 0, size, size).data;
         // Average only the avatar's actual colored pixels: skip transparent,
         // near-white, and near-black ones (background, page bleed, outlines)
