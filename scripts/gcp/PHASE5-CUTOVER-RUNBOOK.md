@@ -79,6 +79,12 @@ step is that verification.
 - **Success criteria:** `PING` returns `PONG` over the `rediss://` endpoint
   (`10.160.1.3:6378`) with CA-chain verification ON (VERIFY_PEER against `REDIS_CA_CERT`) and
   hostname verification OFF. Resque enqueue + process of one synthetic job succeeds.
+- **CA-completeness check (dual-review):** `redis_ssl_params` (`config/initializers/resque.rb:56-71`)
+  **skips unparseable certs** and only raises if ZERO parse. So a `REDIS_CA_CERT` containing the
+  current CA plus a malformed next-rotation CA passes today and fails silently when Memorystore
+  rotates mid-soak. Assert the **count** of certs parsed from `REDIS_CA_CERT` equals the expected
+  number (log `added`), and confirm the seeded blob contains every currently-valid Memorystore CA,
+  not just one that happens to work now. A green PING is necessary but not sufficient.
 - **Rollback trigger:** TLS handshake error (cert chain, CA mismatch, connection refused) that is
   not resolved by confirming `REDIS_CA_CERT` is the live instance CA. Do not proceed to DNS with
   Redis unverified; jobs (including log processing) would silently fail post-cutover. Mark
@@ -86,13 +92,47 @@ step is that verification.
 
 ### 1. Hard maintenance window  (tracker 5.2, GATE: data move begins)
 
+**WARNING (dual-review finding): scaling web + worker to 0 is NOT, by itself, a write-freeze.**
+LingoLinq has writers that do not run inside the web/worker dynos. Freezing the DB means freezing
+ALL of them, in this order, BEFORE the dump:
+
+- **Scheduled rake tasks** (`generate_log_summaries`, `push_remote_logs`, `advance_goals`,
+  `flush_users`, `clean_old_deleted_boards`, etc.). These are NOT Resque jobs in `render.yaml` and
+  there is no `resque-scheduler`; they fire from **Render cron services and/or n8n**, each booting
+  its own Rails process that writes prod independently. `flush_users` and `clean_old_deleted_boards`
+  are **destructive**. Pause every one before the dump. **Verify the live list against the Render
+  dashboard cron services + n8n workflows the day before; do not trust this list.**
+- **The hourly `scripts/sync-render-env.js` push** (1Password -> Render env). Pause it for the
+  whole window AND soak, or a 1Password edit silently rewrites Render env (breaks the "Render is
+  pristine rollback insurance" invariant; see Rollback).
+- **n8n workflows that hit prod** (e.g. the cost/PII digest). Pause.
+
+Then:
+
 - Announce a short maintenance window in advance (see "Window scheduling" below). User-facing
   copy must be i18n'd; for an AAC product the message should be calm and concrete:
   "LingoLinq is briefly offline for scheduled maintenance and will be back at <time tz>."
-- At window start, scale Render **web and worker** services to 0 instances (Render dashboard or
-  API). This stops all new writes cleanly. Reads stop too; this is intentional (hard maintenance,
-  not read-only) and keeps the dump consistent without a half-broken app.
-- Confirm no active connections are writing (no in-flight Resque jobs on Render).
+- Scale Render **web and worker** services to 0 instances (Render dashboard or API).
+- Confirm Render web at 0 returns connection-refused / 5xx (so clients retry later against current
+  DNS), NOT a queue-forever state. Confirm no in-flight Resque jobs on Render.
+
+> **OPEN DECISION - offline/mobile write replay (HIPAA/FERPA data-loss class).** AAC clients buffer
+> writes locally (IndexedDB/SQLite) and replay on reconnect, and the client sync path has **no
+> server-side conflict resolution** (`app/frontend/app/utils/persistence.js:3630` "TODO: check for
+> conflicts before saving"). A device offline across the window replays into whatever DNS resolves
+> when it reconnects. The `pg_dump` is taken at window start, so ANY write that reaches Render
+> after the dump (offline replay, or a DNS-stale client during soak) is **silently lost at
+> decommission** and diverges Render from Cloud SQL. This is not yet mitigated. Pick one before
+> cutover (Scot's call):
+> 1. Drop DNS TTL to **60s** well before the window (not just "24-48h") so reconnecting clients
+>    resolve GCP fast, AND keep Render's DB as the reconciliation source until soak ends.
+> 2. Keep Render **web reachable but hard-rejecting writes** (503 + Retry-After on write endpoints)
+>    through the soak instead of scale-to-0, so late writes get a clean rejection the client
+>    retries against current DNS.
+> 3. Accept the loss window and define a manual reconciliation of post-dump Render writes into
+>    Cloud SQL before 9b decommission.
+> Whichever is chosen, a post-dump write to Render is a known data-loss class and the runbook must
+> name how it gets reconciled before decommission.
 
 ### 2. Fresh prod `pg_dump`  (GATE: real data move)
 
@@ -146,20 +186,19 @@ script, and is NOT in the deploy workflow `BOOT_SECRETS`. Decide before cutover:
   way as the four (do not regenerate; regenerating breaks matching of existing stored
   `source_hash` values), and add it to `BOOT_SECRETS` in `deploy-cloudrun.yml` so the runtime can
   read it.
-- **If SMS source routing is NOT used in prod:** explicitly mark "not required for prod cutover"
-  in the cutover log and proceed. (Confirm with Scot which is true before the window.)
+- **If SMS source routing is NOT used in prod:** do NOT take this branch on judgment. The failure
+  is silent: with `SMS_ENCRYPTION_KEY` unset, `source_hash` is computed with a `nil` salt
+  (`app/models/remote_target.rb:44,56`), so post-cutover hashes never match existing stored values
+  and SMS source routing silently mis-routes with no boot error. **Hard gate:** during the dress
+  rehearsal, query the restored DB for `RemoteTarget.where(target_type: 'sms').exists?`. If any row
+  exists, seeding `SMS_ENCRYPTION_KEY` + adding it to `BOOT_SECRETS` is **mandatory**, not optional.
+  Only mark "not required" if that query is empty.
 
-### 6. Migrate Job + deploys  (coupled to un-inert, step 7)
+### 6. Un-inert  (set GitHub Actions repo variables) - MUST precede the dispatch
 
-In the deploy workflow these are one dispatch: build image -> push to Artifact Registry -> run
-`lingolinq-migrate` Cloud Run Job (`db:migrate` only) -> deploy `lingolinq-web` ->
-deploy `lingolinq-worker` pool. Triggered by `gh workflow run deploy-cloudrun.yml` **after** the
-repo variables are set (step 7) and after S2 has seeded the secrets the Job needs to boot.
-
-Then run **0b (worker health verification)** and **0c (Redis TLS handshake)** against the deployed
-services before any DNS change.
-
-### 7. Un-inert  (set GitHub Actions repo variables)
+> **Ordering fix (dual-review):** un-inert comes BEFORE the migrate/deploy dispatch. The deploy
+> workflow no-ops while `vars.GCP_PROJECT_ID` is empty, so dispatching first just no-ops. Steps 6
+> and 7 were swapped in the first draft; this is the corrected order.
 
 The deploy workflow no-ops while `vars.GCP_PROJECT_ID` is empty (`deploy-cloudrun.yml:65-71`).
 "Un-inert" = set the deferred repo variables (Settings > Secrets and variables > Actions >
@@ -175,6 +214,28 @@ per tracker 1.10). Set the remaining four:
 
 Region/VPC/subnet must all agree with the Phase 3 provisioning, or the migrate Job, web, and
 worker fail to reach Cloud SQL / Memorystore at connect time.
+
+### 7. Migrate Job + deploys  (dispatch the now-enabled workflow)
+
+Only after step 5 (S2 seeded the secrets the Job boots with) and step 6 (repo vars set) does the
+workflow do anything. One dispatch runs all of it: build image -> push to Artifact Registry -> run
+`lingolinq-migrate` Cloud Run Job (`db:migrate` only) -> deploy `lingolinq-web` ->
+deploy `lingolinq-worker` pool.
+
+```
+gh workflow run deploy-cloudrun.yml
+```
+
+Then, BEFORE any DNS change:
+
+- Run **0b (worker health verification)** and **0c (Redis TLS handshake)** against the deployed
+  services.
+- **Pre-DNS delta check (dual-review finding):** compare `MAX(id)` / `MAX(updated_at)` on
+  high-traffic tables (`LogSession`, `Board`, `BoardContent`) between **live Render** and **Cloud
+  SQL** immediately before the flip. The step-0a/3 reconciliation only compares dump-to-restore, so
+  it cannot see writes that reached Render after the dump. **Any non-zero delta is a rollback
+  trigger** (it means an external writer or offline replay slipped past the freeze; go fix the
+  freeze, do not flip DNS).
 
 ### 8. Front-end decision gate  (tracker 5.3 - DECIDE before cutover)
 
@@ -204,6 +265,13 @@ tracker Phase 6 after a clean soak, gated on Scot, with a fresh snapshot + keepe
 Doing any of it at cutover would destroy the rollback path. Listed here only so operators know it
 is the *next* phase, not a cutover step.
 
+> **Soak hazard (dual-review):** deferring decommission is correct for rollback safety, but the
+> soak is exactly when the offline-replay / DNS-stale divergence (the OPEN DECISION in step 1) is
+> live: Render's DB still exists and its hostname may still resolve for cached/offline clients, so
+> late writes keep landing on the soon-to-be-abandoned DB. The soak is only safe once step 1's
+> mitigation is chosen. Before 6.2 decommission, reconcile or confirm-empty any post-cutover Render
+> writes (re-run the step-7 delta check against Render one final time).
+
 ---
 
 ## Rollback plan
@@ -221,14 +289,21 @@ The master rollback is **flip DNS back to Render**, which works because Render w
 
 ### Rollback steps
 
-1. **Re-point DNS back to Render.** (TTL was already lowered, so this propagates fast.)
-2. **Scale Render web + worker back up** from 0 to their prior instance counts. Render's DB was
-   never set read-only and its env was never modified, so Render returns to full service as soon
-   as the app processes are back. (There is **no "re-enable DB writes"** step; the freeze was
-   app-scale-to-0, not a DB toggle.)
-3. **Secrets:** nothing to restore on the Render side. S2 is additive-only; it writes **new GCP
-   Secret Manager versions** from 1Password and never modifies Render's environment. The Render
-   secrets that were live before the window are still live.
+> **Ordering fix (dual-review):** scale Render back up and smoke-test it BEFORE repointing DNS.
+> Flipping DNS to a still-scaled-to-0 Render just sends users to an unavailable service until the
+> scale-up finishes. Keep GCP serving while Render comes back, then flip.
+
+1. **Scale Render web + worker back up** from 0 to their prior instance counts, and re-enable the
+   external writers paused in step 1 (rake cron, n8n, the hourly `sync-render-env`). Render's DB was
+   never set read-only, so it returns to full service as soon as the app processes are back. (There
+   is **no "re-enable DB writes"** step; the freeze was app-scale-to-0 + external-writer pause, not
+   a DB toggle.) Smoke-test Render green.
+2. **Re-point DNS back to Render.** (TTL was already lowered, so this propagates fast.)
+3. **Secrets:** S2 is additive-only; it writes **new GCP Secret Manager versions** from 1Password
+   and does not write Render. **Caveat:** the "Render env is pristine" invariant only holds if the
+   hourly `sync-render-env` push was paused for the window/soak (step 1). If it was NOT paused and a
+   1Password edit landed, Render env may have drifted; diff Render env against the pre-window
+   baseline before trusting rollback.
 4. **Sequence drift:** if any writes reached Cloud SQL during a partial cutover, the GCP DB is
    discarded on rollback (Render is authoritative), so no Render-side sequence fix is needed. If a
    later re-attempt reuses the same Cloud SQL DB, **re-run S1** (`phase4-setval-sequences.sh`,
@@ -278,7 +353,7 @@ cold-start / p50 / p95 / memory in tracker 4.2.
   America/New_York** slot (~2-3h end to end: announce -> freeze -> fresh dump -> restore -> S1 ->
   S2 -> deploy -> 0b/0c verify -> DNS).
 - **Not schedulable to a firm date** until the dress rehearsal (0a), W1, and the 5.3 front-end
-  build are done. Earliest realistic date if the rehearsal passes cleanly: **Sunday 2026-07-13**.
+  build are done. Earliest realistic date if the rehearsal passes cleanly: **Sunday 2026-07-12**.
 - Lower the DNS TTL 24-48h ahead.
 
 ---
@@ -286,10 +361,18 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 ## Pre-cutover checklist (all must be true before scheduling the window)
 
 - [ ] 0a dress rehearsal passed (all five smoke paths, row reconcile, sequences verified).
-- [ ] 0c Redis TLS handshake green against live Memorystore (LL-6619cc1811 verified-closed).
+- [ ] 0c Redis TLS handshake green against live Memorystore, CA-completeness asserted
+      (LL-6619cc1811 verified-closed).
 - [ ] W1 worker SIGTERM/requeue fix shipped (tracker 4.W1).
 - [ ] 5.3 front-end choice decided AND built (Option A or B).
-- [ ] `SMS_ENCRYPTION_KEY` decision made (seed + add to BOOT_SECRETS, or mark not-required).
-- [ ] DNS TTL lowered 24-48h ahead.
+- [ ] **Step 1 OPEN DECISION resolved:** offline-replay / write-freeze mitigation chosen (60s TTL +
+      reconciliation source, OR write-rejecting Render, OR manual reconciliation plan).
+- [ ] **Every external writer enumerated and pause-tested:** Render cron services, n8n workflows
+      hitting prod, hourly `sync-render-env` (verified against the LIVE Render dashboard, not this
+      doc).
+- [ ] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7).
+- [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
+      BOOT_SECRETS if any row exists, else confirmed-empty.
+- [ ] DNS TTL lowered ahead (60s if step-1 mitigation #1 chosen).
 - [ ] Operator holds GCP `lingolinq-prod` + 1Password "LingoLinq Prod" + Render API key.
 - [ ] Maintenance message (i18n) staged.
