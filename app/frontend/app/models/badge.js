@@ -1,4 +1,4 @@
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
 import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
@@ -7,25 +7,25 @@ import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 LingoLinq.Badge = BaseModel.extend({
-  name: DS.attr('string'),
-  user_id: DS.attr('string'),
-  user_name: DS.attr('string'),
-  avatar_url: DS.attr('string'),
-  highlighted: DS.attr('boolean'),
-  disabled: DS.attr('boolean'),
-  global: DS.attr('boolean'),
-  global_goal_priority: DS.attr('number'),
-  image_url: DS.attr('string'),
-  sound_url: DS.attr('string'),
-  level: DS.attr('number'),
-  goal_id: DS.attr('string'),
-  max_level: DS.attr('boolean'),
-  progress: DS.attr('number'),
-  earned: DS.attr('date'),
-  started: DS.attr('date'),
-  ended: DS.attr('date'),
-  completion_settings: DS.attr('raw'),
-  permissions: DS.attr('raw'),
+  name: attr('string'),
+  user_id: attr('string'),
+  user_name: attr('string'),
+  avatar_url: attr('string'),
+  highlighted: attr('boolean'),
+  disabled: attr('boolean'),
+  global: attr('boolean'),
+  global_goal_priority: attr('number'),
+  image_url: attr('string'),
+  sound_url: attr('string'),
+  level: attr('number'),
+  goal_id: attr('string'),
+  max_level: attr('boolean'),
+  progress: attr('number'),
+  earned: attr('date'),
+  started: attr('date'),
+  ended: attr('date'),
+  completion_settings: attr('raw'),
+  permissions: attr('raw'),
   sound_url_with_fallback: computed('sound_url', function() {
     return this.get('sound_url') || speecher.chimes_url;
   }),

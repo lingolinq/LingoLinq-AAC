@@ -42882,14 +42882,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    Covers every action card — Speak + the --as-button cards (Extras / Account / Create a
    Board / Reports / Edit Dashboard). Gentle-scoped so Focused is untouched. */
 @media (max-width: 640px) {
-  .md-grid--layout-gentle .md-card.md-card--as-button .md-card__head,
-  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__head {
+  /* Center the action (as-button) cards — Speak Mode, My Account, Create a Board,
+     Edit Dashboard, Reports, Extras — at ≤640px in EVERY dashboard layout (was
+     scoped to gentle only). Icon on top, title + subtitle centered below. (The
+     icon→title gap is unified to Extras' 28px in a dedicated rule later in the
+     file, so it's not set here.) */
+  .md-grid--dashboard .md-card.md-card--as-button .md-card__head,
+  .md-grid--dashboard .md-card.md-card--speak-as-button .md-card__head {
     flex-direction: column !important;
     align-items: center !important;
     text-align: center !important;
   }
-  .md-grid--layout-gentle .md-card.md-card--as-button .md-card__titles,
-  .md-grid--layout-gentle .md-card.md-card--speak-as-button .md-card__titles {
+  .md-grid--dashboard .md-card.md-card--as-button .md-card__titles,
+  .md-grid--dashboard .md-card.md-card--speak-as-button .md-card__titles {
     text-align: center !important;
   }
 }
@@ -43110,8 +43115,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 2px 6px rgba(15, 23, 42, 0.06),
     0 0 12px rgba(42, 157, 143, 0.12) !important;
 }
-.md-grid .md-card.md-card--caseload-as-button .md-card__title,
-.md-grid .md-card.md-card--rooms .md-card__title {
+.md-grid .md-card.md-card--caseload-as-button .md-card__title {
   font-size: 28px !important;
   line-height: 1.15 !important;
 }
@@ -43119,10 +43123,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid.md-grid--layout-gentle.md-grid--fullspan-caseload .md-card--caseload.md-card--caseload-as-button .md-card__title {
   font-size: 26px !important;
 }
-/* Rooms title 22px (rooms-only override after the shared caseload+rooms rule;
-   caseload keeps its own size). */
+/* Rooms title — its own authoritative size + line-height (not shared with the
+   caseload 28px rule; per Rule #0.7 one rule governs this element). */
 .md-grid .md-card.md-card--rooms .md-card__title {
   font-size: 22px !important;
+  line-height: 1.15 !important;
 }
 /* Divider below the title — same brand highlight gradient + right-fade mask. */
 .md-grid .md-card.md-card--caseload-as-button .md-card__title::after {
@@ -43163,6 +43168,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 50%;
   background: $brand-verdigris;
   box-shadow: 0 0 6px rgba(42, 157, 143, 0.55);
+}
+/* ≤640px: drop the verdigris dot before the subtitle on the Communicators Need
+   Attention card only (Rooms + Caseload keep theirs). Same 0,4,1 specificity as
+   the shared dot rule above; wins by source order at this width. */
+@media (max-width: 640px) {
+  .md-grid .md-card.md-card--attention .md-card__sub::before {
+    display: none;
+  }
 }
 /* Subtitle colour + size diverge per card (structure + dot above stay shared): My
    Caseload keeps the verdigris-aa accent at 18px; Rooms + Communicators Need Attention
@@ -43239,13 +43252,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Room tiles: responsive auto-fill grid of clickable cards. */
 .md-rooms__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  /* `min(360px, 100%)` as the track minimum: each tile wants 360px (so wide
+     cards can pack 2-up), but shrinks to the container width on narrow screens
+     instead of overflowing past the card edge (the classic minmax(fixed,1fr)
+     overflow). */
+  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
   gap: 12px;
 }
 .md-grid .md-card.md-card--rooms .md-room-card,
 .md-grid .md-card.md-card--org-management .md-room-card {
   display: flex;
   align-items: center;
+  /* Let the tile shrink within its grid track so the name/desc inside truncate
+     with an ellipsis instead of overflowing past the card edge. Without this the
+     flex+grid item's default `min-width: auto` keeps it at content width. */
+  min-width: 0;
   gap: 10px;
   padding: 14px 16px;
   border-radius: 14px;
@@ -43377,6 +43398,37 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-bottom: none !important;
   padding-bottom: 0 !important;
 }
+/* ≤460px: stack the Rooms / My Organizations / Communicators-Need-Attention /
+   My Caseload header content vertically and center it — icon on top (it's the
+   first child, so column direction lifts it above), title + subtitle centered
+   below. Overrides the row layout from the base head rules above (same 0,2,0
+   specificity + !important, later in source; the caseload head's own 0,2,0 rule
+   sets no flex-direction, so this wins). */
+@media (max-width: 460px) {
+  .md-card--org-management .md-card--rooms__head,
+  .md-card--attention .md-card--attention__head,
+  .md-card--caseload .md-card__head {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+}
+/* Rooms header stacks earlier — at ≤640px — icon on top, title + subtitle centered
+   below (same treatment as the Communicators Need Attention header, just at a wider
+   breakpoint per request). The head stacks/centers its OWN children; the __top wrapper
+   (which lays the head beside the "View all rooms" button) must also center, otherwise
+   the content-width head stays pinned left. justify-content:center centers the head
+   block — and the wrapped View-all button — in the card. */
+@media (max-width: 640px) {
+  .md-card--rooms .md-card--rooms__head {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .md-card--rooms .md-card--rooms__top {
+    justify-content: center !important;
+  }
+}
 /* Title matches the Rooms/Caseload header size for consistency down the column.
    Tight line-height so the header block (title + subtitle) reads compactly. */
 .md-grid .md-card.md-card--attention .md-card__title {
@@ -43418,6 +43470,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-size: 15px;
   font-weight: 800;
   box-shadow: 0 2px 6px rgba($brand-verdigris, 0.45);
+}
+/* ≤640px: drop the count badge's 12px left margin on the My Organizations and
+   Communicators Need Attention counts (Rooms keeps its margin — not requested).
+   Scoped to org so the shared .md-rooms__count base isn't touched for Rooms. */
+@media (max-width: 640px) {
+  .md-card--attention .md-attention__count,
+  .md-card--org-management .md-rooms__count {
+    margin-left: 0;
+  }
 }
 .md-attention__list {
   display: flex;
@@ -43530,6 +43591,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-attention-item__status[data-status="exclamation-sign"] {
   background: rgba($brand-verdigris, 0.12);
   color: $brand-verdigris-aa;
+}
+/* ≤460px: stack each Communicators-Need-Attention item vertically — avatar on top
+   (it's the first child), name + status centered below — instead of the avatar-left
+   row. Overrides the base flex-row item rule above (later source, higher specificity). */
+@media (max-width: 460px) {
+  .md-grid .md-card.md-card--attention .md-attention-item {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .md-grid .md-card.md-card--attention .md-attention-item__text {
+    justify-content: center !important;
+  }
 }
 /* ≤1024px — enlarge the icon + widen the icon→text gap, matching Speak/Extras. */
 @media (max-width: 1024px) {
@@ -47319,6 +47393,19 @@ a.md-goal-nav-action:hover,
 .md-card--boards .md-card__head--between > .md-btn {
   justify-self: end;
   font-size: 16px !important;
+}
+/* ≤640px: collapse the 1fr|auto header grid to a single column so the
+   "Create a Board" button wraps onto its own row below the title (left-aligned
+   under it) instead of being squeezed beside it. Adjacent to the base rule
+   above; same 0,2,0 specificity wins by source order at this width. (Focused
+   View keeps its own 3-column header rule, defined later at higher specificity.) */
+@media (max-width: 640px) {
+  .md-card--boards .md-card__head--between {
+    grid-template-columns: 1fr;
+  }
+  .md-card--boards .md-card__head--between > .md-btn {
+    justify-self: start;
+  }
 }
 
 /* `.md-card__title` is now applied to <h3> elements (WCAG 1.3.1 — Heading hierarchy).
@@ -54263,6 +54350,19 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     display: block;
   }
 }
+/* ≤640px: scale the Boards card header + "(Page-sets)" clarifier + subheader down
+   so they fit the narrow card instead of staying at the wide-screen 22px/18px.
+   Layout-agnostic (.md-grid--dashboard) + later source order beats the gentle
+   22px rules above at this width. */
+@media (max-width: 640px) {
+  .md-grid--dashboard .md-card--boards .md-card__title,
+  .md-grid--dashboard .md-card--boards .md-card__title-accent--verdigris {
+    font-size: 18px !important;
+  }
+  .md-grid--dashboard .md-card--boards .md-card__sub {
+    font-size: 15px !important;
+  }
+}
 .md-stat__meta { font-size: 0.9375rem; color: $la-navy; } /* 15px — secondary metadata (WCAG 3:1 for small text OK with navy) */
 .md-stat__meta .md-muted { font-size: 0.9375rem; }
 .md-stat__label { font-size: 1rem; color: $la-navy; align-self: center; } /* 16px — label readability */
@@ -58294,11 +58394,43 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   .md-grid .md-card.md-card--org-management.md-card--as-button .md-card__head {
     gap: 14px !important;
   }
+}
+/* ≤640px (supervisor / non-communicator home): make EVERY action-card "button"
+   divider the same 180px — including the badge-action cards (My Account, Create a
+   Board, Reports, Edit Dashboard) the old ≤474px rule missed, and at the wider
+   640px breakpoint. !important + this 0,5,1 specificity beat the per-card 260px /
+   208px widths and the Focused-layout 150px !important divider. */
+@media (max-width: 640px) {
   .md-grid .md-card.md-card--speak-as-button .md-card__title::after,
   .md-grid .md-card.md-card--caseload-as-button .md-card__title::after,
   .md-grid .md-card.md-card--extras.md-card--as-button .md-card__title::after,
+  .md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__title::after,
   .md-grid .md-card.md-card--org-management.md-card--as-button .md-card__title::after {
-    width: 180px;
+    width: 180px !important;
+  }
+}
+/* ≤640px: unify the icon→header/subheader gap on EVERY action button to match the
+   Extras card's 28px. The badge-action cards (My Account / Create a Board / Reports /
+   Edit Dashboard) and Speak were landing on a tighter gap than Extras (which is pinned
+   to 28px by a higher-specificity ≤1024px rule). 0,5,0 selectors + !important + this
+   late source order beat every per-card gap (the 6px centering value, the Focused 11px,
+   the 30px speak, the per-card 28px). */
+@media (max-width: 640px) {
+  .md-grid .md-card.md-card--speak-as-button .md-card__head,
+  .md-grid .md-card.md-card--caseload-as-button .md-card__head,
+  .md-grid .md-card.md-card--extras.md-card--as-button .md-card__head,
+  .md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__head {
+    gap: 28px !important;
+  }
+}
+/* ≤460px: tighten that same icon→header gap to 12px (same selectors as the 28px
+   rule above; later source wins at this narrower width). */
+@media (max-width: 460px) {
+  .md-grid .md-card.md-card--speak-as-button .md-card__head,
+  .md-grid .md-card.md-card--caseload-as-button .md-card__head,
+  .md-grid .md-card.md-card--extras.md-card--as-button .md-card__head,
+  .md-grid .md-card.md-card--badge-action.md-card--as-button .md-card__head {
+    gap: 12px !important;
   }
 }
 /* Take a Tour + Getting Started triggers float (position:fixed → viewport) on

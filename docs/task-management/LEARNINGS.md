@@ -5392,3 +5392,99 @@ open/high counts straight from the JSON (a `ruby -rjson` tally) rather than carr
 forward; the 2026-06-13 posture report had stale 0/13 + FERPA 8/4 figures that did not match the
 register's 0/16 + FERPA 10/5. Run all three `--check` renders + `citation-check` green before
 committing. Confirmed 2026-06-18.
+
+---
+
+## Gotcha: the custom `{{and}}` helper is 2-ARG ONLY — extra operands are silently dropped
+
+`app/frontend/app/helpers/and.js` is `helper(function([a, b]) { return !!a && !!b; })`. It
+destructures exactly the first TWO positional args. A 3-operand `(and a b c)` compiles and runs
+with **no error**, but `c` is never evaluated — the condition collapses to `a && b`. This bit the
+supervisor dashboard hero: `(and supporter_role (is-equal activeTab "home") (is-equal effectiveLayout
+"gentle"))` dropped the layout check, so the Gentle hero leaked onto Focused view.
+
+- **Fix pattern:** nest — `(and a (and b c))` — or add a single combined computed on the component.
+- **Detection:** `grep -rEn '\(and ' app/frontend/app/templates/` then eyeball any call with >2
+  operands (watch for nested `(is-equal …)`/`(or …)` that each count as one operand). There are a few
+  pre-existing 3-operand `(and …)` calls in the tree that are also latent — they only "work" when the
+  dropped operand doesn't change the result.
+- Same caution applies to any other custom boolean helper; check its ar\-ity before passing 3+ args.
+
+## Gotcha: supervisor `currentUser.supervisees` is REFETCHED + overwritten at ≥10 — per-supervisee fields must also live on the `/supervisees` index serializer
+
+Per-supervisee data the dashboard needs (e.g. `org_status` for the "Communicators Need Attention"
+card) is set in `lib/json_api/user.rb`'s self-serialization loop, but that only covers
+`supervisees[0,10]`. When a supervisor has ≥10 communicators, `app/frontend/app/models/user.js:768-771`
+(`load_all_connections`) refetches `/api/v1/users/:id/supervisees` via `Utils.all_pages` and
+**overwrites** `currentUser.supervisees` wholesale. That index endpoint
+(`users_controller.rb` → `JsonApi::User.paginate(..., limited_identity: true, supervisor: user)`)
+must therefore set the SAME per-supervisee fields, or they vanish after the reload and the dependent
+UI silently empties for exactly the largest caseloads.
+
+- **Fix pattern:** set the field inside as_json's shared `limited_identity` + `args[:supervisor]`
+  branch (a single helper like `JsonApi::User.org_status_for`), which feeds BOTH the dashboard payload
+  and the index endpoint — not only in the dashboard loop. Then drop the redundant loop assignment.
+- A frontend merge-on-overwrite can't fully fix it: fields are only sent for the first 10, so
+  supervisees 11+ would still be missing the data. Fix at the serializer.
+- `org_status` shape is ALWAYS a hash `{'state' => '<id>', …}` (because `link['state']['status']`
+  is itself a `{state:…}` hash) — every consumer reads `org_status.state`. Don't "fix" it to a string.
+
+---
+
+## Ember 4.12 deprecation audit — what's still firing in this app (2026-06-22)
+
+After the 3.28 → 4.12 upgrade, the `until: 4.0` deprecations were already cleared (they'd be hard
+breaks otherwise). The `until: 5.0` ones still firing, found by grepping `app/frontend/app`:
+
+- **`routing.transition-methods` — the only broad one (~37 calls, ~30 files).** `Controller#transitionToRoute`
+  and `Route#transitionTo`/`replaceWith`. Fix: `router: service()` + `this.router.transitionTo(...)`.
+  ~76 files already use the router service, so the pattern is established. Breaks at Ember 5.
+- `component.mouseenter-leave-move` — 1 hit (`components/board-icon.js` `mouseEnter:`). Use `{{on "mouseenter"}}`.
+- ember-data `DS.*` namespace — 28 files / 505+ `DS.attr`. Works in 4.12; modernize to `@ember-data/*` later.
+
+Audit gotchas:
+- Grep over-counts `transitionTo`: `router.transitionTo()` (the correct replacement) is FINE — filter out
+  `router` and match `this.transitionTo(` / `this.transitionToRoute(` specifically.
+- `{{action}}` (424 files) is NOT a 4.12 deprecation — normal usage. Only the legacy object-first form
+  `(action someObject "name")` breaks in 4.x (fixed in highlight-outlet; that was the only template using it).
+- All `Ember.*` global matches here are in comments / commented-out code — already cleaned up.
+- `no-implicit-this` is NOT in ember-template-lint 2.21.0's `recommended` set, so templates were never
+  checked for `this-property-fallback`. Enable it to catch stragglers (they silently render nothing in 4.x).
+- The authoritative runtime list needs `ember-cli-deprecation-workflow` (catches implicit-injections +
+  this-property-fallback + ember-data deprecations that static grep can't). Full audit:
+  docs/task-management/2026-06-22-ember-412-deprecations.md
+
+---
+
+## ember-data `DS.*` → `@ember-data/*` migration + deprecation-workflow (2026-06-22)
+
+Resolved the `ember-data:deprecate-legacy-imports` deprecation across 26 files. Import-path map (ember-data 4.12):
+- `DS.Model` / `DS.attr` / `DS.hasMany` / `DS.belongsTo` → `import Model, { attr, hasMany, belongsTo } from '@ember-data/model'`
+- `DS.RESTAdapter` → `import RESTAdapter from '@ember-data/adapter/rest'`
+- `DS.RESTSerializer` → `import RESTSerializer from '@ember-data/serializer/rest'`
+- `DS.Transform` → `import Transform from '@ember-data/serializer/transform'`
+
+Gotchas:
+- `node -e "require.resolve('@ember-data/model')"` FAILS (MODULE_NOT_FOUND) even though the package is installed — these resolve via Ember's addon tree at build time, not Node CJS. Don't trust `require.resolve`; validate import paths with a real `ember build` instead. (Piloted the 4 paths on 5 files + build BEFORE the 21-file bulk.)
+- The `import DS from "ember-data"` grep misses double-quoted imports (`adapters/application.js` used `"`). Match both quote styles.
+- `DS.attr` appearing in COMMENTS (`serializers/user.js`, `controllers/user/board-detail.js`) is not real usage — skip. And `GRID_BANDS.slice()` / `STATUS_IDS.indexOf()` false-match `DS\.` — anchor on real `DS.<member>`.
+
+Runtime deprecation capture: installed `ember-cli-deprecation-workflow` v4. Setup = `app/deprecation-workflow.js` (`import setupDeprecationWorkflow from 'ember-cli-deprecation-workflow'; setupDeprecationWorkflow({throwOnUnhandled:false, workflow:[]})`) guarded on `config.environment !== 'production'`, imported from `app/app.js`. Avoid the README's `@embroider/macros` guard if macros aren't already used in app code (adds boot risk) — the env guard is safer. Capture the list by running the app then `deprecationWorkflow.flushDeprecations()` in the console.
+
+---
+
+## Gotcha: `ember build` success does NOT mean the app boots (classic build + v2-format addons)
+
+`ember-cli-deprecation-workflow` v4 is a v2/Embroider-format addon. In this CLASSIC ember-cli build,
+`ember build` compiled it fine, but at runtime the AMD loader threw
+`Uncaught Error: Could not find module 'ember-cli-deprecation-workflow'` at app-boot → white screen.
+v2-format addons don't expose a classic `addon/` AMD module, so a plain
+`import x from 'the-addon'` has nothing to resolve at runtime even though the build "passed."
+
+- **Lesson:** for ANY change touching addon imports / new dependencies / app.js boot wiring, a green
+  `ember build` is necessary but NOT sufficient — verify the app actually BOOTS (dev server + reload),
+  because module resolution differs between build and runtime.
+- For deprecation-workflow specifically on a classic build, use the **classic v2.x** of the addon
+  (ships a real `addon/` tree the loader resolves), not v4.
+- After uninstalling/installing an addon, RESTART `ember serve` — it doesn't reliably pick up
+  node_modules/package.json changes on a hot rebuild.

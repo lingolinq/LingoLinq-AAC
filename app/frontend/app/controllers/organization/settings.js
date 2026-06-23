@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import modal from '../../utils/modal';
 import { computed, observer } from '@ember/object';
 import i18n from '../../utils/i18n';
@@ -6,6 +7,7 @@ import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
+  router: service('router'),
   opening: function() {
     var _this = this;
     _this.set('status', null);
@@ -102,7 +104,7 @@ export default Controller.extend({
       modal.open('modals/start-codes', {org: _this.get('model')});
     },
     cancel: function() {
-      this.transitionToRoute('organization', this.get('model.id'));
+      this.router.transitionTo('organization', this.get('model.id'));
     },
     save: function() {
       var _this = this;
@@ -122,7 +124,7 @@ export default Controller.extend({
       _this.set('status', {saving: true});
       org.save().then(function() {
         _this.set('status', null);
-        _this.transitionToRoute('organization', _this.get('model.id'));
+        _this.router.transitionTo('organization', _this.get('model.id'));
       }, function() {
         _this.set('status', {error: true});
       });

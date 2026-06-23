@@ -77,6 +77,14 @@ export default modal.ModalController.extend({
     'model.clear_overlay',
     'model.secondary_highlight',
     function() {
+      // This observer can fire when no highlight is active and `model` is
+      // undefined (Ember 4.x flushes sync observers more eagerly than 3.28).
+      // The model.* setters below would then throw "object in path 'model'
+      // could not be found" — which aborted user initialization and stopped
+      // the home boards from loading. Nothing to compute without a model, so
+      // bail. (Ember 3.28 silently no-op'd these sets; 4.x throws.) Mirrors the
+      // model guards the sibling observers in this controller already use.
+      if(!this.get('model')) { return; }
       var opacity = "0.3";
       var display = this.get('model.overlay') ? '' : 'display: none;';
       if(this.get('model.clear_overlay')) {

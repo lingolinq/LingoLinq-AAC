@@ -1,17 +1,17 @@
 {{#if this.highlightController}}
-  {{#opening-observer opening=(action this.highlightController "opening") closing=(action this.highlightController "closing")}}
-  {{#touch-listener release=(action this.highlightController "select_release")}}
-    <div class="highlight" style={{this.highlightController.model.top_style}} {{action this.highlightController "close"}}>
+  {{#opening-observer opening=this.boundOpening closing=this.boundClosing}}
+  {{#touch-listener release=(action "select_release" target=this.highlightController)}}
+    <div class="highlight" style={{this.highlightController.model.top_style}} {{action "close" target=this.highlightController}}>
     </div>
-    <div class="highlight" style={{this.highlightController.model.left_style}} {{action this.highlightController "close"}}>
+    <div class="highlight" style={{this.highlightController.model.left_style}} {{action "close" target=this.highlightController}}>
     </div>
-    <div class="highlight" style={{this.highlightController.model.right_style}} {{action this.highlightController "close"}}>
+    <div class="highlight" style={{this.highlightController.model.right_style}} {{action "close" target=this.highlightController}}>
     </div>
-    <div class="highlight" style={{this.highlightController.model.bottom_style}} {{action this.highlightController "close"}}>
+    <div class="highlight" style={{this.highlightController.model.bottom_style}} {{action "close" target=this.highlightController}}>
     </div>
-    <div class={{this.highlightController.highlight_class}} style={{this.highlightController.model.highlight_style}} {{action this.highlightController "select"}}>
+    <div class={{this.highlightController.highlight_class}} style={{this.highlightController.model.highlight_style}} {{action "select" target=this.highlightController}}>
     </div>
-    <div class={{this.highlightController.highlight_inner_class}} id='highlight_box' style={{this.highlightController.model.inner_highlight_style}} {{action this.highlightController "select"}}>
+    <div class={{this.highlightController.highlight_inner_class}} id='highlight_box' style={{this.highlightController.model.inner_highlight_style}} {{action "select" target=this.highlightController}}>
       {{#if this.highlightController.model.icon_class}}
         <span class={{this.highlightController.model.icon_class}} style={{this.highlightController.model.icon_style}}></span>
       {{/if}}

@@ -58,11 +58,13 @@ function hasOrgManagement(user) {
   return managesOrg || supervisionOrgs.length > 0;
 }
 
-// Communicator org_status IDs that signal "needs attention": unset/unknown plus the
-// "waiting for…" and "needing support" clinical statuses (see LingoLinq.user_statuses).
-// Excludes the progressing states (training-started / recently-implemented / making-
-// progress). Edit this list to tune what the "Communicators Need Attention" card flags.
-var ATTENTION_STATUS_IDS = ['unchecked', 'hourglass', 'equalizer', 'piggy-bank', 'phone', 'exclamation-sign'];
+// Communicator org_status IDs that signal "needs attention": 'no-home-board' (the
+// derived status for a communicator who hasn't set a home board — see json_api/user.rb),
+// 'unchecked' (unset/unknown), plus the "waiting for…" and "needing support" clinical
+// statuses (see LingoLinq.user_statuses). Excludes the progressing states (training-
+// started / recently-implemented / making-progress). Edit this list to tune what the
+// "Communicators Need Attention" card flags.
+var ATTENTION_STATUS_IDS = ['no-home-board', 'unchecked', 'hourglass', 'equalizer', 'piggy-bank', 'phone', 'exclamation-sign'];
 
 // Supervisees whose org_status falls in ATTENTION_STATUS_IDS. org_status is the hash
 // {'state' => '<id>', …} the backend sends per supervisee (json_api/user.rb).

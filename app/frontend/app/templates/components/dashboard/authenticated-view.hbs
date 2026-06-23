@@ -61,7 +61,7 @@
       {{#if (is-equal this.activeTab "extras")}}
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
-      {{else if (and this.appState.currentUser.supporter_role (is-equal this.activeTab "home") (is-equal this.effectiveLayout "gentle"))}}
+      {{else if (and this.appState.currentUser.supporter_role (and (is-equal this.activeTab "home") (is-equal this.effectiveLayout "gentle")))}}
         {{!-- Supervisor home header (Gentle view): centered stacked title ("Welcome
              back, …") + subheader (role · rooms · communicators). Same from-left title /
              from-right subheader motion as the default hero (the

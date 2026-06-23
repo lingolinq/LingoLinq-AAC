@@ -5,8 +5,10 @@ import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  router: service('router'),
   opening: function() {
     this.set('status', null);
     this.set('old_key_value', '');
@@ -29,7 +31,7 @@ export default modal.ModalController.extend({
           }
         }).then(function(res) {
           modal.close();
-          _this.transitionToRoute('board.index', res.key);
+          _this.router.transitionTo('board.index', res.key);
           runLater(function() {
             modal.success(i18n.t('board_successfully_renamed', "Board successfully renamed to %{n}", {n: res.key}));
           }, 200);

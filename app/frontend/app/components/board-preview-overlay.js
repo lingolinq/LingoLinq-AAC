@@ -235,7 +235,7 @@ export default Component.extend({
       var user = app_state.get('currentUser');
       if (!user || !user.get || !user.save) {
         // Adversarial-review note ("raw English fallback string"): this is NOT a raw
-        // string — `i18n.t('key', "English default")` is the project's REQUIRED i18n
+        // string — an `i18n.t` call (key + English-default arg) is the project's REQUIRED i18n
         // pattern (CLAUDE.md). The second arg is the en-locale source string that
         // i18n_generator.rb extracts into the locale files; the rendered text is the
         // user's localized translation, falling back to this English default only when a

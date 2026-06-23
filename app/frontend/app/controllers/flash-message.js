@@ -7,7 +7,8 @@ import { computed } from '@ember/object';
 
 export default Controller.extend({
   appState: service('app-state'),
-  
+  router: service('router'),
+
   display_class: computed('alert_type', function() {
     var res = "alert alert-dismissable ";
     if(this.get('alert_type')) {
@@ -38,14 +39,14 @@ export default Controller.extend({
     confirm: function(temp_action) {
       if(this.get('redirect')) {
         if(this.get('redirect.subscribe') && !capabilities.installed_app) {
-          this.transitionToRoute('user.subscription', this.appState.get('currentUser.user_name'));
+          this.router.transitionTo('user.subscription', this.appState.get('currentUser.user_name'));
         }
       } else if(this.get('action.callback')) {
         this.get('action').callback();
       }
     },
     contact: function() {
-      this.transitionToRoute('contact');
+      this.router.transitionTo('contact');
     }
   }
 });

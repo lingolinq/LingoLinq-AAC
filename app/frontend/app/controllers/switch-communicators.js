@@ -3,8 +3,10 @@ import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  router: service('router'),
   opening: function() {
     this.set('model.jump_home', this.get('model.stay') !== true);
     this.set('model.keep_as_self', this.get('model.modeling') || app_state.get('referenced_speak_mode_user') != null);
@@ -40,9 +42,9 @@ export default modal.ModalController.extend({
         const routeNeedsModel = routeName === 'user' || (typeof routeName === 'string' && routeName.startsWith('user.'));
         this.store.findRecord('user', board_for_user_id).then(function(u) {
           if(routeNeedsModel) {
-            _this.transitionToRoute(routeName, u.get('user_name'));
+            _this.router.transitionTo(routeName, u.get('user_name'));
           } else {
-            _this.transitionToRoute(routeName);
+            _this.router.transitionTo(routeName);
           }
         }, function(err) {
           modal.close();
@@ -63,7 +65,7 @@ export default modal.ModalController.extend({
         if(board_for_user_id != 'self') {
           params.user_id = board_for_user_id;
         }
-        this.transitionToRoute('setup', {queryParams: params});
+        this.router.transitionTo('setup', {queryParams: params});
       } else {
         app_state.set_speak_mode_user(board_for_user_id, jump_home, keep_as_self);
       }

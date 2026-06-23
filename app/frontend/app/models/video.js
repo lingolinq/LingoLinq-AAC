@@ -1,5 +1,5 @@
 import RSVP from 'rsvp';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
 import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
@@ -16,13 +16,13 @@ LingoLinq.Video = BaseModel.extend({
   onLicenseLoad: observer('license', function() {
     this.clean_license();
   }),
-  url: DS.attr('string'),
-  content_type: DS.attr('string'),
-  duration: DS.attr('number'),
-  pending: DS.attr('boolean'),
-  license: DS.attr('raw'),
-  permissions: DS.attr('raw'),
-  file: DS.attr('boolean'),
+  url: attr('string'),
+  content_type: attr('string'),
+  duration: attr('number'),
+  pending: attr('boolean'),
+  license: attr('raw'),
+  permissions: attr('raw'),
+  file: attr('boolean'),
   filename: computed('url', function() {
     var url = this.get('url') || '';
     if(url.match(/^data/)) {

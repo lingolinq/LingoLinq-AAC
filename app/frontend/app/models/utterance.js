@@ -1,24 +1,24 @@
 import { later as runLater } from '@ember/runloop';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
 import BaseModel from './base';
 import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import { computed, set as emberSet } from '@ember/object';
 
 LingoLinq.Utterance = BaseModel.extend({
-  button_list: DS.attr('raw'),
-  sentence: DS.attr('string'),
-  link: DS.attr('string'),
-  reply_code: DS.attr('string'),
-  user_id: DS.attr('string'),
-  image_url: DS.attr('string'),
-  large_image_url: DS.attr('string'),
-  timestamp: DS.attr('number'),
-  private_only: DS.attr('boolean'),
-  permissions: DS.attr('raw'),
-  prior: DS.attr('raw'),
-  user: DS.attr('raw'),
-  show_user: DS.attr('boolean'),
+  button_list: attr('raw'),
+  sentence: attr('string'),
+  link: attr('string'),
+  reply_code: attr('string'),
+  user_id: attr('string'),
+  image_url: attr('string'),
+  large_image_url: attr('string'),
+  timestamp: attr('number'),
+  private_only: attr('boolean'),
+  permissions: attr('raw'),
+  prior: attr('raw'),
+  user: attr('raw'),
+  show_user: attr('boolean'),
   assert_remote_urls: function() {
     var find_remote = function(local) {
       for(var url in (persistence.url_cache || {})) {

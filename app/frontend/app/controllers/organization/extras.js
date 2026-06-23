@@ -1,10 +1,12 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  router: service('router'),
   refresh_lists: function() {
     this.load_blocked_emails();
     this.load_gifts();
@@ -47,7 +49,7 @@ export default Controller.extend({
   }),
   actions: {
     start_code_lookup: function() {
-      this.transitionToRoute('start_codes', this.get('start_code'));
+      this.router.transitionTo('start_codes', this.get('start_code'));
     },
     word_data_import: function() {
       var url = this.get('word_data_url');
@@ -100,7 +102,7 @@ export default Controller.extend({
     },
     find_code: function() {
       var code = this.get('code_lookup');
-      this.transitionToRoute('bulk_purchase', code);
+      this.router.transitionTo('bulk_purchase', code);
     },
     add_gift: function(type) {
       var gift = this.store.createRecord('gift');

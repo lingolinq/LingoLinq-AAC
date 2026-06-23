@@ -1,4 +1,4 @@
-import DS from 'ember-data';
+import RESTSerializer from '@ember-data/serializer/rest';
 
 /**
  * Application Serializer
@@ -8,7 +8,7 @@ import DS from 'ember-data';
  * 
  * Models can override this by creating type-specific serializers if needed.
  */
-export default DS.RESTSerializer.extend({
+export default RESTSerializer.extend({
   /**
    * Normalize the response to handle the 'self' user ID mismatch.
    * When requesting 'user' with id 'self', the API returns a user with a different ID.

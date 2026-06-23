@@ -1,8 +1,10 @@
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  router: service('router'),
   intro_status_class: computed('model.progress.intro_watched', function() {
     var res = "glyphicon ";
     if(this.get('model.progress.intro_watched')) {
@@ -63,7 +65,7 @@ export default modal.ModalController.extend({
         window.ga('send', 'event', 'Setup', 'launch', 'Setup started');
       }
       app_state.set('auto_setup', false);
-      this.transitionToRoute('setup', {queryParams: {user_id: null}});
+      this.router.transitionTo('setup', {queryParams: {user_id: null}});
       modal.close();
     },
     app_install: function() {

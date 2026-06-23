@@ -16,7 +16,7 @@
 // inherits all of it for free — steps just declare an optional placement (`on`)
 // and scroll hint (`block`).
 //
-// Adding copy: every string is a literal i18n.t('key', "Default") call so
+// Adding copy: every string is a literal `i18n.t` key + English-default call so
 // i18n_generator.rb's STATIC parser can extract it (see LEARNINGS.md on the
 // static-parser gotcha — bound/dynamic keys are invisible to it).
 import i18n from '../i18n';
@@ -24,7 +24,7 @@ import { standardButtons, decoratedTitle, tourChecklist, visibleEl, doneCelebrat
 
 // i18n extraction no-op: the two centered steps build their heading through
 // decoratedTitle('key', "Default"), and i18n_generator.rb's static scanner only
-// recognises LITERAL i18n.t('key', "Default") calls — so those title keys would
+// recognises LITERAL `i18n.t` key + default calls — so those title keys would
 // never reach the locale files (see LEARNINGS.md). Listing them here as literal
 // i18n.t calls makes the generator extract + translate them. Never called at
 // runtime. If you add another decoratedTitle() heading, add its literal here too.

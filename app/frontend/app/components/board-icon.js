@@ -30,7 +30,22 @@ export default Component.extend({
     if (!this.get('prefetchPreview')) { return; }
     warm_board_preview(this.get('board_record') || this.get('board'));
   },
-  mouseEnter: function() { this._maybe_prefetch_preview(); },
+  // `mouseEnter` as a component method is deprecated in Ember 4.x
+  // (component.mouseenter-leave-move), so attach the hover prefetch listener to
+  // the element directly instead. focusIn/touchStart stay as event methods —
+  // those are NOT part of that deprecation.
+  didInsertElement: function() {
+    this._super(...arguments);
+    var _this = this;
+    this._onMouseEnter = function() { _this._maybe_prefetch_preview(); };
+    if (this.element) { this.element.addEventListener('mouseenter', this._onMouseEnter); }
+  },
+  willDestroyElement: function() {
+    if (this._onMouseEnter && this.element) {
+      this.element.removeEventListener('mouseenter', this._onMouseEnter);
+    }
+    this._super(...arguments);
+  },
   focusIn: function() { this._maybe_prefetch_preview(); },
   touchStart: function() { this._maybe_prefetch_preview(); },
   triggerExternalAction: function(actionName) {

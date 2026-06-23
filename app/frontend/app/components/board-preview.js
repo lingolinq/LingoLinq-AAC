@@ -192,13 +192,13 @@ export default Component.extend({
         isDark: isDark,
         accentLight: false,
         transition: function() {
-          // transitionToRoute (Route helper) returns a Transition like
-          // router.transitionTo does, so the overlay's promise chain
-          // still works.
+          // router.transitionTo returns a Transition, so the overlay's
+          // promise chain still works. (appController is the application
+          // controller, which injects the router service.)
           if(parts.length === 2) {
-            return appController.transitionToRoute('user.board-detail', parts[0], parts[1]);
+            return appController.router.transitionTo('user.board-detail', parts[0], parts[1]);
           } else {
-            return appController.transitionToRoute('board', key);
+            return appController.router.transitionTo('board', key);
           }
         }
       });

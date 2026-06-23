@@ -1,5 +1,5 @@
 import RSVP from 'rsvp';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
 import BaseModel from './base';
 import LingoLinq from '../app';
 import rewriteBrokenSymbolUrl from '../utils/symbol-url';
@@ -34,27 +34,27 @@ LingoLinq.Image = BaseModel.extend({
       this.set('_display_url_source', url);
     }
   }),
-  url: DS.attr('string'),
-  data_url: DS.attr('string'),
-  fallback: DS.attr('boolean'),
-  content_type: DS.attr('string'),
-  width: DS.attr('number'),
-  height: DS.attr('number'),
-  hc: DS.attr('boolean'),
-  pending: DS.attr('boolean'),
-  avatar: DS.attr('boolean'),
-  badge: DS.attr('boolean'),
-  protected: DS.attr('boolean'),
-  protected_source: DS.attr('string'),
-  suggestion: DS.attr('string'),
-  external_id: DS.attr('string'),
-  search_term: DS.attr('string'),
-  button_label: DS.attr('string'),
-  source_url: DS.attr('string'),
-  license: DS.attr('raw'),
-  alternates: DS.attr('raw'),
-  permissions: DS.attr('raw'),
-  file: DS.attr('boolean'),
+  url: attr('string'),
+  data_url: attr('string'),
+  fallback: attr('boolean'),
+  content_type: attr('string'),
+  width: attr('number'),
+  height: attr('number'),
+  hc: attr('boolean'),
+  pending: attr('boolean'),
+  avatar: attr('boolean'),
+  badge: attr('boolean'),
+  protected: attr('boolean'),
+  protected_source: attr('string'),
+  suggestion: attr('string'),
+  external_id: attr('string'),
+  search_term: attr('string'),
+  button_label: attr('string'),
+  source_url: attr('string'),
+  license: attr('raw'),
+  alternates: attr('raw'),
+  permissions: attr('raw'),
+  file: attr('boolean'),
   filename: computed('url', function() {
     var url = this.get('url') || '';
     if(url.match(/^data/)) {

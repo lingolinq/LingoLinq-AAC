@@ -9,7 +9,7 @@
 // grid). It serves BOTH dashboard layouts from one builder — `layout` only tags
 // each step so the popover picks up the Focused-View skin; structure is the same.
 //
-// Adding/booking copy: every string is a literal i18n.t('key', "Default") call
+// Adding/booking copy: every string is a literal `i18n.t` key + English-default call
 // so i18n_generator.rb's STATIC parser can extract it (see LEARNINGS.md on the
 // static-parser gotcha — bound/dynamic keys are invisible to it).
 import i18n from '../i18n';
@@ -23,7 +23,7 @@ import { standardButtons, decoratedTitle, tourChecklist, visibleEl, nextAdvance 
 
 // i18n extraction no-op: the two centered steps build their heading through
 // decoratedTitle('key', "Default"), and i18n_generator.rb's static scanner only
-// recognises LITERAL i18n.t('key', "Default") calls — so those title keys are
+// recognises LITERAL `i18n.t` key + default calls — so those title keys are
 // invisible to it and would never reach the locale files (see LEARNINGS.md on the
 // static-parser gotcha). Listing them here as literal i18n.t calls makes the
 // generator extract + translate them. Never called at runtime. If you add another

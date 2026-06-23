@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
   appState: service('app-state'),
+  router: service('router'),
 
   actions: {
     confirm: function() {
@@ -41,7 +42,7 @@ export default modal.ModalController.extend({
               // would have if its save failed.
               user.save().then(null, function() { });
             } else {
-              _this.transitionToRoute('setup', {queryParams: {user_id: null, page: null}});
+              _this.router.transitionTo('setup', {queryParams: {user_id: null, page: null}});
             }
           }
         }, function() {
