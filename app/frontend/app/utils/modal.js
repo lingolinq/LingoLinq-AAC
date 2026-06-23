@@ -205,8 +205,16 @@ var modal = EmberObject.extend({
     if(template != 'highlight' && template != 'highlight-secondary') {
       this.last_template = template;
     }
-    // Outlet-based rendering for highlight / highlight-secondary only (modals use service)
-    this.route.render(render_template, { into: 'application', outlet: outlet});
+    if (template === 'highlight' || template === 'highlight-secondary') {
+      var modelKey = template === 'highlight-secondary' ? 'highlight2Model' : 'highlightModel';
+      var settingsKey = template === 'highlight-secondary' ? 'highlight2_settings' : 'highlight_settings';
+      modal[settingsKey] = options;
+      if (service) {
+        service.set(modelKey, options);
+      }
+    } else {
+      this.route.render(render_template, { into: 'application', outlet: outlet});
+    }
     return new RSVP.Promise(function(resolve, reject) {
       if(template != 'highlight' && template != 'highlight-secondary') {
         _this.last_promise = {
@@ -318,6 +326,11 @@ var modal = EmberObject.extend({
       }
       modal[promise_name] = settings.get('defer');
       modal[settings_name] = settings;
+      var service = modal._getService();
+      if (service) {
+        var modelKey = template === 'highlight-secondary' ? 'highlight2Model' : 'highlightModel';
+        service.set(modelKey, settings);
+      }
     }, 100);
     return defer.promise;
   },
@@ -329,6 +342,11 @@ var modal = EmberObject.extend({
     // Clear highlight settings even without controller
     this.highlight_settings = null;
     this.highlight2_settings = null;
+    var service = this._getService();
+    if (service) {
+      service.set('highlightModel', null);
+      service.set('highlight2Model', null);
+    }
   },
   close: function(success, outlet) {
     outlet = outlet || 'modal';
@@ -427,9 +445,17 @@ var modal = EmberObject.extend({
       if(this.highlight_controller && this.highlight_controller.closing) {
         this.highlight_controller.closing();
       }
+      this.highlight_settings = null;
+      if (service) {
+        service.set('highlightModel', null);
+      }
     } else if(outlet == 'highlight-secondary') {
       if(this.highlight2_controller && this.highlight2_controller.closing) {
         this.highlight2_controller.closing();
+      }
+      this.highlight2_settings = null;
+      if (service) {
+        service.set('highlight2Model', null);
       }
     } else {
       if(this.last_controller && this.last_controller.closing) {
@@ -485,17 +511,6 @@ var modal = EmberObject.extend({
       }
       return;
     }
-    var _this = this;
-    runLater(function() {
-      var timeout = below_header ? 3500 : 1500;
-      if(opts.timeout) { timeout = opts.timeout; }
-      modal.route.render('flash-message', { into: 'application', outlet: 'flash-message'});
-      if(!sticky) {
-        runLater(function() {
-          _this.fade_flash();
-        }, timeout);
-      }
-    });
   },
   fade_flash: function() {
     var flash = document.querySelector('.flash');
@@ -525,8 +540,6 @@ var modal = EmberObject.extend({
         callback: callback,
         remove: remove
       });
-    } else if (this.route) {
-      this.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback, remove: remove}});
     }
   },
   cancel_auto_close: function() {

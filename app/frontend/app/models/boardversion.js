@@ -1,9 +1,10 @@
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 
-LingoLinq.Boardversion = DS.Model.extend({
+LingoLinq.Boardversion = BaseModel.extend({
   appState: service('app-state'),
   modifier: DS.attr('raw'),
   created: DS.attr('date'),

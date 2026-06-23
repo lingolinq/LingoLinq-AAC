@@ -5,7 +5,10 @@
 **Trigger:** Compliance program maintenance after the 2026-06-17/18 merges (eval-narration AI
 gating, Redis TLS enabler, register reconcile/re-stamp, GCP Memorystore flag fix) and continued
 progress on the Render-to-GCP Cloud Run migration.
-**Status:** DRAFT, internal. Not attested and not for external distribution until Scot signs.
+**Status:** SUPERSEDED (historical snapshot, retained for the record). The figures below were the
+point-in-time state on 2026-06-18 and are no longer current. The authoritative current posture is
+**0 Critical / 4 open High** at register SHA `445336592` (auditedDate 2026-06-19), per the attested
+`docs/legal/COMPLIANCE_POSTURE_REPORT.md`. This snapshot is not attested as a current statement.
 **Related:** `audit-reports/FINDINGS.json` (source of truth), `docs/legal/COMPLIANCE_POSTURE_REPORT.md`,
 `docs/legal/AI_GOVERNANCE_MEMO.md`, `docs/legal/SUBPROCESSORS.md`, `audit-reports/compliance-calendar.md`,
 `docs/legal/COMPLIANCE_STATUS_2026-04-23.md` (prior snapshot).
@@ -70,8 +73,10 @@ a disposition, or attests a customer-facing doc.
    adversary pass on register-only diffs (#413/#415). No PHI or student data left the boundary,
    but the wording and the automation disagree. Fix the bot to skip `audit-reports/**` and
    `docs/legal/**`, or revise the memo wording. Scot's call.
-3. **Triage the 16 open High findings.** All 16 are untriaged. They need a disposition pass
-   (accept, fix-now, fix-later, dismiss) so the High queue reflects intent, not just discovery.
+3. ~~**Triage the 16 open High findings.**~~ **DECIDED 2026-06-18:** dispositioned in #419, 14
+   fixed-intent / 2 accepted. All 16 received a structured disposition (decidedBy "Scot Wahlquist").
+   Nothing was closed; every finding stays status:"open" at the same severity. Disposition records
+   intent only.
 
 ## 5. Open roadmap
 
@@ -79,7 +84,7 @@ a disposition, or attests a customer-facing doc.
 |---|---|---|---|
 | Redis TLS closure (LL-6619cc1811) | Scot / infra | Gated on GCP Memorystore cutover (migration Phase 3) | Capability shipped (#410); close on cutover, do not fix twice. |
 | Eval consent-binding remediation (LL-11db0dc848) | Scot / backend | Server-side eval persistence follow-up (Phase 1B) | Bind the consent gate subject to the eval content actually egressed. |
-| Triage of 16 open High findings | Scot | Next compliance working session | Disposition pass; convert discovery into intent. |
+| Triage of 16 open High findings | Scot | DONE 2026-06-18 (#419) | Dispositioned: 14 fixed-intent / 2 accepted. Remediation PRs in flight for the fixed-intent set; findings stay open until verified + attested. |
 | EU AI Act Article 50 transparency | Scot / product | Due 2026-08-02 | Decide synthetic-content marking applicability; add AI-assisted disclosure for EU-facing deployments. Tracked `fix-euaiact-art50-2026-08-02`. |
 | DeepSeek / memo reconciliation | Scot | Near-term | See section 4 item 2. |
 | GCP / Cloud Run subprocessor onboarding | Scot / infra | At cutover | File the infrastructure BAA, add the subprocessor row, give 30-day change notice. |

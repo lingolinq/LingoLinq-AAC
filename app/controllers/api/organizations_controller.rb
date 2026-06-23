@@ -122,10 +122,11 @@ class Api::OrganizationsController < ApplicationController
   def start_code_lookup
     code = Organization.parse_activation_code(params['code'])
     if code && !code[:disabled] && code[:target]
-      hash = params['v']
       valid = false
       include_users = false
-      if params['v'] == GoSecure.sha512(Webhook.get_record_code(code[:target]), 'start_code_verifier')[0, 5]
+      # Anonymous lookups must present the share-link verifier; accepts the
+      # current 16-char and legacy 5-char values (LL-4e243f3e16).
+      if Organization.valid_start_code_verifier?(code[:target], params['v'])
         valid = true
       elsif code[:target].is_a?(User) && code[:target].allows?(@api_user, 'edit')
         valid = true

@@ -90,7 +90,7 @@ Utils.all_pages = function(type, initial_opts, partial_callback) {
         var meta_check = persistenceService.meta;
         LingoLinq.store.query(type, opts).then(function(list) {
           var meta = meta_check(type, list);
-          all_results = all_results.concat(list.map(function(i) { return i; }));
+          all_results = all_results.concat(list.slice());
           if(partial_callback) {
             partial_callback(all_results);
           }

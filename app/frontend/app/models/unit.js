@@ -1,11 +1,12 @@
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import speecher from '../utils/speecher';
 import persistence from '../utils/persistence';
 import Utils from '../utils/misc';
 import { computed } from '@ember/object';
 
-LingoLinq.Unit = DS.Model.extend({
+LingoLinq.Unit = BaseModel.extend({
   settings: DS.attr('raw'),
   organization_id: DS.attr('string'),
   name: DS.attr('string'),

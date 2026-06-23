@@ -1,6 +1,7 @@
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
@@ -8,7 +9,7 @@ import contentGrabbers from '../utils/content_grabbers';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Lesson = DS.Model.extend({
+LingoLinq.Lesson = BaseModel.extend({
   title: DS.attr('string'),
   url: DS.attr('string'),
   original_url: DS.attr('string'),

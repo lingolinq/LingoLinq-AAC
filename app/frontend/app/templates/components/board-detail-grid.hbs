@@ -1,5 +1,5 @@
 {{#button-listener buttonEvent=(action "button_event")}}
-{{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
+{{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember actions on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{on "click"}} on symbol cards for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
 <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.shrinkLabelsToFit 'md-board-detail-grid--shrink-labels'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
   data-id={{this.board.id}}
   data-filter={{this.activeCategory}}
@@ -27,9 +27,9 @@
              below is the actionable element. Skip keyboard nav for
              both so users tab from one folder front to the next
              without landing on the protruding tab. Mouse clicks on
-             the tab still activate via the {{action}} modifier. --}}
+             the tab still activate via the click handler. --}}
         <div class="md-folder-back" aria-hidden={{unless this.editMode "true"}}>
-          <div class="md-folder-tab" tabindex="-1" {{action "select_button" btn}}>
+          <div class="md-folder-tab" tabindex="-1" {{on "click" (fn this.selectButton btn)}}>
             {{#if this.editMode}}
               {{label-field value=btn.label class="md-folder-tab__label-input" placeholder="enter label" aria-label=(concat (t "Folder label" key="board_detail_folder_label_aria") " " btn.id)}}
             {{else}}
@@ -42,7 +42,7 @@
       {{!-- Intentional nested interactive elements in editMode: the outer
            card is the primary tap target (select button); the inner
            <button>s are secondary edit actions that stop propagation via
-           bubbles=false. Screen readers handle this via the outer
+           {{action bubbles=false}} on the component actions.
            aria-label and each inner button's own title. --}}
       <div
         class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if this.editMode (if btn.hidden 'md-board-detail-symbol-card--hidden') (if btn.display_as_hidden 'md-board-detail-symbol-card--hidden')}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}}"
@@ -51,8 +51,8 @@
         aria-label={{or btn.label btn.vocalization}}
         data-id={{btn.id}}
         style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";--btn-bg:" btn.background_color ";")) (if btn.border_color (concat "outline-color:" btn.border_color ";--btn-border:" btn.border_color ";")))}}
-        {{action "select_button" btn}}
-        {{action "select_button_key" btn on="keyDown" preventDefault=false}}>
+        {{on "click" (fn this.selectButton btn)}}
+        {{on "keydown" (fn this.selectButtonKey btn)}}>
         {{#if this.editMode}}
           {{!-- Inline edit actions (shown when card is tall enough) --}}
           <div class="md-board-detail-symbol-card__edit-actions md-board-detail-symbol-card__edit-actions--inline">
@@ -223,14 +223,14 @@
           <div class="md-board-detail-color-picker">
             <div class="md-board-detail-color-picker__header">
               <span class="md-board-detail-color-picker__title">{{t "Choose Color" key="board_detail_choose_color"}}</span>
-              <button type="button" class="md-board-detail-color-picker__close" {{action "close_color_picker"}}>&times;</button>
+              <button type="button" class="md-board-detail-color-picker__close" {{on "click" this.closeColorPicker}}>&times;</button>
             </div>
 
             <div class="md-board-detail-color-picker__swatches">
               {{#each this.colorPickerSwatches as |swatch|}}
                 <button type="button"
                   class="md-board-detail-color-picker__swatch"
-                  {{action "apply_swatch_color" swatch}}>
+                  {{on "click" (fn this.applySwatchColor swatch)}}>
                   <span class="md-board-detail-color-picker__swatch-color" style={{safe-style (concat "background-color:" swatch.bg ";border-color:" swatch.border)}}></span>
                   <span class="md-board-detail-color-picker__swatch-label">{{swatch.label}}</span>
                 </button>
@@ -243,10 +243,10 @@
               </div>
               <div class="md-board-detail-color-picker__custom-row">
                 <span class="md-board-detail-color-picker__preview"
-                  {{action "toggle_minicolors"}}
+                  {{on "click" this.toggleMinicolors}}
                   style={{if this.customColorValue (safe-style (concat "background-color:" this.customColorValue))}}></span>
                 <input type="text" id="bd-btn-custom-color" class="md-board-detail-color-picker__input" placeholder="#hex" autocomplete="off" />
-                <button type="button" class="md-board-detail-color-picker__apply" {{action "apply_custom_color"}}>{{t "Apply" key="board_detail_apply"}}</button>
+                <button type="button" class="md-board-detail-color-picker__apply" {{on "click" this.applyCustomColor}}>{{t "Apply" key="board_detail_apply"}}</button>
               </div>
             </div>
           </div>

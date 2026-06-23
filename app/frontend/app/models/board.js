@@ -6,6 +6,7 @@ import {
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import DS from 'ember-data';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import modal from '../utils/modal';
@@ -107,7 +108,7 @@ function word_predictions_visible(appState) {
   return false;
 }
 
-LingoLinq.Board = DS.Model.extend({
+LingoLinq.Board = BaseModel.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   stashes: service('stashes'),
@@ -339,7 +340,7 @@ LingoLinq.Board = DS.Model.extend({
     var fallbacks = this.get('fallback_images') || [];
     this.get('used_buttons').forEach(function(button) {
       if(button && button.image_id) {
-        var image = images.findBy('id', button.image_id.toString());
+        var image = images.find(function(img) { return img.get('id') === button.image_id.toString(); });
         if(image) {
           if(!image.get('license')) {
             var fb = fallbacks.find(function(i) { return i.url == image.get('url'); });
@@ -395,7 +396,7 @@ LingoLinq.Board = DS.Model.extend({
     var fallbacks = this.get('fallback_sounds') || [];
     this.get('used_buttons').forEach(function(button) {
       if(button && button.sound_id) {
-        var sound = sounds.findBy('id', button.sound_id.toString());
+        var sound = sounds.find(function(snd) { return snd.get('id') === button.sound_id.toString(); });
         if(sound) {
           if(!sound.get('license')) {
             var fb = fallbacks.find(function(i) { return i.url == sound.get('url'); });
@@ -866,7 +867,7 @@ LingoLinq.Board = DS.Model.extend({
   buttons: DS.attr('raw'),
   grid: DS.attr('raw'),
   license: DS.attr('raw'),
-  images: DS.hasMany('image'),
+  images: DS.hasMany('image', { async: true, inverse: null }),
   permissions: DS.attr('raw'),
   copy: DS.attr('raw'),
   copies: DS.attr('number'),
@@ -1100,7 +1101,7 @@ LingoLinq.Board = DS.Model.extend({
     // reload or fetch them remotely to get the latest, updated version,
     // which will include the "my copy" information.
     var do_reloads = this.appState.get('board_reloads') || {};
-    LingoLinq.store.peekAll('board').map(function(i) { return i; }).forEach(function(brd) {
+    LingoLinq.store.peekAll('board').forEach(function(brd) {
       if(brd && affected_board_ids && affected_board_ids.indexOf(brd.get('id')) != -1) {
         if(!brd.get('isLoading') && !brd.get('isNew') && !brd.get('isDeleted')) {
           do_reloads[brd.get('id')] = true;
@@ -1306,7 +1307,7 @@ LingoLinq.Board = DS.Model.extend({
     } else {
       var valid_button_set = null;
       // first check if there's a satisfactory higher-level buttonset that can be used instead
-      LingoLinq.store.peekAll('buttonset').map(function(i) { return i; }).forEach(function(bs) {
+      LingoLinq.store.peekAll('buttonset').forEach(function(bs) {
         if(bs && (bs.get('board_ids') || []).indexOf(_this.get('id')) != -1) {
           if((bs.get('buttons') && bs.get('buttons').length) || bs.get('root_url')) {
             if(bs.get('fresh') || !valid_button_set) {
@@ -1712,7 +1713,8 @@ LingoLinq.Board = DS.Model.extend({
       var appState = _this.appState || (typeof window !== 'undefined' && window.appState);
       var userForDisplay = (appState && appState.get('speak_mode')) ? appState.get('referenced_user') : appState.get('currentUser');
       if(appState && userForDisplay && !userForDisplay.get('hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
-        res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
+        var symbol_alt = Button.clean_text(opts.label || '').replace(/"/g, '&quot;');
+        res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" alt=\"" + symbol_alt + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
       if(button.sound_id && local_sound_url && local_sound_url != 'none') {
@@ -1856,9 +1858,8 @@ LingoLinq.Board = DS.Model.extend({
   }
 });
 
-LingoLinq.Board.reopenClass({
-  clear_fast_html: function() {
-    var hasUnsavedImages = LingoLinq.store.peekAll('image').any(function(img) {
+LingoLinq.Board.clear_fast_html = function() {
+    var hasUnsavedImages = LingoLinq.store.peekAll('image').some(function(img) {
       return img.get('isSaving');
     });
     if (hasUnsavedImages) {
@@ -1872,8 +1873,8 @@ LingoLinq.Board.reopenClass({
     if(appState && appState.get && appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
       editManager.process_for_displaying();
     }
-  },
-  refresh_data_urls: function() {
+};
+LingoLinq.Board.refresh_data_urls = function() {
     // when you call sync, you're potentially prefetching a bunch of images and
     // sounds that don't have a locally-stored copy yet, so their data-uris will
     // all come up empty. But then if you open one of those boards without
@@ -1883,24 +1884,24 @@ LingoLinq.Board.reopenClass({
     // shortcoming.
     var _this = this;
     runLater(function() {
-      LingoLinq.store.peekAll('board').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('board').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      LingoLinq.store.peekAll('image').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('image').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      LingoLinq.store.peekAll('sound').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('sound').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
     });
-  },
-  mimic_server_processing: function(record, hash) {
+};
+LingoLinq.Board.mimic_server_processing = function(record, hash) {
     if(hash.board.id.match(/^tmp/)) {
       var splits = (hash.board.key || hash.board.id).split(/\//);
       var key = splits[1] || splits[0];
@@ -1932,8 +1933,7 @@ LingoLinq.Board.reopenClass({
       hash.board.grid.order = hash.board.grid.order.slice(0, hash.board.grid.rows);
     }
     return hash;
-  }
-});
+};
 
 var skin_unis = {
   'light': '1f3fb',

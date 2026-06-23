@@ -3,7 +3,7 @@
       scroll, the header sits sticky so the back button and title stay
       put while the section list scrolls beneath. --}}
 <div class="md-board-collection__header">
-  <button type="button" class="md-board-collection__back" {{action "back"}}>
+  <button type="button" class="md-board-collection__back" {{on "click" (action "back")}}>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <polyline points="15 18 9 12 15 6"/>
     </svg>
@@ -29,7 +29,7 @@
       value={{this.search_query}}
       {{on "input" (action "update_search")}} />
     {{#if this.search_active}}
-      <button type="button" class="md-board-collection__search-clear" {{action "clear_search"}} aria-label={{t "Clear search" key="clear_search"}}>
+      <button type="button" class="md-board-collection__search-clear" {{on "click" (action "clear_search")}} aria-label={{t "Clear search" key="clear_search"}}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <line x1="18" y1="6" x2="6" y2="18"/>
           <line x1="6" y1="6" x2="18" y2="18"/>
@@ -51,7 +51,7 @@
                the "Show N more" / "Show fewer" button below flips it. --}}
           {{#each this.visible_my_boards as |board|}}
             <li class="md-board-collection__row">
-              <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{action "select_board" board}}>
+              <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{on "click" (action "select_board" board)}}>
                 <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
                 <span class="md-board-collection__item-name">{{board.name}}</span>
                 {{#if (board-language-label board)}}
@@ -83,7 +83,7 @@
                will both prepend the count AND pluralize the last word
                (producing "3 Show 3 mores"). Using `n=` keeps the
                substitution purely positional (utils/i18n.js:92-119). --}}
-          <button type="button" class="md-board-collection__more" {{action "toggle_my_boards_expanded"}} aria-expanded={{if this.my_boards_expanded "true" "false"}}>
+          <button type="button" class="md-board-collection__more" {{on "click" (action "toggle_my_boards_expanded")}} aria-expanded={{if this.my_boards_expanded "true" "false"}}>
             <span class="md-board-collection__more-label">
               {{#if this.my_boards_expanded}}
                 {{t "Show fewer" key="show_fewer_boards"}}
@@ -117,7 +117,7 @@
           <ul class="md-board-collection__list">
             {{#each brand.boards as |board|}}
               <li class="md-board-collection__row">
-                <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{action "select_board" board}}>
+                <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{on "click" (action "select_board" board)}}>
                   <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
                   <span class="md-board-collection__item-name">{{board.name}}</span>
                 {{#if (board-language-label board)}}

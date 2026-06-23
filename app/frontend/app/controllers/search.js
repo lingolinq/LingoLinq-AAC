@@ -101,7 +101,7 @@ export default Controller.extend({
              (e.g. "Vocal Flair 84" by several users). Collapse exact-name
              duplicates, keeping the first — server popularity order means
              that's the most-prominent one. */
-          _this.set('online_results', {results: dedupeByName(_this.sort_boards_by_name(res.map(function(i) { return i; })), { preferUserNames: boardsPagePreferUserNames(app_state) })});
+          _this.set('online_results', {results: dedupeByName(_this.sort_boards_by_name(res.slice()), { preferUserNames: boardsPagePreferUserNames(app_state) })});
         }, function() {
           _this.set('search_promise', null);
           _this.set('online_results', {results: []});
@@ -125,7 +125,7 @@ export default Controller.extend({
                 }
               });
             } else {
-              _this.set('personal_results', {results: _this.sort_boards_by_name(res.map(function(i) { return i; }))});
+              _this.set('personal_results', {results: _this.sort_boards_by_name(res.slice())});
             }
           }, function() {
             _this.set('personal_results', {results: []});

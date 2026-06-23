@@ -4587,6 +4587,15 @@ export default Controller.extend(prefClasses, {
   },
 
   actions: {
+    re_transition: function() {
+      this.set('retrying', true);
+      this.router.refresh();
+    },
+
+    exitBoards: function() {
+      this.app_state.return_to_index();
+    },
+
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
       this.toggleProperty('show_options_menu');

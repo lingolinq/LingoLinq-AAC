@@ -183,6 +183,8 @@ module Flusher
     ButtonSound.where(user_id: source.id).update_all(user_id: target.id)
     ButtonImage.where(user_id: source.id).update_all(user_id: target.id)
     UserVideo.where(user_id: source.id).update_all(user_id: target.id)
+    # Move org seats with the user so the seat is not orphaned on merge.
+    License.where(user_id: source.id).update_all(user_id: target.id)
 
     #invalidate any caches
     source.touch
@@ -234,6 +236,14 @@ module Flusher
     LogSession.where(:author_id => user.id).each do |note|
       note.update_columns(author_id: nil)
     end
+    gid = user.global_id
     flush_record(user, user.id, 'User')
+    # Accounting-of-disclosure: timestamp the permanent destruction of a user's
+    # education/health records at the async finalization step. No human actor is
+    # in scope here (scheduled flush), so the actor key is 'system'.
+    AuditEvent.log_command('system', {
+      'type' => 'user_permanently_destroyed',
+      'user_id' => gid
+    })
   end
 end

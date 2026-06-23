@@ -3,9 +3,9 @@
     "schemaVersion": "1.1",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
-    "auditedSha": "59e20439e005b363ec67f8444d5406848a1c434f",
-    "auditedRef": "staging",
-    "auditedDate": "2026-06-18",
+    "auditedSha": "445336592ddaf838689df7e578829e94e140890d",
+    "auditedRef": "scot/security/audit-erasure-admin-reads",
+    "auditedDate": "2026-06-19",
     "auditedShaPriorNote": "Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff",
@@ -74,8 +74,8 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: licenses action now guards sort_by via allowed_sort_columns allowlist (organizations_controller.rb:221-225); only the validated value reaches .order(). sort_order already validated against asc/desc.",
-        "attestation": ""
+        "verifierNote": "Verified 2026-06-12: licenses action now guards sort_by via allowed_sort_columns allowlist (organizations_controller.rb:221-225); only the validated value reaches .order(). sort_order already validated against asc/desc. Remediated in #177.",
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": "April seed showed this as a live P0; remediated since."
     },
@@ -106,8 +106,8 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: flush_user_content now iterates License.where(user_id:) nullifying user_id+granted_at and calling flush_versions (flusher.rb:224-226).",
-        "attestation": ""
+        "verifierNote": "Verified 2026-06-12: flush_user_content now iterates License.where(user_id:) nullifying user_id+granted_at and calling flush_versions (flusher.rb:224-226). Remediated in #177.",
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -138,8 +138,8 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: claim_user logs AuditEvent.log_command (organizations_controller.rb:238); License#release_user! logs AuditEvent.log_command('system', ...) (license.rb:32).",
-        "attestation": ""
+        "verifierNote": "Verified 2026-06-12: claim_user logs AuditEvent.log_command (organizations_controller.rb:238); License#release_user! logs AuditEvent.log_command('system', ...) (license.rb:32). Remediated in #177.",
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -171,8 +171,8 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: create logs at supervisor_relationships_controller.rb:52, consent_response at :101, destroy at :135. approve/deny route through consent_response.",
-        "attestation": ""
+        "verifierNote": "Verified 2026-06-12: create logs at supervisor_relationships_controller.rb:52, consent_response at :101, destroy at :135. approve/deny route through consent_response. Remediated in #177.",
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -203,8 +203,8 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: LingoLinq-AAC-Worker (render.yaml:55) now declares all four keys with generateValue (render.yaml:84-91). Note: prod is migrating to GCP Cloud Run with Secret Manager; render.yaml remains the live config until cutover.",
-        "attestation": ""
+        "verifierNote": "Verified 2026-06-12: LingoLinq-AAC-Worker (render.yaml:55) now declares all four keys with generateValue (render.yaml:84-91). Note: prod is migrating to GCP Cloud Run with Secret Manager; render.yaml remains the live config until cutover. Remediated in #177.",
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12 (live render.yaml until GCP cutover)."
       },
       "notes": ""
     },
@@ -235,8 +235,8 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: status action returns {active: true} for unauthenticated callers (session_controller.rb:948); queue/db introspection runs only when @api_user present (:952-967).",
-        "attestation": ""
+        "verifierNote": "Verified 2026-06-12: status action returns {active: true} for unauthenticated callers (session_controller.rb:948); queue/db introspection runs only when @api_user present (:952-967). Remediated in #177.",
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -251,7 +251,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -260,16 +260,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add supervisor_relationships/.*/consent (and the consent_response/approve/deny paths) to protected_paths so they fall under the 10-req/3s limit.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): supervisor/parent consent endpoints now in Throttling::PROTECTED_PATHS - 'api/v1/supervisor_relationships/consent_response' and 'api/v1/supervisor_relationships/.+/consent_response' (config/initializers/throttling.rb:23-24), placing consent-token verification and approve/deny under PROTECTED_CUTOFF (10 req/3s). Classification spec asserts the match.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: protected_paths (throttling.rb:18-21) contains no consent path; consent endpoints are unauthenticated and fall under the 150-req/3s general limit.",
       "disposition": {
@@ -290,7 +290,7 @@
         "GDPR",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/models/license.rb",
@@ -299,16 +299,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add secure_serialize :metadata to License, consistent with Organization/User sensitive-field handling.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "4071b1c05f4d53c96a6291efcc4dde17cde96346",
+        "verifierNote": "Verified 2026-06-18 on staging: License now includes SecureSerialize with secure_serialize :metadata (#435, 2df67ae10), encrypting metadata at rest; external_reference is encrypted via manual GoSecure::SecureJson accessors (#436, 4071b1c05) because go_secure permits only one secure_serialize column per model, with a reader that tolerates legacy plaintext (rescue -> raw). Idempotent backfill migrations 20260618120000 and 20260618130000 re-encrypt any pre-existing rows (read raw via SQL, write via update_all). external_reference is also stripped from the DB-browser API (schema_explorer.rb).",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; metadata encrypted via #435, external_reference via #436."
       },
       "notes": "Verified still open 2026-06-12: License includes only GlobalId; no secure_serialize declared. metadata text + external_reference string remain plaintext.",
       "disposition": {
@@ -328,7 +328,7 @@
       "frameworks": [
         "GDPR"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
@@ -337,16 +337,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add License.where(user_id: source.id).update_all(user_id: target.id) to transfer_user_content.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "dc82c5df7bfc28ecb049d13ee79e367bcf257d5e",
+        "verifierNote": "Verified 2026-06-18 on staging (#429, dc82c5df7): Flusher.transfer_user_content now reassigns License rows via License.where(user_id: source.id).update_all(user_id: target.id) (lib/flusher.rb:187), so seats are transferred rather than orphaned when users are merged.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #429."
       },
       "notes": "Verified still open 2026-06-12: transfer_user_content transfers NfcTag/UserIntegration/UserGoal/UserBadge/Webhook/UserBoardConnection/UserLink/ButtonSound/ButtonImage/UserVideo but not License (flusher.rb:156-190). License IS handled in flush_user_content (see P0-2), only the transfer path is missing it.",
       "disposition": {
@@ -366,7 +366,7 @@
       "frameworks": [
         "FERPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -375,16 +375,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add api/v1/organizations/.+/claim_user to protected_paths.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): 'api/v1/organizations/.+/claim_user' added to Throttling::PROTECTED_PATHS (config/initializers/throttling.rb:28); the org account-claim/enumeration surface now falls under PROTECTED_CUTOFF (10 req/3s). Classification spec added.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: claim_user not present in protected_paths. Shares the throttling.rb anchor with P1-1/P2-6; remediate together.",
       "disposition": {
@@ -401,8 +401,10 @@
       "title": "consent_response accepts token/decision from multiple parameter keys",
       "severity": "high",
       "confidence": "medium",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "accepted-risk",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/supervisor_relationships_controller.rb",
@@ -411,7 +413,7 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-19",
       "owner": "unassigned",
       "remediation": {
         "options": "Standardize to a single token key and a single decision key; or Scot accepts the risk given token_valid? + expiry guards now present.",
@@ -437,8 +439,11 @@
       "title": "forgot_password leaks account existence via response shape and users count",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2",
+        "GDPR"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/users_controller.rb",
@@ -447,16 +452,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Return a uniform {email_sent: true} regardless of existence; drop the users count.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "91319512a1989784d1650e8d9dbe7a15d79c7695",
+        "verifierNote": "Verified 2026-06-18 on staging (#427, 91319512a): users#forgot_password now returns a uniform {email_sent: true} regardless of account existence, disabled, or throttled state (app/controllers/api/users_controller.rb:710); the users count and the distinguishing 400/messages were removed. The Ember forgot_password and forgot-login controllers store the whole response object and never read .users, so the frontend is unaffected by dropping the count.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #427."
       },
       "notes": "Verified still open 2026-06-12: forgot_password (users_controller.rb:692) returns users: users.length on success (:705/:708) and a 400 with users: 0 (:714), enabling enumeration.",
       "disposition": {
@@ -477,7 +482,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/models/user.rb",
@@ -486,16 +491,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Add AuditEvent.log_command/create! in the password-change path (notify_of_changes / @password_changed branch).",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): User#notify_of_changes now calls AuditEvent.log_command on @password_changed for every password change including admin-initiated/token resets (app/models/user.rb:2273-2276). Best-effort (log_command rescues and never raises) so a failed audit insert cannot break the password change; records only {type:'password_changed', self_service} - no password material or PII; user_key is the opaque global_id.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: notify_of_changes (user.rb:2255) only schedules a password_changed mailer (:2257); no AuditEvent. AuditEvent is used elsewhere in user.rb (e.g. :540, :581) but not for password changes.",
       "disposition": {
@@ -512,8 +517,10 @@
       "title": "SNS transcoding callbacks accepted without signature verification",
       "severity": "high",
       "confidence": "medium",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/callbacks_controller.rb",
@@ -522,16 +529,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Apply Aws::SNS::MessageVerifier to the transcoding callback path as already done for the SMS-inbound path.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "eb563e8dc9b5e9b8d9b76ccaca1b6ba4dfeaf203",
+        "verifierNote": "Verified 2026-06-18 on staging (#425, eb563e8dc): the transcoding callback branch (audio_conversion_events/video_conversion_events) now constructs Aws::SNS::MessageVerifier and returns 401 'inauthentic message' when authentic?(body) is false, before Transcoder.handle_event runs (app/controllers/api/callbacks_controller.rb), mirroring the SMS-inbound path.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #425."
       },
       "notes": "Reduced-scope 2026-06-12: SMS-inbound path now verifies via Aws::SNS::MessageVerifier.authentic? (callbacks_controller.rb:37-38), but the general transcoding TODO at :8 remains. Originally scoped to all SNS callbacks.",
       "disposition": {
@@ -548,8 +555,10 @@
       "title": "start_code_lookup uses a brute-forceable 5-char verification hash",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/organizations_controller.rb",
@@ -558,16 +567,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Increase the verification-hash length to at least 16 chars; this unauthenticated endpoint leaks org/supervisor names.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "20b11176ad03b78668502af6edca4386565f3c7a",
+        "verifierNote": "Verified 2026-06-18 on staging (#433, 20b11176a): the share-link verifier is now 16 chars (Organization::START_CODE_VERIFIER_LENGTH=16, app/models/organization.rb:1325); generation uses Organization.start_code_verifier and lookup uses Organization.valid_start_code_verifier? (organizations_controller.rb:129), which also accepts the legacy 5-char value so already-issued links keep working. api/v1/start_code added to Throttling::PROTECTED_PATHS (throttling.rb:46) so the legacy short prefix is rate-limited (10 req/3s). The memorable activation/promo code is unchanged. Specs: verifier length + both-length acceptance/rejection + throttle classification (57 examples, 0 failures).",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging (#433)."
       },
       "notes": "Verified still open 2026-06-12: hash truncated to [0, 5] of SHA512 (organizations_controller.rb:128).",
       "disposition": {
@@ -596,7 +605,7 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-17",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Use TLS (rediss) and per-environment instances. Being overtaken by the GCP Memorystore migration (private VPC egress); reconcile rather than fix twice.",
@@ -607,7 +616,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover. | 2026-06-17 reconcile (staging tip d72463c75, RULE #0 re-verified): #410 shipped the app-side TLS CAPABILITY but NOT live closure. redis_options now enables :ssl + :ssl_params for rediss:// URIs (config/initializers/resque.rb:16-21; redis_ssl_params at :35) and every Redis.new routes through redis_options (resque.rb:79,82,116,166). A plain redis:// URI returns the option hash with no :ssl key, so live Render Redis remains plaintext (resque.rb:12 comment: 'the Render environment is unchanged'). Enabler only; NOT verified-closed. Full closure gated on the GCP Memorystore cutover (Cloud Run migration Phase 3). Disposition (Scot 2026-06-17): keep open / severity high; do not close until the rediss:// cutover lands.",
+      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover. | 2026-06-17 reconcile (staging tip d72463c75, RULE #0 re-verified): #410 shipped the app-side TLS CAPABILITY but NOT live closure. redis_options now enables :ssl + :ssl_params for rediss:// URIs (config/initializers/resque.rb:16-21; redis_ssl_params at :35) and every Redis.new routes through redis_options (resque.rb:79,82,116,166). A plain redis:// URI returns the option hash with no :ssl key, so live Render Redis remains plaintext (resque.rb:12 comment: 'the Render environment is unchanged'). Enabler only; NOT verified-closed. Full closure gated on the GCP Memorystore cutover (Cloud Run migration Phase 3). Disposition (Scot 2026-06-17): keep open / severity high; do not close until the rediss:// cutover lands. | LIVE CHECK 2026-06-21 (render-MCP list_key_value): managed lingolinq-redis (red-d46rhqer433s738dha9g, starter plan, ipAllowList=null) present; instance metadata does not expose the REDIS_URL scheme, so TLS-in-force is unconfirmed. Consistent with enabler-only status; remains open, gated on the Memorystore cutover.",
       "disposition": {
         "state": "fixed",
         "decidedBy": "Scot Wahlquist",
@@ -626,7 +635,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/models/webhook.rb",
@@ -635,16 +644,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Require https:// in the callback URL validation regex.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "7cb207d988b464ad6bd912f0fecd1bf77b33981e",
+        "verifierNote": "Verified 2026-06-18 on staging (#434, 7cb207d98): all three webhook callback-URL validation sites now require /^https:\\/\\// (app/models/webhook.rb:42 register, :254 process_params url, :264 notification callback), rejecting plaintext http://. Non-breaking: existing stored webhooks (settings is secure_serialize-encrypted) are not re-validated and the send path is unchanged; only new/updated registrations are gated.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #434."
       },
       "notes": "Verified still open 2026-06-12: regex /^http/ matches both http and https (webhook.rb:42).",
       "disposition": {
@@ -661,8 +670,10 @@
       "title": "Static cache_token='abc' never rotates (stale permission cache)",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/resque.rb",
@@ -671,16 +682,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "Derive cache_token from an env var or the deploy commit SHA.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "e1df8143057c502dbbe5685cb6aea07c45a00e74",
+        "verifierNote": "Verified 2026-06-18 on staging (#420, e1df81430): RedisInit.cache_token is derived via RedisInit.resolved_cache_token = ENV['CACHE_TOKEN'] || ENV['RENDER_GIT_COMMIT'] || ENV['K_REVISION'] || 'abc' (config/initializers/resque.rb:130-135); the static 'abc' is reached only in local/dev/test where none are set. CACHE_TOKEN is set on all prod/staging/dev Render services (1Password-backed), so the shared permission cache namespaces on an operator secret in every deployed environment.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed after manual verification of the merged fix on staging."
       },
       "notes": "Verified still open 2026-06-12: literal 'abc' (resque.rb:29). Low real-world impact but unchanged.",
       "disposition": {
@@ -697,8 +708,10 @@
       "title": "No explicit HSTS ssl_options (subdomains/preload)",
       "severity": "high",
       "confidence": "low",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "accepted-risk",
       "evidence": {
         "type": "code",
         "file": "config/environments/production.rb",
@@ -707,7 +720,7 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-19",
       "owner": "unassigned",
       "remediation": {
         "options": "Add config.ssl_options = { hsts: { subdomains: true, preload: true, expires_in: 1.year } }.",
@@ -733,7 +746,9 @@
       "title": "Legacy s3 gem (0.3.29) in production",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "superseded",
       "evidence": {
         "type": "doc",
@@ -763,7 +778,10 @@
       "title": "flush_leftovers is unimplemented (orphan records accumulate)",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -793,7 +811,9 @@
       "title": "params.permit! bypasses Strong Parameters",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -918,8 +938,10 @@
       "title": "Registration/2fa/SAML endpoints under general throttle only",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
@@ -928,16 +950,16 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-12",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Add POST api/v1/users, confirm_registration, 2fa, saml/consume to protected_paths or a stricter group.",
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): registration/2fa/SAML endpoints are now in throttling PROTECTED_PATHS (config/initializers/throttling.rb:33-36: api/v1/users, confirm_registration, 2fa, saml/consume), subject to PROTECTED_CUTOFF (10/3s) instead of the general throttle.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; registration/2fa/SAML now in throttle PROTECTED_PATHS, code-verified in the 2026-06-21 triage pass."
       },
       "notes": "Verified still open 2026-06-12: none of these paths present in protected_paths (throttling.rb:18-21). Shares anchor with P1-1/P1-4."
     },
@@ -1032,8 +1054,8 @@
       },
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
-        "verifierNote": "Verified 2026-06-12: user_id/user_name serialized only when license.user_id is present (json_api/license.rb:17-19); release_user! nullifies user_id, so an expired/released license exposes no user_name.",
-        "attestation": ""
+        "verifierNote": "Verified 2026-06-12: user_id/user_name serialized only when license.user_id is present (json_api/license.rb:17-19); release_user! nullifies user_id, so an expired/released license exposes no user_name. Remediated in #177.",
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; remediated in #177, code-verified 2026-06-12."
       },
       "notes": ""
     },
@@ -1065,7 +1087,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Verified 2026-06-12 (doc-level): INFRASTRUCTURE.md:101 records ACLs disabled via BucketOwnerEnforced; the app's acl: public-read is a no-op. Bucket-policy posture should still be confirmed in the GCP/AWS infra-audit refresh.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; S3 ACLs disabled via BucketOwnerEnforced (doc-level, INFRASTRUCTURE.md), verified 2026-06-12."
       },
       "notes": "Doc-level closure; recommend a live AWS bucket-policy spot-check during the next infra-audit run."
     },
@@ -1097,7 +1119,7 @@
       "closureEvidence": {
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a",
         "verifierNote": "Closed 2026-06-08: AWS hybrid BAA signed via AWS Artifact, covering S3/SES/Transcoder/SNS (docs/legal/AWS_BAA_ACCEPTED.md; project_render_cloud_migration Phase 1). Attestation = external legal artifact, not code.",
-        "attestation": ""
+        "attestation": "Scot Wahlquist 2026-06-20: attested verified-closed; AWS hybrid BAA signed via AWS Artifact 2026-06-08 (external legal artifact, not code)."
       },
       "notes": "Non-code finding; evidence is an executed legal agreement, validated by attestation not citation-check."
     },
@@ -1485,7 +1507,9 @@
       "title": "bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS",
       "severity": "high",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1523,7 +1547,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/templates/board/index.hbs",
@@ -1532,16 +1556,16 @@
         "sha": "d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "Give the symbol <img> an alt equal to the button label (or alt=\"\" when the visible label is present and provides the accessible name). Ensure the tile <a> always has an accessible name even when symbols/labels are toggled.",
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): board-tile symbol images now carry an alt derived from the button label on BOTH render paths - templates/board/index.hbs:123 (alt=button.label) and the fast_html string app/frontend/app/utils/button.js (symbol_alt). WCAG non-text-content defect resolved.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; board-tile symbol alt added on both render paths, code-verified in the 2026-06-21 triage pass."
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). The tile <a class=button> is named by the visible label span (index.hbs:141), but that span is gated by {{#unless button.hide_label}} (index.hbs:140); with hide_label set and the symbol <img> carrying no alt, the tile has NO accessible name at all (critical for symbol-only/emerging communicators). Dual render-path issue: the same defect exists in the fast_html string builder in app/frontend/app/utils/button.js. | adversary: uncertain (2026-06-16): the cited line sits inside {{#if this.app_state.edit_mode}} (index.hbs:102), an EDIT-MODE-ONLY path; the live communicator grid renders via {{board.fast_html.html}} (index.hbs:100), not this markup. The missing-alt defect is real here, but this anchor is NOT the AAC-core live surface the title/notes imply -- the live case is the separate utils/button.js fast_html finding. Recommend Scot re-anchor this to the fast_html finding or downgrade its scope to edit-mode. (Verified .hide-label = display:none at app.scss:9167.) | disposition 2026-06-16 (per Scot delegation): downgraded high->low and re-scoped to the edit-mode-only path after adversary review. The cited index.hbs:123 markup renders only under {{#if this.app_state.edit_mode}} (index.hbs:102 -- the board editor), where the button label is shown via {{label-field}} (index.hbs:135) so the control is named and the symbol img alt is decorative there. The substantive live-grid case (incl. symbol-only/hide_label, where the live tile is genuinely nameless) is the confirmed utils/button.js fast_html finding of the same ruleKey."
     },
@@ -1554,7 +1578,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/utils/button.js",
@@ -1563,16 +1587,16 @@
         "sha": "d9c74cf7e0263e2a5b2e833ff1ed1ba686ae4403"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-18",
       "owner": "unassigned",
       "remediation": {
         "options": "In the fast_html symbol <img> string, concatenate an alt attribute (button label, or empty when the label is rendered). Keep parity with the template path fix so both grid render paths agree.",
-        "timeframe": "30 days"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "abb09fcf1a789af51be463943aeb97270cb8cffc",
+        "verifierNote": "Verified 2026-06-18 on staging (#428, abb09fcf1a): the fast_html symbol <img> string now emits alt=symbol_alt (the html-escaped button label) at app/frontend/app/utils/button.js:450, matching the template render path board/index.hbs:123 (alt={{button.label}}). Both grid render paths now provide alt text.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #428."
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 / 4.1.2 (EN 301 549 9.1.1). Second of the two board-grid render paths: button.js builds the tile symbol <img> as a raw HTML string with no alt attribute (the action_image at button.js:442 does include alt). Mirror of the templates/board/index.hbs finding; a fix in one path is not automatically in the other. | adversary: confirmed (2026-06-16): the fast_html symbol <img> (button.js:449) has no alt on a LIVE render path ({{button.fast_html}} / {{board.fast_html.html}}); the action_image <img> at button.js:442 DOES include alt, so the omission is specific not global. Escalation verified: when button.hide_label is set, the label span (button.js:479) is display:none via .hide-label (app.scss:9167), so it leaves the accessibility tree and the tile has NO accessible name at all -- supports high/critical. The parallel board.js render_fast_html builder repeats the same pattern (a third render path).",
       "disposition": {
@@ -1765,7 +1789,7 @@
       },
       "closureEvidence": {
         "sha": "922d93b98417692e5fd5b8bc3d64df7b3baab84d",
-        "verifierNote": "Hard-gate (COPPA consent + org opt-out via ai_allowed_for?) now enforced and egress is opt-in. SUPERSEDED-BY: residual consent-binding gap tracked as new finding below.",
+        "verifierNote": "Hard-gate (COPPA consent + org opt-out via ai_allowed_for?) now enforced and egress is opt-in. SUPERSEDED-BY: residual consent-binding gap tracked as new finding below. Remediated in #412.",
         "attestation": "Scot Wahlquist 2026-06-17"
       },
       "notes": "Surfaced by privacy finder on 2026-06-16. Distinct from LL-e573a39d2b (missing PiiScrubber on this same path) and LL-ef5ac1b2a5 (missing AiApiLog): this finding is the absent COPPA parental-consent gate, a control both sibling AI sites enforce and the eval path omits. coppa_blocks_ai_for? defined at lib/feature_flags.rb:153 -> user.coppa_parental_consent_pending?. Surfaced by privacy finder on 2026-06-16. | adversary: confirmed (2026-06-16). Sibling gates verified (ai_word_predictor.rb:35, ai_board_generator.rb:38/240); narrate path loads no user and runs no COPPA check (eval_sessions_controller.rb:43-69, uses weaker feature_enabled_for? not ai_feature_enabled_for?). Latent until ANTHROPIC_API_KEY is set (deterministic fallback eval_narrator.rb:36)."
@@ -1863,7 +1887,9 @@
       "title": "braces 2.3.2 in npm tree is vulnerable to CVE-2024-4068 (ReDoS)",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1892,7 +1918,9 @@
       "title": "moment 2.29.4 is in maintenance-only mode (effectively abandoned) and locked below the latest 2.30 maintenance patch",
       "severity": "medium",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1921,7 +1949,9 @@
       "title": "davidshimjs-qrcodejs 0.0.2 is abandoned (no release since 2014, >10 years)",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
+      "frameworks": [
+        "SOC2"
+      ],
       "status": "open",
       "evidence": {
         "type": "code",
@@ -1950,8 +1980,10 @@
       "title": "eslint 5.16.0 is EOL (v5 end-of-life 2019); dev toolchain running unsupported linter",
       "severity": "low",
       "confidence": "high",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -1960,16 +1992,16 @@
         "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "eslint v5 has been EOL since 2019; latest stable is v9.x. Upgrading eslint within Ember 3.28 is constrained by ember-cli-eslint ^5.1.0 which requires eslint 5.x. eslint upgrade is effectively blocked on Ember 3.28 -> Ember 5 migration. Mitigation: run npm audit in CI and treat any eslint advisory as high-priority.",
         "timeframe": "blocked-on-ember-migration"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b8570e5be6b2041cc5690635da25838f12997228",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): the EOL eslint 5.16.0 is gone; eslint now declares ^8.37.0 (app/frontend/package.json:64) and resolves to 8.57.1. The 5.x-specific EOL condition is resolved. The fact that 8.57.1 is itself EOL is tracked separately as LL-941001ca58 (eol-eslint-8x).",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; eslint 5.x removed (now v8), code-verified in the 2026-06-21 triage pass. Successor v8-EOL concern re-filed as LL-941001ca58."
       },
       "notes": "Surfaced by dependency finder on 2026-06-16. eslint 5.x EOL per https://github.com/eslint/eslint/releases; ember-cli-eslint ^5 pins eslint 5. No current CVE in eslint 5.16.0 itself, but EOL means no patches for future vulnerabilities. Dev dep; no production runtime exposure. | adversary: confirmed. eslint 5.16.0 (package-lock.json:18086), long EOL. dev-tooling only, no runtime exposure."
     },
@@ -1979,8 +2011,10 @@
       "title": "ember-cli-mirage 2.4.0 is abandoned for Ember 3.x (no active maintenance, last meaningful release 2021)",
       "severity": "low",
       "confidence": "medium",
-      "frameworks": [],
-      "status": "open",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -1989,16 +2023,16 @@
         "sha": "7ed643e92700cd19a0b1e2e25f1bfc1bccef7649"
       },
       "firstSeen": "2026-06-16",
-      "lastSeen": "2026-06-16",
+      "lastSeen": "2026-06-21",
       "owner": "unassigned",
       "remediation": {
         "options": "ember-cli-mirage 2.x targets Ember 3.x but has seen no active security or maintenance releases since ~2021. It is used in test environments only (no production bundle inclusion). Consider migrating to MSW (Mock Service Worker) or Pretender directly when the Ember 5 migration lands.",
         "timeframe": "blocked-on-ember-migration"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): ember-cli-mirage upgraded from abandoned 2.4.0 to maintained 3.0.4 (app/frontend/package.json:50 ^3.0.4; package-lock.json resolves 3.0.4). The 2.x-specific abandonment is resolved.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; ember-cli-mirage upgraded 2.x -> 3.0.4, code-verified in the 2026-06-21 triage pass."
       },
       "notes": "Surfaced by dependency finder on 2026-06-16. ember-cli-mirage 2.4.0 is a dev/test-only dep. No current CVE. Abandonment risk is test-toolchain reliability, not production security. | adversary: confirmed stale (2.4.0; current 3.0.4, two majors behind). Recommend rewording \"abandoned\" -> \"two majors behind/superseded\" (project continued via miragejs). dev/test-only."
     },
@@ -2077,6 +2111,616 @@
         "promotedDate": "2026-06-17"
       },
       "notes": "Promoted from PR #412 review (adversary) on 2026-06-17. The COPPA consent / org-opt-out / supervise gates are keyed to the caller-asserted params[user_id], but the data egressed is the independent params[eval_session] payload, with no server-side binding between the two. A clinician can gate on a consented student while the payload carries a different non-consented child eval content; #412 redacts the student NAME (sett.student) but not the clinical content ownership. Distinct residual after closing LL-2e4c14d370/LL-e573a39d2b/LL-ef5ac1b2a5. See docs/task-management/LEARNINGS.md (eval narrator residual)."
+    },
+    {
+      "id": "LL-16fef018a0",
+      "ruleKey": "password-reset-code-throttle",
+      "title": "Password-reset code verification endpoint (users#password_reset) not rate-limited",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "config/initializers/throttling.rb",
+        "line": 41,
+        "snippet": "'api/v1/users/.+/password_reset'",
+        "sha": "0f691f48c3955ff6749ed5c5d18d00479dd316db"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add api/v1/users/.+/password_reset to Throttling::PROTECTED_PATHS so reset-code verification falls under PROTECTED_CUTOFF (10 req/3s), as its sibling forgot_password already is.",
+        "timeframe": "done"
+      },
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-18",
+        "rationale": "Throttle the password_reset code-verification endpoint; fixed in #421."
+      },
+      "closureEvidence": {
+        "sha": "0f691f48c3955ff6749ed5c5d18d00479dd316db",
+        "verifierNote": "Verified 2026-06-18 on staging (#421, 0f691f48c): 'api/v1/users/.+/password_reset' is present in Throttling::PROTECTED_PATHS (config/initializers/throttling.rb:41); the reset-code verification endpoint now falls under PROTECTED_CUTOFF (10 req/3s). throttling_paths_spec asserts the classification.",
+        "attestation": "Scot Wahlquist 2026-06-18: attested verified-closed; fix merged to staging via #421."
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 421,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-06-18"
+      },
+      "notes": "Defense-in-depth follow-up raised during the #420 senior-dev/DeepSeek review and fixed in #421; it never surfaced in an /audit-run, so it had no register row. Added to the register and attest-closed in the same motion at Scot's request (2026-06-18) so the remediation is tracked. The evidence anchor points at the remediating line (the endpoint was simply absent from PROTECTED_PATHS before #421)."
+    },
+    {
+      "id": "LL-080a21089f",
+      "ruleKey": "no-auditevent-account-deletion-erasure",
+      "title": "Account deletion / right-to-erasure path writes no AuditEvent",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/users_controller.rb",
+        "line": 388,
+        "snippet": "  def flush_user",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Log AuditEvent.log_command in flush_user and flush_logs (actor global_id, target user global_id, action), and at the async finalization step (Flusher.flush_user_completely, lib/flusher.rb:230) so permanent destruction of education/health records is timestamped. Mirror the AuditEvent pattern in organizations_controller.rb / supervisor_relationships_controller.rb.",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb",
+        "verifierNote": "PR #442 (merge b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb) adds AuditEvent.log_command on the erasure path: users_controller#flush_logs (user_logs_flush_scheduled), #flush_user (user_deletion_scheduled), and Flusher.flush_user_completely (user_permanently_destroyed, system actor, global_id captured pre-destroy). Verified against merged staging code + 3 new green RSpec examples.",
+        "attestation": "Scot Wahlquist 2026-06-19: attested verified-closed; attested in-thread to PR #442 which implements and tests the AuditEvent coverage for this finding."
+      },
+      "notes": "Surfaced by privacy finder on 2026-06-18. Distinct from LL-d35cbdb313 (creation). Verified at ac80f5ceff: zero AuditEvent in users_controller.rb and lib/flusher.rb. flush_user (users_controller.rb:388) schedules deletion + emails but logs nothing; the cascade flush_user_content/flush_user_completely (flusher.rb:192,230) destroys LogSession/boards/images/User with no audit entry. FERPA/HIPAA require logging destruction of records; GDPR Art.17 erasure must be demonstrable. Register flush findings (LL-37caf162eb, LL-e775d86e6a, LL-991d259b2a) cover WHAT is flushed, not whether it is audited.\n\nadversary (2026-06-18): CONFIRMED. No AuditEvent on flush_user/flusher.rb erasure path; flush_record->flush_versions deletes PaperTrail history (flusher.rb:35-46) so erasure destroys its own evidence; no User destroy callback backstop. HIGH justified."
+    },
+    {
+      "id": "LL-7acd0e7416",
+      "ruleKey": "no-auditevent-admin-support-user-record-reads",
+      "title": "Admin-support reads of individual student records (version history, daily usage) write no AuditEvent",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/users_controller.rb",
+        "line": 485,
+        "snippet": "  def history",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Emit AuditEvent.log_command (actor=@api_user.global_id, target=user.global_id) in cross-user admin-support reads: history (users_controller.rb:485, returns full UserVersion change history) and daily_use (users_controller.rb:819/826, returns daily_use communication LogSession). Scope to the cross-user branch so self-reads are not logged. Consistent with AuditEvent coverage in organizations / supervisor_relationships / database_contents controllers.",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb",
+        "verifierNote": "PR #442 (merge b5e5d3516fbff0cc6e0cbde91ce93db009a97cfb) adds AuditEvent.log_command on cross-user admin-support reads: users_controller#history (admin_support_history_read) and #daily_use (admin_support_daily_use_read), scoped to the cross-user branch so self-reads are not logged. Verified against merged staging code + 3 new green RSpec examples (incl. a negative self-read assertion).",
+        "attestation": "Scot Wahlquist 2026-06-19: attested verified-closed; attested in-thread to PR #442 which implements and tests the AuditEvent coverage for this finding."
+      },
+      "notes": "Surfaced by privacy finder on 2026-06-18. Verified at ac80f5ceff: zero AuditEvent in users_controller.rb. history (line 485, gated admin_support_actions) returns User.user_versions with no audit entry; daily_use (line 819, cross-user gated at line 826) returns the daily_use LogSession with no audit entry. AuditEvent IS used in peer admin controllers, so this is an inconsistent gap. FERPA: school-official access to education records should be logged; HIPAA: PHI read access requires audit controls. Distinct from LL-d35cbdb313 and the deletion-audit finding.\n\nadversary (2026-06-18): CONFIRMED. history (line 485) and daily_use (line 819) cross-user branches emit no AuditEvent. Strongest peer precedent is database_contents_controller (fail-closed audit on every read, lines 36-41/99-109); the organizations/supervisor_relationships log_command sites are MUTATIONS not reads, so trim those from the rationale to avoid an apples-to-oranges rebuttal. HIGH defensible."
+    },
+    {
+      "id": "LL-30bcbc1e27",
+      "ruleKey": "integration-remote-webhook-url-never-serialized",
+      "title": "Integration button_webhook_url not serialized for remote webhooks, silencing the client insecure-URL warning",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/json_api/integration.rb",
+        "line": 16,
+        "snippet": "    if json['webhook'] && obj.settings['button_webhook_local']",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Rails side (preferred): serialize json['button_webhook_url'] = obj.settings['button_webhook_url'] unconditionally when json['webhook'] is true (not only when button_webhook_local is set), so Ember's insecure_button_webhook_url computed can evaluate remote URLs. Alternative: add a server-side http:// check and surface a dedicated boolean flag so the client warning does not depend on receiving the raw URL.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-18. Ember counterpart: app/frontend/app/models/integration.js:22-27 declares button_webhook_url and derives insecure_button_webhook_url as truthy when URL starts with http:// AND button_webhook_local is false. Because Rails only emits button_webhook_url when button_webhook_local is set (integration.rb:16-18), remote webhook URLs are never returned, so the insecure indicator never fires and the add-integration.hbs:31 warning is silenced for the exact case it was designed to catch. Relates to LL-1085e59d29 (model accepts plaintext http:// callback URLs); this is the distinct API-contract gap that silences the client-side indicator.\n\nadversary (2026-06-18): REFUTED. add-integration.hbs is create-only (add-integration.js:6 createRecord); the insecure_button_webhook_url warning evaluates the live in-memory record's button_webhook_url/button_webhook_local as the user types, NOT server JSON, so it DOES fire for remote http:// webhooks. Serializer (integration.rb:16-18) is never consulted in this path. RECOMMEND Scot drop/close as not-a-defect."
+    },
+    {
+      "id": "LL-6614b7c85a",
+      "ruleKey": "outdated-lodash-lockfile-drift",
+      "title": "lodash 4.18.1 resolved in package-lock.json exceeds all known published 4.x releases (latest 4.17.21)",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package-lock.json",
+        "line": 22142,
+        "snippet": "      \"version\": \"4.18.1\",",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Verify lodash@4.18.1 exists on the public npm registry (run `npm view lodash versions`). The lockfile resolves a real integrity hash + resolved URL for 4.18.1, but that version exceeds the highest known-published 4.x (4.17.21). If 4.18.1 is not on the public registry, delete and regenerate package-lock.json to lock at 4.17.21. lodash-es is also resolved to 4.18.1 (line 22149). No known CVEs in 4.18.x.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. package.json devDependencies and overrides both specify lodash ^4.17.21. package-lock resolves 4.18.1 with a sha512 integrity hash. If genuine (published after auditor cutoff) the concern is low; if phantom, supply-chain integrity defect. Medium confidence pending live registry check.\n\nadversary (2026-06-18): REFUTED. lodash 4.18.0 (2026-03-31) and 4.18.1 (2026-04-01) are genuine npm releases; 4.18.1 is the current `latest` dist-tag and the lockfile integrity hash matches the registry's published dist.integrity exactly. Genuine upstream release, dev-only. Not a supply-chain concern (auditor's 'latest=4.17.21' premise was stale). RECOMMEND Scot drop."
+    },
+    {
+      "id": "LL-6f1977944f",
+      "ruleKey": "ruby-saml-no-explicit-floor",
+      "title": "ruby-saml has no minimum version constraint in Gemfile; SAML auth-bypass CVEs fixed in >= 1.17.0",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "Gemfile.lock",
+        "line": 490,
+        "snippet": "    ruby-saml (1.18.1)",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Locked 1.18.1 is >= 1.17.0 so CVE-2025-25291 and CVE-2025-25292 (XML signature-wrapping auth bypass) are covered. But Gemfile line 84 is `gem 'ruby-saml'` with no constraint, so a future `bundle update ruby-saml` could resolve a breaking 2.x or compromised version without alert. Add an explicit `>= 1.17.0` security floor. SAML is used for school-district SSO (FERPA scope).",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2025-25291 / CVE-2025-25292: XML signature wrapping via REXML in ruby-saml < 1.17.0 allowing auth bypass. Locked 1.18.1 is safe; the finding is the absent Gemfile floor on a security-sensitive auth library used in school environments.\n\nadversary (2026-06-18): CONFIRMED but over-rated. Facts hold (Gemfile:84 bare, lock pins safe 1.18.1). Real defense-in-depth on an auth boundary, but lockfile already pins a safe version and CI installs from lock. RECOMMEND Scot downgrade MEDIUM->LOW; one-line fix `gem 'ruby-saml', '>= 1.18.0'`."
+    },
+    {
+      "id": "LL-e066ea6fa3",
+      "ruleKey": "http-proxy-1.18.1-eol-cve-2024-21943",
+      "title": "http-proxy 1.18.1 (EOL, last release 2021) has CVE-2024-21943 (ReDoS via Host header); dev-only",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 64,
+        "snippet": "    \"http-proxy\": \"^1.18.1\",",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "http-proxy 1.x is EOL with no upstream fix for CVE-2024-21943 (ReDoS via crafted Host header). It is a devDependency for the Ember local dev proxy only, not bundled to production. Options: (1) accept-risk with a dated note (impact limited to developer machine); (2) migrate the dev proxy to http-proxy-middleware 3.x when the Ember 5 migration lands.",
+        "timeframe": "blocked-on-ember-migration"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2024-21943: ReDoS in http-proxy <= 1.18.1 via crafted Host header; exploitable only by an attacker who can reach the local Ember dev server. Low because dev-only with no production surface. Distinct from tracked bootstrap finding LL-d1ea8659c3.\n\nadversary (2026-06-18): UNCERTAIN. Dev-only framing CONFIRMED (devDependencies, no prod bundle). But CVE-2024-21943 attribution could NOT be corroborated; documented http-proxy issue is a long-request-body DoS fixed IN 1.18.1 (already covered by ^1.18.1). Real residual signal is EOL/unmaintained (last release ~6yr old). RECOMMEND re-source/correct the CVE id before trusting; LOW severity is right regardless."
+    },
+    {
+      "id": "LL-2695434541",
+      "ruleKey": "puma-constraint-allows-pre-patch",
+      "title": "Puma Gemfile constraint permits 7.2.0 which predates the CVE-2026-47736/47737 fix; floor unset",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "Gemfile",
+        "line": 62,
+        "snippet": "gem 'puma', '~> 7.2' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Tighten `gem 'puma', '~> 7.2'` to also require `'>= 7.2.1'` so `bundle update puma` cannot resolve back to 7.2.0. Gemfile.lock already pins 7.2.1 (line 349), so there is no current exposure; this is defense-in-depth against future re-resolution undoing the CVE fix.",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2026-47736 / CVE-2026-47737 are PROXY protocol v1 parser issues fixed in puma 7.2.1. The Gemfile comment acknowledges this but the ~> 7.2 constraint technically permits 7.2.0. Current lockfile resolves 7.2.1 (safe). Constraint-tightening only; no current vulnerability exposure.\n\nadversary (2026-06-18): CONFIRMED but config-gated. CVE-2026-47736/47737 real, fixed in 7.2.1; lock pins 7.2.1 (safe). Gemfile:62 already carries an inline comment documenting the floor. Both CVEs only bite with non-default `set_remote_address proxy_protocol: :v1`, which is not enabled (Render terminates TLS normally) -> real-world exploitability ~nil. RECOMMEND Scot treat as informational; optional tighten to `'~> 7.2', '>= 7.2.1'`."
+    },
+    {
+      "id": "LL-35e6b7a3d6",
+      "ruleKey": "search-overlay-input-missing-label",
+      "title": "Dashboard search overlay text input has no programmatic label (placeholder only)",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/components/dashboard/authenticated-view.hbs",
+        "line": 588,
+        "snippet": "          class=\"md-searchOverlay__input\"",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Give the search input a programmatic accessible name: add an i18n aria-label to the input. The overlay role=dialog already carries an i18n aria-label, but the input itself needs its own name; a placeholder is not a reliable accessible name and disappears on input.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Labels or Instructions (SC 3.3.2) and Name Role Value (SC 4.1.2). Live authenticated Home dashboard search overlay; its only text input (md-searchOverlay__input) exposes purpose solely via placeholder; no label/aria-label/aria-labelledby. Confidence medium: input is reachable/wired though results not yet backed by a Rails endpoint.\n\nadversary (2026-06-18): CONFIRMED. Grepped whole overlay: no <label>/for=/aria-label/aria-labelledby/sr-only on the input; the only aria-label is on the role=dialog section (585), which does not name the input. Placeholder is not a valid accessible name. Real SC 4.1.2/3.3.2 defect."
+    },
+    {
+      "id": "LL-e08bd45a9f",
+      "ruleKey": "sentence-box-vocalize-anchor-missing-button-role",
+      "title": "Sentence box / utterance bar vocalize control is an anchor with no button role or accessible name",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/application.hbs",
+        "line": 86,
+        "snippet": "        <a href='#' tabindex=\"0\" id=\"button_list\" class={{this.button_list_class}} {{ action \"vocalize\" on=\"select\"}} data-placement=\"bottom\" data-trigger=\"manual\">",
+        "sha": "ac80f5ceff21d0442a2f47187228b21e69b7a948"
+      },
+      "firstSeen": "2026-06-18",
+      "lastSeen": "2026-06-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add role=button and an i18n aria-label to the #button_list anchor. href=# makes it announce as a link not the speak action, and its only name source is dynamic chip/time content (absent when the utterance is empty). The sibling icon controls (backspace, clear) already use sr-only i18n names; mirror that.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Name Role Value (SC 4.1.2). Sentence box/utterance bar speak control #button_list, the primary tap-to-vocalize action. An anchor (announced as link) with no role=button and no aria-label; name comes only from dynamic content, empty when the utterance is empty. Distinct from tracked chip-img finding LL-0c6e931f47 (chip img alt, a Non-text Content SC); this is the wrapping control's role+name. Confidence medium: chip text can supply a name when non-empty.\n\nadversary (2026-06-18): CONFIRMED. #button_list anchor (application.hbs:86-132) has no role=button, no aria-label, no title; wrapped button-list component supplies no name; rendered focusable (tabindex=0), not aria-hidden; empty accessible name when utterance empty. Real SC 4.1.2 defect on a core daily-use AAC control."
+    },
+    {
+      "id": "LL-aacae48768",
+      "ruleKey": "render-postgres-public-ip-allowlist",
+      "title": "Production Postgres (lingolinq-prod-db) reachable from an all-addresses /0 allowlist (public internet)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "render-mcp:list_postgres_instances",
+        "snippet": "Both Render Postgres instances (incl. the prod DB and the dev/staging DB) report ipAllowList = a single all-addresses /0 entry ('everywhere'), i.e. the database accepts TCP connections from any source IP on the public internet. No source-IP restriction is in effect. render.yaml databases block (render.yaml:101-105) declares no ipAllowList, so the public-everywhere default is the effective committed posture and is not documented as intentional in render.yaml or docs/INFRASTRUCTURE.md. Checked: ipAllowList field only; no secrets/connection strings/PII read or echoed."
+      },
+      "firstSeen": "2026-06-19",
+      "lastSeen": "2026-06-21",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "Restrict the Render Postgres ipAllowList to known egress sources (the Render service private network / specific NAT egress CIDRs) instead of the all-addresses /0 default, via the database's Access Control settings or an ipAllowList block in render.yaml. Combined with sslmode=require (LL-ba0585ab93, no cert verification), a public-reachable DB is a real network attack surface for a credential-stuffing / brute-force path against the DB. The GCP Cloud SQL cutover removes public DB exposure entirely (private VPC + Cloud SQL connector), so for prod this reconciles with the migration rather than being fixed twice; the dev/staging DB should be restricted now regardless. Until cutover, set an allowlist or accept-risk with a dated note.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-06-19. Net-new infra finding (runtime). Distinct from LL-ba0585ab93 (DB sslmode=require, encryption/cert-verification, not network reachability), LL-6619cc1811 (Redis TLS), and LL-9f83617435 (HSTS). The register has no finding covering DB network-level public exposure. Re-verify by re-running render-mcp:list_postgres_instances (workspace-independent). The prod-DB closure is gated on the GCP Memorystore/Cloud SQL cutover per project_render_cloud_migration; the dev/staging DB exposure is independently restrictable now. | adversary: confirmed (committed-config: render.yaml databases block declares no ipAllowList and INFRASTRUCTURE.md does not document the open posture as intentional). Live single-/0 runtime detail flagged uncertain pending a render-MCP re-pull. | triaged 2026-06-19: disposition=accepted (real, to remediate), owner Scot, at Scot's direction in the audit session. | LIVE CHECK 2026-06-21 (render-MCP list_postgres_instances): CONFIRMED both lingolinq-prod-db (dpg-d64c5i1r0fns73c5jcp0-a) and lingolinq-dev-staging-db (dpg-d64c53v5r7bs73acj600-a) have ipAllowList=[0.0.0.0/0 \"everywhere\"]. The prior \"uncertain pending re-pull\" note is resolved: the /0 exposure is real and current on both. dev/staging is restrictable now; prod gated on the Memorystore/Cloud SQL cutover. Remains open (live state cannot close it). | DECISION 2026-06-21 (Scot, /lingo session): remediate via the GCP migration, NOT an interim Render allowlist edit. Prod + dev/staging move to Cloud SQL (private-IP-only, NO public IP - confirmed in the Phase-4 dry-run plan Step 2 \"no public IP\" verify) over the next ~2 weeks, eliminating the public endpoint entirely (strictly better than a 0.0.0.0/0 -> /32 narrowing). Interim 0.0.0.0/0 exposure ACCEPTED for the cutover window (DB stays credential-gated; creds in Render env/1Password, not in repo); no interim infra change so prod is not poked right before cutover. CLOSE when: prod data is live on private-IP Cloud SQL AND the Render prod + dev-staging DBs are decommissioned/restricted (re-run render-MCP list_postgres_instances to confirm). TRIPWIRE: if the cutover has not landed by ~2026-07-05, revisit and apply the interim restriction drafted at ~/ai-company-brain/outputs/plans/2026-06-21-dev-staging-db-allowlist-restriction-plan.md.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-19",
+        "rationale": "Confirmed real network-exposure finding. Accepted as a remediation item (not a risk-acceptance). Production DB closure folds into the Render->GCP Cloud SQL cutover (private VPC, no public DB exposure) per the migration; the dev/staging DB ipAllowList should be restricted independently and now, since it does not depend on the cutover. Adversary confirmed the committed-config half; live single-/0 detail to re-confirm via a render-MCP re-pull at remediation time."
+      }
+    },
+    {
+      "id": "LL-b0bc6880e6",
+      "ruleKey": "sync-render-secrets-workflow-no-permissions-block",
+      "title": "sync-render-secrets.yml (holds RENDER_API_KEY + 1Password token) declares no permissions: block, inheriting default write GITHUB_TOKEN",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/sync-render-secrets.yml",
+        "line": 14,
+        "snippet": "on:",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-19",
+      "lastSeen": "2026-06-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an explicit least-privilege top-level `permissions:` block to sync-render-secrets.yml (the workflow never uses GITHUB_TOKEN, so `permissions: {}` or `permissions: contents: read` is correct). This workflow is the most privileged in the repo (RENDER_API_KEY with write access + OP_RENDER_SYNC_TOKEN 1Password service-account token) yet, unlike deploy-cloudrun.yml (permissions: contents: read), weekly-release-pr.yml (contents: read / pull-requests: write) and aging-digest.yml, it declares no permissions block. Per the documented repo setting, the default GITHUB_TOKEN is read-write, so this workflow is granted an over-scoped token it does not need, widening blast radius if a step is compromised. ci.yml is similarly missing the block but runs only on pull_request with CI test secrets (lower risk) - fix it in the same pass.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-06-19. Net-new CC6/CC8 least-privilege finding; surfaced by infra finder 2026-06-19. Anchored to the workflow file at auditedSha (the `on:` key is the structural location where a top-level `permissions:` block is absent). Secondary observation (low confidence, not a separate finding): scripts/sync-render-env.js maskValue() prints first4...last4 of each secret value into NEW/CHANGED diff lines, which the workflow writes to the GitHub step summary; values ARE masked, but a partial reveal of production secrets lands in a step summary visible to repo collaborators; consider masking fully for the persisted summary. Not raised as a standalone finding because the masking control exists and the reveal is partial. | adversary: confirmed (grep over sync-render-secrets.yml returns 0 permissions blocks while four sibling workflows declare them). Whether the repo default token is literally read-write is an Actions org setting not readable from git; LOW already accounts for that."
+    },
+    {
+      "id": "LL-e76d6378b5",
+      "ruleKey": "webhook-orphaned-read-attrs-notifications-content-type",
+      "title": "Webhook model declares notifications and content_type attrs that Rails never serializes",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/webhook.js",
+        "line": 12,
+        "snippet": "  notifications: DS.attr('raw'),",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-19",
+      "lastSeen": "2026-06-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Rails side (preferred): add json['notifications'] = obj.settings['notifications'] (sanitized to keys + callback/content_type per entry, no raw callback secrets) in JsonApi::Webhook.build_json if an edit-webhook UI is ever needed. Or remove the orphaned attrs from webhook.js if they serve no current read purpose (content_type at line 14 is also unused on the read path). user_id at line 8 is write-only by design and does not need a fix.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-06-19. Rails counterpart: lib/json_api/webhook.rb (build_json, line 16). The builder emits 'webhooks' (array of event-type keys from settings['notifications'].keys) and 'include_content' (boolean) but never the full 'notifications' object or any 'content_type'. The 'content_type' attr at line 14 is also never emitted. No template or controller reads these attrs back from a server response, so there is no current functional breakage; the edit flow (add-webhook.js) is create-only. Cosmetic drift; candidate for accepted-risk if the full notification config is intentionally write-only. | adversary: confirmed (Rails build_json emits only webhooks + include_content, never notifications/content_type; no template or controller reads them back; create-only flow). Cosmetic drift."
+    },
+    {
+      "id": "LL-53ab4ea456",
+      "ruleKey": "cve-serialize-javascript-2024-11831",
+      "title": "serialize-javascript 4.0.0 vulnerable to CVE-2024-11831 (XSS); dev toolchain only",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package-lock.json",
+        "line": 26437,
+        "snippet": "    \"node_modules/serialize-javascript\": {",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-19",
+      "lastSeen": "2026-06-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Upgrade serialize-javascript to >= 6.0.2 (fixes CVE-2024-11831 / GHSA-76p7-773f-r4q5 XSS). It is a transitive dev dep of the ember-cli/terser toolchain; add an `overrides` entry in package.json: serialize-javascript >= 6.0.2. Dev-only: not bundled to browsers, no production server exposure. Note the lockfile version (4.0.0) already matched the caret-4 range; the override must force the major bump.",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "b139f7e3eb349bcc318e461d5ad81cf00d9a31b9",
+        "verifierNote": "Verified 2026-06-21 (catch-up pass): serialize-javascript is entirely absent from app/frontend/package-lock.json; terser-webpack-plugin upgraded to 5.5.0 no longer pulls the vulnerable 4.0.0 transitive dep, removing CVE-2024-11831 exposure.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; serialize-javascript removed from lockfile, code-verified in the 2026-06-21 triage pass."
+      },
+      "notes": "Surfaced by dependency finder on 2026-06-19. CVE-2024-11831 (GHSA-76p7-773f-r4q5): ReDoS via crafted input to serialize-javascript below 6.0.2. Locked at 4.0.0 (package-lock.json line 26438). Dev toolchain only (webpack/terser bundle step); exploitable only if an attacker can control the serialized data during the build process, not at runtime. Prior audit run mis-cited this CVE under a wrong id; confirmed correct CVE is CVE-2024-11831 with a 6.0.2 fix threshold. Not in register. Distinct from all existing open findings. | adversary: confirmed substance (serialize-javascript@4.0.0 dev-only, fix >=6.0.2, LOW) but CORRECTED two citation errors: GHSA-76p7-773f-r4q5 is the debug-package ReDoS (CVE-2017-16137), NOT serialize-javascript; correct advisory is GHSA-76p7-773f-r4q5 and the vuln class is XSS, not ReDoS."
+    },
+    {
+      "id": "LL-9b5d0f1381",
+      "ruleKey": "find-button-search-input-missing-label",
+      "title": "Find-a-button search input has no accessible name (placeholder-only, non-i18n)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/find-button.hbs",
+        "line": 8,
+        "snippet": "      {{focus-input force=\"true\" type=\"text\" id=\"button_search_string\" value=this.searchString class=\"la-find-button-input\" select=\"pick_result\" placeholder=\"Word or phrase you're looking for\"}}",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-19",
+      "lastSeen": "2026-06-19",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "Give the find-a-button search input a programmatic accessible name: add an i18n aria-label (aria-label={{t \"Search for a button\" key='...'}}). A placeholder is not a reliable accessible name and disappears on input; the sibling .la-modal-header-label span (find-button.hbs:4) is not programmatically associated. Also convert the raw placeholder to the i18n helper per the double-quote/{{t}} convention.",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "dd194540640bcb4e6bcf71343b97e41b6a6f33d8",
+        "verifierNote": "Find-a-button search input given a working accessible name + i18n placeholder in #448 (dd1945406); vestigial Phase-1 find-button route template removed in #450. Verified against merged staging.",
+        "attestation": "Scot Wahlquist 2026-06-19: attested verified-closed; instructed in-thread to close after #448 shipped the accessible-name fix."
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Labels-or-Instructions and Name-Role-Value criteria, mapped in EN 301 549 clauses 9.3 and 9.4. Find-a-button is a core AAC navigation surface (reachable in scanning). focus-input (components/focus-input.js) extends TextField and renders a bare input with the passed attributes, injecting no aria-label, so the input is named only by a placeholder. Distinct (ruleKey, file) from the registered search-overlay-input-missing-label finding, which is the authenticated-view Home dashboard overlay in a different file. i18n cross-ref: placeholder is a raw English string, not {{t}} -- also an i18n defect. | adversary: confirmed (focus-input injects no aria-label; input named by placeholder only; distinct from LL-35e6b7a3d6, the authenticated-view overlay input in a different file). HIGH leans on a find-a-button scan-reachability assumption not independently traced; the defect itself is solid. | triaged 2026-06-19: disposition=accepted (real, to remediate), owner Scot, at Scot's direction in the audit session. | fixed 2026-06-19 in PR #448 (commit dd1945406, merged to staging): root cause was focus-input (components/focus-input.js) extending classic TextField, whose attributeBindings do not include aria-label, so a passed aria-label set a property that never reached the DOM -- fixed by adding attributeBindings:['aria-label'] to focus-input. The live component template (templates/components/find-button.hbs) already carried an sr-only <label for=button_search_string>, so its input had an accessible name; the cited route-style templates/find-button.hbs had neither label nor i18n placeholder, both added. Raw placeholder converted to the {{t}} helper in both. Status remains open pending a verified-closed attestation batch.",
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-19",
+        "rationale": "Fix shipped in PR #448 (commit dd1945406, merged to staging). Root cause: focus-input extends classic TextField, which does not bind aria-label, so the attribute never reached the DOM; fixed by binding aria-label in focus-input. The live find-a-button component template already had an associated sr-only <label>, so the rendered input was accessible; the cited route-style template and the raw English placeholder were both corrected to add a label and the {{t}} helper. Marked fixed at Scot's direction; status stays open until the next verified-closed attestation batch."
+      }
+    },
+    {
+      "id": "LL-b06f063f85",
+      "ruleKey": "modal-dialog-role-dialog-no-accessible-name",
+      "title": "Shared modal-dialog wrapper sets role=dialog/aria-modal but no accessible name",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/components/modal-dialog.hbs",
+        "line": 6,
+        "snippet": "<div class=\"modal fade in\" style=\"display: block;\" data-uncloseable={{this.uncloseable}} role=\"dialog\" aria-modal=\"true\">",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-19",
+      "lastSeen": "2026-06-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Associate the dialog with its visible title: add aria-labelledby pointing at each modal's header element (e.g. the .la-modal-header-label / .modal-title id), or accept a yielded label arg the wrapper sets as aria-label via the i18n helper. Every legacy modal rendered through this component inherits the unnamed role=dialog.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. This shared component (used by find-button, board-details, and most legacy modals) declares role=dialog + aria-modal=true but provides no aria-label/aria-labelledby, so the dialog itself has no programmatic name. The codebase already names other dialogs explicitly (the Home search overlay role=dialog carries an i18n aria-label), confirming the wrapper omission. Single-file, deterministic markup; confidence medium because some AT derive a name from yielded heading content. | adversary: confirmed (modal-dialog.hbs wrapper div carries role=dialog/aria-modal with no aria-label/aria-labelledby; ~250 call sites inherit the unnamed dialog). MEDIUM justified by breadth."
+    },
+    {
+      "id": "LL-8fab55372e",
+      "ruleKey": "speak-bar-reply-icon-button-missing-name",
+      "title": "Speak-bar remote-modeling (#reply_icon) button has no accessible name",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/application.hbs",
+        "line": 148,
+        "snippet": "            <button class={{if this.app_state.pairing.user.online \"btn over pair access online\" \"btn over pair access\"}} {{action \"remote_modeling\"}} id='reply_icon'>",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-19",
+      "lastSeen": "2026-06-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an i18n accessible name to the pairing #reply_icon control: a <span class=\"sr-only\">{{t \"...\" key='...'}}</span> child or aria-label={{t}}, mirroring the sibling #speak_options, #backspace_button, and #clear_button controls which already carry sr-only i18n names. The avatar <img> at application.hbs:155 also has no alt.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. The #reply_icon remote-modeling button in the speak bar (a core surface used by therapists/supervisors during pairing sessions) contains only state glyphicons and an optional avatar img with no alt, and has no sr-only text/aria-label, so it has no accessible name. Renders only when this.app_state.pairing is active, hence medium severity. Distinct control from the registered #button_list vocalize anchor (sentence-box-vocalize-anchor-missing-button-role); same file, different ruleKey. | adversary: confirmed (#reply_icon has only glyphicons + an alt-less avatar img, no sr-only/aria-label; sibling #speak_options carries an sr-only i18n name). Pairing-gated, so MEDIUM."
+    },
+    {
+      "id": "LL-efef111d59",
+      "ruleKey": "cve-nokogiri-1-19-4",
+      "legacyId": "Dep-nokogiri-1194",
+      "title": "nokogiri 1.19.3 vulnerable to six published advisories (fixed in 1.19.4)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "doc",
+        "file": "Gemfile.lock",
+        "line": 281,
+        "snippet": "nokogiri (1.19.3-aarch64-linux-gnu)",
+        "sha": "445336592ddaf838689df7e578829e94e140890d"
+      },
+      "firstSeen": "2026-06-20",
+      "lastSeen": "2026-06-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Bump nokogiri to >= 1.19.4 (done in #460).",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "5b40ce137ed73ef732b1326c65f6ee56f8b6ae78",
+        "verifierNote": "Verified 2026-06-21: nokogiri bumped 1.19.3 -> 1.19.4 in #460 (commit 5b40ce137), resolving GHSA-8678-w3jw-xfc2, GHSA-9cv2-cfxc-v4v2, GHSA-p67v-3w7g-wjg7, GHSA-phwj-rprq-35pp, GHSA-wfpw-mmfh-qq69, GHSA-wjv4-x9w8-wm3h. Gemfile.lock now pins 1.19.4 (Gemfile.lock:281); bundle-audit clean.",
+        "attestation": "Scot Wahlquist 2026-06-21: attested verified-closed; nokogiri CVE remediated in #460, code-verified (Gemfile.lock 1.19.4)."
+      },
+      "notes": "Backfilled after remediation. CVE/dependency advisory caught by bundle-audit; fixed before it was first registered. Closure attestation pending Scot."
+    },
+    {
+      "id": "LL-941001ca58",
+      "ruleKey": "eol-eslint-8x",
+      "legacyId": "Dep-eslint-8-eol",
+      "title": "eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 64,
+        "snippet": "\"eslint\": \"^8.37.0\",",
+        "sha": "b8570e5be6b2041cc5690635da25838f12997228"
+      },
+      "firstSeen": "2026-06-21",
+      "lastSeen": "2026-06-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Upgrade to eslint 9 (flat config). Entangled with the broader Ember 3.28 toolchain modernization, so not a standalone bump; dev-toolchain only (not shipped to users).",
+        "timeframe": "with toolchain modernization"
+      },
+      "notes": "Successor to LL-257c696fe0 (eol-eslint-5x, closed 2026-06-21). The v5 EOL was fixed by the v8 upgrade, but v8 reached end-of-life; tracked here so the register stays honest. Low: dev-toolchain only."
     }
   ]
 }

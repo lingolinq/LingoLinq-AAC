@@ -166,7 +166,7 @@ export default Component.extend({
     const _this = this;
     _this.set('goals', { loading: true });
     this.get('store').query('goal', { template_header: true }).then(function(data) {
-      _this.set('goals', data.map(function(i) { return i; }));
+      _this.set('goals', data.slice());
       _this.set('goals.meta', data.meta);
     }, function() {
       _this.set('goals', { error: true });
@@ -361,7 +361,7 @@ export default Component.extend({
           offset: this.get('goals.meta.next_offset')
         }).then(function(list) {
           let goals = _this.get('goals') || [];
-          goals = goals.concat(list.map(function(i) { return i; }));
+          goals = goals.concat(list.slice());
           _this.set('goals', goals);
           _this.set('goals.meta', list.meta);
           _this.set('goals.loading', false);

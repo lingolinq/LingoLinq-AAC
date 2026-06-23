@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { set as emberSet } from '@ember/object';
+import { set as emberSet, get as emberGet } from '@ember/object';
 import modal from '../utils/modal';
 
 /**
@@ -46,7 +46,7 @@ export default Component.extend({
       this.set('model.devices', list);
     },
     update_device() {
-      const device = (this.get('model.devices') || []).findBy('renaming', true);
+      const device = (this.get('model.devices') || []).find(function(d) { return emberGet(d, 'renaming') === true; });
       if (device) {
         const user = this.get('model');
         user.rename_device(device.id, device.new_name);
