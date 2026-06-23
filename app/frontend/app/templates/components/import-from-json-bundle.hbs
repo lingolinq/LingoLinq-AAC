@@ -3,44 +3,51 @@
     <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <h3>{{t "Import Board Set from JSON" key="import_board_from_json_bundle"}}</h3>
+    <h3>{{t "Import Board from Another Platform" key="import_board_from_json_bundle"}}</h3>
   </div>
   <div class="modal-body md-modal-body">
     <section class="md-json-bundle-export" aria-labelledby="coughdrop-export-heading">
-      <h4 id="coughdrop-export-heading" class="md-json-bundle-export__title">{{t "Export from CoughDrop" key="coughdrop_export_heading"}}</h4>
-      <p class="md-json-bundle-export__lead">{{t "Use this one-time setup if you are moving boards from CoughDrop." key="coughdrop_export_intro"}}</p>
-      <ol class="md-json-bundle-export__steps">
-        <li>{{t "Drag the button below to your browser bookmarks bar." key="coughdrop_export_step_drag"}}</li>
-        <li>{{t "Log in to CoughDrop and open your home board (the main board for the set you want to move)." key="coughdrop_export_step_open"}}</li>
-        <li>{{t "Click the bookmark you saved. Wait for the JSON file to download." key="coughdrop_export_step_run"}}</li>
-        <li>{{t "Return here and upload that file below." key="coughdrop_export_step_import"}}</li>
-      </ol>
-      <div class="md-json-bundle-export__actions">
-        <a href={{this.coughdropExportBookmarkletHref}}
-           class="btn btn-default md-json-bundle-export__bookmarklet"
-           draggable="true"
-           {{on "click" (action "preventBookmarkletClick")}}
-           {{on "dragstart" (action "dragBookmarklet")}}>
-          {{t "Export CoughDrop boards" key="coughdrop_export_bookmarklet_label"}}
-        </a>
-        <button type="button" class="btn btn-link md-json-bundle-export__copy" {{action "openBookmarkletInstaller"}}>
-          {{t "Open bookmark setup page" key="coughdrop_export_open_installer"}}
-        </button>
-        <button type="button" class="btn btn-link md-json-bundle-export__copy" {{action "copyCoughdropExportBookmarklet"}}>
-          {{t "Copy bookmark link instead" key="coughdrop_export_copy_link"}}
-        </button>
+      <h4 id="coughdrop-export-heading" class="md-json-bundle-export__title">{{t "Moving from CoughDrop?" key="coughdrop_export_heading"}}</h4>
+      <p class="md-json-bundle-export__lead">{{t "Use this one-time bookmark to export your boards from CoughDrop." key="coughdrop_export_intro"}}</p>
+
+      <div class="md-json-bundle-export__drag">
+        <p class="md-json-bundle-export__drag-label">{{t "Step 1: Drag this button to your bookmarks bar" key="coughdrop_export_step_drag"}}</p>
+        <div class="md-json-bundle-export__actions">
+          <a href={{this.coughdropExportBookmarkletHref}}
+             class="btn btn-default md-json-bundle-export__bookmarklet"
+             draggable="true"
+             {{on "click" (action "preventBookmarkletClick")}}
+             {{on "dragstart" (action "dragBookmarklet")}}>
+            {{t "Export CoughDrop boards" key="coughdrop_export_bookmarklet_label"}}
+          </a>
+        </div>
+        <p class="help-block md-json-bundle-export__help md-json-bundle-export__help--drag">{{t "Do not click it on this page. Drag it to your bookmarks bar, then use it on CoughDrop." key="coughdrop_export_drag_help"}}</p>
+        <div class="md-json-bundle-export__alt-links">
+          <button type="button" class="btn btn-link md-json-bundle-export__copy" {{action "openBookmarkletInstaller"}}>
+            {{t "Open bookmark setup page" key="coughdrop_export_open_installer"}}
+          </button>
+          <span class="md-json-bundle-export__alt-sep" aria-hidden="true">·</span>
+          <button type="button" class="btn btn-link md-json-bundle-export__copy" {{action "copyCoughdropExportBookmarklet"}}>
+            {{t "Copy bookmark link instead" key="coughdrop_export_copy_link"}}
+          </button>
+        </div>
       </div>
-      <p class="help-block md-json-bundle-export__help">{{t "Do not click the export button on this page — drag it to bookmarks, then use it on CoughDrop." key="coughdrop_export_drag_help"}}</p>
-      <p class="help-block md-json-bundle-export__help">{{t "Some browsers add unsafe: to the start of bookmark addresses. Delete that prefix if you paste the link manually." key="coughdrop_export_unsafe_prefix_help"}}</p>
+
+      <ol class="md-json-bundle-export__steps" start="2">
+        <li>{{t "Log in to CoughDrop and open the board you want to move." key="coughdrop_export_step_open"}}</li>
+        <li>{{t "Click your bookmark and wait for the export file to download." key="coughdrop_export_step_run"}}</li>
+        <li>{{t "Upload that file below." key="coughdrop_export_step_import"}}</li>
+      </ol>
+      <p class="help-block md-json-bundle-export__help">{{t "If you paste the bookmark link manually, remove any unsafe: prefix some browsers add." key="coughdrop_export_unsafe_prefix_help"}}</p>
     </section>
 
     <hr class="md-json-bundle-export__divider" aria-hidden="true">
 
     <section aria-labelledby="json-bundle-import-heading">
-      <h4 id="json-bundle-import-heading" class="md-json-bundle-export__title">{{t "Import your file" key="json_bundle_import_heading"}}</h4>
-      <p>{{t "Upload a JSON bundle exported from CoughDrop or LingoLinq. Use the full page-set export that includes linked boards." key="import_json_bundle_instructions"}}</p>
+      <h4 id="json-bundle-import-heading" class="md-json-bundle-export__title">{{t "Upload your file" key="json_bundle_import_heading"}}</h4>
+      <p>{{t "Choose the export file you downloaded from CoughDrop or LingoLinq." key="import_json_bundle_instructions"}}</p>
       <div class="form-group">
-        <label for="import_json_bundle_file">{{t "JSON bundle file" key="json_bundle_file"}}</label>
+        <label for="import_json_bundle_file">{{t "Board export file" key="json_bundle_file"}}</label>
         <input type="file" accept=".json,application/json" class="form-control" id="import_json_bundle_file" {{on "change" (action "fileSelected")}} />
         {{#if this.fileName}}
           <p class="help-block">{{this.fileName}}</p>

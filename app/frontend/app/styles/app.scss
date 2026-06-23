@@ -78375,7 +78375,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 16px;
 }
 
-/* Import JSON Bundle modal — CoughDrop export bookmarklet + file upload */
+/* Import from another platform modal — CoughDrop export bookmarklet + file upload */
 .md-json-bundle-export {
   text-align: left;
   max-width: 34rem;
@@ -78388,19 +78388,33 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: $la-navy;
 }
 .md-json-bundle-export__lead {
-  margin: 0 0 0.85rem;
+  margin: 0 0 1rem;
   font-size: 1rem;
   line-height: 1.5;
   color: rgba($la-navy, 0.82);
 }
+.md-json-bundle-export__drag {
+  margin: 0 0 1.35rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.1);
+}
+.md-json-bundle-export__drag-label {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: $la-navy;
+}
 .md-json-bundle-export__steps {
-  margin: 0 0 1.1rem 1.15rem;
+  margin: 0 0 0.85rem 1.15rem;
   padding: 0;
   font-size: 1rem;
-  line-height: 1.55;
+  line-height: 1.6;
   color: rgba($la-navy, 0.9);
   li + li {
-    margin-top: 0.45rem;
+    margin-top: 0.65rem;
   }
 }
 .md-json-bundle-export__actions {
@@ -78408,7 +78422,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.65rem 1rem;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
 }
 .md-json-bundle-export__bookmarklet {
   min-height: 2.75rem;
@@ -78420,6 +78434,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-json-bundle-export__bookmarklet:active {
   cursor: grabbing;
 }
+.md-json-bundle-export__alt-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.35rem;
+}
+.md-json-bundle-export__alt-sep {
+  color: rgba($la-navy, 0.35);
+  font-size: 1rem;
+  line-height: 1;
+}
 .md-json-bundle-export__copy {
   font-size: 1rem;
   padding: 0.35rem 0;
@@ -78429,6 +78455,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 0.95rem;
   line-height: 1.45;
   color: rgba($la-navy, 0.7);
+}
+.md-json-bundle-export__help--drag {
+  margin-top: 0.15rem;
 }
 .md-json-bundle-export__divider {
   max-width: 34rem;
