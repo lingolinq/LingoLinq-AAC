@@ -33,7 +33,7 @@ LingoLinq is an Augmentative and Alternative Communication (AAC) application. It
 - Opt-in content-based word prediction (de-identified before any ML processing)
 - SSO identity data (managed by the identity provider; LingoLinq stores only opaque tokens and display names)
 
-**Core principle: LLMs and ML models NEVER see who users are.** Every AI-powered feature operates exclusively on anonymized or de-identified data. The Rails backend is the single enforcement point for this guarantee.
+**Core principle: AI models never receive direct user identifiers.** Before any AI API call, the Rails backend strips direct identifiers (names, emails, SSO subject IDs) and replaces user references with opaque tokens, so AI features operate on de-identified data rather than user identities. The `lib/pii_scrubber.rb` layer is the single enforcement point. De-identified user-authored content (for example board labels and sentences) is still sent to the model; free-text is scrubbed of known direct identifiers and name patterns on a best-effort basis, so this is a strong de-identification guarantee, not a claim that no user-authored text ever reaches a model.
 
 ---
 
@@ -190,7 +190,7 @@ This module is responsible for:
 |------------------------------|---------------------|--------------------------|------------------------------------------|
 | Rails application            | Yes                 | N/A                      | Primary application; handles all user data |
 | PostgreSQL / Redis / S3      | Yes                 | N/A                      | Storage layer; encrypted at rest          |
-| AI APIs (Anthropic, etc.)    | **NEVER**           | Yes                      | Only receives scrubbed/de-identified data |
+| AI APIs (Anthropic, etc.)    | No (identifiers stripped) | Yes                | Receives de-identified content only; direct identifiers stripped before egress, free-text scrubbed best-effort |
 | MCPs (dev environment)       | **NEVER** (prod)    | Yes (dev/seed data)      | MCPs only connect to dev DB with test data |
 | Notion / HubSpot / Slack     | **NEVER**           | No                       | Business operations only                  |
 
