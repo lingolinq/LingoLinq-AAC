@@ -15,12 +15,15 @@ preservation).
 soak.** The master rollback for the entire cutover is "flip DNS back to Render." That only works
 if Render is never degraded during the cutover. Therefore:
 
-- The write-freeze is a **hard maintenance window** (Render web + workers scaled to 0), NOT a
-  DB-level read-only toggle. No app-level read-only switch exists in the codebase
-  (no `maintenance_mode` / `default_transaction_read_only` / feature flag), and a clear
-  "back at <time>" page is gentler for AAC users than intermittent write-path 500s.
+- The write-freeze is a **feature-flagged write-reject mode** on Render web (503 + Retry-After on
+  mutating endpoints, reads still served), combined with a **60s DNS TTL**, NOT a scale-to-0 and
+  NOT a DB-level read-only toggle. Render web stays UP through the entire soak; this is the guard
+  that stops offline/DNS-stale clients from writing to the abandoned Render DB after cutover
+  (decided mechanism, Scot 2026-06-23, Option 1 + 2). No such write-reject mode exists in the
+  codebase yet; it is a required pre-cutover build (step 1).
 - **Render decommission is NOT part of this runbook.** It is tracker Phase 6 (`6.2`), gated, and
-  only after a clean soak. See step 9b, which is a pointer, not an action.
+  only after a clean soak AND Cloud SQL confirmed authoritative. See step 9b, a pointer, not an
+  action.
 
 ## Operator identity (HIPAA)
 
@@ -90,11 +93,11 @@ step is that verification.
   Redis unverified; jobs (including log processing) would silently fail post-cutover. Mark
   LL-6619cc1811 **verified-closed** in the register only after this is green against live.
 
-### 1. Hard maintenance window  (tracker 5.2, GATE: data move begins)
+### 1. Write-freeze window - Render write-reject mode  (tracker 5.2, GATE: data move begins)
 
-**WARNING (dual-review finding): scaling web + worker to 0 is NOT, by itself, a write-freeze.**
-LingoLinq has writers that do not run inside the web/worker dynos. Freezing the DB means freezing
-ALL of them, in this order, BEFORE the dump:
+**The freeze is a write-reject mode on Render web (kept up), NOT a scale-to-0.** And note: the web
+app is not the only writer. LingoLinq has writers that do not run inside the web dyno. Freezing the
+DB means freezing ALL of them, in this order, BEFORE the dump:
 
 - **Scheduled rake tasks** (`generate_log_summaries`, `push_remote_logs`, `advance_goals`,
   `flush_users`, `clean_old_deleted_boards`, etc.). These are NOT Resque jobs in `render.yaml` and
@@ -107,32 +110,42 @@ ALL of them, in this order, BEFORE the dump:
   pristine rollback insurance" invariant; see Rollback).
 - **n8n workflows that hit prod** (e.g. the cost/PII digest). Pause.
 
-Then:
+**DECIDED mechanism (Scot, 2026-06-23): Option 1 + Option 2 combined. NOT scale-to-0.**
+The offline/mobile replay hazard (AAC clients buffer writes in IndexedDB/SQLite and replay on
+reconnect, and the client sync path has **no server-side conflict resolution** -
+`app/frontend/app/utils/persistence.js:3630` "TODO: check for conflicts before saving") is
+mitigated by keeping Render web **up and reachable but rejecting all writes**, combined with a 60s
+DNS TTL so reconnecting clients resolve GCP fast and their retried writes land on Cloud SQL, not the
+abandoned Render DB.
 
-- Announce a short maintenance window in advance (see "Window scheduling" below). User-facing
-  copy must be i18n'd; for an AAC product the message should be calm and concrete:
-  "LingoLinq is briefly offline for scheduled maintenance and will be back at <time tz>."
-- Scale Render **web and worker** services to 0 instances (Render dashboard or API).
-- Confirm Render web at 0 returns connection-refused / 5xx (so clients retry later against current
-  DNS), NOT a queue-forever state. Confirm no in-flight Resque jobs on Render.
+The freeze, in order:
 
-> **OPEN DECISION - offline/mobile write replay (HIPAA/FERPA data-loss class).** AAC clients buffer
-> writes locally (IndexedDB/SQLite) and replay on reconnect, and the client sync path has **no
-> server-side conflict resolution** (`app/frontend/app/utils/persistence.js:3630` "TODO: check for
-> conflicts before saving"). A device offline across the window replays into whatever DNS resolves
-> when it reconnects. The `pg_dump` is taken at window start, so ANY write that reaches Render
-> after the dump (offline replay, or a DNS-stale client during soak) is **silently lost at
-> decommission** and diverges Render from Cloud SQL. This is not yet mitigated. Pick one before
-> cutover (Scot's call):
-> 1. Drop DNS TTL to **60s** well before the window (not just "24-48h") so reconnecting clients
->    resolve GCP fast, AND keep Render's DB as the reconciliation source until soak ends.
-> 2. Keep Render **web reachable but hard-rejecting writes** (503 + Retry-After on write endpoints)
->    through the soak instead of scale-to-0, so late writes get a clean rejection the client
->    retries against current DNS.
-> 3. Accept the loss window and define a manual reconciliation of post-dump Render writes into
->    Cloud SQL before 9b decommission.
-> Whichever is chosen, a post-dump write to Render is a known data-loss class and the runbook must
-> name how it gets reconciled before decommission.
+- **Lower DNS TTL to 60 seconds** well before the window (not 24-48h). This is what makes a
+  rejected-write retry resolve to the new prod quickly instead of sticking to a cached Render IP.
+- **Enable Render write-reject mode (built, feature-flagged - see "Required build" below).** All
+  mutating endpoints return **`503` + `Retry-After`**; reads still serve. This gives offline/late
+  writes a clean, retryable rejection instead of a silent loss or a write to the soon-to-be-stale
+  DB. Render web **stays up** (it is NOT scaled to 0).
+- **Pause Render workers** (the Resque worker writes via background jobs; scale the worker service
+  to 0 or stop it). Confirm no in-flight Resque jobs.
+- Announce the window (copy must be i18n'd, calm and concrete for AAC users): "LingoLinq is briefly
+  read-only for scheduled maintenance and will be fully back at <time tz>."
+- **Do NOT scale Render web to 0, and do NOT decommission, until after soak and after Cloud SQL is
+  confirmed authoritative** (step 9b). Render web in write-reject mode is the soak-safety guard.
+
+> **Required build (pre-cutover, like W1): Render write-reject mode.** A feature-flagged
+> request-layer guard (Rack middleware or a global `before_action`) that, when the flag/env is on,
+> short-circuits every mutating request (POST/PUT/PATCH/DELETE, plus any GET that writes) with HTTP
+> `503` and a `Retry-After` header, and an i18n'd body. Reads pass through untouched. Per LingoLinq
+> rules this is new user-facing behavior, so it ships behind a flag (`lib/feature_flags.rb`) and is
+> tested before the window. It must cover the JSON API write paths the offline clients sync to (the
+> `lib/json_api` mutation routes), not just HTML forms. Enumerate and test the mutating-endpoint
+> coverage during the dress rehearsal.
+
+> **Residual note:** with writes rejected and TTL at 60s, the post-dump-write data-loss class is
+> closed for online clients (they get a 503 and retry against GCP) and for offline clients that
+> reconnect after their cached TTL expires. The only manual reconciliation needed is on **rollback**
+> (see Rollback); no manual reconciliation is required on the happy path.
 
 ### 2. Fresh prod `pg_dump`  (GATE: real data move)
 
@@ -252,10 +265,11 @@ See the separate decision memo
 
 ### 9. DNS cut  (tracker 5.4, GATE: DNS)
 
-- Lower the DNS TTL 24-48h **before** the window so the flip propagates fast.
+- DNS TTL is already at **60s** (lowered in step 1); confirm it propagated before the flip.
 - At cutover, flip DNS to the new front end (Cloud Run custom-domain target, or the LB IP).
 - Watch logs, error rate, latency, email deliverability, job processing (tracker 5.5).
-- **Do not touch Render prod** (tracker 5.6); it is rollback insurance through the soak.
+- **Do not touch Render prod** (tracker 5.6) except that it stays UP in write-reject mode; it is
+  rollback insurance through the soak. Do not scale it to 0 or decommission (step 9b).
 
 ### 9b. Render decommission - POINTER ONLY (tracker Phase 6, 6.2, GATE: delete prod)
 
@@ -265,12 +279,13 @@ tracker Phase 6 after a clean soak, gated on Scot, with a fresh snapshot + keepe
 Doing any of it at cutover would destroy the rollback path. Listed here only so operators know it
 is the *next* phase, not a cutover step.
 
-> **Soak hazard (dual-review):** deferring decommission is correct for rollback safety, but the
-> soak is exactly when the offline-replay / DNS-stale divergence (the OPEN DECISION in step 1) is
-> live: Render's DB still exists and its hostname may still resolve for cached/offline clients, so
-> late writes keep landing on the soon-to-be-abandoned DB. The soak is only safe once step 1's
-> mitigation is chosen. Before 6.2 decommission, reconcile or confirm-empty any post-cutover Render
-> writes (re-run the step-7 delta check against Render one final time).
+> **Soak guard (decided mechanism):** during soak, Render web stays UP **in write-reject mode**
+> (step 1), so any DNS-stale or offline client that reaches Render gets a `503` + `Retry-After` and
+> retries against current DNS (GCP, via the 60s TTL) rather than writing to the abandoned Render DB.
+> This is what closes the offline-replay divergence for the soak. **Do not scale Render web to 0 and
+> do not decommission until after soak AND after Cloud SQL is confirmed authoritative.** Before 6.2
+> decommission, run the step-7 delta check against Render one final time and confirm zero
+> post-cutover writes landed (write-reject should guarantee this; verify, do not assume).
 
 ---
 
@@ -289,17 +304,21 @@ The master rollback is **flip DNS back to Render**, which works because Render w
 
 ### Rollback steps
 
-> **Ordering fix (dual-review):** scale Render back up and smoke-test it BEFORE repointing DNS.
-> Flipping DNS to a still-scaled-to-0 Render just sends users to an unavailable service until the
-> scale-up finishes. Keep GCP serving while Render comes back, then flip.
+> **Recovery is fast because Render web stayed up the whole time** (write-reject mode, never
+> scaled to 0). Rollback restores Render writes and brings DNS back; there is no Render cold start
+> to wait on.
 
-1. **Scale Render web + worker back up** from 0 to their prior instance counts, and re-enable the
-   external writers paused in step 1 (rake cron, n8n, the hourly `sync-render-env`). Render's DB was
-   never set read-only, so it returns to full service as soon as the app processes are back. (There
-   is **no "re-enable DB writes"** step; the freeze was app-scale-to-0 + external-writer pause, not
-   a DB toggle.) Smoke-test Render green.
-2. **Re-point DNS back to Render.** (TTL was already lowered, so this propagates fast.)
-3. **Secrets:** S2 is additive-only; it writes **new GCP Secret Manager versions** from 1Password
+1. **Disable Render write-reject mode** (flip the feature flag/env off) so writes are accepted
+   again, **re-enable the Render workers**, and **re-enable the external writers** paused in step 1
+   (rake cron, n8n, the hourly `sync-render-env`). Render's DB was never set read-only, so it is
+   immediately authoritative again. Smoke-test Render green (a write succeeds).
+2. **Re-point DNS back to Render.** (TTL is 60s, so this propagates fast.)
+3. **Reconcile the cutover-window writes (the ONLY manual reconciliation case).** Any write that
+   reached **Cloud SQL** between the DNS flip and the rollback exists only on GCP and must be
+   replayed/merged back into Render, or accepted as lost, before standing down. Capture them with
+   the step-7 delta check run in reverse (Cloud SQL rows newer than the DNS-flip timestamp). On the
+   happy path no manual reconciliation is needed; this step applies only when rollback is triggered.
+4. **Secrets:** S2 is additive-only; it writes **new GCP Secret Manager versions** from 1Password
    and does not write Render. **Caveat:** the "Render env is pristine" invariant only holds if the
    hourly `sync-render-env` push was paused for the window/soak (step 1). If it was NOT paused and a
    1Password edit landed, Render env may have drifted; diff Render env against the pre-window
@@ -354,7 +373,7 @@ cold-start / p50 / p95 / memory in tracker 4.2.
   S2 -> deploy -> 0b/0c verify -> DNS).
 - **Not schedulable to a firm date** until the dress rehearsal (0a), W1, and the 5.3 front-end
   build are done. Earliest realistic date if the rehearsal passes cleanly: **Sunday 2026-07-12**.
-- Lower the DNS TTL 24-48h ahead.
+- Lower the DNS TTL to **60s** ahead of the window (the decided mechanism; see step 1).
 
 ---
 
@@ -365,14 +384,15 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       (LL-6619cc1811 verified-closed).
 - [ ] W1 worker SIGTERM/requeue fix shipped (tracker 4.W1).
 - [ ] 5.3 front-end choice decided AND built (Option A or B).
-- [ ] **Step 1 OPEN DECISION resolved:** offline-replay / write-freeze mitigation chosen (60s TTL +
-      reconciliation source, OR write-rejecting Render, OR manual reconciliation plan).
+- [ ] **Render write-reject mode built + tested** (feature-flagged 503 + Retry-After on every
+      mutating endpoint incl. the `lib/json_api` write paths; reads pass through). Decided
+      mechanism, Option 1 + 2.
 - [ ] **Every external writer enumerated and pause-tested:** Render cron services, n8n workflows
       hitting prod, hourly `sync-render-env` (verified against the LIVE Render dashboard, not this
       doc).
 - [ ] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7).
 - [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
       BOOT_SECRETS if any row exists, else confirmed-empty.
-- [ ] DNS TTL lowered ahead (60s if step-1 mitigation #1 chosen).
+- [ ] **DNS TTL lowered to 60s** ahead of the window and propagation confirmed.
 - [ ] Operator holds GCP `lingolinq-prod` + 1Password "LingoLinq Prod" + Render API key.
 - [ ] Maintenance message (i18n) staged.
