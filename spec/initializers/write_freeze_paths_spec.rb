@@ -48,18 +48,35 @@ describe WriteFreeze do
       expect(WriteFreeze.allowlisted?('/api/v1/auth/admin')).to eq(true)
       expect(WriteFreeze.allowlisted?('/auth/lookup')).to eq(true)
       expect(WriteFreeze.allowlisted?('/auth/google/link')).to eq(true)
-      expect(WriteFreeze.allowlisted?('/auth/google/signup')).to eq(true)
       expect(WriteFreeze.allowlisted?('/saml/tmp_token')).to eq(true)
       expect(WriteFreeze.allowlisted?('/saml/consume')).to eq(true)
     end
 
-    it 'does NOT allowlist data-write or password-reset paths' do
+    it 'does NOT allowlist new-account-creation, data-write, or password-reset paths' do
+      # new-account creation must NOT write to the abandoned DB during the soak
+      expect(WriteFreeze.allowlisted?('/auth/google/signup')).to eq(false)
       expect(WriteFreeze.allowlisted?('/api/v1/boards/1_2')).to eq(false)
       expect(WriteFreeze.allowlisted?('/api/v1/logs')).to eq(false)
       expect(WriteFreeze.allowlisted?('/api/v1/users/1_2')).to eq(false)
       expect(WriteFreeze.allowlisted?('/api/v1/forgot_password')).to eq(false)
       expect(WriteFreeze.allowlisted?('/api/v1/users/1_2/password_reset')).to eq(false)
       expect(WriteFreeze.allowlisted?('/api/v1/images')).to eq(false)
+    end
+  end
+
+  describe '.side_effect_get?' do
+    it 'flags GET routes that mutate state despite being GET' do
+      expect(WriteFreeze.side_effect_get?('/api/v1/images/1_2/upload_success')).to eq(true)
+      expect(WriteFreeze.side_effect_get?('/api/v1/sounds/1_2/upload_success')).to eq(true)
+      expect(WriteFreeze.side_effect_get?('/api/v1/videos/1_2/upload_success')).to eq(true)
+      expect(WriteFreeze.side_effect_get?('/goal_status/1_2/abc')).to eq(true)
+      expect(WriteFreeze.side_effect_get?('/parental_consent/complete')).to eq(true)
+    end
+
+    it 'does not flag ordinary read GETs' do
+      expect(WriteFreeze.side_effect_get?('/api/v1/boards/1_2')).to eq(false)
+      expect(WriteFreeze.side_effect_get?('/api/v1/status/heartbeat')).to eq(false)
+      expect(WriteFreeze.side_effect_get?('/')).to eq(false)
     end
   end
 
@@ -91,12 +108,30 @@ describe WriteFreeze do
         expect(WriteFreeze.reject?('POST', '/api/v1/log_sessions')).to eq(true)
       end
 
-      it 'still allows mutating auth/session requests' do
+      it 'still allows mutating auth/session requests for existing users' do
         expect(WriteFreeze.reject?('POST', '/token')).to eq(false)
         expect(WriteFreeze.reject?('POST', '/oauth2/token')).to eq(false)
         expect(WriteFreeze.reject?('POST', '/api/v1/token/refresh')).to eq(false)
         expect(WriteFreeze.reject?('DELETE', '/oauth2/token')).to eq(false)
         expect(WriteFreeze.reject?('POST', '/saml/consume')).to eq(false)
+        expect(WriteFreeze.reject?('POST', '/auth/google/link')).to eq(false)
+      end
+
+      it 'rejects new-account creation (no new user persisted to the abandoned DB)' do
+        expect(WriteFreeze.reject?('POST', '/auth/google/signup')).to eq(true)
+      end
+
+      it 'rejects side-effect GETs (writes that bypass a verb-only denylist)' do
+        expect(WriteFreeze.reject?('GET', '/api/v1/images/1_2/upload_success')).to eq(true)
+        expect(WriteFreeze.reject?('GET', '/api/v1/sounds/1_2/upload_success')).to eq(true)
+        expect(WriteFreeze.reject?('GET', '/api/v1/videos/1_2/upload_success')).to eq(true)
+        expect(WriteFreeze.reject?('GET', '/goal_status/1_2/abc')).to eq(true)
+        expect(WriteFreeze.reject?('GET', '/parental_consent/complete')).to eq(true)
+      end
+
+      it 'still passes ordinary read GETs' do
+        expect(WriteFreeze.reject?('GET', '/api/v1/boards/1_2')).to eq(false)
+        expect(WriteFreeze.reject?('GET', '/api/v1/users/1_2/stats/daily')).to eq(false)
       end
     end
   end

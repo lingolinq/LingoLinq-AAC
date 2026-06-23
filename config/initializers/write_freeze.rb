@@ -26,17 +26,31 @@ module WriteFreeze
   RETRY_AFTER_SECONDS = 120
 
   # Auth/session routes that MUST stay writable during the freeze, so existing
-  # users can still sign in. Each entry is an unanchored regex fragment matched
-  # against the request path (mirrors Throttling::PROTECTED_PATHS), so
-  # 'oauth2/token' also covers 'oauth2/token/login'. Keep this list MINIMAL:
-  # authentication only, never data writes.
+  # EXISTING users can still sign in. Each entry is an unanchored regex fragment
+  # matched against the request path (mirrors Throttling::PROTECTED_PATHS), so
+  # 'oauth2/token' also covers 'oauth2/token/login'.
   #
-  # Deliberately NOT allowlisted: forgot_password / password_reset. Those write
-  # a reset token that would be lost on the abandoned Render DB and are not
-  # needed to sign in with existing credentials; a user landing on fresh DNS
-  # resets via GCP. All other data mutations (board saves, button/image
-  # uploads, LogSession creation, profile/goal/settings writes) are rejected by
-  # design - those are exactly the writes that must not diverge from Cloud SQL.
+  # IMPORTANT - accepted data loss: these auth routes DO perform DB writes at
+  # login (a Device row + token via generate_token!, and for SSO an external-auth
+  # linkage). Those writes land on the abandoned Render DB and are LOST at cutover,
+  # so a user who signs in during the soak must sign in again afterward. That is
+  # the accepted trade for not locking existing users out for the whole soak.
+  # Enumerate the accepted-loss set in the runbook (step 1).
+  #
+  # NEW-ACCOUNT creation is deliberately NOT allowlisted, so no brand-new
+  # persisted user/boards are written to the soon-to-be-abandoned DB:
+  #   - auth/google/signup (session#google_signup_complete -> User.create_from_google_signup!
+  #     + UserBoardProvisioner.provision_for) is omitted; a new Google user gets a
+  #     503 during the soak and signs up against GCP afterward.
+  #   - forgot_password / password_reset are omitted (write a reset token lost on
+  #     the abandoned DB; not needed to sign in with existing credentials).
+  # saml/consume is kept (it both logs in EXISTING SAML users and can provision new
+  # ones; on this single route we favor not locking out existing SSO users, and
+  # accept that a brand-new SAML user provisioned mid-soak is lost - documented).
+  #
+  # All other data mutations (board saves, button/image uploads, LogSession
+  # creation, profile/goal/settings writes) are rejected by design - those are
+  # exactly the writes that must not diverge from Cloud SQL.
   ALLOWLIST_PATHS = [
     'oauth2/token',          # session#oauth_token / oauth_login / oauth_logout
     '^/token',               # session#token (browser password grant)
@@ -44,12 +58,24 @@ module WriteFreeze
     'api/v1/token/refresh',  # session#oauth_token_refresh
     'api/v1/auth/admin',     # session#auth_admin
     'auth/lookup',           # session#auth_lookup
-    'auth/google/link',      # session#google_link_complete (SSO sign-in)
-    'auth/google/signup',    # session#google_signup_complete (SSO sign-in)
+    'auth/google/link',      # session#google_link_complete (links SSO to EXISTING user)
     'saml/tmp_token',        # session#saml_tmp_token (SSO sign-in)
-    'saml/consume'           # session#saml_consume (SSO assertion)
+    'saml/consume'           # session#saml_consume (SSO assertion; see note above)
   ].freeze
   ALLOWLIST_RE = /#{ALLOWLIST_PATHS.join('|')}/
+
+  # GET routes that mutate state despite being GET, so a verb-only denylist would
+  # let them write to the abandoned DB during the freeze. Found via a routes audit
+  # (dual-review, PR #472); each is an unanchored regex fragment like ALLOWLIST_PATHS.
+  # NOTE: this is an explicit, maintained list - a GET-with-side-effects is an
+  # anti-pattern, so a new one added later would NOT be covered until listed here.
+  # A DB-level read-only safeguard would be the robust defense-in-depth (follow-up).
+  SIDE_EFFECT_GET_PATHS = [
+    'upload_success',               # api/{images,sounds,videos}/:id/upload_success -> record.save
+    '^/goal_status/',               # boards#log_goal_status -> UserGoal.process_status_from_code (log write)
+    '^/parental_consent/complete'   # parental_consents#complete -> grant_parental_consent! + Device writes (COPPA)
+  ].freeze
+  SIDE_EFFECT_GET_RE = /#{SIDE_EFFECT_GET_PATHS.join('|')}/
 
   # True when the operator has switched the freeze on. Read at request time so
   # the mode follows the env var without a code change.
@@ -65,9 +91,19 @@ module WriteFreeze
     !path.to_s.match(ALLOWLIST_RE).nil?
   end
 
+  # A GET (or other non-mutating verb) that nonetheless writes to the DB.
+  def self.side_effect_get?(path)
+    !path.to_s.match(SIDE_EFFECT_GET_RE).nil?
+  end
+
   # Whether this request should be rejected given the current freeze state.
+  # Rejects standard mutating verbs AND known side-effect GETs, except the auth
+  # allowlist. The allowlist is checked first so an auth route is never blocked.
   def self.reject?(method, path)
-    enabled? && mutating?(method) && !allowlisted?(path)
+    return false unless enabled?
+    return false if allowlisted?(path)
+
+    mutating?(method) || side_effect_get?(path)
   end
 
   # Rack middleware enforcing the write-freeze. Placed in the Rack stack (not a
@@ -104,9 +140,15 @@ module WriteFreeze
       }
     end
 
-    # JSON for API/sync clients (path under /api, a .json suffix, or an explicit
-    # JSON Accept); HTML maintenance page for ordinary browser requests.
+    # JSON for API/sync clients; HTML maintenance page only for ordinary browser
+    # requests. Mutating verbs (POST/PUT/PATCH/DELETE) are API/sync traffic and
+    # default to JSON even when Accept is */* or absent, so a sync client never
+    # gets an HTML body where it expects JSON (dual-review, PR #472). The HTML
+    # page is reached only by browser navigations, which are GETs - e.g. the
+    # side-effect GET /parental_consent/complete, which correctly renders HTML.
     def wants_json?(env)
+      return true if WriteFreeze.mutating?(env['REQUEST_METHOD'])
+
       path = env['PATH_INFO'].to_s
       accept = env['HTTP_ACCEPT'].to_s
       path.start_with?('/api/') || path.end_with?('.json') || accept.include?('application/json')

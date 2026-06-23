@@ -58,12 +58,34 @@ describe "write-freeze middleware" do
       end
     end
 
-    it "returns an HTML maintenance page for browser (non-API) requests" do
-      post "/", {}, 'HTTP_ACCEPT' => 'text/html'
+    it "returns an HTML maintenance page for a browser side-effect GET navigation" do
+      # parental_consent/complete is a browser navigation (parent clicks an email
+      # link) and is a side-effect GET, so it is rejected with the HTML page.
+      get "/parental_consent/complete", {}, 'HTTP_ACCEPT' => 'text/html'
       expect(response.status).to eq(503)
       expect(response.headers['Retry-After']).to eq(WriteFreeze::RETRY_AFTER_SECONDS.to_s)
       expect(response.headers['Content-Type']).to match(%r{text/html})
       expect(response.body).to match(/Temporarily read-only/)
+    end
+
+    it "rejects a side-effect GET (e.g. upload_success) that would write to the abandoned DB" do
+      get "/api/v1/images/1_2/upload_success", {}, 'HTTP_ACCEPT' => 'application/json'
+      expect(response.status).to eq(503)
+      expect(response.headers['Retry-After']).to eq(WriteFreeze::RETRY_AFTER_SECONDS.to_s)
+    end
+
+    it "returns JSON for a mutating request even when Accept is absent (sync clients never get HTML)" do
+      post "/api/v1/boards", {}.to_json, 'CONTENT_TYPE' => 'application/json'
+      expect(response.status).to eq(503)
+      expect(response.headers['Content-Type']).to eq('application/json')
+      expect(JSON.parse(response.body)['retry_after']).to eq(WriteFreeze::RETRY_AFTER_SECONDS)
+    end
+
+    it "rejects new-account signup but still allows existing-user SSO link" do
+      post "/auth/google/signup", {}, 'HTTP_ACCEPT' => 'application/json'
+      expect(response.status).to eq(503)
+      post "/auth/google/link", {}, 'HTTP_ACCEPT' => 'application/json'
+      expect(response.status).not_to eq(503)
     end
 
     it "still allows allowlisted auth/session writes (sign-in is not blocked)" do
