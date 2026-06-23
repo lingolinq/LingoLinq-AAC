@@ -1,4 +1,4 @@
-{{#if this.highlightController}}
+{{#if this.settings}}
   {{#opening-observer opening=this.boundOpening closing=this.boundClosing}}
   {{#touch-listener release=(action "select_release" target=this.highlightController)}}
     <div class="highlight" style={{this.highlightController.model.top_style}} {{action "close" target=this.highlightController}}>
