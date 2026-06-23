@@ -339,9 +339,19 @@ propagation/rollback window - building B first means one DNS event, not two.
   AAC traffic), so exercise the policy in the rehearsal.
 
 Full rationale in the decision memo
-(`~/ai-company-brain/outputs/docs/2026-06-23-cloudrun-frontend-5-3-decision.md`). The build (LB,
-serverless NEG, URL map, cert, forwarding rule, Cloud Armor policy) is still pending; it is a
-**pre-cutover build**, not a step improvised during the window.
+(`~/ai-company-brain/outputs/docs/2026-06-23-cloudrun-frontend-5-3-decision.md`).
+
+**Build script: `scripts/gcp/phase5-frontend-lb.sh`** (gated, idempotent; PR #476). Order:
+1. `DOMAIN=<prod domain> CONFIRM_LB=1 ...` builds the static IP + serverless NEG + backend +
+   URL map + managed cert + HTTPS/HTTP forwarding. Records the **LB IP** = the DNS A-record
+   target for step 9.
+2. `... CONFIRM_ARMOR=1 ...` adds Cloud Armor with the OWASP WAF in **PREVIEW** (log-only, low
+   sensitivity). In the rehearsal (0a), drive AAC traffic and review the preview logs; only when
+   no legitimate traffic is flagged, re-run with `ARMOR_ENFORCE=1` to switch the WAF to enforce.
+3. After the LB path is validated, `... CONFIRM_INGRESS_LOCKDOWN=1` takes `lingolinq-web` off the
+   public `run.app` URL (LB-only). Run this **after** the 0a smoke test (which uses `run.app`).
+The managed cert stays PENDING until step 9 points DNS at the LB IP, so validate the LB in the
+rehearsal via the IP + Host header. This is a **pre-cutover build**, not improvised in the window.
 
 ### 9. DNS cut  (tracker 5.4, GATE: DNS)
 
@@ -476,8 +486,9 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       notifier; accept the operational mitigation (pause it pre-cutover, step 1) OR build a
       per-class selective requeue. Recorded before the window.
 - [ ] 5.3 front-end choice **decided (Option B, LB + Cloud Armor, gated on the rehearsal; fallback
-      A-now-B-soak)** AND built. (Decision recorded in the 5.3 memo; the LB/Cloud Armor build is
-      still pending.)
+      A-now-B-soak)** AND built. Build script shipped (`scripts/gcp/phase5-frontend-lb.sh`, PR #476);
+      still to run (gated): provision the LB, validate it + the WAF preview in the rehearsal, flip
+      the WAF to enforce, then the ingress lockdown.
 - [x] **Render write-reject mode built + tested + dual-reviewed** (tracker 5.2, **PR #472**,
       pending merge to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
       Retry-After on mutating verbs AND side-effect GETs incl. the `lib/json_api` write paths;
