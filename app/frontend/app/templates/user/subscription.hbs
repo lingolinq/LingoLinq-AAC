@@ -15,8 +15,8 @@
         <span class='glyphicon glyphicon-user' style="float: left; font-size: 30px; margin-right: 10px;"></span>
         {{t "<b>%{org}</b> wants to sponsor this user as part of their organization. This addition must be approved before it is complete." key="confirm_pending_org" org=this.model.pending_org.name}}
         <br><br>
-        <button class="btn btn-default" {{action "approve_or_reject_org" true}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
-        <button class="btn btn-default" {{action "approve_or_reject_org" false}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" true)}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" false)}}>{{t "Deny Access"}}</button>
       {{else}}
         <span class='glyphicon glyphicon-user' style="float: left; font-size: 30px; margin-right: 10px;"></span>
         {{t "Your account is being sponsored by the organization, <b>%{org}</b>. We hope everything is going well for you and %app_name% is making a difference!" key="org_managed" org=this.subscription.user.managing_org.name}}
@@ -76,7 +76,7 @@
       {{#unless this.subscription.user.subscription.eval_account}}
       {{#unless this.subscription.user.subscription.never_expires}}
         <p style="margin-top: 10px;">
-          <a href="#" {{action "show_expiration_notes"}}>{{t "what happens if my \"cloud extras\" access expires?" key="what_happens_expires"}}</a>
+          <a href="#" {{on "click" (this.ctrlAction "show_expiration_notes")}}>{{t "what happens if my \"cloud extras\" access expires?" key="what_happens_expires"}}</a>
         </p>
         {{#if this.show_expiration_notes}}
           <p class="explanation" style="margin-top: 10px;">
@@ -100,7 +100,7 @@
         {{#if this.subscription.user.subscription.started}}
           {{#if this.app_state.domain_settings.full_domain}}
             <div style="margin-top: 20px;">
-              <a class='btn btn-default' href="#" {{action "cancel_subscription"}}>{{t "Cancel my Subscription" key="cancel_my_subscription"}}</a>
+              <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "cancel_subscription")}}>{{t "Cancel my Subscription" key="cancel_my_subscription"}}</a>
             </div>
           {{/if}}
         {{/if}}
@@ -115,8 +115,8 @@
             {{else}}
               <p>{{t "We are sorry to see you go! Are you sure you want to cancel your subscription? This will remove your access to premium features in %app_name% like reports and logging." key="confirm_cancel_subscription"}}</p>
               <p style='display: block; max-width: 500px;'><Input @type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
-              <button type="button" class="btn btn-primary" {{action "cancel_subscription" true}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
-              <button type="button" class="btn btn-default" {{action "reset"}}>{{t "Never Mind" key="never_mind"}}</button>
+              <button type="button" class="btn btn-primary" {{on "click" (this.ctrlAction "cancel_subscription" true)}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
+              <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "reset")}}>{{t "Never Mind" key="never_mind"}}</button>
             {{/if}}
           </div>
         {{else}}
@@ -141,8 +141,8 @@
         {{#if this.extras_status.confirming}}
           <p>{{t "Confirming Purchase..." key="confirming_purchase"}}</p>
         {{else}}
-          <button class='btn btn-primary btn-lg' {{action "purchase_premium_symbols"}}>{{t "Purchase Premium Symbols (US$25)" key="purchase_premium_symbols_with_price"}}</button>
-          <button class='btn btn-default btn-lg' {{action "premium_symbols" false}}>{{t "Cancel" key="cancel"}}</button>
+          <button class='btn btn-primary btn-lg' {{on "click" (this.ctrlAction "purchase_premium_symbols")}}>{{t "Purchase Premium Symbols (US$25)" key="purchase_premium_symbols_with_price"}}</button>
+          <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "premium_symbols" false)}}>{{t "Cancel" key="cancel"}}</button>
           {{#if this.extras_status.error}}
             {{#if this.extras_status.declined}}
               <p>{{t "There was a problem with the purchase, your card was declined" key="card_declined_error"}}</p>
@@ -157,7 +157,7 @@
         {{#unless this.subscription.user.is_sponsored}}
           <div style="margin-top: 20px;">
             {{#if this.app_state.domain_settings.full_domain}}
-              <a class='btn btn-default' href="#" {{action "show_options"}}>
+              <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "show_options")}}>
                 {{#if this.subscription.app_pricing_override}}
                   {{t "Add Premium Features" key="add_premium_features"}}
                 {{else}}
@@ -166,21 +166,21 @@
               </a>
               {{#unless this.subscription.user.subscription.extras_enabled}}
                 {{#unless this.subscription.app_pricing_override}}
-                  <a class='btn btn-default' href="#" {{action "premium_symbols" true}}>{{t "Purchase Premium Symbols" key="purchase_premium_symbols"}}</a>
+                  <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "premium_symbols" true)}}>{{t "Purchase Premium Symbols" key="purchase_premium_symbols"}}</a>
                 {{/unless}}
               {{/unless}}
               {{#if this.subscription.app_pricing_override}}
                 {{#if this.subscription.has_app_subscription}}
-                  <a class='btn btn-default' href="#" {{action "manage_subscriptions"}}>{{t "Manage Subscriptions" key="manage_subscriptions"}}</a>
+                  <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "manage_subscriptions")}}>{{t "Manage Subscriptions" key="manage_subscriptions"}}</a>
                 {{/if}}
                 {{#if this.subscription.manual_refresh}}
-                  <a class='btn btn-default' href="#" {{action "refresh_subscription"}}>{{t "Restore Purchases" key="restore_purchases"}}</a>
+                  <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "refresh_subscription")}}>{{t "Restore Purchases" key="restore_purchases"}}</a>
                 {{/if}}
               {{/if}}
               {{#if this.subscription.user.subscription.started}}
-                <a class='btn btn-default' href="#" {{action "cancel_subscription"}}>{{t "Cancel my Subscription" key="cancel_my_subscription"}}</a>
+                <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "cancel_subscription")}}>{{t "Cancel my Subscription" key="cancel_my_subscription"}}</a>
               {{else if this.subscription.user.subscription.subscribed_as_communicator}}
-                <a class='btn btn-default' href="#" {{action "cancel_subscription"}}>{{t "Cancel my Subscription" key="cancel_my_subscription"}}</a>
+                <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "cancel_subscription")}}>{{t "Cancel my Subscription" key="cancel_my_subscription"}}</a>
               {{/if}}
               {{#if this.app_state.domain_settings.full_domain}}
                 {{#unless this.confirmation}}
@@ -204,8 +204,8 @@
               {{else}}
                 <p>{{t "We are sorry to see you go! Are you sure you want to cancel your subscription? This will remove your access to premium features in %app_name% like reports and logging." key="confirm_cancel_subscription"}}</p>
                 <p style='display: block; max-width: 500px;'><Input @type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
-                <button type="button" class="btn btn-primary" {{action "cancel_subscription" true}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
-                <button type="button" class="btn btn-default" {{action "reset"}}>{{t "Never Mind" key="never_mind"}}</button>
+                <button type="button" class="btn btn-primary" {{on "click" (this.ctrlAction "cancel_subscription" true)}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
+                <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "reset")}}>{{t "Never Mind" key="never_mind"}}</button>
               {{/if}}
             </div>
           {{else}}
@@ -242,7 +242,7 @@
   {{/if}}
   </div>
   <div class="md-billing__back-row">
-    <button type="button" class="md-billing__back-btn" {{action "goBack"}}>{{t "Back" key="back"}}</button>
+    <button type="button" class="md-billing__back-btn" {{on "click" (this.ctrlAction "goBack")}}>{{t "Back" key="back"}}</button>
   </div>
 </div>
 {{else if this.subscription.loading}}

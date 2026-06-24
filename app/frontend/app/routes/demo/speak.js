@@ -43,7 +43,6 @@ export default Route.extend({
   activate: function() {
     this._super(...arguments);
     window.scrollTo(0, 0);
-    this.set('appState.speak_mode', true);
     var appController = this.controllerFor('application');
     if(appController && appController.updateTitle) {
       appController.updateTitle(i18n.t('demo_speak_mode_title', "Try Speak Mode"));
@@ -53,7 +52,6 @@ export default Route.extend({
   resetController: function(controller, isExiting) {
     if(isExiting) {
       controller.reset_demo();
-      this.set('appState.speak_mode', false);
     }
   }
 });

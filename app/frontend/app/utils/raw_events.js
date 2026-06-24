@@ -173,6 +173,105 @@ function boardDetailChromeRelease(elem_wrap) {
   return true;
 }
 
+function boardDetailChromeTargetFromEvent(event) {
+  if (!event || !event.target || !event.target.closest) { return null; }
+  if (!event.target.closest('.board-detail-view')) { return null; }
+  if (event.target.closest('.modal-dialog, .modal-content, .modal')) { return null; }
+  if (event.target.closest('.md-board-detail-grid .button, .md-board-detail-grid .md-board-detail-symbol-card')) {
+    return null;
+  }
+  return event.target.closest([
+    'button:not([disabled])',
+    'a[href]',
+    '[role="menuitem"]',
+    '[role="option"]',
+    '.md-board-detail-sentence-bar__text',
+    '.md-board-detail-actions-backdrop',
+    'a#button_list',
+    '[role="button"].extra-btn'
+  ].join(','));
+}
+
+function boardDetailChromeReleaseFromEvent(event) {
+  var el = boardDetailChromeTargetFromEvent(event);
+  if (!el || el.disabled) { return false; }
+  if (buttonTracker.defer_board_detail_chrome_click_to_ember({ dom: el }, 'click')) {
+    return false;
+  }
+  if (!boardDetailChromeRelease({ dom: el })) { return false; }
+
+  if (event.cancelable) { event.preventDefault(); }
+  if (event.stopPropagation) { event.stopPropagation(); }
+  buttonTracker.ignoreUp = true;
+  return true;
+}
+
+// Modals on board-detail (add-to-sidebar, button-settings, etc.): pointer
+// releases must not be swallowed by boardDetailChromeReleaseFromEvent (no
+// data-bd-action on la-modal-close). Re-fire pass-through clicks so classic
+// {{action}} on templates/components/* modals runs under Ember 5.
+function modalDialogClickRelease(event) {
+  if (!event || !event.target || !event.target.closest) { return false; }
+  if (!event.target.closest('.modal-content')) { return false; }
+
+  var el = event.target.closest([
+    'button:not([disabled])',
+    'a[href]',
+    '.nav-pills a[role="tab"]',
+    'span[role="button"]',
+    '[role="menuitem"]'
+  ].join(','));
+  if (!el || el.disabled) { return false; }
+
+  if (event.cancelable) { event.preventDefault(); }
+  if (event.stopPropagation) { event.stopPropagation(); }
+  buttonTracker.ignoreUp = true;
+  dispatchPassThroughClick(el, event.clientX, event.clientY);
+  return true;
+}
+
+// board-detail-grid edit toolbar lives in a co-located classic component whose
+// {{on "click"}} handlers do not receive pointer events under Ember 5 (same
+// failure mode as speak-mode chrome — see LEARNINGS.md). Those controls are in
+// ignored_region so raw_events skips element_release and nothing fires.
+function resolveBoardDetailGridEditAction(dom) {
+  if (!dom || !dom.closest) { return null; }
+  if (!buttonTracker.appState || !buttonTracker.appState.get('edit_mode')) { return null; }
+
+  var trigger = dom.closest('.md-board-detail-symbol-card__edit-btn, .md-board-detail-symbol-card__edit-dropdown-item');
+  if (!trigger || trigger.disabled) { return null; }
+
+  var action = trigger.dataset && trigger.dataset.bdEditAction;
+  if (!action) { return null; }
+
+  var dropdown = trigger.closest('#button-edit-dropdown');
+  if (dropdown) {
+    var btn_id = dropdown.getAttribute('data-btn-id');
+    return btn_id ? { action: action, args: [btn_id] } : null;
+  }
+
+  var card = trigger.closest('.md-board-detail-symbol-card[data-id]');
+  var btn_id = card && card.getAttribute('data-id');
+  if (!btn_id) { return null; }
+  var btn = editManager.find_button(btn_id);
+  return btn ? { action: action, args: [btn] } : null;
+}
+
+function boardDetailGridEditActionRelease(event) {
+  if (!event || !event.target) { return false; }
+  var resolved = resolveBoardDetailGridEditAction(event.target);
+  if (!resolved || !resolved.action) { return false; }
+
+  var ctrl = editManager.controller;
+  if (!ctrl || typeof ctrl.send !== 'function') { return false; }
+
+  if (event.cancelable) { event.preventDefault(); }
+  if (event.stopPropagation) { event.stopPropagation(); }
+  buttonTracker.ignoreUp = true;
+  ctrl.send.apply(ctrl, [resolved.action].concat(resolved.args || []));
+  return true;
+}
+
 var $board_canvas = null;
 
 var eat_events = function(event) {
@@ -1166,6 +1265,13 @@ var buttonTracker = EmberObject.extend({
       // chance we need to trigger a 'click', so pass it along
       buttonTracker.buttonDown = true;
       buttonTracker.element_release(selectable_wrap || buttonTracker.initialTarget, event, 'click'); // trigger_source
+    } else if(boardDetailGridEditActionRelease(event)) {
+      // edit toolbar / compact-menu controls — co-located {{on}} is dead under Ember 5
+    } else if(boardDetailChromeReleaseFromEvent(event)) {
+      // edit-mode panel chrome (Done Editing, side panels) — speak-mode
+      // already routes via element_release; edit_mode was missing that path
+    } else if(modalDialogClickRelease(event)) {
+      // modals on board-detail (add-to-sidebar close, button-settings, etc.)
     } else {
       var $modal = $(event.target).closest(".modal-content");
       if($modal.length > 0 && buttonTracker.appState.get('speak_mode') && event.type == 'touchend' && buttonTracker.dwell_enabled) {
@@ -1226,7 +1332,11 @@ var buttonTracker = EmberObject.extend({
     } else if(!buttonTracker.appState.get('edit_mode')) {
       // when not editing, use user's preferred selection logic for identifying and
       // selecting a button
-      event.preventDefault();
+      var deferBoardDetailGridClick = buttonTracker.defer_board_detail_click_to_ember(elem_wrap, event_source);
+      var deferBoardDetailChromeClick = buttonTracker.defer_board_detail_chrome_click_to_ember(elem_wrap, event_source);
+      if(!deferBoardDetailGridClick && !deferBoardDetailChromeClick) {
+        event.preventDefault();
+      }
       var frame_event = event;
       var swipe_direction = null;
       var ts = (new Date()).getTime();
@@ -1417,8 +1527,13 @@ var buttonTracker = EmberObject.extend({
               elem_wrap.dom.dispatchEvent(speakMenuEvent);
             }
           } else if((elem_wrap.dom.className || "").match(/button/) || elem_wrap.virtual_button) {
-            event.swipe_direction = swipe_direction;
-            buttonTracker.button_release(elem_wrap, event, event_source);
+            if(deferBoardDetailGridClick) {
+              // Mouse click on board-detail grid in speak mode: Ember {{on}}
+              // handlers are authoritative; skip raw_events buttonSelect.
+            } else {
+              event.swipe_direction = swipe_direction;
+              buttonTracker.button_release(elem_wrap, event, event_source);
+            }
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
@@ -1426,11 +1541,15 @@ var buttonTracker = EmberObject.extend({
             event.preventDefault();
             dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view') && !buttonTracker.board_detail_grid_target(elem_wrap)) {
-            // Board-detail chrome: Ember 5 {{on}} does not receive synthetic
-            // clicks; route directly to controller.send (see boardDetailChromeRelease).
-            event.preventDefault();
-            if(!boardDetailChromeRelease(elem_wrap)) {
-              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            if(deferBoardDetailChromeClick) {
+              // Mouse: Ember {{on}} (this.ctrlAction) is authoritative after codemod;
+              // boardDetailChromeRelease + native click would double-toggle.
+            } else {
+              // Touch/dwell: Ember click is suppressed; route to controller.send.
+              event.preventDefault();
+              if(!boardDetailChromeRelease(elem_wrap)) {
+                dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+              }
             }
           } else {
             event.preventDefault();
@@ -1484,12 +1603,23 @@ var buttonTracker = EmberObject.extend({
         }
       }
     } else if(buttonTracker.appState.get('edit_mode') && !editManager.paint_mode) {
+      var isChromeRelease = event_source === 'click' && elem_wrap && elem_wrap.dom &&
+        elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view') &&
+        !elem_wrap.dom.closest('.modal-dialog, .modal-content, .modal') &&
+        !buttonTracker.board_detail_grid_target(elem_wrap);
+      if(isChromeRelease) {
+        event.preventDefault();
+        if(!boardDetailChromeRelease(elem_wrap)) {
+          dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+        }
+      } else {
       var isButton = (elem_wrap && elem_wrap.dom) && (
         ((elem_wrap.dom.className || "").match(/button/)) ||
         ($(elem_wrap.dom).closest('.board').length && $(elem_wrap.dom).attr('data-id'))
       );
       if(isButton) {
         buttonTracker.button_release(elem_wrap, event);
+      }
       }
     }
 
@@ -2300,27 +2430,28 @@ var buttonTracker = EmberObject.extend({
     }
     // board-detail deliberately omits .advanced_selection (see board-detail-grid.hbs);
     // route dwell/scanning hits through button_from_point instead of Ember click synthesis.
-    if(!region && buttonTracker.appState && buttonTracker.appState.get('speak_mode')) {
-      if($target.closest('.md-board-detail-grid').length > 0) {
+    if(!region && buttonTracker.appState && (buttonTracker.appState.get('speak_mode') || buttonTracker.appState.get('edit_mode'))) {
+      if(buttonTracker.appState.get('speak_mode') && $target.closest('.md-board-detail-grid').length > 0) {
         return buttonTracker.button_from_point(event.clientX, event.clientY);
       }
       if($target.closest('#speak.md-board-detail-sentence-row').length > 0) {
         return buttonTracker.speak_bar_element_from_event($target);
       }
       // board-detail chrome (inline sidebar, left nav, options menu, predictions,
-      // speak header controls): omitted from .advanced_selection so these taps
-      // must be wrapped here or element_release never runs (Ember {{on}} also
+      // speak header controls, edit-mode side panels): omitted from .advanced_selection
+      // so these taps must be wrapped here or element_release never runs (Ember {{on}} also
       // misses the synthetic click — see boardDetailChromeRelease).
-      if($target.closest('.board-detail-view').length > 0) {
+      if($target.closest('.board-detail-view').length > 0 && $target.closest('.modal-dialog, .modal-content, .modal').length === 0) {
         var chromeEl = $target.closest([
-          'button',
+          'button:not([disabled])',
           '[role="menuitem"]',
+          '[role="option"]',
           '.md-board-detail-sentence-bar__text',
           '.md-board-detail-actions-backdrop',
           'a#button_list',
           '[role="button"].extra-btn'
         ].join(','))[0];
-        if(chromeEl && !chromeEl.disabled && $target.closest('.md-board-detail-grid .button').length === 0) {
+        if(chromeEl && !chromeEl.disabled && $target.closest('.md-board-detail-grid .button, .md-board-detail-grid .md-board-detail-symbol-card').length === 0) {
           return buttonTracker.element_wrap(chromeEl);
         }
       }
@@ -2473,10 +2604,9 @@ var buttonTracker = EmberObject.extend({
     return res;
   },
   // board-detail grid omits .advanced_selection. Symbol cards carry .button, so
-  // raw_events routes speak-mode pointer releases through buttonSelect.
-  // On mouse, preventDefault on mouseup suppresses the duplicate native click;
-  // buttonSelect is the sole path (defer-to-Ember {{on}} broke under Ember 5 —
-  // see LEARNINGS.md). Touch uses buttonSelect via touchend (click suppressed).
+  // raw_events routes speak-mode touch/dwell/keyboard releases through buttonSelect.
+  // Mouse clicks defer to Ember {{on}} (defer_board_detail_click_to_ember) now that
+  // handler factories work with (this.ctrlAction ...) under Ember 5.
   // Dwell, scanning, keyboard, and long-press use non-'click' sources.
   board_detail_grid_target: function(elem) {
     if(!elem) { return false; }
@@ -2489,6 +2619,9 @@ var buttonTracker = EmberObject.extend({
     }
     return false;
   },
+  resolve_board_detail_grid_edit_action: resolveBoardDetailGridEditAction,
+  resolve_board_detail_chrome_action: resolveBoardDetailChromeAction,
+  board_detail_chrome_target_from_event: boardDetailChromeTargetFromEvent,
   defer_board_detail_click_to_ember: function(elem, source) {
     if(source !== 'click') { return false; }
     if(!buttonTracker.appState || !buttonTracker.appState.get('speak_mode')) { return false; }
@@ -2498,6 +2631,18 @@ var buttonTracker = EmberObject.extend({
       return false;
     }
     return true;
+  },
+  defer_board_detail_chrome_click_to_ember: function(elem, source) {
+    if(source !== 'click') { return false; }
+    if(!buttonTracker.appState || !buttonTracker.appState.get('speak_mode')) { return false; }
+    if(!elem || !elem.dom) { return false; }
+    if(buttonTracker.board_detail_grid_target(elem)) { return false; }
+    if(!elem.dom.closest || !elem.dom.closest('.board-detail-view')) { return false; }
+    var releaseType = buttonTracker.lastReleaseEvent && buttonTracker.lastReleaseEvent.type;
+    if(releaseType && releaseType.match(/touch/)) {
+      return false;
+    }
+    return !!resolveBoardDetailChromeAction(elem.dom);
   },
   button_select: function(elem, args, source) {
     var dom = elem.dom || elem;
@@ -2517,10 +2662,9 @@ var buttonTracker = EmberObject.extend({
           return;
         }
         if(buttonTracker.appState.get('speak_mode')) {
-          // board-detail grid: route all speak-mode pointer releases through
-          // buttonSelect (see comment on board_detail_grid_target). Ember 5
-          // {{on}} on co-located classic components does not receive mouse
-          // clicks; preventDefault on mouseup blocks duplicate native click.
+          if(buttonTracker.defer_board_detail_click_to_ember(elem, source)) {
+            return;
+          }
           editManager.controller.send('buttonSelect', id, args || null);
           return;
         }

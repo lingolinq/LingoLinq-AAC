@@ -1,0 +1,7 @@
+{{#if this.speech.recording}}
+  <button class='btn btn-default' {{on "click" (this.ctrlAction "stop")}}>{{t "Stop Listening" key="stop_listening"}}</button>
+{{else if this.speech.almost_recording}}
+  {{t "Waiting for Approval..." key="waiting_for_approval"}}
+{{else}}
+  {{t "Not Available" key="not_available_upper"}}
+{{/if}}

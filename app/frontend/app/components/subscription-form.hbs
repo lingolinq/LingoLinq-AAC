@@ -1,7 +1,7 @@
 {{#if this.trial_choice}}
   <div class="subscription-form-trial-choice">
-    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--trial" {{on "click" (fn this.ctrlAction "skip_subscription")}}>{{t "Start with a<br>2-month trial" key="start_with_two_month_trial"}}</button>
-    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--pricing" {{on "click" (fn this.ctrlAction "check_pricing")}}>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
+    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--trial" {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a<br>2-month trial" key="start_with_two_month_trial"}}</button>
+    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--pricing" {{on "click" (this.ctrlAction "check_pricing")}}>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
   </div>
 {{else}}
   <form {{on "submit" (action "purchase")}} class="row subscription-form-with-cards">
@@ -11,7 +11,7 @@
         {{#if this.subscription.user.really_expired}}
         {{else}}
           <div style='margin-bottom: 10px;'>
-            <button class='btn btn-default' {{on "click" (fn this.ctrlAction "skip_subscription")}}>{{t "Start with a full-featured 2-month trial, no credit card required" key="two_month_trial_no_credit_card"}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a full-featured 2-month trial, no credit card required" key="two_month_trial_no_credit_card"}}</button>
           </div>
         {{/if}}
       {{/if}}
@@ -77,13 +77,13 @@
           <li>{{t "Full communication system" key="full_communication_system"}}</li>
           <li>{{t "premium voices, reports, modeling ideas, etc." key="premium_features_for_upgrade"}}</li>
           {{#unless this.subscription.app_pricing_override_no_monthly}}
-            <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
+            <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
           {{/unless}}
           <li>
             {{#if this.subscription.user.lapsed}}
-              <button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button><br>{{t "5-year credit" key="5_year_credit"}}<br>{{t "added" key="5_years_added_word"}}
+              <button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button><br>{{t "5-year credit" key="5_year_credit"}}<br>{{t "added" key="5_years_added_word"}}
             {{else}}
-              <button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button><br>{{t "5-year credit" key="5_year_credit"}}<br>{{t "included" key="5_years_included_word"}}
+              <button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button><br>{{t "5-year credit" key="5_year_credit"}}<br>{{t "included" key="5_years_included_word"}}
             {{/if}}
           </li>
         </ul>
@@ -92,7 +92,7 @@
             <div class="subscription-form-card__buttons subscription-table__row--plan-buttons">
               {{#unless this.subscription.app_pricing_override_no_monthly}}
                 <div class="subscription-table__cell--first-plan">
-                  <button style='width: 100%;' rel='monthly' class={{this.communicator_monthly_subscription_class}} type="button" {{on "click" (fn this.ctrlAction "set_subscription_type" "monthly_communicator")}}>
+                  <button style='width: 100%;' rel='monthly' class={{this.communicator_monthly_subscription_class}} type="button" {{on "click" (this.ctrlAction "set_subscription_type" "monthly_communicator")}}>
                     {{#if this.subscription.app_pricing_override}}
                       <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                     {{else}}
@@ -107,7 +107,7 @@
                 </div>
               {{/unless}}
               <div>
-                <button style='width: 100%;' rel='long_term' class={{this.communicator_long_term_subscription_class}} type="button" {{on "click" (fn this.ctrlAction "set_subscription_type" "long_term_communicator")}}>
+                <button style='width: 100%;' rel='long_term' class={{this.communicator_long_term_subscription_class}} type="button" {{on "click" (this.ctrlAction "set_subscription_type" "long_term_communicator")}}>
                   {{#if this.subscription.app_pricing_override}}
                     <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                   {{else}}
@@ -176,11 +176,11 @@
             <div class="subscription-form-card__row subscription-table__row--navy-bg" style='text-align: center;'>
               {{#if this.move_gift_option}}
                 {{#if this.trial_option}}
-                  <button type="button" class="subscribe-trial-btn" rel='free_trial' {{on "click" (fn this.ctrlAction "skip_subscription")}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
+                  <button type="button" class="subscribe-trial-btn" rel='free_trial' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
                 {{/if}}
               {{else if this.subscription.app_pricing_override}}
                 {{#if this.trial_option}}
-                  <button type="button" class="subscribe-trial-btn" rel='free_trial' {{on "click" (fn this.ctrlAction "skip_subscription")}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
+                  <button type="button" class="subscribe-trial-btn" rel='free_trial' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
                 {{/if}}
               {{else}}
                 {{#if this.subscription.gift_type}}
@@ -189,7 +189,7 @@
                     <span style="display: inline-block; width: 100px; margin-left: 5px;">
                       <Input type="text" @value={{this.subscription.gift_code}} class="form-control input-lg" placeholder="CODE" />
                     </span>
-                    <button {{on "click" (fn this.ctrlAction "check_gift")}} style='display: inline-block; width: 100px; margin-top: -4px;' class='btn btn-lg btn-default'>
+                    <button {{on "click" (this.ctrlAction "check_gift")}} style='display: inline-block; width: 100px; margin-top: -4px;' class='btn btn-lg btn-default'>
                       {{#if this.subscription.gift_status.checking}}
                         {{t "..." key="ellipsis"}}
                       {{else if this.subscription.gift_status.error}}
@@ -200,7 +200,7 @@
                     </button>
                   </div>
                 {{else}}
-                  <a href="#" {{on "click" (fn this.ctrlAction "set_subscription_type" "gift_code")}}>
+                  <a href="#" {{on "click" (this.ctrlAction "set_subscription_type" "gift_code")}}>
                     {{t "I have a gift/discount code" key="have_a_gift_code"}}
                   </a>
                 {{/if}}
@@ -240,7 +240,7 @@
           <li>{{t "Run on multiple devices" key="run_on_multiple_devices"}}</li>
           <li>{{t "Support, edit & model boards" key="works_for_communicators"}}</li>
           <li>{{t "Track usage & receive alerts" key="track_for_communicators"}}</li>
-          <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
+          <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
         </ul>
         <div class="subscription-form-card__body">
           {{#unless this.pricing_only}}
@@ -248,7 +248,7 @@
               {{#if this.subscription.minimal_premium}}
                 <div>{{t "already available for this account" key="already_available_for_this_account"}}</div>
               {{else}}
-                <button type="button" rel='slp_paid' class={{this.slp_long_term_class}} style='width: 100%;' {{on "click" (fn this.ctrlAction "set_subscription" "long_term_slp")}}>
+                <button type="button" rel='slp_paid' class={{this.slp_long_term_class}} style='width: 100%;' {{on "click" (this.ctrlAction "set_subscription" "long_term_slp")}}>
                   {{#if this.subscription.app_pricing_override}}
                     <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                   {{else}}
@@ -295,7 +295,7 @@
                 {{else}}
                   <div>
                     {{#unless this.subscription.app_pricing_override}}
-                      <a href="#" {{on "click" (fn this.ctrlAction "bulk_purchase")}} style='display: inline-block;'>
+                      <a href="#" {{on "click" (this.ctrlAction "bulk_purchase")}} style='display: inline-block;'>
                         {{t "Bulk Purchase, PO or PCard?" key="bulk_purchase_or_po"}}
                       </a>
                     {{/unless}}
@@ -307,7 +307,7 @@
               {{#if this.subscription.modeling_long_term}}
                 <button class='btn btn-primary' style='width: auto;'>{{t "set as a free<br> modeling-only account" key="set_as_free_modeling_only_two_lines"}}</button>
               {{else}}
-                <a href="#" {{on "click" (fn this.ctrlAction "set_subscription" "slp_monthly_free")}}>{{t "set as a free modeling-only account" key="set_as_free_modeling_only"}}</a>
+                <a href="#" {{on "click" (this.ctrlAction "set_subscription" "slp_monthly_free")}}>{{t "set as a free modeling-only account" key="set_as_free_modeling_only"}}</a>
               {{/if}}
             </div>
           {{/unless}}
@@ -344,7 +344,7 @@
           <li>{{t "Runs on one device" key="run_on_one_device"}}</li>
           <li>{{t "full communication system for evals" key="full_communication_system_for_evals"}}</li>
           <li>{{t "Premium voices on request" key="premium_voices_on_request"}}</li>
-          <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset after every eval" key="for_supported_communicators2_suffix"}}</li>
+          <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{on "click" (this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset after every eval" key="for_supported_communicators2_suffix"}}</li>
         </ul>
         <div class="subscription-form-card__body">
           {{#unless this.pricing_only}}
@@ -352,7 +352,7 @@
               {{#if this.subscription.minimal_premium}}
                 <div>{{t "already available for this account" key="already_available_for_this_account"}}</div>
               {{else}}
-                <button type="button" rel='eval_paid' class={{this.eval_long_term_class}} style='width: 100%;' {{on "click" (fn this.ctrlAction "set_subscription" "long_term_eval")}}>
+                <button type="button" rel='eval_paid' class={{this.eval_long_term_class}} style='width: 100%;' {{on "click" (this.ctrlAction "set_subscription" "long_term_eval")}}>
                   {{#if this.subscription.app_pricing_override}}
                     <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                   {{else}}
@@ -461,15 +461,15 @@
           </button>
           {{#if this.trial_option}}
             {{#if this.subscription.user.really_really_expired}}
-              &nbsp;&nbsp;<a href="#" class='btn btn-default btn-lg' {{on "click" (fn this.ctrlAction "reload")}}>{{t "Reload, I've updated my account" key="reload_subscription_updated"}}</a>
-              &nbsp;&nbsp;<a href="#" class='btn btn-default btn-lg' {{on "click" (fn this.ctrlAction "logout")}}>{{t "Log Out" key="log_out"}}</a>
+              &nbsp;&nbsp;<a href="#" class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "reload")}}>{{t "Reload, I've updated my account" key="reload_subscription_updated"}}</a>
+              &nbsp;&nbsp;<a href="#" class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "logout")}}>{{t "Log Out" key="log_out"}}</a>
             {{else if this.subscription.user.really_expired}}
-              &nbsp;&nbsp;<a href="#" rel='skip_subscription' class='btn btn-default btn-lg' {{on "click" (fn this.ctrlAction "skip_subscription")}}>{{t "I need more time" key="i_need_more_time"}}</a>
+              &nbsp;&nbsp;<a href="#" rel='skip_subscription' class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "I need more time" key="i_need_more_time"}}</a>
             {{else}}
-              <a href="#" rel='free_trial' class="subscribe-trial-btn" {{on "click" (fn this.ctrlAction "skip_subscription")}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</a>
+              <a href="#" rel='free_trial' class="subscribe-trial-btn" {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</a>
             {{/if}}
           {{else}}
-            <button type="button" rel='cancel' class="btn btn-lg btn-default" {{on "click" (fn this.ctrlAction "reset")}}>{{t "Cancel Changes" key="cancel_changes"}}</button>
+            <button type="button" rel='cancel' class="btn btn-lg btn-default" {{on "click" (this.ctrlAction "reset")}}>{{t "Cancel Changes" key="cancel_changes"}}</button>
           {{/if}}
         </div>
       </div>

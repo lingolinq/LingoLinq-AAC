@@ -1,0 +1,52 @@
+{{#if this.browse_audio.loading}}
+  <p>{{t "Loading stored audio..." key="loading_stored_audio"}}</p>
+{{else if this.browse_audio.error}}
+  {{#if (persistence-online)}}
+    <p>{{t "Error loading stored audio" key="error_loading_stored_audio"}}</p>
+  {{else}}
+    <p>{{t "Stored audio files not available offline" key="audio_not_available_offline"}}</p>
+  {{/if}}
+{{else}}
+  <div style='margin-bottom: 5px;'>
+    <Input type="text" class="form-control" @value={{this.browse_audio.filter_string}} placeholder="filter results" />
+  </div>
+  {{#if this.browse_audio.results}}
+    <div style='max-height: 200px; overflow: auto;'>
+      {{#each this.browse_audio.results as |sound|}}
+        {{#if sound.url}}
+          <div class='sound-hover'>
+            <div style='float: right;'>
+              <button class='btn btn-default btn' {{on "click" (this.ctrlAction "play_audio" sound)}} style='margin-right: 5px; height: 40px;'>
+                {{#if sound.playing}}
+                  <span class='glyphicon glyphicon-pause'></span>
+                  <span class='sr-only'>{{t "pause" key="pause"}}</span>
+                {{else}}
+                  <span class='glyphicon glyphicon-play'></span>
+                  <span class='sr-only'>{{t "play" key="play"}}</span>
+                {{/if}}
+              </button>
+              <button class='btn btn-default btn-sm' {{on "click" (this.ctrlAction "select_audio" sound)}} style='height: 40px;'>{{t "select" key="select_lower"}}</button>
+            </div>
+            {{sound.name}}, {{date sound.created "short_day"}}
+            <div style='padding-left: 20px;' class='text-muted'>
+              {{#if sound.transcription}}
+                {{sound.transcription}} -
+                {{duration sound.duration}}
+              {{else}}
+                {{t "duration:" key="duration_colon"}}
+                {{duration sound.duration}}
+              {{/if}}
+            </div>
+            <audio id={{sound.id}} src={{sound.url}}></audio>
+            <div style='clear: right;'></div>
+          </div>
+        {{/if}}
+      {{/each}}
+    </div>
+  {{else}}
+    <p>{{t "No audio found" key="no_audio_found"}}</p>
+  {{/if}}
+{{/if}}
+{{#if this.more_audio_results}}
+  <button class='btn btn-default' {{on "click" (this.ctrlAction "more_browsed_audio")}}>{{t "More" key="more"}}</button>
+{{/if}}

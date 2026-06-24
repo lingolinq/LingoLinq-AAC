@@ -1,0 +1,114 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-translate-board-wrap">
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>{{t "Translate Boards" key="translate_boards"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body">
+
+    {{#if this.cannot_translate}}
+      <div class="la-translate-board-section">
+        <div class="la-translate-board-copy-card">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>
+            {{t "To translate this board, first make a copy of the board set. LingoLinq will copy it to your account and then start translation on the copy." key="translate_requires_copy"}}
+          </p>
+        </div>
+      </div>
+    {{/if}}
+
+    {{#unless this.cannot_translate}}
+      <div class="la-translate-board-section">
+        <label class="la-translate-board-label">{{t "Boards" key="boards"}}</label>
+        <div class="la-translate-board-boards">
+          {{#if this.hierarchy.loading}}
+            <span class="la-translate-board-loading">
+              <div class="md-loading-spinner" aria-hidden="true"></div>
+              {{t "Loading linked boards..." key="loading_linked_boards"}}
+            </span>
+          {{else if this.hierarchy.error}}
+            <span class="la-translate-board-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
+          {{else}}
+            {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+          {{/if}}
+        </div>
+      </div>
+    {{/unless}}
+
+    <div class="la-translate-board-section">
+      <label class="la-translate-board-label" for="translate_locale">{{t "Language" key="language"}}</label>
+      {{bound-select select_class="la-translate-board-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(action "updateTranslateLocale") searchable=true search_placeholder=(t "Search languages..." key="search_languages") }}
+    </div>
+
+    {{#unless this.cannot_translate}}
+      <div class="la-translate-board-section">
+        <label class="la-translate-board-checkbox">
+          <Input @type="checkbox" @checked={{this.default_language}} class="la-translate-board-check" />
+          <span>{{t "Switch to this as the Default Language" key="set_as_default_language"}}</span>
+        </label>
+      </div>
+    {{/unless}}
+
+    {{#if this.cannot_translate}}
+    {{else if this.existing_default_language}}
+      <div class="la-translate-board-section">
+        <div class="la-translate-board-info">
+          <p class="la-translate-board-info__text">
+            {{t "This board already has translations for this language. Use Switch to Existing Translation to make it the default display and speak language. To change languages, open the original English board copy or use Switch Language from the board menu." key="board_already_translated_prompt"}}
+          </p>
+          <button type="button" class="la-translate-board-retranslate" disabled={{this.retranslate_not_ready}} {{on "click" (this.ctrlAction "translate" true)}}>
+            {{t "Re-Translate" key="retranslate"}}
+          </button>
+        </div>
+      </div>
+    {{else if this.is_source_language}}
+      <div class="la-translate-board-section">
+        <p class="la-translate-board-info">
+          {{t "This board is already in %{language}. To view another language, use Switch Language from the board menu or open a translated copy of this board." key="board_already_in_source_language" language=this.source_language_name}}
+        </p>
+      </div>
+    {{/if}}
+
+  </div>
+  <div class="modal-footer md-modal-footer">
+    {{#if this.cannot_translate}}
+      <button type="button" class="la-confirm-edit__btn la-confirm-edit__btn--secondary" {{on "click" (this.ctrlAction "close")}}>
+        {{t "Cancel" key="cancel"}}
+      </button>
+      <button class='la-translate-board-submit' {{on "click" (this.ctrlAction "translate_copy")}} disabled={{this.translate_copy_not_ready}}>
+        {{#if this.copy_status.pending}}
+          <div class="md-loading-spinner la-translate-board-footer-spinner" aria-hidden="true"></div>
+          {{t "Copying..." key="copying"}}
+        {{else if this.copy_status.error}}
+          {{t "Error Copying Board" key="error_copying_board"}}
+        {{else}}
+          {{t "Translate a Copy" key="translate_a_copy"}}
+        {{/if}}
+      </button>
+      {{#if this.cannot_copy_board}}
+        <em class="la-translate-board-cant-copy">{{t "This board contains purchased content which can't be copied." key="cant_copy_protected_boards"}}</em>
+      {{/if}}
+    {{else if this.existing_default_language}}
+      <button disabled={{this.switch_language_not_ready}} class='la-translate-board-submit' {{on "click" (this.ctrlAction "switch_language")}}>
+        {{#if this.switch_status.pending}}
+          <div class="md-loading-spinner la-translate-board-footer-spinner" aria-hidden="true"></div>
+          {{t "Switching Language..." key="switching_language"}}
+        {{else if this.switch_status.error}}
+          {{t "Error Switching Language" key="error_switching_language"}}
+        {{else}}
+          {{t "Switch to Existing Translation" key="switch_translation"}}
+        {{/if}}
+      </button>
+    {{else if this.is_source_language}}
+      <button class='la-translate-board-submit' disabled={{true}}>{{t "Already Translated" key="already_translated"}}</button>
+    {{else}}
+      <button class='la-translate-board-submit' {{on "click" (this.ctrlAction "translate")}} disabled={{this.not_ready}}>{{t "Start Translation" key="start_translation"}}</button>
+    {{/if}}
+    <a href="#" class="la-translate-board-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
+  </div>
+  </div>
+{{/modal-dialog}}

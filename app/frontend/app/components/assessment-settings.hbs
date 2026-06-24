@@ -1,0 +1,108 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Eval Settings" key="assessment_settings"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body md-assessment-settings" style="text-align: left;">
+    <div class="md-modal-field">
+      <label for="for_user_id" class="md-modal-label">{{t "For" key="for"}}</label>
+      {{#if this.settings.saved}}
+        <strong>{{this.settings.user_name}}</strong>
+      {{else if this.settings}}
+        {{user-select select_id="for_user_id" selection=this.settings.for_user.user_id action=(action (mut this.settings.for_user.user_id)) }}
+      {{/if}}
+    </div>
+
+    <div class="md-modal-field">
+      <label class="md-modal-label">{{t "Title" key="title"}}</label>
+      <Input type="text" @value={{this.settings.name}} class="md-modal-input" placeholder={{this.name_placeholder}} />
+    </div>
+
+    {{#unless this.save_option}}
+      <div class="md-modal-field">
+        <label for="default_symbols" class="md-modal-label">{{t "Prompt Symbol(s)" key="prompt_symbols"}}</label>
+        {{bound-select select_class="md-modal-select" select_id="default_symbols" content=this.symbol_libraries selection=this.settings.default_library action=(action (mut this.settings.default_library)) }}
+      </div>
+
+      <div class="md-modal-field">
+        <label class="md-modal-label">{{t "Search Target" key="search_target"}}</label>
+        <div class="dropdown" style="display: inline-block; width: 100%;">
+          <button type="button" class="btn md-modal-btn md-modal-btn--cancel dropdown-toggle" data-toggle="dropdown" style="width: 100%; text-align: left; white-space: nowrap; overflow: hidden; position: relative;" aria-haspopup="true" aria-expanded="false">
+            <span>
+              {{#each this.current_option.images as |url|}}
+                <img src={{url}} alt="" style="height: 20px; vertical-align: middle; margin-right: 4px;">
+              {{/each}}
+              {{this.current_option.label}}
+            </span>
+            <span class="caret" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);"></span>
+          </button>
+          <ul class="dropdown-menu" role="menu" style="max-height: 225px; overflow: auto; width: 100%;">
+            {{#each this.eval_symbol_options as |option|}}
+              <li role="presentation">
+                <button type="button" role="menuitem" {{on "click" (this.ctrlAction "choose" option.id)}} style="background: none; border: none; width: 100%; text-align: left; padding: 8px 14px; cursor: pointer; font: inherit; color: inherit;">
+                  {{#each option.images as |url|}}
+                    <img src={{url}} alt="" style="height: 20px; vertical-align: middle; margin-right: 4px;">
+                  {{/each}}
+                  {{option.label}}
+                </button>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+      </div>
+
+      <div class="md-modal-field">
+        <label class="md-modal-checkbox-label">
+          <Input @type="checkbox" @checked={{this.settings.prompts}} class="md-modal-checkbox" />
+          <span>{{t "Speak prompts out loud" key="speak_prompts_out_loud"}}</span>
+        </label>
+      </div>
+
+      {{#if this.settings.prompts}}
+        <div class="md-modal-field">
+          <label class="md-modal-label">{{t "Prompt Delay" key="prompt_delay"}}</label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <Input type="text" @value={{this.settings.prompts_delay}} class="md-modal-input" style="max-width: 120px;" placeholder="no delay" />
+            <span class="md-modal-hint" style="margin: 0;">{{t "milliseconds" key="milliseconds"}}</span>
+          </div>
+        </div>
+      {{/if}}
+
+      <div class="md-modal-field">
+        <label class="md-modal-checkbox-label">
+          <Input @type="checkbox" @checked={{this.settings.chimes}} class="md-modal-checkbox" />
+          <span>{{t "Play a sound on correct actions" key="play_sound_on_success"}}</span>
+        </label>
+      </div>
+    {{/unless}}
+
+    <div class="md-modal-field">
+      <label class="md-modal-label">{{t "Notes" key="notes"}}</label>
+      <Textarea @value={{this.settings.accommodations}} class="md-modal-input" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} />
+    </div>
+    <div class="md-modal-field">
+      <Textarea @value={{this.settings.notes}} class="md-modal-input" placeholder="additional notes" rows={{4}} />
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    {{#if this.aborting}}
+      <p class="md-modal-status md-modal-status--error" role="alert">{{t "Are you sure you want to abort? All changed will be lost." key="confirm_abort"}}</p>
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "abort" true)}}>{{t "Abort" key="abort"}}</button>
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+    {{else}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+      {{#if this.save_option}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "abort")}}>{{t "Abort" key="abort"}}</button>
+      {{/if}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>
+        {{#if this.save_option}}
+          {{t "Save" key="save"}}
+        {{else}}
+          {{t "Update" key="update"}}
+        {{/if}}
+      </button>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

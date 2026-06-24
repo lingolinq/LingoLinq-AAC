@@ -974,7 +974,7 @@ LingoLinq.Board = BaseModel.extend({
     return res;
   }),
   lookup_editable_source: observer('local_only', 'editable_source', 'editable_source_key', function() {
-    if(this.get('local_only')) {
+    if(this.get('local_only') && this.get('obf_type') !== 'emergency') {
       if(this.get('editable_source_key') && this.get('editable_source.key') != this.get('editable_source_key')) {
         var _this = this;
         var key = _this.get('editable_source_key');

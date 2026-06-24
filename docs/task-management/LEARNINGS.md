@@ -3939,7 +3939,43 @@ first run and left the file untouched.
 
 Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events paths; raw_events is the sole mouse/touch path in speak mode.
 
-**Evidence:** `app/frontend/app/utils/raw_events.js` (`resolveBoardDetailChromeAction`, `boardDetailChromeRelease`), `application.hbs`, `board-detail.hbs`; debug session `bcf18d` (2026-06-22).
+**Ember 5 post-codemod regression (2026-06-23):** After fixing `(fn this.ctrlAction …)` → `(this.ctrlAction …)`, Ember `{{on}}` works again on mouse. `boardDetailChromeRelease` on `mouseup` still runs first, then the native `click` reaches Ember — toggles fire twice (options ⋮ menu opens then immediately closes). **Fix:** mirror grid defer — `defer_board_detail_chrome_click_to_ember` skips `preventDefault` and `boardDetailChromeRelease` for speak-mode mouse on chrome targets; touch/dwell still route through `boardDetailChromeRelease`.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js` (`defer_board_detail_chrome_click_to_ember`), `application.hbs`, `board-detail.hbs`; debug session `bcf18d` (2026-06-22).
+
+---
+
+## Pattern: board-detail edit toolbar — same Ember 5 routing as chrome, plus `ignored_region`
+
+**Surface:** per-button edit toolbar on symbol cards in edit mode (`board-detail-grid` co-located component).
+
+**Root cause:** Toolbar buttons are in `ignored_region` so `touch_release` skips `element_release` and expects native click → co-located `{{on "click"}}`. Ember 5 never delivers that click (same co-located classic component failure as speak chrome). Card body taps still work via `button_select` → `controller.send('buttonSelect')`.
+
+**Fix recipe:** Mark each toolbar control with `data-bd-edit-action="edit_button_settings"` (or `*_by_id` for portal dropdown). In `raw_events.js`, `boardDetailGridEditActionRelease()` resolves the action on pointer release and calls `editManager.controller.send`.
+
+**Evidence:** `raw_events.js`, `board-detail-grid.hbs`, `2026-06-23-board-detail-edit-toolbar-clicks.md`.
+
+---
+
+## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use classic `{{action …}}`
+
+**Surface:** `button-settings` and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+
+**Root cause:** `(fn this.ctrlAction "x")` in co-located templates does not reliably bind under Ember 5 (same class as grid/chrome). Clicks produce no handler and no `data-ember-action` id. Classic `{{action "x"}}` uses the app event dispatcher and works; pair with `type="button"` inside `<form>` and `buttonSettingsModalClickRelease()` in `raw_events.js` when pointer synthesis is suppressed.
+
+**Evidence:** `app/components/button-settings.hbs`, `button-settings.js`, `raw_events.js`; task log `2026-06-23-board-detail-edit-toolbar-clicks.md`.
+
+---
+
+## Pattern: board-detail edit-mode panel chrome never routed (speak-only gap)
+
+**Surface:** Done Editing, Discard, left/right edit panels on `user.board-detail` edit route.
+
+**Root cause:** `boardDetailChromeRelease` and `find_selectable_under_event` chrome wrapping were gated on `speak_mode` only. In `edit_mode`, `element_release` only handled grid symbol cards; panel clicks had no path to `controller.send`. Buttons already had `data-bd-action`; resolver was fine.
+
+**Fix:** Extend chrome detection to `edit_mode`; call `boardDetailChromeRelease` / `boardDetailChromeReleaseFromEvent` from edit-mode release paths; exclude `.modal-content` from chrome routing; `modalDialogClickRelease` pass-through for modal buttons; `dispatchPassThroughClick` fallback for controls without `data-bd-action`.
+
+**Evidence:** `raw_events.js`, `2026-06-23-board-detail-edit-panel-clicks.md`.
 
 ---
 

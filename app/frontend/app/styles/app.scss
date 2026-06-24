@@ -44630,6 +44630,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: var(--md-ink);
   cursor: pointer;
   transition: background 0.12s ease;
+  text-decoration: none;
 }
 .md-offline-boards__item + .md-offline-boards__item {
   border-top: 1px solid rgba($brand-blue-black, 0.05);

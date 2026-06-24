@@ -274,6 +274,22 @@ export default Controller.extend({
     this.set('model.preferences.telemetry_opt_in', enabled);
     this.set('model.preferences.comms_log_opt_in', enabled);
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+  },
   actions: {
     go_to_step: function(step) {
       this.set('triedToSave', false);

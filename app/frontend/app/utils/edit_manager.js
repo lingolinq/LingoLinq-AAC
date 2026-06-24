@@ -1183,7 +1183,7 @@ var editManager = EmberObject.extend({
     } else if(details && this.lastChange && details.mode == 'paint' && details.paint_id == this.lastChange.paint_id) {
       // don't add to state if it's the same paint as the previous edit.
     } else {
-      this.get('history').pushObject(this.clone_state());
+      this.set('history', (this.get('history') || []).concat([this.clone_state()]));
     }
     this.lastChange = details;
   },
@@ -1229,20 +1229,24 @@ var editManager = EmberObject.extend({
   },
   undo: function() {
     if(!this.controller) { return; }
-    var lastState = this.get('history').popObject();
+    var history = (this.get('history') || []).slice();
+    var lastState = history.pop();
     if(lastState) {
+      this.set('history', history);
       var currentState = this.clone_state();
-      this.get('future').pushObject(currentState);
+      this.set('future', (this.get('future') || []).concat([currentState]));
       this.controller.set('ordered_buttons', lastState);
       this.update_color_key_id();
     }
   },
   redo: function() {
     if(!this.controller) { return; }
-    var state = this.get('future').popObject();
+    var future = (this.get('future') || []).slice();
+    var state = future.pop();
     if(state) {
+      this.set('future', future);
       var currentState = this.clone_state();
-      this.get('history').pushObject(currentState);
+      this.set('history', (this.get('history') || []).concat([currentState]));
       this.controller.set('ordered_buttons', state);
       this.update_color_key_id();
     }
@@ -1497,7 +1501,7 @@ var editManager = EmberObject.extend({
       button.stashed_at = (new Date()).getTime();
     }
     if(button && list[list.length - 1] != button) {
-      list.pushObject(button);
+      list.push(button);
     }
     editManager.get_stashes().persist('stashed_buttons', list);
   },

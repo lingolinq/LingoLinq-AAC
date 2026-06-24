@@ -63,7 +63,7 @@
           </div>
         {{/unless}}
         <div class="register-btn-wrap">
-          <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
+          <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{on "click" (this.ctrlAction "saveGoogleSignup")}}>
             {{#if this.googleSignupBusy}}
               {{t "Signing Up..." key="signing_up"}}
             {{else}}
@@ -123,11 +123,11 @@
           {{#if this.showRoleStep}}
             <p class="register-step-copy">{{t "Choose the role that best describes who this account is for." key="register_choose_role_intro"}}</p>
             <div class="register-role-options">
-              <button type="button" class="register-choice-card" {{action "select_registration_role" "communicator"}}>
+              <button type="button" class="register-choice-card" {{on "click" (this.ctrlAction "select_registration_role" "communicator")}}>
                 <span>{{t "Communicator" key="registration_role_communicator_short"}}</span>
                 <span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
               </button>
-              <button type="button" class="register-choice-card" {{action "select_registration_role" "supporter"}}>
+              <button type="button" class="register-choice-card" {{on "click" (this.ctrlAction "select_registration_role" "supporter")}}>
                 <span>{{t "Supporter" key="registration_role_supporter"}}</span>
                 <span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
               </button>
@@ -139,13 +139,13 @@
                 <Input @value={{this.model.start_code}} class="form-control" id="start_code_role" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
               </div>
             {{else}}
-              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+              <button type="button" class="register-start-code-link" {{on "click" (this.ctrlAction "allow_start_code")}}>
                 {{t "I have a start code" key="have_a_start_code"}}
               </button>
             {{/if}}
 
           {{else if this.showCommunicatorAgeStep}}
-            <button type="button" class="register-back-link" {{action "go_to_step" "role"}}>
+            <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" "role")}}>
               <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
               {{t "Choose a different role" key="choose_different_role"}}
             </button>
@@ -161,13 +161,13 @@
               {{/if}}
             </div>
             <div class="register-btn-wrap">
-              <button type="button" class="register-btn register-btn--wide" {{action "continue_communicator_age"}}>
+              <button type="button" class="register-btn register-btn--wide" {{on "click" (this.ctrlAction "continue_communicator_age")}}>
                 {{t "Next" key="next"}}
               </button>
             </div>
 
           {{else if this.showSupporterTypeStep}}
-            <button type="button" class="register-back-link" {{action "go_to_step" "role"}}>
+            <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" "role")}}>
               <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
               {{t "Choose a different role" key="choose_different_role"}}
             </button>
@@ -177,7 +177,7 @@
                 <button type="button" role="radio"
                   aria-checked={{if (is-equal this.model.preferences.registration_type st.id) "true" "false"}}
                   class="register-supporter-type {{if (is-equal this.model.preferences.registration_type st.id) 'register-supporter-type--active'}}"
-                  {{action "select_supporter_type" st.id}}>{{st.name}}</button>
+                  {{on "click" (this.ctrlAction "select_supporter_type" st.id)}}>{{st.name}}</button>
               {{/each}}
             </div>
             {{#if this.start_code}}
@@ -186,13 +186,13 @@
                 <Input @value={{this.model.start_code}} class="form-control" id="start_code_supporter" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
               </div>
             {{else}}
-              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+              <button type="button" class="register-start-code-link" {{on "click" (this.ctrlAction "allow_start_code")}}>
                 {{t "I have a start code" key="have_a_start_code"}}
               </button>
             {{/if}}
 
           {{else if this.showUnder13Step}}
-            <button type="button" class="register-back-link" {{action "go_to_step" "communicator_age"}}>
+            <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" "communicator_age")}}>
               <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
               {{t "Change date of birth" key="change_date_of_birth"}}
             </button>
@@ -239,7 +239,7 @@
                 <Input @value={{this.model.start_code}} class="form-control" id="start_code_under_13" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
               </div>
             {{else}}
-              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+              <button type="button" class="register-start-code-link" {{on "click" (this.ctrlAction "allow_start_code")}}>
                 {{t "I have a start code" key="have_a_start_code"}}
               </button>
             {{/if}}
@@ -277,12 +277,12 @@
 
           {{else if this.showAccountStep}}
             {{#if (is-equal this.registration_role "supporter")}}
-              <button type="button" class="register-back-link" {{action "go_to_step" "supporter_type"}}>
+              <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" "supporter_type")}}>
                 <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
                 {{t "Change supporter type" key="change_supporter_type"}}
               </button>
             {{else}}
-              <button type="button" class="register-back-link" {{action "go_to_step" "communicator_age"}}>
+              <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" "communicator_age")}}>
                 <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
                 {{t "Change date of birth" key="change_date_of_birth"}}
               </button>
@@ -327,7 +327,7 @@
             </div>
             {{#if this.googleSsoEnabled}}
               <div class="register-btn-wrap">
-                <button type="button" disabled={{this.googleRegisterDisabled}} class="register-btn register-btn--google" {{action "continue_with_google"}}>
+                <button type="button" disabled={{this.googleRegisterDisabled}} class="register-btn register-btn--google" {{on "click" (this.ctrlAction "continue_with_google")}}>
                   <span class="register-btn--google__icon" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
                       <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
@@ -369,7 +369,7 @@
                 <Input @value={{this.model.start_code}} class="form-control" id="start_code_account" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
               </div>
             {{else}}
-              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+              <button type="button" class="register-start-code-link" {{on "click" (this.ctrlAction "allow_start_code")}}>
                 {{t "I have a start code" key="have_a_start_code"}}
               </button>
             {{/if}}

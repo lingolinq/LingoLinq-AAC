@@ -1,0 +1,53 @@
+<h2 class="setup-board-category__page-header">{{t "Board Category" key="board_category_header"}}</h2>
+{{#if this.setup.app_state.currentUser.modeling_only}}
+  <div class='col-sm-10 col-sm-offset-1'>
+    <h4>{{t "Modeling on Boards" key="modeling_on_boards"}}</h4>
+  </div>
+  <div class='col-sm-5 col-sm-offset-1'>
+    <img src={{path "walkthrough/board_examples.gif"}} style='width: 100%;' >
+  </div>
+  <div class='col-sm-5'>
+    <p class='prompt'>{{t "%app_name% comes with many different styles of boards. As you work with different communicators you may come across different board styles and layouts. Every communicator can benefit from having the supporters around them model how to use %app_name%" key="boards_1"}}</p>
+
+    <p class='prompt'>{{t "Modeling is a great tool to language learning. Research has shown that AAC users who have people modeling for them have better success adopting and communicating using AAC." key="board_2"}}</p>
+
+    <p class='prompt'>{{t "Modeling is easy! All you do is hit buttons on the screen as you talk to the communicator. Show them how they can use the buttons they have available to express themselves. Don't just model requests, model all kinds of different thoughts, ideas, observations, and questions! The more you model, the more examples you'ree giving the communicator for what you consider valid ways of using their device." key="board_3"}}</p>
+  </div>
+{{else if this.setup.app_state.feature_flags.board_levels}}
+  {{#if this.setup.advanced}}
+    <div class="setup-board-category">
+      <p class="setup-board-category__intro">{{t "In %app_name% vocabulary lives on boards. Choose a board that fits your communicator. You can change the home board anytime." key="boards_explainer"}}</p>
+      <div class="setup-board-category__assign">
+        <button type="button" class="setup-board-category__assign-btn" disabled={{this.setup.assigning_home_board}} {{on "click" (this.ctrlAction "assign_default_home_board" target)}}><svg class="setup-board-category__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          {{if this.setup.assigning_home_board (t "Assigning…" key="assigning_home_board_ellipsis") (t "Assign a Home Board For Me" key="assign_home_board_for_me")}}
+        </button>
+        <button type="button" class="setup-board-category__new-btn" {{on "click" (this.ctrlAction "create_new_board" target)}}><svg class="setup-board-category__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{{t "Create a New Board" key="create_a_new_board"}}</button>
+      </div>
+      {{board-picker include_mine=this.setup.advanced_mine tabbed=true}}
+    </div>
+  {{else if this.setup.already_have_board}}
+    <div class='col-sm-6 col-sm-offset-3' style='margin-top: 10px;'>
+      <p>{{t "Next we'd be happy to help you set up a home board. It looks like you've already got one selected, so you can skip this step unless you'd like to set up a different home board" key="already_home_board"}}</p>
+    </div>
+    <div class='col-sm-2 col-sm-offset-5' style='margin-top: 10px;'>
+      {{board-icon noinfo=true noop=true board=this.setup.app_state.currentUser.preferences.home_board localized=true}}
+    </div>
+    <div class='col-sm-6 col-sm-offset-3' style='margin-top: 10px; text-align: center;'>
+      <button class='btn btn-default' {{on "click" (this.ctrlAction "find_new_board" target)}}>{{t "Pick a Different Home Board" key="pick_a_different_home_board"}}</button>
+    </div>
+
+  {{else}}
+    {{board-selection-tool loadError=(action "show_advanced" target=this.setup) mine=(action "show_mine" target=this.setup) advanced=(action "show_advanced" target=this.setup) onSelect=(action "select_board" target=this.setup) update_scroll=(action "update_scroll" target=this.setup)}}
+  {{/if}}
+{{else}}
+  <div class="setup-board-category">
+    <p class="prompt setup-board-category__intro">{{t "In %app_name% vocabulary lives on boards. Choose a board that fits your communicator. You can change the home board anytime." key="boards_explainer"}}</p>
+    <div class="setup-board-category__assign">
+      <button type="button" class="setup-board-category__assign-btn" disabled={{this.setup.assigning_home_board}} {{on "click" (this.ctrlAction "assign_default_home_board" target)}}><svg class="setup-board-category__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        {{if this.setup.assigning_home_board (t "Assigning…" key="assigning_home_board_ellipsis") (t "Assign a Home Board For Me" key="assign_home_board_for_me")}}
+      </button>
+      <button type="button" class="setup-board-category__new-btn" {{on "click" (this.ctrlAction "create_new_board" target)}}><svg class="setup-board-category__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{{t "Create a New Board" key="create_a_new_board"}}</button>
+    </div>
+    {{board-picker tabbed=true}}
+  </div>
+{{/if}}

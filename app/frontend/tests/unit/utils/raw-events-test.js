@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import buttonTracker from 'frontend/utils/raw_events';
+import editManager from 'frontend/utils/edit_manager';
 
 module('Unit | Utility | raw-events', function(hooks) {
   hooks.afterEach(function() {
@@ -13,6 +14,10 @@ module('Unit | Utility | raw-events', function(hooks) {
     var grid = document.querySelector('.md-board-detail-grid[data-test-raw-events-grid]');
     if(grid && grid.parentNode) {
       grid.parentNode.removeChild(grid);
+    }
+    var chromeView = document.querySelector('.board-detail-view[data-test-raw-events-chrome]');
+    if(chromeView && chromeView.parentNode) {
+      chromeView.parentNode.removeChild(chromeView);
     }
   });
 
@@ -89,5 +94,152 @@ module('Unit | Utility | raw-events', function(hooks) {
       'dwell must still route through raw_events');
     assert.notOk(buttonTracker.defer_board_detail_click_to_ember({ dom: card }, 'keyboard'),
       'keyboard must still route through raw_events');
+  });
+
+  test('button_select defers speak-mode mouse clicks on board-detail grid to Ember', function(assert) {
+    var grid = document.createElement('div');
+    grid.className = 'md-board-detail-grid';
+    grid.setAttribute('data-test-raw-events-grid', 'true');
+    var card = document.createElement('div');
+    card.className = 'button md-board-detail-symbol-card';
+    card.setAttribute('data-id', '99');
+    grid.appendChild(card);
+    document.body.appendChild(grid);
+
+    var sent = [];
+    editManager.controller = {
+      send: function(action, id) {
+        sent.push([action, id]);
+      }
+    };
+    buttonTracker.appState = {
+      get: function(key) {
+        if(key === 'speak_mode') { return true; }
+        if(key === 'edit_mode') { return false; }
+        return null;
+      }
+    };
+    buttonTracker.lastReleaseEvent = { type: 'mouseup' };
+
+    var wrap = buttonTracker.element_wrap(card);
+    buttonTracker.button_select(wrap, null, 'click');
+
+    assert.deepEqual(sent, [], 'mouse click defers to Ember {{on}}, not buttonSelect');
+
+    buttonTracker.lastReleaseEvent = { type: 'touchend' };
+    buttonTracker.button_select(wrap, null, 'click');
+    assert.deepEqual(sent, [['buttonSelect', '99']], 'touch still routes through buttonSelect');
+
+    delete editManager.controller;
+    delete buttonTracker.appState;
+    delete buttonTracker.lastReleaseEvent;
+  });
+
+  test('defer_board_detail_chrome_click_to_ember skips mouse click on options toggle in speak mode', function(assert) {
+    var view = document.createElement('div');
+    view.className = 'board-detail-view';
+    view.setAttribute('data-test-raw-events-chrome', 'true');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'md-board-detail-actions-toggle';
+    btn.setAttribute('data-bd-action', 'toggle_options_menu');
+    view.appendChild(btn);
+    document.body.appendChild(view);
+
+    buttonTracker.appState = {
+      get: function(key) { return key === 'speak_mode'; }
+    };
+    buttonTracker.lastReleaseEvent = { type: 'mouseup' };
+
+    assert.ok(buttonTracker.defer_board_detail_chrome_click_to_ember({ dom: btn }, 'click'));
+
+    buttonTracker.lastReleaseEvent = { type: 'touchend' };
+    assert.notOk(buttonTracker.defer_board_detail_chrome_click_to_ember({ dom: btn }, 'click'),
+      'touch release must still use boardDetailChromeRelease');
+
+    delete buttonTracker.appState;
+    delete buttonTracker.lastReleaseEvent;
+  });
+
+  test('resolve_board_detail_chrome_action maps edit panel Done Editing', function(assert) {
+    var btn = document.createElement('button');
+    btn.className = 'md-board-edit-session__btn md-board-edit-session__btn--save';
+    btn.setAttribute('data-bd-action', 'back_to_boards');
+    document.body.appendChild(btn);
+
+    var resolved = buttonTracker.resolve_board_detail_chrome_action(btn);
+    assert.ok(resolved);
+    assert.equal(resolved.action, 'back_to_boards');
+    assert.deepEqual(resolved.args, []);
+    assert.equal(resolved.controller, 'board');
+
+    if(btn.parentNode) { btn.parentNode.removeChild(btn); }
+  });
+
+  test('resolve_board_detail_chrome_action maps category filter option args', function(assert) {
+    var li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.setAttribute('data-bd-action', 'set_panel_category');
+    li.setAttribute('data-bd-arg', 'noun');
+    document.body.appendChild(li);
+
+    var resolved = buttonTracker.resolve_board_detail_chrome_action(li);
+    assert.ok(resolved);
+    assert.equal(resolved.action, 'set_panel_category');
+    assert.deepEqual(resolved.args, ['noun']);
+
+    if(li.parentNode) { li.parentNode.removeChild(li); }
+  });
+
+  test('boardDetailChromeTargetFromEvent ignores modal close buttons', function(assert) {
+    var wrap = document.createElement('div');
+    wrap.className = 'board-detail-view';
+    var modal = document.createElement('div');
+    modal.className = 'modal-content';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'la-modal-close';
+    modal.appendChild(btn);
+    wrap.appendChild(modal);
+    document.body.appendChild(wrap);
+
+    var event = { target: btn, closest: function(sel) { return btn.closest(sel); } };
+    assert.notOk(buttonTracker.board_detail_chrome_target_from_event(event));
+
+    if(wrap.parentNode) { wrap.parentNode.removeChild(wrap); }
+  });
+
+  test('resolve_board_detail_grid_edit_action maps inline edit toolbar clicks', function(assert) {
+    var grid = document.createElement('div');
+    grid.className = 'md-board-detail-grid';
+    var card = document.createElement('div');
+    card.className = 'button md-board-detail-symbol-card';
+    card.setAttribute('data-id', '7');
+    var editBtn = document.createElement('button');
+    editBtn.className = 'md-board-detail-symbol-card__edit-btn';
+    editBtn.setAttribute('data-bd-edit-action', 'edit_button_settings');
+    card.appendChild(editBtn);
+    grid.appendChild(card);
+    document.body.appendChild(grid);
+
+    editManager.find_button = function(id) {
+      return id === '7' ? { id: '7', label: 'No' } : null;
+    };
+    editManager.controller = {
+      send: function() {}
+    };
+    buttonTracker.appState = {
+      get: function(key) { return key === 'edit_mode'; }
+    };
+
+    var resolved = buttonTracker.resolve_board_detail_grid_edit_action(editBtn);
+    assert.ok(resolved);
+    assert.equal(resolved.action, 'edit_button_settings');
+    assert.equal(resolved.args[0].label, 'No');
+
+    if(grid.parentNode) { grid.parentNode.removeChild(grid); }
+    delete editManager.controller;
+    delete editManager.find_button;
+    delete buttonTracker.appState;
   });
 });

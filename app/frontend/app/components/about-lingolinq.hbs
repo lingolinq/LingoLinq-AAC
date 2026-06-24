@@ -1,0 +1,26 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header md-modal-header" style="text-align: center;">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    {{app-logo size="150px" ariaHiddenImg=false}}
+  </div>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <ul class="usage-checklist">
+      {{#if this.app_state.currentUser}}
+        <li class="usage-checklist__item">{{t "You're viewing a web-based demo of %app_name% with limited functionality." key="thanks_app_check_1"}}</li>
+        <li class="usage-checklist__item">{{t "For the full experience — including board editing, reports, and offline access — visit your account on the main site." key="thanks_app_check_2"}}</li>
+      {{else}}
+        <li class="usage-checklist__item">{{t "%app_name% is an AAC app designed to give everyone a voice." key="thanks_app_long_check_1"}}</li>
+        <li class="usage-checklist__item">{{t "Runs in any browser, and available as a downloadable app for tablets and smartphones." key="thanks_app_long_check_2"}}</li>
+        <li class="usage-checklist__item">{{t "Sign up for a free trial and see how it can help you or someone you know." key="thanks_app_long_check_3"}}</li>
+      {{/if}}
+    </ul>
+
+    <div class="md-modal-field" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
+      <a class="btn md-modal-btn md-modal-btn--primary" href="https://www.mylingolinq.com" target="_blank" rel="noopener" aria-label={{t "Learn More (opens in new tab)" key="learn_more_new_tab"}}>{{t "Learn More" key="learn_more"}}</a>
+      <a class="btn md-modal-btn md-modal-btn--cancel" href={{this.app_state.board_url}} target="_blank" rel="noopener" aria-label={{t "View in %app_name% (opens in new tab)" key="view_in_app_new_tab"}}>{{t "View in %app_name%" key="view_this_board_in_app"}}</a>
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Back to the Demo" key="back_to_demo"}}</button>
+    </div>
+  </div>
+{{/modal-dialog}}

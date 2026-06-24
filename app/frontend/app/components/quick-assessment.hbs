@@ -1,0 +1,91 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header md-modal-header md-quick-assess-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="md-quick-assess-header__row">
+      <span class="md-modal-icon-circle md-quick-assess-icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="6" y="4" width="12" height="16" rx="2" stroke="#46505F"/>
+          <path d="M9 4v-1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="#46505F"/>
+          <path d="M9 11l2 2 4-4" stroke="#2A9D8F"/>
+        </svg>
+      </span>
+      <h3 class="md-modal-title">
+        {{t "Quick Assessment for %{user_name}" key="quick_assessment_for" user_name=this.model.user.user_name}}
+      </h3>
+    </div>
+  </div>
+  <div class="modal-body md-modal-body md-quick-assess-body">
+    <form class="md-modal-form">
+      <div class="md-modal-field">
+        <label for="description" class="md-modal-label">{{t "Assessment Type" key="assessment_type"}}</label>
+        <div class="md-quick-assess-type-row">
+          <Input @value={{this.description}} disabled={{this.goal_id}} class="form-control md-quick-assess-type-input" id="description" placeholder={{t "brief description" key="brief_description"}} />
+          {{#if this.goal_options}}
+            <div class="btn-group md-quick-assess-goal-menu">
+              <button type="button" class="md-modal-btn md-modal-btn--secondary md-quick-assess-goal-btn dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{t "Goal" key="goal"}} <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu md-quick-assess-goal-list">
+                {{#each this.goal_options as |option|}}
+                  <li><a href="#" {{on "click" (this.ctrlAction "goal_action" option.id)}}>{{option.name}}</a></li>
+                {{/each}}
+              </ul>
+            </div>
+          {{/if}}
+        </div>
+      </div>
+
+      <div class="md-modal-field md-quick-assess-stat-field">
+        <label for="correct_tally" class="md-modal-label">{{t "Correct" key="correct"}}</label>
+        <div class="md-quick-assess-tally-row">
+          <div class="md-quick-assess-stepper" role="group" aria-labelledby="correct_tally_label">
+            <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--minus" aria-label={{t "Decrease correct" key="decrease_correct"}} title={{t "oops? subtract one" key="oops_subtract"}} {{on "click" (this.ctrlAction "plus_minus" "minus" "totals.correct")}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <Input @value={{this.totals.correct}} @type="number" class="form-control md-quick-assess-stepper__input" id="correct_tally" placeholder="0" min="0" />
+            <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--plus" aria-label={{t "Increase correct" key="increase_correct"}} {{on "click" (this.ctrlAction "plus_minus" "plus" "totals.correct")}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <span class="md-quick-assess-stepper-caption">{{t "Adjust if needed" key="adjust_if_needed"}}</span>
+        </div>
+      </div>
+
+      <div class="md-modal-field md-quick-assess-stat-field">
+        <label for="incorrect_tally" class="md-modal-label">{{t "Incorrect" key="incorrect"}}</label>
+        <div class="md-quick-assess-tally-row">
+          <div class="md-quick-assess-stepper md-quick-assess-stepper--danger" role="group" aria-labelledby="incorrect_tally_label">
+            <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--minus" aria-label={{t "Decrease incorrect" key="decrease_incorrect"}} title={{t "oops? subtract one" key="oops_subtract"}} {{on "click" (this.ctrlAction "plus_minus" "minus" "totals.incorrect")}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <Input @value={{this.totals.incorrect}} @type="number" class="form-control md-quick-assess-stepper__input" id="incorrect_tally" placeholder="0" min="0" />
+            <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--plus" aria-label={{t "Increase incorrect" key="increase_incorrect"}} {{on "click" (this.ctrlAction "plus_minus" "plus" "totals.incorrect")}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <span class="md-quick-assess-stepper-caption">{{t "Adjust if needed" key="adjust_if_needed"}}</span>
+        </div>
+      </div>
+
+      <div class="md-quick-assess-actions" role="group" aria-label={{t "Tap to record a correct or incorrect attempt" key="tap_to_record_attempt"}}>
+        <button type="button" class="md-quick-assess-action md-quick-assess-action--correct" {{on "click" (this.ctrlAction "correct")}} aria-label={{t "Record correct attempt" key="record_correct"}}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="5 12 10 17 19 7"/>
+          </svg>
+        </button>
+        <button type="button" class="md-quick-assess-action md-quick-assess-action--incorrect" {{on "click" (this.ctrlAction "incorrect")}} aria-label={{t "Record incorrect attempt" key="record_incorrect"}}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" {{on "click" (this.ctrlAction "close")}} class="md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>
+    <button type="button" {{on "click" (this.ctrlAction "record_assessment")}} class="md-modal-btn md-modal-btn--primary">{{t "Done" key="done"}}</button>
+  </div>
+{{/modal-dialog}}

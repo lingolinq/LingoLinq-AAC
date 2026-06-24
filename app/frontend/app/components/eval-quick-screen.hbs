@@ -1,0 +1,60 @@
+{{!-- eval-quick-screen container — routes to intake, runner, or report by session state --}}
+<div class="evq__shell" role="region" aria-label={{t "Quick Screen evaluation" key="quick_screen_eval_aria"}}>
+  <header class="evq__header">
+    <button type="button" class="evq__back" {{on "click" (this.ctrlAction "cancel")}} aria-label={{t "Cancel and exit" key="eval_cancel_aria"}}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+      <span>{{t "Exit" key="exit"}}</span>
+    </button>
+    <div class="evq__header-title">
+      <span class="evq__eyebrow">{{t "Eval" key="eval"}}</span>
+      <h1 class="evq__title">{{t "Quick Screen" key="quick_screen"}}</h1>
+      <span class="evq__subtitle">{{t "%{minutes}-minute feature match" key="quick_screen_subtitle" minutes=this.estimatedMinutes}}</span>
+    </div>
+    <div class="evq__header-meta" aria-live="polite">
+      {{#if this.user.user_name}}
+        <span class="evq__user-chip">{{this.user.user_name}}</span>
+      {{/if}}
+    </div>
+  </header>
+
+  <main class="evq__body">
+    {{#if this.isConfiguring}}
+      {{eval-quick-intake user=this.user onComplete=(action "intakeCompleted")}}
+    {{/if}}
+
+    {{#if this.isScreening}}
+      {{eval-quick-runner
+        session=this.session
+        onEvent=(action "subtestEvent")
+        onAdvance=(action "advanceSubtest")
+        onFinish=(action "reviewSession")}}
+    {{/if}}
+
+    {{#if this.isTargeting}}
+      {{eval-targeted-runner
+        session=this.session
+        user=this.user
+        onEvent=(action "subtestEvent")
+        onAdvance=(action "advanceSubtest")
+        onFinish=(action "reviewSession")}}
+    {{/if}}
+
+    {{#if this.isComprehensive}}
+      {{eval-comprehensive-runner
+        session=this.session
+        user=this.user
+        onEvent=(action "subtestEvent")
+        onAdvance=(action "advanceSubtest")
+        onFinish=(action "reviewSession")}}
+    {{/if}}
+
+    {{#if this.isReviewing}}
+      {{eval-quick-report
+        session=this.session
+        user=this.user
+        onSave=(action "saveSession")
+        onPromote=(action "promoteToTargeted")
+        onPromoteComprehensive=(action "promoteToComprehensive")}}
+    {{/if}}
+  </main>
+</div>

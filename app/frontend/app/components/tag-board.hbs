@@ -1,0 +1,84 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-tag-board-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Categorize Board" key="categorize_this_board"}}</span>
+      <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>✕</button>
+    </div>
+    <div class="la-tag-board-body">
+      <p class="la-tag-board-desc">{{t "Organize boards into categories for quick access. Enter a new name or pick an existing one. A board can belong to multiple categories." key="tag_explainer"}}</p>
+
+      {{#unless this.model.board}}
+        <div class="la-tag-board-section">
+          <label class="la-tag-board-label" for="tag-board-board">{{t "Board" key="board"}}</label>
+          {{!-- Modern custom dropdown — replaces the native <select>
+               so the open list panel (options) inherits the same
+               styling family as the New Board modal's modern-select.
+               The trigger picks up `.la-tag-board-modern-select`
+               scoped overrides below; the list panel uses the
+               shared .modern-select__list / __option styles. --}}
+          {{modern-select
+            class="la-tag-board-modern-select"
+            content=this.boardChoicesList
+            selection=this.pickedBoardId
+            action=(action "pickBoard")
+            selectId="tag-board-board"
+            ariaLabel=(t "Choose a board" key="tag_board_pick_board")
+            placeholder=(t "Choose a board" key="tag_board_pick_board")
+            searchable=true
+            searchPlaceholder=(t "Search boards..." key="tag_board_search_placeholder")
+          }}
+        </div>
+      {{/unless}}
+
+      <div class="la-tag-board-section">
+        <label class="la-tag-board-label" for="category">{{t "Category" key="category"}}</label>
+        <Input type="text" id="category" class="la-tag-board-input" @value={{this.tag}} placeholder={{t "Enter category name" key="enter_category_name"}} />
+        {{#if this.model.user.board_tags}}
+          {{!-- Inline category chips replace the previous Bootstrap
+               dropdown — clicking a chip drops its name into the
+               input. Renders below the input as a wrap-flex row, so
+               long lists grow the modal naturally rather than
+               overlaying with an absolute-positioned dropdown that
+               gets clipped by the modal's overflow context. --}}
+          <p class="la-tag-board-chips-hint">{{t "Or pick an existing category:" key="or_pick_existing_category"}}</p>
+          <div class="la-tag-board-chips" role="list" aria-label={{t "Existing categories" key="existing_categories"}}>
+            {{#each this.model.user.board_tags as |tagOption|}}
+              <button type="button" class="la-tag-board-chip {{if (is-equal this.tag tagOption) 'la-tag-board-chip--active'}}" {{on "click" (this.ctrlAction "choose" tagOption)}}>
+                {{tagOption}}
+              </button>
+            {{/each}}
+          </div>
+        {{/if}}
+      </div>
+
+      {{#if this.matchingTag}}
+        <p class="la-tag-board-info">{{t "This board will be added to the existing \"%{name}\" folder" key="category_exists_will_add" name=this.matchingTag}}</p>
+      {{/if}}
+
+      {{#if this.boardForTag.downstream_boards}}
+        <div class="la-tag-board-section">
+          <label class="la-tag-board-checkbox">
+            <Input @type="checkbox" @checked={{this.downstream}} class="la-tag-board-check" />
+            <span>{{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}</span>
+          </label>
+        </div>
+      {{/if}}
+
+      <div class="la-tag-board-actions">
+        {{!-- Cancel renders first so it sits LEFT of the primary
+             action — confirm-on-right pattern matching the rest
+             of the modernized modals (Set Home Board, etc). --}}
+        <button type="button" class="la-tag-board-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+        <button class='la-tag-board-submit' {{on "click" (this.ctrlAction "update")}} disabled={{if this.not_ready true this.status.loading}}>
+          {{#if this.status.loading}}
+            {{t "Categorizing..." key="categorizing_board"}}
+          {{else if this.status.error}}
+            {{t "Failed" key="categorization_failed"}}
+          {{else}}
+            {{t "Categorize Board" key="categorize_board"}}
+          {{/if}}
+        </button>
+      </div>
+    </div>
+  </div>
+{{/modal-dialog}}

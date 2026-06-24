@@ -36,8 +36,8 @@ export default Component.extend({
     };
     // Parent-passed closures (selectButton, closeColorPicker, …) are only
     // reliable via this.get() in classic components — bare this.selectButton
-    // in templates is undefined under Ember 5. Speak-mode mouse clicks are
-    // routed through raw_events buttonSelect, not these {{on}} handlers.
+    // in templates is undefined under Ember 5. Speak-mode mouse clicks use
+    // these {{on}} handlers; touch/dwell/keyboard still use raw_events buttonSelect.
     this.invokeAttr = function(attrName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {

@@ -36,17 +36,17 @@ export default Component.extend({
                     this.get('model') || {};
     this.set('model', options);
     var self = this;
-    this.ctrlAction = function(actionName) {
+    this.set('ctrlAction', function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
         if (event && event.preventDefault) { event.preventDefault(); }
         self.send.apply(self, [actionName].concat(bound));
       };
-    };
-    this.onNothing = function(event) {
+    });
+    this.set('onNothing', function(event) {
       if (event && event.preventDefault) { event.preventDefault(); }
       self.send('nothing');
-    };
+    });
   },
 
   didInsertElement() {
