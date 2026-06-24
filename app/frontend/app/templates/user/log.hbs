@@ -1,4 +1,4 @@
-{{#opening-observer done_opening=(action "draw_charts")}}
+{{#opening-observer done_opening=(fn this.ctrlAction "draw_charts")}}
 {{#if this.model.tiered_eval_type}}
   {{!-- New tiered-eval shape (Quick Screen / Targeted Eval) — render
        the saved recommendation + targeted_report block via a

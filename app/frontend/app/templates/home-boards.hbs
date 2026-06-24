@@ -17,7 +17,7 @@
             {{board-picker}}
           </div>
         {{else}}
-          {{board-selection-tool search=true loadError=(action "show_advanced") advanced=(action "show_advanced") onSelect=(action "select_board")}}
+          {{board-selection-tool search=true loadError=(fn this.ctrlAction "show_advanced") advanced=(fn this.ctrlAction "show_advanced") onSelect=(fn this.ctrlAction "select_board")}}
         {{/if}}
       </article>
     </main>

@@ -1,10 +1,10 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=(fn this.ctrlAction "close") opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "New User" key="new_user"}}</h3>
   </div>
   <div class="modal-body">
-    <form class="form-horizontal" {{on "submit" (action "add")}}>
+    <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "add")}}>
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Full Name" key="full_name"}}</label>
         <div class="col-sm-6">
@@ -36,7 +36,7 @@
       <div class="form-group">
         <label for="user_type" class="col-sm-4 control-label">{{t "User Type" key="user_type"}}</label>
         <div class="col-sm-6">
-          {{bound-select select_class="form-control" select_id="user_type" content=this.user_types selection=this.model.user.org_management_action action=(action (mut this.model.user.org_management_action)) }}
+          {{bound-select select_class="form-control" select_id="user_type" content=this.user_types selection=this.model.user.org_management_action action=(mut this.model.user.org_management_action) }}
         </div>
       </div>
       {{#if this.boarded_new_user}}
@@ -58,14 +58,14 @@
           <div class="form-group">
             <label for="home_board" class="col-sm-4 control-label">{{t "Home Board" key="home_board"}}</label>
             <div class="col-sm-6">
-              {{bound-select select_class="form-control" select_id="home_board" content=this.board_options selection=this.model.user.home_board_template action=(action (mut this.model.user.home_board_template)) }}
+              {{bound-select select_class="form-control" select_id="home_board" content=this.board_options selection=this.model.user.home_board_template action=(mut this.model.user.home_board_template) }}
             </div>
           </div>
           {{#if this.board_will_copy}}
             <div class="form-group">
               <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
               <div class="col-sm-6">
-                {{bound-select select_class="form-control" select_id="preferred_symbols" content=this.symbols_list selection=this.model.user.preferences.preferred_symbols action=(action (mut this.model.user.preferences.preferred_symbols)) }}
+                {{bound-select select_class="form-control" select_id="preferred_symbols" content=this.symbols_list selection=this.model.user.preferences.preferred_symbols action=(mut this.model.user.preferences.preferred_symbols) }}
                 {{#if this.premium_symbol_library}}
                   {{#unless this.model.user.add_symbols}}
                     <div class='text-danger' style='margin-left: 10px;'>
@@ -81,7 +81,7 @@
         <div class="form-group">
           <label for="locale" class="col-sm-4 control-label">{{t "Preferred Language" key="preferred_language"}}</label>
           <div class="col-sm-6">
-            {{bound-select select_class="form-control" select_id="locale" content=this.locale_list selection=this.model.user.preferences.locale action=(action (mut this.model.user.preferences.locale)) }}
+            {{bound-select select_class="form-control" select_id="locale" content=this.locale_list selection=this.model.user.preferences.locale action=(mut this.model.user.preferences.locale) }}
           </div>
         </div>
         <div class="form-group">
@@ -134,7 +134,7 @@
         <div class="form-group">
           <label for="external_access_method" class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</label>
           <div class="col-sm-6">
-            {{bound-select select_class="form-control" select_id="external_access_method" content=this.access_methods selection=this.external_access_method action=(action (mut this.external_access_method)) }}
+            {{bound-select select_class="form-control" select_id="external_access_method" content=this.access_methods selection=this.external_access_method action=(mut this.external_access_method) }}
           </div>
         </div>
       {{/if}}

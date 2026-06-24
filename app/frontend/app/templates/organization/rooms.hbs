@@ -43,7 +43,7 @@
               <span class="md-org-room-add-users__label">{{t "Supervisor" key="supervisor"}}</span>
               <div class="md-org-room-add-users__group-body">
                 <div class="md-org-room-add-users__select-wrap">
-                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.supervisor_options selection=unit.supervisor_user_name action=(action (mut unit.supervisor_user_name)) }}
+                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.supervisor_options selection=unit.supervisor_user_name action=(mut unit.supervisor_user_name) }}
                 </div>
                 <div class="md-org-room-add-users__btn-group">
                   <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "add_unit_user" unit "edit_supervisor")}}>
@@ -59,7 +59,7 @@
               <span class="md-org-room-add-users__label">{{t "Communicator" key="communicator"}}</span>
               <div class="md-org-room-add-users__group-body">
                 <div class="md-org-room-add-users__select-wrap">
-                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.communicator_options selection=unit.communicator_user_name action=(action (mut unit.communicator_user_name)) }}
+                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.communicator_options selection=unit.communicator_user_name action=(mut unit.communicator_user_name) }}
                 </div>
                 <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "add_unit_user" unit "communicator")}}>
                   {{t "Add Communicator" key="add_communicator"}}
@@ -129,7 +129,7 @@
 
 {{#if this.model.permissions.edit}}
   <hr class="md-org-report-divider">
-  <form class="md-org-room-add-form" {{on "submit" (action "add_unit")}}>
+  <form class="md-org-room-add-form" {{on "submit" (fn this.ctrlAction "add_unit")}}>
     <span class="md-org-room-add-form__label">{{t "Add a Room" key="add_a_room"}}</span>
     <Input type="text" @value={{this.new_unit_name}} placeholder="Room Name" class="md-org-report-input" />
     <button type="submit" class="md-org-btn md-org-btn--outline">{{t "Add Room" key="add_room"}}</button>

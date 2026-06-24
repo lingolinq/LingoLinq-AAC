@@ -30,7 +30,7 @@
      "nesting" is purely DOM-layout, not semantic. --}}
 <div role="button" tabindex="0"
      {{on "click" (this.ctrlAction "pick_board" this.board_record)}}
-     {{on "keydown" (action "pickKeydown")}}
+     {{on "keydown" (fn this.ctrlAction "pickKeydown")}}
      class={{this.display_class}}
      style={{this.cursor_style}}
      aria-label={{this.tile_aria_label}}>

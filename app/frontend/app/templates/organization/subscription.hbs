@@ -1,7 +1,7 @@
 {{#if this.model.permissions.manage}}
   <h2>{{t "Billing Details" key="subscription_details"}}</h2>
   {{#if this.model.permissions.manage_subscription}}
-    <form class="form-horizontal" {{on "submit" (action "update_org")}}>
+    <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "update_org")}}>
       <div class="form-group">
         <label for="allotted_licenses" class="col-sm-2 control-label">{{t "Purchased Licenses" key="purchased_licenses"}}</label>
         <div class="col-sm-1">

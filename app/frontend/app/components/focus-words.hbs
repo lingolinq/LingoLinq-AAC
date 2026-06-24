@@ -8,7 +8,7 @@
         <span style='font-size: 14px; font-weight: 500; opacity: 0.75;'>{{this.model.user.user_name}}</span>
       {{/if}}
     </span>
-    <button type="button" class="la-modal-close" {{on "click" (action "close")}} aria-label={{t "Close" key="close"}}>
+    <button type="button" class="la-modal-close" {{on "click" (fn this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
@@ -56,7 +56,7 @@
                   {{#each this.analysis_extras as |btn|}}
                     <span style={{btn.mini_style}}>{{btn.label}}</span>
                   {{/each}}
-                  <button class='btn btn-default' {{on "click" (action "report")}}>{{t "see all" key="see_all"}}</button>
+                  <button class='btn btn-default' {{on "click" (fn this.ctrlAction "report")}}>{{t "see all" key="see_all"}}</button>
                 </p>
               {{/if}}
             {{else}}
@@ -76,7 +76,7 @@
                   {{else if this.ideas.error}}
                     {{t "Error Saving Words" key="error_saving_words"}}
                   {{else}}
-                    <button class='btn btn-default' {{on "click" (action "save_missing")}}>{{t "Save Missing Words to Requested Ideas" key="save_to_ideas"}}</button>
+                    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "save_missing")}}>{{t "Save Missing Words to Requested Ideas" key="save_to_ideas"}}</button>
                   {{/if}}
                 </div>
               {{/if}}
@@ -90,7 +90,7 @@
               {{#if this.recent_list}}
                 <div class="list-group">
                   {{#each this.recent_list as |list|}}
-                    <a class={{if list.tmp "btn btn-default list-group-item-info" "btn btn-default list-group-item-success"}} {{on "click" (action "pick_set" list)}} href='#' style='width: 100%; text-align: left; margin-bottom: 5px;'>
+                    <a class={{if list.tmp "btn btn-default list-group-item-info" "btn btn-default list-group-item-success"}} {{on "click" (fn this.ctrlAction "pick_set" list)}} href='#' style='width: 100%; text-align: left; margin-bottom: 5px;'>
                       <b>{{list.title}}{{#if list.user_name}} ({{list.user_name}}){{/if}}</b><br>
                       <span class='text-muted' style='font-style: italic; display: inline-block; width: 100%; overflow: hidden; text-overflow: ellipsis;'>
                         {{list.words}}
@@ -130,18 +130,18 @@
                   <Input id="find_source" @value={{this.search_term}} @enter={{action "find_source"}} placeholder="search" class="form-control inline select_on_click" />
                 </span>
               </span>
-              <button type="button" class='btn btn-default' {{on "click" (action "find_source")}}>{{t "Search" key="search"}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (fn this.ctrlAction "find_source")}}>{{t "Search" key="search"}}</button>
               {{#if this.browse}}
-                <button type="button" class='btn btn-default' {{on "click" (action "back")}}>{{t "Custom" key="custom"}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (fn this.ctrlAction "back")}}>{{t "Custom" key="custom"}}</button>
               {{else}}
-                <button type="button" class='btn btn-default' {{on "click" (action "browse")}}>{{t "Browse" key="browse"}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (fn this.ctrlAction "browse")}}>{{t "Browse" key="browse"}}</button>
               {{/if}}
             {{/if}}
             {{#if this.speech.ready}}
               {{speech-listener content=(fn this.ctrlAction "speech_content") error=(fn this.ctrlAction "speech_error") stop=(fn this.ctrlAction "speech_stop") speech=this.speech}}
             {{else if this.speech.engine}}
               {{#unless this.search_or_browse}}
-                <button type="button" class="btn btn-default" {{on "click" (action "record")}}>
+                <button type="button" class="btn btn-default" {{on "click" (fn this.ctrlAction "record")}}>
                   <img src={{path "images/microphone.svg"}} style="height: 25px; margin: -5px -5px -5px -10px;" alt="take a picture">
                   {{t "Speech Recognition" key="speech_recognition"}}
                 </button>
@@ -152,7 +152,7 @@
         {{#if this.browse}}
           <div class='col-sm-10 col-sm-offset-1'>
             {{#if this.browse.category}}
-              <button class="btn btn-default" {{on "click" (action "back" this.browse.category)}} style="float: left; margin-right: 5px; height: 50px;"><span class="glyphicon glyphicon-arrow-left"></span><span class="sr-only">{{t "Back to Category" key="back_to_category"}}</span></button>
+              <button class="btn btn-default" {{on "click" (fn this.ctrlAction "back" this.browse.category)}} style="float: left; margin-right: 5px; height: 50px;"><span class="glyphicon glyphicon-arrow-left"></span><span class="sr-only">{{t "Back to Category" key="back_to_category"}}</span></button>
               <h4 style="margin-bottom: 0;">{{this.browse.category.title}}</h4>
               <div style='clear: left; margin-bottom: 10px;'></div>
               {{#if this.browse.pending}}
@@ -165,7 +165,7 @@
                     {{#unless item.deleted}}
                       <div style='margin-bottom: 5px;'>
                         <span style={{if this.browse.category.saved "display: inline-block; width: calc(100% - 100px);" "display: inline-block; width: 100%;"}}>
-                          <button class='btn btn-default list-group-item-warning' {{on "click" (action "pick_set" item)}} style='width: 100%; text-align: left;'>
+                          <button class='btn btn-default list-group-item-warning' {{on "click" (fn this.ctrlAction "pick_set" item)}} style='width: 100%; text-align: left;'>
                             <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
                             <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                               {{item.title}}
@@ -177,7 +177,7 @@
                         </span>
                         {{#if this.browse.category.saved}}
                           <span style='display: inline-block; width: 80px; text-align: right;'>
-                            <button class='btn btn-default' {{on "click" (action "remove_set" item)}} style='width: 100%; height: 55px;'>
+                            <button class='btn btn-default' {{on "click" (fn this.ctrlAction "remove_set" item)}} style='width: 100%; height: 55px;'>
                               <span class='glyphicon glyphicon-remove'></span>
                             </button>
                           </span>
@@ -192,7 +192,7 @@
             {{else}}
               <div class='row'>
                 {{#each this.browse_categories as |cat|}}
-                  <button class='btn btn-default list-group-item-warning' {{on "click" (action "browse" cat)}} style='width: 100%; margin-bottom: 5px; padding: 15px 10px; font-size: 16px; text-align: left;'><span class='glyphicon glyphicon-list'></span> {{cat.title}}</button>
+                  <button class='btn btn-default list-group-item-warning' {{on "click" (fn this.ctrlAction "browse" cat)}} style='width: 100%; margin-bottom: 5px; padding: 15px 10px; font-size: 16px; text-align: left;'><span class='glyphicon glyphicon-list'></span> {{cat.title}}</button>
                 {{/each}}
               </div>
             {{/if}}
@@ -206,7 +206,7 @@
             {{else if this.search.results}}
               <div class='row'>
                 {{#each this.search.results as |item|}}
-                  <button class='btn btn-default list-group-item-success' {{on "click" (action "pick_set" item)}} style='width: 100%; margin-bottom: 5px; text-align: left;'>
+                  <button class='btn btn-default list-group-item-success' {{on "click" (fn this.ctrlAction "pick_set" item)}} style='width: 100%; margin-bottom: 5px; text-align: left;'>
                     <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
                     <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                       {{item.title}}
@@ -222,7 +222,7 @@
             {{/if}}
             {{#unless this.search.loading}}
               <div style='text-align: center; margin-top: 10px;'>
-                <button type="button" class='btn btn-default btn-lg' {{on "click" (action "clear_search")}}>{{t "Clear Search Results" key="clear_search_results"}}</button>
+                <button type="button" class='btn btn-default btn-lg' {{on "click" (fn this.ctrlAction "clear_search")}}>{{t "Clear Search Results" key="clear_search_results"}}</button>
               </div>
             {{/unless}}
           </div>
@@ -257,7 +257,7 @@
                         class="btn btn-primary nb-ai-generate__btn"
                         disabled={{this.ai_generate_disabled}}
                         aria-disabled={{if this.ai_generate_disabled "true" "false"}}
-                        {{on "click" (action "generate_focus_words_with_ai")}}>
+                        {{on "click" (fn this.ctrlAction "generate_focus_words_with_ai")}}>
                   {{#if this.ai_generating}}
                     {{t "Generating Focus Words..." key="ai_generating_focus_words"}}
                   {{else}}
@@ -283,13 +283,13 @@
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
-    <button type="button" class='btn btn-default btn-lg' style='background: #4c86d8; color: #fff; border-color: #4c86d8;' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Apply this word list as the active focus filter on boards and close this window." key='set_focus_words_tooltip')}} {{on "click" (action "set_focus_words")}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
+    <button type="button" class='btn btn-default btn-lg' style='background: #4c86d8; color: #fff; border-color: #4c86d8;' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Apply this word list as the active focus filter on boards and close this window." key='set_focus_words_tooltip')}} {{on "click" (fn this.ctrlAction "set_focus_words")}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
     {{#if this.analysis}}
-      <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Open a printable view of this analysis." key='printable_analysis_tooltip')}} {{on "click" (action "report")}}>{{t "Printable Analysis" key="printable_analysis"}}</button>
+      <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Open a printable view of this analysis." key='printable_analysis_tooltip')}} {{on "click" (fn this.ctrlAction "report")}}>{{t "Printable Analysis" key="printable_analysis"}}</button>
     {{else}}
-      <button type="button" class='btn btn-default btn-lg' style='background: #4c86d8; color: #fff; border-color: #4c86d8;' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Look up where each word appears on the home board and list words that are not found." key='analyze_focus_words_tooltip')}} {{on "click" (action "analyze_focus_words")}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
+      <button type="button" class='btn btn-default btn-lg' style='background: #4c86d8; color: #fff; border-color: #4c86d8;' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Look up where each word appears on the home board and list words that are not found." key='analyze_focus_words_tooltip')}} {{on "click" (fn this.ctrlAction "analyze_focus_words")}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
     {{/if}}
-    <a href="#" class="btn btn-default btn-lg" title={{t "Close this window without applying focus words." key='focus_words_modal_close_tooltip'}} {{on "click" (action "close")}}>{{t "Close" key="close"}}</a>
+    <a href="#" class="btn btn-default btn-lg" title={{t "Close this window without applying focus words." key='focus_words_modal_close_tooltip'}} {{on "click" (fn this.ctrlAction "close")}}>{{t "Close" key="close"}}</a>
   </div>
   </div>
 {{/modal-dialog}}

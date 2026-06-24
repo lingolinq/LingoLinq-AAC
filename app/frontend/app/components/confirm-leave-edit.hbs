@@ -1,6 +1,6 @@
 {{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="md-modal-header">
-    <button type="button" class="la-modal-close" {{on "click" (action "close")}} aria-label={{t "Close" key="close"}}>
+    <button type="button" class="la-modal-close" {{on "click" (fn this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <h3 class="md-modal-title">{{t "SAVE AND EXIT" key="save_and_exit_caps"}}</h3>
@@ -27,7 +27,7 @@
          ONE place: the "Discard Edits" tile (-> confirm-discard-changes).
          The X (close) button in the header is the keep-editing /
          back-out affordance. --}}
-    <button type="button" class="md-leave-edit-btn md-leave-edit-btn--save" {{on "click" (action "save")}}>
+    <button type="button" class="md-leave-edit-btn md-leave-edit-btn--save" {{on "click" (fn this.ctrlAction "save")}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
         <polyline points="17 21 17 13 7 13 7 21"/>

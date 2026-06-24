@@ -6,7 +6,7 @@
       <h1 class="la-hero-title">{{t "Search for " key="search_for_boards_prefix"}}<span class="ub-search-page__title-boards">{{t "Boards" key="boards"}}</span><span class="ub-search-page__title-boards ub-search-page__title-boards--note">{{t "(Page-Sets & Vocabularies)" key="page_sets_and_vocabularies"}}</span></h1>
     </div>
     <div class="ub-search-page__form-wrap">
-      <form class="ub-search-page__form" {{on "submit" (action "searchBoards")}}>
+      <form class="ub-search-page__form" {{on "submit" (fn this.ctrlAction "searchBoards")}}>
         <div class="ub-search-page__form-row">
           <SearchBoardJump
             @query={{this.searchString}}
@@ -14,7 +14,7 @@
             @sections={{this.jump_sections}}
             @onSelect={{action "select_jump_board"}} />
           <div class="ub-search-page__locale-wrap">
-            {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(action (mut this.locale)) ariaLabel=(t "Language" key="locale")}}
+            {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(mut this.locale) ariaLabel=(t "Language" key="locale")}}
           </div>
         </div>
         {{#if this.app_state.currentUser}}

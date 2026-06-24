@@ -51,7 +51,7 @@
             </div>
           {{/if}}
           {{#if this.filterEnabled}}
-            <form class="board-folders-section__filter-form" {{on "submit" (action "noop")}}>
+            <form class="board-folders-section__filter-form" {{on "submit" (fn this.ctrlAction "noop")}}>
               <span id="board-folders-section__filter-label" class="board-folders-section__filter-label">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                 {{t "Folders Filter" key="folders_filter"}}
@@ -64,7 +64,7 @@
                 autocomplete="off"
                 placeholder={{t "Search folders and boards..." key="filter_folders"}}
                 value={{this.filterValue}}
-                {{on "input" (action "updateFilter")}}
+                {{on "input" (fn this.ctrlAction "updateFilter")}}
               />
               {{#if this.hasFilter}}
                 <button type="button" class="board-folders-section__filter-clear" {{on "click" (this.ctrlAction "clearFilter")}} aria-label={{t "Clear filter" key="clear_filter"}}>
@@ -74,8 +74,8 @@
             </form>
           {{/if}}
           <div class="board-folders-section__strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}
-            {{on "dragover" (action "emptyFolderDragOver")}}
-            {{on "drop" (action "emptyFolderDrop")}}
+            {{on "dragover" (fn this.ctrlAction "emptyFolderDragOver")}}
+            {{on "drop" (fn this.ctrlAction "emptyFolderDrop")}}
           >
             {{#each this.summaries as |folder|}}
               <button
@@ -83,10 +83,10 @@
                 class="board-folders-section__chip"
                 role="listitem"
                 {{on "click" (this.ctrlAction "enterFolder" folder.tag)}}
-                {{on "dragover" (action "folderDragOver" folder.tag)}}
-                {{on "dragenter" (action "folderDragEnter" folder.tag)}}
-                {{on "dragleave" (action "folderDragLeave" folder.tag)}}
-                {{on "drop" (action "folderDrop" folder.tag)}}
+                {{on "dragover" (fn this.ctrlAction "folderDragOver" folder.tag)}}
+                {{on "dragenter" (fn this.ctrlAction "folderDragEnter" folder.tag)}}
+                {{on "dragleave" (fn this.ctrlAction "folderDragLeave" folder.tag)}}
+                {{on "drop" (fn this.ctrlAction "folderDrop" folder.tag)}}
               >
                 <span class="board-folders-section__chip-back">
                   <span class="board-folders-section__chip-tab"></span>

@@ -40,7 +40,7 @@
     {{else if this.model.board.downstream_boards}}
       <div class="la-delete-board-section">
         <label class="la-delete-board-checkbox">
-          <Input @type="checkbox" @checked={{this.delete_downstream}} class="la-delete-board-check" {{on "change" (action "setDeleteDownstream" value="target.checked")}} />
+          <Input @type="checkbox" @checked={{this.delete_downstream}} class="la-delete-board-check" {{on "change" (this.ctrlActionEventValue "setDeleteDownstream" "checked")}} />
           <span>{{t "Also delete any of my boards that are linked from this board" key="delete_downstream_boards"}}</span>
         </label>
         {{#if this.delete_downstream}}

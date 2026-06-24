@@ -12,7 +12,7 @@
       </div>
     {{else}}
       <p>{{t "Enter the username or email address of the communicator you would like to supervise. The account owner will receive a consent request and must approve before access is granted." key="request_supervision_intro"}}</p>
-      <form class="form-horizontal" {{on "submit" (action "submit")}} style='margin-top: 20px;'>
+      <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "submit")}} style='margin-top: 20px;'>
         <div class="form-group">
           <label for="communicator_lookup" class="col-sm-3 control-label">{{t "User" key="user"}}</label>
           <div class="col-sm-8">

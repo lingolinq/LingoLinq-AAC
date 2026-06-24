@@ -92,7 +92,7 @@
     {{/if}}
   {{/if}}
   {{#if this.editing}}
-    <form class="form-horizontal" {{on "submit" (action "save")}}>
+    <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "save")}}>
       {{#if this.model.template_header}}
         <div class="form-group">
           <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
@@ -123,7 +123,7 @@
         <div class="form-group">
           <label for="advancement" class="col-sm-2 control-label">{{t "Advances" key="advances"}}</label>
           <div class="col-sm-2">
-            {{bound-select select_class="form-control" select_id="advancement" content=this.advance_options selection=this.model.advance_type action=(action (mut this.model.advance_type)) }}
+            {{bound-select select_class="form-control" select_id="advancement" content=this.advance_options selection=this.model.advance_type action=(mut this.model.advance_type) }}
           </div>
           {{#if this.model.date_advance}}
             <div class='col-sm-3'>
@@ -134,7 +134,7 @@
               <Input type="number" @value={{this.model.goal_duration_number}} class="form-control" id="duration_advance" placeholder="##" />
             </div>
             <div class='col-sm-2'>
-              {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=this.advance_unit_options selection=this.model.goal_duration_unit action=(action (mut this.model.goal_duration_unit)) }}
+              {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=this.advance_unit_options selection=this.model.goal_duration_unit action=(mut this.model.goal_duration_unit) }}
             </div>
           {{/if}}
         </div>
@@ -148,7 +148,7 @@
             {{else if this.status.loading_templates_error}}
               <p class='form-control-static'>{{t "There was an unexpected error loading templates..." key="error_loading_templates2"}}</p>
             {{else}}
-              {{bound-select select_class="form-control" select_id="next_template_id" content=this.template_options selection=this.model.next_template_id action=(action (mut this.model.next_template_id)) }}
+              {{bound-select select_class="form-control" select_id="next_template_id" content=this.template_options selection=this.model.next_template_id action=(mut this.model.next_template_id) }}
             {{/if}}
           </div>
         </div>

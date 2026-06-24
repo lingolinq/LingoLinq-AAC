@@ -24,7 +24,7 @@
       {{/if}}
       <span style='white-space: pre-line'>{{safe this.selected_tool.description}}</span>
       {{#if this.user_parameters}}
-        <form class="form-horizontal" {{on "submit" (action "nothing")}}>
+        <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "nothing")}}>
           <div class="form-group">
             <div class='col-sm-8 col-sm-offset-3'>
               <h4 class='form-control-static'>{{t "Tool Settings" key="tool_settings"}}</h4>

@@ -101,7 +101,7 @@
       {{#if this.model.permissions.edit}}
         {{#unless this.single_button_full_sentence}}
           <div class="row"><div class="col-sm-6">
-          <form class="form-horizontal well" {{on "submit" (action "update_utterance")}} style="margin-top: 20px;">
+          <form class="form-horizontal well" {{on "submit" (fn this.ctrlAction "update_utterance")}} style="margin-top: 20px;">
             <div class="form-group">
               <div class="col-sm-8">
                 <h2>{{t "Sentence settings" key="sentence_settings"}}</h2>

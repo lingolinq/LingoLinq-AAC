@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=(fn this.ctrlAction "close") opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing")}}
   <div class="modal-header">
       <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
     <h3>
@@ -6,7 +6,7 @@
     </h3>
   </div>
   <div class="modal-body">
-   <form class="form-horizontal"  {{on "submit" (action "save")}}>
+   <form class="form-horizontal"  {{on "submit" (fn this.ctrlAction "save")}}>
       <div class="form-group">
         <label for="webhook_name" class="col-sm-3 control-label">{{t "Handler Name" key="handler_name"}}</label>
         <div class="col-sm-9" style='max-width: 300px;'>

@@ -63,7 +63,7 @@
           {{#if this.model.has_logging_code}}
             {{t "If you know the logging access code, you may enter that to temporarily unlock full access to the user's logs." key="logging_code_for_full_access"}}
 
-            <form class="form-horizontal" {{on "submit" (action "update_logging_code")}}>
+            <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "update_logging_code")}}>
               <div class="form-group">
                 <div class="col-sm-2">
                   <Input type="text" @value={{this.logging_code}} class="form-control" />

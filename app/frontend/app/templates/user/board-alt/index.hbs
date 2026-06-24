@@ -1,4 +1,4 @@
-{{#button-listener computeHeight=(action "compute_height") buttonEvent=(action "button_event")}}
+{{#button-listener computeHeight=(fn this.ctrlAction "compute_height") buttonEvent=(fn this.ctrlAction "button_event")}}
 {{#if this.model.integration}}
   {{#unless this.app_state.sessionUser.currently_premium_or_premium_supporter}}
     <!-- only show integrations for currently-premium users, or supervisors with at least one premium user? -->
@@ -148,7 +148,7 @@
             {{/each}}
           {{else}}
             {{#if this.app_state.currentUser.preferences.device.canvas_render}}
-              {{board-canvas id="board_canvas" onInsert=(action "redraw") tabindex="0"}}
+              {{board-canvas id="board_canvas" onInsert=(fn this.ctrlAction "redraw") tabindex="0"}}
             {{else}}
               {{#each this.ordered_buttons as |row|}}
                 <div class="button_row">

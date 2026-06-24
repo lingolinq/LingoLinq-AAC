@@ -236,7 +236,7 @@
         {{/if}}
       </div>
       {{/unless}}
-      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (action "saveBoard")}}>
+      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (fn this.ctrlAction "saveBoard")}}>
 
         <section class="nb-section">
           <div class="nb-section__header-inline">
@@ -382,7 +382,7 @@
                              id="new_board_csv_input"
                              class="nb-field__file-input"
                              accept=".csv,text/csv"
-                             onchange={{action "csvFileChosen"}}
+                             {{on "change" (fn this.ctrlAction "csvFileChosen")}}
                              tabindex="-1"
                              aria-hidden="true" />
                     </div>
@@ -949,7 +949,7 @@
                                   <div class="md-settings-skin-suboptions">
                                     {{#each this.skin_suboptions as |option|}}
                                       <label class="md-settings-skin-suboption md-settings-skin-suboption--{{option.id}} {{if option.checked 'md-settings-skin-suboption--checked'}}" data-tooltip={{option.label}} aria-label={{option.label}}>
-                                        <input id={{concat "nb-skin-sub-" option.id}} name={{concat "nb-skin-sub-" option.id}} type="checkbox" checked={{option.checked}} onchange={{action "toggle_skin_suboption" option}} class="md-settings-skin-suboption__input" />
+                                        <input id={{concat "nb-skin-sub-" option.id}} name={{concat "nb-skin-sub-" option.id}} type="checkbox" checked={{option.checked}} {{on "change" (fn this.ctrlAction "toggle_skin_suboption" option)}} class="md-settings-skin-suboption__input" />
                                         <span class="md-settings-skin-suboption__swatch md-settings-skin--{{option.id}}" aria-hidden="true"></span>
                                       </label>
                                     {{/each}}
@@ -1010,7 +1010,7 @@
                                         aria-label={{t "Pick paint color" key="board_detail_pick_paint_color"}}
                                         autocomplete="off"
                                         oninput={{action "update_custom_paint_color" value="target.value"}}
-                                        onchange={{action "update_custom_paint_color" value="target.value"}}>
+                                        {{on "change" (fn this.ctrlAction "update_custom_paint_color" value="target.value")}}>
                                       <Input id="nb-paint-hex-input"
                                         @value={{this.custom_paint_color}}
                                         placeholder="#hex"
@@ -1323,7 +1323,7 @@
                              name="labels_order"
                              value="rows"
                              checked={{is_equal this.model.grid.labels_order "rows"}}
-                             onchange={{action "setLabelsOrder" "rows"}} />
+                             {{on "change" (fn this.ctrlAction "setLabelsOrder" "rows")}} />
                       <span class="nb-radio__label">{{t "Rows, left to right" key="rows_first_short"}}</span>
                     </label>
                     <label class="nb-radio">
@@ -1331,7 +1331,7 @@
                              name="labels_order"
                              value="columns"
                              checked={{is_equal this.model.grid.labels_order "columns"}}
-                             onchange={{action "setLabelsOrder" "columns"}} />
+                             {{on "change" (fn this.ctrlAction "setLabelsOrder" "columns")}} />
                       <span class="nb-radio__label">{{t "Columns, top to bottom" key="columns_first_short"}}</span>
                     </label>
                   </div>

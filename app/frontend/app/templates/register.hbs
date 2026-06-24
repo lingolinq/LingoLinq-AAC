@@ -88,7 +88,7 @@
           <p class="register-footer-link"><LinkTo @route="login">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
         {{/if}}
       {{else}}
-        <form novalidate autocomplete="off" {{on "submit" (action "saveProfile")}}>
+        <form novalidate autocomplete="off" {{on "submit" (fn this.ctrlAction "saveProfile")}}>
           <div class="la-section-header">
             <div class="la-hero-title-wrap">
               <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Create a " key="create_account_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span><span class="la-hero-title__prefix">{{t " Account" key="create_account_suffix"}}</span></h2>
@@ -153,8 +153,8 @@
             <div class="form-group">
               <label>{{t "Date of birth" key="date_of_birth"}}</label>
               <div class="register-date-row">
-                {{bound-select select_class="form-control" select_id="birth_month" content=this.birthMonths selection=this.birth_month action=(action (mut this.birth_month)) }}
-                {{bound-select select_class="form-control" select_id="birth_year" content=this.birthYears selection=this.birth_year action=(action (mut this.birth_year)) }}
+                {{bound-select select_class="form-control" select_id="birth_month" content=this.birthMonths selection=this.birth_month action=(mut this.birth_month) }}
+                {{bound-select select_class="form-control" select_id="birth_year" content=this.birthYears selection=this.birth_year action=(mut this.birth_year) }}
               </div>
               {{#if this.communicatorAgeRequired}}
                 <span class="text-danger">{{t "Please choose a birth month and year." key="birthdate_required"}}</span>

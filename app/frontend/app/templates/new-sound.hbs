@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=(fn this.ctrlAction "close") opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "Add Audio" key="add_audio"}}</h3>
@@ -14,7 +14,7 @@
           <button class='btn btn-default' type='button' {{on "click" (fn this.ctrlAction "find_url")}}>{{t "Retrieve" key="retrieve"}}</button>
         </div>
         <div>
-            <button type="button" {{on "click" (action "record_sound")}} disabled={{this.recorder_unavailable}} class="btn btn-default">
+            <button type="button" {{on "click" (fn this.ctrlAction "record_sound")}} disabled={{this.recorder_unavailable}} class="btn btn-default">
               <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
               {{t "Record Sound" key="record_sound"}}
             </button>

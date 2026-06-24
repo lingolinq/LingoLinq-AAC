@@ -1,5 +1,5 @@
 <h3 class="md-org-section-title" style="text-align: center; margin-bottom: 24px;">{{t "Edit Organization Details" key="edit_org_details"}}</h3>
-<form class="md-org-settings-form" {{on "submit" (action "save")}}>
+<form class="md-org-settings-form" {{on "submit" (fn this.ctrlAction "save")}}>
 
   {{!-- ═══════════ General Settings ═══════════ --}}
   <section class="md-org-settings-card">
@@ -19,7 +19,7 @@
 
     <div class="md-org-settings-field">
       <label for="preferred_symbols" class="md-org-settings-field__label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
-      {{bound-select select_class="md-org-report-select" select_id="preferred_symbols" content=this.symbols_list selection=this.model.preferred_symbols action=(action (mut this.model.preferred_symbols)) }}
+      {{bound-select select_class="md-org-report-select" select_id="preferred_symbols" content=this.symbols_list selection=this.model.preferred_symbols action=(mut this.model.preferred_symbols) }}
       {{#if this.premium_symbol_library}}
         <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">
           {{t "(will not apply for users without premium symbols enabled)" key="wont_work_without_premium_symbols"}}
@@ -29,7 +29,7 @@
 
     <div class="md-org-settings-field">
       <label for="default_locale" class="md-org-settings-field__label">{{t "Default Language" key="default_language"}}</label>
-      {{bound-select select_class="md-org-report-select" select_id="default_locale" content=this.locale_list selection=this.model.default_locale action=(action (mut this.model.default_locale)) }}
+      {{bound-select select_class="md-org-report-select" select_id="default_locale" content=this.locale_list selection=this.model.default_locale action=(mut this.model.default_locale) }}
     </div>
 
     <div class="md-org-settings-field">

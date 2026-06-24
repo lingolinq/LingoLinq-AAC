@@ -12,7 +12,7 @@
       {{#if this.is_super_admin}}
         <div class="md-org-report-field md-org-report-field--inline">
           <label for="telemetry_scope" class="md-org-report-field__label">{{t "Scope:" key="scope_colon"}}</label>
-          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_scope" content=this.scope_options selection=this.scope action=(action (mut this.scope)) }}
+          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_scope" content=this.scope_options selection=this.scope action=(mut this.scope) }}
         </div>
       {{/if}}
       <div class="md-org-report-field md-org-report-field--inline">
@@ -27,13 +27,13 @@
       {{#if (is-equal this.scope "organization")}}
         <div class="md-org-report-field md-org-report-field--inline">
           <label for="telemetry_user_filter" class="md-org-report-field__label">{{t "Communicator:" key="telemetry_communicator_filter"}}</label>
-          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_user_filter" content=this.user_filter_options selection=this.filter_user_id action=(action "set_filter_user")}}
+          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_user_filter" content=this.user_filter_options selection=this.filter_user_id action=(fn this.ctrlAction "set_filter_user")}}
         </div>
 
         {{#if this.device_filter_options.length}}
           <div class="md-org-report-field md-org-report-field--inline">
             <label for="telemetry_device_filter" class="md-org-report-field__label">{{t "Device:" key="telemetry_device_filter"}}</label>
-            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_device_filter" content=this.device_filter_options selection=this.filter_device_id action=(action "set_filter_device")}}
+            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_device_filter" content=this.device_filter_options selection=this.filter_device_id action=(fn this.ctrlAction "set_filter_device")}}
           </div>
         {{/if}}
       {{/if}}

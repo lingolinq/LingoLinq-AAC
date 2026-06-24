@@ -112,7 +112,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           {{t "Generate a New Start Code" key="generate_new_start_code"}}
         </h4>
-        <form class="md-sc-form" {{on "submit" (action "generate")}}>
+        <form class="md-sc-form" {{on "submit" (fn this.ctrlAction "generate")}}>
           <div class="md-org-settings-field">
             <label for="code" class="md-org-settings-field__label">{{t "Code" key="code"}}</label>
             <Input class="md-org-settings-input" type="text" @value={{this.code}} placeholder="(optional)" />

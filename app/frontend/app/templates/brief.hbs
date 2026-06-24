@@ -14,7 +14,7 @@
         </button>
       {{/unless}}
       <div class="speak-bar__button-list-wrap">
-        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{on "select" (action "vocalize")}} data-placement="bottom" data-trigger="manual">
+        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{on "select" (fn this.ctrlAction "vocalize")}} data-placement="bottom" data-trigger="manual">
           {{#let this.app_state.button_list as |button_list|}}
             {{button-list buttonList=button_list}}
           {{/let}}

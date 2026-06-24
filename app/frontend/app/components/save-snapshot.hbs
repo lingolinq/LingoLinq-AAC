@@ -8,7 +8,7 @@
   <div class="modal-body md-modal-body">
     <p>{{t "Snapshots are an easy way to save and reference slices of time for reporting. You can use them to setup baselines or to track progress over time, and generate side-by-side comparison reports of communication over time." key="snapshot_explainer"}}</p>
     {{#if this.model.usage_stats}}
-      <form class="form-horizontal" {{on "submit" (action "save")}}>
+      <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "save")}}>
         <div class="form-group">
           <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
           <div class="col-sm-7">

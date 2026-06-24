@@ -81,7 +81,7 @@
 {{/if}}
 
 {{#if this.new_goal}}
-  <form class="form-horizontal" {{on "submit" (action "save_goal")}}>
+  <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "save_goal")}}>
     <div class="form-group">
       <label for="summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
       <div class="col-sm-5">

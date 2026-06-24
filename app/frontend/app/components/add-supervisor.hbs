@@ -11,7 +11,7 @@
         {{t "Supervisors have full access to boards, reports, and settings. Only add people you trust." key="add_supervisor_intro_before"}}
         <LinkTo @route="privacy" class="md-modal-link">{{t "Privacy Policy" key="privacy_policy"}}</LinkTo>
       </p>
-      <form class="md-add-supervisor__form" {{on "submit" (action "add")}}>
+      <form class="md-add-supervisor__form" {{on "submit" (fn this.ctrlAction "add")}}>
         <div class="md-add-supervisor__field">
           <div class="md-add-supervisor__options" role="group" aria-label={{t "user type" key="user_type"}}>
             <button type="button" class="md-btn {{if this.existing_user "md-btn--primary" "md-btn--ghost"}}" {{on "click" (this.ctrlAction "set_user_type" "existing")}}>{{t "Add an Existing User" key="add_existing_user"}}</button>
