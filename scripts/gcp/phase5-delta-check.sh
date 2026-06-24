@@ -51,11 +51,17 @@
 #   PROJECT_ID         - default 'lingolinq-prod' (only used to print the Cloud SQL connection name).
 #   SQL_INSTANCE       - default 'lingolinq-prod-pg'.
 #
-# DRY-RUN locally (no prod): point both DSNs at local DBs via the unix socket, e.g.
+# DRY-RUN locally (no prod): point both DSNs at local DBs via the unix socket. Forward mode REFUSES
+# two identical endpoints (comparing a DB to itself is always a false "match"), so the dry-run must
+# opt in with ALLOW_SAME_DB=1:
+#   ALLOW_SAME_DB=1 \
 #   RENDER_DATABASE_URL='postgresql:///lingolinq-development?host=/var/run/postgresql' \
 #   CLOUDSQL_DATABASE_URL='postgresql:///lingolinq-development?host=/var/run/postgresql' \
 #     ./scripts/gcp/phase5-delta-check.sh           # same DB both sides => zero delta => exit 0
-# Point the two at DIFFERENT local DBs to exercise the drift/exit-non-zero path.
+# Point the two at DIFFERENT local DBs to exercise the drift/exit-non-zero path (no override needed).
+#
+# DO NOT run this script under `bash -x` / `set -x`: tracing would print the DSNs, which carry the
+# DB password. The script itself never echoes them.
 set -euo pipefail
 
 TABLES="${TABLES:-log_sessions boards board_contents}"
@@ -91,6 +97,13 @@ bad()  { printf "${C_BAD}%s${C_OFF}" "$*"; }
 
 command -v psql >/dev/null 2>&1 || { echo "ERROR: psql not found." >&2; exit 1; }
 
+# Validate every table name against a strict identifier pattern BEFORE it is interpolated into SQL.
+# TABLES is operator-supplied, but a stray quote/space/`;` could break out of the read-only
+# transaction (e.g. an injected COMMIT), defeating the script's read-only-against-prod guarantee.
+for _t in $TABLES; do
+  [[ "$_t" =~ ^[a-z_][a-z0-9_]*$ ]] || { echo "ERROR: invalid table name '$_t' (expected ^[a-z_][a-z0-9_]*\$)." >&2; exit 1; }
+done
+
 # A NULL marker that compares cleanly when a table is empty on BOTH sides (both -> same marker).
 NULLMARK='(none)'
 
@@ -110,7 +123,9 @@ build_forward_sql() {
   for t in $TABLES; do
     [ $first -eq 1 ] || printf "UNION ALL\n"; first=0
     if [ "$WITH_COUNTS" = 1 ]; then cnt="COUNT(*)::text"; else cnt="'-'"; fi
-    printf "SELECT '%s' AS tbl, COALESCE(MAX(id)::text,'%s') AS max_id, COALESCE(MAX(updated_at)::text,'%s') AS max_upd, %s AS n FROM \"%s\"\n" \
+    # to_char with an explicit pattern renders identically regardless of each server's DateStyle /
+    # fractional-second defaults (Render PG vs Cloud SQL PG18), so equal timestamps never read as DRIFT.
+    printf "SELECT '%s' AS tbl, COALESCE(MAX(id)::text,'%s') AS max_id, COALESCE(to_char(MAX(updated_at),'YYYY-MM-DD HH24:MI:SS.US'),'%s') AS max_upd, %s AS n FROM \"%s\"\n" \
       "$t" "$NULLMARK" "$NULLMARK" "$cnt" "$t"
   done
   printf "ORDER BY tbl;\nCOMMIT;\n"
@@ -123,7 +138,7 @@ build_reverse_sql() {
   local first=1 t
   for t in $TABLES; do
     [ $first -eq 1 ] || printf "UNION ALL\n"; first=0
-    printf "SELECT '%s' AS tbl, COUNT(*)::text AS n, COALESCE(MAX(id)::text,'%s') AS max_id, COALESCE(MAX(updated_at)::text,'%s') AS max_upd FROM \"%s\" WHERE updated_at > %s\n" \
+    printf "SELECT '%s' AS tbl, COUNT(*)::text AS n, COALESCE(MAX(id)::text,'%s') AS max_id, COALESCE(to_char(MAX(updated_at),'YYYY-MM-DD HH24:MI:SS.US'),'%s') AS max_upd FROM \"%s\" WHERE updated_at > %s\n" \
       "$t" "$NULLMARK" "$NULLMARK" "$t" "$(printf "'%s'" "${SINCE//\'/\'\'}")"
   done
   printf "ORDER BY tbl;\nCOMMIT;\n"
@@ -143,14 +158,21 @@ if [ -n "$SINCE" ]; then
   echo "    Tables    : $TABLES"
   echo "    Since     : $SINCE  (rows NEWER than this exist only on Cloud SQL)"
 
-  total=0; rows="$(probe build_reverse_sql "$CLOUDSQL_DATABASE_URL")"
+  total=0; seen=0; rows="$(probe build_reverse_sql "$CLOUDSQL_DATABASE_URL")"
   log "Cloud SQL rows written after the DNS-flip timestamp (replay-or-accept-loss candidates)"
   printf "    %-22s %10s  %-12s  %s\n" "TABLE" "ROWS" "MAX_ID" "MAX_UPDATED_AT"
   while IFS='|' read -r tbl n max_id max_upd; do
     [ -z "$tbl" ] && continue
+    # COUNT(*) is always a non-negative integer; anything else means a malformed/partial probe -
+    # abort rather than silently under-count the rows that must be reconciled on rollback.
+    [[ "$n" =~ ^[0-9]+$ ]] || { echo "ERROR: non-numeric row count for '$tbl': [$n] - aborting (do not trust this report)." >&2; exit 3; }
     printf "    %-22s %10s  %-12s  %s\n" "$tbl" "$n" "$max_id" "$max_upd"
-    total=$(( total + n ))
+    total=$(( total + n )); seen=$(( seen + 1 ))
   done <<< "$rows"
+  # Coverage: every requested table must have produced exactly one row, else a table silently
+  # dropped out and the reconciliation total is understated.
+  want=$(echo $TABLES | wc -w)
+  [ "$seen" = "$want" ] || { echo "ERROR: reverse probe returned $seen of $want requested tables - aborting (incomplete reconciliation)." >&2; exit 3; }
 
   echo
   if [ "$total" -gt 0 ]; then
@@ -166,10 +188,20 @@ fi
 [ -n "${RENDER_DATABASE_URL:-}" ] || { echo "ERROR: RENDER_DATABASE_URL is required for the forward (pre-DNS) check." >&2; exit 1; }
 
 log "Phase 5 pre-DNS delta check (Render vs Cloud SQL)"
-echo "    Render    : $(safe_conn "$RENDER_DATABASE_URL")"
-echo "    Cloud SQL : $(safe_conn "$CLOUDSQL_DATABASE_URL")"
+ren_conn="$(safe_conn "$RENDER_DATABASE_URL")"
+cs_conn="$(safe_conn "$CLOUDSQL_DATABASE_URL")"
+echo "    Render    : $ren_conn"
+echo "    Cloud SQL : $cs_conn"
 echo "    Tables    : $TABLES"
 echo "    Counts    : $([ "$WITH_COUNTS" = 1 ] && echo 'comparing COUNT(*) too' || echo 'MAX(id) + MAX(updated_at) only (add --counts for COUNT(*))')"
+
+# Comparing a database to ITSELF always reports a (meaningless) match. In the live pre-DNS gate the
+# two endpoints MUST differ; refuse identical db+host unless explicitly overridden for a dry-run.
+if [ "$ren_conn" = "$cs_conn" ] && [ "${ALLOW_SAME_DB:-0}" != "1" ]; then
+  echo "ERROR: Render and Cloud SQL resolve to the same db+host ($ren_conn)." >&2
+  echo "       Comparing a DB to itself is a false 'match'. Set ALLOW_SAME_DB=1 only for a local dry-run." >&2
+  exit 1
+fi
 
 ren="$(probe build_forward_sql "$RENDER_DATABASE_URL")"
 cs="$(probe build_forward_sql "$CLOUDSQL_DATABASE_URL")"
@@ -182,12 +214,17 @@ while IFS='|' read -r tbl id up n; do [ -z "$tbl" ] && continue; C_ID["$tbl"]="$
 log "Per-table comparison"
 drift=0
 for t in $TABLES; do
-  t_drift=0
+  t_drift=0; absent=0
+  # A table absent from EITHER probe is never "OK" - that is exactly the silent-drop case the gate
+  # must not pass. Treat absence as drift (not a both-MISSING==MISSING match).
+  if [ -z "${R_ID[$t]+x}" ] || [ -z "${C_ID[$t]+x}" ]; then t_drift=1; absent=1; fi
   [ "${R_ID[$t]:-MISSING}" = "${C_ID[$t]:-MISSING}" ] || t_drift=1
   [ "${R_UP[$t]:-MISSING}" = "${C_UP[$t]:-MISSING}" ] || t_drift=1
   if [ "$WITH_COUNTS" = 1 ]; then [ "${R_N[$t]:-MISSING}" = "${C_N[$t]:-MISSING}" ] || t_drift=1; fi
 
-  if [ "$t_drift" = 0 ]; then status="$(ok '[OK]')"; else status="$(bad '[DRIFT]')"; drift=1; fi
+  if [ "$t_drift" = 0 ]; then status="$(ok '[OK]')"
+  elif [ "$absent" = 1 ]; then status="$(bad '[ABSENT]')"; drift=1
+  else status="$(bad '[DRIFT]')"; drift=1; fi
   printf "\n  %s  %s\n" "$t" "$status"
   printf "      max_id          render=%-14s cloudsql=%-14s\n" "${R_ID[$t]:-MISSING}" "${C_ID[$t]:-MISSING}"
   printf "      max_updated_at  render=%-26s cloudsql=%-26s\n" "${R_UP[$t]:-MISSING}" "${C_UP[$t]:-MISSING}"
