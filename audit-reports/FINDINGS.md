@@ -5,17 +5,15 @@
 
 **Audited:** `scot/security/audit-erasure-admin-reads` @ `445336592ddaf838689df7e578829e94e140890d` on 2026-06-19  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 5 High
+**Headline (open + remediated-unverified):** 0 Critical / 3 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (45)
+## Open (43)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
-| LL-d1ea8659c3 |  | high | SOC2 | **fixed** | audit-run | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
-| LL-11db0dc848 |  | high | COPPA, FERPA, HIPAA | **fixed** | audit | Eval narration gates on caller-asserted user_id but egresses an independent, unbound eval_session payload | `app/controllers/api/eval_sessions_controller.rb`:57 |
-| LL-aacae48768 |  | high | SOC2, HIPAA, FERPA | **accepted** | audit-run | Production Postgres (lingolinq-prod-db) reachable from an all-addresses /0 allowlist (public internet) | (attestation) |
+| LL-d1ea8659c3 |  | high | SOC2 | **accepted** | audit-run | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
 | LL-7f7372e3eb |  | high | SOC2, HIPAA | **accepted** | audit-review | Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited | `bin/audit_console`:7 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | **fixed** | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -59,7 +57,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-a97357136e | P2-2 | low | SOC2 | **wontfix** | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | **wontfix** | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
 
-## Verified closed (33)
+## Verified closed (34)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -73,6 +71,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-ef5ac1b2a5 |  | high | FERPA, HIPAA | untriaged | audit-run | Eval AI narration creates no AiApiLog entry (no record student eval data was sent to an LLM) | `lib/eval_narrator.rb`:58 |
 | LL-2967f77e6d |  | high | WCAG | **fixed** | audit-run | Board-tile symbol image has no alt text (fast_html render path) | `app/frontend/app/utils/button.js`:449 |
 | LL-2e4c14d370 |  | high | COPPA, FERPA, HIPAA | untriaged | audit-run | Eval AI narration has no COPPA parental-consent hard-gate before sending under-13 student data to Anthropic | `lib/eval_narrator.rb`:43 |
+| LL-11db0dc848 |  | high | COPPA, FERPA, HIPAA | **fixed** | audit | Eval narration gates on caller-asserted user_id but egresses an independent, unbound eval_session payload | `app/controllers/api/eval_sessions_controller.rb`:57 |
 | LL-16fef018a0 |  | high | SOC2 | **fixed** | pr-review | Password-reset code verification endpoint (users#password_reset) not rate-limited | `config/initializers/throttling.rb`:41 |
 | LL-080a21089f |  | high | FERPA, HIPAA, GDPR | untriaged | audit-run | Account deletion / right-to-erasure path writes no AuditEvent | `app/controllers/api/users_controller.rb`:388 |
 | LL-7acd0e7416 |  | high | FERPA, HIPAA | untriaged | audit-run | Admin-support reads of individual student records (version history, daily usage) write no AuditEvent | `app/controllers/api/users_controller.rb`:485 |
@@ -97,10 +96,11 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-a25d930f21 |  | low | SOC2 | untriaged | audit-run | ember-cli-mirage 2.4.0 is abandoned for Ember 3.x (no active maintenance, last meaningful release 2021) | `app/frontend/package-lock.json`:12501 |
 | LL-53ab4ea456 |  | low | SOC2 | untriaged | audit-run | serialize-javascript 4.0.0 vulnerable to CVE-2024-11831 (XSS); dev toolchain only | `app/frontend/package-lock.json`:26437 |
 
-## Accepted risk (2)
+## Accepted risk (3)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
+| LL-aacae48768 |  | high | SOC2, HIPAA, FERPA | **accepted** | audit-run | Production Postgres (lingolinq-prod-db) reachable from an all-addresses /0 allowlist (public internet) | (attestation) |
 | LL-9f83617435 | Infra-P1-4 | high | SOC2 | **accepted** | audit-run | No explicit HSTS ssl_options (subdomains/preload) | `config/environments/production.rb`:62 |
 | LL-92dc570f30 | P1-5 | high | SOC2 | **accepted** | audit-run | consent_response accepts token/decision from multiple parameter keys | `app/controllers/api/supervisor_relationships_controller.rb`:86 |
 

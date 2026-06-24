@@ -11,13 +11,13 @@
 **Audited commit:** `445336592ddaf838689df7e578829e94e140890d`  
 **Audited ref:** `scot/security/audit-erasure-admin-reads`  
 **Run date:** 2026-06-19  
-**Page generated:** 2026-06-23T23:52:06Z
+**Page generated:** 2026-06-24T00:38:32Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **5** | 24 | 16 |
+| **0** | **3** | 24 | 16 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -25,9 +25,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 
 | ID | Legacy | Severity | Frameworks | Title | Evidence |
 |---|---|---|---|---|---|
-| LL-11db0dc848 |  | high | COPPA, FERPA, HIPAA | Eval narration gates on caller-asserted user_id but egresses an independent, unbound eval_session payload | `app/controllers/api/eval_sessions_controller.rb`:57 |
 | LL-7f7372e3eb |  | high | SOC2, HIPAA | Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited | `bin/audit_console`:7 |
-| LL-aacae48768 |  | high | SOC2, HIPAA, FERPA | Production Postgres (lingolinq-prod-db) reachable from an all-addresses /0 allowlist (public internet) | (attestation) |
 | LL-d1ea8659c3 |  | high | SOC2 | bootstrap 3.4.1 (EOL/abandoned) bundled into shipped app; reachable Tooltip/Popover & data-* XSS | `app/frontend/package.json`:31 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-0c6e931f47 |  | medium | WCAG | Sentence box (utterance bar) symbol chip images have no alt attribute | `app/frontend/app/templates/components/button-list.hbs`:21 |

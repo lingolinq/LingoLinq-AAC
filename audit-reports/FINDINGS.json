@@ -1628,10 +1628,10 @@
       },
       "notes": "Surfaced by dependency finder on 2026-06-14. | adversary verifier: CONFIRMED (high); SEVERITY OPINION for Scot = should-be-medium. bootstrap 3.4.1 JS is bundled (ember-cli-build.js:88) and .tooltip()/.popover() are used, but no live untrusted-HTML-into-tooltip sink exists today (all .tooltip() omit html:true; the one html:true popover builds body via escaped innerText), so this is latent supply-chain/XSS hygiene risk, not a currently triggerable XSS. Fix is independent of the pinned Ember 3.28->5 migration. Severity downgrade is Scot's call only.",
       "disposition": {
-        "state": "fixed",
+        "state": "accepted",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-18",
-        "rationale": "Replace or upgrade bootstrap 3.4.1 (EOL); a larger migration to schedule on its own, not a quick win."
+        "decidedDate": "2026-06-23",
+        "rationale": "Reopened from 'fixed' on verification 2026-06-23: bootstrap 3.4.1 is still bundled (app/frontend/package.json; ember-cli-build.js:52) and .tooltip()/.popover() remain in use, including a data-content=innerHTML popover at utterance.js:840. Not actually remediated; accepted for real remediation (remove/upgrade bootstrap, or sanitize/verify the utterance.js popover path)."
       }
     },
     {
@@ -2246,7 +2246,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/eval_sessions_controller.rb",
@@ -2255,16 +2255,16 @@
         "sha": "922d93b98417692e5fd5b8bc3d64df7b3baab84d"
       },
       "firstSeen": "2026-06-17",
-      "lastSeen": "2026-06-17",
+      "lastSeen": "2026-06-23",
       "owner": "unassigned",
       "remediation": {
         "options": "Persist the eval server-side against the resolved user and verify ownership of the eval content before egress, rather than trusting the client-supplied eval_session payload. Bind the gate-subject (user_id) to the data actually sent.",
-        "timeframe": "server-side-eval-persistence follow-up (Phase 1B)"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "ab426abf50df402abba37ccef8944e6b75ff7c75",
+        "verifierNote": "Verified 2026-06-23: the narrate action gates external-model egress on (a) explicit use_anthropic opt-in (default off -> deterministic local template, no egress), (b) a resolvable supervised student (exists? + allowed?('supervise')), (c) COPPA consent (FeatureFlags.coppa_blocks_ai_for?), and (d) org AI opt-in (ai_enabled_for?); the payload is PII-scrubbed before send. eval_sessions_controller.rb:43-79, eval_narrator.rb:25-73.",
+        "attestation": "Scot Wahlquist 2026-06-23: attested verified-closed. External-model narration is hard-gated on explicit per-request opt-in, supervised-student resolution, COPPA parental-consent, and org-level AI opt-in, with PII scrubbing before egress; default behavior sends no data externally."
       },
       "disposition": {
         "state": "fixed",
@@ -2657,14 +2657,14 @@
         "HIPAA",
         "FERPA"
       ],
-      "status": "open",
+      "status": "accepted-risk",
       "evidence": {
         "type": "runtime",
         "source": "render-mcp:list_postgres_instances",
         "snippet": "Both Render Postgres instances (incl. the prod DB and the dev/staging DB) report ipAllowList = a single all-addresses /0 entry ('everywhere'), i.e. the database accepts TCP connections from any source IP on the public internet. No source-IP restriction is in effect. render.yaml databases block (render.yaml:101-105) declares no ipAllowList, so the public-everywhere default is the effective committed posture and is not documented as intentional in render.yaml or docs/INFRASTRUCTURE.md. Checked: ipAllowList field only; no secrets/connection strings/PII read or echoed."
       },
       "firstSeen": "2026-06-19",
-      "lastSeen": "2026-06-21",
+      "lastSeen": "2026-06-23",
       "owner": "Scot Wahlquist",
       "remediation": {
         "options": "Restrict the Render Postgres ipAllowList to known egress sources (the Render service private network / specific NAT egress CIDRs) instead of the all-addresses /0 default, via the database's Access Control settings or an ipAllowList block in render.yaml. Combined with sslmode=require (LL-ba0585ab93, no cert verification), a public-reachable DB is a real network attack surface for a credential-stuffing / brute-force path against the DB. The GCP Cloud SQL cutover removes public DB exposure entirely (private VPC + Cloud SQL connector), so for prod this reconciles with the migration rather than being fixed twice; the dev/staging DB should be restricted now regardless. Until cutover, set an allowlist or accept-risk with a dated note.",
@@ -2672,15 +2672,15 @@
       },
       "closureEvidence": {
         "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "verifierNote": "No code fix; network-allowlist remediation is owned by the Render-to-GCP migration workstream and lands with the private-VPC Cloud SQL cutover.",
+        "attestation": "Scot Wahlquist 2026-06-23: accepted as a known risk on the interim Render environment; superseded by the private-VPC Cloud SQL cutover."
       },
       "notes": "Surfaced by infra finder on 2026-06-19. Net-new infra finding (runtime). Distinct from LL-ba0585ab93 (DB sslmode=require, encryption/cert-verification, not network reachability), LL-6619cc1811 (Redis TLS), and LL-9f83617435 (HSTS). The register has no finding covering DB network-level public exposure. Re-verify by re-running render-mcp:list_postgres_instances (workspace-independent). The prod-DB closure is gated on the GCP Memorystore/Cloud SQL cutover per project_render_cloud_migration; the dev/staging DB exposure is independently restrictable now. | adversary: confirmed (committed-config: render.yaml databases block declares no ipAllowList and INFRASTRUCTURE.md does not document the open posture as intentional). Live single-/0 runtime detail flagged uncertain pending a render-MCP re-pull. | triaged 2026-06-19: disposition=accepted (real, to remediate), owner Scot, at Scot's direction in the audit session. | LIVE CHECK 2026-06-21 (render-MCP list_postgres_instances): CONFIRMED both lingolinq-prod-db (dpg-d64c5i1r0fns73c5jcp0-a) and lingolinq-dev-staging-db (dpg-d64c53v5r7bs73acj600-a) have ipAllowList=[0.0.0.0/0 \"everywhere\"]. The prior \"uncertain pending re-pull\" note is resolved: the /0 exposure is real and current on both. dev/staging is restrictable now; prod gated on the Memorystore/Cloud SQL cutover. Remains open (live state cannot close it). | DECISION 2026-06-21 (Scot, /lingo session): remediate via the GCP migration, NOT an interim Render allowlist edit. Prod + dev/staging move to Cloud SQL (private-IP-only, NO public IP - confirmed in the Phase-4 dry-run plan Step 2 \"no public IP\" verify) over the next ~2 weeks, eliminating the public endpoint entirely (strictly better than a 0.0.0.0/0 -> /32 narrowing). Interim 0.0.0.0/0 exposure ACCEPTED for the cutover window (DB stays credential-gated; creds in Render env/1Password, not in repo); no interim infra change so prod is not poked right before cutover. CLOSE when: prod data is live on private-IP Cloud SQL AND the Render prod + dev-staging DBs are decommissioned/restricted (re-run render-MCP list_postgres_instances to confirm). TRIPWIRE: if the cutover has not landed by ~2026-07-05, revisit and apply the interim restriction drafted at ~/ai-company-brain/outputs/plans/2026-06-21-dev-staging-db-allowlist-restriction-plan.md.",
       "disposition": {
         "state": "accepted",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-19",
-        "rationale": "Confirmed real network-exposure finding. Accepted as a remediation item (not a risk-acceptance). Production DB closure folds into the Render->GCP Cloud SQL cutover (private VPC, no public DB exposure) per the migration; the dev/staging DB ipAllowList should be restricted independently and now, since it does not depend on the cutover. Adversary confirmed the committed-config half; live single-/0 detail to re-confirm via a render-MCP re-pull at remediation time."
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted as a known risk. The production Postgres network allowlist is managed in the Render-to-GCP migration workstream; the interim public-reachability exposure on Render is accepted and is superseded by the private-VPC Cloud SQL cutover."
       }
     },
     {
