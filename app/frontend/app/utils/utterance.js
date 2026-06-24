@@ -818,9 +818,12 @@ var utterance = EmberObject.extend({
       opts.placement = 'bottom';
       selector = '#home_button';
     }
-    if(!$(selector).attr('data-popover')) {
-      $(selector).attr('data-popover', true).popover(opts);
-    }
+    // Initialize idempotently: bootstrap no-ops `.popover(opts)` when this element already
+    // has an instance, and re-creates it with these hardened opts after a `popover('destroy')`
+    // (app-state.js fires that on leaving a board). The previous `data-popover` attr guard
+    // could survive a destroy and skip re-init, so `.popover('show')` would rebuild a bare
+    // default popover with no `content` fn -- an empty bubble.
+    $(selector).popover(opts);
     runCancel(this._popoverHide);
     var div = document.createElement('div');
     div.innerText = "\"" + (button.vocalization || button.label) + "\"";
