@@ -10,6 +10,7 @@ export default Component.extend({
   },
   draw: observer('goal.draw_id', function() {
     var $elem = $(this.get('element'));
+    // `title` is app-controlled stats data; do not enable html:true or pass untrusted strings (bootstrap 3 EOL, LL-d1ea8659c3).
     $elem.find(".time_block,.time_block_left").tooltip({container: 'body'});
   })
 });

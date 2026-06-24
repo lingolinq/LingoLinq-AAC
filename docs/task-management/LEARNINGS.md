@@ -5512,3 +5512,17 @@ Two wrong tries proved it: (a) `height:auto` + cell `min-height:96px`, (b) grid
 `min-height: calc(--board-rows*104px)` — both forced rows taller than the squares → gaps. The
 only gap-free path is the grid collapsing to the squares' own height. `computeHeight()` is
 EMPTY (board-detail.js:1920) so sizing is pure CSS; `--board-rows` is set by JS (board-detail.js:3044).
+
+## Gotcha: bootstrap 3 tooltip/popover is XSS-safe only via DOM-node content, not data-content strings
+Bootstrap 3.4.1 (`node_modules/bootstrap/dist/js/bootstrap.js`) `Popover.getContent` reads the
+`data-content` attribute FIRST, then falls back to the `content` option. `Popover.setContent`
+branches `typeof content === 'string' ? 'html' : 'append'` and runs `sanitizeHtml` ONLY on string
+content. So `$(el).attr('data-content', node.innerHTML).popover('show')` round-trips through a
+parsed+sanitized HTML string (safety depends on the EOL sanitizer), whereas passing
+`content: () => domNode` makes bootstrap `.append()` the real node, never parsing HTML at all
+(sanitizer irrelevant). When building popover/tooltip bodies, construct a DOM node with
+`document.createElement` + `.innerText` (escapes) + `img.src` (property, no attr injection) and hand
+bootstrap the NODE via the `content` function; do not set `data-content` to an HTML string. Verified
+in `utils/utterance.js:silent_speak_button` (LL-d1ea8659c3). Note bootstrap JS is also load-bearing
+for `data-toggle="dropdown"` (incl. keyboard a11y in `controllers/caseload.js`) and
+`data-dismiss="alert"`, so the EOL lib cannot simply be dropped without replacing those too.

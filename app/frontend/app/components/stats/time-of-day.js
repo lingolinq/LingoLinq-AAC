@@ -38,6 +38,7 @@ export default Component.extend({
         this.set('usage_stats.ref_max_combined_modeled_time_block', this.get('ref_stats.max_combined_modeled_time_block'));
       }
       runLater(function() {
+        // `title` is app-controlled stats data; do not enable html:true or pass untrusted strings (bootstrap 3 EOL, LL-d1ea8659c3).
         $elem.find(".time_block").tooltip({container: 'body'});
       }, 1000);
     }

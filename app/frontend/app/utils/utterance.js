@@ -798,8 +798,20 @@ var utterance = EmberObject.extend({
     return u.map(function(b) { return b.vocalization || b.label; }).join(" ");
   },
   silent_speak_button: function(button) {
+    var _this = this;
     var selector = '#speak_mode';
-    var opts = {html: true};
+    // Render the popover body as a prebuilt DOM node (set on `_this._popover_dom`
+    // below), NOT as an HTML string. Bootstrap 3.4.1 Popover.setContent takes the
+    // `.append()` branch for non-string content, so the node is inserted as-is and
+    // nothing is ever parsed as HTML. This keeps the body XSS-safe by construction
+    // (button text goes through `.innerText`, images through `img.src`) instead of
+    // depending on the EOL sanitizer. Any future `title`/`content` STRING passed to
+    // a tooltip/popover here must be app-controlled and pre-escaped.
+    var opts = {
+      html: true,
+      sanitize: true, // defense-in-depth for the title path / future string content; never disable
+      content: function() { return _this._popover_dom || ''; }
+    };
     var timeout = 2000;
     if(app_state.get('speak_mode')) {
       opts.container = 'body';
@@ -837,7 +849,11 @@ var utterance = EmberObject.extend({
       img.src = button.avatar_url;
       div.prepend(img);
     }
-    $(selector).attr('data-content', div.innerHTML).popover('show');
+    // Hand bootstrap the actual DOM node (consumed by the `content` fn above), not a
+    // `data-content` HTML string. Do NOT set the `data-content` attr: Popover.getContent
+    // reads that attr first and would re-introduce the string (.html()) path.
+    _this._popover_dom = div;
+    $(selector).popover('show');
 
     this._popoverHide = runLater(this, function() {
       $(selector).popover('hide');
