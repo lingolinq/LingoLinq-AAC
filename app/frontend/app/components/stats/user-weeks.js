@@ -13,6 +13,7 @@ export default Component.extend({
   },
   draw: function() {
     var $elem = $(this.get('element'));
+    // `title` is app-controlled stats data; do not enable html:true or pass untrusted strings (bootstrap 3 EOL, LL-d1ea8659c3).
     $elem.find(".week,.profile_box").tooltip({container: 'body'});
   },
   communicators_with_stats: computed(
