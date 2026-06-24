@@ -43,7 +43,11 @@
 #   DOMAIN=... CONFIRM_LB=1 CONFIRM_ARMOR=1 ./scripts/gcp/phase5-frontend-lb.sh  # + Cloud Armor (preview)
 #   DOMAIN=... CONFIRM_LB=1 CONFIRM_ARMOR=1 SET_GH_VARS=1 ...                  # + write repo vars (LB IP/domain)
 #   DOMAIN=... CONFIRM_INGRESS_LOCKDOWN=1 ./scripts/gcp/phase5-frontend-lb.sh  # flip web to LB-only (LAST)
-#   ARMOR_ENFORCE=1 CONFIRM_ARMOR=1 DOMAIN=... ...                             # WAF enforce (after rehearsal)
+#   ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 CONFIRM_ARMOR=1 DOMAIN=... ...     # WAF enforce (after rehearsal)
+#
+# NOTE: enforce (deny-403) needs BOTH ARMOR_ENFORCE=1 and its own CONFIRM_ARMOR_ENFORCE=1 gate,
+# and the ingress lockdown must be a SEPARATE invocation from the LB build (CONFIRM_LB=1) so the
+# LB path is validated before public run.app access is removed.
 #
 # Optional overrides: PROJECT_ID, REGION, WEB_SERVICE, WAF_SENSITIVITY, RATE_LIMIT_COUNT,
 #   RATE_LIMIT_INTERVAL_SEC, and the resource names below.
@@ -87,6 +91,7 @@ GH_REPO="${GH_REPO:-lingolinq/LingoLinq-AAC}"
 # Gate flags (default 0 = do not run that gated step).
 CONFIRM_LB="${CONFIRM_LB:-0}"
 CONFIRM_ARMOR="${CONFIRM_ARMOR:-0}"
+CONFIRM_ARMOR_ENFORCE="${CONFIRM_ARMOR_ENFORCE:-0}"  # extra gate required to flip the WAF to deny-403
 CONFIRM_INGRESS_LOCKDOWN="${CONFIRM_INGRESS_LOCKDOWN:-0}"
 SET_GH_VARS="${SET_GH_VARS:-0}"
 
@@ -133,7 +138,7 @@ cat <<PLAN
           managed SSL cert $CERT_NAME for DOMAIN='${DOMAIN:-<UNSET - required>}'
           HTTPS proxy + :443 forwarding rule; HTTP :80 -> HTTPS redirect
   [ARMOR] policy $ARMOR_POLICY: OWASP WAF (SQLi/XSS/LFI/RCE) sensitivity=$WAF_SENSITIVITY,
-          mode=$([ "$ARMOR_ENFORCE" = "1" ] && echo ENFORCE || echo PREVIEW); rate-limit
+          mode=$([ "$ARMOR_ENFORCE" = "1" ] && [ "$CONFIRM_ARMOR_ENFORCE" = "1" ] && echo ENFORCE || echo PREVIEW); rate-limit
           ${RATE_LIMIT_COUNT}/${RATE_LIMIT_INTERVAL_SEC}s per IP; attached to $BACKEND_NAME
   [LOCKDOWN] $WEB_SERVICE ingress -> internal-and-cloud-load-balancing (run LAST)
 
@@ -191,15 +196,34 @@ else
     --load-balancing-scheme=EXTERNAL_MANAGED \
     --enable-logging --logging-sample-rate=1.0
 fi
-if gcloud compute backend-services describe "$BACKEND_NAME" --global --project="$PROJECT_ID" \
-     --format='value(backends.group)' | grep -q "$NEG_NAME"; then
+# Match the EXACT NEG resource path, not a bare-name substring (a substring match could
+# false-positive on a different NEG sharing the prefix, or false-NEGATIVE on a transient empty
+# describe and then abort the whole build on add-backend's "already exists"). (dual-review PR #476)
+ATTACHED_GROUPS="$(gcloud compute backend-services describe "$BACKEND_NAME" --global --project="$PROJECT_ID" \
+  --format='value(backends.group)' 2>/dev/null || true)"
+NEG_PATH="projects/$PROJECT_ID/regions/$REGION/networkEndpointGroups/$NEG_NAME"
+if printf '%s' "$ATTACHED_GROUPS" | grep -qF "$NEG_PATH"; then
   skip "NEG already attached to $BACKEND_NAME"
 else
-  gcloud compute backend-services add-backend "$BACKEND_NAME" \
+  set +e
+  ADD_OUT="$(gcloud compute backend-services add-backend "$BACKEND_NAME" \
     --project="$PROJECT_ID" \
     --global \
     --network-endpoint-group="$NEG_NAME" \
-    --network-endpoint-group-region="$REGION"
+    --network-endpoint-group-region="$REGION" 2>&1)"
+  ADD_RC=$?
+  set -e
+  if [ "$ADD_RC" -ne 0 ]; then
+    # Tolerate an "already a backend"/"already exists" race (describe can transiently miss an
+    # existing attachment) so a retried run does not abort mid-build; any other failure stops.
+    if printf '%s' "$ADD_OUT" | grep -qiE 'already (a backend|exists)'; then
+      skip "add-backend reported NEG already attached; continuing"
+    else
+      printf '%s\n' "$ADD_OUT" >&2
+      echo "ERROR: add-backend failed for $BACKEND_NAME (not an already-attached race)." >&2
+      exit 1
+    fi
+  fi
 fi
 
 log "Step 1e: URL map ($URLMAP_NAME) -> $BACKEND_NAME"
@@ -272,9 +296,20 @@ log "Load balancer built. DNS A record for $DOMAIN -> $LB_IP (do NOT flip yet; r
 # 2. [ARMOR GATE] Cloud Armor policy: OWASP WAF (preview, low sensitivity) + rate limit.
 # ---------------------------------------------------------------------------------------
 if [ "$CONFIRM_ARMOR" = "1" ]; then
-  PREVIEW_FLAG="--preview"
-  MODE="PREVIEW (log-only)"
-  if [ "$ARMOR_ENFORCE" = "1" ]; then PREVIEW_FLAG=""; MODE="ENFORCE (deny-403)"; fi
+  # Enforce (deny-403) is a distinct, outage-capable action, so it needs its OWN gate on top of
+  # ARMOR_ENFORCE: a bare ARMOR_ENFORCE=1 must not silently build or flip rules into enforce.
+  # (dual-review PR #476)
+  ENFORCING=0
+  if [ "$ARMOR_ENFORCE" = "1" ]; then
+    [ "$CONFIRM_ARMOR_ENFORCE" = "1" ] || {
+      echo "ERROR: ARMOR_ENFORCE=1 also requires CONFIRM_ARMOR_ENFORCE=1." >&2
+      echo "       Enforce flips the WAF from log-only to deny-403; confirm it deliberately AFTER the" >&2
+      echo "       rehearsal preview logs show no legitimate AAC traffic is flagged." >&2
+      exit 1
+    }
+    ENFORCING=1
+  fi
+  if [ "$ENFORCING" = "1" ]; then PREVIEW_FLAG=""; MODE="ENFORCE (deny-403)"; else PREVIEW_FLAG="--preview"; MODE="PREVIEW (log-only)"; fi
 
   log "Step 2a: Cloud Armor policy $ARMOR_POLICY (WAF mode: $MODE, sensitivity=$WAF_SENSITIVITY)"
   if gcloud compute security-policies describe "$ARMOR_POLICY" --project="$PROJECT_ID" >/dev/null 2>&1; then
@@ -282,10 +317,11 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
   else
     gcloud compute security-policies create "$ARMOR_POLICY" \
       --project="$PROJECT_ID" --description="LingoLinq edge WAF + rate limiting (front of $WEB_SERVICE)"
-    # Verbose logging so the rehearsal can see what preview-mode WAF rules WOULD have blocked.
-    gcloud compute security-policies update "$ARMOR_POLICY" \
-      --project="$PROJECT_ID" --log-level=VERBOSE
   fi
+  # Verbose logging so the rehearsal can see what preview-mode WAF rules WOULD have blocked.
+  # Re-asserted on EVERY armor run (idempotent) so a policy created out-of-band still gets it.
+  gcloud compute security-policies update "$ARMOR_POLICY" \
+    --project="$PROJECT_ID" --log-level=VERBOSE
 
   # Preconfigured OWASP WAF rule sets (current rule IDs verified 2026-06-23: sqli/xss are the
   # *-v422-stable sets). Low sensitivity + preview so free-text AAC utterances are not blocked
@@ -300,6 +336,14 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
     RULESET="${WAF_RULES[$PRIO]}"
     if gcloud compute security-policies rules describe "$PRIO" --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" >/dev/null 2>&1; then
       skip "WAF rule $PRIO ($RULESET) already exists"
+      # Idempotently converge an EXISTING rule to enforce, so the documented preview->enforce flip
+      # actually takes effect on a re-run instead of being silently skipped by the describe check
+      # above and left in preview. (dual-review PR #476)
+      if [ "$ENFORCING" = "1" ]; then
+        log "Step 2b: flip existing WAF rule $PRIO -> ENFORCE (--no-preview)"
+        gcloud compute security-policies rules update "$PRIO" \
+          --project="$PROJECT_ID" --security-policy="$ARMOR_POLICY" --action=deny-403 --no-preview
+      fi
     else
       log "Step 2b: WAF rule $PRIO -> $RULESET (deny-403, $MODE)"
       # shellcheck disable=SC2086
@@ -314,6 +358,11 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
   # Defense-in-depth on top of the app's Rack::Attack; conservative so normal AAC use is unaffected.
   if gcloud compute security-policies rules describe 2000 --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" >/dev/null 2>&1; then
     skip "rate-limit rule 2000 already exists"
+    if [ "$ENFORCING" = "1" ]; then
+      log "Step 2c: flip existing rate-limit rule 2000 -> ENFORCE (--no-preview)"
+      gcloud compute security-policies rules update 2000 \
+        --project="$PROJECT_ID" --security-policy="$ARMOR_POLICY" --no-preview
+    fi
   else
     # shellcheck disable=SC2086
     gcloud compute security-policies rules create 2000 \
@@ -329,6 +378,16 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
   log "Step 2d: attach $ARMOR_POLICY to backend $BACKEND_NAME"
   gcloud compute backend-services update "$BACKEND_NAME" \
     --project="$PROJECT_ID" --global --security-policy="$ARMOR_POLICY"
+
+  # Read back and print the ACTUAL preview state of every rule (preview=true => log-only,
+  # preview=false => enforcing), so the operator never trusts the intended MODE banner over the
+  # real policy state before proceeding to lockdown / DNS. (dual-review PR #476)
+  log "Step 2e: actual WAF rule modes (preview=true is log-only, false is enforcing)"
+  for PRIO in "${!WAF_RULES[@]}" 2000; do
+    ACTUAL_PREVIEW="$(gcloud compute security-policies rules describe "$PRIO" \
+      --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(preview)' 2>/dev/null || echo '?')"
+    echo "    rule $PRIO: preview=$ACTUAL_PREVIEW"
+  done
 else
   gate "Step 2 (Cloud Armor) SKIPPED. Re-run with CONFIRM_ARMOR=1 once approved."
 fi
@@ -337,6 +396,15 @@ fi
 # 3. [LOCKDOWN GATE] flip the web service to LB-only ingress. RUN LAST, after LB validated.
 # ---------------------------------------------------------------------------------------
 if [ "$CONFIRM_INGRESS_LOCKDOWN" = "1" ]; then
+  # Refuse to lock down ingress in the SAME run that builds the LB: lockdown must come only AFTER
+  # the LB path is validated in the rehearsal, otherwise the service goes LB-only while the managed
+  # cert is still PENDING (no validated ingress) and the 0a run.app smoke test breaks. (dual-review PR #476)
+  if [ "$CONFIRM_LB" = "1" ] || [ "$CONFIRM_ARMOR" = "1" ]; then
+    echo "ERROR: refusing ingress lockdown in the same invocation as the LB/Armor build." >&2
+    echo "       Validate the LB + WAF path in the rehearsal first, THEN run" >&2
+    echo "       CONFIRM_INGRESS_LOCKDOWN=1 on its own." >&2
+    exit 1
+  fi
   log "Step 3: $WEB_SERVICE ingress -> internal-and-cloud-load-balancing"
   echo "    WARNING: this removes public run.app access; only LB (Cloud Armor) traffic reaches the app."
   echo "    Reverse with: gcloud run services update $WEB_SERVICE --region=$REGION --ingress=all"
@@ -363,14 +431,14 @@ cat <<HANDOFF
   -------------------------------------------------------------------
   Built (when gated): static IP${LB_IP:+ = $LB_IP}, serverless NEG -> $WEB_SERVICE, backend
   $BACKEND_NAME, URL map, managed cert for ${DOMAIN:-<DOMAIN unset>}, HTTPS+HTTP forwarding,
-  and (if CONFIRM_ARMOR) Cloud Armor $ARMOR_POLICY in $([ "$ARMOR_ENFORCE" = "1" ] && echo ENFORCE || echo PREVIEW).
+  and (if CONFIRM_ARMOR) Cloud Armor $ARMOR_POLICY in $([ "$ARMOR_ENFORCE" = "1" ] && [ "$CONFIRM_ARMOR_ENFORCE" = "1" ] && echo ENFORCE || echo PREVIEW).
 
   Next, in order:
    1. Dress rehearsal: validate the LB path via the IP + Host header (cert is PENDING until DNS).
       Review Cloud Armor preview logs; confirm no AAC traffic is flagged, then re-run with
-      ARMOR_ENFORCE=1 CONFIRM_ARMOR=1 to switch the WAF to enforce.
-   2. After the LB is validated, run CONFIRM_INGRESS_LOCKDOWN=1 to take the web service off the
-      public run.app URL (LB-only).
+      ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 CONFIRM_ARMOR=1 to switch the WAF to enforce.
+   2. After the LB is validated, run CONFIRM_INGRESS_LOCKDOWN=1 ON ITS OWN (no CONFIRM_LB/ARMOR)
+      to take the web service off the public run.app URL (LB-only).
    3. At cutover (runbook step 9): point $DOMAIN DNS A record at the LB IP. The managed cert then
       provisions (up to ~60 min). Do NOT flip DNS before then.
 
