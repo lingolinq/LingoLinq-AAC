@@ -1606,7 +1606,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package.json",
@@ -1615,23 +1615,23 @@
         "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
       },
       "firstSeen": "2026-06-14",
-      "lastSeen": "2026-06-14",
+      "lastSeen": "2026-06-24",
       "owner": "unassigned",
       "remediation": {
         "options": "Bootstrap 3.x is EOL since 2019 with no security patches; GHSA XSS advisories (Tooltip/Popover sanitizer bypass, data-* injection) have no 3.x backport. The app ships bootstrap.min.js (ember-cli-build.js:109) and calls .tooltip()/.popover() (app-state, utterance, stats components), so the vector is reachable. INDEPENDENT of the pinned Ember 3.28 -> 5.x migration. Options: (1) migrate to Bootstrap 5.x behind a feature flag (AAC UI-disruptive); (2) if deferred, ensure no untrusted HTML reaches title/data-content of tooltip/popover call sites and audit those sites; (3) Scot accepts risk with call sites confirmed to use only app-controlled sanitized strings.",
-        "timeframe": "advisory"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "6f4cf9a79165a3d84b139342c1d2c6c7bc7cfb0a",
+        "verifierNote": "Verified 2026-06-24: XSS dimension remediated in PR #481 (merged to staging at 6f4cf9a79). silent_speak_button now passes the prebuilt popover body as a DOM node via content:()=>_this._popover_dom (utterance.js) and no longer sets the data-content innerHTML string, so bootstrap 3.4.1 Popover.setContent takes the .append() branch and never parses the body as HTML -- the EOL sanitizer is no longer load-bearing. Popover init made idempotent ($(selector).popover(opts)) so it survives app-state.js popover('destroy') (adversary-found regression, fixed + re-verified). The 4 imperative .tooltip() inits in components/stats/* carry app-controlled-only comments. Behaviorally verified against real jQuery 3.7.1 + bootstrap 3.4.1 headless (XSS payload renders as a literal text node even with sanitize:false); passed /review-pr and /adversary-review. Note: bootstrap 3.4.1 is INTENTIONALLY still bundled (load-bearing for dropdowns, keyboard a11y, alert-close), so the package.json evidence anchor remains true; the residual EOL supply-chain exposure is a separate concern, not this XSS finding, and remains Scot's risk-accept/upgrade call.",
+        "attestation": "Scot Wahlquist 2026-06-24: attested verified-closed for the reachable XSS vector; remediated in PR #481, code-verified behaviorally 2026-06-24. Bootstrap retention is a deliberate, separately-tracked decision."
       },
       "notes": "Surfaced by dependency finder on 2026-06-14. | adversary verifier: CONFIRMED (high); SEVERITY OPINION for Scot = should-be-medium. bootstrap 3.4.1 JS is bundled (ember-cli-build.js:88) and .tooltip()/.popover() are used, but no live untrusted-HTML-into-tooltip sink exists today (all .tooltip() omit html:true; the one html:true popover builds body via escaped innerText), so this is latent supply-chain/XSS hygiene risk, not a currently triggerable XSS. Fix is independent of the pinned Ember 3.28->5 migration. Severity downgrade is Scot's call only.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-23",
-        "rationale": "Reopened from 'fixed' on verification 2026-06-23: bootstrap 3.4.1 is still bundled (app/frontend/package.json; ember-cli-build.js:52) and .tooltip()/.popover() remain in use, including a data-content=innerHTML popover at utterance.js:840. Not actually remediated; accepted for real remediation (remove/upgrade bootstrap, or sanitize/verify the utterance.js popover path)."
+        "decidedDate": "2026-06-24",
+        "rationale": "Remediated via PR #481 (merged to staging 6f4cf9a79): popover body rendered as a DOM node (bootstrap .append() path, no HTML parse), init made idempotent to survive popover('destroy'), 4 stats .tooltip() sinks documented app-controlled-only. Code-verified behaviorally + /review-pr + /adversary-review. Bootstrap kept intentionally; residual EOL supply-chain exposure tracked separately, not this XSS finding."
       }
     },
     {
