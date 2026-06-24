@@ -190,9 +190,12 @@ The freeze, in order:
 > cutover; the user simply signs in again afterward.** That is the accepted trade for not locking
 > users out for the whole soak. `auth/google/signup` (full new user + boards) is NOT allowlisted, so
 > no brand-new account is persisted to Render mid-soak. `saml/consume` is kept allowlisted (favoring
-> existing-SSO sign-in), which means a brand-new SAML user provisioned mid-soak would be lost - if
-> that is unacceptable, block `saml/consume` too. Record the accepted-loss decision here before the
-> window.
+> existing-SSO sign-in), which means a brand-new SAML user provisioned mid-soak would be lost.
+> **DECISION (Scot, 2026-06-23): keep `saml/consume` allowlisted.** Existing single-sign-on users
+> must be able to sign in during the window; a brand-new SSO signup landing in a ~2-3h overnight
+> window is rare and simply retries against GCP afterward. Accepted-loss set is therefore: login
+> Device/token writes + `saml/consume` SSO linkage (lost on rollback; user re-signs-in). New-account
+> creation (`auth/google/signup`) stays blocked.
 
 > **Residual note (dual-review of PR #472, then code-traced):** keeping Render up in write-reject
 > mode + 60s TTL closes the post-dump-write data-loss class ONLY IF the client retains a rejected
@@ -482,9 +485,10 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 - [x] W1 worker SIGTERM grace + requeue fix built + dual-reviewed (tracker 4.W1, **PR #473**,
       pending merge to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
       existing BoyBand requeue).
-- [ ] **W1 residual decision:** the blanket requeue double-runs the non-idempotent outbound-webhook
-      notifier; accept the operational mitigation (pause it pre-cutover, step 1) OR build a
-      per-class selective requeue. Recorded before the window.
+- [x] **W1 residual DECIDED (Scot, 2026-06-23): pause the outbound-webhook notifier pre-cutover**
+      (operational mitigation, step 1) rather than building a per-class selective requeue. The
+      blanket requeue's double-run risk is handled by ensuring no long notifier is in flight at the
+      freeze. (Selective requeue remains a possible later improvement, not a cutover blocker.)
 - [ ] 5.3 front-end choice **decided (Option B, LB + Cloud Armor, gated on the rehearsal; fallback
       A-now-B-soak)** AND built. Build script shipped (`scripts/gcp/phase5-frontend-lb.sh`, PR #476);
       still to run (gated): provision the LB, validate it + the WAF preview in the rehearsal, flip
@@ -498,10 +502,10 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       offline path already re-queues (`sync_changed` keeps the record `changed` on failure; logs
       re-stashed), so this is a confirmation, not a likely blocker; a confirmed DROP is the only
       no-go. Also spot-check an online direct save under the freeze.
-- [ ] **Accepted-loss set recorded + signed off:** existing-user login Device/token writes and
-      `saml/consume` SSO linkage land on Render during the soak and are lost on rollback (re-login
-      after); `auth/google/signup` is blocked. Confirm `saml/consume` stays allowlisted (or block
-      it). See step 1.
+- [x] **Accepted-loss set signed off (Scot, 2026-06-23):** existing-user login Device/token writes
+      and `saml/consume` SSO linkage land on Render during the soak and are lost on rollback
+      (user re-signs-in after); `auth/google/signup` is blocked. `saml/consume` stays allowlisted.
+      See step 1.
 - [ ] **Every external writer enumerated and pause-tested:** Render cron services, n8n workflows
       hitting prod, hourly `sync-render-env`, **the outbound webhook notifier**
       (`Webhook.notify_all_with_code`), AND a plan for **inbound webhooks** (Stripe/AWS) 503'd
