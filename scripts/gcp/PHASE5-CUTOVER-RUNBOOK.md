@@ -52,6 +52,22 @@ is not schedulable to a firm date until this passes.
   errors; sequences verified (S1).
 - Failure: stop. The rehearsal is non-destructive to Render; fix and re-rehearse.
 
+**Two write-freeze go/no-go checks to add to this rehearsal (dual-review of PR #472/#473):**
+
+- **Client 503 re-queue (confirm; code trace says it already re-queues).** With `WRITE_FREEZE` on,
+  drive a real offline edit (board save) and a `LogSession` create, then confirm the write lands on
+  Cloud SQL on the next sync and is NOT dropped. The offline path is expected to pass: `sync_changed`
+  leaves a record `changed` on save failure and retries it, and the `big_logs` stash re-stashes logs
+  on failure (see step-1 residual note). Also spot-check an ONLINE direct board save under the freeze
+  (it should error and be re-saveable, not silently lost). Only a confirmed DROP here is a no-go.
+- **Worker requeue + shutdown budget.** Enqueue a synthetic long slow-queue job, replace the
+  worker-pool instance (redeploy) mid-job, and confirm: (a) the job re-runs after the new instance
+  comes up, and (b) actual shutdown wall-clock stays under Cloud Run's fixed 10s under live
+  `rediss://` TLS Redis (the entrypoint sets `RESQUE_PRE_SHUTDOWN_TIMEOUT=4` + `RESQUE_TERM_TIMEOUT=3`
+  = 7s nominal; confirm the requeue LPUSH completes inside the term window and right-size from the
+  measured number, tracker 4.2). Also confirm DirtyExit jobs (TERM outside job execution / SIGKILL)
+  are visible in the Resque failed queue.
+
 ### 0b. Worker health verification  (was Copilot "6b warmup", reframed)
 
 The worker is a Cloud Run **worker-pool** (`gcloud beta run worker-pools`, see
@@ -109,6 +125,19 @@ DB means freezing ALL of them, in this order, BEFORE the dump:
   whole window AND soak, or a 1Password edit silently rewrites Render env (breaks the "Render is
   pristine rollback insurance" invariant; see Rollback).
 - **n8n workflows that hit prod** (e.g. the cost/PII digest). Pause.
+- **Outbound webhook delivery** (`Webhook.notify_all_with_code`, scheduled from
+  `app/models/concerns/notifier.rb`). It can run ~20 min sending outbound webhooks per recipient,
+  and is **non-idempotent**: the W1 SIGTERM requeue (PR #473) re-runs an interrupted job from the
+  top, so a worker replacement mid-notify resends to already-notified district/school endpoints
+  (duplicate, unretractable webhooks). Pause/drain it before pausing the workers so none is in
+  flight at the freeze. (Making the requeue selective per-class is a documented follow-up; for the
+  cutover the mitigation is operational - pause it.)
+- **Inbound external webhooks** (Stripe `purchasing_event`, AWS SNS/transcoder `callback`, CSP
+  reports - all mutating POSTs under `/api/v1`). Once write-reject is on, these are 503'd, so a
+  Stripe subscription/payment event or a transcoder completion arriving during the soak is not
+  recorded on Render. Stripe/AWS retry, but if the soak outlasts their retry window the event is
+  lost (billing/media-record impact). Either keep the soak inside the providers' retry windows, or
+  plan to reconcile/replay webhooks received during the window. Note it in the window plan.
 
 **DECIDED mechanism (Scot, 2026-06-23): Option 1 + Option 2 combined. NOT scale-to-0.**
 The offline/mobile replay hazard (AAC clients buffer writes in IndexedDB/SQLite and replay on
@@ -133,19 +162,63 @@ The freeze, in order:
 - **Do NOT scale Render web to 0, and do NOT decommission, until after soak and after Cloud SQL is
   confirmed authoritative** (step 9b). Render web in write-reject mode is the soak-safety guard.
 
-> **Required build (pre-cutover, like W1): Render write-reject mode.** A feature-flagged
-> request-layer guard (Rack middleware or a global `before_action`) that, when the flag/env is on,
-> short-circuits every mutating request (POST/PUT/PATCH/DELETE, plus any GET that writes) with HTTP
-> `503` and a `Retry-After` header, and an i18n'd body. Reads pass through untouched. Per LingoLinq
-> rules this is new user-facing behavior, so it ships behind a flag (`lib/feature_flags.rb`) and is
-> tested before the window. It must cover the JSON API write paths the offline clients sync to (the
-> `lib/json_api` mutation routes), not just HTML forms. Enumerate and test the mutating-endpoint
-> coverage during the dress rehearsal.
+> **Required build (pre-cutover, like W1): Render write-reject mode. BUILT - PR #472**
+> (`config/initializers/write_freeze.rb`, `WriteFreeze::Middleware`). A Rack middleware that, when
+> the operator sets `WRITE_FREEZE`, short-circuits writes with HTTP `503` + `Retry-After` and an
+> i18n'd body (JSON for API/sync clients, HTML for browser navigations). Reads pass through. Default
+> (`WRITE_FREEZE` unset) = zero behavior change; toggle it on at freeze start, off on rollback.
+> Coverage as built:
+> - **Mutating verbs** (POST/PUT/PATCH/DELETE) are rejected by default.
+> - **Side-effect GETs are also rejected** via an explicit denylist (`SIDE_EFFECT_GET_PATHS`): a
+>   verb-only check would have leaked `upload_success` (images/sounds/videos `record.save`),
+>   `/goal_status/` (log write), and `/parental_consent/complete` (COPPA consent + Device writes).
+>   This list is maintained: a NEW side-effect GET added later is NOT covered until listed.
+> - **Auth allowlist** keeps existing-user sign-in working (token/oauth/refresh/SAML/google-link).
+>   New-account creation (`auth/google/signup`) and password reset are deliberately NOT allowlisted.
+>
+> **Gate is an ENV var (`WRITE_FREEZE`), not a `lib/feature_flags.rb` entry.** This is an
+> operator-controlled infra maintenance mode, not a user-facing product feature, so it is env-gated
+> like other infra behavior; the only user-facing surface (the 503 copy) is i18n'd. (The earlier
+> draft assumed a feature flag; the build and review settled on the ENV gate.) Re-confirm the
+> mutating-endpoint coverage in the dress rehearsal, especially the `lib/json_api` write paths the
+> offline clients sync to.
 
-> **Residual note:** with writes rejected and TTL at 60s, the post-dump-write data-loss class is
-> closed for online clients (they get a 503 and retry against GCP) and for offline clients that
-> reconnect after their cached TTL expires. The only manual reconciliation needed is on **rollback**
-> (see Rollback); no manual reconciliation is required on the happy path.
+> **Accepted-loss set (dual-review, PR #472 - confirm with Scot before the window).** The auth
+> allowlist intentionally lets EXISTING users sign in during the freeze, and those auth routes DO
+> write to the about-to-be-abandoned Render DB: `token`/`oauth2/token` create a `Device` row +
+> token (`generate_token!`), and `saml/consume` can persist SSO linkage. **These writes are LOST at
+> cutover; the user simply signs in again afterward.** That is the accepted trade for not locking
+> users out for the whole soak. `auth/google/signup` (full new user + boards) is NOT allowlisted, so
+> no brand-new account is persisted to Render mid-soak. `saml/consume` is kept allowlisted (favoring
+> existing-SSO sign-in), which means a brand-new SAML user provisioned mid-soak would be lost.
+> **DECISION (Scot, 2026-06-23): keep `saml/consume` allowlisted.** Existing single-sign-on users
+> must be able to sign in during the window; a brand-new SSO signup landing in a ~2-3h overnight
+> window is rare and simply retries against GCP afterward. Accepted-loss set is therefore: login
+> Device/token writes + `saml/consume` SSO linkage (lost on rollback; user re-signs-in). New-account
+> creation (`auth/google/signup`) stays blocked.
+
+> **Residual note (dual-review of PR #472, then code-traced):** keeping Render up in write-reject
+> mode + 60s TTL closes the post-dump-write data-loss class ONLY IF the client retains a rejected
+> write and retries it rather than dropping it. **Code trace says the offline write path already
+> does this** (so this is a confirm-in-rehearsal item, NOT a likely blocker):
+> - Offline record edits: `persistence.sync_changed` (`app/frontend/app/utils/persistence.js:3587`)
+>   saves each locally-`changed` record; on save failure it rejects WITHOUT removing the local
+>   record or clearing its `changed` marker (`:3651`), and uses `RSVP.all_wait` so one failure does
+>   not abort the rest. The record stays `changed` and is re-picked-up by `find_changed` on the next
+>   sync, which (after the 60s TTL moves DNS to GCP) lands on Cloud SQL. Not dropped.
+> - Usage logs: the `big_logs` stash observer re-stashes logs on a failed push
+>   (`persistence.js:~286`, `concat` back), so logs are retried too.
+> - The "~3 tries then stop, ignores Retry-After" path the review first flagged is
+>   `persistence.handleTokenError` - a TOKEN/auth-flow helper, NOT the data-write path; it does not
+>   govern board/log writes.
+>
+> Residual caveats to still check in 0a: (1) an ONLINE direct save (e.g. a board edit made while
+> online) that 503s surfaces as a save error and relies on user/app re-save - that is a UX retry,
+> not a silent write to the abandoned Render DB (the freeze's actual goal is met either way); (2)
+> `sync_changed` saves with `setProperties` + `save()` and no conflict check ("TODO: check for
+> conflicts before saving", `:3630`), so offline-replay is last-writer-wins - minimized by dump
+> timing but worth a spot-check. On the happy path the only manual reconciliation is on **rollback**
+> (see Rollback).
 
 ### 2. Fresh prod `pg_dump`  (GATE: real data move)
 
@@ -250,18 +323,38 @@ Then, BEFORE any DNS change:
   trigger** (it means an external writer or offline replay slipped past the freeze; go fix the
   freeze, do not flip DNS).
 
-### 8. Front-end decision gate  (tracker 5.3 - DECIDE before cutover)
+### 8. Front-end decision gate  (tracker 5.3 - DECIDED 2026-06-23)
 
 The web service currently deploys with `--allow-unauthenticated` straight to the `run.app` URL.
-No HTTPS LB or Cloud Armor is built. Before DNS, decide and build ONE of:
+No HTTPS LB or Cloud Armor is built yet.
 
-- **Option A:** map the custom domain directly to Cloud Run (managed TLS) - simpler.
-- **Option B:** front with an external HTTPS Load Balancer + Cloud Armor (WAF / IP rules) - more
-  work, more control.
+**DECISION (Scot, 2026-06-23): Option B - external HTTPS Load Balancer + Cloud Armor in front of
+Cloud Run, gated on building and smoke-testing the full LB + Cloud Armor path in the dress
+rehearsal (0a) so cutover is not its first real run. Fallback if rehearsal timing is tight: launch
+on Option A (domain-map, managed TLS) at cutover and add the LB in the soak.** Rationale: the WAF
+posture is wanted for HIPAA/FERPA defense-in-depth and is required for the n8n.3 webhook hardening,
+and A->B later is a *second* DNS cutover (CNAME-to-Cloud-Run vs A-record-to-LB-IP) with its own
+propagation/rollback window - building B first means one DNS event, not two.
 
-See the separate decision memo
-(`~/ai-company-brain/outputs/docs/2026-06-23-cloudrun-frontend-5-3-decision.md`). This is a
-**pre-cutover decision gate**, not a step you improvise during the window.
+- **Option A (fallback):** map the custom domain directly to Cloud Run (managed TLS) - simpler.
+- **Option B (chosen):** front with an external HTTPS Load Balancer + Cloud Armor (WAF / IP rules).
+  A misconfigured Cloud Armor rule can itself cause an outage (false-positive blocks on legitimate
+  AAC traffic), so exercise the policy in the rehearsal.
+
+Full rationale in the decision memo
+(`~/ai-company-brain/outputs/docs/2026-06-23-cloudrun-frontend-5-3-decision.md`).
+
+**Build script: `scripts/gcp/phase5-frontend-lb.sh`** (gated, idempotent; PR #476). Order:
+1. `DOMAIN=<prod domain> CONFIRM_LB=1 ...` builds the static IP + serverless NEG + backend +
+   URL map + managed cert + HTTPS/HTTP forwarding. Records the **LB IP** = the DNS A-record
+   target for step 9.
+2. `... CONFIRM_ARMOR=1 ...` adds Cloud Armor with the OWASP WAF in **PREVIEW** (log-only, low
+   sensitivity). In the rehearsal (0a), drive AAC traffic and review the preview logs; only when
+   no legitimate traffic is flagged, re-run with `ARMOR_ENFORCE=1` to switch the WAF to enforce.
+3. After the LB path is validated, `... CONFIRM_INGRESS_LOCKDOWN=1` takes `lingolinq-web` off the
+   public `run.app` URL (LB-only). Run this **after** the 0a smoke test (which uses `run.app`).
+The managed cert stays PENDING until step 9 points DNS at the LB IP, so validate the LB in the
+rehearsal via the IP + Host header. This is a **pre-cutover build**, not improvised in the window.
 
 ### 9. DNS cut  (tracker 5.4, GATE: DNS)
 
@@ -358,9 +451,16 @@ cold-start / p50 / p95 / memory in tracker 4.2.
   cold starts. Measure p95 and raise memory only if boot/GC pressure shows.
 - **Worker pool** (`lingolinq-worker`): `gcloud beta run worker-pools`, always-on, non-HTTP.
   Request-service knobs (request concurrency, `--cpu-boost`) do NOT apply here. The knobs that
-  matter are instance count, CPU/memory, and **SIGTERM grace**, which is exactly the W1 fix (long
-  slow-queue jobs must not be cut off / lost on instance replacement). Set adequate termination
-  grace before cutover.
+  matter are instance count and CPU/memory. **Correction (W1 / dual-review of PR #473): the SIGTERM
+  termination grace is a FIXED 10s and is NOT configurable** for services, jobs, or worker pools -
+  `gcloud beta run worker-pools deploy` exposes no grace flag (verified against the Cloud Run
+  container runtime contract). So the W1 fix is NOT "set a longer grace": it is (a) tuning Resque's
+  in-budget timeouts in `bin/docker-worker-entrypoint`
+  (`RESQUE_PRE_SHUTDOWN_TIMEOUT=4` + `RESQUE_TERM_TIMEOUT=3` = 7s, under the 10s with headroom), so
+  short jobs finish cleanly; and (b) the existing BoyBand requeue-on-`Resque::TermException`
+  (PR #473) re-running anything interrupted. Long (multi-minute) slow-queue jobs cannot finish in
+  10s regardless and rely on the requeue, not the grace - which is why the non-idempotent
+  outbound-webhook notifier must be paused before cutover (step 1).
 - The migrate Job runs `gen2` with Cloud SQL attached and full boot secrets; it boots Rails
   fully, so it needs the same `BOOT_SECRETS` set as web, not a subset.
 
@@ -382,14 +482,34 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 - [ ] 0a dress rehearsal passed (all five smoke paths, row reconcile, sequences verified).
 - [ ] 0c Redis TLS handshake green against live Memorystore, CA-completeness asserted
       (LL-6619cc1811 verified-closed).
-- [ ] W1 worker SIGTERM/requeue fix shipped (tracker 4.W1).
-- [ ] 5.3 front-end choice decided AND built (Option A or B).
-- [ ] **Render write-reject mode built + tested** (feature-flagged 503 + Retry-After on every
-      mutating endpoint incl. the `lib/json_api` write paths; reads pass through). Decided
-      mechanism, Option 1 + 2.
+- [x] W1 worker SIGTERM grace + requeue fix built + dual-reviewed (tracker 4.W1, **PR #473**,
+      pending merge to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
+      existing BoyBand requeue).
+- [x] **W1 residual DECIDED (Scot, 2026-06-23): pause the outbound-webhook notifier pre-cutover**
+      (operational mitigation, step 1) rather than building a per-class selective requeue. The
+      blanket requeue's double-run risk is handled by ensuring no long notifier is in flight at the
+      freeze. (Selective requeue remains a possible later improvement, not a cutover blocker.)
+- [ ] 5.3 front-end choice **decided (Option B, LB + Cloud Armor, gated on the rehearsal; fallback
+      A-now-B-soak)** AND built. Build script shipped (`scripts/gcp/phase5-frontend-lb.sh`, PR #476);
+      still to run (gated): provision the LB, validate it + the WAF preview in the rehearsal, flip
+      the WAF to enforce, then the ingress lockdown.
+- [x] **Render write-reject mode built + tested + dual-reviewed** (tracker 5.2, **PR #472**,
+      pending merge to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
+      Retry-After on mutating verbs AND side-effect GETs incl. the `lib/json_api` write paths;
+      reads pass; auth allowlist). Re-confirm endpoint coverage in the rehearsal.
+- [ ] **Client 503 re-queue confirmed in the dress rehearsal:** a frozen offline board-save /
+      LogSession write lands on Cloud SQL on the next sync, NOT dropped. Code trace shows the
+      offline path already re-queues (`sync_changed` keeps the record `changed` on failure; logs
+      re-stashed), so this is a confirmation, not a likely blocker; a confirmed DROP is the only
+      no-go. Also spot-check an online direct save under the freeze.
+- [x] **Accepted-loss set signed off (Scot, 2026-06-23):** existing-user login Device/token writes
+      and `saml/consume` SSO linkage land on Render during the soak and are lost on rollback
+      (user re-signs-in after); `auth/google/signup` is blocked. `saml/consume` stays allowlisted.
+      See step 1.
 - [ ] **Every external writer enumerated and pause-tested:** Render cron services, n8n workflows
-      hitting prod, hourly `sync-render-env` (verified against the LIVE Render dashboard, not this
-      doc).
+      hitting prod, hourly `sync-render-env`, **the outbound webhook notifier**
+      (`Webhook.notify_all_with_code`), AND a plan for **inbound webhooks** (Stripe/AWS) 503'd
+      during the soak (verified against the LIVE Render dashboard, not this doc).
 - [ ] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7).
 - [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
       BOOT_SECRETS if any row exists, else confirmed-empty.
