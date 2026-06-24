@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") uncloseable="true"}}
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing uncloseable="true"}}
   <div class="la-support-modal-wrap la-terms-agree-modal-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Complete %app_name% Registration" key="complete_registration"}}</span>

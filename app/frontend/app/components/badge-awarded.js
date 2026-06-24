@@ -50,6 +50,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.load_badge();
     if (this.get('model.user_id') && !this.get('model.badge')) {
       this.send('user_badges');

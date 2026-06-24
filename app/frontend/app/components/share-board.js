@@ -51,6 +51,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     // If this board was first materialized from a #tree/#bulk lite prefetch,
     // shared_users is absent and the "Shared with" list renders empty, which
     // an editor misreads as "shared with nobody" (issue #293). Refetch so the

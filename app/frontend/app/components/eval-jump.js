@@ -85,5 +85,14 @@ export default Component.extend({
       this.get('modal').close();
       obf.eval.jump_to(this.get('current_section_id'));
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

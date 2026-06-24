@@ -102,5 +102,14 @@ export default Component.extend({
     updateTemplateId(id) {
       this.set('current_template_id', id);
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="modal-body advanced_selection modal_targets md-speak-menu" id="speak_menu" role="dialog" aria-modal="true" aria-labelledby="md-speak-menu__title">
     {{!-- SVG gradient for two-toned icons --}}
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">

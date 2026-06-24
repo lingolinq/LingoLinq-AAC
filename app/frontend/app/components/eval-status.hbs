@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="la-eval-status-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Evaluation Status" key="eval_status"}}</span>

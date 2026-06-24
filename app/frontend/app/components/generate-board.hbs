@@ -1,5 +1,5 @@
 {{#grid-listener gridEvent=(action "grid_event")}}
-{{#modal-dialog action=(action "close") opening=(action "opening")}}
+{{#modal-dialog action=this.onClose opening=this.onOpening}}
   <div class="la-new-board-modal-wrap la-generate-board-modal-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Generate Board with AI" key="generate_board_with_ai"}}</span>

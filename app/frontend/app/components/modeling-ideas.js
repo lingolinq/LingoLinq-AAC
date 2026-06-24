@@ -351,5 +351,14 @@ export default Component.extend({
         modal.open('badge-awarded', { speak_mode: true, user_id: emberGet(this.get('model.users')[0], 'id') });
       }
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

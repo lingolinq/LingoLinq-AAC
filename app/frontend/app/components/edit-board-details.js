@@ -51,6 +51,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     const board = this.get('model.board') || this.get('model');
     this.set('model', board);
     this.set('starting_vis', board.get('visibility'));

@@ -23,7 +23,7 @@
     </div>
     <div class="md-stats-main__focus-divider md-card--boards__divider" aria-hidden="true"></div>
 {{#if this.app_state.currentUser.modeling_only}}
-  {{modeling-only-notice}}
+  <ModelingOnlyNotice />
 {{else if this.model.currently_premium}}
   {{#if this.model.preferences.logging}}
     <div class="md-user-meta md-user-meta--before-hero" role="list">

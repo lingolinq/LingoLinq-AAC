@@ -112,5 +112,14 @@ export default Component.extend({
         persistenceService.sync('self', true).then(null, function() {});
       }
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="la-support-modal-wrap md-dashboard-supervisors-modal-wrap" role="document">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Supervisors" key="supervisors"}}</span>

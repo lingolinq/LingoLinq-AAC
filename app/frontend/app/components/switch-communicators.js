@@ -26,6 +26,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.set('model.jump_home', this.get('model.stay') !== true);
     this.set('model.keep_as_self', this.get('model.modeling') || this.get('appState').get('referenced_speak_mode_user') != null);
     if (this.get('model.modeling') === 'ask') {

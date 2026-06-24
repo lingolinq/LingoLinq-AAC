@@ -55,6 +55,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.set('list_type', 'core');
     this.set('core_promise', null);
     this.set('user', this.get('model.user') || app_state.get('currentUser'));

@@ -64,6 +64,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.set('goal', this.get('model.goal') || this.get('store').createRecord('goal'));
     if (!this.get('goal.id') && window.moment) {
       this.set('goal.expires', window.moment().add(2, 'month').format('YYYY-MM-DD'));

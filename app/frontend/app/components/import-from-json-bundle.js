@@ -215,5 +215,12 @@ export default Component.extend({
       };
       reader.readAsText(file);
     }
-  }
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+  },
 });

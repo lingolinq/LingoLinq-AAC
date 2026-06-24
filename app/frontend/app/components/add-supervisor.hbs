@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="md-add-supervisor">
     <div class="modal-header md-modal-header">
       <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>

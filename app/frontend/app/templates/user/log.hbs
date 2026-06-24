@@ -301,7 +301,7 @@
     <p>{{t "No data found for this evaluation" key="no_data_for_evaluation"}}</p>
   {{/if}}
 {{else if this.model.profile_type}}
-  <UserProfileLog @processedProfile={{this.processed_profile}} @expectedProfile={{this.expected_profile}} @model={{this.model}} @repeatProfile={{action "repeat_profile"}} />
+  <UserProfileLog @processedProfile={{this.processed_profile}} @expectedProfile={{this.expected_profile}} @model={{this.model}} @repeatProfile={{fn this.ctrlAction "repeat_profile"}} />
 {{else}}
   {{#if this.model.imported}}
     {{t "NOTE: This log entry was imported from an outside source" key="data_imported"}}

@@ -45,6 +45,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     const time_cutoff = (new Date()).getTime() - (7 * 24 * 60 * 60 * 1000);
     const default_stashed_at = 1449599949597;
     const current_buttons = (stashes.get_object('stashed_buttons', true) || []).reverse().filter(function(b) {

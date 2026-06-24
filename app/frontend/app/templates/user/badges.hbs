@@ -1,5 +1,5 @@
 {{#if this.app_state.currentUser.modeling_only}}
-  {{modeling-only-notice}}
+  <ModelingOnlyNotice />
 {{else if this.model.currently_premium}}
   <h2>{{t "Current Badges" key="current_badges"}}</h2>
   {{#if this.badges.loading}}
