@@ -168,7 +168,7 @@
             {{t "None Defined" key="none_defined"}}
           {{/if}}
         </span>
-        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{action "manage_start_codes"}}>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
+        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "manage_start_codes")}}>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
       </div>
     </div>
 
@@ -182,7 +182,7 @@
             {{t "None Defined" key="none_defined"}}
           {{/if}}
         </span>
-        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{action "modify_templates"}}>{{t "Modify Templates" key="modify_templates"}}</button>
+        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "modify_templates")}}>{{t "Modify Templates" key="modify_templates"}}</button>
       </div>
     </div>
   </section>
@@ -331,7 +331,7 @@
         {{t "Update Organization" key="update_org"}}
       {{/if}}
     </button>
-    <button type="button" class="md-org-btn md-org-btn--outline" {{action "cancel"}}>{{t "Cancel" key="cancel"}}</button>
+    <button type="button" class="md-org-btn md-org-btn--outline" {{on "click" (fn this.ctrlAction "cancel")}}>{{t "Cancel" key="cancel"}}</button>
     {{#if this.error}}
       <p class="md-org-error" style="margin-top: 8px;">{{t "There was an unexpected error while updating the organization" key="error_updating_org"}}</p>
     {{/if}}

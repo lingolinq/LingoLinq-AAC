@@ -171,7 +171,7 @@
       </div>
 
       <div class="register-btn-wrap beta-welcome-actions">
-        <button type="button" class="register-btn" {{action "goToAgreement"}}>
+        <button type="button" class="register-btn" {{on "click" (fn this.ctrlAction "goToAgreement")}}>
           {{t "Next" key="next"}}
         </button>
       </div>

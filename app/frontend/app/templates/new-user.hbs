@@ -1,6 +1,6 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "New User" key="new_user"}}</h3>
   </div>
   <div class="modal-body">
@@ -96,7 +96,7 @@
               </button>
               <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
                 {{#each this.device_options as |option|}}
-                  <li><a href='#' {{action "set_device" option}}>{{option.name}}</a></li>
+                  <li><a href='#' {{on "click" (fn this.ctrlAction "set_device" option)}}>{{option.name}}</a></li>
                 {{/each}}
               </ul>
             </div>
@@ -115,7 +115,7 @@
                 </button>
                 <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
                   {{#each this.vocab_options as |option|}}
-                    <li><a href='#' {{action "set_vocab" option}}>{{option.name}}</a></li>
+                    <li><a href='#' {{on "click" (fn this.ctrlAction "set_vocab" option)}}>{{option.name}}</a></li>
                   {{/each}}
                 </ul>
               </div>
@@ -151,7 +151,7 @@
               {{/if}}
             {{/if}}
           </button>
-          <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+          <a href="#" class="btn btn-default" {{on "click" (fn this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
           {{#if this.error}}
             <p class="text-danger">{{this.error}}</p>
           {{/if}}

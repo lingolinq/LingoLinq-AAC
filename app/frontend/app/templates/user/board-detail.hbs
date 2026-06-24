@@ -142,7 +142,7 @@
          board grid + edit toolbar to the right column. See plan at
          .planning/phases/03-board-edit-side-panel/03-PLAN.md. --}}
     {{#if this.edit_mode}}
-      {{!-- Removed aside-level {{action "expand_left_panel"}} per
+      {{!-- Removed aside-level {{on "click" (fn this.ctrlAction "expand_left_panel")}} per
            request: previously any click on the collapsed rail
            bubbled up here and re-expanded the panel, which meant a
            tap on the Copy/Search/Filter/etc. icon would fire the
@@ -747,7 +747,7 @@
         <div class="md-board-detail-sentence-bar__actions">
           {{!-- Inline mic = the primary, keyboard/SR-accessible speak control.
                Tapping the sentence-bar text above also speaks (a bonus
-               pointer target — see its {{action "speak_sentence"}}). Immersive
+               pointer target — see its {{on "click" (fn this.ctrlAction "speak_sentence")}}). Immersive
                mode (≤640px, feature on): mic/backspace/clear collapse into the
                down-arrow chevron's quick-actions popover below, reclaiming
                horizontal space. Otherwise they stay inline as before. --}}
@@ -1488,7 +1488,7 @@
                         class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--save md-board-detail-header__save-btn {{if this.board_saving 'md-board-detail-edit-toolbar__btn--saving'}}"
                         data-tooltip={{t "Save" key="board_detail_save"}} aria-label={{t "Save" key="board_detail_save"}}
                         disabled={{this.board_saving}}
-                        {{action "save_board" true}}>
+                        {{on "click" (fn this.ctrlAction "save_board" true)}}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor"/><polyline points="7 3 7 8 15 8" stroke="currentColor"/></svg>
                         <span class="md-board-detail-edit-toolbar__label">{{t "Save" key="board_detail_save"}}</span>
                       </button>

@@ -4,7 +4,7 @@
     <h4 style='margin-top: 20px; margin-bottom: 0; white-space: nowrap; overflow: hidden; max-width: calc(50% - 150px);'>
       {{this.model.title}}
     </h4>
-    <a href='#' {{action "toggle_description"}} style='color: #ccc; display: inline-block; white-space: nowrap; max-width: calc(50% - 150px); min-width: 50px; overflow: hidden;'>
+    <a href='#' {{on "click" (fn this.ctrlAction "toggle_description")}} style='color: #ccc; display: inline-block; white-space: nowrap; max-width: calc(50% - 150px); min-width: 50px; overflow: hidden;'>
       {{#if this.model.time_estimate}}
         {{t "~%{n} mins - " n=this.model.time_estimate key="about_n_minutes"}}
       {{/if}}
@@ -15,7 +15,7 @@
       {{/if}}
     </a>
     <div style='width: 200px; text-align: center; position: absolute; top: 14px; left: calc(50% - 100px);'>
-      <button class='btn btn-default btn-lg' {{action "done"}}>
+      <button class='btn btn-default btn-lg' {{on "click" (fn this.ctrlAction "done")}}>
         {{#if this.model.user.avatar_url}}
           <img src={{this.model.user.avatar_url}} style='width: 30px; height: 30px; object-fit: contain;' >
         {{/if}}
@@ -31,7 +31,7 @@
     {{/if}}
 
     <div style='position: absolute; right: 10px; top: 20px;'>
-      <button {{action "new_window"}} class='btn btn-default' style='background: #444; color: #fff; border-color: #aaa;'>{{t "Open in New Window" key="open_in_new_window"}}</button>
+      <button {{on "click" (fn this.ctrlAction "new_window")}} class='btn btn-default' style='background: #444; color: #fff; border-color: #aaa;'>{{t "Open in New Window" key="open_in_new_window"}}</button>
     </div>
   </div>
   <iframe id='lesson_embed' src={{this.model.url}} frameborder='0' style='position: fixed; width: 100%; height: calc(100% - 70px); top: 70px; bottom: 0; right: 0; left: 0; background: #fff;' title="Lesson content"></iframe>
@@ -65,15 +65,15 @@
           {{#if this.status.error}}
             <p class='text-danger'>{{t "Error saving status" key="error_saving_status"}}</p>
           {{/if}}
-          <button class="btn btn-default face_button" style='width: 90px;' {{action "rate" 3}}>
+          <button class="btn btn-default face_button" style='width: 90px;' {{on "click" (fn this.ctrlAction "rate" 3)}}>
             <span class="face laugh"></span>
             {{t "Useful &<br>informative!" key="useful_and_informative"}}
           </button>
-          <button class="btn btn-default face_button" style='width: 90px;' {{action "rate" 2}}>
+          <button class="btn btn-default face_button" style='width: 90px;' {{on "click" (fn this.ctrlAction "rate" 2)}}>
             <span class="face neutral"></span>
             {{t "It was<br>okay" key="it_was_okay"}}
           </button>
-          <button class="btn btn-default face_button" style='width: 90px;' {{action "rate" 1}}>
+          <button class="btn btn-default face_button" style='width: 90px;' {{on "click" (fn this.ctrlAction "rate" 1)}}>
             <span class="face sad"></span>
             {{t "Confusing/<br>complicated" key="confusing_complicated"}}
           </button>

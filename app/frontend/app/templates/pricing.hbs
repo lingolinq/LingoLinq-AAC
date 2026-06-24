@@ -19,7 +19,7 @@
           </p>
         </div>
         <div class="la-pricing-cloud-extras-cta">
-          <button type="button" class="la-btn la-btn--ghost la-btn--lg" {{action "openCloudExtras"}}>
+          <button type="button" class="la-btn la-btn--ghost la-btn--lg" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>
             {{t "Learn about cloud extras" key="pricing_cloud_extras_learn_more"}}
           </button>
         </div>
@@ -80,7 +80,7 @@
               <li>✔ {{t "Full communication system" key="full_communication_system"}}</li>
               <li>✔ {{t "Premium voices & reporting" key="premium_voices_reporting"}}</li>
               <li>✔ {{t "Modeling ideas & usage insights" key="modeling_ideas_usage"}}</li>
-              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
               <li>✔ {{t "Free modeling-only accounts are available for supporting paid communicators" key="free_modeling_only_accounts_communicator"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
               <li>➕ {{t "Add supervisor credits for $25 each" key="add_supervisor_credits"}}</li>
@@ -116,7 +116,7 @@
               <li>✔ {{t "Support, edit & model boards" key="works_for_communicators"}}</li>
               <li>✔ {{t "Track usage & receive alerts" key="track_for_communicators"}}</li>
               <li>✔ {{t "Modify linked communicator boards" key="modify_linked_communicator_boards"}}</li>
-              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
               <li>✔ {{t "Free modeling-only accounts available" key="free_modeling_only_available"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
@@ -150,7 +150,7 @@
               <li>✔ {{t "Full communication system" key="full_communication_system"}}</li>
               <li>✔ {{t "Runs on one device" key="run_on_one_device"}}</li>
               <li>✔ {{t "Premium voices on request" key="premium_voices_on_request"}}</li>
-              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset per evaluation" key="eval_cloud_extras_reset"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{on "click" (fn this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset per evaluation" key="eval_cloud_extras_reset"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
             <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Purchase Eval License" key="purchase_eval_license"}}</LinkTo>
@@ -167,7 +167,7 @@
           </div>
           <div class="la-pricing-bulk la-pricing-extra-link">
             <p>
-              <a href="#" {{action "show_bulk_purchase"}} class="la-pricing-bulk-link">{{t "Are you interested in a bulk purchase or PO/PCard purchase?" key="bulk_purchase_interested_question"}}</a>
+              <a href="#" {{on "click" (fn this.ctrlAction "show_bulk_purchase")}} class="la-pricing-bulk-link">{{t "Are you interested in a bulk purchase or PO/PCard purchase?" key="bulk_purchase_interested_question"}}</a>
             </p>
             {{#if this.show_bulk_purchase}}
               <p class="la-pricing-bulk-explainer">

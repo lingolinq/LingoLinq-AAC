@@ -48,10 +48,10 @@
                       <dt>{{t "Priority" key="beta_feedback_admin_col_priority"}}</dt>
                       <dd>
                         <div class="la-beta-feedback-detail__priority-controls" role="group" aria-label={{t "Priority" key="beta_feedback_admin_col_priority"}}>
-                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "high") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "high"}}>{{t "High" key="beta_feedback_priority_high"}}</button>
-                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "medium") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "medium"}}>{{t "Medium" key="beta_feedback_priority_medium"}}</button>
-                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "low") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "low"}}>{{t "Low" key="beta_feedback_priority_low"}}</button>
-                          <button type="button" class="btn btn-default btn-sm" disabled={{this.savingPriority}} {{action "setPriority" ""}}>{{t "Clear" key="clear"}}</button>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "high") "active"}}" disabled={{this.savingPriority}} {{on "click" (fn this.ctrlAction "setPriority" "high")}}>{{t "High" key="beta_feedback_priority_high"}}</button>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "medium") "active"}}" disabled={{this.savingPriority}} {{on "click" (fn this.ctrlAction "setPriority" "medium")}}>{{t "Medium" key="beta_feedback_priority_medium"}}</button>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "low") "active"}}" disabled={{this.savingPriority}} {{on "click" (fn this.ctrlAction "setPriority" "low")}}>{{t "Low" key="beta_feedback_priority_low"}}</button>
+                          <button type="button" class="btn btn-default btn-sm" disabled={{this.savingPriority}} {{on "click" (fn this.ctrlAction "setPriority" "")}}>{{t "Clear" key="clear"}}</button>
                         </div>
                       </dd>
                     </div>

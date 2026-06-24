@@ -90,7 +90,7 @@
             </div>
             <div style="margin-top: 5px; display: none;">
               <div style="float: left; margin-right: 5px;">
-                <a href="#" class={{this.long_term_custom_class}} {{action "set_subscription" "long_term_custom"}}>{{t "Custom Gift Amount" key="custom_gift_amount"}}</a>
+                <a href="#" class={{this.long_term_custom_class}} {{on "click" (fn this.ctrlAction "set_subscription" "long_term_custom")}}>{{t "Custom Gift Amount" key="custom_gift_amount"}}</a>
               </div>
               {{#if this.subscription.long_term_custom}}
                 <div style="float: left; width: 250px;">

@@ -25,11 +25,11 @@
           </div>
           {{#if this.model.permissions.edit}}
             <div class="md-org-room-card__actions">
-              <button type="button" class="md-org-room-card__action-btn" {{action "add_users" unit}} title={{t "Add Users" key="add_users"}} aria-label={{t "Add Users" key="add_users"}}>
+              <button type="button" class="md-org-room-card__action-btn" {{on "click" (fn this.ctrlAction "add_users" unit)}} title={{t "Add Users" key="add_users"}} aria-label={{t "Add Users" key="add_users"}}>
                 <svg class="md-org-room-card__action-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 <span class="md-org-room-card__action-btn-label">{{t "Add Users" key="add_users"}}</span>
               </button>
-              <button type="button" class="md-org-room-card__action-btn md-org-room-card__action-btn--danger" {{action "delete_unit" unit}} title={{t "Delete Room" key="delete_room"}} aria-label={{t "Delete Room" key="delete_room"}}>
+              <button type="button" class="md-org-room-card__action-btn md-org-room-card__action-btn--danger" {{on "click" (fn this.ctrlAction "delete_unit" unit)}} title={{t "Delete Room" key="delete_room"}} aria-label={{t "Delete Room" key="delete_room"}}>
                 <svg class="md-org-room-card__action-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 <span class="md-org-room-card__action-btn-label">{{t "Delete Room" key="delete_room"}}</span>
               </button>
@@ -46,10 +46,10 @@
                   {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.supervisor_options selection=unit.supervisor_user_name action=(action (mut unit.supervisor_user_name)) }}
                 </div>
                 <div class="md-org-room-add-users__btn-group">
-                  <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{action "add_unit_user" unit "edit_supervisor"}}>
+                  <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "add_unit_user" unit "edit_supervisor")}}>
                     {{t "Add With Edit Permission" key="add_with_edit_permission"}}
                   </button>
-                  <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{action "add_unit_user" unit "supervisor"}}>
+                  <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "add_unit_user" unit "supervisor")}}>
                     {{t "Add As View Only" key="add_as_read_only"}}
                   </button>
                 </div>
@@ -61,7 +61,7 @@
                 <div class="md-org-room-add-users__select-wrap">
                   {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.communicator_options selection=unit.communicator_user_name action=(action (mut unit.communicator_user_name)) }}
                 </div>
-                <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{action "add_unit_user" unit "communicator"}}>
+                <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "add_unit_user" unit "communicator")}}>
                   {{t "Add Communicator" key="add_communicator"}}
                 </button>
               </div>
@@ -76,7 +76,7 @@
             <p class="md-org-error">{{t "Error loading activity data" key="error_loading_activity_data"}}</p>
           {{else}}
             {{stats/user-weeks unit=unit user_type="total" users=unit.supervisors more_users=unit.communicators weeks=unit.supervisor_weeks more_weeks=unit.user_weeks max_session_count=this.max_session_count}}
-            <button type="button" class="md-org-room-toggle" {{action "toggle_details" unit}}>
+            <button type="button" class="md-org-room-toggle" {{on "click" (fn this.ctrlAction "toggle_details" unit)}}>
               <svg class="md-org-room-toggle__icon {{if unit.expanded 'md-org-room-toggle__icon--open'}}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               {{#if unit.expanded}}
                 {{t "collapse report" key="collapse_report"}}

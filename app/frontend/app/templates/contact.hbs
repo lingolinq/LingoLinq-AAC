@@ -53,7 +53,7 @@
               </div>
               <div class="la-contact-form__actions">
                 <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
-                <button disabled={{this.disabled}} type="button" class="la-btn la-btn--ghost" {{action "reset"}}>{{t "Clear" key="clear"}}</button>
+                <button disabled={{this.disabled}} type="button" class="la-btn la-btn--ghost" {{on "click" (fn this.ctrlAction "reset")}}>{{t "Clear" key="clear"}}</button>
               </div>
             </form>
           </div>

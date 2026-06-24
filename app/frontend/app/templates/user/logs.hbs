@@ -38,11 +38,11 @@
   {{#if this.model.external_device}}
     {{#if this.model.permissions.supervise}}
       <div class="md-logs__action-pills">
-        <button class="md-logs__action-pill" {{action "generate"}}>
+        <button class="md-logs__action-pill" {{on "click" (fn this.ctrlAction "generate")}}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
           {{t "Manual Log Session" key="manual_log_session"}}
         </button>
-        <button class="md-logs__action-pill" {{action "recordNote" "text"}}>
+        <button class="md-logs__action-pill" {{on "click" (fn this.ctrlAction "recordNote" "text")}}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           {{t "New Note" key="new_note"}}
         </button>
@@ -121,14 +121,14 @@
       </table>
     </div>
     {{#if this.more_available}}
-      <button class="btn btn-default" {{action "more"}}>{{t "More" key="more"}}</button>
+      <button class="btn btn-default" {{on "click" (fn this.ctrlAction "more")}}>{{t "More" key="more"}}</button>
     {{/if}}
   {{else}}
     <p>{{t "No records currently available" key="no_logs_found"}}</p>
   {{/if}}
   {{#if this.all_logs}}
     <!-- TODO
-    <button class="btn btn-default" {{action "exportLogs"}}>{{t "Export Logs" key="export_logs"}}</button>
+    <button class="btn btn-default" {{on "click" (fn this.ctrlAction "exportLogs")}}>{{t "Export Logs" key="export_logs"}}</button>
     -->
     {{#if this.model.permissions.edit}}
       {{#if this.model.currently_premium_or_premium_supporter}}
@@ -138,12 +138,12 @@
           </button>
           <ul class="dropdown-menu" role="menu">
             {{#unless this.model.supporter_role}}
-              <li><a href="#" {{action "recordNote"}}><strong>{{t "New Note" key="new_note"}}</strong></a></li>
-              <li><a href="#" {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+              <li><a href="#" {{on "click" (fn this.ctrlAction "recordNote")}}><strong>{{t "New Note" key="new_note"}}</strong></a></li>
+              <li><a href="#" {{on "click" (fn this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
             {{/unless}}
-            <li><a href="#" {{action "generate"}}>{{t "Manually Add Session" key="manually_add_session"}}</a></li>
+            <li><a href="#" {{on "click" (fn this.ctrlAction "generate")}}>{{t "Manually Add Session" key="manually_add_session"}}</a></li>
             <li style='position: relative;'>
-              <a href="#" {{action "import_session"}}>
+              <a href="#" {{on "click" (fn this.ctrlAction "import_session")}}>
                 {{t "Import Session(s)" key="import_sessions"}}
               </a>
               <input type='file' style='opacity: 0; position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; cursor: pointer;' id='log_upload'>
@@ -152,13 +152,13 @@
         </div>
       {{/if}}
     {{/if}}
-    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
-    <button class="btn btn-default md-logs__danger-btn" {{action "clearLogs"}}>{{t "Clear All Logs" key="clear_all_logs"}}</button>
+    <button type="button" {{on "click" (fn this.ctrlAction "obl_export")}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
+    <button class="btn btn-default md-logs__danger-btn" {{on "click" (fn this.ctrlAction "clearLogs")}}>{{t "Clear All Logs" key="clear_all_logs"}}</button>
   {{else}}
     {{#if this.messages_only}}
       {{#if this.model.permissions.edit}}
-        <button class='btn btn-small btn-default' {{action "recordNote" "text"}}>{{t "New Note" key="new_note"}}</button>
-        <button class='btn btn-small btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+        <button class='btn btn-small btn-default' {{on "click" (fn this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="new_note"}}</button>
+        <button class='btn btn-small btn-default' {{on "click" (fn this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
       {{/if}}
     {{/if}}
   {{/if}}

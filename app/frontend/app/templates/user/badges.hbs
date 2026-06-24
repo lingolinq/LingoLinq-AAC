@@ -13,18 +13,18 @@
           {{#if this.user.permissions.edit}}
             {{#if badge.earned}}
               {{#if badge.highlighted}}
-                <button {{action "highlight_badge" badge false}} class='btn btn-lg btn-default' title={{t "un-highlight badge" key="unhighlight_badge"}}><span class='glyphicon glyphicon-star'></span></button>
+                <button {{on "click" (fn this.ctrlAction "highlight_badge" badge false)}} class='btn btn-lg btn-default' title={{t "un-highlight badge" key="unhighlight_badge"}}><span class='glyphicon glyphicon-star'></span></button>
               {{else}}
-                <button {{action "highlight_badge" badge true}} class='btn btn-lg btn-default' title={{t "highlight badge" key="highlight_badge"}}><span class='glyphicon glyphicon-star-empty'></span></button>
+                <button {{on "click" (fn this.ctrlAction "highlight_badge" badge true)}} class='btn btn-lg btn-default' title={{t "highlight badge" key="highlight_badge"}}><span class='glyphicon glyphicon-star-empty'></span></button>
               {{/if}}
             {{/if}}
             <!-- TODO: enable someday
-            <button {{action "delete_badge" badge}} class='btn btn-lg btn-default'><span class='glyphicon glyphicon-remove'></span></button>
+            <button {{on "click" (fn this.ctrlAction "delete_badge" badge)}} class='btn btn-lg btn-default'><span class='glyphicon glyphicon-remove'></span></button>
             -->
           {{/if}}
         </div>
         <div class='basics'>
-          <span {{action "badge_popup" badge}} style='cursor: pointer;'>
+          <span {{on "click" (fn this.ctrlAction "badge_popup" badge)}} style='cursor: pointer;'>
             <img src={{badge.image_url}} class='badge_image'>
             {{#if badge.earned}}
               <div class='sparkle'>&#10022;</div>

@@ -85,7 +85,7 @@
             {{else}}
               <div class={{if question.manual_selection "answer_holder with_manual" "answer_holder"}}>
                 {{#each question.answers as |answer|}}
-                  <div {{action "select" question answer}} class={{if answer.selected "answer selected" "answer"}}>
+                  <div {{on "click" (fn this.ctrlAction "select" question answer)}} class={{if answer.selected "answer selected" "answer"}}>
                     {{#if answer.selected}}
                       <div class='bg' style='border-top-color: #cdf;'></div>
                     {{/if}}
@@ -119,10 +119,10 @@
   <div style='margin-top: 50px;'>
     {{#if this.missing_responses}}
       <p>
-        <a class='text-danger' href='#' {{action "highlight_blank" true}}>{{t "Missing" key="missing"}} {{t "response" count=this.missing_responses key="n_responses"}}</a>
+        <a class='text-danger' href='#' {{on "click" (fn this.ctrlAction "highlight_blank" true)}}>{{t "Missing" key="missing"}} {{t "response" count=this.missing_responses key="n_responses"}}</a>
       </p>
     {{/if}}
-    <button {{action "submit"}} class='btn btn-lg btn-primary'>{{t "Finalize Profile" key="finalize_profile"}}</button>
+    <button {{on "click" (fn this.ctrlAction "submit")}} class='btn btn-lg btn-primary'>{{t "Finalize Profile" key="finalize_profile"}}</button>
     <!-- TODO: 
     <button class='btn btn-lg btn-default'>{{t "Save for Later" key="save_for_later"}}</button>
     <button class='btn btn-lg btn-default'>{{t "Cancel Profile" key="cancel_profile"}}</button>

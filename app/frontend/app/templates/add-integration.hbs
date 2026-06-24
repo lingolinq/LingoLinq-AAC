@@ -1,6 +1,6 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
-      <button type="button" class="close" {{action "close"}}>&times;</button>
+      <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
     <h3>
       {{t "Add Connected Tool" key="add_connected_tool"}}
     </h3>
@@ -77,13 +77,13 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{action "save"}} class='btn btn-primary' disabled={{this.status.saving}}>
+    <button {{on "click" (fn this.ctrlAction "save")}} class='btn btn-primary' disabled={{this.status.saving}}>
       {{#if this.status.saving}}
         {{t "Creating Connected Tool..." key="creating_connected_tool"}}
       {{else}}
         {{t "Create Connected Tool" key="create_connected_tool"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    <button {{on "click" (fn this.ctrlAction "close")}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

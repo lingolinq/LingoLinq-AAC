@@ -218,7 +218,7 @@
         {{/each}}
         <div class="form-group">
           <div class="col-sm-5">
-            <button class='btn btn-default' {{action "add_badge_level"}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
+            <button class='btn btn-default' {{on "click" (fn this.ctrlAction "add_badge_level")}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
           </div>
         </div>
       {{/if}}
@@ -232,7 +232,7 @@
               {{t "Save Goal" key="save_goal"}}
             {{/if}}
           </button>
-          <button type="button" class="btn btn-default" {{action "cancel_save"}}>{{t "Cancel" key="cancel"}}</button>
+          <button type="button" class="btn btn-default" {{on "click" (fn this.ctrlAction "cancel_save")}}>{{t "Cancel" key="cancel"}}</button>
           {{#if this.status.saving_error}}
             <p class='text-danger'>{{t "There was an unexpected error creating the goal" key="error_creating_goal"}}</p>
         {{/if}}
@@ -258,7 +258,7 @@
           {{#each this.mapped_badges as |badge|}}
               <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
                 <span style='display: inline-block; position: relative;'>
-                  <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
+                  <span {{on "click" (fn this.ctrlAction "badge_popup" badge)}} style={{if badge.user_badge "cursor: pointer;"}}>
                     <img src={{badge.image_url}} style='width: 80px;' >
                     {{#if badge.user_badge.earned}}
                       <div class='sparkle'>&#10022;</div>
@@ -343,7 +343,7 @@
                   </td>
                   <td>
                     {{#unless goal.template_header}}
-                      <a href="#" {{action "delete_goal" goal}}><span class='glyphicon glyphicon-trash'></span></a>
+                      <a href="#" {{on "click" (fn this.ctrlAction "delete_goal" goal)}}><span class='glyphicon glyphicon-trash'></span></a>
                     {{/unless}}
                   </td>
                 </tr>
@@ -359,12 +359,12 @@
   {{#unless this.editing}}
     {{#if this.model.permissions.edit}}
       <div style='margin-top: 50px;'>
-        <button class='btn btn-default' {{action "edit_goal"}}>{{t "Edit Goal" key="edit_goal"}}</button>
+        <button class='btn btn-default' {{on "click" (fn this.ctrlAction "edit_goal")}}>{{t "Edit Goal" key="edit_goal"}}</button>
         {{#if this.model.permissions.delete}}
-          <button class='btn btn-default' {{action "delete_goal"}}>{{t "Delete Goal" key="delete_goal"}}</button>
+          <button class='btn btn-default' {{on "click" (fn this.ctrlAction "delete_goal")}}>{{t "Delete Goal" key="delete_goal"}}</button>
         {{/if}}
         {{#if this.model.unit_id}}
-          <button class='btn btn-default' {{action "unlink_goal"}}>{{t "Unlink from Room" key="unlink_from_room"}}</button>
+          <button class='btn btn-default' {{on "click" (fn this.ctrlAction "unlink_goal")}}>{{t "Unlink from Room" key="unlink_from_room"}}</button>
         {{/if}}
       </div>
     {{/if}}

@@ -40,7 +40,7 @@
         </div>
       {{/if}}
       {{#if (and this.usage_stats this.usage_stats2)}}
-        <button type="button" class="md-user-meta__chip md-user-meta__chip--reset" {{action "reset_to_default"}} aria-label={{t "Reset to default report" key="reset_to_default_report"}}>
+        <button type="button" class="md-user-meta__chip md-user-meta__chip--reset" {{on "click" (fn this.ctrlAction "reset_to_default")}} aria-label={{t "Reset to default report" key="reset_to_default_report"}}>
           <span class="md-user-meta__label">{{t "Reset" key="reset"}}</span>
         </button>
       {{/if}}
@@ -49,7 +49,7 @@
       <div class="md-stats-hero__head">
         <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "%{un}'s Reports" key="usage_reports_for" un=this.model.user_name}}</h1>
         {{#if this.app_state.currentUser.supervisees.length}}
-          <button type="button" class="md-btn md-btn--ghost md-stats-hero__action" {{action "switch_communicators"}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
+          <button type="button" class="md-btn md-btn--ghost md-stats-hero__action" {{on "click" (fn this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
         {{/if}}
       </div>
     </section>
@@ -351,7 +351,7 @@
           </LinkTo>
           {{#if this.model.permissions.edit}}
             {{#unless this.snapshot_id}}
-              <button type="button" class="md-btn md-btn--ghost" {{action "save_snapshot"}} title={{t "Save this date range to use later for report filtering and side-by-side comparisons" key="save_report_period_tooltip"}}>{{t "Create Snapshot" key="create_snapshot"}}</button>
+              <button type="button" class="md-btn md-btn--ghost" {{on "click" (fn this.ctrlAction "save_snapshot")}} title={{t "Save this date range to use later for report filtering and side-by-side comparisons" key="save_report_period_tooltip"}}>{{t "Create Snapshot" key="create_snapshot"}}</button>
             {{/unless}}
           {{/if}}
         </div>
@@ -363,7 +363,7 @@
       <hr class="la-about-hero-separator" aria-hidden="true">
     </section>
     <p class="md-stats-text">{{t "%app_name% can generate insightful reports on word frequency, usage by time of day or location, etc., but only if logging is enabled. Right now it's turned off, but you can enable it in your settings." key="logging_disabled"}}</p>
-    <button type="button" class="md-btn md-btn--primary" {{action "enable_logging"}}>{{t "Enable Communication Logging & Reports" key="enable_logging_and_reports"}}</button>
+    <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.ctrlAction "enable_logging")}}>{{t "Enable Communication Logging & Reports" key="enable_logging_and_reports"}}</button>
   {{else}}
     <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
       <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "Reports" key="reports"}}</h1>
@@ -376,7 +376,7 @@
     <div class="md-stats-hero__head">
       <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "Premium Membership Required" key="premium_required"}}</h1>
       {{#if this.app_state.currentUser.supervisees.length}}
-        <button type="button" class="md-btn md-btn--ghost md-stats-hero__action" {{action "switch_communicators"}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
+        <button type="button" class="md-btn md-btn--ghost md-stats-hero__action" {{on "click" (fn this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
       {{/if}}
     </div>
     <hr class="la-about-hero-separator" aria-hidden="true">

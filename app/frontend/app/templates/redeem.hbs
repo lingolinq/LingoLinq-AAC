@@ -7,7 +7,7 @@
     <Input @type="text" @value={{this.redeem_code}} class="form-control input-lg" placeholder="abcd123" />
     </div>
     <div>
-      <button class='btn btn-primary btn-lg' {{action "check_code"}}>{{t "Redeem Code" key="check_code"}}</button>
+      <button class='btn btn-primary btn-lg' {{on "click" (fn this.ctrlAction "check_code")}}>{{t "Redeem Code" key="check_code"}}</button>
     </div>
   </div>
 </div>

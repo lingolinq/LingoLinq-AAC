@@ -95,7 +95,7 @@
           <div class="panel-heading">{{t "Mastered Buttons" key="mastered_buttons"}}</div>
           <div class="panel-body">
             {{#if this.processed_assessment.button_width}}
-              <a href="#" {{action "mastery_preview"}}>
+              <a href="#" {{on "click" (fn this.ctrlAction "mastery_preview")}}>
                 {{#if this.processed_assessment.approximate}}~{{/if}}{{this.processed_assessment.button_width}}" x {{this.processed_assessment.button_height}}"
               </a>
             {{else}}
@@ -507,21 +507,21 @@
                 </td>
                 <td style="text-align: right;">
                   {{#if event.highlighted}}
-                    <button {{action "highlight" event.id false}} class='btn btn-warning btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
+                    <button {{on "click" (fn this.ctrlAction "highlight" event.id false)}} class='btn btn-warning btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
                       <span class='glyphicon glyphicon-star'></span>
                     </button>
                   {{else}}
-                    <button {{action "highlight" event.id true}} class='btn btn-default btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
+                    <button {{on "click" (fn this.ctrlAction "highlight" event.id true)}} class='btn btn-default btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
                       <span class='glyphicon glyphicon-star-empty'></span>
                     </button>
                   {{/if}}
                   {{#if event.note_count}}
-                    <button {{action "toggle_notes" event.id}} class='btn btn-primary btn-sm' style="margin: -8px 0 -6px 5px; width: 35px; font-weight: bold;">
+                    <button {{on "click" (fn this.ctrlAction "toggle_notes" event.id)}} class='btn btn-primary btn-sm' style="margin: -8px 0 -6px 5px; width: 35px; font-weight: bold;">
                       {{event.note_count}}
                       <span class='sr-only'>{{t "add comment" key="add_comment_lower"}}</span>
                     </button>
                   {{else}}
-                    <button {{action "toggle_notes" event.id "add"}} class='btn btn-default btn-sm' style="opacity: 0.8; margin: -8px 0 -6px 5px; width: 35px;">
+                    <button {{on "click" (fn this.ctrlAction "toggle_notes" event.id "add")}} class='btn btn-default btn-sm' style="opacity: 0.8; margin: -8px 0 -6px 5px; width: 35px;">
                       <span class='glyphicon glyphicon-comment'></span>
                       <span class='sr-only'>{{t "add comment" key="add_comment_lower"}}</span>
                     </button>
@@ -540,7 +540,7 @@
                         {{note.note}}
                       </div>
                     {{/each}}
-                    <form class="form-inline" style="margin-top: 15px;" {{action "add_note" event.id}}>
+                    <form class="form-inline" style="margin-top: 15px;" {{on "click" (fn this.ctrlAction "add_note" event.id)}}>
                       <div class="form-group">
                         <input type="text" class="form-control input-sm" data-event_id={{event.id}} placeholder="note text">
                       </div>
@@ -607,17 +607,17 @@
 {{/if}}
 <div class='hide_print'>
   {{#if this.model.session_type}}
-    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
-    <button type="button" {{action "lam_export"}} class='btn btn-default'>{{t "View LAM Report" key="export_as_lam"}}</button>
+    <button type="button" {{on "click" (fn this.ctrlAction "obl_export")}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
+    <button type="button" {{on "click" (fn this.ctrlAction "lam_export")}} class='btn btn-default'>{{t "View LAM Report" key="export_as_lam"}}</button>
   {{/if}}
   {{#if this.processed_assessment.resumable}}
     {{#if this.same_author}}
-      <button type='button' {{action "resume"}} class='btn btn-default'>{{t "Resume Evaluation" key="resume_eval"}}</button>
+      <button type='button' {{on "click" (fn this.ctrlAction "resume")}} class='btn btn-default'>{{t "Resume Evaluation" key="resume_eval"}}</button>
     {{/if}}
   {{/if}}
-  <button type="button" {{action "print"}} class='btn btn-default'>{{t "Print" key="print"}}</button>
+  <button type="button" {{on "click" (fn this.ctrlAction "print")}} class='btn btn-default'>{{t "Print" key="print"}}</button>
   {{#if this.model.tiered_eval_type}}
-    <button type="button" {{action "eval_pdf_export"}} class='btn btn-default'>{{t "Download PDF" key="download_eval_pdf"}}</button>
+    <button type="button" {{on "click" (fn this.ctrlAction "eval_pdf_export")}} class='btn btn-default'>{{t "Download PDF" key="download_eval_pdf"}}</button>
   {{/if}}
   {{#if this.model.previous_log_id}}
     <LinkTo @route="user.log" @models={{array this.user.user_name this.model.previous_log_id}} class="btn btn-default">
@@ -627,7 +627,7 @@
   {{/if}}
   {{#if this.model.note_type}}
     {{#if this.user.permissions.supervise}}
-      <button class='btn btn-default' {{action "reply" "text"}}>{{t "Reply" key="reply"}}</button>
+      <button class='btn btn-default' {{on "click" (fn this.ctrlAction "reply" "text")}}>{{t "Reply" key="reply"}}</button>
     {{/if}}
   {{/if}}
   {{#if this.model.next_log_id}}

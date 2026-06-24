@@ -145,7 +145,7 @@
       {{#if this.trends.total_users}}
         {{#unless this.showing_private_info}}
           <div class='col-sm-12' style='margin-bottom: 5px; text-align: right;'>
-            <a href="#" {{action "show_private_info"}}>{{t "show internal metrics" key="show_internal_metrics"}}</a>
+            <a href="#" {{on "click" (fn this.ctrlAction "show_private_info")}}>{{t "show internal metrics" key="show_internal_metrics"}}</a>
           </div>
         {{else}}
           <div class='col-sm-12'>

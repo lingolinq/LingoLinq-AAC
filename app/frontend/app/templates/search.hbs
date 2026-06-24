@@ -19,7 +19,7 @@
         </div>
         {{#if this.app_state.currentUser}}
           <div class="ub-search-page__actions">
-            <a href="#" class="ub-search-page__link" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
+            <a href="#" class="ub-search-page__link" {{on "click" (fn this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
             <span class="ub-search-page__sep" aria-hidden="true">·</span>
             <LinkTo @route="home-boards" class="ub-search-page__link">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</LinkTo>
           </div>

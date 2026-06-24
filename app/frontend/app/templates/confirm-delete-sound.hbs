@@ -1,6 +1,6 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "Remove this Sound" key="delete_this_sound"}}</h3>
   </div>
   <div class="modal-body">
@@ -22,14 +22,14 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default' {{action "delete_sound"}} disabled={{this.status.deleting}}>
+    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "delete_sound")}} disabled={{this.status.deleting}}>
       {{#if this.status.deleting}}
         {{t "Deleting Recording" key="deleting_sound"}}
       {{else}}
         {{t "Delete Recording" key="delete_sound"}}
       {{/if}}
     </button>
-    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}
 
