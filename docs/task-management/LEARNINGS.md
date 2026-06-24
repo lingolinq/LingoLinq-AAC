@@ -5526,3 +5526,15 @@ bootstrap the NODE via the `content` function; do not set `data-content` to an H
 in `utils/utterance.js:silent_speak_button` (LL-d1ea8659c3). Note bootstrap JS is also load-bearing
 for `data-toggle="dropdown"` (incl. keyboard a11y in `controllers/caseload.js`) and
 `data-dismiss="alert"`, so the EOL lib cannot simply be dropped without replacing those too.
+
+## Gotcha: bootstrap 3 popover('destroy') is async; home-grown init guards go stale after it
+Bootstrap 3's `Tooltip/Popover.destroy` defers `removeData('bs.popover')` into the `hide()`
+animation callback (~150ms, `animation:true` is the default), so the instance is still present
+synchronously right after `destroy` but gone a moment later. A home-grown "init once" guard keyed
+on a custom attribute (e.g. `if(!$el.attr('data-popover')){ ...popover(opts) }`) does NOT get
+cleared by destroy, so a later `.popover('show')` finds no instance, skips re-init, and bootstrap's
+`Plugin` rebuilds a DEFAULT popover (`html:false`, `content:''`, no `content` fn) -- an empty/blank
+widget that silently drops your configured options. Prefer bootstrap's own idempotency: call
+`$el.popover(opts)` unconditionally before `show` (no-op when an instance exists, re-creates with
+your opts after a destroy). Seen in `utils/utterance.js:silent_speak_button` where
+`services/app-state.js:2336` destroys `#speak_mode`'s popover on leaving a board (LL-d1ea8659c3).
