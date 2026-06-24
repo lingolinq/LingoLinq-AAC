@@ -16,7 +16,7 @@
 
     {{#if this.multiple_users}}
       <p class="md-modal-message">{{t "For which user would you like to set <b>%{board_key}</b> as the new home board?" key="which_user_set_as_home" board_key=this.model.board.key}}</p>
-      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(fn this.ctrlAction "updateCurrentlySelectedId") }}
     {{/if}}
     {{#if this.owned_by_user}}
       {{#unless this.multiple_users}}
@@ -29,7 +29,7 @@
     <div class="md-modal-field">
       <label class="md-modal-label" for="symbol_library">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
       <p class="md-modal-hint">{{t "Select the symbol library to display for the user's new copy:" key="symbol_library_explainer"}}</p>
-      {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action "updateSymbolLibrary") }}
+      {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(fn this.ctrlAction "updateSymbolLibrary") }}
     </div>
 
     {{#if this.model.board.levels}}
@@ -37,7 +37,7 @@
         <div class="md-modal-field">
           <label class="md-modal-label" for="board_level">{{t "Communication Level" key="communication_level"}}</label>
           <p class="md-modal-hint">{{t "This board supports multiple display levels. You can set it to a starting level that makes sense for the communicator. Don't worry, it's easy to change later." key="board_level_explainer"}}</p>
-          {{bound-select select_class="md-modal-select" select_id="board_level" content=this.board_levels selection=this.board_level action=(action "updateBoardLevel") }}
+          {{bound-select select_class="md-modal-select" select_id="board_level" content=this.board_levels selection=this.board_level action=(fn this.ctrlAction "updateBoardLevel") }}
         </div>
       {{/if}}
     {{/if}}

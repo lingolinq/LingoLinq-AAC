@@ -25,7 +25,7 @@
           <div class='row'>
             {{#each this.style_boards as |board|}}
               <div class={{this.style_cols}}>
-                {{board-icon board=board onActionOverride=(action "preview") locale=this.modal.boardPreview.locale}}
+                {{board-icon board=board onActionOverride=(fn this.ctrlAction "preview") locale=this.modal.boardPreview.locale}}
               </div>
             {{/each}}
           </div>
@@ -56,7 +56,7 @@
               </div>
             </div>
           {{/if}}
-          {{board-preview key=this.model_key back=this.back_func option=this.modal.boardPreview.option locale=this.modal.boardPreview.locale onSelect=(action "select") onPickForHome=(action "pick_for_home") dark_mode=true onLoadingChange=(action "set_preview_loading") onCanvasProgress=(action "set_preview_progress")}}
+          {{board-preview key=this.model_key back=this.back_func option=this.modal.boardPreview.option locale=this.modal.boardPreview.locale onSelect=(fn this.ctrlAction "select") onPickForHome=(fn this.ctrlAction "pick_for_home") dark_mode=true onLoadingChange=(fn this.ctrlAction "set_preview_loading") onCanvasProgress=(fn this.ctrlAction "set_preview_progress")}}
         </div>
       {{/if}}
     </div>

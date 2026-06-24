@@ -8,7 +8,7 @@
 
     <div class="md-org-settings-field__row" style="margin-bottom: 16px;">
       <div style="flex: 1;">
-        {{bound-select select_class="md-org-report-select" select_id="template" content=this.template_list selection=this.current_template_id action=(action "updateTemplateId") }}
+        {{bound-select select_class="md-org-report-select" select_id="template" content=this.template_list selection=this.current_template_id action=(fn this.ctrlAction "updateTemplateId") }}
       </div>
       <button type="button" class="md-modal-btn md-modal-btn--secondary" {{on "click" (this.ctrlAction "add_row")}}>{{t "Add New" key="add_new"}}</button>
     </div>

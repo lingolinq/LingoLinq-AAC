@@ -33,7 +33,7 @@
             </div>
           {{else}}
             <div class='input-group input-group-lg' style='min-width: 200px;'>
-              {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=this.locales selection=this.vocalization_locale action=(action "set_locale" "vocalization") }}
+              {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=this.locales selection=this.vocalization_locale action=(fn this.ctrlAction "set_locale" "vocalization") }}
             </div>
           {{/if}}
         </div>
@@ -63,7 +63,7 @@
               </div>
             {{else}}
               <div class='input-group input-group-lg' style='min-width: 200px;'>
-                {{bound-select select_class="form-control big_select" select_id="label_locale" content=this.locales selection=this.label_locale action=(action "set_locale" "label") }}
+                {{bound-select select_class="form-control big_select" select_id="label_locale" content=this.locales selection=this.label_locale action=(fn this.ctrlAction "set_locale" "label") }}
               </div>
             {{/if}}
           </div>

@@ -25,7 +25,7 @@
             <span id="board_link" style="position: absolute; height: 0; left: -1000px;">{{this.board.link}}</span>
           {{/if}}
         </div>
-        {{share-bar url=this.board.link user=this.appState.currentUser element_id="board_link" board=this.board copy_event=(action "copy_event")}}
+        {{share-bar url=this.board.link user=this.appState.currentUser element_id="board_link" board=this.board copy_event=(fn this.ctrlAction "copy_event")}}
         <div aria-live="polite" aria-atomic="true">
           {{#if this.copy_result.succeeded}}
             <p class="md-modal-status md-modal-status--success">{{t "Link Copied to the Clipboard!" key="link_copied_to_clipboard"}}</p>

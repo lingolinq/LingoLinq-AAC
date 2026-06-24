@@ -123,7 +123,7 @@
           {{#if this.model.org}}
             <div class="md-org-settings-field">
               <label for="user_type" class="md-org-settings-field__label">{{t "User Type" key="user_type"}}</label>
-              {{bound-select select_class="md-org-report-select" select_id="user_type" content=this.user_types selection=this.user_type action=(action (mut this.user_type)) }}
+              {{bound-select select_class="md-org-report-select" select_id="user_type" content=this.user_types selection=this.user_type action=(mut this.user_type) }}
             </div>
             <div class="md-org-settings-field">
               <label class="md-org-settings-field__label">{{t "Sponsored" key="sponsored"}}</label>
@@ -144,11 +144,11 @@
           {{/if}}
           <div class="md-org-settings-field">
             <label for="locale" class="md-org-settings-field__label">{{t "Language" key="language"}}</label>
-            {{bound-select select_class="md-org-report-select" select_id="locale" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
+            {{bound-select select_class="md-org-report-select" select_id="locale" content=this.locales selection=this.locale action=(mut this.locale) }}
           </div>
           <div class="md-org-settings-field">
             <label for="symbol_library" class="md-org-settings-field__label">{{t "Default Symbols" key="default_symbols"}}</label>
-            {{bound-select select_class="md-org-report-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action (mut this.symbol_library)) }}
+            {{bound-select select_class="md-org-report-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(mut this.symbol_library) }}
           </div>
           {{#if this.model.org}}
             <div class="md-org-settings-field">

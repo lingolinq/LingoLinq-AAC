@@ -13,14 +13,14 @@
       <div class="form-group">
         <label for="paint_type" class="col-sm-3 control-label">{{t "Update Setting" key="update_setting"}}</label>
         <div class="col-sm-9">
-          {{bound-select select_class="form-control" select_id="paint_type" content=this.paint_types selection=this.paint_type action=(action (mut this.paint_type)) }}
+          {{bound-select select_class="form-control" select_id="paint_type" content=this.paint_types selection=this.paint_type action=(mut this.paint_type) }}
         </div>
       </div>
       {{#if this.level_select}}
         <div class="form-group">
           <label for="paint_level" class="col-sm-3 control-label">{{t "Update At Level" key="update_at_level"}}</label>
           <div class="col-sm-9">
-            {{bound-select select_class="form-control" select_id="paint_level" content=this.paint_levels selection=this.paint_level action=(action (mut this.paint_level)) }}
+            {{bound-select select_class="form-control" select_id="paint_level" content=this.paint_levels selection=this.paint_level action=(mut this.paint_level) }}
           </div>
         </div>
       {{/if}}

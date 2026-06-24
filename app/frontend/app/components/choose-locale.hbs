@@ -13,7 +13,7 @@
       <form class="la-contact-form" {{on "submit" (action "nothing")}}>
         <div class="la-contact-form__row">
           <label for="lang" class="la-contact-form__label">{{t "Language" key="language"}}</label>
-          {{bound-select select_class="la-contact-input" select_id="lang" content=this.locales selection=this.lang action=(action (mut this.lang)) }}
+          {{bound-select select_class="la-contact-input" select_id="lang" content=this.locales selection=this.lang action=(mut this.lang) }}
         </div>
         <div class="la-contact-form__actions">
           <button type="button" class="login-btn" {{on "click" (this.ctrlAction "update")}}>{{t "Update & Reload" key="update_and_reload"}}</button>

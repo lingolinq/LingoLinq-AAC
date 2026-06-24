@@ -30,7 +30,7 @@
 
     <div class="la-swap-images-section">
       <label class="la-swap-images-label" for="libraries">{{t "Library" key="library"}}</label>
-      {{bound-select select_class="la-swap-images-select" select_id="libraries" content=this.libraries selection=this.library action=(action "updateLibrary") }}
+      {{bound-select select_class="la-swap-images-select" select_id="libraries" content=this.libraries selection=this.library action=(fn this.ctrlAction "updateLibrary") }}
       {{#if this.premium_symbol_library}}
         {{#if this.appState.currentUser.subscription.grace_trial_period}}
           <div class="la-swap-images-warning">

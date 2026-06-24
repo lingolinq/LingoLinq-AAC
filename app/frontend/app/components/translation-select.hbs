@@ -41,7 +41,7 @@
 
     <div class="la-translate-board-section">
       <label class="la-translate-board-label" for="translate_locale">{{t "Language" key="language"}}</label>
-      {{bound-select select_class="la-translate-board-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(action "updateTranslateLocale") searchable=true search_placeholder=(t "Search languages..." key="search_languages") }}
+      {{bound-select select_class="la-translate-board-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(fn this.ctrlAction "updateTranslateLocale") searchable=true search_placeholder=(t "Search languages..." key="search_languages") }}
     </div>
 
     {{#unless this.cannot_translate}}

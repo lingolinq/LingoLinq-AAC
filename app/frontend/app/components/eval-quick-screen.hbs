@@ -19,42 +19,42 @@
 
   <main class="evq__body">
     {{#if this.isConfiguring}}
-      {{eval-quick-intake user=this.user onComplete=(action "intakeCompleted")}}
+      {{eval-quick-intake user=this.user onComplete=(fn this.ctrlAction "intakeCompleted")}}
     {{/if}}
 
     {{#if this.isScreening}}
       {{eval-quick-runner
         session=this.session
-        onEvent=(action "subtestEvent")
-        onAdvance=(action "advanceSubtest")
-        onFinish=(action "reviewSession")}}
+        onEvent=(fn this.ctrlAction "subtestEvent")
+        onAdvance=(fn this.ctrlAction "advanceSubtest")
+        onFinish=(fn this.ctrlAction "reviewSession")}}
     {{/if}}
 
     {{#if this.isTargeting}}
       {{eval-targeted-runner
         session=this.session
         user=this.user
-        onEvent=(action "subtestEvent")
-        onAdvance=(action "advanceSubtest")
-        onFinish=(action "reviewSession")}}
+        onEvent=(fn this.ctrlAction "subtestEvent")
+        onAdvance=(fn this.ctrlAction "advanceSubtest")
+        onFinish=(fn this.ctrlAction "reviewSession")}}
     {{/if}}
 
     {{#if this.isComprehensive}}
       {{eval-comprehensive-runner
         session=this.session
         user=this.user
-        onEvent=(action "subtestEvent")
-        onAdvance=(action "advanceSubtest")
-        onFinish=(action "reviewSession")}}
+        onEvent=(fn this.ctrlAction "subtestEvent")
+        onAdvance=(fn this.ctrlAction "advanceSubtest")
+        onFinish=(fn this.ctrlAction "reviewSession")}}
     {{/if}}
 
     {{#if this.isReviewing}}
       {{eval-quick-report
         session=this.session
         user=this.user
-        onSave=(action "saveSession")
-        onPromote=(action "promoteToTargeted")
-        onPromoteComprehensive=(action "promoteToComprehensive")}}
+        onSave=(fn this.ctrlAction "saveSession")
+        onPromote=(fn this.ctrlAction "promoteToTargeted")
+        onPromoteComprehensive=(fn this.ctrlAction "promoteToComprehensive")}}
     {{/if}}
   </main>
 </div>

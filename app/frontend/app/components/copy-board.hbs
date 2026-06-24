@@ -54,7 +54,7 @@
           <span class="md-modal-required-label__asterisk" aria-hidden="true">*</span>
           {{t "Required Selection" key="required_selection"}}
         </p>
-        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(fn this.ctrlAction "updateCurrentlySelectedId") }}
       </div>
     {{/if}}
 
@@ -95,7 +95,7 @@
     {{#if this.currently_selected_id}}
       <div class="md-modal-field">
         <label class="md-modal-label" for="symbol_library">{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</label>
-        {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action "updateSymbolLibrary") }}
+        {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(fn this.ctrlAction "updateSymbolLibrary") }}
       </div>
     {{/if}}
 
@@ -138,12 +138,12 @@
       {{#if this.translate}}
         <div class="md-modal-field">
           <label class="md-modal-label" for="translate_locale">{{t "Language:" key="language_colon"}}</label>
-          {{bound-select select_class="md-modal-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(action "updateTranslateLocale") }}
+          {{bound-select select_class="md-modal-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(fn this.ctrlAction "updateTranslateLocale") }}
         </div>
       {{else if this.model.board.multiple_locales}}
         <div class="md-modal-field">
           <label class="md-modal-label" for="default_locale">{{t "Default Language:" key="default_language_colon"}}</label>
-          {{bound-select select_class="md-modal-select" select_id="default_locale" content=this.model.board.readable_locales selection=this.default_locale action=(action "updateDefaultLocale") }}
+          {{bound-select select_class="md-modal-select" select_id="default_locale" content=this.model.board.readable_locales selection=this.default_locale action=(fn this.ctrlAction "updateDefaultLocale") }}
         </div>
       {{/if}}
     {{else}}

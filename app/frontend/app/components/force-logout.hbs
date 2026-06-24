@@ -1,4 +1,4 @@
-{{#modal-dialog opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing")}}
   <div class="modal-header md-modal-header">
     <h3>{{t "Please Log Back In" key="please_log_back_in"}}</h3>
   </div>

@@ -26,13 +26,13 @@
       </div>
       <div class="md-modal-field">
         <label class="md-modal-label" for="icon">{{t "Icon" key="icon"}}</label>
-        {{icon-select selection=this.model.board.image action=(action "updateBoardImage") }}
+        {{icon-select selection=this.model.board.image action=(fn this.ctrlAction "updateBoardImage") }}
       </div>
       {{#if this.model.board.levels}}
         {{#if this.appState.feature_flags.board_levels}}
           <div class="md-modal-field">
             <label class="md-modal-label" for="level">{{t "Level" key="level"}}</label>
-            {{bound-select select_class="md-modal-select" select_id="level" content=this.board_levels selection=this.model.level action=(action "updateLevel") }}
+            {{bound-select select_class="md-modal-select" select_id="level" content=this.board_levels selection=this.model.level action=(fn this.ctrlAction "updateLevel") }}
           </div>
         {{/if}}
       {{/if}}
@@ -47,7 +47,7 @@
     {{#if this.has_supervisees}}
       <div class="md-modal-field">
         <p class="md-modal-message">{{t "For which user would you like to add <b>%{board_key}</b> as a sidebar board?" key="which_user_set_as_sidebar" board_key=this.model.board.key}}</p>
-        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(fn this.ctrlAction "updateCurrentlySelectedId") }}
       </div>
     {{/if}}
 

@@ -97,7 +97,7 @@
           {{/if}}
         </div>
       {{/if}}
-      {{#button-listener buttonEvent=(action "button_event")}}
+      {{#button-listener buttonEvent=(fn this.ctrlAction "button_event")}}
         {{#if this.repeat_menu}}
           {{!-- Repeat / Volume group --}}
           <div class="md-speak-menu__section">
@@ -216,7 +216,7 @@
       {{!-- Punctuation sidebar --}}
       <div class="md-speak-menu__section md-speak-menu__section--punctuation">
         <div class="md-speak-menu__section-label">{{t "Punctuation" key="punctuation"}}</div>
-        {{#button-listener buttonEvent=(action "button_event")}}
+        {{#button-listener buttonEvent=(fn this.ctrlAction "button_event")}}
           <div class="md-speak-menu__row md-speak-menu__row--5">
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_period_button'>
               <span class="md-speak-menu__punctuation">.</span>

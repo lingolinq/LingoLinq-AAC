@@ -1,4 +1,4 @@
-{{#grid-listener gridEvent=(action "grid_event")}}
+{{#grid-listener gridEvent=(fn this.ctrlAction "grid_event")}}
 {{#modal-dialog standalone=this.standalone action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="board_drop {{if this.standalone "new-board--modern" "la-new-board-modal-wrap"}}">
     {{#if this.standalone}}
@@ -81,7 +81,7 @@
             {{#if this.has_supervisees}}
               <div class="nb-field">
                 <label for="for_user_id" class="nb-field__label">{{t "For" key="for"}}</label>
-                {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "setForUserId") }}
+                {{user-select select_id="for_user_id" selection=this.for_user_id action=(fn this.ctrlAction "setForUserId") }}
               </div>
             {{/if}}
           </div>
@@ -200,7 +200,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short")}}
+                  {{label-chips value=this.model.grid.labels onChange=(fn this.ctrlAction "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short")}}
                 </div>
               </div>
             </div>
@@ -220,7 +220,7 @@
                   <div style="margin-bottom: 5px;">
                     {{t "Listening..." key="listening"}}
                     <button class='btn btn-default' {{on "click" (this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
-                    {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+                    {{speech-listener content=(fn this.ctrlAction "speech_content") error=(fn this.ctrlAction "speech_error") stop=(fn this.ctrlAction "speech_stop") speech=this.speech}}
                   </div>
                   <ul class="nav nav-pills">
                     {{#each this.speech.words as |word|}}
@@ -287,7 +287,7 @@
           <p class="nb-section__hint">{{t "Pick who can see this board." key="new_board_section_appearance_hint"}}</p>
           <div class="nb-section__body">
             <div class="nb-field new-board-field--visibility">
-              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(action "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
+              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(fn this.ctrlAction "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
             </div>
           </div>
         </section>
@@ -303,7 +303,7 @@
             <div class="nb-section__body">
               <div class="nb-field new-board-field--icon">
                 <label for="image_url" class="nb-field__label">{{t "Icon for your Board" key="icon_for_your_board"}}</label>
-                {{icon-select selection=this.model.image_url action=(action (mut this.model.image_url)) }}
+                {{icon-select selection=this.model.image_url action=(mut this.model.image_url) }}
               </div>
               <div class="nb-field new-board-field--key">
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
@@ -311,11 +311,11 @@
               </div>
               <div class="nb-field new-board-field--license">
                 <label for="license" class="nb-field__label">{{t "License" key="license"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(action "setLicenseType") ariaLabel=(t "License" key="license")}}
+                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(fn this.ctrlAction "setLicenseType") ariaLabel=(t "License" key="license")}}
               </div>
               <div class="nb-field new-board-field--locale">
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(action "setLocale") ariaLabel=(t "Language" key="locale")}}
+                {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(fn this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
               </div>
               {{#if this.attributable_license_type}}
                 <div class="nb-field nb-field--row">

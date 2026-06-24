@@ -64,7 +64,7 @@
         </div>
       {{/unless}}
     {{/unless}}
-    {{user-select select_id="currently_selected_id" skip_me=this.model.skip_me allow_all=this.allow_all buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+    {{user-select select_id="currently_selected_id" skip_me=this.model.skip_me allow_all=this.allow_all buttons=true selection=this.currently_selected_id action=(fn this.ctrlAction "updateCurrentlySelectedId") }}
   </div>
   <div class="modal-footer md-modal-footer">
     <button {{on "click" (action "close")}} class="btn btn-default md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>

@@ -11,7 +11,7 @@
       {{#if this.settings.saved}}
         <strong>{{this.settings.user_name}}</strong>
       {{else if this.settings}}
-        {{user-select select_id="for_user_id" selection=this.settings.for_user.user_id action=(action (mut this.settings.for_user.user_id)) }}
+        {{user-select select_id="for_user_id" selection=this.settings.for_user.user_id action=(mut this.settings.for_user.user_id) }}
       {{/if}}
     </div>
 
@@ -23,7 +23,7 @@
     {{#unless this.save_option}}
       <div class="md-modal-field">
         <label for="default_symbols" class="md-modal-label">{{t "Prompt Symbol(s)" key="prompt_symbols"}}</label>
-        {{bound-select select_class="md-modal-select" select_id="default_symbols" content=this.symbol_libraries selection=this.settings.default_library action=(action (mut this.settings.default_library)) }}
+        {{bound-select select_class="md-modal-select" select_id="default_symbols" content=this.symbol_libraries selection=this.settings.default_library action=(mut this.settings.default_library) }}
       </div>
 
       <div class="md-modal-field">

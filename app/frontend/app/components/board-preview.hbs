@@ -56,7 +56,7 @@
        suppressed (include_canvas=false); there it stacks under the info. --}}
   <div class="{{if this.include_canvas "col-sm-8" "col-sm-8 col-sm-offset-2"}} md-board-preview__canvas-col">
     {{#if this.include_canvas}}
-      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal" dark_mode=this.dark_mode onCanvasReady=(action "canvas_ready") onCanvasProgress=(action "canvas_progress")}}
+      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal" dark_mode=this.dark_mode onCanvasReady=(fn this.ctrlAction "canvas_ready") onCanvasProgress=(fn this.ctrlAction "canvas_progress")}}
     {{/if}}
     {{!-- Action buttons: secondary / Back flow from the LEFT; the primary CTA is
          pushed to the RIGHT (.md-board-preview__action--primary { margin-left:auto }

@@ -138,7 +138,7 @@
               {{/if}}
             {{/if}}
             {{#if this.speech.ready}}
-              {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+              {{speech-listener content=(fn this.ctrlAction "speech_content") error=(fn this.ctrlAction "speech_error") stop=(fn this.ctrlAction "speech_stop") speech=this.speech}}
             {{else if this.speech.engine}}
               {{#unless this.search_or_browse}}
                 <button type="button" class="btn btn-default" {{on "click" (action "record")}}>

@@ -37,7 +37,7 @@
     </div>
 
   {{else}}
-    {{board-selection-tool loadError=(action "show_advanced" target=this.setup) mine=(action "show_mine" target=this.setup) advanced=(action "show_advanced" target=this.setup) onSelect=(action "select_board" target=this.setup) update_scroll=(action "update_scroll" target=this.setup)}}
+    {{board-selection-tool loadError=(fn this.setup.ctrlAction "show_advanced") mine=(fn this.setup.ctrlAction "show_mine") advanced=(fn this.setup.ctrlAction "show_advanced") onSelect=(fn this.setup.ctrlAction "select_board") update_scroll=(fn this.setup.ctrlAction "update_scroll")}}
   {{/if}}
 {{else}}
   <div class="setup-board-category">

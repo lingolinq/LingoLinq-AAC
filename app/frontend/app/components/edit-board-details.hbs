@@ -42,7 +42,7 @@
       <h4 class="la-edit-board-section__heading">{{t "License" key="license"}}</h4>
       <div class="la-edit-board-field">
         <label class="la-edit-board-label" for="license">{{t "License Type" key="license_type"}}</label>
-        {{bound-select select_class="la-edit-board-select" select_id="license" content=this.licenseOptions selection=this.model.license.type action=(action "update_license_type") }}
+        {{bound-select select_class="la-edit-board-select" select_id="license" content=this.licenseOptions selection=this.model.license.type action=(fn this.ctrlAction "update_license_type") }}
       </div>
       {{#if this.attributable_license_type}}
         <div class="la-edit-board-field-row">
@@ -63,11 +63,11 @@
       <h4 class="la-edit-board-section__heading">{{t "Language" key="language"}}</h4>
       <div class="la-edit-board-field">
         <label class="la-edit-board-label" for="locale">{{t "Default Language" key="default_language"}}</label>
-        {{bound-select select_class="la-edit-board-select" select_id="locale" content=this.locales selection=this.model.locale action=(action "update_locale") }}
+        {{bound-select select_class="la-edit-board-select" select_id="locale" content=this.locales selection=this.model.locale action=(fn this.ctrlAction "update_locale") }}
       </div>
       <div class="la-edit-board-field">
         <label class="la-edit-board-label">{{t "Current Language" key="button_locale"}}</label>
-        {{bound-select select_class="la-edit-board-select" content=this.locales selection=this.model.button_locale action=(action "update_button_locale") }}
+        {{bound-select select_class="la-edit-board-select" content=this.locales selection=this.model.button_locale action=(fn this.ctrlAction "update_button_locale") }}
       </div>
     </div>
 
@@ -96,7 +96,7 @@
         {{#if this.model.copying_state}}
           <p class="la-edit-board-hint"><em>{{t "Boards with protected content can't be made public" key="protected_boards_no_public"}}</em></p>
         {{else}}
-          {{bound-select select_class="la-edit-board-select" content=this.public_options selection=this.model.visibility action=(action "update_visibility") }}
+          {{bound-select select_class="la-edit-board-select" content=this.public_options selection=this.model.visibility action=(fn this.ctrlAction "update_visibility") }}
           {{#unless this.model.visibility_setting.private}}
             {{#if this.model.protected_material}}
               <p class="la-edit-board-hint"><em>{{t "NOTE: Users who do not have access to premium content on this board will see free alternatives instead, which may not exactly match the author's intent." key="premium_public_fallbacks_warning"}}</em></p>
