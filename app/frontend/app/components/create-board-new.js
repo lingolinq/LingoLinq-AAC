@@ -1304,6 +1304,8 @@ export default Component.extend({
       var key = board.get('key') || '';
       var parts = key.split('/');
       var transition = function() {
+        // Debounced "Preparing your Board" mask for the post-create board load.
+        _this.appState.arm_board_load_overlay(_this.get('router'));
         if (parts.length >= 2) {
           _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         } else {

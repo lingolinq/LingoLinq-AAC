@@ -895,7 +895,11 @@ describe UserGoal, type: :model do
       expect(g2.settings['description']).to eq('do stuff')
       expect(g2.settings['video']).to eq({'id' => '1212'})
       expect(g2.settings['prior_goal_id']).to eq(g1.global_id)
-      expect(g2.advance_at.to_i).to eq((Time.now + 3.weeks.to_i).to_i)
+      # Tolerance window (matching the g1 assertions above): advance_at is computed
+      # from Time.now inside advance!, a moment before this line re-evaluates
+      # Time.now — an exact eq flakes by 1s across a second boundary.
+      expect(g2.advance_at.to_i).to be > ((Time.now + 3.weeks.to_i).to_i - 10)
+      expect(g2.advance_at.to_i).to be < ((Time.now + 3.weeks.to_i).to_i + 10)
       g2.advance_at = 2.hours.ago
       
       res = g2.advance!

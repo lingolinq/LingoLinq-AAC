@@ -67,15 +67,15 @@
         {{!-- Board-picker TOUR mode: "Back" returns to the live tour modal (left);
              "Pick this Board" copies the board to the user and opens it in edit
              mode (right). See board-preview-overlay#pick_for_home. --}}
-        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "close"}}>
+        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (action "close")}}>
           {{t "Back to Picker" key="board_picker_back"}}
         </button>
         {{#if this.back}}
-          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
+          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (action this.back)}}>
             {{t "Back to List" key="back_to_list"}}
           </button>
         {{/if}}
-        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "pick_for_home"}}>
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{on "click" (action "pick_for_home")}}>
           {{t "Pick this Board" key="pick_this_board"}}
         </button>
       {{else}}
@@ -88,7 +88,7 @@
                button. Danger treatment, far-left + isolated. Label + icon come from
                board_list.remove_* so all four contextual variants (delete, unstar,
                unlink, untag) are covered with their correct copy. --}}
-          <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{action this.onRemove}} aria-label={{this.removeContext.label}}>
+          <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{on "click" (action this.onRemove)}} aria-label={{this.removeContext.label}}>
             {{#if this.removeContext.icon}}
               <span class='md-board-preview__action--remove-icon {{this.removeContext.icon}}' aria-hidden="true"></span>
             {{/if}}
@@ -96,25 +96,25 @@
           </button>
         {{/if}}
         {{#if this.back}}
-          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
+          <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (action this.back)}}>
             {{t "Back to List" key="back_to_list"}}
           </button>
         {{/if}}
         {{#if this.select_option}}
-          <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{action "close"}}>
+          <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{on "click" (action "close")}}>
             {{t "Cancel" key="cancel"}}
           </button>
         {{else}}
-          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "visit"}}>
+          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (action "visit")}}>
             {{t "Board Actions" key="board_actions"}}
           </button>
         {{/if}}
         {{#if this.app_state.currentUser.supervisees}}
-          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "copy"}}>
+          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (action "copy")}}>
             {{t "Copy For..." key="copy_for_ellipses"}}
           </button>
         {{/if}}
-        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "select"}}>
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{on "click" (action "select")}}>
           {{#if this.select_option}}
             {{t "Choose This Board" key="choose_this_board"}}
           {{else}}

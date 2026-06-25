@@ -69,6 +69,8 @@ export default Component.extend({
     editManager.auto_edit(board.id);
     this.appState.set('referenced_board', { id: board.id, key: board.key });
     var parts = (board.key || '').split('/');
+    // Debounced "Preparing your Board" mask for the post-import board load.
+    this.appState.arm_board_load_overlay(this.get('router'));
     if(parts.length >= 2) {
       this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
     } else {

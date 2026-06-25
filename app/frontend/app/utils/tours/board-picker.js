@@ -40,7 +40,7 @@ function _board_picker_tour_i18n_extractor_no_op() {
 // readers, and an "OR" list item would just add noise. Flanking rules are drawn
 // in CSS (.md-tour__or). Literal i18n.t so the static generator extracts it.
 function orSeparator() {
-  return '<li class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text">' +
+  return '<li class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text md-hero__gradient-text">' +
     i18n.t('board_picker_tour_or', "OR") + '</span></li>';
 }
 
@@ -81,6 +81,9 @@ function interiorSteps() {
       id: 'board_picker_tour_assign',
       sel: '.board-picker-page__assign-btn',
       on: 'bottom',
+      // Nudged down 10rem (the assign button sits near the bottom, so this popover
+      // flips ABOVE it and rode too high) — see .md-tour__step--bp-assign in app.scss.
+      cls: 'md-tour__step--bp-assign',
       title: i18n.t('board_picker_tour_assign_title', "Let us pick for you"),
       text: tourChecklist([
         i18n.t('board_picker_tour_assign_b1', "We choose a great starter home board"),
@@ -189,7 +192,7 @@ function pushInteriorSteps(steps) {
       // skipped entirely when already on-screen).
       title: cfg.title,
       text: cfg.text,
-      classes: 'md-tour__step',
+      classes: 'md-tour__step' + (cfg.cls ? ' ' + cfg.cls : ''),
       buttons: standardButtons()
     };
     // Always set scrollBlock so the runner FORCES a center-scroll for every

@@ -59,6 +59,27 @@ function tourChecklist(items, lead, foot, options) {
   return leadHtml + '<ul class="md-tour__list">' + lisHtml + '</ul>' + footHtml;
 }
 
+// A full-width action BUTTON rendered inside a step's body (not the footer), for
+// steps that want a prominent in-body choice (e.g. the welcome step's "Skip tour
+// for now" off-ramp). Shepherd sets `text` as innerHTML, so this returns an HTML
+// string; the runner's per-step show hook (_onTourStepShow in guided-tour.js)
+// wires the `data-tour-action` to the Tour. Supported actions: `show:<stepId>`,
+// `complete`, `cancel`. `text` comes from i18n only, never user input.
+// `opts.classes` appends modifier classes; `opts.note` (i18n string) renders a
+// smaller sub-line INSIDE the button beneath the label, so the helper text is
+// clearly tied to clicking the button. A trailing "→" arrow (the same "go"
+// affordance the home-page action buttons use) signals it's clickable.
+function tourBodyButton(text, action, opts) {
+  opts = opts || {};
+  var cls = 'md-tour__body-btn' + (opts.classes ? ' ' + opts.classes : '');
+  var label = '<span class="md-tour__body-btn-label">' + text + '</span>';
+  var note = opts.note ? ('<span class="md-tour__body-btn-note">' + opts.note + '</span>') : '';
+  var content = '<span class="md-tour__body-btn-content">' + label + note + '</span>';
+  var arrow = '<span class="md-tour__body-btn-arrow" aria-hidden="true">&rarr;</span>';
+  var btn = '<button type="button" class="' + cls + '" data-tour-action="' + action + '">' + content + arrow + '</button>';
+  return '<div class="md-tour__body-action">' + btn + '</div>';
+}
+
 // Force the identity (account) dropdown open/closed for the tour. Sets the menu's
 // display with `!important` (beating any stylesheet hide) AND toggles Bootstrap's
 // `.open` on the `.dropdown` parent. The inline display is what keeps it open
@@ -214,4 +235,4 @@ function scrollIntoViewSettled(el, block, force) {
   });
 }
 
-export { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance, scrollIntoViewSettled };
+export { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance, scrollIntoViewSettled };
