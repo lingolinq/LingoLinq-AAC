@@ -18,7 +18,7 @@
 // tour-specific COPY (title/text) per section.
 import i18n from '../i18n';
 import { HOME_SECTIONS } from '../dashboard_sections';
-import { standardButtons, decoratedTitle, tourChecklist, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance } from './shared';
 
 // Selector overrides for the multi-markup cards. Speak/Caseload each render a
 // `-wide-only` AND a `-narrow-only` element that share the base class; the CSS
@@ -137,7 +137,11 @@ function cardCopy(key, layout) {
   }
 }
 
-// Centered intro step (no attachTo).
+// Centered intro step (no attachTo). The "Skip tour for now" off-ramp is a full
+// BODY button (not a footer link) that jumps to the skip-handoff step
+// (home_tour_skip_handoff) so a user who isn't ready for the walkthrough is still
+// shown where the tour button lives before heading to the board picker. The footer
+// keeps only "Start the tour"; the cancel X (cancelIcon) still allows a plain close.
 function welcomeStep() {
   return {
     id: 'home_tour_welcome',
@@ -146,14 +150,23 @@ function welcomeStep() {
       i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode"),
       i18n.t('home_tour_welcome_b2', "Reports & insights"),
       i18n.t('home_tour_welcome_b3', "Account, settings & more")
-    ], i18n.t('home_tour_welcome_lead', "Here's a quick look at where everything lives:")),
+    ], i18n.t('home_tour_welcome_lead', "Here's a quick look at where everything lives:")) +
+    tourBodyButton(
+      i18n.t('home_tour_skip_choose_board', "Skip tour for now<br>Let's <span class=\"md-hero__gradient-text\">choose my board</span> (page-set)"),
+      'show:home_tour_skip_handoff',
+      { note: i18n.t('home_tour_skip_return_note', "You can always return to the tour later.") }
+    ),
     // --welcome carries an extra class so ONLY the first (welcome) page can be
     // nudged higher than the shared intro/outro offset (the outro reuses
     // --intro but stays at the default position). See app.scss.
     classes: 'md-tour__step md-tour__step--intro md-tour__step--welcome',
     buttons: [
       {
-        text: i18n.t('home_tour_skip', "Skip tour"),
+        // Small escape hatch in the footer (where the old skip link sat): close the
+        // tour and stay on the current page. type:'cancel' ends the tour without
+        // navigating and without marking it completed (distinct from the body
+        // "Skip tour for now" button, which hands off to the board picker).
+        text: i18n.t('home_tour_exit', "Exit Tour"),
         type: 'cancel',
         classes: 'md-tour__btn md-tour__btn--ghost'
       },
@@ -164,6 +177,51 @@ function welcomeStep() {
       }
     ]
   };
+}
+
+// Off-ramp reached from the welcome step's "Skip tour for now" button. Spotlights
+// the header tour TRIGGER so the user learns they can relaunch the tour anytime,
+// then hands them to the board picker via "Choose Board". Reached ONLY via
+// tour.show('home_tour_skip_handoff') — it's appended at the END of the step list
+// (see buildHomeSteps), so it never sits in the linear Next flow. "Choose Board"
+// calls complete(), which fires the runner's first-time board-picker handoff
+// (firstTimeNav, bound to the Tour's complete event) — or the registration setup
+// handoff in that flow. If the trigger isn't on screen (collapsed header), the
+// step falls back to a centered card with the same copy.
+function skipHandoffStep() {
+  var trigger = visibleEl('.md-tour__trigger');
+  var step = {
+    id: 'home_tour_skip_handoff',
+    title: decoratedTitle('home_tour_skip_return_title', "Return to the tour anytime"),
+    text: '<p class="md-tour__lead">' + i18n.t('home_tour_skip_return_lead', "Let's help you choose your Board, but before we go, the Tour button highlighted above is how you can access this tour again. Now let's <span class=\"md-hero__gradient-text\">get started</span>!") + '</p>',
+    classes: 'md-tour__step md-tour__step--navbar',
+    buttons: [
+      {
+        // Returns to the welcome tile this off-ramp jumps from. The skip-handoff
+        // step is appended at the END of the step list (not in linear order), so
+        // a plain type:'back' would land on the wrong neighbor — show() the
+        // welcome step by id instead.
+        text: i18n.t('home_tour_back', "Back"),
+        classes: 'md-tour__btn md-tour__btn--ghost',
+        action: function() { return this.show('home_tour_welcome'); }
+      },
+      {
+        text: i18n.t('home_tour_choose_board', "Choose Board"),
+        classes: 'md-tour__btn md-tour__btn--primary',
+        action: function() { return this.complete(); }
+      }
+    ]
+  };
+  if (trigger) {
+    step.attachTo = { element: trigger, on: 'bottom' };
+    step.modalOverlayOpeningPadding = 7;
+    step.modalOverlayOpeningRadius = 14;
+    step.matchTargetRadius = false;
+  } else {
+    // No visible tour trigger — present the same message centered.
+    step.classes = 'md-tour__step md-tour__step--intro';
+  }
+  return step;
 }
 
 // Primary nav + one explainer per visible nav pill. Nav sits at the top of the
@@ -469,7 +527,10 @@ function doneStep(handoff) {
       buttons: [
         {
           text: i18n.t('home_tour_pick_board', "Pick my board (page-set)"),
-          type: 'next',
+          // Explicit complete() (not type:'next') so this terminal button can't
+          // advance into the appended home_tour_skip_handoff step. complete() fires
+          // the same first-time board-picker handoff the linear finish always did.
+          action: function() { return this.complete(); },
           classes: 'md-tour__btn md-tour__btn--primary'
         }
       ]
@@ -488,7 +549,9 @@ function doneStep(handoff) {
     buttons: [
       {
         text: i18n.t('home_tour_finish', "Finish"),
-        type: 'next',
+        // Explicit complete() (not type:'next') so this terminal button can't
+        // advance into the appended home_tour_skip_handoff step.
+        action: function() { return this.complete(); },
         classes: 'md-tour__btn md-tour__btn--primary'
       }
     ]
@@ -717,6 +780,11 @@ function buildHomeSteps(layout, options) {
   pushNavSteps(steps);
   pushCardSteps(steps, layout);
   steps.push(doneStep(options.handoff));
+  // The welcome step's "Skip tour for now" off-ramp. Appended LAST so it's reachable
+  // via tour.show('home_tour_skip_handoff') but never sits in the linear Next chain
+  // (the terminal doneStep button uses an explicit complete(), so its Next can't
+  // fall into this). Excluded from the progress dots in guided-tour.js.
+  steps.push(skipHandoffStep());
   // Focused View: tag every step so the popover picks up the Focused-View skin
   // (Focused palette + gradient CTA) — see `.md-tour__step--focused` in app.scss.
   if (layout === 'focused') {

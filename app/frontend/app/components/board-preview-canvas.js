@@ -24,13 +24,54 @@ export default Component.extend({
   didInsertElement: function() {
     this.render_canvas();
   },
+  /* Size the modal canvas by the board's column:row ASPECT RATIO (square cells)
+     rather than a fixed pixel height, so it scales UNIFORMLY when the available
+     width changes — e.g. a modal scrollbar appearing on smaller screens. A fixed
+     px height let the already-drawn square bitmap stretch into portrait cells when
+     the width then shrank. width:100% + aspect-ratio keeps the dark canvas hugging
+     the board AND keeps the cells square at every width. Capped at the column
+     height (minus the actions row) so a tall board still fits — then it's
+     height-limited and the draw loop centers it horizontally. */
+  _apply_modal_canvas_sizing: function() {
+    var el = this.element;
+    if(!el) { return; }
+    el.style.flex = '0 0 auto';
+    el.style.minHeight = '0';
+    el.style.width = '100%';
+    var board = this.get('board');
+    var cols = board && board.get && board.get('grid.columns');
+    var rows = board && board.get && board.get('grid.rows');
+    if(cols && rows) {
+      el.style.aspectRatio = cols + ' / ' + rows;
+      el.style.height = 'auto';
+    } else {
+      el.style.aspectRatio = '';
+      el.style.height = '';
+    }
+    var max_h = this._modal_canvas_max_height();
+    el.style.maxHeight = max_h ? (max_h + 'px') : '';
+  },
+  // Height cap for a tall board = the column height minus a FIXED band for the
+  // actions row (~48px) + a breathing gap. We deliberately do NOT measure the
+  // actions element: it's a sibling rendered right after this canvas, so at
+  // didInsertElement time it often isn't laid out yet and reports 0.
+  _modal_canvas_max_height: function() {
+    var el = this.element;
+    var col = el && el.parentNode;
+    if(!col || !col.getBoundingClientRect) { return null; }
+    var max_h = col.getBoundingClientRect().height - 96;
+    return max_h > 0 ? max_h : null;
+  },
   preview_style: computed('size', 'dark_mode', function() {
     /* In dark_mode, the canvas wrapper gets a deep-navy fill + matching
        border so the speak-mode appearance is reproduced inside the
        modal. Light mode keeps the original light-gray frame. */
     var dark = this.get('dark_mode');
     if(this.get('size') == 'modal') {
-      this.element.style.height = 'calc(70vh - 140px)';
+      // Aspect-ratio sizing keeps the cells square at any width (see
+      // _apply_modal_canvas_sizing); the actions row is pinned below it
+      // (margin-top:auto in CSS).
+      this._apply_modal_canvas_sizing();
       if(dark) {
         return htmlSafe('width: 100%; height: 100%; border: 1px solid rgba(255,255,255,0.10); padding: 2px; border-radius: 8px; background: #0d2438;');
       }
@@ -42,7 +83,9 @@ export default Component.extend({
   }),
   render_canvas: function() {
     if(this.get('size') == 'modal') {
-      this.element.style.height = 'calc(70vh - 140px)';
+      // Aspect-ratio sizing keeps the cells square at any width and lets the canvas
+      // scale uniformly when the width changes (see _apply_modal_canvas_sizing).
+      this._apply_modal_canvas_sizing();
     } else if(this.get('show_links')) {
       this.element.style.height = 'calc(100% - 70px)';
     } else {
@@ -294,6 +337,15 @@ export default Component.extend({
         });
         var button_width = width / columns;
         var button_height = height / rows;
+        // Keep buttons square — never stretch a cell beyond a square. Use the
+        // smaller of the two per-axis sizes for BOTH dimensions and center the
+        // grid in the leftover space (letterbox), so a tall modal canvas no
+        // longer produces tall rectangles.
+        var cell = Math.min(button_width, button_height);
+        button_width = cell;
+        button_height = cell;
+        var offset_x = (width - (cell * columns)) / 2;
+        var offset_y = (height - (cell * rows)) / 2;
         var radius = button_width / 20;
         var border_size = pad / 2.5;
         if(this.get('size') == 'selection') {
@@ -529,8 +581,8 @@ export default Component.extend({
 
               var show_always = true;
               if(!button.hidden || show_always) {
-                var x = button_width * jdx;
-                var y = button_height * idx;
+                var x = offset_x + (button_width * jdx);
+                var y = offset_y + (button_height * idx);
                 var draw_button = function(button, x, y, fill) {
                   context.beginPath();
                   if(button.hidden) {
@@ -588,6 +640,17 @@ export default Component.extend({
                          invisible. */
                       var fill_for_label = button.background_color || (show_links ? palette.link_fallback_fill : palette.fill);
                       context.fillStyle = contrast_label(fill_for_label, palette.label);
+                      /* Shrink the label so it fits the button's inner width
+                         instead of overflowing and clipping (e.g. "question" ->
+                         "uestion"). Start at text_height and scale down to fit,
+                         floored at 50% so it never becomes unreadable. */
+                      var label_avail = button_width - pad - pad - border_size - border_size;
+                      context.font = text_height + "px Arial";
+                      var label_w = context.measureText(button.label).width;
+                      if(label_w > label_avail && label_w > 0) {
+                        var fit_size = Math.max(text_height * (label_avail / label_w), text_height * 0.5);
+                        context.font = fit_size + "px Arial";
+                      }
                       context.fillText(button.label, x + (button_width / 2), y + pad + (text_height * 0.85));
                     }
                   }

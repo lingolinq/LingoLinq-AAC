@@ -20,6 +20,8 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
+- [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
@@ -5513,6 +5515,23 @@ Two wrong tries proved it: (a) `height:auto` + cell `min-height:96px`, (b) grid
 only gap-free path is the grid collapsing to the squares' own height. `computeHeight()` is
 EMPTY (board-detail.js:1920) so sizing is pure CSS; `--board-rows` is set by JS (board-detail.js:3044).
 
+## Pattern: white symbol matte and the `ll-symbol-white-matte` filter are mutually exclusive on one element
+
+A symbol image with transparent regions bleeds the button's Fitzgerald fill through its
+face in Colored mode (`symbol_background_clear`). The legacy classic board fixed this with
+an unconditional `.button img.symbol { background:#fff }` (first commit
+`coughdrop.css.scss:573`); that survives today as the `symbol_background_white` mode.
+Colored mode instead uses the `#ll-symbol-white-matte` SVG filter (alpha-only white
+knockout, defined in `app/frontend/app/index.html`). The trap: you cannot add
+`background:#fff` to an element that also carries that filter — CSS `filter` processes the
+element's own background, so the matte filter knocks the white right back out. To restore a
+white matte in Colored mode you must DROP the filter and paint white on a filter-free
+element. In the board-detail grid the symbol `<img>` is content-sized
+(`width/height:auto` + `object-fit:contain`), so a `background:#fff` on the img sits
+exactly behind the rendered image — no wrapper, and it does NOT stretch to the whole image
+band the way a container fill (`.md-board-detail-symbol-card__image`) would. Default for
+new users is `symbol_background = 'clear'` (`lib/json_api/user.rb:89`), so Colored mode is
+the common case. See [`2026-06-23-symbol-transparency-bleed-legacy.md`](./2026-06-23-symbol-transparency-bleed-legacy.md).
 ## Gotcha: bootstrap 3 tooltip/popover is XSS-safe only via DOM-node content, not data-content strings
 Bootstrap 3.4.1 (`node_modules/bootstrap/dist/js/bootstrap.js`) `Popover.getContent` reads the
 `data-content` attribute FIRST, then falls back to the `content` option. `Popover.setContent`
@@ -5538,3 +5557,34 @@ widget that silently drops your configured options. Prefer bootstrap's own idemp
 `$el.popover(opts)` unconditionally before `show` (no-op when an instance exists, re-creates with
 your opts after a destroy). Seen in `utils/utterance.js:silent_speak_button` where
 `services/app-state.js:2336` destroys `#speak_mode`'s popover on leaving a board (LL-d1ea8659c3).
+
+## Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention
+
+When a flow needs the user's existing copy of a public board (pick-as-home, add-to-sidebar),
+it's tempting to look up `username/<original-slug>` and reuse whatever's there — copies DO keep
+the slug under the user's namespace. But that key can also be an UNRELATED board the user
+copied from a different source with the same slug, so reusing on the bare convention can set
+the WRONG board as home — a correctness/safety bug for AAC users. Confirm lineage instead:
+reuse only when `parent_board_id === original.id` (or `parent_board_key === original.key`).
+App-made copies always set `parent_board_id` server-side, and `/show` always serializes it, so
+real copies confirm. Two gotchas: (1) a board cached as a LIST partial may omit
+`parent_board_id`, making a real copy look unconfirmed — use `findRecord(key, {reload:true})`
+so the parent fields are authoritative; (2) an unconfirmed match should fall back to copying
+fresh (a benign duplicate) rather than reuse-on-faith. Single shared helper:
+`app/frontend/app/utils/board-copy.js#findExistingUserCopy` (used by board-preview-overlay +
+sidebar-editor). Don't fork two copies of this logic — divergence is how the slug-trust branch
+crept back in.
+
+## Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"
+
+A UI that persists on every quick interaction (drag-reorder, up/down nudge, toggle) can fire
+several `record.save()` calls in quick succession. Concurrent saves on the SAME Ember Data
+record are unsafe: the network PUTs can complete out of order (the slower/earlier one wins,
+silently dropping a later change), and Ember Data can also throw when a save starts while one is
+already in flight. Fix: keep the optimistic `set()` synchronous (so the UI updates instantly),
+but CHAIN the actual `save()` off a module/instance `_saveChain` promise so saves run one at a
+time — each chained save serializes the model's CURRENT attributes (the latest array), so
+coalescing is safe. Keep the chain alive past a rejection (`prior.then(noop, noop)`) so one
+failed save can't wedge the queue, and expose the tail as `_lastSave` for callers that must wait
+for persistence to settle (e.g. a reload-on-close). See
+`app/frontend/app/components/sidebar-editor.js#_save`.

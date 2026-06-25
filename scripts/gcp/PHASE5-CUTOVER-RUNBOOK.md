@@ -168,7 +168,11 @@ The freeze, in order:
 - **Pause Render workers** (the Resque worker writes via background jobs; scale the worker service
   to 0 or stop it). Confirm no in-flight Resque jobs.
 - Announce the window (copy must be i18n'd, calm and concrete for AAC users): "LingoLinq is briefly
-  read-only for scheduled maintenance and will be fully back at <time tz>."
+  read-only for scheduled maintenance and will be fully back at <time tz>." **Skipped at the current
+  cutover: prod has no real users, only internal/fake test accounts, so no proactive announcement is
+  sent (Scot, 2026-06-24; see the maintenance-message checklist item). The reactive WriteFreeze 503
+  page covers the only edge cases. Re-instate this announce step only if real users are onboarded to
+  prod before the window.**
 - **Do NOT scale Render web to 0, and do NOT decommission, until after soak and after Cloud SQL is
   confirmed authoritative** (step 9b). Render web in write-reject mode is the soak-safety guard.
 
@@ -333,6 +337,22 @@ Then, BEFORE any DNS change:
   trigger** (it means an external writer or offline replay slipped past the freeze; go fix the
   freeze, do not flip DNS).
 
+  **Script: `scripts/gcp/phase5-delta-check.sh`** (built, strictly read-only - every query runs in
+  `BEGIN READ ONLY`, so it is safe against live prod). Forward (gate) mode exits non-zero on any
+  drift:
+
+  ```
+  cloud-sql-proxy --port 5432 lingolinq-prod:us-central1:lingolinq-prod-pg &
+  RENDER_DATABASE_URL='postgres://USER:PASS@RENDER_HOST:5432/lingolinq_production' \
+  CLOUDSQL_DATABASE_URL='postgres://lingolinq_app:PASS@127.0.0.1:5432/lingolinq_production' \
+    ./scripts/gcp/phase5-delta-check.sh           # add --counts to also compare COUNT(*) (slower)
+  ```
+
+  Default tables are `log_sessions boards board_contents` (override with `TABLES=`). On **rollback**
+  (Rollback step 3), the same script in reverse mode enumerates the cutover-window writes that
+  landed only on Cloud SQL, for replay/merge back into Render:
+  `CLOUDSQL_DATABASE_URL=... ./scripts/gcp/phase5-delta-check.sh --since '<DNS-flip timestamp>'`.
+
 ### 8. Front-end decision gate  (tracker 5.3 - DECIDED 2026-06-23)
 
 The web service currently deploys with `--allow-unauthenticated` straight to the `run.app` URL.
@@ -493,7 +513,7 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 - [ ] 0c Redis TLS handshake green against live Memorystore, CA-completeness asserted
       (LL-6619cc1811 verified-closed).
 - [x] W1 worker SIGTERM grace + requeue fix built + dual-reviewed (tracker 4.W1, **PR #473**,
-      pending merge to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
+      merged to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
       existing BoyBand requeue).
 - [x] **W1 residual DECIDED (Scot, 2026-06-23): pause the outbound-webhook notifier pre-cutover**
       (operational mitigation, step 1) rather than building a per-class selective requeue. The
@@ -504,7 +524,7 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       still to run (gated): provision the LB, validate it + the WAF preview in the rehearsal, flip
       the WAF to enforce, then the ingress lockdown.
 - [x] **Render write-reject mode built + tested + dual-reviewed** (tracker 5.2, **PR #472**,
-      pending merge to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
+      merged to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
       Retry-After on mutating verbs AND side-effect GETs incl. the `lib/json_api` write paths;
       reads pass; auth allowlist). Re-confirm endpoint coverage in the rehearsal.
 - [ ] **Client 503 re-queue confirmed in the dress rehearsal:** a frozen offline board-save /
@@ -516,16 +536,24 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       and `saml/consume` SSO linkage land on Render during the soak and are lost on rollback
       (user re-signs-in after); `auth/google/signup` is blocked. `saml/consume` stays allowlisted.
       See step 1.
-- [ ] **Every external writer enumerated and pause-tested.** Enumeration **verified against the LIVE
-      Render dashboard + n8n + GitHub Actions 2026-06-24** (see the writer bullets above): prod-DB writers
-      are the web app (WriteFreeze), `lingolinq-prod-worker` (carries `Webhook.notify_all_with_code`), and
-      the single `lingolinq-prod-scheduler` cron; the env writer is the `sync-render-secrets` GitHub Action;
-      no active n8n workflow writes prod; plus a plan for **inbound webhooks** (Stripe/AWS) 503'd during the
-      soak. Box stays open until each is **pause-tested** in the dress rehearsal. Re-verify the live list the
-      day before - it can drift.
-- [ ] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7).
+- [ ] **Every external writer enumerated and pause-tested:** Render cron services, n8n workflows
+      hitting prod, hourly `sync-render-env`, **the outbound webhook notifier**
+      (`Webhook.notify_all_with_code`), AND a plan for **inbound webhooks** (Stripe/AWS) 503'd
+      during the soak (verified against the LIVE Render dashboard, not this doc).
+- [x] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7): built as
+      `scripts/gcp/phase5-delta-check.sh` (read-only; forward gate exits non-zero on drift, reverse
+      `--since` mode for rollback reconciliation). Dry-run locally 2026-06-24 (zero-delta exit 0,
+      drift exit 1, reverse report, read-only write-rejection all verified). The live pre-DNS run
+      against Render + Cloud SQL is still a gated cutover step.
 - [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
       BOOT_SECRETS if any row exists, else confirmed-empty.
 - [ ] **DNS TTL lowered to 60s** ahead of the window and propagation confirmed.
 - [ ] Operator holds GCP `lingolinq-prod` + 1Password "LingoLinq Prod" + Render API key.
-- [ ] Maintenance message (i18n) staged.
+- [x] **Maintenance message (i18n): satisfied by the PR #472 503 page; no proactive announcement
+      needed (Scot, 2026-06-24).** Render prod carries no real clients/users at cutover - only a
+      few internal/fake test accounts (prod will be brought up to staging, then migrated to GCP) -
+      so no user-facing window announcement is warranted. The reactive WriteFreeze 503 page
+      (i18n'd `write_freeze.title`/`write_freeze.body`, calm AAC copy, reads still served) is the
+      only maintenance surface and is already built + merged. **Re-open this item only if real
+      users are onboarded to prod before the cutover window;** then add a proactive announcement
+      surface (no in-app banner mechanism exists yet).

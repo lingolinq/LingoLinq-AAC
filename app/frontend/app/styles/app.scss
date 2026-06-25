@@ -5523,7 +5523,7 @@ tr.accuracy_non_mastered {
 .md-card--setup .setup-board-category .md-home-boards-picker__grid {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: center;
   align-content: flex-start;
   gap: 1.25rem 1.5rem;
 }
@@ -6018,7 +6018,7 @@ tr.accuracy_non_mastered {
 .board-picker-page .md-home-boards-picker__grid {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: center;
   align-content: flex-start;
   gap: 1.5rem;
 }
@@ -8525,14 +8525,18 @@ body > .popover.bottom {
   filter: contrast(4.0) saturate(100);
 }
 
-/* Colored mode: remove opaque white PNG mattes without tinting symbol
-   colors (multiply tints the whole image with the button fill). SVG filter
-   adjusts alpha only; scoped to raster symbols. White/Black/HC modes unchanged. */
-.symbol_background_clear .button img.symbol[src*=".png"] {
-  filter: url(#ll-symbol-white-matte);
-}
-.symbol_background_clear .button img.symbol[src$="square.svg"] {
-  filter: none;
+/* Colored mode: white backing INSIDE the symbol's own outline. The
+   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   the symbol's own alpha, then draws the symbol on top — so transparent /
+   anti-aliased regions don't bleed the button fill, while white never extends
+   past the symbol's outline (no halo, no square). Mirrors the board-detail
+   grid treatment and replaces the prior ll-symbol-white-matte knockout filter
+   (which couldn't fill genuinely transparent pixels). Works regardless of the
+   object-fit letterbox — the filter acts on rendered alpha, so empty letterbox
+   bars stay empty. square.svg fallback excluded (no white behind the broken-
+   image placeholder). White/Black/HC modes use separate selectors. */
+.symbol_background_clear .button img.symbol:not([src$="square.svg"]) {
+  filter: url(#ll-symbol-white-backing);
 }
 .symbol_background_white .button img.symbol {
   background: #fff;
@@ -66231,24 +66235,39 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   min-height: 0;
   margin-right: 0;
 }
+/* When the Back button is present, Home ALSO caps at 44×44 (matching Back) so the
+   stacked pair fits the user's sentence-bar height preset instead of forcing the
+   row taller. Home only grows to fill the bar when it's ALONE (back absent — the
+   flex:1 rule above stays in effect). Equal specificity to that rule, placed after
+   so it wins when --with-back is present. */
+.md-board-detail-nav-stack--with-back .md-board-detail-home-btn {
+  flex: 0 0 auto;
+  width: 44px;
+}
+.md-board-detail-nav-stack--with-back .md-board-detail-home-btn svg {
+  width: 22px;
+  height: 22px;
+}
 /* Back button under Home — only inside a folder. Styled to mirror the
    right-side sidebar dropdown button (.md-board-detail-sidebar-toggle
    --stacked): translucent blue-grey tint, charcoal icon, 12px radius —
    but carries the back chevron and matches Home's 56px width so the two
    stack as one coordinated column. */
 .md-board-detail-nav-stack__back {
-  flex: 1;
-  width: 56px;
-  min-width: 44px;
+  /* Fixed 44×44 touch target — NOT flex:1. When Back shows, Home + Back stack in
+     this column; if each GREW to fill the row (flex:1), the pair's intrinsic
+     height (~2×55px with a 33px svg) would push the sentence row TALLER than the
+     user's chosen sentence-bar height (small=90px = 44 + 2 gap + 44), silently
+     overriding their `vocalization_height` preference. `flex: 0 0 auto` + a 22px
+     svg sizes each button to exactly 44px (border-box: 22 svg + 20 padding + 2
+     border), so the pair fits inside the preset and the row stays at the chosen
+     height — mirroring the right-side stacked toggle pair. */
+  flex: 0 0 auto;
+  width: 44px;
   min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Match the Home button's box: same width (56px) AND same content height.
-     Both are flex:1 in the stretched stack, but Home's content (33px svg +
-     10px padding) floors it taller than a 22px-svg / 0-padding back would, so
-     mirror Home's svg size + padding so the two boxes are identical (and scale
-     together — see the <=500h overrides). */
   padding: 10px;
   border-radius: 12px;
   border: 1px solid rgba($brand-charcoal-blue, 0.2);
@@ -66259,8 +66278,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-board-detail-nav-stack__back svg {
   flex-shrink: 0;
-  width: 33px;
-  height: 33px;
+  width: 22px;
+  height: 22px;
 }
 .md-board-detail-nav-stack__back:hover {
   background: rgba($brand-blue-grey, 0.3);
@@ -67969,6 +67988,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    The 0,2,0 selector beats the trigger's base/per-breakpoint position rules. */
 .md-board-edit-session__tour .md-tour__trigger {
   position: static;
+}
+/* Speak-mode guided-tour host carries NO on-screen button — its only purpose is
+   the runner (auto-open after "Pick this Board" + the manual trigger from the
+   options-menu "Take a tour" item). Hide the default trigger entirely; the
+   component still mounts and runs (Shepherd portals the tour overlay to <body>),
+   so hiding the host has no effect on the tour itself. */
+.md-board-detail-speak-tour {
+  display: none;
 }
 .md-board-edit-session__state {
   display: flex;
@@ -69728,6 +69755,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail-grid-sidebar-wrap {
   display: flex;
+  /* Top-align the row's children so the BOARD grid keeps its JS-computed height
+     (computeHeight) and is never stretched to fill the grown wrap. Only the inline
+     sidebar opts into stretching, via its own `align-self: stretch`, so capping the
+     sidebar to the board's height never changes the board's sizing/scroll. */
   align-items: flex-start;
   gap: 0;
   /* `flex: 1 0 auto` instead of `flex: 1` (= 1 1 0%):
@@ -70366,13 +70397,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   /* Glassmorphism container matching the board-detail surfaces (sentence bar,
      prediction tiles, edit panels): a frosted backdrop-blur pane with a soft
      solid edge, an inset top sheen, and a soft ambient drop. Subtly rounded.
-     Flex column with TOP-aligned content (pin, then board thumbnails) so it
-     no longer reads as bottom-weighted. */
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 4px;
+     Outer = a positioned shell stretched to the board's height; the inner
+     __scroll layer holds the (top-aligned) thumbnails + Edit pill and scrolls. */
+  position: relative;
+  /* Stretch to the wrap's cross height — which is set by the board grid — so the
+     sidebar never extends past the bottom of the center board; overflow scrolls
+     inside instead (the inner __scroll layer can't grow this shell). */
+  align-self: stretch;
+  min-height: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
@@ -70384,11 +70416,22 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.6),
     0 4px 16px rgba($la-navy, 0.12);
+  overflow: hidden;
+  margin-left: 6px;
+}
+/* Absolute scroll layer filling the shell — keeps the content from growing the
+   flex row (which would push the sidebar below the grid). */
+.md-board-detail-inline-sidebar__scroll {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px 8px 10px;
-  margin-left: 6px;
-  max-height: 100%;
 }
 /* Dark-mode: a dark frosted-glass pane (the thumbnails already expect a "dark
    glass sidebar surface" — see __img below) with light item text. */
@@ -70401,10 +70444,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail--dark .md-board-detail-inline-sidebar__item {
   color: #e1e5eb;
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.06) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.25);
 }
 .md-board-detail--dark .md-board-detail-inline-sidebar__item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.10) 100%);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 .md-board-detail-inline-sidebar__close {
   display: block;
@@ -70486,20 +70534,36 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   width: 100%;
   padding: 10px 8px;
   min-height: 44px;
+  /* Keep natural height inside the scrolling flex column — without this the
+     items shrink to fit (squishing image + label together) instead of letting
+     the sidebar overflow and scroll. */
+  flex-shrink: 0;
   text-decoration: none;
   color: #333;
   font-size: 15px;
   line-height: 1.2;
-  border: none;
-  border-bottom: 1px solid #f0f0f0;
-  background: transparent;
+  /* Each item is its own glassy tile — translucent gradient, light rim, inset top
+     sheen + soft drop — so it reads as a raised glass button on the sidebar pane
+     (was a flat row with a hairline separator). */
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.82) 0%, rgba(241, 244, 248, 0.66) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 2px 6px rgba($la-navy, 0.10);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
   &:hover {
-    background: #f5f5f5;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 244, 248, 0.80) 100%);
+    border-color: rgba($la-navy, 0.18);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      0 4px 10px rgba($la-navy, 0.14);
     text-decoration: none;
   }
+  &:active { transform: translateY(1px); }
 }
 .md-board-detail-inline-sidebar__img {
   display: block;
@@ -70548,6 +70612,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 @media (max-width: 768px) {
   .md-board-detail-inline-sidebar {
     width: 56px;
+  }
+  .md-board-detail-inline-sidebar__scroll {
     padding-left: 0;
     padding-right: 0;
   }
@@ -70560,6 +70626,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   .md-board-detail-inline-sidebar {
     /* Pin + container shrunk 20%: 35px pin + 4px side padding each = 43px. */
     width: 43px;
+  }
+  .md-board-detail-inline-sidebar__scroll {
     /* Top/bottom padding halved (8/10 -> 4/5); 4px back on the sides. */
     padding: 4px 4px 5px;
   }
@@ -71351,6 +71419,356 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-collection__section:last-child {
   margin-bottom: 0;
 }
+/* ── "Edit Sidebar" button + panel ──────────────────────────────────────────
+   The button is a compact version of the boards-page "Create New Board" pill
+   (home-board-pill mixin), pinned to the top-right of the inline sidebar. The
+   panel reuses the shared pinned-drawer chrome (md-board-detail-actions-menu--
+   collection-pinned) and styles its rows like the My Board Collection list. */
+.md-board-detail-inline-sidebar__edit-row {
+  display: flex;
+  justify-content: center;
+  padding: 8px 2px 4px;
+  /* Don't compress in the scrolling flex column — stays full height and scrolls. */
+  flex-shrink: 0;
+  /* Push to the bottom of the sidebar via flex auto-margin (not absolute
+     positioning): absorbs free space when items are few; harmless when they
+     overflow (no free space → sits at the end and scrolls). */
+  margin-top: auto;
+}
+.md-board-detail-inline-sidebar__edit-btn {
+  @include home-board-pill(
+    linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10)),
+    linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
+  );
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 13px;
+  max-width: 100%;
+}
+.md-board-detail-inline-sidebar__edit-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: $brand-verdigris-aa;
+}
+/* The editor reuses the My Board Collection chrome (header/search/section-cards/
+   list/icon/name/grid-pill) via the md-board-collection__* classes; only the row
+   LAYOUT and the per-row remove/add controls are bespoke. The row is a flex
+   container (display block on the left, action button on the right) rather than the
+   single clickable button board-collection uses. */
+.md-sidebar-editor__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 8px;
+}
+.md-sidebar-editor__row:hover { background: rgba($la-navy, 0.05); }
+/* Edit Sidebar panel only: trim the "On your sidebar" section's left/right padding
+   by 4px so the wider glass row cards get a touch more room (My Board Collection's
+   sections are unaffected — this modifier is editor-scoped). */
+.md-sidebar-editor__section--current {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+/* Each "On your sidebar" item is wrapped in its own glass container (translucent
+   gradient, light rim, inset sheen + soft drop) so the reorderable items read as
+   distinct cards. Scoped to this section (not Your Boards / brand lists). */
+.md-sidebar-editor__row--current {
+  padding: 10px 12px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.80) 0%, rgba(241, 244, 248, 0.62) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 2px 6px rgba($la-navy, 0.08);
+  margin-bottom: 6px;
+}
+.md-sidebar-editor__row--current:hover {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 244, 248, 0.74) 100%);
+  border-color: rgba($la-navy, 0.16);
+}
+.md-board-detail--dark .md-sidebar-editor__row--current {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 2px 6px rgba(0, 0, 0, 0.22);
+}
+.md-board-detail--dark .md-sidebar-editor__row--current:hover {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.09) 100%);
+}
+/* Reorder instruction below the search box. */
+.md-sidebar-editor__hint {
+  margin: 8px 4px 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: $brand-slate-blue;
+}
+.md-board-detail--dark .md-sidebar-editor__hint { color: rgba(240, 244, 250, 0.72); }
+/* Drag handle (grip) — the draggable affordance for reordering. */
+.md-sidebar-editor__grip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: $brand-cool-steel;
+  cursor: grab;
+  padding: 2px;
+  touch-action: none;
+}
+.md-sidebar-editor__grip:active { cursor: grabbing; }
+.md-board-detail--dark .md-sidebar-editor__grip { color: rgba(240, 244, 250, 0.5); }
+/* Drag states — the lifted row fades to a ghost; the hovered drop target gets a
+   dashed teal insertion outline. */
+.md-sidebar-editor__row--dragging { opacity: 0.45; }
+.md-sidebar-editor__row--drop-target {
+  background: rgba($brand-verdigris, 0.12);
+  outline: 2px dashed rgba($brand-verdigris, 0.55);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+/* Up/down reorder buttons — compact stacked control (keyboard + touch path). */
+.md-sidebar-editor__reorder {
+  flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.md-sidebar-editor__reorder-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.15);
+  border-radius: 6px;
+  background: #fff;
+  color: $brand-slate-blue;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-sidebar-editor__reorder-btn:hover:not([disabled]) {
+  background: rgba($brand-verdigris, 0.12);
+  border-color: rgba($brand-verdigris, 0.35);
+  color: $brand-verdigris-aa;
+}
+.md-sidebar-editor__reorder-btn[disabled] { opacity: 0.3; cursor: default; }
+.md-board-detail--dark .md-sidebar-editor__reorder-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #dbe4f0;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+/* The drag handle is mouse-only — hide it on touch / coarse-pointer devices, where
+   the up/down buttons are the reorder path. */
+@media (hover: none) and (pointer: coarse) {
+  .md-sidebar-editor__grip { display: none; }
+}
+/* Fill the fixed-height drawer (the host is a 100vh flex column) so the body —
+   and therefore the loading wash below — spans the WHOLE panel instead of
+   collapsing to the short loading message's height (which left white space
+   beneath the darkened band). */
+.md-board-detail-actions-menu--sidebar-editor .md-sidebar-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* While the sections load: slightly darken the body and pulse the centered
+   message, so the wait reads as "working" until the content reveals. */
+.md-sidebar-editor__body--loading {
+  background: linear-gradient(180deg, rgba($la-navy, 0.06) 0%, rgba($la-navy, 0.10) 100%);
+}
+.md-board-detail--dark .md-sidebar-editor__body--loading {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.20) 0%, rgba(0, 0, 0, 0.26) 100%);
+}
+.md-sidebar-editor__loading-all {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 12px;
+  text-align: center;
+  font-size: 14px;
+  animation: ll-loading-pulse 1.4s ease-in-out infinite;
+}
+/* Shared loading pulse — used by both the sidebar editor and the My Board
+   Collection panel's "Loading boards…" messages. */
+@keyframes ll-loading-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-sidebar-editor__loading-all,
+  .md-board-collection__loading { animation: none; opacity: 1; }
+}
+.md-sidebar-editor__display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.md-sidebar-editor__action {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.15);
+  background: #fff;
+  color: $brand-slate-blue;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.12);
+  /* Frosted backdrop shared by both controls so each reads like polished glass
+     (mirrors the .beta-welcome-steps__num discs). The --remove / --add rules layer
+     the specular sheen + tinted gradient + glassy rim on top. */
+  backdrop-filter: blur(8px) saturate(1.4);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.md-sidebar-editor__action:active { transform: translateY(1px); }
+/* Remove (×): round, neutral glass disc — a specular sheen over a faint slate tint
+   with a crisp light rim (distinct in shape + hue from the + button). */
+.md-sidebar-editor__action--remove {
+  border-radius: 50%;
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($la-navy, 0.20) 0%, rgba($la-navy, 0.12) 100%);
+  color: $la-navy;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 4px 12px rgba($brand-blue-black, 0.16),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -3px 6px rgba($la-navy, 0.12);
+}
+.md-sidebar-editor__action--remove:hover {
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba(220, 53, 69, 0.28) 0%, rgba(220, 53, 69, 0.18) 100%);
+  color: #c0392b;
+}
+/* Add (+): glossy glass disc using the SAME denim→verdigris gradient + specular
+   sheen + layered shadows as the .beta-welcome-steps__num numbering badges. */
+.md-sidebar-editor__action--add {
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($brand-dusty-denim, 0.32) 0%, rgba($brand-verdigris, 0.28) 100%);
+  color: $brand-verdigris-aa;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 6px 16px rgba($brand-dusty-denim, 0.20),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -4px 8px rgba($brand-verdigris, 0.16);
+}
+.md-sidebar-editor__action--add:hover {
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($brand-dusty-denim, 0.44) 0%, rgba($brand-verdigris, 0.40) 100%);
+  box-shadow:
+    0 8px 20px rgba($brand-dusty-denim, 0.26),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -4px 8px rgba($brand-verdigris, 0.20);
+}
+/* Visibility toggle (eye) for Alert — round neutral glass like the remove control,
+   but NOT destructive (no red hover) since it only hides/shows. */
+.md-sidebar-editor__action--toggle {
+  border-radius: 50%;
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($la-navy, 0.20) 0%, rgba($la-navy, 0.12) 100%);
+  color: $la-navy;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 4px 12px rgba($brand-blue-black, 0.16),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -3px 6px rgba($la-navy, 0.12);
+}
+.md-sidebar-editor__action--toggle:hover {
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($la-navy, 0.28) 0%, rgba($la-navy, 0.18) 100%);
+}
+/* Hidden state — muted glyph; the row's image/name also dims (below). */
+.md-sidebar-editor__action--off { color: $brand-slate-blue; }
+.md-sidebar-editor__row--hidden .md-sidebar-editor__display { opacity: 0.5; }
+.md-board-detail--dark .md-sidebar-editor__action--toggle {
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%);
+  color: #f0f4fa;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+/* "Always on" status pill for Crisis Vocabulary — it can't be removed, so it shows
+   this (non-interactive) lock pill instead of a control. */
+.md-sidebar-editor__locked-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.07);
+  border: 1px solid rgba($la-navy, 0.14);
+  color: $brand-slate-blue;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.md-sidebar-editor__locked-pill svg { opacity: 0.8; }
+.md-board-detail--dark .md-sidebar-editor__locked-pill {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(240, 244, 250, 0.78);
+}
+.md-sidebar-editor__action[disabled] { opacity: 0.45; cursor: default; box-shadow: none; }
+.md-sidebar-editor__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.md-sidebar-editor__confirm-q { font-size: 12px; color: $brand-slate-blue; }
+.md-sidebar-editor__confirm-btn {
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba($la-navy, 0.15);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+}
+.md-sidebar-editor__confirm-btn--danger { color: #c0392b; border-color: rgba(220, 53, 69, 0.40); }
+.md-sidebar-editor__confirm-btn--primary { color: $brand-verdigris-aa; border-color: rgba(44, 183, 176, 0.40); }
+/* Dark speak shell overrides for the editor's OWN controls (the reused
+   md-board-collection__* chrome already carries its own dark overrides). */
+.md-board-detail--dark .md-sidebar-editor__confirm-q { color: rgba(240, 244, 250, 0.72); }
+.md-board-detail--dark .md-sidebar-editor__row:hover { background: rgba(255, 255, 255, 0.05); }
+.md-board-detail--dark .md-sidebar-editor__action,
+.md-board-detail--dark .md-sidebar-editor__confirm-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #dbe4f0;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+/* Keep the glassy treatment on the dark shell — a brighter specular sheen + a
+   white-leaning rim so the discs still read as polished glass over dark. */
+.md-board-detail--dark .md-sidebar-editor__action--remove {
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%);
+  color: #f0f4fa;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.md-board-detail--dark .md-sidebar-editor__action--add {
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($brand-dusty-denim, 0.52) 0%, rgba($brand-verdigris, 0.46) 100%);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .md-board-collection__section-label {
   display: flex;
   align-items: baseline;
@@ -71566,6 +71984,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 13px;
   color: $brand-cool-steel;
   font-style: italic;
+}
+/* Pulse the in-flight "Loading boards…" message (matches the sidebar editor). */
+.md-board-collection__loading {
+  animation: ll-loading-pulse 1.4s ease-in-out infinite;
 }
 .md-board-collection__error {
   color: #b94a48;
@@ -72107,13 +72529,25 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    above for the square case only; tall and wide still need the
    fixed flex: 0 0 auto so their fractional widths/heights sit
    centered without growing. */
-.md-board-detail-grid.md-board-detail-grid--shape-square .md-board-detail-symbol-card {
-  flex: 1 1 0 !important;
-  align-self: stretch !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  margin: 0 !important;
+/* Shape-square = "Fit cell" → SQUARE cells. The card is sized to the column
+   width (aspect-ratio 1 + width:100%); the grid rule below is height:auto +
+   flex:0 0 auto so its rows resolve to those square cards. Net: every cell is a
+   square the card fills edge-to-edge, so the ONLY spacing is the symmetric grid
+   gap — equal horizontally AND vertically. (Previously this filled the 1fr rows
+   of a FIXED-height grid; on a wider-than-tall cell the square card then left
+   horizontal centering slack that read as a bigger horizontal gap than the
+   vertical one.) Tradeoff: with few rows the grid no longer stretches to fill
+   the viewport height — empty space sits below, and <main> scrolls when the
+   squares exceed the viewport. */
+@media (max-width: 1024px), (max-height: 700px) {
+  .md-board-detail-grid.md-board-detail-grid--shape-square .md-board-detail-symbol-card {
+    flex: 0 0 auto !important;
+    aspect-ratio: 1 / 1;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+  }
 }
 .md-board-detail-grid.md-board-detail-grid--shape-tall .md-board-detail-symbol-card {
   width: 66.6667%;
@@ -72125,33 +72559,29 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   height: 66.6667%;
   margin: auto 0;
 }
-/* Default ("regular") button shape on smaller screens: render each button
-   SQUARE and COLLAPSE the grid to the squares' natural height instead of
-   stretching cells to fill the viewport. Shape comes from the user's
-   `stretch_buttons` preference (none → shape-square); tall/wide prefs keep their
-   own fractional aspect + fill (rules above) and are NOT affected.
-   - Card: width:100% (column width) + aspect-ratio:1 → height == width (square).
-   - Grid: height:auto so the rows size to the square cards (the cards have a
-     definite aspect-height, so the `minmax(0,1fr)` tracks resolve to that height
-     rather than collapsing). align-content:start packs them at the top. The grid
-     is then exactly as tall as the squares — no tall cells, no inter-row gaps —
-     and <main> (overflow-y:auto) scrolls when the squares exceed the viewport.
-   Shell-prefixed (0,3,0) + !important on height so it beats both the speak base
-   height and edit's own !important calc; later in source than the edit calc.
-   Also triggered on SHORT viewport heights (`(max-height: 700px)`) so a wide-but-
-   short window gets the same square + scroll treatment instead of stretching the
-   rows tall (which opens inter-row gaps under aspect-squared cards). */
+/* The shape-square grid sizes to the square cards (above) instead of stretching
+   to the viewport — this is what keeps the cells square so the gap stays equal
+   on both axes:
+   - height:auto lets the `minmax(0,1fr)` rows resolve to each card's definite
+     aspect-height (column width) rather than splitting a fixed grid height.
+   - flex:0 0 auto stops the grid (a flex item) from GROWING to fill its flex
+     parent on tall screens — without it the grid would re-stretch the 1fr rows
+     taller than the squares and re-open the vertical/horizontal slack mismatch.
+   - align-content:start packs the rows at the top; <main> (overflow-y:auto)
+     scrolls when the squares exceed the viewport.
+   Shape comes from the user's `stretch_buttons` preference (none → shape-square);
+   tall/wide prefs keep their own fractional aspect + fill and are NOT affected.
+   Shell-prefixed (0,3,0) + !important so it beats the speak base height and
+   edit's own !important calc (later in source than both). SCOPED to small/short
+   viewports (`max-width:1024` / `max-height:700`): on larger screens the board
+   keeps its viewport-filling base height and does NOT scroll. Square sizing (which
+   sizes to content and can exceed the viewport, forcing a scroll) only kicks in on
+   the small/short screens where the board would otherwise be cramped. */
 @media (max-width: 1024px), (max-height: 700px) {
   .md-shell--board-detail .md-board-detail-grid.md-board-detail-grid--shape-square {
     height: auto !important;
-    align-content: start;
-  }
-  .md-board-detail-grid.md-board-detail-grid--shape-square .md-board-detail-symbol-card {
     flex: 0 0 auto !important;
-    aspect-ratio: 1 / 1;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
+    align-content: start;
   }
 }
 
@@ -72418,39 +72848,54 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   opacity: 1;
   transition: opacity 180ms ease, filter 180ms ease;
 }
-.symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src*=".png"] {
-  filter: url(#ll-symbol-white-matte);
+/* Colored mode: white backing INSIDE the symbol's own outline. The
+   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   the symbol's own alpha, then draws the symbol on top — so transparent /
+   anti-aliased regions don't bleed the Fitzgerald card color, while white
+   never extends past the symbol's outline (no halo, no square). Because the
+   filter runs per-pixel on this exact element it stays perfectly registered
+   with the rendered image (a separately-masked layer drifted into a halo).
+   The old knockout filter is replaced by this. Limitation (accepted):
+   fully-enclosed transparent interiors get no white — there's no alpha there.
+   square.svg empty placeholder excluded so blank cells keep their card
+   surface. Cross-origin S3 symbols are fine — these filter primitives
+   (feFlood/feComposite/feMerge on SourceAlpha) don't taint. */
+.symbol_background_clear .md-board-detail-symbol-card__image img.symbol:not([src$="square.svg"]) {
+  filter: url(#ll-symbol-white-backing);
 }
-.symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src$="square.svg"] {
-  filter: none;
+/* Sentence bar parity: the composed-message chips and word-prediction tiles show
+   the SAME transparent symbols as the grid, but live in the sentence row (a
+   sibling of the grid, outside .symbol_background_clear) and use their own
+   `__chip-img` / `__prediction-img` classes (not img.symbol), so the grid rule
+   above never reached them. The pref class is now also placed on the sentence row
+   (board-detail.hbs #speak), so Colored mode applies the same cream backing here
+   for a consistent look. square.svg fallback excluded. */
+.symbol_background_clear .md-board-detail-sentence-bar__chip-img:not([src$="square.svg"]),
+.symbol_background_clear .md-board-detail-sentence-bar__prediction-img:not([src$="square.svg"]) {
+  filter: url(#ll-symbol-white-backing);
 }
 /* Dark-mode icon halo for the button grid — adds a soft white
    drop-shadow around the visible pixels of every symbol icon. This
    is the AAC-safe alternative to inverting hues (which would change
    semantic meaning): the halo lifts dark line art off any dark card
-   surface without recoloring the icon itself. The two rules below
-   mirror the existing filter rules above so CSS-filter chains stay
-   intact:
-     - Clear mode PNG: keep the matte-knockoff filter AND add the halo
-     - Anything else in dark mode: halo only
-   Both exclude the `square.svg` placeholder (empty cells get no halo). */
+   surface without recoloring the icon itself. Excludes the
+   `square.svg` placeholder (empty cells get no halo). NOTE: the
+   Colored-mode clear-PNG matte-knockout filter was removed — Colored mode
+   now backs symbols via the ll-symbol-white-backing filter (above), which
+   in dark+Colored overrides this halo (higher specificity), so a white-
+   backed symbol shows no halo. Non-Colored dark modes keep the halo. */
 .md-board-detail--dark .md-board-detail-symbol-card__image img.symbol {
   filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.65));
-}
-.md-board-detail--dark .symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src*=".png"] {
-  filter: url(#ll-symbol-white-matte) drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.65));
 }
 .md-board-detail--dark .md-board-detail-symbol-card__image img.symbol[src$="square.svg"] {
   filter: none;
 }
-/* "Colored" / "Colored Soft" (symbol_background_clear, the latter
-   also carries .fitzgerald-soft): opaque white mattes in imported PNG
-   symbols are knocked out via the ll-symbol-white-matte filter (alpha
-   only — symbol colors preserved). White, Black, and High Contrast
-   modes use separate selectors and are not affected. */
-/* Colored mode: image band matches the Fitzgerald button fill so
-   transparent matte pixels (after ll-symbol-white-matte) show the
-   button color — not black from the dark board shell or filter backdrop. */
+/* Colored mode ("Colored" / "Colored Soft", the latter also carries
+   .fitzgerald-soft): the image band is painted the Fitzgerald button fill so
+   the area AROUND the symbol's white backing (the ll-symbol-white-backing
+   filter above) reads as the button color, not black from the dark board
+   shell. White, Black, and High Contrast modes use separate selectors and
+   are unaffected. */
 .symbol_background_clear .md-board-detail-symbol-card__image,
 .symbol_background_clear .md-board-detail-symbol-card__image--placeholder {
   background: var(--btn-bg, transparent) !important;
@@ -78514,10 +78959,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 24px 28px 16px;
+  /* Symmetric 72px horizontal inset reserves room for the absolutely-positioned
+     close button (right:18px, 48px wide) on BOTH sides, so a long wrapping title
+     (e.g. the "We recommend this board" suggestion header) stays centered and
+     never runs under the close X. */
+  padding: 24px 72px 16px;
   border-bottom: 1px solid rgba($la-navy, 0.08);
   h3 {
     margin: 0;
+    min-width: 0;
+    text-align: center;
     font-size: 22px;
     font-weight: 800;
     color: $la-navy;
@@ -78682,19 +79133,43 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 15px;
   color: $brand-charcoal-blue;
 }
+/* Fill the modal body's full height so the preview canvas can use all the
+   available vertical space (the canvas grows to fill, see below) instead of
+   stopping short and leaving a gap. The bootstrap `.row` columns stretch to the
+   row height (flex align-items:stretch default), so the canvas column gets the
+   full height to distribute. */
+.md-board-details-modal__body .md-board-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  min-height: 100%;
+}
+/* Right-hand column: stack the canvas (grows) above the action row (natural
+   height). The growing canvas pushes the actions to the bottom of the modal. */
+.md-board-preview__canvas-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 /* Action buttons sit in a row DIRECTLY BELOW the preview canvas (inside the
    right-hand canvas column, to the right of the board-detail info). The row is
    RIGHT-ALIGNED so the primary CTA and its neighbours (Board Actions / Back)
    cluster at the right edge; the destructive Remove is pushed to the far LEFT
-   (margin-right:auto below) so it stays isolated. Wraps on narrow viewports. */
+   (margin-right:auto below) so it stays isolated. Wraps on narrow viewports.
+   The canvas above is sized to the board's content height (not flex-grown), so
+   `margin-top:auto` pins this row to the bottom of the modal. */
 .md-board-preview__actions {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: auto;
+  /* Guaranteed breathing room between the bottom of the preview canvas and the
+     buttons, independent of the flex/auto-margin sizing above. */
+  padding-top: 24px;
 }
 /* Modern button override — beats the legacy `.btn` / `.btn-lg`
    bootstrap rules that were on these elements (we keep the bootstrap
@@ -93031,6 +93506,25 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   z-index: 1;
   background: transparent;
 }
+/* Board-picker "Let us pick for you" step — the assign button sits near the page
+   bottom, so floating-ui flips this popover ABOVE it and it rode too high. Nudge
+   the whole popover down 10rem. A margin shifts an absolutely-positioned
+   floating-ui element regardless of whether it positions via `top` or `transform`. */
+/* Nudge two specific spotlight popovers down 10rem: the board-picker "Let us pick
+   for you" step (its assign-button target sits near the page bottom) and the
+   speak-mode "Tap to communicate" step (its grid target fills the page) — both
+   ride too high. The margin offset MUST combine the step class with
+   [data-popper-placement] so it beats the generic placement margin rules below
+   (-16px top / 16px bottom, equal specificity but later in source). We ADD to that
+   arrow-gap offset via calc so the popover stays detached from its target. */
+.shepherd-element.md-tour__step--bp-assign[data-popper-placement^=top],
+.shepherd-element.md-tour__step--bds-grid[data-popper-placement^=top] {
+  margin-top: calc(10rem - 16px);
+}
+.shepherd-element.md-tour__step--bp-assign[data-popper-placement^=bottom],
+.shepherd-element.md-tour__step--bds-grid[data-popper-placement^=bottom] {
+  margin-top: calc(10rem + 16px);
+}
 .shepherd-element.md-tour__step--intro {
   /* Wide enough to hold the (long) progress-dot row + the intro/outro buttons on
      one line — the tour has many steps now. */
@@ -93070,9 +93564,9 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
    base -20rem above; this targets only --welcome. Tune the single % to taste. */
 .shepherd-element.md-tour__step--intro.md-tour__step--welcome {
   top: 23% !important;
-  /* Nudged 32px lower than the 23% line (per design). The short-height media
-     query below resets this to 0 so it stays anchored near the top there. */
-  margin-top: 32px !important;
+  /* Nudged 32px + 8rem lower than the 23% line (per design). The short-height
+     media query below resets this to 0 so it stays anchored near the top there. */
+  margin-top: calc(32px + 8rem) !important;
   /* 24px wider than the shared intro width (560 → 584) — the welcome page carries
      the map + checklist + the full progress-dot row, so it gets a touch more room.
      Overrides the intro max-width (this 3-class selector beats it). */
@@ -93707,6 +94201,99 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   outline: none;
   border-color: rgba($brand-dusty-denim, 0.6);
   box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
+}
+
+/* ── Welcome-step in-BODY action button ───────────────────────────────────────
+   The "Skip tour for now — I'd like to choose my board" off-ramp renders inside
+   the step body (shared.js tourBodyButton), below the checklist. It's a LARGE,
+   clearly-tappable modern CTA: a soft denim-tinted glass fill (distinct from the
+   popover surface, so it reads as a real button — not a card), generous padding,
+   an elevation shadow that lifts it off the page, a trailing "→" arrow (the same
+   "go" affordance the home-page action buttons use), and a hover lift + active
+   press. The helper note lives INSIDE the button beneath the label so it reads as
+   part of this choice. Navy text keeps AAC contrast high. */
+.shepherd-text .md-tour__body-action {
+  margin-top: 20px;
+  text-align: center;
+}
+.shepherd-element .md-tour__body-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 15px 22px;
+  border-radius: 16px;
+  cursor: pointer;
+  color: $la-navy;
+  border: 1px solid rgba($brand-dusty-denim, 0.30);
+  background: linear-gradient(180deg, rgba(238, 243, 250, 0.97), rgba(222, 232, 245, 0.97));
+  /* First layer is a crisp outer ring (spread, no blur/offset) that reads as a
+     defined outline just beyond the button edge for professional emphasis. */
+  box-shadow:
+    0 0 0 1.5px rgba($brand-dusty-denim, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(22, 34, 70, 0.06),
+    0 5px 10px rgba(22, 34, 70, 0.13),
+    0 18px 40px rgba(76, 134, 216, 0.30);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+/* Label + sub-note stacked and centered. */
+.shepherd-element .md-tour__body-btn-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+}
+.shepherd-element .md-tour__body-btn-label {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.shepherd-element .md-tour__body-btn-note {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.8;
+}
+/* Trailing "→" arrow — same go-affordance as the home-page action buttons. */
+.shepherd-element .md-tour__body-btn-arrow {
+  flex: 0 0 auto;
+  font-size: 1.5em;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba($brand-dusty-denim, 0.9);
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+.shepherd-element .md-tour__body-btn:not(:disabled):hover {
+  border-color: rgba($brand-dusty-denim, 0.5);
+  background: linear-gradient(180deg, rgba(244, 248, 253, 0.99), rgba(214, 227, 244, 0.99));
+  box-shadow:
+    0 0 0 1.5px rgba($brand-dusty-denim, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 3px 7px rgba(22, 34, 70, 0.10),
+    0 16px 34px rgba(76, 134, 216, 0.26);
+  transform: translateY(-1px);
+}
+.shepherd-element .md-tour__body-btn:not(:disabled):hover .md-tour__body-btn-arrow {
+  transform: translateX(3px);
+  color: $brand-dusty-denim;
+}
+.shepherd-element .md-tour__body-btn:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow:
+    0 0 0 1.5px rgba($brand-dusty-denim, 0.50),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(22, 34, 70, 0.08),
+    0 6px 14px rgba(76, 134, 216, 0.16);
+}
+.shepherd-element .md-tour__body-btn:focus-visible {
+  outline: none;
+  border-color: rgba($brand-dusty-denim, 0.65);
+  box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.25);
 }
 
 /* ── Second-round MENU step ───────────────────────────────────────────────────
