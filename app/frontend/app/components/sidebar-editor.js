@@ -108,6 +108,14 @@ export default Component.extend({
     this._loadAllBrands();
   },
 
+  willDestroyElement: function() {
+    // Drop the save chain so the last (resolved) save promise isn't retained past
+    // teardown. Saves themselves already no-op after destroy (the isDestroyed
+    // guard in _save's runSave), so nothing in flight is interrupted.
+    this._saveChain = null;
+    this._super(...arguments);
+  },
+
   search_active: computed('search_query', function() {
     return (this.get('search_query') || '').trim().length > 0;
   }),
