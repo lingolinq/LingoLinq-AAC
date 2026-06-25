@@ -169,6 +169,10 @@ export default Component.extend({
       this.set('added', code);
       const _this = this;
       setTimeout(function() {
+        // Bail if the component was torn down within the 5s window (e.g. the user
+        // saved a phrase then switched boards / left speak mode) — otherwise the
+        // deferred set throws "calling set on destroyed object".
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         if (_this.get('added') === code) {
           _this.set('added', null);
         }

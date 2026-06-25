@@ -874,6 +874,21 @@ describe User, :type => :model do
       expect(u.settings['preferences']['requested_phrases']).to eq(['I like you', 'I am you'])
     end
 
+    it "should skip malformed (non-hash) offline_actions entries without raising" do
+      u = User.create
+      # A corrupt/stale entry that is an Array (not a hash) must not 500 the update
+      # via action['action'] (TypeError: no implicit conversion of String into
+      # Integer) — otherwise the queue never clears and re-fails on every save.
+      expect {
+        u.process({'offline_actions' => [
+          [{'label' => 'bogus'}],
+          {'action' => 'add_vocalization', 'id' => 'ok', 'list' => [{'label' => 'asdf'}]}
+        ]})
+      }.to_not raise_error
+      expect(u.settings['vocalizations'].length).to eq(1)
+      expect(u.settings['vocalizations'][0]['id']).to eq('ok')
+    end
+
     it "should process offline_actions" do
       u = User.create
       expect(u.settings['vocalizations']).to eq(nil)

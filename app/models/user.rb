@@ -1490,6 +1490,13 @@ class User < ApplicationRecord
     end
     if params['offline_actions']
       params['offline_actions'].each do |action|
+        # Defensive: the client-built offline_actions queue is meant to be an array
+        # of hashes, but a corrupt/stale entry (e.g. an array) would make the
+        # action['action'] read below raise "no implicit conversion of String into
+        # Integer" and 500 the whole update — which then never clears the queue, so
+        # the bad entry re-sends and fails on every save (a stuck poison-pill). Skip
+        # anything that isn't a hash so one malformed entry can't wedge saves.
+        next unless action.is_a?(Hash)
         if action['action'] == 'add_vocalization'
           self.settings['vocalizations'] ||= []
           action['id'] = nil if self.settings['vocalizations'].find{|v| v['id'] == action['id'] }
