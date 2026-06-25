@@ -2171,6 +2171,8 @@
   "org_supervisor": "Supervisor",
   "org_member": "Member",
   "n_rooms": "room",
+  "room_lc": "room",
+  "rooms_lc": "rooms",
   "premium": "Premium",
   "crisis_vocabulary": "Crisis Vocabulary",
   "org_response_saved": "Your response was saved.",

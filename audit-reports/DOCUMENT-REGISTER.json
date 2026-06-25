@@ -196,20 +196,15 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-04-18",
-      "nextReviewDue": "2027-04-18",
+      "lastReviewed": "2026-06-23",
+      "nextReviewDue": "2027-06-23",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21"
+        "attestedDate": "2026-06-23"
       },
-      "contentHash": "a6e8b0bebcd45451e7d70472d729331d69f6b07b179b2f52e00ff54f4cb1bfba",
+      "contentHash": "2823383621e2e5162bdfb8388b15f1840d9654185194cf3569190941b82d7999",
       "bundles": [],
-      "mirrors": [
-        {
-          "system": "drive",
-          "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
-        }
-      ],
+      "mirrors": [],
       "id": "DOC-9b299a785b"
     },
     {
@@ -237,12 +232,7 @@
       "bundles": [
         "compliance-records-set-2026-06"
       ],
-      "mirrors": [
-        {
-          "system": "drive",
-          "location": "https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit"
-        }
-      ],
+      "mirrors": [],
       "id": "DOC-b61994933c"
     },
     {
@@ -615,7 +605,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "a2b6d15d032068fcc72e5f21e390da989294368f4057cd59320e4bf9cbdaf026",
+      "contentHash": "bc06d1eb60718a1d7339e47ec86956a3ac13b0a2c227c0c78b97d618ca53240a",
       "bundles": [],
       "mirrors": [
         {
@@ -643,7 +633,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "77589af62c12cda1fd6cc364f45b1710c4823ebdba2b81d937ecfb7f0f554065",
+      "contentHash": "025d4691f305a4809e39adf073d0155b6545a3aed6f5e8ed18259b40a7acb344",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -706,7 +696,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2027-06-21",
       "attestation": {},
-      "contentHash": "2ba6af7f0dd9f2aafa4528b3af70fbdcbdf21da34926bfd6cfb94caea1c6835e",
+      "contentHash": "05c98f8f40f85ddbdae308e2a8721467377f92b9a286cf51501111ff66f5d5c5",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a936b01d6a"
@@ -1449,6 +1439,29 @@
       "mirrors": [],
       "notes": "Internal roadmap; not part of the externally-released set. Attested by Scot Wahlquist 2026-06-21 per CEO direction.",
       "id": "DOC-912b28f375"
+    },
+    {
+      "title": "Data & Compliance Pipeline - Build Inventory (dated)",
+      "description": "Dated Drive inventory of the compliance/data pipeline build-out; tracked so downstream docs that cite the pipeline inventory do not drift invisibly.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit",
+      "status": "approved",
+      "frameworks": [],
+      "lastReviewed": "2026-06-22",
+      "nextReviewDue": "2026-09-22",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1ZcYdaCc2eo5EGoaqlOgTLo9IXsbAvb-myw6pgO9Urtw/edit"
+        }
+      ],
+      "notes": "Current Drive search also shows an undated companion document, LingoLinq Data & Compliance Pipeline - Build Inventory, at 1ZcYdaCc2eo5EGoaqlOgTLo9IXsbAvb-myw6pgO9Urtw. Treat this dated row as the tracked review artifact until the living/frozen ownership split is reconciled.",
+      "id": "DOC-71d0861ff9"
     },
     {
       "title": "Notion - Compliance Findings board (LL)",

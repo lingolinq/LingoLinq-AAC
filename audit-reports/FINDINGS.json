@@ -802,7 +802,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: method body is TODO comments only (flusher.rb:48-62)."
+      "notes": "Verified still open 2026-06-12: method body is TODO comments only (flusher.rb:48-62).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid privacy / data-handling gap; accepted for remediation on the compliance backlog (token-in-URL and the user-creation audit-event gap prioritized first)."
+      }
     },
     {
       "id": "LL-a97357136e",
@@ -834,7 +840,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: the guarded idiom `X.permit! if X.is_a?(ActionController::Parameters)` remains widespread (~43 call sites across API controllers; the April '40+ occurrences' characterization still holds and is NOT reduced). Rated low on impact, not prevalence: models do their own input filtering so this is a defense-in-depth gap, and application_controller.rb:91 now carries an explicit do-not-globally-permit note. Anchored at organizations_controller.rb:866 as one representative unguarded `.permit!.to_h`."
+      "notes": "Verified still open 2026-06-12: the guarded idiom `X.permit! if X.is_a?(ActionController::Parameters)` remains widespread (~43 call sites across API controllers; the April '40+ occurrences' characterization still holds and is NOT reduced). Rated low on impact, not prevalence: models do their own input filtering so this is a defense-in-depth gap, and application_controller.rb:91 now carries an explicit do-not-globally-permit note. Anchored at organizations_controller.rb:866 as one representative unguarded `.permit!.to_h`.",
+      "disposition": {
+        "state": "wontfix",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Wontfix: per standing April guidance, do not refactor working code wholesale to satisfy a linter; apply explicit permit(:fields) in new code only."
+      }
     },
     {
       "id": "LL-ce00c8d3ad",
@@ -864,7 +876,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified 2026-06-12: License includes only GlobalId. Plausibly by-design (licensing is not draft/published content); candidate for accepted-risk pending Scot."
+      "notes": "Verified 2026-06-12: License includes only GlobalId. Plausibly by-design (licensing is not draft/published content); candidate for accepted-risk pending Scot.",
+      "disposition": {
+        "state": "wontfix",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Wontfix: accepted as by-design (the finding itself notes this is an acceptable by-design choice)."
+      }
     },
     {
       "id": "LL-55baae6d40",
@@ -896,7 +914,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: external_reference (PO number / Stripe id) always serialized (json_api/license.rb:16)."
+      "notes": "Verified still open 2026-06-12: external_reference (PO number / Stripe id) always serialized (json_api/license.rb:16).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid privacy / data-handling gap; accepted for remediation on the compliance backlog (token-in-URL and the user-creation audit-event gap prioritized first)."
+      }
     },
     {
       "id": "LL-1890f6a922",
@@ -929,7 +953,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: enforce_retention! filters LogSession to log_type 'session' only (data_policy_enforcer.rb:13-14)."
+      "notes": "Verified still open 2026-06-12: enforce_retention! filters LogSession to log_type 'session' only (data_policy_enforcer.rb:13-14).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid privacy / data-handling gap; accepted for remediation on the compliance backlog (token-in-URL and the user-creation audit-event gap prioritized first)."
+      }
     },
     {
       "id": "LL-56f0f19fca",
@@ -993,7 +1023,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: create (users_controller.rb:244) calls User.process_new and renders without an AuditEvent."
+      "notes": "Verified still open 2026-06-12: create (users_controller.rb:244) calls User.process_new and renders without an AuditEvent.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid privacy / data-handling gap; accepted for remediation on the compliance backlog (token-in-URL and the user-creation audit-event gap prioritized first)."
+      }
     },
     {
       "id": "LL-310b464be4",
@@ -1025,7 +1061,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: protected_image (users_controller.rb:869) reads params['user_token'] (:871)."
+      "notes": "Verified still open 2026-06-12: protected_image (users_controller.rb:869) reads params['user_token'] (:871).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid privacy / data-handling gap; accepted for remediation on the compliance backlog (token-in-URL and the user-creation audit-event gap prioritized first)."
+      }
     },
     {
       "id": "LL-7a8effae8a",
@@ -1185,7 +1227,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening. | Phase 4 revisit (2026-06-14, first full run): KEEP-DEFERRED, unchanged. The guard was not exercised this run (the run used registered stand-in agents that lack the wired hook); no bypass occurred. The primary read-only control remains the no-Edit/Write tools allowlist, not the Bash denylist. The Phase-4 PostToolUse logger hook added to the finders is read-only (append-only, always exits 0) and does not widen the residual-bypass exposure. A true fix (allowlist command filter or sandboxed finder shell) is a meaningful build, not warranted by first-run evidence. Stays open until Scot attests."
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening. | Phase 4 revisit (2026-06-14, first full run): KEEP-DEFERRED, unchanged. The guard was not exercised this run (the run used registered stand-in agents that lack the wired hook); no bypass occurred. The primary read-only control remains the no-Edit/Write tools allowlist, not the Bash denylist. The Phase-4 PostToolUse logger hook added to the finders is read-only (append-only, always exits 0) and does not widen the residual-bypass exposure. A true fix (allowlist command filter or sandboxed finder shell) is a meaningful build, not warranted by first-run evidence. Stays open until Scot attests.",
+      "disposition": {
+        "state": "wontfix",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Wontfix: the no-Edit/Write tools allowlist is the primary read-only control; the Bash denylist is defense-in-depth only."
+      }
     },
     {
       "id": "LL-b5c30235d3",
@@ -1218,7 +1266,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: audit-tooling hardening; to be addressed in a Phase 3 audit-system pass."
+      }
     },
     {
       "id": "LL-3483c28f3c",
@@ -1249,7 +1303,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening. | Phase 4 revisit (2026-06-14, first full run): DEFER held, with instruction-only hardening applied. The real fan-out emitted zero type:runtime/live-infra findings (all 7 new findings were committed-file type:code anchored to one SHA), so the race did not bite. Added a standing orchestrator instruction (audit-run SKILL Step 2): anchor each finder to auditedSha and snapshot live infra ONCE in the trusted main session rather than letting parallel finders hit live APIs independently. A full snapshot mechanism is still deferred. Related first-run note: Agent-tool subagents read their own cwd HEAD, not the orchestrator worktree SHA - code findings stay protected by the citation gate (audit-merge + citation-check drop non-resolving snippets); verify in a real interactive Claude Code run where the project finder subagents resolve and inherit cwd. Stays open until Scot attests."
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening. | Phase 4 revisit (2026-06-14, first full run): DEFER held, with instruction-only hardening applied. The real fan-out emitted zero type:runtime/live-infra findings (all 7 new findings were committed-file type:code anchored to one SHA), so the race did not bite. Added a standing orchestrator instruction (audit-run SKILL Step 2): anchor each finder to auditedSha and snapshot live infra ONCE in the trusted main session rather than letting parallel finders hit live APIs independently. A full snapshot mechanism is still deferred. Related first-run note: Agent-tool subagents read their own cwd HEAD, not the orchestrator worktree SHA - code findings stay protected by the citation gate (audit-merge + citation-check drop non-resolving snippets); verify in a real interactive Claude Code run where the project finder subagents resolve and inherit cwd. Stays open until Scot attests.",
+      "disposition": {
+        "state": "wontfix",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Wontfix for now: acceptable snapshot variance across parallel finders; revisit only if it produces a real inconsistency."
+      }
     },
     {
       "id": "LL-a2b45c2bcb",
@@ -1280,7 +1340,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: audit-tooling hardening; to be addressed in a Phase 3 audit-system pass."
+      }
     },
     {
       "id": "LL-5f0f4f52f8",
@@ -1311,7 +1377,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening."
+      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: audit-tooling hardening; to be addressed in a Phase 3 audit-system pass."
+      }
     },
     {
       "id": "LL-e573a39d2b",
@@ -1408,7 +1480,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-06-14. Net-new CC8 change-management finding; April-2026 register seed predates any CI/CD. | adversary verifier: CONFIRMED (high) - ci.yml:107 is the job-level continue-on-error on security-scan, plus per-tool soft-passes (Brakeman 122/124, npm audit 147/148, gitleaks 171 inside continue-on-error secret-detection job 152); no security gate, including the secret scanner, can fail a PR."
+      "notes": "Surfaced by infra finder on 2026-06-14. Net-new CC8 change-management finding; April-2026 register seed predates any CI/CD. | adversary verifier: CONFIRMED (high) - ci.yml:107 is the job-level continue-on-error on security-scan, plus per-tool soft-passes (Brakeman 122/124, npm audit 147/148, gitleaks 171 inside continue-on-error secret-detection job 152); no security gate, including the secret scanner, can fail a PR.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: CI / security-pipeline hardening; to be remediated."
+      }
     },
     {
       "id": "LL-ba0585ab93",
@@ -1441,7 +1519,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-06-14. Net-new; existing register covers Redis-TLS (LL-6619cc1811) and HSTS (LL-9f83617435) but not DB SSL verification mode. | adversary verifier: CONFIRMED (high) - production.primary sslmode: require (database.yml:20-26) encrypts without server-cert/hostname verification; genuinely distinct from redis-no-tls-shared (LL-6619cc1811) and no-hsts-options (LL-9f83617435)."
+      "notes": "Surfaced by infra finder on 2026-06-14. Net-new; existing register covers Redis-TLS (LL-6619cc1811) and HSTS (LL-9f83617435) but not DB SSL verification mode. | adversary verifier: CONFIRMED (high) - production.primary sslmode: require (database.yml:20-26) encrypts without server-cert/hostname verification; genuinely distinct from redis-no-tls-shared (LL-6619cc1811) and no-hsts-options (LL-9f83617435).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted, but remediation is owned by the Render-to-GCP migration thread (infra cutover work). Tracked here; not changed in the compliance thread."
+      }
     },
     {
       "id": "LL-41d2d553ab",
@@ -1470,7 +1554,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-06-14. Orphaned builder field: integration.js declares no 'asdf' attr; emitted whenever settings['custom_integration'] is set. | adversary verifier: CONFIRMED (high) - json['asdf']='asdf' at integration.rb:67 inside the custom_integration block; no Ember Integration attr consumes it; dead debug junk."
+      "notes": "Surfaced by api finder on 2026-06-14. Orphaned builder field: integration.js declares no 'asdf' attr; emitted whenever settings['custom_integration'] is set. | adversary verifier: CONFIRMED (high) - json['asdf']='asdf' at integration.rb:67 inside the custom_integration block; no Ember Integration attr consumes it; dead debug junk.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+      }
     },
     {
       "id": "LL-27d20047db",
@@ -1499,7 +1589,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-06-14. Write path stores params['board_render_url'] into settings (user_integration.rb:164); read path emits only render/render_url, never board_render_url, so the edit field (add-integration.hbs:67) is empty on reopen. | adversary verifier: REFUTED (high) - the written value DOES round-trip: serializer emits json['integration']['render_url']=settings['board_render_url'] (integration.rb:88, confirmed at audited SHA), read by integration.js:12 and used at routes/board.js:54-62; add-integration.hbs is a create-only modal and the reopen flow (integration-details.hbs) has no render-url input, so the cited empty-field/overwrite condition does not occur. RECOMMEND Scot drop or accept-as-not-a-defect. Left open pending Scot's decision (only Scot closes/downgrades)."
+      "notes": "Surfaced by api finder on 2026-06-14. Write path stores params['board_render_url'] into settings (user_integration.rb:164); read path emits only render/render_url, never board_render_url, so the edit field (add-integration.hbs:67) is empty on reopen. | adversary verifier: REFUTED (high) - the written value DOES round-trip: serializer emits json['integration']['render_url']=settings['board_render_url'] (integration.rb:88, confirmed at audited SHA), read by integration.js:12 and used at routes/board.js:54-62; add-integration.hbs is a create-only modal and the reopen flow (integration-details.hbs) has no render-url input, so the cited empty-field/overwrite condition does not occur. RECOMMEND Scot drop or accept-as-not-a-defect. Left open pending Scot's decision (only Scot closes/downgrades).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+      }
     },
     {
       "id": "LL-d1ea8659c3",
@@ -1510,7 +1606,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package.json",
@@ -1519,23 +1615,23 @@
         "sha": "1aa5d2db60e2f0eed9489445b2a37b5e1ad6fc3c"
       },
       "firstSeen": "2026-06-14",
-      "lastSeen": "2026-06-14",
+      "lastSeen": "2026-06-24",
       "owner": "unassigned",
       "remediation": {
         "options": "Bootstrap 3.x is EOL since 2019 with no security patches; GHSA XSS advisories (Tooltip/Popover sanitizer bypass, data-* injection) have no 3.x backport. The app ships bootstrap.min.js (ember-cli-build.js:109) and calls .tooltip()/.popover() (app-state, utterance, stats components), so the vector is reachable. INDEPENDENT of the pinned Ember 3.28 -> 5.x migration. Options: (1) migrate to Bootstrap 5.x behind a feature flag (AAC UI-disruptive); (2) if deferred, ensure no untrusted HTML reaches title/data-content of tooltip/popover call sites and audit those sites; (3) Scot accepts risk with call sites confirmed to use only app-controlled sanitized strings.",
-        "timeframe": "advisory"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "6f4cf9a79165a3d84b139342c1d2c6c7bc7cfb0a",
+        "verifierNote": "Verified 2026-06-24: XSS dimension remediated in PR #481 (merged to staging at 6f4cf9a79). silent_speak_button now passes the prebuilt popover body as a DOM node via content:()=>_this._popover_dom (utterance.js) and no longer sets the data-content innerHTML string, so bootstrap 3.4.1 Popover.setContent takes the .append() branch and never parses the body as HTML -- the EOL sanitizer is no longer load-bearing. Popover init made idempotent ($(selector).popover(opts)) so it survives app-state.js popover('destroy') (adversary-found regression, fixed + re-verified). The 4 imperative .tooltip() inits in components/stats/* carry app-controlled-only comments. Behaviorally verified against real jQuery 3.7.1 + bootstrap 3.4.1 headless (XSS payload renders as a literal text node even with sanitize:false); passed /review-pr and /adversary-review. Note: bootstrap 3.4.1 is INTENTIONALLY still bundled (load-bearing for dropdowns, keyboard a11y, alert-close), so the package.json evidence anchor remains true; the residual EOL supply-chain exposure is a separate concern, not this XSS finding, and remains Scot's risk-accept/upgrade call.",
+        "attestation": "Scot Wahlquist 2026-06-24: attested verified-closed for the reachable XSS vector; remediated in PR #481, code-verified behaviorally 2026-06-24. Bootstrap retention is a deliberate, separately-tracked decision."
       },
       "notes": "Surfaced by dependency finder on 2026-06-14. | adversary verifier: CONFIRMED (high); SEVERITY OPINION for Scot = should-be-medium. bootstrap 3.4.1 JS is bundled (ember-cli-build.js:88) and .tooltip()/.popover() are used, but no live untrusted-HTML-into-tooltip sink exists today (all .tooltip() omit html:true; the one html:true popover builds body via escaped innerText), so this is latent supply-chain/XSS hygiene risk, not a currently triggerable XSS. Fix is independent of the pinned Ember 3.28->5 migration. Severity downgrade is Scot's call only.",
       "disposition": {
         "state": "fixed",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-18",
-        "rationale": "Replace or upgrade bootstrap 3.4.1 (EOL); a larger migration to schedule on its own, not a quick win."
+        "decidedDate": "2026-06-24",
+        "rationale": "Remediated via PR #481 (merged to staging 6f4cf9a79): popover body rendered as a DOM node (bootstrap .append() path, no HTML parse), init made idempotent to survive popover('destroy'), 4 stats .tooltip() sinks documented app-controlled-only. Code-verified behaviorally + /review-pr + /adversary-review. Bootstrap kept intentionally; residual EOL supply-chain exposure tracked separately, not this XSS finding."
       }
     },
     {
@@ -1635,7 +1731,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1). The legacy Bootstrap class=close close button is named only by the &times; glyph (announced as 'times' or nothing useful), while the modern .la-modal-close buttons carry aria-label={{t \"Close\"}}. This legacy pattern recurs across many modal templates (board-details, add-to-sidebar, add-webhook, badge-image, approve-board-share, batch-recording, board-copies, board-stats, etc.); board-details.hbs is cited as representative. Per the one-finding-per-file schema, a full sweep would emit one per affected template. | adversary: confirmed (2026-06-16): no aria-label, title, or sr-only text; the SCSS rule (app.scss:11877) only sizes/positions the button and board-details.js performs no aria injection. The only name is &times; (U+00D7), announced as \"times\"/\"multiplication\" or skipped, not \"Close\". The modern .la-modal-close (button-set.hbs:3) carries aria-label={{t \"Close\"}}, confirming the inconsistent gap."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1). The legacy Bootstrap class=close close button is named only by the &times; glyph (announced as 'times' or nothing useful), while the modern .la-modal-close buttons carry aria-label={{t \"Close\"}}. This legacy pattern recurs across many modal templates (board-details, add-to-sidebar, add-webhook, badge-image, approve-board-share, batch-recording, board-copies, board-stats, etc.); board-details.hbs is cited as representative. Per the one-finding-per-file schema, a full sweep would emit one per affected template. | adversary: confirmed (2026-06-16): no aria-label, title, or sr-only text; the SCSS rule (app.scss:11877) only sizes/positions the button and board-details.js performs no aria injection. The only name is &times; (U+00D7), announced as \"times\"/\"multiplication\" or skipped, not \"Close\". The modern .la-modal-close (button-set.hbs:3) carries aria-label={{t \"Close\"}}, confirming the inconsistent gap.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-ed914bded3",
@@ -1666,7 +1768,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.4.3 (EN 301 549 9.1.4). $brand-verdigris (defined in _variables.scss; ~3.32:1 on white per the inline note at app.scss:12181) is used as a text/link foreground on a near-white surface: the .board-icon__lang-marker language pill that overlays board tiles. Same raw-token text use also at app.scss:11621 (nav-pill link hover) and app.scss:11765 (button hover). Icon/SVG color uses of the same token (9973, 11685, 12308) are non-text-contrast (3:1) and not flagged. Runtime ratio confirmation is the human ACR pass. | adversary: confirmed (2026-06-16): all three cited lines apply raw $brand-verdigris (~3.32:1 on white) as normal-weight text on light backgrounds, below the 4.5:1 AA minimum. The cited .board-icon__lang-marker rule overrides via !important the already-AA-correct rule at app.scss:9926 (whose text is 14px/700 = NOT large-scale, so 4.5:1 governs). The only icon use of the token (.board-icon__lang-marker-icon, app.scss:9972; 3:1 where 3.32:1 passes) is correctly excluded."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 1.4.3 (EN 301 549 9.1.4). $brand-verdigris (defined in _variables.scss; ~3.32:1 on white per the inline note at app.scss:12181) is used as a text/link foreground on a near-white surface: the .board-icon__lang-marker language pill that overlays board tiles. Same raw-token text use also at app.scss:11621 (nav-pill link hover) and app.scss:11765 (button hover). Icon/SVG color uses of the same token (9973, 11685, 12308) are non-text-contrast (3:1) and not flagged. Runtime ratio confirmation is the human ACR pass. | adversary: confirmed (2026-06-16): all three cited lines apply raw $brand-verdigris (~3.32:1 on white) as normal-weight text on light backgrounds, below the 4.5:1 AA minimum. The cited .board-icon__lang-marker rule overrides via !important the already-AA-correct rule at app.scss:9926 (whose text is 14px/700 = NOT large-scale, so 4.5:1 governs). The only icon use of the token (.board-icon__lang-marker-icon, app.scss:9972; 3:1 where 3.32:1 passes) is correctly excluded.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-40dd412ed6",
@@ -1697,7 +1805,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 3.1.1 (EN 301 549 9.3.1). The Rails-served application layout opens <html> with only a conditional itemscope/itemtype and never sets lang, so AT cannot determine the page language for server-rendered pages (marketing/SEO, parental-consent shares). The Ember SPA shell index.html does set lang. parental_consent.html.erb already sets lang=\"en\"; application.html.erb and email.html.erb do not. | adversary: confirmed (2026-06-16): the <html> tag has no lang in either ERB branch; no <body lang>, meta http-equiv, or JS documentElement.lang assignment exists anywhere. This is the default Rails layout (boards#index, crawler/meta pages, parental-consent meta), so it renders real user-facing/SEO content. parental_consent.html.erb sets lang; email.html.erb does not. Note: once the SPA boots it inherits no lang from this <html> either."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 3.1.1 (EN 301 549 9.3.1). The Rails-served application layout opens <html> with only a conditional itemscope/itemtype and never sets lang, so AT cannot determine the page language for server-rendered pages (marketing/SEO, parental-consent shares). The Ember SPA shell index.html does set lang. parental_consent.html.erb already sets lang=\"en\"; application.html.erb and email.html.erb do not. | adversary: confirmed (2026-06-16): the <html> tag has no lang in either ERB branch; no <body lang>, meta http-equiv, or JS documentElement.lang assignment exists anywhere. This is the default Rails layout (boards#index, crawler/meta pages, parental-consent meta), so it renders real user-facing/SEO content. parental_consent.html.erb sets lang; email.html.erb does not. Note: once the SPA boots it inherits no lang from this <html> either.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-70abe7d9a9",
@@ -1728,7 +1842,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1) plus i18n. The share-board unshare control is icon-only (inline SVG trash glyph, no visible text) and exposes its accessible name only through title=\"Remove\". title is inconsistently surfaced by assistive tech and the value is a raw English string rather than the {{t}} helper, so it is both an a11y-naming and an i18n defect. | adversary: confirmed (2026-06-16): the button child is an inline <svg> with no <title>/role/aria, and there is no aria-label/aria-labelledby/sr-only; the name derives solely from title=. Nuance: title DOES feed accname, so a strict 4.1.2 read could \"pass\" in AT that surfaces title -- but it is the weakest/most-inconsistent source (no keyboard/touch tooltip), so the medium framing holds. The i18n half is unambiguous: \"Remove\" is a raw literal, not {{t}}."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.2 (EN 301 549 9.4.1) plus i18n. The share-board unshare control is icon-only (inline SVG trash glyph, no visible text) and exposes its accessible name only through title=\"Remove\". title is inconsistently surfaced by assistive tech and the value is a raw English string rather than the {{t}} helper, so it is both an a11y-naming and an i18n defect. | adversary: confirmed (2026-06-16): the button child is an inline <svg> with no <title>/role/aria, and there is no aria-label/aria-labelledby/sr-only; the name derives solely from title=. Nuance: title DOES feed accname, so a strict 4.1.2 read could \"pass\" in AT that surfaces title -- but it is the weakest/most-inconsistent source (no keyboard/touch tooltip), so the medium framing holds. The i18n half is unambiguous: \"Remove\" is a raw literal, not {{t}}.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-13ad11eaee",
@@ -1759,7 +1879,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.3 (EN 301 549 9.4.1). The bento dashboard 'Loading...' text is a plain <div> with no aria-live/role=status, so AT users are not told the view is loading. Same pattern at board-stats.hbs:66 and bulk_purchase.hbs:5. The app does use aria-live elsewhere, so these are isolated omissions rather than a systemic gap. | adversary: confirmed (2026-06-16): the bento.hbs Loading <div> and its #index_view ancestor carry no aria-live/role=status, and there is no separate hidden live region; layout ancestors application.hbs/index.hbs have none either. board-stats.hbs:66 (<dl>) and bulk_purchase.hbs:5 (<h2>) likewise lack live-region semantics."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 4.1.3 (EN 301 549 9.4.1). The bento dashboard 'Loading...' text is a plain <div> with no aria-live/role=status, so AT users are not told the view is loading. Same pattern at board-stats.hbs:66 and bulk_purchase.hbs:5. The app does use aria-live elsewhere, so these are isolated omissions rather than a systemic gap. | adversary: confirmed (2026-06-16): the bento.hbs Loading <div> and its #index_view ancestor carry no aria-live/role=status, and there is no separate hidden live region; layout ancestors application.hbs/index.hbs have none either. board-stats.hbs:66 (<dl>) and bulk_purchase.hbs:5 (<h2>) likewise lack live-region semantics.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-2e4c14d370",
@@ -1821,7 +1947,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-06-16. Rails counterpart to fix: lib/json_api/user.rb line 33. The admin field (user.js:41-42) IS emitted and covers the runtime behavior via OR fallback; is_admin is a stale duplicate declaration that the builder never populates. | adversary: confirmed. lib/json_api/user.rb emits only admin (line 33), never is_admin (full builder read). Fail-safe direction (would read undefined->false) but a latent orphan attr."
+      "notes": "Surfaced by api finder on 2026-06-16. Rails counterpart to fix: lib/json_api/user.rb line 33. The admin field (user.js:41-42) IS emitted and covers the runtime behavior via OR fallback; is_admin is a stale duplicate declaration that the builder never populates. | adversary: confirmed. lib/json_api/user.rb emits only admin (line 33), never is_admin (full builder read). Fail-safe direction (would read undefined->false) but a latent orphan attr.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+      }
     },
     {
       "id": "LL-6447a21503",
@@ -1850,7 +1982,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-06-16. Rails builder at lib/json_api/organization.rb:62 emits allotted_extras (from settings['total_extras']). The Ember model already has allotted_extras: DS.attr('number') at line 33 which IS populated. The separate total_extras attr at line 42 is a dead declaration. | adversary: confirmed. Builder emits allotted_extras (organization.rb:62) sourced from settings[total_extras]; never emits total_extras. Naming inversion is the likely cause of the drift."
+      "notes": "Surfaced by api finder on 2026-06-16. Rails builder at lib/json_api/organization.rb:62 emits allotted_extras (from settings['total_extras']). The Ember model already has allotted_extras: DS.attr('number') at line 33 which IS populated. The separate total_extras attr at line 42 is a dead declaration. | adversary: confirmed. Builder emits allotted_extras (organization.rb:62) sourced from settings[total_extras]; never emits total_extras. Naming inversion is the likely cause of the drift.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+      }
     },
     {
       "id": "LL-5a173ce87f",
@@ -1879,7 +2017,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-06-16. Rails builder file: lib/json_api/utterance.rb line 11 emits json['created_at'] as an ISO 8601 string. Ember model also declares user_id: DS.attr('string') at line 12 which has no Rails counterpart; that field is similarly orphaned. | adversary: confirmed, but title is inaccurate. This is a double-sided NAME+TYPE drift (Ember timestamp number vs Rails created_at iso8601 string), not casing. Recommend Scot rename the finding before any fix work."
+      "notes": "Surfaced by api finder on 2026-06-16. Rails builder file: lib/json_api/utterance.rb line 11 emits json['created_at'] as an ISO 8601 string. Ember model also declares user_id: DS.attr('string') at line 12 which has no Rails counterpart; that field is similarly orphaned. | adversary: confirmed, but title is inaccurate. This is a double-sided NAME+TYPE drift (Ember timestamp number vs Rails created_at iso8601 string), not casing. Recommend Scot rename the finding before any fix work.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+      }
     },
     {
       "id": "LL-a46e5c6b69",
@@ -1910,7 +2054,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-06-16. CVE-2024-4068 (GHSA-brh3-cv2h-8fj9); ReDoS via malicious glob input; affects braces < 3.0.3. Dev toolchain dep only - not shipped to browsers. Ember 3.28 pin does NOT block a braces override. | adversary: confirmed. Root node_modules/braces resolves 2.3.2 (package-lock.json:8316); fixed >=3.0.3. Seven other nested copies already 3.0.3. dev-only dep, no package.json override masks it."
+      "notes": "Surfaced by dependency finder on 2026-06-16. CVE-2024-4068 (GHSA-brh3-cv2h-8fj9); ReDoS via malicious glob input; affects braces < 3.0.3. Dev toolchain dep only - not shipped to browsers. Ember 3.28 pin does NOT block a braces override. | adversary: confirmed. Root node_modules/braces resolves 2.3.2 (package-lock.json:8316); fixed >=3.0.3. Seven other nested copies already 3.0.3. dev-only dep, no package.json override masks it.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: dev-only or transitive dependency entangled with the Ember 3.28 toolchain modernization; to be addressed as part of that upgrade. Not shipped to end users."
+      }
     },
     {
       "id": "LL-65700d9bd8",
@@ -1941,7 +2091,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-06-16. moment 2.29.4 is the last published version; the project is in passive maintenance per the official moment.js statement (https://momentjs.com/docs/#/-project-status/). Known ReDoS in moment locale parsing has no fix. Dev dep only (not used in Rails backend). | adversary: confirmed. moment 2.29.4, maintenance-only per official project status. dev-only dep (not in Rails backend)."
+      "notes": "Surfaced by dependency finder on 2026-06-16. moment 2.29.4 is the last published version; the project is in passive maintenance per the official moment.js statement (https://momentjs.com/docs/#/-project-status/). Known ReDoS in moment locale parsing has no fix. Dev dep only (not used in Rails backend). | adversary: confirmed. moment 2.29.4, maintenance-only per official project status. dev-only dep (not in Rails backend).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: dev-only or transitive dependency entangled with the Ember 3.28 toolchain modernization; to be addressed as part of that upgrade. Not shipped to end users."
+      }
     },
     {
       "id": "LL-553fdc242b",
@@ -1972,7 +2128,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-06-16. davidshimjs-qrcodejs 0.0.2 was last published circa 2014 and has had no releases in over 10 years. No security patches are possible. Risk is supply-chain/integrity rather than a current CVE. | adversary: confirmed abandoned (single 0.0.2 release, stale upstream). Drop the unverifiable exact \"since 2014\" date. dev-only in lockfile; sanity-check actual runtime QR usage."
+      "notes": "Surfaced by dependency finder on 2026-06-16. davidshimjs-qrcodejs 0.0.2 was last published circa 2014 and has had no releases in over 10 years. No security patches are possible. Risk is supply-chain/integrity rather than a current CVE. | adversary: confirmed abandoned (single 0.0.2 release, stale upstream). Drop the unverifiable exact \"since 2014\" date. dev-only in lockfile; sanity-check actual runtime QR usage.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: dev-only or transitive dependency entangled with the Ember 3.28 toolchain modernization; to be addressed as part of that upgrade. Not shipped to end users."
+      }
     },
     {
       "id": "LL-257c696fe0",
@@ -2065,7 +2227,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-16. Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 Non-text Content. This is the sentence box / utterance bar, a core AAC surface: components/button-list.js renders the constructed-sentence chips via templates/components/button-list.hbs, mounted in the speak-bar at application.hbs (#button_list). Both the primary chip <img> (button-list.hbs:21) and the fallback mulberry/paper.svg <img> (button-list.hbs:23) lack any alt attribute. The adjacent {{button.label}} text div provides the accessible name, so this is decorative-image-missing-empty-alt (medium), not a nameless control. Distinct file/surface from the board-grid tile findings (LL-20c48e298c, LL-2967f77e6d) under a separate ruleKey. | adversary: confirmed. Live utterance bar mounted at application.hbs:131; imgs at button-list.hbs:21,23 lack alt/aria-hidden. Caveats: pattern is systemic (also button.hbs:17, board/index.hbs:123, board.js:1715 fast_html dual-render); and prefer alt={{button.label}} with alt=\"\" only when label is guaranteed non-empty (image-only buttons would otherwise lose their name)."
+      "notes": "Surfaced by accessibility finder on 2026-06-16. Surfaced by accessibility finder on 2026-06-16. WCAG 1.1.1 Non-text Content. This is the sentence box / utterance bar, a core AAC surface: components/button-list.js renders the constructed-sentence chips via templates/components/button-list.hbs, mounted in the speak-bar at application.hbs (#button_list). Both the primary chip <img> (button-list.hbs:21) and the fallback mulberry/paper.svg <img> (button-list.hbs:23) lack any alt attribute. The adjacent {{button.label}} text div provides the accessible name, so this is decorative-image-missing-empty-alt (medium), not a nameless control. Distinct file/surface from the board-grid tile findings (LL-20c48e298c, LL-2967f77e6d) under a separate ruleKey. | adversary: confirmed. Live utterance bar mounted at application.hbs:131; imgs at button-list.hbs:21,23 lack alt/aria-hidden. Caveats: pattern is systemic (also button.hbs:17, board/index.hbs:123, board.js:1715 fast_html dual-render); and prefer alt={{button.label}} with alt=\"\" only when label is guaranteed non-empty (image-only buttons would otherwise lose their name).",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-11db0dc848",
@@ -2078,7 +2246,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/eval_sessions_controller.rb",
@@ -2087,16 +2255,16 @@
         "sha": "922d93b98417692e5fd5b8bc3d64df7b3baab84d"
       },
       "firstSeen": "2026-06-17",
-      "lastSeen": "2026-06-17",
+      "lastSeen": "2026-06-23",
       "owner": "unassigned",
       "remediation": {
         "options": "Persist the eval server-side against the resolved user and verify ownership of the eval content before egress, rather than trusting the client-supplied eval_session payload. Bind the gate-subject (user_id) to the data actually sent.",
-        "timeframe": "server-side-eval-persistence follow-up (Phase 1B)"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "ab426abf50df402abba37ccef8944e6b75ff7c75",
+        "verifierNote": "Verified 2026-06-23: the narrate action gates external-model egress on (a) explicit use_anthropic opt-in (default off -> deterministic local template, no egress), (b) a resolvable supervised student (exists? + allowed?('supervise')), (c) COPPA consent (FeatureFlags.coppa_blocks_ai_for?), and (d) org AI opt-in (ai_enabled_for?); the payload is PII-scrubbed before send. eval_sessions_controller.rb:43-79, eval_narrator.rb:25-73.",
+        "attestation": "Scot Wahlquist 2026-06-23: attested verified-closed. External-model narration is hard-gated on explicit per-request opt-in, supervised-student resolution, COPPA parental-consent, and org-level AI opt-in, with PII scrubbing before egress; default behavior sends no data externally."
       },
       "disposition": {
         "state": "fixed",
@@ -2247,7 +2415,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-06-18. Ember counterpart: app/frontend/app/models/integration.js:22-27 declares button_webhook_url and derives insecure_button_webhook_url as truthy when URL starts with http:// AND button_webhook_local is false. Because Rails only emits button_webhook_url when button_webhook_local is set (integration.rb:16-18), remote webhook URLs are never returned, so the insecure indicator never fires and the add-integration.hbs:31 warning is silenced for the exact case it was designed to catch. Relates to LL-1085e59d29 (model accepts plaintext http:// callback URLs); this is the distinct API-contract gap that silences the client-side indicator.\n\nadversary (2026-06-18): REFUTED. add-integration.hbs is create-only (add-integration.js:6 createRecord); the insecure_button_webhook_url warning evaluates the live in-memory record's button_webhook_url/button_webhook_local as the user types, NOT server JSON, so it DOES fire for remote http:// webhooks. Serializer (integration.rb:16-18) is never consulted in this path. RECOMMEND Scot drop/close as not-a-defect."
+      "notes": "Surfaced by api finder on 2026-06-18. Ember counterpart: app/frontend/app/models/integration.js:22-27 declares button_webhook_url and derives insecure_button_webhook_url as truthy when URL starts with http:// AND button_webhook_local is false. Because Rails only emits button_webhook_url when button_webhook_local is set (integration.rb:16-18), remote webhook URLs are never returned, so the insecure indicator never fires and the add-integration.hbs:31 warning is silenced for the exact case it was designed to catch. Relates to LL-1085e59d29 (model accepts plaintext http:// callback URLs); this is the distinct API-contract gap that silences the client-side indicator.\n\nadversary (2026-06-18): REFUTED. add-integration.hbs is create-only (add-integration.js:6 createRecord); the insecure_button_webhook_url warning evaluates the live in-memory record's button_webhook_url/button_webhook_local as the user types, NOT server JSON, so it DOES fire for remote http:// webhooks. Serializer (integration.rb:16-18) is never consulted in this path. RECOMMEND Scot drop/close as not-a-defect.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+      }
     },
     {
       "id": "LL-6614b7c85a",
@@ -2278,7 +2452,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-06-18. package.json devDependencies and overrides both specify lodash ^4.17.21. package-lock resolves 4.18.1 with a sha512 integrity hash. If genuine (published after auditor cutoff) the concern is low; if phantom, supply-chain integrity defect. Medium confidence pending live registry check.\n\nadversary (2026-06-18): REFUTED. lodash 4.18.0 (2026-03-31) and 4.18.1 (2026-04-01) are genuine npm releases; 4.18.1 is the current `latest` dist-tag and the lockfile integrity hash matches the registry's published dist.integrity exactly. Genuine upstream release, dev-only. Not a supply-chain concern (auditor's 'latest=4.17.21' premise was stale). RECOMMEND Scot drop."
+      "notes": "Surfaced by dependency finder on 2026-06-18. package.json devDependencies and overrides both specify lodash ^4.17.21. package-lock resolves 4.18.1 with a sha512 integrity hash. If genuine (published after auditor cutoff) the concern is low; if phantom, supply-chain integrity defect. Medium confidence pending live registry check.\n\nadversary (2026-06-18): REFUTED. lodash 4.18.0 (2026-03-31) and 4.18.1 (2026-04-01) are genuine npm releases; 4.18.1 is the current `latest` dist-tag and the lockfile integrity hash matches the registry's published dist.integrity exactly. Genuine upstream release, dev-only. Not a supply-chain concern (auditor's 'latest=4.17.21' premise was stale). RECOMMEND Scot drop.",
+      "disposition": {
+        "state": "dismissed-false-positive",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Dismissed (false positive): verified 2026-06-23 that lodash 4.18.0 and 4.18.1 are real published versions on the public npm registry; the phantom-version premise is stale. npm ci enforces the integrity hash."
+      }
     },
     {
       "id": "LL-6f1977944f",
@@ -2310,7 +2490,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2025-25291 / CVE-2025-25292: XML signature wrapping via REXML in ruby-saml < 1.17.0 allowing auth bypass. Locked 1.18.1 is safe; the finding is the absent Gemfile floor on a security-sensitive auth library used in school environments.\n\nadversary (2026-06-18): CONFIRMED but over-rated. Facts hold (Gemfile:84 bare, lock pins safe 1.18.1). Real defense-in-depth on an auth boundary, but lockfile already pins a safe version and CI installs from lock. RECOMMEND Scot downgrade MEDIUM->LOW; one-line fix `gem 'ruby-saml', '>= 1.18.0'`."
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2025-25291 / CVE-2025-25292: XML signature wrapping via REXML in ruby-saml < 1.17.0 allowing auth bypass. Locked 1.18.1 is safe; the finding is the absent Gemfile floor on a security-sensitive auth library used in school environments.\n\nadversary (2026-06-18): CONFIRMED but over-rated. Facts hold (Gemfile:84 bare, lock pins safe 1.18.1). Real defense-in-depth on an auth boundary, but lockfile already pins a safe version and CI installs from lock. RECOMMEND Scot downgrade MEDIUM->LOW; one-line fix `gem 'ruby-saml', '>= 1.18.0'`.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version)."
+      }
     },
     {
       "id": "LL-e066ea6fa3",
@@ -2341,7 +2527,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2024-21943: ReDoS in http-proxy <= 1.18.1 via crafted Host header; exploitable only by an attacker who can reach the local Ember dev server. Low because dev-only with no production surface. Distinct from tracked bootstrap finding LL-d1ea8659c3.\n\nadversary (2026-06-18): UNCERTAIN. Dev-only framing CONFIRMED (devDependencies, no prod bundle). But CVE-2024-21943 attribution could NOT be corroborated; documented http-proxy issue is a long-request-body DoS fixed IN 1.18.1 (already covered by ^1.18.1). Real residual signal is EOL/unmaintained (last release ~6yr old). RECOMMEND re-source/correct the CVE id before trusting; LOW severity is right regardless."
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2024-21943: ReDoS in http-proxy <= 1.18.1 via crafted Host header; exploitable only by an attacker who can reach the local Ember dev server. Low because dev-only with no production surface. Distinct from tracked bootstrap finding LL-d1ea8659c3.\n\nadversary (2026-06-18): UNCERTAIN. Dev-only framing CONFIRMED (devDependencies, no prod bundle). But CVE-2024-21943 attribution could NOT be corroborated; documented http-proxy issue is a long-request-body DoS fixed IN 1.18.1 (already covered by ^1.18.1). Real residual signal is EOL/unmaintained (last release ~6yr old). RECOMMEND re-source/correct the CVE id before trusting; LOW severity is right regardless.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: dev-only or transitive dependency entangled with the Ember 3.28 toolchain modernization; to be addressed as part of that upgrade. Not shipped to end users."
+      }
     },
     {
       "id": "LL-2695434541",
@@ -2372,7 +2564,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2026-47736 / CVE-2026-47737 are PROXY protocol v1 parser issues fixed in puma 7.2.1. The Gemfile comment acknowledges this but the ~> 7.2 constraint technically permits 7.2.0. Current lockfile resolves 7.2.1 (safe). Constraint-tightening only; no current vulnerability exposure.\n\nadversary (2026-06-18): CONFIRMED but config-gated. CVE-2026-47736/47737 real, fixed in 7.2.1; lock pins 7.2.1 (safe). Gemfile:62 already carries an inline comment documenting the floor. Both CVEs only bite with non-default `set_remote_address proxy_protocol: :v1`, which is not enabled (Render terminates TLS normally) -> real-world exploitability ~nil. RECOMMEND Scot treat as informational; optional tighten to `'~> 7.2', '>= 7.2.1'`."
+      "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2026-47736 / CVE-2026-47737 are PROXY protocol v1 parser issues fixed in puma 7.2.1. The Gemfile comment acknowledges this but the ~> 7.2 constraint technically permits 7.2.0. Current lockfile resolves 7.2.1 (safe). Constraint-tightening only; no current vulnerability exposure.\n\nadversary (2026-06-18): CONFIRMED but config-gated. CVE-2026-47736/47737 real, fixed in 7.2.1; lock pins 7.2.1 (safe). Gemfile:62 already carries an inline comment documenting the floor. Both CVEs only bite with non-default `set_remote_address proxy_protocol: :v1`, which is not enabled (Render terminates TLS normally) -> real-world exploitability ~nil. RECOMMEND Scot treat as informational; optional tighten to `'~> 7.2', '>= 7.2.1'`.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version)."
+      }
     },
     {
       "id": "LL-35e6b7a3d6",
@@ -2403,7 +2601,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Labels or Instructions (SC 3.3.2) and Name Role Value (SC 4.1.2). Live authenticated Home dashboard search overlay; its only text input (md-searchOverlay__input) exposes purpose solely via placeholder; no label/aria-label/aria-labelledby. Confidence medium: input is reachable/wired though results not yet backed by a Rails endpoint.\n\nadversary (2026-06-18): CONFIRMED. Grepped whole overlay: no <label>/for=/aria-label/aria-labelledby/sr-only on the input; the only aria-label is on the role=dialog section (585), which does not name the input. Placeholder is not a valid accessible name. Real SC 4.1.2/3.3.2 defect."
+      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Labels or Instructions (SC 3.3.2) and Name Role Value (SC 4.1.2). Live authenticated Home dashboard search overlay; its only text input (md-searchOverlay__input) exposes purpose solely via placeholder; no label/aria-label/aria-labelledby. Confidence medium: input is reachable/wired though results not yet backed by a Rails endpoint.\n\nadversary (2026-06-18): CONFIRMED. Grepped whole overlay: no <label>/for=/aria-label/aria-labelledby/sr-only on the input; the only aria-label is on the role=dialog section (585), which does not name the input. Placeholder is not a valid accessible name. Real SC 4.1.2/3.3.2 defect.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-e08bd45a9f",
@@ -2434,7 +2638,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Name Role Value (SC 4.1.2). Sentence box/utterance bar speak control #button_list, the primary tap-to-vocalize action. An anchor (announced as link) with no role=button and no aria-label; name comes only from dynamic content, empty when the utterance is empty. Distinct from tracked chip-img finding LL-0c6e931f47 (chip img alt, a Non-text Content SC); this is the wrapping control's role+name. Confidence medium: chip text can supply a name when non-empty.\n\nadversary (2026-06-18): CONFIRMED. #button_list anchor (application.hbs:86-132) has no role=button, no aria-label, no title; wrapped button-list component supplies no name; rendered focusable (tabindex=0), not aria-hidden; empty accessible name when utterance empty. Real SC 4.1.2 defect on a core daily-use AAC control."
+      "notes": "Surfaced by accessibility finder on 2026-06-18. Surfaced by accessibility finder on 2026-06-18. WCAG Name Role Value (SC 4.1.2). Sentence box/utterance bar speak control #button_list, the primary tap-to-vocalize action. An anchor (announced as link) with no role=button and no aria-label; name comes only from dynamic content, empty when the utterance is empty. Distinct from tracked chip-img finding LL-0c6e931f47 (chip img alt, a Non-text Content SC); this is the wrapping control's role+name. Confidence medium: chip text can supply a name when non-empty.\n\nadversary (2026-06-18): CONFIRMED. #button_list anchor (application.hbs:86-132) has no role=button, no aria-label, no title; wrapped button-list component supplies no name; rendered focusable (tabindex=0), not aria-hidden; empty accessible name when utterance empty. Real SC 4.1.2 defect on a core daily-use AAC control.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-aacae48768",
@@ -2447,14 +2657,14 @@
         "HIPAA",
         "FERPA"
       ],
-      "status": "open",
+      "status": "accepted-risk",
       "evidence": {
         "type": "runtime",
         "source": "render-mcp:list_postgres_instances",
         "snippet": "Both Render Postgres instances (incl. the prod DB and the dev/staging DB) report ipAllowList = a single all-addresses /0 entry ('everywhere'), i.e. the database accepts TCP connections from any source IP on the public internet. No source-IP restriction is in effect. render.yaml databases block (render.yaml:101-105) declares no ipAllowList, so the public-everywhere default is the effective committed posture and is not documented as intentional in render.yaml or docs/INFRASTRUCTURE.md. Checked: ipAllowList field only; no secrets/connection strings/PII read or echoed."
       },
       "firstSeen": "2026-06-19",
-      "lastSeen": "2026-06-21",
+      "lastSeen": "2026-06-23",
       "owner": "Scot Wahlquist",
       "remediation": {
         "options": "Restrict the Render Postgres ipAllowList to known egress sources (the Render service private network / specific NAT egress CIDRs) instead of the all-addresses /0 default, via the database's Access Control settings or an ipAllowList block in render.yaml. Combined with sslmode=require (LL-ba0585ab93, no cert verification), a public-reachable DB is a real network attack surface for a credential-stuffing / brute-force path against the DB. The GCP Cloud SQL cutover removes public DB exposure entirely (private VPC + Cloud SQL connector), so for prod this reconciles with the migration rather than being fixed twice; the dev/staging DB should be restricted now regardless. Until cutover, set an allowlist or accept-risk with a dated note.",
@@ -2462,15 +2672,15 @@
       },
       "closureEvidence": {
         "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "verifierNote": "No code fix; network-allowlist remediation is owned by the Render-to-GCP migration workstream and lands with the private-VPC Cloud SQL cutover.",
+        "attestation": "Scot Wahlquist 2026-06-23: accepted as a known risk on the interim Render environment; superseded by the private-VPC Cloud SQL cutover."
       },
       "notes": "Surfaced by infra finder on 2026-06-19. Net-new infra finding (runtime). Distinct from LL-ba0585ab93 (DB sslmode=require, encryption/cert-verification, not network reachability), LL-6619cc1811 (Redis TLS), and LL-9f83617435 (HSTS). The register has no finding covering DB network-level public exposure. Re-verify by re-running render-mcp:list_postgres_instances (workspace-independent). The prod-DB closure is gated on the GCP Memorystore/Cloud SQL cutover per project_render_cloud_migration; the dev/staging DB exposure is independently restrictable now. | adversary: confirmed (committed-config: render.yaml databases block declares no ipAllowList and INFRASTRUCTURE.md does not document the open posture as intentional). Live single-/0 runtime detail flagged uncertain pending a render-MCP re-pull. | triaged 2026-06-19: disposition=accepted (real, to remediate), owner Scot, at Scot's direction in the audit session. | LIVE CHECK 2026-06-21 (render-MCP list_postgres_instances): CONFIRMED both lingolinq-prod-db (dpg-d64c5i1r0fns73c5jcp0-a) and lingolinq-dev-staging-db (dpg-d64c53v5r7bs73acj600-a) have ipAllowList=[0.0.0.0/0 \"everywhere\"]. The prior \"uncertain pending re-pull\" note is resolved: the /0 exposure is real and current on both. dev/staging is restrictable now; prod gated on the Memorystore/Cloud SQL cutover. Remains open (live state cannot close it). | DECISION 2026-06-21 (Scot, /lingo session): remediate via the GCP migration, NOT an interim Render allowlist edit. Prod + dev/staging move to Cloud SQL (private-IP-only, NO public IP - confirmed in the Phase-4 dry-run plan Step 2 \"no public IP\" verify) over the next ~2 weeks, eliminating the public endpoint entirely (strictly better than a 0.0.0.0/0 -> /32 narrowing). Interim 0.0.0.0/0 exposure ACCEPTED for the cutover window (DB stays credential-gated; creds in Render env/1Password, not in repo); no interim infra change so prod is not poked right before cutover. CLOSE when: prod data is live on private-IP Cloud SQL AND the Render prod + dev-staging DBs are decommissioned/restricted (re-run render-MCP list_postgres_instances to confirm). TRIPWIRE: if the cutover has not landed by ~2026-07-05, revisit and apply the interim restriction drafted at ~/ai-company-brain/outputs/plans/2026-06-21-dev-staging-db-allowlist-restriction-plan.md.",
       "disposition": {
         "state": "accepted",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-19",
-        "rationale": "Confirmed real network-exposure finding. Accepted as a remediation item (not a risk-acceptance). Production DB closure folds into the Render->GCP Cloud SQL cutover (private VPC, no public DB exposure) per the migration; the dev/staging DB ipAllowList should be restricted independently and now, since it does not depend on the cutover. Adversary confirmed the committed-config half; live single-/0 detail to re-confirm via a render-MCP re-pull at remediation time."
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted as a known risk. The production Postgres network allowlist is managed in the Render-to-GCP migration workstream; the interim public-reachability exposure on Render is accepted and is superseded by the private-VPC Cloud SQL cutover."
       }
     },
     {
@@ -2502,7 +2712,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-06-19. Net-new CC6/CC8 least-privilege finding; surfaced by infra finder 2026-06-19. Anchored to the workflow file at auditedSha (the `on:` key is the structural location where a top-level `permissions:` block is absent). Secondary observation (low confidence, not a separate finding): scripts/sync-render-env.js maskValue() prints first4...last4 of each secret value into NEW/CHANGED diff lines, which the workflow writes to the GitHub step summary; values ARE masked, but a partial reveal of production secrets lands in a step summary visible to repo collaborators; consider masking fully for the persisted summary. Not raised as a standalone finding because the masking control exists and the reveal is partial. | adversary: confirmed (grep over sync-render-secrets.yml returns 0 permissions blocks while four sibling workflows declare them). Whether the repo default token is literally read-write is an Actions org setting not readable from git; LOW already accounts for that."
+      "notes": "Surfaced by infra finder on 2026-06-19. Net-new CC6/CC8 least-privilege finding; surfaced by infra finder 2026-06-19. Anchored to the workflow file at auditedSha (the `on:` key is the structural location where a top-level `permissions:` block is absent). Secondary observation (low confidence, not a separate finding): scripts/sync-render-env.js maskValue() prints first4...last4 of each secret value into NEW/CHANGED diff lines, which the workflow writes to the GitHub step summary; values ARE masked, but a partial reveal of production secrets lands in a step summary visible to repo collaborators; consider masking fully for the persisted summary. Not raised as a standalone finding because the masking control exists and the reveal is partial. | adversary: confirmed (grep over sync-render-secrets.yml returns 0 permissions blocks while four sibling workflows declare them). Whether the repo default token is literally read-write is an Actions org setting not readable from git; LOW already accounts for that.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: CI / security-pipeline hardening; to be remediated."
+      }
     },
     {
       "id": "LL-e76d6378b5",
@@ -2531,7 +2747,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-06-19. Rails counterpart: lib/json_api/webhook.rb (build_json, line 16). The builder emits 'webhooks' (array of event-type keys from settings['notifications'].keys) and 'include_content' (boolean) but never the full 'notifications' object or any 'content_type'. The 'content_type' attr at line 14 is also never emitted. No template or controller reads these attrs back from a server response, so there is no current functional breakage; the edit flow (add-webhook.js) is create-only. Cosmetic drift; candidate for accepted-risk if the full notification config is intentionally write-only. | adversary: confirmed (Rails build_json emits only webhooks + include_content, never notifications/content_type; no template or controller reads them back; create-only flow). Cosmetic drift."
+      "notes": "Surfaced by api finder on 2026-06-19. Rails counterpart: lib/json_api/webhook.rb (build_json, line 16). The builder emits 'webhooks' (array of event-type keys from settings['notifications'].keys) and 'include_content' (boolean) but never the full 'notifications' object or any 'content_type'. The 'content_type' attr at line 14 is also never emitted. No template or controller reads these attrs back from a server response, so there is no current functional breakage; the edit flow (add-webhook.js) is create-only. Cosmetic drift; candidate for accepted-risk if the full notification config is intentionally write-only. | adversary: confirmed (Rails build_json emits only webhooks + include_content, never notifications/content_type; no template or controller reads them back; create-only flow). Cosmetic drift.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+      }
     },
     {
       "id": "LL-53ab4ea456",
@@ -2630,7 +2852,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. This shared component (used by find-button, board-details, and most legacy modals) declares role=dialog + aria-modal=true but provides no aria-label/aria-labelledby, so the dialog itself has no programmatic name. The codebase already names other dialogs explicitly (the Home search overlay role=dialog carries an i18n aria-label), confirming the wrapper omission. Single-file, deterministic markup; confidence medium because some AT derive a name from yielded heading content. | adversary: confirmed (modal-dialog.hbs wrapper div carries role=dialog/aria-modal with no aria-label/aria-labelledby; ~250 call sites inherit the unnamed dialog). MEDIUM justified by breadth."
+      "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. This shared component (used by find-button, board-details, and most legacy modals) declares role=dialog + aria-modal=true but provides no aria-label/aria-labelledby, so the dialog itself has no programmatic name. The codebase already names other dialogs explicitly (the Home search overlay role=dialog carries an i18n aria-label), confirming the wrapper omission. Single-file, deterministic markup; confidence medium because some AT derive a name from yielded heading content. | adversary: confirmed (modal-dialog.hbs wrapper div carries role=dialog/aria-modal with no aria-label/aria-labelledby; ~250 call sites inherit the unnamed dialog). MEDIUM justified by breadth.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-8fab55372e",
@@ -2661,7 +2889,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. The #reply_icon remote-modeling button in the speak bar (a core surface used by therapists/supervisors during pairing sessions) contains only state glyphicons and an optional avatar img with no alt, and has no sr-only text/aria-label, so it has no accessible name. Renders only when this.app_state.pairing is active, hence medium severity. Distinct control from the registered #button_list vocalize anchor (sentence-box-vocalize-anchor-missing-button-role); same file, different ruleKey. | adversary: confirmed (#reply_icon has only glyphicons + an alt-less avatar img, no sr-only/aria-label; sibling #speak_options carries an sr-only i18n name). Pairing-gated, so MEDIUM."
+      "notes": "Surfaced by accessibility finder on 2026-06-19. WCAG Name-Role-Value criterion, mapped in EN 301 549 clause 9.4. The #reply_icon remote-modeling button in the speak bar (a core surface used by therapists/supervisors during pairing sessions) contains only state glyphicons and an optional avatar img with no alt, and has no sr-only text/aria-label, so it has no accessible name. Renders only when this.app_state.pairing is active, hence medium severity. Distinct control from the registered #button_list vocalize anchor (sentence-box-vocalize-anchor-missing-button-role); same file, different ruleKey. | adversary: confirmed (#reply_icon has only glyphicons + an alt-less avatar img, no sr-only/aria-label; sibling #speak_options carries an sr-only i18n name). Pairing-gated, so MEDIUM.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+      }
     },
     {
       "id": "LL-efef111d59",
@@ -2720,7 +2954,57 @@
         "options": "Upgrade to eslint 9 (flat config). Entangled with the broader Ember 3.28 toolchain modernization, so not a standalone bump; dev-toolchain only (not shipped to users).",
         "timeframe": "with toolchain modernization"
       },
-      "notes": "Successor to LL-257c696fe0 (eol-eslint-5x, closed 2026-06-21). The v5 EOL was fixed by the v8 upgrade, but v8 reached end-of-life; tracked here so the register stays honest. Low: dev-toolchain only."
+      "notes": "Successor to LL-257c696fe0 (eol-eslint-5x, closed 2026-06-21). The v5 EOL was fixed by the v8 upgrade, but v8 reached end-of-life; tracked here so the register stays honest. Low: dev-toolchain only.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted: dev-only or transitive dependency entangled with the Ember 3.28 toolchain modernization; to be addressed as part of that upgrade. Not shipped to end users."
+      }
+    },
+    {
+      "id": "LL-7f7372e3eb",
+      "ruleKey": "audit-console-targets-heroku-not-render",
+      "title": "Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "bin/audit_console",
+        "line": 7,
+        "snippet": "heroku_id=`heroku auth:whoami`",
+        "sha": "3e59c0543daa29efe9d5b5512853be0ded030fab"
+      },
+      "firstSeen": "2026-06-23",
+      "lastSeen": "2026-06-23",
+      "owner": "scot",
+      "remediation": {
+        "options": "Rewrite bin/audit_console to attach to a Render service shell while still exporting USER_KEY so the Rails console records an AuditEvent per session, or replace it with a Render-native audited console path; until then, privileged console access on Render is not captured by this wrapper.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-23",
+        "rationale": "Accepted, but remediation is owned by the Render-to-GCP migration thread (infra cutover work). Tracked here; not changed in the compliance thread."
+      },
+      "source": {
+        "kind": "audit-review",
+        "pr": null,
+        "reviewer": "claude-compliance-officer",
+        "promotedDate": "2026-06-23"
+      },
+      "notes": "Promoted from claude-compliance-officer review on 2026-06-23. bin/audit_console is the documented audited-console wrapper (CLAUDE.md Security section: console access audited via AuditEvent). It still shells to the Heroku CLI (heroku auth:whoami; heroku run -a lingolinq). LingoLinq runs on Render and the legacy Heroku app is gone, so the wrapper cannot attach a console in the live environment and the per-session AuditEvent it is meant to record is not produced on Render. Net effect: the audited-console control is not operative on the current platform; privileged console access to a system holding regulated student/patient data is not captured by this path. Code/path evidence only."
     }
   ]
 }

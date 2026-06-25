@@ -5530,3 +5530,28 @@ exactly behind the rendered image — no wrapper, and it does NOT stretch to the
 band the way a container fill (`.md-board-detail-symbol-card__image`) would. Default for
 new users is `symbol_background = 'clear'` (`lib/json_api/user.rb:89`), so Colored mode is
 the common case. See [`2026-06-23-symbol-transparency-bleed-legacy.md`](./2026-06-23-symbol-transparency-bleed-legacy.md).
+## Gotcha: bootstrap 3 tooltip/popover is XSS-safe only via DOM-node content, not data-content strings
+Bootstrap 3.4.1 (`node_modules/bootstrap/dist/js/bootstrap.js`) `Popover.getContent` reads the
+`data-content` attribute FIRST, then falls back to the `content` option. `Popover.setContent`
+branches `typeof content === 'string' ? 'html' : 'append'` and runs `sanitizeHtml` ONLY on string
+content. So `$(el).attr('data-content', node.innerHTML).popover('show')` round-trips through a
+parsed+sanitized HTML string (safety depends on the EOL sanitizer), whereas passing
+`content: () => domNode` makes bootstrap `.append()` the real node, never parsing HTML at all
+(sanitizer irrelevant). When building popover/tooltip bodies, construct a DOM node with
+`document.createElement` + `.innerText` (escapes) + `img.src` (property, no attr injection) and hand
+bootstrap the NODE via the `content` function; do not set `data-content` to an HTML string. Verified
+in `utils/utterance.js:silent_speak_button` (LL-d1ea8659c3). Note bootstrap JS is also load-bearing
+for `data-toggle="dropdown"` (incl. keyboard a11y in `controllers/caseload.js`) and
+`data-dismiss="alert"`, so the EOL lib cannot simply be dropped without replacing those too.
+
+## Gotcha: bootstrap 3 popover('destroy') is async; home-grown init guards go stale after it
+Bootstrap 3's `Tooltip/Popover.destroy` defers `removeData('bs.popover')` into the `hide()`
+animation callback (~150ms, `animation:true` is the default), so the instance is still present
+synchronously right after `destroy` but gone a moment later. A home-grown "init once" guard keyed
+on a custom attribute (e.g. `if(!$el.attr('data-popover')){ ...popover(opts) }`) does NOT get
+cleared by destroy, so a later `.popover('show')` finds no instance, skips re-init, and bootstrap's
+`Plugin` rebuilds a DEFAULT popover (`html:false`, `content:''`, no `content` fn) -- an empty/blank
+widget that silently drops your configured options. Prefer bootstrap's own idempotency: call
+`$el.popover(opts)` unconditionally before `show` (no-op when an instance exists, re-creates with
+your opts after a destroy). Seen in `utils/utterance.js:silent_speak_button` where
+`services/app-state.js:2336` destroys `#speak_mode`'s popover on leaving a board (LL-d1ea8659c3).
