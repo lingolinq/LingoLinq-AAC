@@ -187,9 +187,13 @@ export default Component.extend({
     return lookup;
   },
 
+  // The sidebar editor edits — and `_save` persists to — the CURRENT user's own
+  // `preferences.sidebar_boards`, so the "Your Boards" list must come from that
+  // SAME user. Use currentUser explicitly (not setup_user, which board-collection
+  // uses for the board-PICKER setup flow): keeping the load subject identical to
+  // the save subject means we can never display one user's library while writing
+  // another's sidebar, even if setup_user semantics change later.
   _subjectUserId: function() {
-    var su = this.appState.get('setup_user');
-    if (su && su.get('id')) { return su.get('id'); }
     return this.appState.get('currentUser.id');
   },
 
@@ -311,12 +315,27 @@ export default Component.extend({
     if (!user || !user.set) { return RSVP.resolve(); }
     this.set('saving', true);
     this.set('changed', true);
+    // Update the live preference synchronously so the UI (current_items) reflects
+    // the change immediately, regardless of when the network save runs.
     user.set('preferences.sidebar_boards', newArray);
     if (!user.save) { this.set('saving', false); this.set('busy_id', null); return RSVP.resolve(); }
     var clear = function() {
       if (!_this.isDestroyed && !_this.isDestroying) { _this.set('saving', false); _this.set('busy_id', null); }
     };
-    var promise = user.save().then(clear, clear);
+    // SERIALIZE saves: chain each user.save() off the previous one so two quick
+    // actions (e.g. successive drag-drops) can't run concurrent saves — which
+    // could PUT out of order (a lost update) or trip Ember Data's "save already in
+    // flight" error. Each chained save serializes the model's CURRENT prefs (the
+    // latest array, since the set above already applied), so coalescing is safe.
+    var runSave = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return RSVP.resolve(); }
+      return user.save();
+    };
+    var prior = this._saveChain || RSVP.resolve();
+    var promise = prior.then(runSave, runSave);
+    // Keep the chain alive past a rejection so one failed save can't wedge the queue.
+    this._saveChain = promise.then(function() {}, function() {});
+    promise.then(clear, clear);
     this.set('_lastSave', promise);
     return promise;
   },

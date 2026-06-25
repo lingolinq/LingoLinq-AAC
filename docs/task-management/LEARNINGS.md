@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
@@ -5573,3 +5574,17 @@ fresh (a benign duplicate) rather than reuse-on-faith. Single shared helper:
 `app/frontend/app/utils/board-copy.js#findExistingUserCopy` (used by board-preview-overlay +
 sidebar-editor). Don't fork two copies of this logic — divergence is how the slug-trust branch
 crept back in.
+
+## Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"
+
+A UI that persists on every quick interaction (drag-reorder, up/down nudge, toggle) can fire
+several `record.save()` calls in quick succession. Concurrent saves on the SAME Ember Data
+record are unsafe: the network PUTs can complete out of order (the slower/earlier one wins,
+silently dropping a later change), and Ember Data can also throw when a save starts while one is
+already in flight. Fix: keep the optimistic `set()` synchronous (so the UI updates instantly),
+but CHAIN the actual `save()` off a module/instance `_saveChain` promise so saves run one at a
+time — each chained save serializes the model's CURRENT attributes (the latest array), so
+coalescing is safe. Keep the chain alive past a rejection (`prior.then(noop, noop)`) so one
+failed save can't wedge the queue, and expose the tail as `_lastSave` for callers that must wait
+for persistence to settle (e.g. a reload-on-close). See
+`app/frontend/app/components/sidebar-editor.js#_save`.
