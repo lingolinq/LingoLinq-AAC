@@ -1,8 +1,31 @@
 #!/bin/sh
-# TODO: this wrapper still invokes the Heroku CLI (`heroku auth:whoami`,
-# `heroku run -a lingolinq`). LingoLinq runs on Render now, so this script
-# only works against the legacy Heroku environment. Follow-up: rewrite the
-# body to attach to a Render service shell while still exporting USER_KEY
-# so the Rails console records an AuditEvent per session.
-heroku_id=`heroku auth:whoami`
-heroku run "export USER_KEY=$heroku_id && bundle exec rails console" -a lingolinq
+# Audited Rails console launcher.
+#
+# Opens a Rails console with USER_KEY set so config/initializers/auditing.rb
+# records an AuditEvent for the session (every console command in production)
+# and tags PaperTrail changes with the operator's identity. Console and runner
+# access is refused outright when USER_KEY is unset, so this wrapper is the
+# supported way to get an audited console.
+#
+# Platform-agnostic by design: it runs the console in the CURRENT shell instead
+# of shelling out to a hosting-provider CLI, so it works wherever you already
+# have a shell on the app -- the Render Shell tab, a GCP Cloud Run exec shell,
+# or a local checkout. (It replaced an older Heroku-CLI-only version; the legacy
+# Heroku app is gone.)
+set -e
+
+# Identity for the audit trail. Honor an already-exported USER_KEY (e.g. one set
+# in a local .env); otherwise prompt, mirroring setup_env.sh. It must be
+# non-empty -- the auditing initializer raises a console without it.
+if [ -z "$USER_KEY" ]; then
+  printf 'Enter your email for console auditing (USER_KEY): '
+  read -r USER_KEY || true
+fi
+
+if [ -z "$USER_KEY" ]; then
+  echo 'audit_console: USER_KEY is required so console access stays audited; aborting.' >&2
+  exit 1
+fi
+
+export USER_KEY
+exec bundle exec rails console "$@"

@@ -319,7 +319,7 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model (use `bin/audit_console`, not `rails console`)
+- Console access audited via `AuditEvent` model: use `bin/audit_console` (it sets `USER_KEY` and opens the console in the current shell, so it works from the Render Shell tab, a Cloud Run exec shell, or locally), not a bare `rails console`
 - Protected IDs require nonce to prevent snooping
 
 ## Environment Setup

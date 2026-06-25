@@ -146,7 +146,7 @@ Additionally, the admin organization has a special importing tool, "Word Data Im
 
 ##### Troubleshooting
 
-Need console access? On Render, use the Shell tab in your service dashboard, or run `bundle exec rails console` locally. Since LingoLinq needs to ensure user data remains protected, all production requests need to be audited (see the model `AuditEvent`), so there are some safeguards to prevent unaudited console access.
+Need console access? Use `bin/audit_console` from wherever you already have a shell on the app (the Render Shell tab, a Cloud Run exec shell, or a local checkout). It sets `USER_KEY` and opens the Rails console so the session is recorded via the `AuditEvent` model. Since LingoLinq needs to ensure user data remains protected, a bare `bundle exec rails console` is deliberately refused unless `USER_KEY` is set, which keeps privileged console access audited.
 
 ```
 b = Board.find_by_path('example/keyboard')
