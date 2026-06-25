@@ -115,16 +115,35 @@ step is that verification.
 app is not the only writer. LingoLinq has writers that do not run inside the web dyno. Freezing the
 DB means freezing ALL of them, in this order, BEFORE the dump:
 
-- **Scheduled rake tasks** (`generate_log_summaries`, `push_remote_logs`, `advance_goals`,
-  `flush_users`, `clean_old_deleted_boards`, etc.). These are NOT Resque jobs in `render.yaml` and
-  there is no `resque-scheduler`; they fire from **Render cron services and/or n8n**, each booting
-  its own Rails process that writes prod independently. `flush_users` and `clean_old_deleted_boards`
-  are **destructive**. Pause every one before the dump. **Verify the live list against the Render
-  dashboard cron services + n8n workflows the day before; do not trust this list.**
-- **The hourly `scripts/sync-render-env.js` push** (1Password -> Render env). Pause it for the
-  whole window AND soak, or a 1Password edit silently rewrites Render env (breaks the "Render is
-  pristine rollback insurance" invariant; see Rollback).
-- **n8n workflows that hit prod** (e.g. the cost/PII digest). Pause.
+- **Scheduled rake tasks** - all unified into a **single Render cron service**, `lingolinq-prod-scheduler`
+  (`crn-d68nfmbnv86c73eho6vg`, schedule `0 * * * *`, start command `bundle exec rake scheduler:dispatch`).
+  These are NOT Resque jobs in `render.yaml` and there is no `resque-scheduler`; the cron boots its own
+  Rails process that writes prod independently. `scheduler:dispatch` runs the hourly tasks every run
+  (`generate_log_summaries`, `push_remote_logs`, `check_for_log_mergers`, `advance_goals`) plus a **daily
+  block gated to `hour == 6` UTC** that includes several **destructive** purges: `flush_users`,
+  `clean_old_deleted_boards`, `enforce_data_retention_policies` (purges stale log sessions),
+  `flush_expired_beta_feedback_recordings` (deletes recordings), plus `redact_old_ai_api_log_ips`,
+  `expire_licenses`, and `expire_stale_supervisor_consent_requests`. **Suspend the one cron service**
+  before the dump - that pauses all of them at once. **Re-verify against the live Render dashboard the day
+  before; do not trust this list** (2026-06-24: exactly one prod cron service existed).
+- **The hourly secret sync** - a **GitHub Action**, `.github/workflows/sync-render-secrets.yml`
+  (cron `15 * * * *`), running `node scripts/sync-render-env.js --source op --apply` (1Password -> Render
+  env). Note the apply step passes **no `--service` flag**, so it writes **all three** Render
+  environments' env (dev, staging, AND prod) - not prod only (`sync-render-env.js:581,587` default to all
+  services unless `--service` narrows). **Disable the workflow** - it is a GitHub Action, NOT a Render
+  service, and there is no prod-only invocation to look for in CI - for the whole window AND soak, or a
+  1Password edit silently rewrites Render env (breaks the "Render is pristine rollback insurance"
+  invariant; see Rollback).
+- **n8n workflows** - as of 2026-06-24 **none of the active workflows write prod**: `daily-ai-cost-pii-digest`
+  GETs the *staging* summary and posts to Google Chat, and `infra-monitor` polls health endpoints read-only.
+  No pause is needed for data safety, but **silence `infra-monitor`** for the window or it will fire Google
+  Chat alerts the moment prod starts 503'ing writes. (Re-verify the day before.)
+- **Render deploys (deploy freeze).** Any deploy of the prod web service runs
+  `bundle exec rails db:migrate` against the prod DB via its `preDeployCommand` (`render.yaml:13`; live
+  on `lingolinq-prod`). That is a schema write outside the web/worker/cron/Action set above, so a stray
+  merge or manual redeploy during the window mutates the about-to-be-abandoned prod DB and weakens the
+  rollback-pristine invariant. **No deploys of `lingolinq-prod` during the window/soak** - pause
+  auto-deploy or hold merges to the deploy branch.
 - **Outbound webhook delivery** (`Webhook.notify_all_with_code`, scheduled from
   `app/models/concerns/notifier.rb`). It can run ~20 min sending outbound webhooks per recipient,
   and is **non-idempotent**: the W1 SIGTERM requeue (PR #473) re-runs an interrupted job from the
@@ -133,11 +152,16 @@ DB means freezing ALL of them, in this order, BEFORE the dump:
   flight at the freeze. (Making the requeue selective per-class is a documented follow-up; for the
   cutover the mitigation is operational - pause it.)
 - **Inbound external webhooks** (Stripe `purchasing_event`, AWS SNS/transcoder `callback`, CSP
-  reports - all mutating POSTs under `/api/v1`). Once write-reject is on, these are 503'd, so a
-  Stripe subscription/payment event or a transcoder completion arriving during the soak is not
-  recorded on Render. Stripe/AWS retry, but if the soak outlasts their retry window the event is
-  lost (billing/media-record impact). Either keep the soak inside the providers' retry windows, or
-  plan to reconcile/replay webhooks received during the window. Note it in the window plan.
+  reports - all mutating POSTs under `/api/v1`). These need **no separate pause**: they are POSTs and
+  the only allowlisted paths are `saml/*` (`write_freeze.rb:62-63`), so the same WriteFreeze on Render
+  web auto-503's them once write-reject is on. The flip side is dropped writes during the soak: a Stripe
+  subscription/payment event, a transcoder completion (`callbacks_controller.rb:32`), **and inbound SMS**
+  (`RemoteTarget.process_inbound` -> `save!`, `callbacks_controller.rb:46`) are not recorded on Render.
+  Stripe and AWS both retry, but on **different models** - Stripe retries on its own backoff schedule;
+  **SNS redelivers and dead-letters** to its DLQ - so if the soak outlasts a provider's retry window the
+  event is lost (billing / media-record / SMS-record impact). Either keep the soak inside the providers'
+  retry windows, or plan to reconcile/replay (and drain the SNS DLQ) for the window. Note it in the
+  window plan.
 
 **DECIDED mechanism (Scot, 2026-06-23): Option 1 + Option 2 combined. NOT scale-to-0.**
 The offline/mobile replay hazard (AAC clients buffer writes in IndexedDB/SQLite and replay on
