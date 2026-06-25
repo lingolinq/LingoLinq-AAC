@@ -206,9 +206,12 @@ export default Service.extend({
       locale: options.locale,
       option: options.option,
       allowStyle: options.allow_style,
-      callback: options.callback
+      callback: options.callback,
+      // When true, the preview is a "recommended home board" suggestion (opened by
+      // "Assign a Home Board For Me") — the overlay swaps its header copy.
+      recommend: options.recommend
     });
-    
+
     return RSVP.resolve();
   },
   

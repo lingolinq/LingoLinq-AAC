@@ -453,18 +453,29 @@
           </feComponentTransfer>
           <feComposite in="SourceGraphic" in2="alphaMask" operator="in"/>
         </filter>
-        <!-- AAC symbol white backing: fills white EXACTLY within the symbol's own
-             alpha (no halo, no square), then draws the symbol on top. Used in
-             Colored mode so transparent regions don't bleed the button fill, while
-             white never extends past the symbol's outline. Operates per-pixel on
-             the same element, so it stays pixel-registered with the rendered image
-             (unlike a separately-masked backing layer). -->
+        <!-- AAC symbol backing (Colored mode). These symbols carry their OWN baked
+             white halo/background; the old matte filter knocked it out (causing the
+             card color to bleed through). This filter instead PRESERVES that white
+             but RECOLORS it to a subtle off-white (#f0ebdf) so symbols read softer
+             on colored cards, then backs any semi-transparent edges with the same
+             off-white. The feComponentTransfer tables are ~identity below 0.9 and
+             pull only near-white toward the cream target per channel
+             (R 240/255≈0.941, G 235/255≈0.922, B 223/255≈0.875), so colored art is
+             essentially untouched and alpha is preserved (transparent stays
+             transparent). CAVEAT: this tints ALL near-white pixels, so genuinely
+             white parts of the ARTWORK (milk, highlights) also go cream — subtle,
+             but it can't tell background-white from art-white. -->
         <filter id="ll-symbol-white-backing" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
-          <feFlood flood-color="#ffffff" result="whiteFill"/>
-          <feComposite in="whiteFill" in2="SourceAlpha" operator="in" result="whiteBacking"/>
+          <feComponentTransfer in="SourceGraphic" result="tinted">
+            <feFuncR type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.941"/>
+            <feFuncG type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.922"/>
+            <feFuncB type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.875"/>
+          </feComponentTransfer>
+          <feFlood flood-color="#f0ebdf" result="creamFill"/>
+          <feComposite in="creamFill" in2="SourceAlpha" operator="in" result="creamBacking"/>
           <feMerge>
-            <feMergeNode in="whiteBacking"/>
-            <feMergeNode in="SourceGraphic"/>
+            <feMergeNode in="creamBacking"/>
+            <feMergeNode in="tinted"/>
           </feMerge>
         </filter>
       </defs>

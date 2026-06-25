@@ -38,6 +38,7 @@ import i18n from '../utils/i18n';
 import frame_listener from '../utils/frame_listener';
 import Button from '../utils/button';
 import actionLock from '../utils/action-lock';
+import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -851,6 +852,17 @@ export default Service.extend({
   transitionToBoardForCurrentUiStyle: function(router, boardKey, opts) {
     opts = opts || {};
     if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
+    // In-board board changes (tapping a folder/link button in speak mode, sidebar
+    // jumps, home entry) route through here. Show the shared "Preparing your Board"
+    // overlay ONLY if the new board is slow to settle — quick taps stay snappy.
+    // Skip when navigating to the board we're already on: an identical transition
+    // may not fire routeDidChange, which would leave the overlay up until its 8s
+    // safety timer.
+    var curBoardKey = null;
+    try { curBoardKey = this.get('currentBoardState.key'); } catch(e) { curBoardKey = null; }
+    if(curBoardKey !== boardKey) {
+      this._debounceBoardLoadOverlay(router);
+    }
     var routeName = '';
     try {
       routeName = this.get('current_route') || '';
@@ -900,6 +912,55 @@ export default Service.extend({
     } else {
       router.transitionTo('user.board-detail', userName, boardSlug);
     }
+  },
+  // Debounced loading overlay for in-board board changes. Unlike a board CARD
+  // click (which masks the cross-route load immediately), tapping a folder/link
+  // button is usually instant, so flashing the overlay on every tap would be jank.
+  // Instead: arm a short timer; if the board's route settles (routeDidChange)
+  // BEFORE it fires, cancel — no overlay. If the board is still loading when the
+  // timer fires, paint the shared overlay, which then dismisses itself on the next
+  // routeDidChange (same overlay + dismissal a card click / view-switch uses).
+  _debounceBoardLoadOverlay: function(router) {
+    var _this = this;
+    if(typeof document === 'undefined' || !router || typeof router.on !== 'function') { return; }
+    // Replace any pending debounce (rapid successive taps reuse one timer).
+    if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); }
+    // Another overlay is already up (e.g. a card-click mask) — let it run.
+    if(document.getElementById('ll-pre-reload-overlay')) { return; }
+    var timer = null;
+    var cleanup = function() {
+      if(timer) { try { runCancel(timer); } catch(e) {} timer = null; }
+      try { router.off('routeDidChange', onSettled); } catch(e) {}
+      if(_this._boardLoadOverlayCleanup === cleanup) { _this._boardLoadOverlayCleanup = null; }
+    };
+    var onSettled = function() {
+      // Board settled before the threshold — no overlay needed.
+      cleanup();
+    };
+    this._boardLoadOverlayCleanup = cleanup;
+    try { router.on('routeDidChange', onSettled); } catch(e) {}
+    timer = runLater(function() {
+      timer = null;
+      // Stop listening with onSettled; the painted overlay arms its OWN
+      // routeDidChange dismissal (+ 8s safety) from here on.
+      try { router.off('routeDidChange', onSettled); } catch(e) {}
+      if(_this._boardLoadOverlayCleanup === cleanup) { _this._boardLoadOverlayCleanup = null; }
+      // Match the board's theme (dark by default, like board-icon's card → board
+      // navigation) so the mask doesn't flash a light card over a dark board.
+      var isDark = true;
+      var themeMode = _this.get('themeMode');
+      if(themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+      paint_view_switch_overlay({ routerSvc: router, isDark: isDark });
+    }, 200);
+  },
+  // Public entry point for flows that navigate to a board via a DIRECT transitionTo
+  // (style switch, board import, board create) rather than through
+  // transitionToBoardForCurrentUiStyle. Call this IMMEDIATELY before the transitionTo
+  // so the debounced "Preparing your Board" overlay times the resulting board load and
+  // is shown only if it's actually slow. Router defaults to the app's router service.
+  arm_board_load_overlay: function(router) {
+    router = router || this.get('router') || this.router;
+    this._debounceBoardLoadOverlay(router);
   },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
@@ -3239,15 +3300,26 @@ export default Service.extend({
       return this.get_history().length === 0;
     }
   ),
+  // The speak-mode SIDEBAR (the quick/inline sidebar) shows by DEFAULT: an UNSET
+  // `quick_sidebar` preference is treated as `true` (show). Once the user uses the
+  // sidebar's expand/unexpand button the preference is set explicitly (persisted by
+  // application#stickSidebar — expand => true, collapse => false) and that wins.
+  // Single source of truth so every sidebar read site agrees on the default.
+  effective_quick_sidebar: computed('currentUser.preferences.quick_sidebar', 'currentUser.preferences.disable_quick_sidebar', function() {
+    // A user who explicitly disabled the quick sidebar keeps it off (don't let the
+    // show-by-default override their choice).
+    if(this.get('currentUser.preferences.disable_quick_sidebar')) { return false; }
+    var qs = this.get('currentUser.preferences.quick_sidebar');
+    return (qs === undefined || qs === null) ? true : !!qs;
+  }),
   sidebar_visible: computed(
     'speak_mode',
     'stashes.sidebarEnabled',
-    'currentUser',
-    'currentUser.preferences.quick_sidebar',
+    'effective_quick_sidebar',
     'eval_mode',
     function() {
       // TODO: does this need to trigger board resize event? maybe...
-      return this.get('speak_mode') && !this.get('eval_mode') && (this.stashes.get('sidebarEnabled') || this.get('currentUser.preferences.quick_sidebar'));
+      return this.get('speak_mode') && !this.get('eval_mode') && (this.stashes.get('sidebarEnabled') || this.get('effective_quick_sidebar'));
     }
   ),
   sidebar_relegated: computed('speak_mode', 'window_inner_width', function() {
@@ -3431,10 +3503,9 @@ export default Service.extend({
   ),
   sidebar_pinned: computed(
     'speak_mode',
-    'currentUser',
-    'currentUser.preferences.quick_sidebar',
+    'effective_quick_sidebar',
     function() {
-      return this.get('speak_mode') && this.get('currentUser.preferences.quick_sidebar');
+      return this.get('speak_mode') && this.get('effective_quick_sidebar');
     }
   ),
   referenced_user: computed(

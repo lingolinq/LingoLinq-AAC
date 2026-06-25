@@ -2231,38 +2231,26 @@ class User < ApplicationRecord
   end
 
   # Inject newly-added default sidebar entries (e.g. crisis-vocabulary) into an
-  # older saved list without re-adding boards the user removed.
+  # older saved list without re-adding boards the user removed — and WITHOUT
+  # reordering. The stored order IS the user's chosen sidebar order (drag / up-down
+  # reorder in the Edit Sidebar panel), so it must be preserved on every load; only
+  # still-missing auto-add defaults are appended.
   def self.merge_missing_default_sidebar_boards(stored)
     return default_active_sidebar_boards if stored.blank?
 
     defaults = default_sidebar_boards
-    stored_by_id = {}
-    stored.each do |b|
-      id = sidebar_board_identity(b)
-      stored_by_id[id] = b if id
-    end
-    stored_ids = stored_by_id.keys
+    stored_ids = stored.map { |b| sidebar_board_identity(b) }.compact
     default_ids = defaults.map { |b| sidebar_board_identity(b) }
 
     return stored unless stored_ids.any? { |id| default_ids.include?(id) }
 
     missing_auto_add = sidebar_auto_add_keys.reject { |key| stored_ids.include?(key) }
+    return stored if missing_auto_add.empty?
 
-    result = []
+    result = stored.dup
     defaults.each do |default_item|
-      id = sidebar_board_identity(default_item)
       key = default_item['key']
-      if stored_by_id[id]
-        result << stored_by_id[id]
-      elsif key && missing_auto_add.include?(key)
-        result << default_item
-      end
-    end
-
-    stored.each do |b|
-      id = sidebar_board_identity(b)
-      next if default_ids.include?(id)
-      result << b unless result.include?(b)
+      result << default_item if key && missing_auto_add.include?(key)
     end
     result
   end
