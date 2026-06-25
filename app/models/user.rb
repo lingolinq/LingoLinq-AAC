@@ -669,13 +669,15 @@ class User < ApplicationRecord
         'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
         # Word prediction on/off (global, governs BOTH classic board-alt and
-        # modern board-detail speak modes). Default OFF — the user opts in via
+        # modern board-detail speak modes). Default ON — the user can opt out via
         # Preferences or the board-detail edit panel.
-        'word_suggestions' => false,
-        # Where word prediction renders in board-detail speak mode: 'auto'
-        # (responsive — inline in the speak bar on wide screens, vertical side
-        # rail on narrow), or pinned to 'speak_bar' / 'side_rail'.
-        'word_suggestion_position' => 'auto',
+        'word_suggestions' => true,
+        # Where word prediction renders in board-detail speak mode. Default
+        # 'side_rail' — a vertical rail to the right of the board, i.e. just LEFT
+        # of the speak-mode sidebar. Other options: 'speak_bar' (inline in the
+        # speak bar) or 'auto' (responsive — inline on wide screens, side rail on
+        # narrow).
+        'word_suggestion_position' => 'side_rail',
         'hidden_buttons' => 'grid',
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,

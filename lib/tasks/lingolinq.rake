@@ -112,4 +112,33 @@ namespace :lingolinq do
     root = result.first
     puts "OK: imported #{result.length} board(s). Root: #{root&.dig('key')} (#{root&.dig('id')})"
   end
+
+  desc 'Backfill existing users to the new word-prediction defaults: word_suggestions ON ' \
+       'and word_suggestion_position = side_rail (left of the sidebar). Forces every user ' \
+       "to the new default (pre-production seed data). DRY_RUN=1 to preview without saving."
+  task default_word_prediction_on: :environment do
+    dry_run = ENV['DRY_RUN'].to_s =~ /^(1|true|yes)$/i
+    updated = 0
+    scanned = 0
+    User.find_each do |user|
+      scanned += 1
+      prefs = (user.settings && user.settings['preferences']) || {}
+      # Force both to the new defaults (this is intentional bulk normalization of
+      # seed data, not a "only-if-unset" backfill).
+      next if prefs['word_suggestions'] == true && prefs['word_suggestion_position'] == 'side_rail'
+      unless dry_run
+        user.settings ||= {}
+        user.settings['preferences'] ||= {}
+        user.settings['preferences']['word_suggestions'] = true
+        user.settings['preferences']['word_suggestion_position'] = 'side_rail'
+        # secure_serialize :settings — mark dirty so the in-place mutation persists.
+        user.settings_will_change! if user.respond_to?(:settings_will_change!)
+        user.save!
+      end
+      updated += 1
+      print '.'
+    end
+    puts "\n#{dry_run ? '[DRY RUN] would update' : 'Updated'} #{updated} of #{scanned} users " \
+         'to word prediction ON + side_rail position.'
+  end
 end

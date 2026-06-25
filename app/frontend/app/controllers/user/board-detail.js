@@ -1958,11 +1958,12 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
   }),
   // Where word prediction renders in speak mode (user pref). 'speak_bar' /
-  // 'side_rail' pin a layout at all widths via a shell class; 'auto' (default,
-  // empty class) keeps the responsive in-bar/rail switch. See app.scss
-  // ".md-shell--wordpred-*" rules.
+  // 'side_rail' pin a layout at all widths via a shell class; 'auto' keeps the
+  // responsive in-bar/rail switch (empty class). Default (unset) is 'side_rail'
+  // — a vertical rail just left of the sidebar — matching user.rb
+  // preference_defaults. See app.scss ".md-shell--wordpred-*" rules.
   word_suggestion_position_class: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position');
+    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
     if(pos === 'speak_bar') { return 'md-shell--wordpred-speak-bar'; }
     if(pos === 'side_rail') { return 'md-shell--wordpred-side-rail'; }
     return '';
@@ -1973,7 +1974,7 @@ export default Controller.extend(prefClasses, {
   // size dropdown's bindings in the same panel.
   word_prediction_position_dropdown_open: false,
   word_suggestion_position_value: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'auto';
+    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
   }),
   word_prediction_position_options: computed(function() {
     return [

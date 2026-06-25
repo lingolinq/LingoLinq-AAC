@@ -147,19 +147,21 @@ export default Controller.extend({
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));
     this.set('original_preferences', JSON.parse(str));
-    // Word prediction prefs predate these keys for existing users (the API
-    // returns null), so seed the default OFF / auto-position values into BOTH
+    // Word prediction prefs may be null for older users (the API returns null),
+    // so seed the DEFAULTS (on / side_rail — left of the sidebar) into BOTH
     // pending and original. That makes the toggle/selector render in their
-    // default state without falsely marking the form dirty (the speak pages
-    // treat null as off/auto anyway, so leaving them null in the DB stays
-    // correct).
+    // default state without falsely marking the form dirty, and mirrors the
+    // server-side preference_defaults (user.rb). The authoritative stored value
+    // comes from preference_defaults for new users and the backfill rake task
+    // for existing ones (the speak page gates on word_suggestions === true, so it
+    // relies on the value actually being persisted, not on this form seed).
     if(this.get('pending_preferences.word_suggestions') == null) {
-      this.set('pending_preferences.word_suggestions', false);
-      this.set('original_preferences.word_suggestions', false);
+      this.set('pending_preferences.word_suggestions', true);
+      this.set('original_preferences.word_suggestions', true);
     }
     if(!this.get('pending_preferences.word_suggestion_position')) {
-      this.set('pending_preferences.word_suggestion_position', 'auto');
-      this.set('original_preferences.word_suggestion_position', 'auto');
+      this.set('pending_preferences.word_suggestion_position', 'side_rail');
+      this.set('original_preferences.word_suggestion_position', 'side_rail');
     }
     this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
     this.set('advanced', true);
