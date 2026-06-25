@@ -7,6 +7,13 @@ import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 
+// Tracks which in-body tour-action buttons already have their click handler, so
+// re-shows of the SAME element don't double-bind. A WeakSet (keyed on the element,
+// no DOM mutation) instead of an expando property: a freshly-created element is
+// simply absent → gets wired; a reused element is present → skipped; and entries
+// are GC'd with their elements, so it never leaks across tours.
+var _wiredTourActionButtons = new WeakSet();
+
 // Apply "smooth scroll, THEN show" to every ATTACHED step of a built tour, so
 // the spotlight glides to each target and the popover is positioned once at the
 // settled spot (no mid-scroll flip-flash). Done at the runner level so EVERY tour
@@ -155,8 +162,8 @@ function _onTourStepShow() {
     if (step.el) {
       var actionEls = step.el.querySelectorAll('[data-tour-action]');
       Array.prototype.forEach.call(actionEls, function(btn) {
-        if (btn._tourActionWired) { return; }
-        btn._tourActionWired = true;
+        if (_wiredTourActionButtons.has(btn)) { return; }
+        _wiredTourActionButtons.add(btn);
         btn.addEventListener('click', function(e) {
           e.preventDefault();
           var spec = btn.getAttribute('data-tour-action') || '';

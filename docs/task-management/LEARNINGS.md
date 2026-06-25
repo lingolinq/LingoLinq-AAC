@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
@@ -5555,3 +5556,20 @@ widget that silently drops your configured options. Prefer bootstrap's own idemp
 `$el.popover(opts)` unconditionally before `show` (no-op when an instance exists, re-creates with
 your opts after a destroy). Seen in `utils/utterance.js:silent_speak_button` where
 `services/app-state.js:2336` destroys `#speak_mode`'s popover on leaving a board (LL-d1ea8659c3).
+
+## Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention
+
+When a flow needs the user's existing copy of a public board (pick-as-home, add-to-sidebar),
+it's tempting to look up `username/<original-slug>` and reuse whatever's there — copies DO keep
+the slug under the user's namespace. But that key can also be an UNRELATED board the user
+copied from a different source with the same slug, so reusing on the bare convention can set
+the WRONG board as home — a correctness/safety bug for AAC users. Confirm lineage instead:
+reuse only when `parent_board_id === original.id` (or `parent_board_key === original.key`).
+App-made copies always set `parent_board_id` server-side, and `/show` always serializes it, so
+real copies confirm. Two gotchas: (1) a board cached as a LIST partial may omit
+`parent_board_id`, making a real copy look unconfirmed — use `findRecord(key, {reload:true})`
+so the parent fields are authoritative; (2) an unconfirmed match should fall back to copying
+fresh (a benign duplicate) rather than reuse-on-faith. Single shared helper:
+`app/frontend/app/utils/board-copy.js#findExistingUserCopy` (used by board-preview-overlay +
+sidebar-editor). Don't fork two copies of this logic — divergence is how the slug-trust branch
+crept back in.

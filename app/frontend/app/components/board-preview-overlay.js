@@ -3,13 +3,12 @@ import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
 import EmberObject from '@ember/object';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
-import RSVP from 'rsvp';
-import LingoLinq from '../app';
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
+import { findExistingUserCopy } from '../utils/board-copy';
 import { preload_board_images } from '../utils/board_preview_warmer';
 
 /* Minimum time the loading overlay must stay visible after it first
@@ -263,7 +262,7 @@ export default Component.extend({
       _this.set('copying', true);
       app_state.set('tour_board_picker_active', false);
       // Dedup first: skip copying if the user already owns a copy of this board.
-      _this._findExistingUserCopy(board, user).then(function(existing) {
+      findExistingUserCopy(board, user).then(function(existing) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         if (existing) {
           // Reuse the existing copy — just (re)set it as the home board, no new copy.
@@ -304,39 +303,6 @@ export default Component.extend({
         });
       });
     }
-  },
-
-  // Resolve the current user's already-owned copy of `board`, or null if none.
-  // A copy keeps the original's slug under the user's namespace (the signup
-  // provisioner makes exactly this: `username/<slug>`), so we look that key up and
-  // confirm it's genuinely a copy of THIS board via parent_board_id/parent_board_key
-  // before reusing it. Rejection (e.g. 404) resolves to null → caller copies fresh.
-  _findExistingUserCopy: function(board, user) {
-    var origKey = (board && board.get && board.get('key')) || '';
-    var userName = user && user.get && user.get('user_name');
-    if (!origKey || !userName || origKey.indexOf('/') === -1) {
-      return RSVP.resolve(null);
-    }
-    var slug = origKey.split('/').pop();
-    var expectedKey = userName + '/' + slug;
-    // The picked board is already the user's own board — nothing to copy.
-    if (origKey === expectedKey) { return RSVP.resolve(board); }
-    var origId = board.get('id');
-    return LingoLinq.store.findRecord('board', expectedKey).then(function(found) {
-      if (!found) { return null; }
-      var parentId = found.get('parent_board_id');
-      var parentKey = found.get('parent_board_key');
-      // Confirm lineage when we have it; if the copy carries no parent info, trust
-      // the strong `username/<public-slug>` key convention.
-      if ((parentId && origId && parentId === origId) ||
-          (parentKey && parentKey === origKey) ||
-          (!parentId && !parentKey)) {
-        return found;
-      }
-      return null;
-    }, function() {
-      return null;
-    });
   },
 
   // Common tail for pick_for_home: flag the speak-mode tour hand-off (scoped to the

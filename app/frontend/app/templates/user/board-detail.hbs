@@ -2160,16 +2160,20 @@
             {{/each}}
             {{!-- Edit — opens the inline sidebar-editor panel. Sits at the BOTTOM of
                  the sidebar content, styled like the boards-page "Create New Board"
-                 pill (aria-label keeps the full "Edit Sidebar" intent for SRs). --}}
-            <div class="md-board-detail-inline-sidebar__edit-row">
-              <button type="button" class="md-board-detail-inline-sidebar__edit-btn" {{on "click" (action "open_sidebar_editor")}} aria-label={{t "Edit Sidebar" key="edit_sidebar"}}>
-                <svg class="md-board-detail-inline-sidebar__edit-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-                <span>{{t "Edit" key="edit"}}</span>
-              </button>
-            </div>
+                 pill (aria-label keeps the full "Edit Sidebar" intent for SRs).
+                 Behind the edit_sidebar feature flag (new user-facing surface — AAC
+                 users get unexpected UI changes only via beta opt-in). --}}
+            {{#if this.app_state.feature_flags.edit_sidebar}}
+              <div class="md-board-detail-inline-sidebar__edit-row">
+                <button type="button" class="md-board-detail-inline-sidebar__edit-btn" {{on "click" (action "open_sidebar_editor")}} aria-label={{t "Edit Sidebar" key="edit_sidebar"}}>
+                  <svg class="md-board-detail-inline-sidebar__edit-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  <span>{{t "Edit" key="edit"}}</span>
+                </button>
+              </div>
+            {{/if}}
             </div>{{!-- /.md-board-detail-inline-sidebar__scroll --}}
           </div>
         {{/if}}
@@ -3662,11 +3666,15 @@
         @onSelect={{action "select_board_from_collection"}} />
     </div>
   {{/if}}
-  {{!-- Edit Sidebar panel — same pinned-drawer host as My Board Collection. --}}
-  {{#if this.sidebar_editor_open}}
-    <div class="md-board-detail-actions-menu md-board-detail-actions-menu--collection md-board-detail-actions-menu--collection-pinned md-board-detail-actions-menu--sidebar-editor" role="region" aria-label={{t "Edit Sidebar" key="edit_sidebar"}}>
-      <SidebarEditor @onBack={{action "close_sidebar_editor"}} />
-    </div>
+  {{!-- Edit Sidebar panel — same pinned-drawer host as My Board Collection. Gated
+        on the edit_sidebar feature flag (matches the inline Edit button) so the
+        whole surface is beta-opt-in. --}}
+  {{#if this.app_state.feature_flags.edit_sidebar}}
+    {{#if this.sidebar_editor_open}}
+      <div class="md-board-detail-actions-menu md-board-detail-actions-menu--collection md-board-detail-actions-menu--collection-pinned md-board-detail-actions-menu--sidebar-editor" role="region" aria-label={{t "Edit Sidebar" key="edit_sidebar"}}>
+        <SidebarEditor @onBack={{action "close_sidebar_editor"}} />
+      </div>
+    {{/if}}
   {{/if}}
 </div>
 

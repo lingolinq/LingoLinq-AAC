@@ -6,6 +6,7 @@ import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
+import { findExistingUserCopy } from '../utils/board-copy';
 import { filterRootBoards, dedupeByName, boardsPagePreferUserNames } from '../utils/board-roots';
 import { filterBrandRoots, BRAND_FAMILIES } from '../utils/board-brands';
 
@@ -352,34 +353,17 @@ export default Component.extend({
     this.set('my_boards_state', { state: 'loaded', boards: _alphaByName(next) });
   },
 
+  /* Append one entry to the sidebar and persist. Guards against a duplicate key:
+     even though add buttons are disabled while busy and `lookup.keys` is checked
+     before reaching here, re-check against the LIVE array at write time so a
+     rapid/concurrent add can't push the same board onto the sidebar twice. */
   _pushEntry: function(entry) {
     var raw = (this.get('appState.currentUser.preferences.sidebar_boards') || []).slice();
+    if (entry && entry.key && raw.some(function(b) { return b && b.key === entry.key; })) {
+      return RSVP.resolve();
+    }
     raw.push(entry);
     return this._save(raw);
-  },
-
-  /* Resolve the user's already-owned copy of `board`, or null. A copy keeps the
-     original's slug under the user's namespace (`username/<slug>`); confirm lineage
-     via parent_board_id/key when present. 404 → null → caller copies fresh. */
-  _findExistingUserCopy: function(board, user) {
-    var origKey = (board && board.get && board.get('key')) || '';
-    var userName = user && user.get && user.get('user_name');
-    if (!origKey || !userName || origKey.indexOf('/') === -1) { return RSVP.resolve(null); }
-    var slug = origKey.split('/').pop();
-    var expectedKey = userName + '/' + slug;
-    if (origKey === expectedKey) { return RSVP.resolve(board); }
-    var origId = board.get('id');
-    return LingoLinq.store.findRecord('board', expectedKey).then(function(found) {
-      if (!found) { return null; }
-      var parentId = found.get('parent_board_id');
-      var parentKey = found.get('parent_board_key');
-      if ((parentId && origId && parentId === origId) ||
-          (parentKey && parentKey === origKey) ||
-          (!parentId && !parentKey)) {
-        return found;
-      }
-      return null;
-    }, function() { return null; });
   },
 
   /* Symbol library for a copy — the user's preferred set gated by extras access
@@ -419,7 +403,7 @@ export default Component.extend({
       if (lookup.keys[key]) { finish(); modal.notice(i18n.t('sidebar_editor_already_added', "That board is already on your sidebar.")); return; }
       _this._pushEntry({ name: owned.get('name'), key: key, image: owned.get('icon_url_with_fallback') }).then(finish, finish);
     };
-    this._findExistingUserCopy(board, user).then(function(existing) {
+    findExistingUserCopy(board, user).then(function(existing) {
       if (_this.isDestroyed || _this.isDestroying) { return; }
       if (existing) { addOwned(existing); return; }
       // Load the full original (its downstream ids drive the copy) before copying.
