@@ -115,16 +115,26 @@ step is that verification.
 app is not the only writer. LingoLinq has writers that do not run inside the web dyno. Freezing the
 DB means freezing ALL of them, in this order, BEFORE the dump:
 
-- **Scheduled rake tasks** (`generate_log_summaries`, `push_remote_logs`, `advance_goals`,
-  `flush_users`, `clean_old_deleted_boards`, etc.). These are NOT Resque jobs in `render.yaml` and
-  there is no `resque-scheduler`; they fire from **Render cron services and/or n8n**, each booting
-  its own Rails process that writes prod independently. `flush_users` and `clean_old_deleted_boards`
-  are **destructive**. Pause every one before the dump. **Verify the live list against the Render
-  dashboard cron services + n8n workflows the day before; do not trust this list.**
-- **The hourly `scripts/sync-render-env.js` push** (1Password -> Render env). Pause it for the
-  whole window AND soak, or a 1Password edit silently rewrites Render env (breaks the "Render is
-  pristine rollback insurance" invariant; see Rollback).
-- **n8n workflows that hit prod** (e.g. the cost/PII digest). Pause.
+- **Scheduled rake tasks** - all unified into a **single Render cron service**, `lingolinq-prod-scheduler`
+  (`crn-d68nfmbnv86c73eho6vg`, schedule `0 * * * *`, start command `bundle exec rake scheduler:dispatch`).
+  These are NOT Resque jobs in `render.yaml` and there is no `resque-scheduler`; the cron boots its own
+  Rails process that writes prod independently. `scheduler:dispatch` runs the hourly tasks every run
+  (`generate_log_summaries`, `push_remote_logs`, `check_for_log_mergers`, `advance_goals`) plus a **daily
+  block gated to `hour == 6` UTC** that includes several **destructive** purges: `flush_users`,
+  `clean_old_deleted_boards`, `enforce_data_retention_policies` (purges stale log sessions),
+  `flush_expired_beta_feedback_recordings` (deletes recordings), plus `redact_old_ai_api_log_ips`,
+  `expire_licenses`, and `expire_stale_supervisor_consent_requests`. **Suspend the one cron service**
+  before the dump - that pauses all of them at once. **Re-verify against the live Render dashboard the day
+  before; do not trust this list** (2026-06-24: exactly one prod cron service existed).
+- **The hourly secret sync** - a **GitHub Action**, `.github/workflows/sync-render-secrets.yml`
+  (cron `15 * * * *`), running `scripts/sync-render-env.js --apply --service prod` (1Password -> Render
+  env). **Disable the workflow** - it is a GitHub Action, NOT a Render service - for the whole window AND
+  soak, or a 1Password edit silently rewrites Render env (breaks the "Render is pristine rollback
+  insurance" invariant; see Rollback).
+- **n8n workflows** - as of 2026-06-24 **none of the active workflows write prod**: `daily-ai-cost-pii-digest`
+  GETs the *staging* summary and posts to Google Chat, and `infra-monitor` polls health endpoints read-only.
+  No pause is needed for data safety, but **silence `infra-monitor`** for the window or it will fire Google
+  Chat alerts the moment prod starts 503'ing writes. (Re-verify the day before.)
 - **Outbound webhook delivery** (`Webhook.notify_all_with_code`, scheduled from
   `app/models/concerns/notifier.rb`). It can run ~20 min sending outbound webhooks per recipient,
   and is **non-idempotent**: the W1 SIGTERM requeue (PR #473) re-runs an interrupted job from the
@@ -506,10 +516,13 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       and `saml/consume` SSO linkage land on Render during the soak and are lost on rollback
       (user re-signs-in after); `auth/google/signup` is blocked. `saml/consume` stays allowlisted.
       See step 1.
-- [ ] **Every external writer enumerated and pause-tested:** Render cron services, n8n workflows
-      hitting prod, hourly `sync-render-env`, **the outbound webhook notifier**
-      (`Webhook.notify_all_with_code`), AND a plan for **inbound webhooks** (Stripe/AWS) 503'd
-      during the soak (verified against the LIVE Render dashboard, not this doc).
+- [ ] **Every external writer enumerated and pause-tested.** Enumeration **verified against the LIVE
+      Render dashboard + n8n + GitHub Actions 2026-06-24** (see the writer bullets above): prod-DB writers
+      are the web app (WriteFreeze), `lingolinq-prod-worker` (carries `Webhook.notify_all_with_code`), and
+      the single `lingolinq-prod-scheduler` cron; the env writer is the `sync-render-secrets` GitHub Action;
+      no active n8n workflow writes prod; plus a plan for **inbound webhooks** (Stripe/AWS) 503'd during the
+      soak. Box stays open until each is **pause-tested** in the dress rehearsal. Re-verify the live list the
+      day before - it can drift.
 - [ ] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7).
 - [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
       BOOT_SECRETS if any row exists, else confirmed-empty.
