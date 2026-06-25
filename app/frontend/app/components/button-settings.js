@@ -47,6 +47,12 @@ export default Component.extend({
       if (event && event.preventDefault) { event.preventDefault(); }
       self.send('nothing');
     });
+    this.set('ctrlActionEventValue', function(actionName, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, value);
+      };
+    });
   },
 
   didInsertElement() {

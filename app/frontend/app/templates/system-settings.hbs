@@ -14,7 +14,7 @@
                 <div class="la-system-settings__org-row">
                   <label class="la-system-settings__org-label">
                     <span class="la-system-settings__label-text">{{t "Organization" key="system_settings_org_label"}}</span>
-                    <select class="form-control la-system-settings__org-select" {{on "change" (fn this.ctrlAction "setOrgId" value="target.value")}}>
+                    <select class="form-control la-system-settings__org-select" {{on "change" (this.ctrlActionEventValue "setOrgId" "value")}}>
                       {{#each this.scopeOptionGroups as |group|}}
                         <optgroup label={{group.label}}>
                           {{#each group.options as |opt|}}

@@ -43,6 +43,12 @@ export default Controller.extend({
         self.send(actionName, value);
       };
     };
+    this.ctrlActionEventValueBound = function(actionName, boundArg, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, boundArg, value);
+      };
+    };
     this.loadOrganizations();
   },
 

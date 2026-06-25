@@ -43,6 +43,12 @@ export default Controller.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    this.ctrlActionMut = function(propPath, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.set(propPath, value);
+      };
+    };
 
     this.set('pendingToggles', {});
   },

@@ -12,19 +12,19 @@
                  class="label-chips__chip-edit-input"
                  value={{this.editingValue}}
                  aria-label={{t "Edit label" key="edit_label_chip"}}
-                 oninput={{action "editInputChanged" value="target.value"}}
-                 onkeydown={{action "editKeydown"}}
-                 onblur={{action "commitEdit"}} />
+                 {{on "input" (this.ctrlActionEventValue "editInputChanged" "value")}}
+                 {{on "keydown" (fn this.ctrlAction "editKeydown")}}
+                 {{on "blur" (fn this.ctrlAction "commitEdit")}} />
         </span>
       {{else}}
         <span class="label-chips__chip {{if item.is_duplicate "label-chips__chip--duplicate"}} {{if item.has_color "label-chips__chip--colored"}} {{if (is_equal index this.draggingIndex) "label-chips__chip--dragging"}} {{if (is_equal index this.dropTargetIndex) "label-chips__chip--drop-target"}}"
               style={{item.bg_style}}
               draggable="true"
-              ondragstart={{action "chipDragStart" index}}
-              ondragover={{action "chipDragOver" index}}
-              ondragleave={{action "chipDragLeave" index}}
-              ondrop={{action "chipDrop" index}}
-              ondragend={{action "chipDragEnd"}}>
+              {{on "dragstart" (fn this.ctrlAction "chipDragStart" index)}}
+              {{on "dragover" (fn this.ctrlAction "chipDragOver" index)}}
+              {{on "dragleave" (fn this.ctrlAction "chipDragLeave" index)}}
+              {{on "drop" (fn this.ctrlAction "chipDrop" index)}}
+              {{on "dragend" (fn this.ctrlAction "chipDragEnd")}}>
           {{#if item.is_duplicate}}
             {{!-- Duplicate-label warning icon. Sits to the left of the
                  label text on the chip — same visual language as the
@@ -75,10 +75,10 @@
               autocorrect="off"
               autocapitalize="off"
               spellcheck="true"
-              oninput={{action "inputChanged" value="target.value"}}
-              onkeydown={{action "handleKeydown"}}
-              onpaste={{action "handlePaste"}}
-              onfocus={{action "handleFocus"}}
-              onblur={{action "handleBlur"}}></textarea>
+              {{on "input" (this.ctrlActionEventValue "inputChanged" "value")}}
+              {{on "keydown" (fn this.ctrlAction "handleKeydown")}}
+              {{on "paste" (fn this.ctrlAction "handlePaste")}}
+              {{on "focus" (fn this.ctrlAction "handleFocus")}}
+              {{on "blur" (fn this.ctrlAction "handleBlur")}}></textarea>
   {{/if}}
 </div>

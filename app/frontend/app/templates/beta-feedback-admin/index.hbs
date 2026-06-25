@@ -22,7 +22,7 @@
                     <div class="la-beta-feedback-admin__filters">
                       <label class="la-beta-feedback-admin__filter">
                         <span class="la-beta-feedback-admin__label-text">{{t "Category" key="beta_feedback_admin_col_category"}}</span>
-                        <select class="form-control" onchange={{action (mut this.filterType) value="target.value"}}>
+                        <select class="form-control" {{on "change" (this.ctrlActionMut "filterType" "value")}}>
                           {{#each this.feedbackTypeOptions as |opt|}}
                             <option value={{opt.id}} selected={{is-equal opt.id this.filterType}}>{{opt.label}}</option>
                           {{/each}}
@@ -30,7 +30,7 @@
                       </label>
                       <label class="la-beta-feedback-admin__filter">
                         <span class="la-beta-feedback-admin__label-text">{{t "Severity" key="beta_feedback_admin_col_severity"}}</span>
-                        <select class="form-control" onchange={{action (mut this.filterSeverity) value="target.value"}}>
+                        <select class="form-control" {{on "change" (this.ctrlActionMut "filterSeverity" "value")}}>
                           {{#each this.severityOptions as |opt|}}
                             <option value={{opt.id}} selected={{is-equal opt.id this.filterSeverity}}>{{opt.label}}</option>
                           {{/each}}
@@ -38,7 +38,7 @@
                       </label>
                       <label class="la-beta-feedback-admin__filter">
                         <span class="la-beta-feedback-admin__label-text">{{t "Priority" key="beta_feedback_admin_col_priority"}}</span>
-                        <select class="form-control" onchange={{action (mut this.filterPriority) value="target.value"}}>
+                        <select class="form-control" {{on "change" (this.ctrlActionMut "filterPriority" "value")}}>
                           {{#each this.priorityOptions as |opt|}}
                             <option value={{opt.id}} selected={{is-equal opt.id this.filterPriority}}>{{opt.label}}</option>
                           {{/each}}

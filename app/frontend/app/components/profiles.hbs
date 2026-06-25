@@ -105,7 +105,7 @@
         <div class='row' style='margin: 15px 0;'>
           <div class='col-sm-5' style='padding-right: 0;'>
             <label for="find_profile_id" class="sr-only">{{t "Look up profile by ID" key="find_profile_id_label"}}</label>
-            <Input id="find_profile_id" type="text" class="form-control" @enter={{action "lookup"}} @value={{this.find_profile_id}} placeholder="Look up profile by ID" />
+            <Input id="find_profile_id" type="text" class="form-control" @enter={{fn this.ctrlAction "lookup"}} @value={{this.find_profile_id}} placeholder="Look up profile by ID" />
           </div>
           <div class='col-sm-3' style='padding-left: 3px;'>
             <button class='btn btn-default' {{on "click" (this.ctrlAction "lookup")}}>{{t "Go" key="go"}}</button>

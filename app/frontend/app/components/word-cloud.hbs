@@ -27,7 +27,7 @@
       <div class="row la-word-cloud-options" style="margin-bottom: 12px;">
         <div class="col-sm-4">
           <label for="word-cloud-shape">{{t "Shape" key="word_cloud_shape_label"}}</label>
-          <select id="word-cloud-shape" class="form-control la-contact-input" {{on "change" (fn this.ctrlAction "updateShape" value="target.value")}}>
+          <select id="word-cloud-shape" class="form-control la-contact-input" {{on "change" (this.ctrlActionEventValue "updateShape" "value")}}>
             {{#each this.shapeOptions as |opt|}}
               {{#if (is-equal this.shape opt.value)}}
                 <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
@@ -39,7 +39,7 @@
         </div>
         <div class="col-sm-4">
           <label for="word-cloud-color">{{t "Color" key="word_cloud_color_label"}}</label>
-          <select id="word-cloud-color" class="form-control la-contact-input" {{on "change" (fn this.ctrlAction "updateColor" value="target.value")}}>
+          <select id="word-cloud-color" class="form-control la-contact-input" {{on "change" (this.ctrlActionEventValue "updateColor" "value")}}>
             {{#each this.colorOptions as |opt|}}
               {{#if (is-equal this.color opt.value)}}
                 <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
@@ -51,7 +51,7 @@
         </div>
         <div class="col-sm-4">
           <label for="word-cloud-spacing">{{t "Spacing" key="word_cloud_spacing_label"}}</label>
-          <select id="word-cloud-spacing" class="form-control la-contact-input" {{on "change" (fn this.ctrlAction "updateGridSize" value="target.value")}}>
+          <select id="word-cloud-spacing" class="form-control la-contact-input" {{on "change" (this.ctrlActionEventValue "updateGridSize" "value")}}>
             {{#each this.gridSizeOptions as |opt|}}
               {{#if (is-equal this.gridSize opt.value)}}
                 <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>

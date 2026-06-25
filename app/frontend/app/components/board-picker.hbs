@@ -155,7 +155,7 @@
               id="board-picker-search-q"
               @type="search"
               @value={{this.boardSearchQuery}}
-              @enter={{action "go_search_boards"}}
+              @enter={{fn this.ctrlAction "go_search_boards"}}
               class="form-control md-home-boards-picker__search-input"
               placeholder={{t "Search public boards by name" key="board_picker_search_placeholder"}}
             />

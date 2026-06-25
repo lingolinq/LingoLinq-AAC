@@ -10,9 +10,9 @@
         <div class="ub-search-page__form-row">
           <SearchBoardJump
             @query={{this.searchString}}
-            @onQueryChange={{action (mut this.searchString)}}
+            @onQueryChange={{(mut this.searchString)}}
             @sections={{this.jump_sections}}
-            @onSelect={{action "select_jump_board"}} />
+            @onSelect={{fn this.ctrlAction "select_jump_board"}} />
           <div class="ub-search-page__locale-wrap">
             {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(mut this.locale) ariaLabel=(t "Language" key="locale")}}
           </div>

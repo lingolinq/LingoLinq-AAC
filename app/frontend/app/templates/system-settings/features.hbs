@@ -13,7 +13,7 @@
     </label>
     <label class="la-system-settings__filter">
       <span class="la-system-settings__label-text">{{t "Category" key="system_settings_category_label"}}</span>
-      <select class="form-control" onchange={{action (mut this.categoryFilter) value="target.value"}}>
+      <select class="form-control" {{on "change" (this.ctrlActionMut "categoryFilter" "value")}}>
         {{#each this.categoryOptions as |opt|}}
           <option value={{opt.id}} selected={{is-equal opt.id this.categoryFilter}}>{{opt.label}}</option>
         {{/each}}

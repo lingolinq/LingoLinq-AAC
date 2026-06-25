@@ -127,7 +127,7 @@
             {{else}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  <Input id="find_source" @value={{this.search_term}} @enter={{action "find_source"}} placeholder="search" class="form-control inline select_on_click" />
+                  <Input id="find_source" @value={{this.search_term}} @enter={{fn this.ctrlAction "find_source"}} placeholder="search" class="form-control inline select_on_click" />
                 </span>
               </span>
               <button type="button" class='btn btn-default' {{on "click" (fn this.ctrlAction "find_source")}}>{{t "Search" key="search"}}</button>

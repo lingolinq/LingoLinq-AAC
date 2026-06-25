@@ -201,6 +201,12 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    this.ctrlActionEventValue = function(actionName, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, value);
+      };
+    };
   },
 
   for_user_id: computed('model.for_user_id', function() {

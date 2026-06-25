@@ -15,6 +15,6 @@
     <Input class='form-control' @value={{@row.fill}} placeholder="fill color" />
   </div>
   <div class='col-sm-1'>
-    <button class='btn btn-default' {{action 'remove' @row}}><span class='glyphicon glyphicon-remove'></span></button>
+    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "remove" @row)}}><span class='glyphicon glyphicon-remove'></span></button>
   </div>
 </div>

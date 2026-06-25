@@ -599,20 +599,20 @@
               <div class="md-board-detail-grid md-board-detail-grid--preview {{this.button_text_position_class}} {{this.button_text_size_class}} {{this.button_shape_class}} {{this.preview_background_class}} {{if this.paint_mode 'md-board-detail-grid--paint-mode'}}"
                    style={{this.preview_style}}
                    role="grid"
-                   ondragover={{action "previewDragOver"}}
-                   ondrop={{action "previewDrop"}}>
+                   {{on "dragover" (fn this.ctrlAction "previewDragOver")}}
+                   {{on "drop" (fn this.ctrlAction "previewDrop")}}>
                 {{#each this.preview_grid as |row rowIdx|}}
                   {{#each row as |cell colIdx|}}
                     <div class="md-board-detail-grid__cell {{if cell.empty "md-board-detail-grid__cell--empty"}} {{if cell.editing "md-board-detail-grid__cell--editing"}} {{if cell.painted "md-board-detail-grid__cell--painted"}} {{if cell.is_duplicate "md-board-detail-grid__cell--duplicate"}} {{if cell.no_category "md-board-detail-grid__cell--no-category"}}"
                          role="gridcell"
                          draggable={{if cell.draggable "true" "false"}}
-                         onclick={{action "cellClicked" cell.idx cell.image_url}}
-                         ondblclick={{action "startCellEdit" cell.idx}}
-                         ondragstart={{action "cellDragStart" rowIdx colIdx}}
-                         ondragover={{action "cellDragOver" rowIdx colIdx}}
-                         ondragleave={{action "cellDragLeave"}}
-                         ondrop={{action "cellDrop" rowIdx colIdx}}
-                         ondragend={{action "cellDragEnd"}}>
+                         {{on "click" (fn this.ctrlAction "cellClicked" cell.idx cell.image_url)}}
+                         {{on "dblclick" (fn this.ctrlAction "startCellEdit" cell.idx)}}
+                         {{on "dragstart" (fn this.ctrlAction "cellDragStart" rowIdx colIdx)}}
+                         {{on "dragover" (fn this.ctrlAction "cellDragOver" rowIdx colIdx)}}
+                         {{on "dragleave" (fn this.ctrlAction "cellDragLeave")}}
+                         {{on "drop" (fn this.ctrlAction "cellDrop" rowIdx colIdx)}}
+                         {{on "dragend" (fn this.ctrlAction "cellDragEnd")}}>
                       <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default {{unless cell.has_color "md-board-detail-symbol-card--no-color"}} {{if cell.empty "md-board-detail-symbol-card--empty"}} {{if cell.is_duplicate "md-board-detail-symbol-card--duplicate"}} {{if cell.no_category "md-board-detail-symbol-card--no-category"}}"
                            style={{cell.bg_style}}>
                         {{#unless cell.empty}}
@@ -672,9 +672,9 @@
                                    value={{this._editValue}}
                                    aria-label={{t "Edit button label" key="edit_button_label"}}
                                    draggable="false"
-                                   oninput={{action "cellEditChanged" value="target.value"}}
-                                   onkeydown={{action "cellEditKeydown"}}
-                                   onblur={{action "commitCellEdit"}} />
+                                   {{on "input" (this.ctrlActionEventValue "cellEditChanged" "value")}}
+                                   {{on "keydown" (fn this.ctrlAction "cellEditKeydown")}}
+                                   {{on "blur" (fn this.ctrlAction "commitCellEdit")}} />
                           {{else}}
                             {{!-- The label button has NO own action: a click on it
                                  (mouse OR keyboard) bubbles to the cell wrapper's
@@ -840,8 +840,8 @@
                                              class="md-settings-dropdown-search__input"
                                              placeholder={{t "Search fonts..." key="search_fonts_placeholder"}}
                                              value={{this.display_prefs_font_filter}}
-                                             oninput={{action "filter_display_fonts" value="target.value"}}
-                                             onkeydown={{action "font_dropdown_keydown"}}
+                                             {{on "input" (this.ctrlActionEventValue "filter_display_fonts" "value")}}
+                                             {{on "keydown" (fn this.ctrlAction "font_dropdown_keydown")}}
                                              autocomplete="off"
                                              aria-label={{t "Search fonts" key="search_fonts_label"}} />
                                     </li>
@@ -1009,8 +1009,7 @@
                                         value={{this.custom_paint_color}}
                                         aria-label={{t "Pick paint color" key="board_detail_pick_paint_color"}}
                                         autocomplete="off"
-                                        oninput={{action "update_custom_paint_color" value="target.value"}}
-                                        {{on "change" (fn this.ctrlAction "update_custom_paint_color" value="target.value")}}>
+                                        {{on "input" (this.ctrlActionEventValue "update_custom_paint_color" "value")}}>
                                       <Input id="nb-paint-hex-input"
                                         @value={{this.custom_paint_color}}
                                         placeholder="#hex"
