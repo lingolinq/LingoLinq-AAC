@@ -327,6 +327,22 @@ Then, BEFORE any DNS change:
   trigger** (it means an external writer or offline replay slipped past the freeze; go fix the
   freeze, do not flip DNS).
 
+  **Script: `scripts/gcp/phase5-delta-check.sh`** (built, strictly read-only - every query runs in
+  `BEGIN READ ONLY`, so it is safe against live prod). Forward (gate) mode exits non-zero on any
+  drift:
+
+  ```
+  cloud-sql-proxy --port 5432 lingolinq-prod:us-central1:lingolinq-prod-pg &
+  RENDER_DATABASE_URL='postgres://USER:PASS@RENDER_HOST:5432/lingolinq_production' \
+  CLOUDSQL_DATABASE_URL='postgres://lingolinq_app:PASS@127.0.0.1:5432/lingolinq_production' \
+    ./scripts/gcp/phase5-delta-check.sh           # add --counts to also compare COUNT(*) (slower)
+  ```
+
+  Default tables are `log_sessions boards board_contents` (override with `TABLES=`). On **rollback**
+  (Rollback step 3), the same script in reverse mode enumerates the cutover-window writes that
+  landed only on Cloud SQL, for replay/merge back into Render:
+  `CLOUDSQL_DATABASE_URL=... ./scripts/gcp/phase5-delta-check.sh --since '<DNS-flip timestamp>'`.
+
 ### 8. Front-end decision gate  (tracker 5.3 - DECIDED 2026-06-23)
 
 The web service currently deploys with `--allow-unauthenticated` straight to the `run.app` URL.
@@ -514,7 +530,11 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       hitting prod, hourly `sync-render-env`, **the outbound webhook notifier**
       (`Webhook.notify_all_with_code`), AND a plan for **inbound webhooks** (Stripe/AWS) 503'd
       during the soak (verified against the LIVE Render dashboard, not this doc).
-- [ ] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7).
+- [x] Pre-DNS Render-vs-Cloud-SQL delta check defined and dry-run (step 7): built as
+      `scripts/gcp/phase5-delta-check.sh` (read-only; forward gate exits non-zero on drift, reverse
+      `--since` mode for rollback reconciliation). Dry-run locally 2026-06-24 (zero-delta exit 0,
+      drift exit 1, reverse report, read-only write-rejection all verified). The live pre-DNS run
+      against Render + Cloud SQL is still a gated cutover step.
 - [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
       BOOT_SECRETS if any row exists, else confirmed-empty.
 - [ ] **DNS TTL lowered to 60s** ahead of the window and propagation confirmed.
