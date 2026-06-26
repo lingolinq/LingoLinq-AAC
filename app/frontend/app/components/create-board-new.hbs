@@ -1,4 +1,4 @@
-{{#grid-listener gridEvent=(fn this.ctrlAction "grid_event")}}
+{{#grid-listener gridEvent=(this.ctrlAction "grid_event")}}
   <div class="board_drop new-board--modern md-workspace md-workspace--create-board-new">
     {{!-- Orientation overlay: at ≤768px the build canvas is cramped, so reuse
          the board-detail landscape-rotate overlay (same .md-board-detail-portrait-
@@ -236,7 +236,7 @@
         {{/if}}
       </div>
       {{/unless}}
-      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (fn this.ctrlAction "saveBoard")}}>
+      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (this.ctrlAction "saveBoard")}}>
 
         <section class="nb-section">
           <div class="nb-section__header-inline">
@@ -293,7 +293,7 @@
                     </div>
                   </div>
                   <div class="new-board-for-collapse {{if this.creating_for_someone_else 'new-board-for-collapse--open'}} {{if this.for_user_needs_attention 'new-board-for-collapse--needs-attention'}}" aria-hidden={{unless this.creating_for_someone_else "true" "false"}}>
-                    {{modern-select class="new-board-select--modern new-board-for-select" selectId="new_board_for_user" content=this.user_options selection=this.for_user_id action=(fn this.ctrlAction "setForUserId") ariaLabel=(t "Who is this board for?" key="for_user_aria") placeholder=(t "Select who this board is for" key="select_who_for")}}
+                    {{modern-select class="new-board-select--modern new-board-for-select" selectId="new_board_for_user" content=this.user_options selection=this.for_user_id action=(this.ctrlAction "setForUserId") ariaLabel=(t "Who is this board for?" key="for_user_aria") placeholder=(t "Select who this board is for" key="select_who_for")}}
                   </div>
                 </div>
               {{/if}}
@@ -382,7 +382,7 @@
                              id="new_board_csv_input"
                              class="nb-field__file-input"
                              accept=".csv,text/csv"
-                             {{on "change" (fn this.ctrlAction "csvFileChosen")}}
+                             {{on "change" (this.ctrlAction "csvFileChosen")}}
                              tabindex="-1"
                              aria-hidden="true" />
                     </div>
@@ -450,7 +450,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(fn this.ctrlAction "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter · paste a list · import a csv file" key="labels_chip_placeholder_import")}}
+                  {{label-chips value=this.model.grid.labels onChange=(this.ctrlAction "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter · paste a list · import a csv file" key="labels_chip_placeholder_import")}}
                   {{#if this.label_count}}
                     <div class="nb-labels-disclosure">
                       <button type="button" class="nb-link nb-labels-disclosure__toggle" aria-expanded={{if this.labels_list_open "true" "false"}} {{on "click" (this.ctrlAction "toggleLabelsList")}}>
@@ -463,7 +463,7 @@
                       </button>
                       {{#if this.labels_list_open}}
                         <div class="nb-labels-disclosure__list">
-                          {{label-chips value=this.model.grid.labels onChange=(fn this.ctrlAction "setLabels") showInput=false colors=this.chip_label_colors}}
+                          {{label-chips value=this.model.grid.labels onChange=(this.ctrlAction "setLabels") showInput=false colors=this.chip_label_colors}}
                         </div>
                       {{/if}}
                     </div>
@@ -511,7 +511,7 @@
 
                   <p class="nb-speech__hint">{{t "Click \"Next Word\" between labels to keep them separate." key="speech_hint"}}</p>
 
-                  {{speech-listener content=(fn this.ctrlAction "speech_content") error=(fn this.ctrlAction "speech_error") stop=(fn this.ctrlAction "speech_stop") speech=this.speech}}
+                  {{speech-listener content=(this.ctrlAction "speech_content") error=(this.ctrlAction "speech_error") stop=(this.ctrlAction "speech_stop") speech=this.speech}}
 
                   <ul class="nav nav-pills nb-speech__words">
                     {{#each this.speech.words as |word|}}
@@ -599,20 +599,20 @@
               <div class="md-board-detail-grid md-board-detail-grid--preview {{this.button_text_position_class}} {{this.button_text_size_class}} {{this.button_shape_class}} {{this.preview_background_class}} {{if this.paint_mode 'md-board-detail-grid--paint-mode'}}"
                    style={{this.preview_style}}
                    role="grid"
-                   {{on "dragover" (fn this.ctrlAction "previewDragOver")}}
-                   {{on "drop" (fn this.ctrlAction "previewDrop")}}>
+                   {{on "dragover" (this.ctrlAction "previewDragOver")}}
+                   {{on "drop" (this.ctrlAction "previewDrop")}}>
                 {{#each this.preview_grid as |row rowIdx|}}
                   {{#each row as |cell colIdx|}}
                     <div class="md-board-detail-grid__cell {{if cell.empty "md-board-detail-grid__cell--empty"}} {{if cell.editing "md-board-detail-grid__cell--editing"}} {{if cell.painted "md-board-detail-grid__cell--painted"}} {{if cell.is_duplicate "md-board-detail-grid__cell--duplicate"}} {{if cell.no_category "md-board-detail-grid__cell--no-category"}}"
                          role="gridcell"
                          draggable={{if cell.draggable "true" "false"}}
-                         {{on "click" (fn this.ctrlAction "cellClicked" cell.idx cell.image_url)}}
-                         {{on "dblclick" (fn this.ctrlAction "startCellEdit" cell.idx)}}
-                         {{on "dragstart" (fn this.ctrlAction "cellDragStart" rowIdx colIdx)}}
-                         {{on "dragover" (fn this.ctrlAction "cellDragOver" rowIdx colIdx)}}
-                         {{on "dragleave" (fn this.ctrlAction "cellDragLeave")}}
-                         {{on "drop" (fn this.ctrlAction "cellDrop" rowIdx colIdx)}}
-                         {{on "dragend" (fn this.ctrlAction "cellDragEnd")}}>
+                         {{on "click" (this.ctrlAction "cellClicked" cell.idx cell.image_url)}}
+                         {{on "dblclick" (this.ctrlAction "startCellEdit" cell.idx)}}
+                         {{on "dragstart" (this.ctrlAction "cellDragStart" rowIdx colIdx)}}
+                         {{on "dragover" (this.ctrlAction "cellDragOver" rowIdx colIdx)}}
+                         {{on "dragleave" (this.ctrlAction "cellDragLeave")}}
+                         {{on "drop" (this.ctrlAction "cellDrop" rowIdx colIdx)}}
+                         {{on "dragend" (this.ctrlAction "cellDragEnd")}}>
                       <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default {{unless cell.has_color "md-board-detail-symbol-card--no-color"}} {{if cell.empty "md-board-detail-symbol-card--empty"}} {{if cell.is_duplicate "md-board-detail-symbol-card--duplicate"}} {{if cell.no_category "md-board-detail-symbol-card--no-category"}}"
                            style={{cell.bg_style}}>
                         {{#unless cell.empty}}
@@ -673,8 +673,8 @@
                                    aria-label={{t "Edit button label" key="edit_button_label"}}
                                    draggable="false"
                                    {{on "input" (this.ctrlActionEventValue "cellEditChanged" "value")}}
-                                   {{on "keydown" (fn this.ctrlAction "cellEditKeydown")}}
-                                   {{on "blur" (fn this.ctrlAction "commitCellEdit")}} />
+                                   {{on "keydown" (this.ctrlAction "cellEditKeydown")}}
+                                   {{on "blur" (this.ctrlAction "commitCellEdit")}} />
                           {{else}}
                             {{!-- The label button has NO own action: a click on it
                                  (mouse OR keyboard) bubbles to the cell wrapper's
@@ -841,7 +841,7 @@
                                              placeholder={{t "Search fonts..." key="search_fonts_placeholder"}}
                                              value={{this.display_prefs_font_filter}}
                                              {{on "input" (this.ctrlActionEventValue "filter_display_fonts" "value")}}
-                                             {{on "keydown" (fn this.ctrlAction "font_dropdown_keydown")}}
+                                             {{on "keydown" (this.ctrlAction "font_dropdown_keydown")}}
                                              autocomplete="off"
                                              aria-label={{t "Search fonts" key="search_fonts_label"}} />
                                     </li>
@@ -949,7 +949,7 @@
                                   <div class="md-settings-skin-suboptions">
                                     {{#each this.skin_suboptions as |option|}}
                                       <label class="md-settings-skin-suboption md-settings-skin-suboption--{{option.id}} {{if option.checked 'md-settings-skin-suboption--checked'}}" data-tooltip={{option.label}} aria-label={{option.label}}>
-                                        <input id={{concat "nb-skin-sub-" option.id}} name={{concat "nb-skin-sub-" option.id}} type="checkbox" checked={{option.checked}} {{on "change" (fn this.ctrlAction "toggle_skin_suboption" option)}} class="md-settings-skin-suboption__input" />
+                                        <input id={{concat "nb-skin-sub-" option.id}} name={{concat "nb-skin-sub-" option.id}} type="checkbox" checked={{option.checked}} {{on "change" (this.ctrlAction "toggle_skin_suboption" option)}} class="md-settings-skin-suboption__input" />
                                         <span class="md-settings-skin-suboption__swatch md-settings-skin--{{option.id}}" aria-hidden="true"></span>
                                       </label>
                                     {{/each}}
@@ -1322,7 +1322,7 @@
                              name="labels_order"
                              value="rows"
                              checked={{is_equal this.model.grid.labels_order "rows"}}
-                             {{on "change" (fn this.ctrlAction "setLabelsOrder" "rows")}} />
+                             {{on "change" (this.ctrlAction "setLabelsOrder" "rows")}} />
                       <span class="nb-radio__label">{{t "Rows, left to right" key="rows_first_short"}}</span>
                     </label>
                     <label class="nb-radio">
@@ -1330,7 +1330,7 @@
                              name="labels_order"
                              value="columns"
                              checked={{is_equal this.model.grid.labels_order "columns"}}
-                             {{on "change" (fn this.ctrlAction "setLabelsOrder" "columns")}} />
+                             {{on "change" (this.ctrlAction "setLabelsOrder" "columns")}} />
                       <span class="nb-radio__label">{{t "Columns, top to bottom" key="columns_first_short"}}</span>
                     </label>
                   </div>
@@ -1345,7 +1345,7 @@
                 {{#if this.appState.feature_flags.english_first_board_generation}}
                   <p class="nb-field__hint">{{t "Boards are created in English first for accurate symbol colors. You can translate after saving." key="english_first_board_hint"}}</p>
                 {{else}}
-                  {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(fn this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
+                  {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
                 {{/if}}
               </div>
               <div class="nb-field new-board-field--icon nb-icon-disclosure {{if this.icon_picker_open 'nb-icon-disclosure--open'}}">

@@ -31,9 +31,9 @@
         </span>
         <div style='float: right;'>
           {{#if lesson.completed}}
-            <button class='btn btn-sm btn-default' {{on "click" (fn this.ctrlAction "launch" lesson)}}>{{t "Re-Take" key="re_take"}}</button>
+            <button class='btn btn-sm btn-default' {{on "click" (this.ctrlAction "launch" lesson)}}>{{t "Re-Take" key="re_take"}}</button>
           {{else}}
-            <button class={{if lesson.required "btn btn-primary" "btn btn-default"}} {{on "click" (fn this.ctrlAction "launch" lesson)}}>{{t "Start Training" key="start_training"}}</button>
+            <button class={{if lesson.required "btn btn-primary" "btn btn-default"}} {{on "click" (this.ctrlAction "launch" lesson)}}>{{t "Start Training" key="start_training"}}</button>
           {{/if}}
         </div>
         <div class='details'>

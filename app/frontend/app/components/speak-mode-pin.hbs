@@ -59,7 +59,7 @@
         {{#if this.show_pin}}
           PIN: {{ this.model.actual_pin }}
         {{else}}
-          <a href="#" class="pass_through" {{on "click" (fn this.ctrlAction "reveal_pin")}}>{{t "Reveal PIN" key="pin_reveal_pin"}}</a>
+          <a href="#" class="pass_through" {{on "click" (this.ctrlAction "reveal_pin")}}>{{t "Reveal PIN" key="pin_reveal_pin"}}</a>
         {{/if}}
       {{/unless}}
     </div>

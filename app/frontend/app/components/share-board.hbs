@@ -25,7 +25,7 @@
             <span id="board_link" style="position: absolute; height: 0; left: -1000px;">{{this.board.link}}</span>
           {{/if}}
         </div>
-        {{share-bar url=this.board.link user=this.appState.currentUser element_id="board_link" board=this.board copy_event=(fn this.ctrlAction "copy_event")}}
+        {{share-bar url=this.board.link user=this.appState.currentUser element_id="board_link" board=this.board copy_event=(this.ctrlAction "copy_event")}}
         <div aria-live="polite" aria-atomic="true">
           {{#if this.copy_result.succeeded}}
             <p class="md-modal-status md-modal-status--success">{{t "Link Copied to the Clipboard!" key="link_copied_to_clipboard"}}</p>
@@ -111,7 +111,7 @@
           </div>
         {{/if}}
         <h4 class="md-modal-section-title">{{t "Share with other users" key="share_with_others"}}</h4>
-        <form {{on "submit" (fn this.ctrlAction "share_with_user")}}>
+        <form {{on "submit" (this.ctrlAction "share_with_user")}}>
           <div class="md-modal-field">
             <div style="display: flex; align-items: center; gap: 8px;">
               <label for="share_board_user_name" class="sr-only">{{t "User name to add" key="user_name_to_add"}}</label>

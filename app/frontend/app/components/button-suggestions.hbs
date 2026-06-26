@@ -18,7 +18,7 @@
     {{#if this.has_supervisees}}
       <div class="la-board-ideas-user-select">
         <label class="la-board-ideas-label">{{t "Show Ideas For:" key="show_ideas_for"}}</label>
-        {{user-select select_id="for_user_id" selection=this.for_user_id action=(fn this.ctrlAction "updateForUserId") }}
+        {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
       </div>
     {{/if}}
 

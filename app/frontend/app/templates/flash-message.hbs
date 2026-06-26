@@ -1,18 +1,18 @@
-{{#opening-observer opening=(fn this.ctrlAction "opening")}}
+{{#opening-observer opening=(this.ctrlAction "opening")}}
 <div class="flash" style={{this.extra_styles}}>
   <div class={{this.display_class}}>
     <div class='shadow'></div>
     {{#if this.sticky}}
       {{#if this.redirect.contact}}
         <div style='float: right; width: 100px; margin: -10px -30px -10px 10px;'>
-        <button type='button' class='btn btn-default' data-dismiss='alert' style='width: 100px;' {{on "click" (fn this.ctrlAction "confirm")}}>{{t "Got It" key="got_it"}}</button>
-        <button type='button' class='btn btn-default' data-dismiss='alert' style='width: 100px; margin-top: 2px;' {{on "click" (fn this.ctrlAction "contact")}}>{{t "Contact Us" key="contact_us"}}</button>
+        <button type='button' class='btn btn-default' data-dismiss='alert' style='width: 100px;' {{on "click" (this.ctrlAction "confirm")}}>{{t "Got It" key="got_it"}}</button>
+        <button type='button' class='btn btn-default' data-dismiss='alert' style='width: 100px; margin-top: 2px;' {{on "click" (this.ctrlAction "contact")}}>{{t "Contact Us" key="contact_us"}}</button>
         </div>
       {{else}}
-        <button type='button' class='btn btn-default' data-dismiss='alert' {{on "click" (fn this.ctrlAction "confirm")}} style='float: right; margin: -8px -20px -10px 10px;'>{{t "Got It" key="got_it"}}</button>
+        <button type='button' class='btn btn-default' data-dismiss='alert' {{on "click" (this.ctrlAction "confirm")}} style='float: right; margin: -8px -20px -10px 10px;'>{{t "Got It" key="got_it"}}</button>
       {{/if}}
     {{else if this.action}}
-      <button type='button' class='btn btn-default' data-dismiss='alert' {{on "click" (fn this.ctrlAction "confirm")}} style='float: right; margin: -8px -20px -10px 10px;'>{{this.action.text}}</button>
+      <button type='button' class='btn btn-default' data-dismiss='alert' {{on "click" (this.ctrlAction "confirm")}} style='float: right; margin: -8px -20px -10px 10px;'>{{this.action.text}}</button>
     {{else}}
       <button type="button" class="close" data-dismiss="alert" aria-label={{t "Dismiss" key="dismiss"}}>&times;</button>
     {{/if}}

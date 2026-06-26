@@ -16,12 +16,12 @@
     {{#if this.appState.currentUser.supervisees}}
       <div class="la-batch-recording-section">
         <label class="la-batch-recording-label">{{t "Recording For" key="recording_for"}}</label>
-        {{user-select select_id="for_user_id" selection=this.for_user_id action=(fn this.ctrlAction "updateForUserId") }}
+        {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
       </div>
     {{/if}}
     {{#if this.model.user}}
       {{#if this.model.single}}
-        {{audio-recorder id=this.phrase.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording=(fn this.ctrlAction "decide_on_recording") select_phrase=(fn this.ctrlAction "select_phrase") audio_ready=(fn this.ctrlAction "audio_ready") audio_not_ready=(fn this.ctrlAction "audio_not_ready")}}
+        {{audio-recorder id=this.phrase.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording=(this.ctrlAction "decide_on_recording") select_phrase=(this.ctrlAction "select_phrase") audio_ready=(this.ctrlAction "audio_ready") audio_not_ready=(this.ctrlAction "audio_not_ready")}}
       {{else if this.phrase}}
         <div class="la-batch-recording-nav">
           <button class='la-batch-recording-back-btn' {{on "click" (this.ctrlAction "select_phrase")}}>
@@ -56,7 +56,7 @@
           {{/each}}
           {{#if this.custom_phrase}}
             <div class='la-batch-recording-list-item la-batch-recording-list-item--input'>
-              <Input @insert-newline={{fn this.ctrlAction "confirm_add_phrase"}} @escape-press={{fn this.ctrlAction "cancel_add_phrase"}} id="custom_phrase_text" @type="text" class="la-batch-recording-input" @value={{this.custom_phrase.text}} placeholder={{t "Type a phrase" key="type_a_phrase"}} />
+              <Input @insert-newline={{this.ctrlAction "confirm_add_phrase"}} @escape-press={{this.ctrlAction "cancel_add_phrase"}} id="custom_phrase_text" @type="text" class="la-batch-recording-input" @value={{this.custom_phrase.text}} placeholder={{t "Type a phrase" key="type_a_phrase"}} />
               <button class='la-batch-recording-add-btn' {{on "click" (this.ctrlAction "confirm_add_phrase")}}>{{t "Add" key="add"}}</button>
             </div>
           {{else}}
@@ -107,7 +107,7 @@
     {{else}}
       <div class="la-batch-recording-section">
         <p>{{t "Select the user to record audio for" key="select_recording_user"}}</p>
-        {{user-select select_id="for_user_id" buttons=true selection=this.for_user_id action=(fn this.ctrlAction "updateForUserId") }}
+        {{user-select select_id="for_user_id" buttons=true selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
       </div>
     {{/if}}
   </div>

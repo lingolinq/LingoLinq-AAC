@@ -3957,13 +3957,13 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 ---
 
-## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use classic `{{action …}}`
+## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
 
-**Surface:** `button-settings` and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
 
-**Root cause:** `(fn this.ctrlAction "x")` in co-located templates does not reliably bind under Ember 5 (same class as grid/chrome). Clicks produce no handler and no `data-ember-action` id. Classic `{{action "x"}}` uses the app event dispatcher and works; pair with `type="button"` inside `<form>` and `buttonSettingsModalClickRelease()` in `raw_events.js` when pointer synthesis is suppressed.
+**Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
 
-**Evidence:** `app/components/button-settings.hbs`, `button-settings.js`, `raw_events.js`; task log `2026-06-23-board-detail-edit-toolbar-clicks.md`.
+**Evidence:** `speak-menu.hbs`, `button-settings.hbs`, `raw_events.js`; task logs `2026-06-23-board-detail-edit-toolbar-clicks.md`, `2026-06-26-speak-menu-modal-close-fix.md`.
 
 ---
 

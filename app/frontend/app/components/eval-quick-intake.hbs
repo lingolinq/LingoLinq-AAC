@@ -13,7 +13,7 @@
     </p>
   </header>
 
-  <form class="evq-intake__form" {{on "submit" (fn this.ctrlAction "begin")}}>
+  <form class="evq-intake__form" {{on "submit" (this.ctrlAction "begin")}}>
     <div class="evq-intake__field">
       <p class="evq-intake__legend">{{t "Age band" key="intake_age_band"}}</p>
       <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Age band" key="intake_age_band"}}>

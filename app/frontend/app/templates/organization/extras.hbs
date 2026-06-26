@@ -19,20 +19,20 @@
         {{/if}}
         <div>
           <Input @value={{this.blocked_email_address}} placeholder="email address" class="form-control inline inline-masquerade input-sm" />
-          <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "block_email")}}>{{t "Block Email Address" key="block_email_address"}}</button>
+          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "block_email")}}>{{t "Block Email Address" key="block_email_address"}}</button>
         </div>
       </div>
       <div class='col-sm-6'>
         <h4>{{t "Sale End Date" key="sale_date"}}</h4>
         <div style='margin-bottom: 30px;'>
           <Input @value={{this.sale_cutoff_date}} placeholder="YYYY-MM-DD" class="form-control inline inline-masquerade input-sm" />
-          <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "update_sale_date")}}>{{t "Update" key="update"}}</button>
+          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "update_sale_date")}}>{{t "Update" key="update"}}</button>
         </div>
 
         <h4>{{t "Start Code Lookup" key="start_code_lookup"}}</h4>
         <div style='margin-bottom: 30px;'>
           <Input @value={{this.start_code}} placeholder="start code" class="form-control inline inline-masquerade input-sm" />
-          <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "start_code_lookup")}}>{{t "Lookup" key="lookup"}}</button>
+          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "start_code_lookup")}}>{{t "Lookup" key="lookup"}}</button>
         </div>
 
         <h4>{{t "Blocked Cells" key="blocked_cells"}}</h4>
@@ -53,7 +53,7 @@
         <h4 style='margin-top: 20px;'>{{t "Word Data Import" key="word_data_import"}}</h4>
         <div style='margin-bottom: 30px;'>
           <Input @value={{this.word_data_url}} placeholder="URL" class="form-control inline inline-masquerade input-sm" />
-          <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "word_data_import")}}>{{t "Import" key="import"}}</button>
+          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "word_data_import")}}>{{t "Import" key="import"}}</button>
         </div>
 
       </div>
@@ -67,7 +67,7 @@
       {{#if this.gifts.length}}
       <div style='max-width: 400px; margin-bottom: 2px;'>
         <Input type="text" @value={{this.code_lookup}} placeholder="Find code" class="form-control inline inline-masquerade input-sm" />
-        <button {{on "click" (fn this.ctrlAction "find_code")}} class='btn btn-default'>{{t "Find" key="find"}}</button>
+        <button {{on "click" (this.ctrlAction "find_code")}} class='btn btn-default'>{{t "Find" key="find"}}</button>
       </div>
       <div class='list-group' style='max-width: 400px; margin-bottom: 5px;'>
         {{#each this.gifts as |gift|}}
@@ -174,7 +174,7 @@
         <div style='margin-top: 15px;'>
           <Input @value={{this.gift_name}} placeholder="gift name" class="form-control inline inline-masquerade input-sm" />
           <Input @value={{this.duration}} placeholder="# of years" class="form-control inline inline-masquerade input-sm" />
-          <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "add_gift" "gift")}}>{{t "Create Gift Code" key="create_gift_code"}}</button>
+          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "gift")}}>{{t "Create Gift Code" key="create_gift_code"}}</button>
         </div>
       {{else if this.current_gift_type.bulk_purchase}}
         <div style='margin-top: 15px;'>
@@ -197,7 +197,7 @@
           <span style='display: inline-block; width: 304px;'>
             <Input @value={{this.memo}} placeholder="memo" class="form-control inline input-sm" />
           </span>
-          <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "add_gift" "purchase")}}>{{t "Create Purchase Page" key="create_purchase_page"}}</button>
+          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "purchase")}}>{{t "Create Purchase Page" key="create_purchase_page"}}</button>
         </div>
       {{else if this.current_gift_type.discount}}
         <div style='margin-top: 15px;'>
@@ -216,7 +216,7 @@
             <span style='width: 150px; display: inline-block; text-align: right; padding-right: 5px;'>{{t "expires (optional)" key="expires_optional"}}</span>
             <Input type="date" @value={{this.expires}} placeholder="(optional)" class="form-control inline inline-masquerade input-sm" />
           </span>
-          <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "add_gift" "discount")}}>{{t "Create Discount Code" key="create_discount_code"}}</button>
+          <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "discount")}}>{{t "Create Discount Code" key="create_discount_code"}}</button>
         </div>
       {{else if this.current_gift_type.multi_code}}
         <div style='margin-top: 15px;'>
@@ -231,7 +231,7 @@
           <div style='margin-bottom: 5px;'>
             <Input @value={{this.org_id}} placeholder="org_id" class="form-control inline inline-masquerade input-sm" />
             <Input @value={{this.memo}} placeholder="memo" class="form-control inline inline-masquerade input-sm" />
-            <button class="btn btn-default btn-sm" {{on "click" (fn this.ctrlAction "add_gift" "multi_code")}}>{{t "Create Multi-Code Batch" key="create_multi_code_batch"}}</button>
+            <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "multi_code")}}>{{t "Create Multi-Code Batch" key="create_multi_code_batch"}}</button>
           </div>
         </div>
       {{/if}}

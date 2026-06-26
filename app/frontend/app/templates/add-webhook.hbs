@@ -1,12 +1,12 @@
-{{#modal-dialog action=(fn this.ctrlAction "close") opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing")}}
+{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
   <div class="modal-header">
-      <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
+      <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>
       {{t "Add Event Handler" key="add_webhook"}}
     </h3>
   </div>
   <div class="modal-body">
-   <form class="form-horizontal"  {{on "submit" (fn this.ctrlAction "save")}}>
+   <form class="form-horizontal"  {{on "submit" (this.ctrlAction "save")}}>
       <div class="form-group">
         <label for="webhook_name" class="col-sm-3 control-label">{{t "Handler Name" key="handler_name"}}</label>
         <div class="col-sm-9" style='max-width: 300px;'>
@@ -56,13 +56,13 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{on "click" (fn this.ctrlAction "save")}} class='btn btn-primary' disabled={{this.status.saving}}>
+    <button {{on "click" (this.ctrlAction "save")}} class='btn btn-primary' disabled={{this.status.saving}}>
       {{#if this.status.saving}}
         {{t "Creating Event Handler..." key="creating_webhook"}}
       {{else}}
         {{t "Create Event Handler" key="create_webhook"}}
       {{/if}}
     </button>
-    <button {{on "click" (fn this.ctrlAction "close")}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    <button {{on "click" (this.ctrlAction "close")}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

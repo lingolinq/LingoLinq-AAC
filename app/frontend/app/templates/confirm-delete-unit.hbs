@@ -1,6 +1,6 @@
-{{#modal-dialog action=(fn this.ctrlAction "close") opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing")}}
+{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
   <div class="modal-header">
-    <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
+    <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     {{#if this.model.lesson}}
       <h3>{{t "Remove Training" key="remove_training"}}</h3>
     {{else}}
@@ -23,7 +23,7 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{on "click" (fn this.ctrlAction "confirm")}} disabled={{this.status.removing}}>
+    <button class='btn btn-primary' {{on "click" (this.ctrlAction "confirm")}} disabled={{this.status.removing}}>
       {{#if this.model.lesson}}
         {{#if this.status.removing}}
           {{t "Removing Training..." key="removing_training"}}
@@ -42,7 +42,7 @@
         {{/if}}
       {{/if}}
     </button>
-    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}
 

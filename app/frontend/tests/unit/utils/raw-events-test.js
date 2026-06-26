@@ -161,6 +161,55 @@ module('Unit | Utility | raw-events', function(hooks) {
     delete buttonTracker.lastReleaseEvent;
   });
 
+  test('defer_board_detail_chrome_click_to_ember does not defer My Board Collection to Ember', function(assert) {
+    var view = document.createElement('div');
+    view.className = 'board-detail-view';
+    var collection = document.createElement('div');
+    collection.className = 'md-board-collection';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'md-board-collection__back';
+    collection.appendChild(btn);
+    view.appendChild(collection);
+    document.body.appendChild(view);
+
+    buttonTracker.appState = {
+      get: function(key) { return key === 'speak_mode'; }
+    };
+    buttonTracker.lastReleaseEvent = { type: 'mouseup' };
+
+    assert.notOk(buttonTracker.defer_board_detail_chrome_click_to_ember({ dom: btn }, 'click'),
+      'collection must route through boardDetailChromeRelease, not defer');
+
+    if(view.parentNode) { view.parentNode.removeChild(view); }
+    delete buttonTracker.appState;
+    delete buttonTracker.lastReleaseEvent;
+  });
+
+  test('resolve_board_detail_chrome_action maps My Board Collection back and row', function(assert) {
+    var back = document.createElement('button');
+    back.className = 'md-board-collection__back';
+    document.body.appendChild(back);
+
+    var resolvedBack = buttonTracker.resolve_board_detail_chrome_action(back);
+    assert.ok(resolvedBack);
+    assert.equal(resolvedBack.action, 'close_board_collection');
+    assert.deepEqual(resolvedBack.args, []);
+
+    var item = document.createElement('button');
+    item.className = 'md-board-collection__item';
+    item.setAttribute('data-bd-arg', 'example/quick-core-60');
+    document.body.appendChild(item);
+
+    var resolvedItem = buttonTracker.resolve_board_detail_chrome_action(item);
+    assert.ok(resolvedItem);
+    assert.equal(resolvedItem.action, 'select_board_from_collection');
+    assert.deepEqual(resolvedItem.args, ['example/quick-core-60']);
+
+    if(back.parentNode) { back.parentNode.removeChild(back); }
+    if(item.parentNode) { item.parentNode.removeChild(item); }
+  });
+
   test('resolve_board_detail_chrome_action maps edit panel Done Editing', function(assert) {
     var btn = document.createElement('button');
     btn.className = 'md-board-edit-session__btn md-board-edit-session__btn--save';

@@ -70578,7 +70578,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: rgba($la-navy, 0.65);
 }
 /* Home-board indicator. Mirrors the Glyphicon-home pattern from
-   `templates/components/board-icon.hbs` so the user's home board
+   `app/components/board-icon.hbs` so the user's home board
    reads consistently across surfaces. Sits between the name and the
    total-buttons pill, with a brand-teal tint so the eye lands on it
    first when scanning the My Boards list (home is always first row,

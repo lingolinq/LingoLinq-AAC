@@ -72,13 +72,13 @@
           {{else}}
             <div class="md-org-report-row md-org-report-row--user">
               {{#if this.removable_report}}
-                <button type="button" class="md-org-report-row__remove" {{on "click" (fn this.ctrlAction "remove_report_user" item)}} aria-label={{t "Remove user" key="remove_user"}}>
+                <button type="button" class="md-org-report-row__remove" {{on "click" (this.ctrlAction "remove_report_user" item)}} aria-label={{t "Remove user" key="remove_user"}}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               {{/if}}
               {{#if this.model.premium}}
                 {{#if item.org_status_class}}
-                  <button type="button" class="md-org-report-row__status" {{on "click" (fn this.ctrlAction "set_status" item)}}>
+                  <button type="button" class="md-org-report-row__status" {{on "click" (this.ctrlAction "set_status" item)}}>
                     <span class={{item.org_status_class}} style="font-size: 18px;"></span>
                   </button>
                 {{/if}}
@@ -136,13 +136,13 @@
             </div>
             <span>{{t "Loading..." key="loading"}}</span>
           {{else}}
-            <button type="button" class="md-org-btn md-org-btn--outline" {{on "click" (fn this.ctrlAction "load_more")}}>{{t "Load more" key="load_more"}}</button>
+            <button type="button" class="md-org-btn md-org-btn--outline" {{on "click" (this.ctrlAction "load_more")}}>{{t "Load more" key="load_more"}}</button>
           {{/if}}
         </div>
       {{/if}}
       {{#if this.user_report}}
         <div class="md-org-report-download">
-          <a href="#" {{on "click" (fn this.ctrlAction "download_list")}} class="md-org-report-download__link">
+          <a href="#" {{on "click" (this.ctrlAction "download_list")}} class="md-org-report-download__link">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             {{t "Download list as a csv" key="download_as_csv"}}
           </a>

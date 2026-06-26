@@ -17,7 +17,7 @@
 
         <div class="la-contact-form-wrapper">
           <div class="la-about-glass-card la-contact-form-card">
-            <form class="la-contact-form" {{on "submit" (fn this.ctrlAction "submit_message")}}>
+            <form class="la-contact-form" {{on "submit" (this.ctrlAction "submit_message")}}>
               <div class="la-contact-form__row">
                 <label for="contact_name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
                 <Input @value={{this.name}} class="la-contact-input" id="contact_name" placeholder={{t "Your Name" key="your_name"}} />
@@ -53,7 +53,7 @@
               </div>
               <div class="la-contact-form__actions">
                 <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
-                <button disabled={{this.disabled}} type="button" class="la-btn la-btn--ghost" {{on "click" (fn this.ctrlAction "reset")}}>{{t "Clear" key="clear"}}</button>
+                <button disabled={{this.disabled}} type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "reset")}}>{{t "Clear" key="clear"}}</button>
               </div>
             </form>
           </div>

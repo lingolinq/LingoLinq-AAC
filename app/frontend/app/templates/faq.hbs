@@ -24,7 +24,7 @@
             <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">✨</div>
             <h3 class="la-faq-article__title" id="faq-article-ai-boards-heading">{{t "What are some interesting and engaging speech boards I can create using AI board generation?" key="faq_ai_boards_q"}}</h3>
             {{#unless this.articleAiBoardsExpanded}}
-              <button type="button" class="la-faq-read-toggle" {{on "click" (fn this.ctrlAction "toggleArticleAiBoards")}} aria-expanded="false" aria-controls="faq-article-ai-boards-body">{{t "Read more..." key="faq_read_more"}}</button>
+              <button type="button" class="la-faq-read-toggle" {{on "click" (this.ctrlAction "toggleArticleAiBoards")}} aria-expanded="false" aria-controls="faq-article-ai-boards-body">{{t "Read more..." key="faq_read_more"}}</button>
             {{/unless}}
             {{#if this.articleAiBoardsExpanded}}
               <div id="faq-article-ai-boards-body" class="la-faq-article-body" role="region" aria-labelledby="faq-article-ai-boards-heading">
@@ -41,7 +41,7 @@
                 </ul>
                 <p class="la-faq-card__text">{{t "After generation, edit ruthlessly: rename buttons in the communicator's voice, swap symbols so they read quickly, and link back to a stable home or backup board. Start with one situation that matters this month, then duplicate and adapt once it feels comfortable." key="faq_ai_boards_p3"}}</p>
               </div>
-              <button type="button" class="la-faq-read-toggle la-faq-read-toggle--after" {{on "click" (fn this.ctrlAction "toggleArticleAiBoards")}} aria-expanded="true" aria-controls="faq-article-ai-boards-body">{{t "Read less" key="faq_read_less"}}</button>
+              <button type="button" class="la-faq-read-toggle la-faq-read-toggle--after" {{on "click" (this.ctrlAction "toggleArticleAiBoards")}} aria-expanded="true" aria-controls="faq-article-ai-boards-body">{{t "Read less" key="faq_read_less"}}</button>
             {{/if}}
           </article>
         </div>
@@ -58,7 +58,7 @@
             <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">💬</div>
             <h3 class="la-faq-article__title" id="faq-article-aac-heading">{{t "What Is AAC? (A Simple Guide for Parents & Caregivers)" key="faq_aac_q"}}</h3>
             {{#unless this.articleAacGuideExpanded}}
-              <button type="button" class="la-faq-read-toggle" {{on "click" (fn this.ctrlAction "toggleArticleAacGuide")}} aria-expanded="false" aria-controls="faq-article-aac-body">{{t "Read more..." key="faq_read_more"}}</button>
+              <button type="button" class="la-faq-read-toggle" {{on "click" (this.ctrlAction "toggleArticleAacGuide")}} aria-expanded="false" aria-controls="faq-article-aac-body">{{t "Read more..." key="faq_read_more"}}</button>
             {{/unless}}
             {{#if this.articleAacGuideExpanded}}
               <div id="faq-article-aac-body" class="la-faq-article-body" role="region" aria-labelledby="faq-article-aac-heading">
@@ -212,7 +212,7 @@
                   <li>{{t "The goal isn’t perfection—it’s communication" key="faq_aac_final_li_4"}}</li>
                 </ul>
               </div>
-              <button type="button" class="la-faq-read-toggle la-faq-read-toggle--after" {{on "click" (fn this.ctrlAction "toggleArticleAacGuide")}} aria-expanded="true" aria-controls="faq-article-aac-body">{{t "Read less" key="faq_read_less"}}</button>
+              <button type="button" class="la-faq-read-toggle la-faq-read-toggle--after" {{on "click" (this.ctrlAction "toggleArticleAacGuide")}} aria-expanded="true" aria-controls="faq-article-aac-body">{{t "Read less" key="faq_read_less"}}</button>
             {{/if}}
           </article>
         </div>

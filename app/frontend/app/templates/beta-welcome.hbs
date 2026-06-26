@@ -68,7 +68,7 @@
         </div>
 
         <div class="register-btn-wrap beta-welcome-actions">
-          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{on "click" (fn this.ctrlAction "acceptAgreement")}}>
+          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{on "click" (this.ctrlAction "acceptAgreement")}}>
             {{t "Get Started" key="get_started"}}
           </button>
         </div>

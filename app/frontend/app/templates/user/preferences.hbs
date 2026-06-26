@@ -1167,7 +1167,7 @@
             <div>
               <p class="form-control-static" style="margin-top: 0; margin-bottom: 8px; font-size: 1.05rem;">{{t "Pick an action from the list, or type a board path (username/boardkey)." key="sidebar_manual_add_help"}}</p>
               <div style="margin-bottom: 10px;">
-                {{bound-select select_class="form-control" select_id="sidebar_action_picker" content=this.sidebar_action_picker_options prompt=(t "Choose an action..." key="sidebar_action_picker_prompt") action=(fn this.ctrlAction "pick_sidebar_action_code")}}
+                {{bound-select select_class="form-control" select_id="sidebar_action_picker" content=this.sidebar_action_picker_options prompt=(t "Choose an action..." key="sidebar_action_picker_prompt") action=(this.ctrlAction "pick_sidebar_action_code")}}
               </div>
               <span style='display: inline-block; width: calc(100% - 65px);'>
                 <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder={{t "add board key or action code" key="sidebar_add_placeholder"}} aria-label={{t "add board key or action code" key="sidebar_add_placeholder"}} />

@@ -50,12 +50,12 @@
 
       <div class="la-support-form-section">
         <h3 class="la-support-form-title">{{t "Report a Problem/Share Feedback" key="problem_or_feedback"}}</h3>
-        <form class="la-contact-form" {{on "submit" (fn this.ctrlAction "submit_message")}}>
+        <form class="la-contact-form" {{on "submit" (this.ctrlAction "submit_message")}}>
           {{#if this.appState.sessionUser}}
             {{#if this.appState.sessionUser.supervisors}}
               <div class="la-contact-form__row">
                 <label for="author_id" class="la-contact-form__label">{{t "Send Reply To" key="send_reply_to"}}</label>
-                {{bound-select select_class="la-contact-input" select_id="author_id" content=this.author_ids selection=this.author_id action=(fn this.ctrlAction "updateAuthorId") }}
+                {{bound-select select_class="la-contact-input" select_id="author_id" content=this.author_ids selection=this.author_id action=(this.ctrlAction "updateAuthorId") }}
               </div>
             {{/if}}
           {{/if}}

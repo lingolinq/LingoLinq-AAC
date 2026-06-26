@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-SKIP_PATH_PARTS = %w[modals.legacy archive].freeze
+SKIP_PATH_PARTS = %w[archive].freeze
 
 HELPER_SNIPPET = <<~JS
     this.ctrlActionEventValue = function(actionName, targetProp) {
@@ -51,42 +51,42 @@ def migrate_content(content)
     )
     content.gsub!(
       /#{attr}=\{\{action "([^"]+)" ([^}]+)\}\}/,
-      "{{on \"#{event}\" (fn this.ctrlAction \"\\1\" \\2)}}"
+      "{{on \"#{event}\" (this.ctrlAction \"\\1\" \\2)}}"
     )
     content.gsub!(
       /#{attr}=\{\{action "([^"]+)"\}\}/,
-      "{{on \"#{event}\" (fn this.ctrlAction \"\\1\")}}"
+      "{{on \"#{event}\" (this.ctrlAction \"\\1\")}}"
     )
   end
 
   # {{action with on= modifier (legacy form helper)
   content.gsub!(
     /\{\{action "([^"]+)" on="submit"\}\}/,
-    '{{on "submit" (fn this.ctrlAction "\1")}}'
+    '{{on "submit" (this.ctrlAction "\1")}}'
   )
   content.gsub!(
     /\{\{action "([^"]+)" ([^}]+) on="submit"\}\}/,
-    '{{on "submit" (fn this.ctrlAction "\1" \2)}}'
+    '{{on "submit" (this.ctrlAction "\1" \2)}}'
   )
   content.gsub!(
     /\{\{action "([^"]+)" on="keyDown"\}\}/,
-    '{{on "keydown" (fn this.ctrlAction "\1")}}'
+    '{{on "keydown" (this.ctrlAction "\1")}}'
   )
 
   # element {{action}} with single quotes
   content.gsub!(
     /\{\{action '([^']+)' ([^}]+)\}\}/,
-    '{{on "click" (fn this.ctrlAction "\1" \2)}}'
+    '{{on "click" (this.ctrlAction "\1" \2)}}'
   )
 
   # element {{action}} - multi-arg then simple
   content.gsub!(
     /\{\{action "([^"]+)" ([^}]+)\}\}/,
-    '{{on "click" (fn this.ctrlAction "\1" \2)}}'
+    '{{on "click" (this.ctrlAction "\1" \2)}}'
   )
   content.gsub!(
     /\{\{action "([^"]+)"\}\}/,
-    '{{on "click" (fn this.ctrlAction "\1")}}'
+    '{{on "click" (this.ctrlAction "\1")}}'
   )
 
   content
@@ -119,7 +119,6 @@ updated_js = []
 
 Dir.glob('app/{components,templates}/**/*.hbs').sort.each do |path|
   next if skip?(path)
-  next if path == 'app/templates/components/dashboard/authenticated-view.hbs'
 
   content = File.read(path)
   new_content = migrate_content(content.dup)

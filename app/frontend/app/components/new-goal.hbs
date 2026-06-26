@@ -159,7 +159,7 @@
       <form class="md-modal-form">
         <div class="md-modal-field">
           <label for="new_goal_type" class="md-modal-label">{{t "Type" key="type"}}</label>
-          {{modern-select class="md-modal-modern-select" selectId="new_goal_type" content=this.simple_types selection=this.goal.simple_type action=(fn this.ctrlAction "updateGoalSimpleType") ariaLabel=(t "Goal type" key="goal_type_aria") placeholder=(t "[ Select a Goal Type ]" key="select_a_goal_type")}}
+          {{modern-select class="md-modal-modern-select" selectId="new_goal_type" content=this.simple_types selection=this.goal.simple_type action=(this.ctrlAction "updateGoalSimpleType") ariaLabel=(t "Goal type" key="goal_type_aria") placeholder=(t "[ Select a Goal Type ]" key="select_a_goal_type")}}
         </div>
         {{#if this.goal_type.strings_list}}
           <div class="md-modal-field">
@@ -202,7 +202,7 @@
           {{else}}
             <div class="md-modal-field">
               <label class="md-modal-label">{{t "Video" key="video"}}</label>
-              {{video-recorder user=this.model.user video_ready=(fn this.ctrlAction "video_ready") video_not_ready=(fn this.ctrlAction "video_not_ready")}}
+              {{video-recorder user=this.model.user video_ready=(this.ctrlAction "video_ready") video_not_ready=(this.ctrlAction "video_not_ready")}}
             </div>
           {{/if}}
           <div class="md-modal-field">

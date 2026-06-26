@@ -1,5 +1,5 @@
 <h3 class="md-org-section-title" style="text-align: center; margin-bottom: 24px;">{{t "Edit Organization Details" key="edit_org_details"}}</h3>
-<form class="md-org-settings-form" {{on "submit" (fn this.ctrlAction "save")}}>
+<form class="md-org-settings-form" {{on "submit" (this.ctrlAction "save")}}>
 
   {{!-- ═══════════ General Settings ═══════════ --}}
   <section class="md-org-settings-card">
@@ -168,7 +168,7 @@
             {{t "None Defined" key="none_defined"}}
           {{/if}}
         </span>
-        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "manage_start_codes")}}>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
+        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "manage_start_codes")}}>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
       </div>
     </div>
 
@@ -182,7 +182,7 @@
             {{t "None Defined" key="none_defined"}}
           {{/if}}
         </span>
-        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (fn this.ctrlAction "modify_templates")}}>{{t "Modify Templates" key="modify_templates"}}</button>
+        <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "modify_templates")}}>{{t "Modify Templates" key="modify_templates"}}</button>
       </div>
     </div>
   </section>
@@ -331,7 +331,7 @@
         {{t "Update Organization" key="update_org"}}
       {{/if}}
     </button>
-    <button type="button" class="md-org-btn md-org-btn--outline" {{on "click" (fn this.ctrlAction "cancel")}}>{{t "Cancel" key="cancel"}}</button>
+    <button type="button" class="md-org-btn md-org-btn--outline" {{on "click" (this.ctrlAction "cancel")}}>{{t "Cancel" key="cancel"}}</button>
     {{#if this.error}}
       <p class="md-org-error" style="margin-top: 8px;">{{t "There was an unexpected error while updating the organization" key="error_updating_org"}}</p>
     {{/if}}

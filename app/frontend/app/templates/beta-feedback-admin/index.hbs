@@ -44,7 +44,7 @@
                           {{/each}}
                         </select>
                       </label>
-                      <button type="button" class="btn btn-default la-beta-feedback-admin__clear" {{on "click" (fn this.ctrlAction "clearFilters")}}>{{t "Clear filters" key="beta_feedback_admin_clear_filters"}}</button>
+                      <button type="button" class="btn btn-default la-beta-feedback-admin__clear" {{on "click" (this.ctrlAction "clearFilters")}}>{{t "Clear filters" key="beta_feedback_admin_clear_filters"}}</button>
                     </div>
                   </div>
 
@@ -58,37 +58,37 @@
                         <thead>
                           <tr>
                             <th scope="col">
-                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (fn this.ctrlAction "toggleSort" "created_at")}}>
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (this.ctrlAction "toggleSort" "created_at")}}>
                                 {{t "Date" key="beta_feedback_admin_col_date"}}
                                 {{#if (is-equal this.sortColumn "created_at")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
                               </button>
                             </th>
                             <th scope="col">
-                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (fn this.ctrlAction "toggleSort" "beta_submitter_name")}}>
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (this.ctrlAction "toggleSort" "beta_submitter_name")}}>
                                 {{t "Name" key="name"}}
                                 {{#if (is-equal this.sortColumn "beta_submitter_name")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
                               </button>
                             </th>
                             <th scope="col">
-                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (fn this.ctrlAction "toggleSort" "beta_feedback_type")}}>
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (this.ctrlAction "toggleSort" "beta_feedback_type")}}>
                                 {{t "Category" key="beta_feedback_admin_col_category"}}
                                 {{#if (is-equal this.sortColumn "beta_feedback_type")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
                               </button>
                             </th>
                             <th scope="col">
-                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (fn this.ctrlAction "toggleSort" "beta_severity")}}>
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (this.ctrlAction "toggleSort" "beta_severity")}}>
                                 {{t "Severity" key="beta_feedback_admin_col_severity"}}
                                 {{#if (is-equal this.sortColumn "beta_severity")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
                               </button>
                             </th>
                             <th scope="col">
-                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (fn this.ctrlAction "toggleSort" "beta_priority")}}>
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (this.ctrlAction "toggleSort" "beta_priority")}}>
                                 {{t "Priority" key="beta_feedback_admin_col_priority"}}
                                 {{#if (is-equal this.sortColumn "beta_priority")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
                               </button>
                             </th>
                             <th scope="col">
-                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (fn this.ctrlAction "toggleSort" "beta_subject")}}>
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{on "click" (this.ctrlAction "toggleSort" "beta_subject")}}>
                                 {{t "Summary" key="beta_feedback_admin_col_summary"}}
                                 {{#if (is-equal this.sortColumn "beta_subject")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
                               </button>
@@ -122,9 +122,9 @@
                               <td class="la-beta-feedback-admin__actions">
                                 <LinkTo @route="beta-feedback-admin.entry" @model={{row.id}} class="btn btn-default btn-sm">{{t "Details" key="beta_feedback_admin_details_link"}}</LinkTo>
                                 {{#if (is-equal this.filterType "hidden")}}
-                                  <button type="button" class="btn btn-default btn-sm la-beta-feedback-admin__unhide-btn" {{on "click" (fn this.ctrlAction "unhideRow" row)}}>{{t "Unhide" key="beta_feedback_admin_unhide"}}</button>
+                                  <button type="button" class="btn btn-default btn-sm la-beta-feedback-admin__unhide-btn" {{on "click" (this.ctrlAction "unhideRow" row)}}>{{t "Unhide" key="beta_feedback_admin_unhide"}}</button>
                                 {{else}}
-                                  <button type="button" class="btn btn-default btn-sm la-beta-feedback-admin__hide-btn" {{on "click" (fn this.ctrlAction "hideRow" row)}}>{{t "Hide" key="beta_feedback_admin_hide"}}</button>
+                                  <button type="button" class="btn btn-default btn-sm la-beta-feedback-admin__hide-btn" {{on "click" (this.ctrlAction "hideRow" row)}}>{{t "Hide" key="beta_feedback_admin_hide"}}</button>
                                 {{/if}}
                               </td>
                             </tr>

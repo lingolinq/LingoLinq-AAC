@@ -1,10 +1,10 @@
-{{#modal-dialog action=(fn this.ctrlAction "close") opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing")}}
+{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
   <div class="modal-header">
-    <button type="button" class="close" {{on "click" (fn this.ctrlAction "close")}}>&times;</button>
+    <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "Edit Recording Details" key="edit_sound_details"}}</h3>
   </div>
   <div class="modal-body">
-    <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "save")}}>
+    <form class="form-horizontal" {{on "submit" (this.ctrlAction "save")}}>
       <div class="form-group">
         <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-7">
@@ -34,7 +34,7 @@
               {{t "Update Recording" key="update_sound"}}
             {{/if}}
           </button>
-          <button class='btn btn-default' {{on "click" (fn this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
           {{#if this.error}}
             <p class='text-danger'>{{t "There was an unexpected error while updating the recording" key="error_updating_sound"}}</p>
           {{/if}}

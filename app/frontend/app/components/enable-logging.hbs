@@ -39,7 +39,7 @@
 
           <div class="md-modal-field">
             <label for="research_primary_use" class="md-modal-label">{{t "Primary Reason for Using AAC" key="primary_reason_for_aac_user"}}</label>
-            {{bound-select select_class="md-modal-select" select_id="research_primary_use" content=this.research_uses selection=this.research_use_selection_id action=(fn this.ctrlAction "updateResearchUse")}}
+            {{bound-select select_class="md-modal-select" select_id="research_primary_use" content=this.research_uses selection=this.research_use_selection_id action=(this.ctrlAction "updateResearchUse")}}
             {{#if this.research_use_requires_other}}
               <div class="md-modal-field">
                 <label for="research_primary_use_other" class="md-modal-label">{{t "Please specify (sent to researchers as entered)" key="research_primary_use_please_specify"}}</label>
@@ -50,12 +50,12 @@
 
           <div class="md-modal-field">
             <label for="research_age" class="md-modal-label">{{t "Current Age of the AAC User" key="current_age_of_aac_user"}}</label>
-            {{bound-select select_class="md-modal-select" select_id="research_age" content=this.research_ages selection=this.research_age action=(fn this.ctrlAction "updateResearchAge")}}
+            {{bound-select select_class="md-modal-select" select_id="research_age" content=this.research_ages selection=this.research_age action=(this.ctrlAction "updateResearchAge")}}
           </div>
 
           <div class="md-modal-field">
             <label for="research_experience" class="md-modal-label">{{t "Existng Experience with AAC" key="existing_experience_with_aac"}}</label>
-            {{bound-select select_class="md-modal-select" select_id="research_experience" content=this.research_experiences selection=this.research_experience action=(fn this.ctrlAction "updateResearchExperience")}}
+            {{bound-select select_class="md-modal-select" select_id="research_experience" content=this.research_experiences selection=this.research_experience action=(this.ctrlAction "updateResearchExperience")}}
           </div>
         </div>
       {{/if}}

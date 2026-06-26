@@ -2,7 +2,7 @@
   <div class="la-find-button-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Find a Button" key="find_a_button"}}</span>
-      <button type="button" class="la-modal-close" {{on "click" (fn this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>✕</button>
+      <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>✕</button>
     </div>
     <div class="la-find-button-body">
       <label for="button_search_string" class="sr-only">{{t "Search for buttons" key="search_for_buttons"}}</label>
@@ -11,7 +11,7 @@
         <div class="la-find-button-results" role="region" aria-live="polite" aria-atomic="false" aria-label={{t "Search results" key="search_results"}}>
           {{#if this.results}}
             {{#each this.results as |result|}}
-              <button type="button" {{on "click" (fn this.ctrlAction "pick_result" result)}} class="la-find-button-result">
+              <button type="button" {{on "click" (this.ctrlAction "pick_result" result)}} class="la-find-button-result">
                 {{#if result.sequence}}
                   <div class="la-find-button-result__images">
                     {{#each result.steps as |step|}}
@@ -91,7 +91,7 @@
       {{/if}}
     </div>
     <div class="la-find-button-footer">
-      <button type="button" class="la-find-button-cancel" {{on "click" (fn this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+      <button type="button" class="la-find-button-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
     </div>
   </div>
 {{/modal-dialog}}

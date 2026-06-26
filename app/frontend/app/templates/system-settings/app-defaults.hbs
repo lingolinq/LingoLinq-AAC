@@ -28,6 +28,6 @@
   </div>
 
   <div class="la-system-settings__actions">
-    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (fn this.ctrlAction "saveDefaults")}}>{{t "Save" key="save"}}</button>
+    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveDefaults")}}>{{t "Save" key="save"}}</button>
   </div>
 {{/if}}

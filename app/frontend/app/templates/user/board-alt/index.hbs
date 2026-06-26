@@ -1,4 +1,4 @@
-{{#button-listener computeHeight=(fn this.ctrlAction "compute_height") buttonEvent=(fn this.ctrlAction "button_event")}}
+{{#button-listener computeHeight=(this.ctrlAction "compute_height") buttonEvent=(this.ctrlAction "button_event")}}
 {{#if this.model.integration}}
   {{#unless this.app_state.sessionUser.currently_premium_or_premium_supporter}}
     <!-- only show integrations for currently-premium users, or supervisors with at least one premium user? -->
@@ -18,7 +18,7 @@
 {{else if this.model.id}}
   {{#if this.teaser_description}}
     <div id="board_description">
-      <span role="button" tabindex="0" {{on "click" (fn this.ctrlAction "boardDetails")}}>
+      <span role="button" tabindex="0" {{on "click" (this.ctrlAction "boardDetails")}}>
         {{#unless this.model.public}}
           {{#if this.model.protected_material}}
             <span class="glyphicon glyphicon-lock"></span>
@@ -36,12 +36,12 @@
     </div>
   {{/if}}
   <div id="stash_hover" style="position: absolute;">
-    <div role="button" tabindex="0" {{on "click" (fn this.ctrlAction "stash_button")}} class='option'>
+    <div role="button" tabindex="0" {{on "click" (this.ctrlAction "stash_button")}} class='option'>
       <span class="glyphicon glyphicon-copy"></span>
       {{t "Button<br>Stash" key="copy_to_button_stash"}}
       <span style="clear: left;"></span>
     </div>
-    <div role="button" tabindex="0" {{on "click" (fn this.ctrlAction "word_data")}} class='option'>
+    <div role="button" tabindex="0" {{on "click" (this.ctrlAction "word_data")}} class='option'>
       <span class="glyphicon glyphicon-book"></span>
       {{t "Word<br>Data" key="view_word_data"}}
       <span style="clear: left;"></span>
@@ -52,7 +52,7 @@
       {{#if this.suggestions.pending}}
       {{else if this.suggestions.ready}}
         {{#each this.suggestions.list as |suggestion|}}
-          <a href="#" class="suggestion" {{on "click" (fn this.ctrlAction "complete_word" suggestion)}}>
+          <a href="#" class="suggestion" {{on "click" (this.ctrlAction "complete_word" suggestion)}}>
             {{#if this.show_word_suggestion_images}}
               <span class='image_holder'>
                 {{#if suggestion.image}}
@@ -90,7 +90,7 @@
         <p>{{t "This board hasn't been set up yet, or doesn't have any visible buttons." key="no_visible_buttons"}}</p>
         {{#if this.board.permissions.edit}}
           {{#unless this.app_state.speak_mode}}
-            <button class='btn btn-default btn-lg' {{on "click" (fn this.ctrlAction "toggleEditMode")}}>{{t "Edit this Board" key="edit_this_board"}}</button>
+            <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "toggleEditMode")}}>{{t "Edit this Board" key="edit_this_board"}}</button>
           {{/unless}}
         {{/if}}
       </div>
@@ -148,7 +148,7 @@
             {{/each}}
           {{else}}
             {{#if this.app_state.currentUser.preferences.device.canvas_render}}
-              {{board-canvas id="board_canvas" onInsert=(fn this.ctrlAction "redraw") tabindex="0"}}
+              {{board-canvas id="board_canvas" onInsert=(this.ctrlAction "redraw") tabindex="0"}}
             {{else}}
               {{#each this.ordered_buttons as |row|}}
                 <div class="button_row">
@@ -179,7 +179,7 @@
   {{#if this.model.retrying}}
     {{t "Trying again..." key="trying_again"}}
   {{else}}
-    <a href="#" {{on "click" (fn this.ctrlAction "re_transition")}}>{{t "Try Again" key="try_again"}}</a>
+    <a href="#" {{on "click" (this.ctrlAction "re_transition")}}>{{t "Try Again" key="try_again"}}</a>
   {{/if}}
 {{/if}}
 {{/button-listener}}

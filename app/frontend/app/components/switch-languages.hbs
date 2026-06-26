@@ -1,12 +1,12 @@
 {{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="modal-header md-modal-header">
-    <button type="button" class="la-modal-close" {{on "click" (fn this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <h3>{{t "Switch Languages" key="switch_languages"}}</h3>
   </div>
   <div class="modal-body md-modal-body" id='languages_prompt'>
-    <form class="form-horizontal" {{on "submit" (fn this.ctrlAction "nothing")}}>
+    <form class="form-horizontal" {{on "submit" (this.ctrlAction "nothing")}}>
       <div class="form-group">
         <div class="col-sm-12">
           <p class='form-control-static'>
@@ -28,12 +28,12 @@
           {{#if this.two_languages}}
             <div class='btn-group' style='width: 100%;'>
               {{#each this.locales as |locale|}}
-                <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{on "click" (fn this.ctrlAction "set_locale" "vocalization" locale.id)}} class={{if (is-equal this.vocalization_locale locale.id) "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
+                <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{on "click" (this.ctrlAction "set_locale" "vocalization" locale.id)}} class={{if (is-equal this.vocalization_locale locale.id) "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
               {{/each}}
             </div>
           {{else}}
             <div class='input-group input-group-lg' style='min-width: 200px;'>
-              {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=this.locales selection=this.vocalization_locale action=(fn this.ctrlAction "set_locale" "vocalization") }}
+              {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=this.locales selection=this.vocalization_locale action=(this.ctrlAction "set_locale" "vocalization") }}
             </div>
           {{/if}}
         </div>
@@ -58,12 +58,12 @@
             {{#if this.two_languages}}
               <div class='btn-group' style='width: 100%;'>
                 {{#each this.locales as |locale|}}
-                  <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{on "click" (fn this.ctrlAction "set_locale" "label" locale.id)}} class={{if (is-equal this.label_locale locale.id) "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
+                  <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{on "click" (this.ctrlAction "set_locale" "label" locale.id)}} class={{if (is-equal this.label_locale locale.id) "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
                 {{/each}}
               </div>
             {{else}}
               <div class='input-group input-group-lg' style='min-width: 200px;'>
-                {{bound-select select_class="form-control big_select" select_id="label_locale" content=this.locales selection=this.label_locale action=(fn this.ctrlAction "set_locale" "label") }}
+                {{bound-select select_class="form-control big_select" select_id="label_locale" content=this.locales selection=this.label_locale action=(this.ctrlAction "set_locale" "label") }}
               </div>
             {{/if}}
           </div>
@@ -72,10 +72,10 @@
     </form>
   </div>
   <div class="modal-footer md-modal-footer">
-    <button type="button" class="btn btn-lg btn-default" {{on "click" (fn this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
-    <button type="button" class="btn btn-lg btn-default" {{on "click" (fn this.ctrlAction "open_translate")}}>
+    <button type="button" class="btn btn-lg btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+    <button type="button" class="btn btn-lg btn-default" {{on "click" (this.ctrlAction "open_translate")}}>
       {{t "Translate to Another Language" key="translate_another_language"}}
     </button>
-    <button class='btn btn-lg btn-primary' {{on "click" (fn this.ctrlAction "set_languages")}}>{{t "Switch Languages" key="switch_languages"}}</button>
+    <button class='btn btn-lg btn-primary' {{on "click" (this.ctrlAction "set_languages")}}>{{t "Switch Languages" key="switch_languages"}}</button>
   </div>
 {{/modal-dialog}}

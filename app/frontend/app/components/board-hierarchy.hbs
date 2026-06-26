@@ -21,7 +21,7 @@
     {{#if board}}
       <div class="board_hierarchy" style='margin-top: 10px;'>
         <ul>
-          <RecursiveBoard @board={{board}} @selectable={{this.selectable}} @toggleBoardHierarchy={{fn this.ctrlAction "toggle_board_hierarchy"}} />
+          <RecursiveBoard @board={{board}} @selectable={{this.selectable}} @toggleBoardHierarchy={{this.ctrlAction "toggle_board_hierarchy"}} />
         </ul>
       </div>
     {{/if}}

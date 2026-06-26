@@ -146,6 +146,11 @@ function resolveBoardDetailChromeAction(dom) {
   }
 
   if (cn.indexOf('md-board-detail-actions-menu__item--edit') >= 0) { return { controller: 'board', action: 'enter_edit_mode', args: [] }; }
+  if (cn.indexOf('md-board-collection__back') >= 0) { return { controller: 'board', action: 'close_board_collection', args: [] }; }
+  if (cn.indexOf('md-board-collection__item') >= 0) {
+    var collectionKey = target.dataset && target.dataset.bdArg;
+    if (collectionKey) { return { controller: 'board', action: 'select_board_from_collection', args: [collectionKey] }; }
+  }
   if (cn.indexOf('md-board-detail-inline-sidebar__item') >= 0 || cn.indexOf('md-board-detail-sidebar__item') >= 0) {
     if (target.dataset && target.dataset.bdAction) {
       var sidebarArgs = [];
@@ -209,7 +214,7 @@ function boardDetailChromeReleaseFromEvent(event) {
 // Modals on board-detail (add-to-sidebar, button-settings, etc.): pointer
 // releases must not be swallowed by boardDetailChromeReleaseFromEvent (no
 // data-bd-action on la-modal-close). Re-fire pass-through clicks so classic
-// {{action}} on templates/components/* modals runs under Ember 5.
+// Classic {{action}} on co-located modal components runs under Ember 5.
 function modalDialogClickRelease(event) {
   if (!event || !event.target || !event.target.closest) { return false; }
   if (!event.target.closest('.modal-content')) { return false; }
@@ -1540,6 +1545,11 @@ var buttonTracker = EmberObject.extend({
             // Synthetic native click so Ember actions (e.g. toggleSidebar) run
             event.preventDefault();
             dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+          } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.md-board-collection')) {
+            // Co-located BoardCollection: {{on}} + ctrlAction does not receive clicks
+            // (see LEARNINGS.md). Must route via boardDetailChromeRelease, not defer.
+            event.preventDefault();
+            boardDetailChromeRelease(elem_wrap);
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view') && !buttonTracker.board_detail_grid_target(elem_wrap)) {
             if(deferBoardDetailChromeClick) {
               // Mouse: Ember {{on}} (this.ctrlAction) is authoritative after codemod;
@@ -2638,6 +2648,11 @@ var buttonTracker = EmberObject.extend({
     if(!elem || !elem.dom) { return false; }
     if(buttonTracker.board_detail_grid_target(elem)) { return false; }
     if(!elem.dom.closest || !elem.dom.closest('.board-detail-view')) { return false; }
+    // BoardCollection is co-located classic Ember — defer lets native click through
+    // but {{on}} never fires; always use boardDetailChromeRelease instead.
+    if(elem.dom.closest('.md-board-collection')) {
+      return false;
+    }
     var releaseType = buttonTracker.lastReleaseEvent && buttonTracker.lastReleaseEvent.type;
     if(releaseType && releaseType.match(/touch/)) {
       return false;

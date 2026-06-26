@@ -4,7 +4,7 @@
     <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--pricing" {{on "click" (this.ctrlAction "check_pricing")}}>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
   </div>
 {{else}}
-  <form {{on "submit" (fn this.ctrlAction "purchase")}} class="row subscription-form-with-cards">
+  <form {{on "submit" (this.ctrlAction "purchase")}} class="row subscription-form-with-cards">
     <div class="form-group"><div class="col-sm-12">
     {{#unless this.see_pricing}}
       {{#if this.trial_option}}

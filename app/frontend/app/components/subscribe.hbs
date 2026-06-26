@@ -1,4 +1,4 @@
-{{#modal-dialog opening=(fn this.ctrlAction "opening") closing=(fn this.ctrlAction "closing") uncloseable="true"}}
+{{#modal-dialog opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing") uncloseable="true"}}
   <div class="modal-header subscribe-modal-header subscribe-modal-header--hero">
     {{#unless (and this.model.subscription this.model.subscription.finalizing_purchase)}}
       <button type="button" class="la-modal-close subscribe-modal-header__close" {{on "click" (this.ctrlAction "dismiss_subscribe_modal")}} aria-label={{t "Close" key="close"}}>
@@ -44,7 +44,7 @@
     {{else if this.error}}
       <h4 class="subscribe-modal-error text-danger">{{this.error}}</h4>
     {{else}}
-      {{subscription-form user=this.model.user subscription=this.model.subscription trial_option=true subscription_skip=(fn this.ctrlAction "subscription_skip") subscription_error=(fn this.ctrlAction "subscription_error") subscription_success=(fn this.ctrlAction "subscription_success")}}
+      {{subscription-form user=this.model.user subscription=this.model.subscription trial_option=true subscription_skip=(this.ctrlAction "subscription_skip") subscription_error=(this.ctrlAction "subscription_error") subscription_success=(this.ctrlAction "subscription_success")}}
     {{/if}}
   </div>
 {{/modal-dialog}}

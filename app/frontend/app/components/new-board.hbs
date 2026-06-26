@@ -1,4 +1,4 @@
-{{#grid-listener gridEvent=(fn this.ctrlAction "grid_event")}}
+{{#grid-listener gridEvent=(this.ctrlAction "grid_event")}}
 {{#modal-dialog standalone=this.standalone action=this.onClose opening=this.onOpening closing=this.onClosing}}
   <div class="board_drop {{if this.standalone "new-board--modern" "la-new-board-modal-wrap"}}">
     {{#if this.standalone}}
@@ -60,7 +60,7 @@
         {{/if}}
       </div>
       {{/unless}}
-      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (fn this.ctrlAction "saveBoard")}}>
+      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{on "submit" (this.ctrlAction "saveBoard")}}>
 
         <section class="nb-section">
           <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>
@@ -81,7 +81,7 @@
             {{#if this.has_supervisees}}
               <div class="nb-field">
                 <label for="for_user_id" class="nb-field__label">{{t "For" key="for"}}</label>
-                {{user-select select_id="for_user_id" selection=this.for_user_id action=(fn this.ctrlAction "setForUserId") }}
+                {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "setForUserId") }}
               </div>
             {{/if}}
           </div>
@@ -126,7 +126,7 @@
                          name="labels_order"
                          value="rows"
                          checked={{is_equal this.model.grid.labels_order "rows"}}
-                         {{on "change" (fn this.ctrlAction "setLabelsOrder" "rows")}} />
+                         {{on "change" (this.ctrlAction "setLabelsOrder" "rows")}} />
                   <span class="nb-radio__label">{{t "Rows, left to right" key="rows_first_short"}}</span>
                 </label>
                 <label class="nb-radio">
@@ -134,7 +134,7 @@
                          name="labels_order"
                          value="columns"
                          checked={{is_equal this.model.grid.labels_order "columns"}}
-                         {{on "change" (fn this.ctrlAction "setLabelsOrder" "columns")}} />
+                         {{on "change" (this.ctrlAction "setLabelsOrder" "columns")}} />
                   <span class="nb-radio__label">{{t "Columns, top to bottom" key="columns_first_short"}}</span>
                 </label>
               </div>
@@ -200,7 +200,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(fn this.ctrlAction "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short")}}
+                  {{label-chips value=this.model.grid.labels onChange=(this.ctrlAction "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short")}}
                 </div>
               </div>
             </div>
@@ -220,7 +220,7 @@
                   <div style="margin-bottom: 5px;">
                     {{t "Listening..." key="listening"}}
                     <button class='btn btn-default' {{on "click" (this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
-                    {{speech-listener content=(fn this.ctrlAction "speech_content") error=(fn this.ctrlAction "speech_error") stop=(fn this.ctrlAction "speech_stop") speech=this.speech}}
+                    {{speech-listener content=(this.ctrlAction "speech_content") error=(this.ctrlAction "speech_error") stop=(this.ctrlAction "speech_stop") speech=this.speech}}
                   </div>
                   <ul class="nav nav-pills">
                     {{#each this.speech.words as |word|}}
@@ -245,17 +245,17 @@
                  style={{this.preview_style}}
                  role="grid"
                  aria-label={{t "Board preview" key="board_preview"}}
-                 {{on "dragover" (fn this.ctrlAction "previewDragOver")}}
-                 {{on "drop" (fn this.ctrlAction "previewDrop")}}>
+                 {{on "dragover" (this.ctrlAction "previewDragOver")}}
+                 {{on "drop" (this.ctrlAction "previewDrop")}}>
               {{#each this.preview_grid as |row|}}
                 {{#each row as |cell|}}
                   <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}} {{if cell.editing "new-board-preview__cell--editing"}}"
                        role="gridcell"
                        draggable={{if (or cell.empty cell.editing) "false" "true"}}
-                       {{on "dragstart" (fn this.ctrlAction "cellDragStart" cell.row cell.col)}}
-                       {{on "dragover" (fn this.ctrlAction "cellDragOver")}}
-                       {{on "drop" (fn this.ctrlAction "cellDrop" cell.row cell.col)}}
-                       {{on "dragend" (fn this.ctrlAction "cellDragEnd")}}>
+                       {{on "dragstart" (this.ctrlAction "cellDragStart" cell.row cell.col)}}
+                       {{on "dragover" (this.ctrlAction "cellDragOver")}}
+                       {{on "drop" (this.ctrlAction "cellDrop" cell.row cell.col)}}
+                       {{on "dragend" (this.ctrlAction "cellDragEnd")}}>
                     {{#if cell.editing}}
                       <input type="text"
                              id={{concat "new-board-cell-edit-" cell.idx}}
@@ -263,8 +263,8 @@
                              value={{this._editValue}}
                              aria-label={{t "Edit label" key="edit_cell_label"}}
                              {{on "input" (this.ctrlActionEventValue "cellEditChanged" "value")}}
-                             {{on "keydown" (fn this.ctrlAction "cellEditKeydown")}}
-                             {{on "blur" (fn this.ctrlAction "commitCellEdit")}} />
+                             {{on "keydown" (this.ctrlAction "cellEditKeydown")}}
+                             {{on "blur" (this.ctrlAction "commitCellEdit")}} />
                     {{else if cell.empty}}
                       <span class="new-board-preview__label">{{cell.label}}</span>
                     {{else}}
@@ -287,7 +287,7 @@
           <p class="nb-section__hint">{{t "Pick who can see this board." key="new_board_section_appearance_hint"}}</p>
           <div class="nb-section__body">
             <div class="nb-field new-board-field--visibility">
-              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(fn this.ctrlAction "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
+              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(this.ctrlAction "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
             </div>
           </div>
         </section>
@@ -311,11 +311,11 @@
               </div>
               <div class="nb-field new-board-field--license">
                 <label for="license" class="nb-field__label">{{t "License" key="license"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(fn this.ctrlAction "setLicenseType") ariaLabel=(t "License" key="license")}}
+                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(this.ctrlAction "setLicenseType") ariaLabel=(t "License" key="license")}}
               </div>
               <div class="nb-field new-board-field--locale">
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(fn this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
+                {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
               </div>
               {{#if this.attributable_license_type}}
                 <div class="nb-field nb-field--row">

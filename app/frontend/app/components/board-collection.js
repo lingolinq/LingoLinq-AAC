@@ -314,7 +314,7 @@ export default Component.extend({
   /* The board key (`<owner>/<slug>`) the subject treats as their home
      board. Surfaced to the template so each row can compare its own
      key and render the home indicator (glyphicon-home, matching the
-     pattern in `templates/components/board-icon.hbs`). Returns '' when
+     pattern in `app/components/board-icon.hbs`). Returns '' when
      no home board is set; the template's `(is_equal board.key '')` then
      never matches a real row. */
   home_key: computed(

@@ -19,11 +19,11 @@
 
   <div class="la-system-settings__tabs" role="tablist">
     {{#if this.hasI18nBlocks}}
-      <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "message") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "message") "la-system-settings__tab--active"}}" {{on "click" (fn this.ctrlAction "setFormat" "message")}}>{{t "Message content" key="system_settings_email_message"}}</button>
+      <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "message") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "message") "la-system-settings__tab--active"}}" {{on "click" (this.ctrlAction "setFormat" "message")}}>{{t "Message content" key="system_settings_email_message"}}</button>
     {{/if}}
-    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "html") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "html") "la-system-settings__tab--active"}}" {{on "click" (fn this.ctrlAction "setFormat" "html")}}>{{t "HTML body" key="system_settings_email_html"}}</button>
-    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "text") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "text") "la-system-settings__tab--active"}}" {{on "click" (fn this.ctrlAction "setFormat" "text")}}>{{t "Plain text body" key="system_settings_email_text"}}</button>
-    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "vars") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "vars") "la-system-settings__tab--active"}}" {{on "click" (fn this.ctrlAction "setFormat" "vars")}}>{{t "Variables" key="system_settings_email_variables"}}</button>
+    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "html") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "html") "la-system-settings__tab--active"}}" {{on "click" (this.ctrlAction "setFormat" "html")}}>{{t "HTML body" key="system_settings_email_html"}}</button>
+    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "text") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "text") "la-system-settings__tab--active"}}" {{on "click" (this.ctrlAction "setFormat" "text")}}>{{t "Plain text body" key="system_settings_email_text"}}</button>
+    <button type="button" role="tab" aria-selected={{if (is-equal this.activeFormat "vars") "true" "false"}} class="la-system-settings__tab {{if (is-equal this.activeFormat "vars") "la-system-settings__tab--active"}}" {{on "click" (this.ctrlAction "setFormat" "vars")}}>{{t "Variables" key="system_settings_email_variables"}}</button>
   </div>
 
   {{#if (is-equal this.activeFormat "message")}}
@@ -87,9 +87,9 @@
   {{/if}}
 
   <div class="la-system-settings__actions">
-    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (fn this.ctrlAction "saveTemplate")}}>{{t "Save" key="save"}}</button>
-    <button type="button" class="btn btn-default" disabled={{this.previewing}} {{on "click" (fn this.ctrlAction "previewTemplate")}}>{{t "Preview" key="system_settings_preview"}}</button>
-    <button type="button" class="btn btn-default" {{on "click" (fn this.ctrlAction "resetTemplate")}}>{{t "Reset to default" key="system_settings_reset_default"}}</button>
+    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveTemplate")}}>{{t "Save" key="save"}}</button>
+    <button type="button" class="btn btn-default" disabled={{this.previewing}} {{on "click" (this.ctrlAction "previewTemplate")}}>{{t "Preview" key="system_settings_preview"}}</button>
+    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "resetTemplate")}}>{{t "Reset to default" key="system_settings_reset_default"}}</button>
   </div>
 
   {{#if this.previewSubject}}

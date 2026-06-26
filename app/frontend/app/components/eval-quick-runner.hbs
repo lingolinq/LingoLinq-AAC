@@ -50,8 +50,8 @@
         item=this.currentItem
         subtest=this.currentSubtest
         accessMethod=this.session.intake.suspected_access
-        onResponse=(fn this.ctrlAction "handleItemResponse")
-        onTimeout=(fn this.ctrlAction "handleItemTimeout")}}
+        onResponse=(this.ctrlAction "handleItemResponse")
+        onTimeout=(this.ctrlAction "handleItemTimeout")}}
     {{/if}}
 
     <div class="evq-runner__actions">

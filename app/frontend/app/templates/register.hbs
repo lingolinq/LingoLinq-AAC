@@ -88,7 +88,7 @@
           <p class="register-footer-link"><LinkTo @route="login">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
         {{/if}}
       {{else}}
-        <form novalidate autocomplete="off" {{on "submit" (fn this.ctrlAction "saveProfile")}}>
+        <form novalidate autocomplete="off" {{on "submit" (this.ctrlAction "saveProfile")}}>
           <div class="la-section-header">
             <div class="la-hero-title-wrap">
               <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Create a " key="create_account_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span><span class="la-hero-title__prefix">{{t " Account" key="create_account_suffix"}}</span></h2>

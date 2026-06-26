@@ -5937,9 +5937,9 @@ export default Controller.extend(prefClasses, {
        `<user_name>/<board_slug>`; split on the FIRST `/` and pass
        both pieces. Anything after the first `/` rejoins so multi-
        segment slugs survive (e.g. `quick-core-112/categories/food`). */
-    select_board_from_collection: function(board) {
-      if(!board) { return; }
-      var key = (board.get && board.get('key')) || board.key;
+    select_board_from_collection: function(boardOrKey) {
+      if(!boardOrKey) { return; }
+      var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
       // Keep the collection PINNED (do NOT clear board_collection_open) so the
       // drawer stays open while the chosen board loads in the grid on the left.
       // board-detail's controller is a singleton across board-detail routes, so

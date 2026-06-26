@@ -19,8 +19,8 @@
         <a href={{this.coughdropExportBookmarkletHref}}
            class="btn btn-default md-json-bundle-export__bookmarklet"
            draggable="true"
-           {{on "click" (fn this.ctrlAction "preventBookmarkletClick")}}
-           {{on "dragstart" (fn this.ctrlAction "dragBookmarklet")}}>
+           {{on "click" (this.ctrlAction "preventBookmarkletClick")}}
+           {{on "dragstart" (this.ctrlAction "dragBookmarklet")}}>
           {{t "Export CoughDrop boards" key="coughdrop_export_bookmarklet_label"}}
         </a>
         <button type="button" class="btn btn-link md-json-bundle-export__copy" {{on "click" (this.ctrlAction "openBookmarkletInstaller")}}>
@@ -41,7 +41,7 @@
       <p>{{t "Upload a JSON bundle exported from CoughDrop or LingoLinq. Use the full page-set export that includes linked boards." key="import_json_bundle_instructions"}}</p>
       <div class="form-group">
         <label for="import_json_bundle_file">{{t "JSON bundle file" key="json_bundle_file"}}</label>
-        <input type="file" accept=".json,application/json" class="form-control" id="import_json_bundle_file" {{on "change" (fn this.ctrlAction "fileSelected")}} />
+        <input type="file" accept=".json,application/json" class="form-control" id="import_json_bundle_file" {{on "change" (this.ctrlAction "fileSelected")}} />
         {{#if this.fileName}}
           <p class="help-block">{{this.fileName}}</p>
         {{/if}}

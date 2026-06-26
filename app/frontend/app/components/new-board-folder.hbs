@@ -4,7 +4,7 @@
       <span class="la-modal-header-label">{{t "New Folder" key="new_board_folder_title"}}</span>
       <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>✕</button>
     </div>
-    <form class="la-new-board-folder-body" {{on "submit" (fn this.ctrlAction "submit")}}>
+    <form class="la-new-board-folder-body" {{on "submit" (this.ctrlAction "submit")}}>
       <label class="la-new-board-folder-label" for="new-board-folder-name">{{t "Folder name" key="new_board_folder_name_label"}}</label>
       <Input id="new-board-folder-name" class="la-new-board-folder-input" @type="text" @value={{this.folderName}} placeholder={{t "Enter folder name" key="new_board_folder_placeholder"}} />
       {{#if this.status.error}}

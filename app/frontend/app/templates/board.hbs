@@ -26,7 +26,7 @@
       {{#if this.model.retrying}}
         {{t "Trying again..." key="trying_again"}}
       {{else}}
-        <a href="#" {{on "click" (fn this.ctrlAction "re_transition")}}>{{t "Try Again" key="try_again"}}</a>
+        <a href="#" {{on "click" (this.ctrlAction "re_transition")}}>{{t "Try Again" key="try_again"}}</a>
       {{/if}}
     {{/unless}}
   </div>

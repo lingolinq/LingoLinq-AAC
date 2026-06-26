@@ -39,7 +39,7 @@
                       {{#if sound.transcription}}
                         {{sound.transcription}}
                         {{#if this.model.permissions.edit}}
-                          <a href="#" {{on "click" (fn this.ctrlAction "edit_sound" sound)}}>{{t "edit" key="edit_lower"}}</a>
+                          <a href="#" {{on "click" (this.ctrlAction "edit_sound" sound)}}>{{t "edit" key="edit_lower"}}</a>
                         {{/if}}
                       {{else if sound.transcription_pending}}
                         {{t "checking for transcription..." key="transcription_pending"}}
@@ -49,7 +49,7 @@
                     </div>
                   </td>
                   <td>
-                    <button class='btn btn-default btn' {{on "click" (fn this.ctrlAction "play_audio" sound)}} style='margin-right: 5px; height: 40px;'>
+                    <button class='btn btn-default btn' {{on "click" (this.ctrlAction "play_audio" sound)}} style='margin-right: 5px; height: 40px;'>
                       {{#if sound.playing}}
                         <span class='glyphicon glyphicon-pause'></span>
                         <span class='sr-only'>{{t "pause" key="pause"}}</span>
@@ -67,8 +67,8 @@
                   <td style='width: 150px;'>
                     <a href={{sound.url}} class='btn btn-default' title={{t "download" key="download"}}><span class='glyphicon glyphicon-cloud-download'></span></a>
                     {{#if this.model.permissions.edit}}
-                      <button {{on "click" (fn this.ctrlAction "edit_sound" sound)}} class='btn btn-default' title={{t "edit" key="edit_lower"}}><span class='glyphicon glyphicon-pencil'></span></button>
-                      <button {{on "click" (fn this.ctrlAction "delete_sound" sound)}} class='btn btn-default' title={{t "delete" key="delete_lower"}}><span class='glyphicon glyphicon-trash'></span></button>
+                      <button {{on "click" (this.ctrlAction "edit_sound" sound)}} class='btn btn-default' title={{t "edit" key="edit_lower"}}><span class='glyphicon glyphicon-pencil'></span></button>
+                      <button {{on "click" (this.ctrlAction "delete_sound" sound)}} class='btn btn-default' title={{t "delete" key="delete_lower"}}><span class='glyphicon glyphicon-trash'></span></button>
                     {{/if}}
                   </td>
                 </tr>
@@ -85,8 +85,8 @@
   {{/if}}
 
   <div class="md-recordings__actions">
-    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "record_sound")}}>{{t "Record Message" key="record_message"}}</button>
-    <button class='btn btn-default' {{on "click" (fn this.ctrlAction "batch_recording")}}>{{t "Message Bank Phrases" key="record_message_bank_phrases"}}</button>
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "record_sound")}}>{{t "Record Message" key="record_message"}}</button>
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "batch_recording")}}>{{t "Message Bank Phrases" key="record_message_bank_phrases"}}</button>
     <span class="file_select_holder">
       <button type="button" class='btn btn-default'>
         {{#if this.upload_status.uploading}}
@@ -100,7 +100,7 @@
       <input type="file" name="recording_upload" id="recording_upload" tabindex="-1">
     </span>
     {{#if this.recordings.length}}
-      <button class='btn btn-default' {{on "click" (fn this.ctrlAction "download_recordings")}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>
+      <button class='btn btn-default' {{on "click" (this.ctrlAction "download_recordings")}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>
     {{/if}}
   </div>
   </div>

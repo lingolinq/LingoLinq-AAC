@@ -796,7 +796,7 @@ export default Component.extend({
     // from the dashboard grid (see authenticated-view.hbs), so the layout
     // doesn't reserve a hole where the card used to live. To re-enable:
     // restore the original return below AND un-comment the matching
-    // article block in templates/components/dashboard/authenticated-view.hbs.
+    // article block in app/components/dashboard/authenticated-view.hbs.
     // var progress = this.appState.get('currentUser.preferences.progress');
     // return progress && !progress.setup_done;
     return false;

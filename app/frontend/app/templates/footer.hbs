@@ -16,12 +16,12 @@
             {{/if}}
           {{/unless}}
         {{/unless}}
-        <a href="#" {{on "click" (fn this.ctrlAction "support")}}>{{t "Support" key="support"}}</a>
+        <a href="#" {{on "click" (this.ctrlAction "support")}}>{{t "Support" key="support"}}</a>
         {{#unless this.app_state.installed_app}}
           <span class='text-muted'>|</span>
           <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
         {{/unless}}
-        <a href='#' {{on "click" (fn this.ctrlAction "language")}} style='margin-left: 10px;'>
+        <a href='#' {{on "click" (this.ctrlAction "language")}} style='margin-left: 10px;'>
           <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon" alt="Language">
           {{this.app_state.current_locale_string}}
         </a>
@@ -70,10 +70,10 @@
           </li>
         {{/unless}}
         <li>
-          <a href="#" {{on "click" (fn this.ctrlAction "support")}}>{{t "Support" key="support"}}</a>
+          <a href="#" {{on "click" (this.ctrlAction "support")}}>{{t "Support" key="support"}}</a>
         </li>
         <li>
-          <a href='#' {{on "click" (fn this.ctrlAction "language")}}>
+          <a href='#' {{on "click" (this.ctrlAction "language")}}>
             <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon page-footer__language-icon--dropdown" alt="Language">
             {{this.app_state.current_locale_string}}
           </a>

@@ -11,7 +11,7 @@
         {{t "Supervisors have full access to boards, reports, and settings. Only add people you trust." key="add_supervisor_intro_before"}}
         <LinkTo @route="privacy" class="md-modal-link">{{t "Privacy Policy" key="privacy_policy"}}</LinkTo>
       </p>
-      <form class="md-add-supervisor__form" {{on "submit" (fn this.ctrlAction "add")}}>
+      <form class="md-add-supervisor__form" {{on "submit" (this.ctrlAction "add")}}>
         <div class="md-add-supervisor__field">
           <div class="md-add-supervisor__options" role="group" aria-label={{t "user type" key="user_type"}}>
             <button type="button" class="md-btn {{if this.existing_user "md-btn--primary" "md-btn--ghost"}}" {{on "click" (this.ctrlAction "set_user_type" "existing")}}>{{t "Add an Existing User" key="add_existing_user"}}</button>
@@ -66,7 +66,7 @@
           {{#unless this.consent_submitted}}
             <div class="md-add-supervisor__field">
               <label for="supervisor_type" class="md-add-supervisor__label">{{t "Access" key="access"}}</label>
-              {{bound-select select_class="md-add-supervisor__input md-add-supervisor__select" select_id="supervisor_type" content=this.supervisor_types selection=this.supervisor_permission action=(fn this.ctrlAction "updateSupervisorPermission") }}
+              {{bound-select select_class="md-add-supervisor__input md-add-supervisor__select" select_id="supervisor_type" content=this.supervisor_types selection=this.supervisor_permission action=(this.ctrlAction "updateSupervisorPermission") }}
             </div>
             {{#if this.supervisor_sponsorships}}
               {{#unless this.consent_request}}
