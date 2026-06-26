@@ -319,7 +319,7 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model: use `bin/audit_console` (it sets `USER_KEY` and opens the console in the current shell, so it works from the Render Shell tab, a Cloud Run exec shell, or locally), not a bare `rails console`
+- Console access: use `bin/audit_console` (sets `USER_KEY` so console record-writes are attributed to you via PaperTrail, and works from the Render Shell tab, a Cloud Run exec shell, or locally), not a bare `rails console`. NOTE: the per-session `AuditEvent` logging this is meant to feed is currently non-operative on the Ruby 3.4 / Reline stack (Readline hook bypassed; `ARGV_COMMAND` undefined at boot so the un-keyed-console refusal never fires) -- tracked as open finding LL-7f7372e3eb
 - Protected IDs require nonce to prevent snooping
 
 ## Environment Setup
