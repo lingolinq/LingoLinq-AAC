@@ -1122,9 +1122,12 @@ export default Service.extend({
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
-    runLater(function() {
-      _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
-    });
+    if (!isTesting()) {
+      runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
+      });
+    }
     return !!res;
   }),
   auto_clear_modeling: observer('short_refresh_stamp', 'modeling', function() {

@@ -12,7 +12,8 @@ import {
   afterEach,
   waitsFor,
   runs,
-  stub
+  stub,
+  restoreStubs
 } from './jasmine';
 import app_state from '../../utils/app_state';
 import capabilities from '../../utils/capabilities';
@@ -427,12 +428,10 @@ ApplicationAdapter.reopen({
 
 var App;
 beforeEach(function() {
-  if (!LingoLinq.session) {
-    LingoLinq.session = EmberObject.create({});
-  }
-  stub(LingoLinq.session, 'reload', function() {
-    LingoLinq.session.reloaded = true;
-  });
+  // Jasmine afterEach hooks run via delayed runs() AFTER ember-qunit teardown,
+  // so restore/clear stubs here while the owner is still live.
+  restoreStubs();
+
   LingoLinq.ignore_filesystem = true;
   capabilities.dbman = capabilities.dbman || capabilities.original_dbman;
   window.cough_drop_readiness = false;
@@ -449,6 +448,10 @@ beforeEach(function() {
   if (this.owner) {
     LingoLinq.store = this.owner.lookup('service:store');
     LingoLinq.appState = this.owner.lookup('service:app-state');
+    LingoLinq.session = this.owner.lookup('service:session');
+    stub(LingoLinq.session, 'reload', function() {
+      LingoLinq.session.reloaded = true;
+    });
     // Prime ContentGrabbers so window.cg is set before tests that need it run
     this.owner.lookup('service:content-grabbers');
     var owner = this.owner;
@@ -472,6 +475,11 @@ beforeEach(function() {
       }
       return factory.create(actualAttrs);
     };
+  } else if (!LingoLinq.session || LingoLinq.session.isDestroyed) {
+    LingoLinq.session = EmberObject.create({});
+    stub(LingoLinq.session, 'reload', function() {
+      LingoLinq.session.reloaded = true;
+    });
   }
   if (app_state.reset) {
     app_state.reset();
@@ -495,13 +503,6 @@ afterEach(function() {
   buttonTracker.scanning_enabled = false;
   // Previously: waitsFor/runs delayed LingoLinq.app.destroy. We no longer destroy
   // (all tests share the app). Run sync to avoid hangs from the waitsFor/runs pattern.
-});
-
-afterEach(function() {
-  stub.stubs.reverse().forEach(function(list) {
-    emberSet(list[0], list[1], list[2]);
-  });
-  stub.stubs = [];
 });
 
 export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap };

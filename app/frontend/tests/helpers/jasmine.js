@@ -53,6 +53,8 @@ function test_wrap(name, instance, befores, afters, lookup) {
       //   console.error(e);
       // }
 
+      restoreStubs();
+
       waitsFor(function() { return (waiting[current_test_id] || 0) <= 1; });
       runs(function() {
         current_afters = [];
@@ -224,13 +226,30 @@ var afterEach = function(callback) {
 };
 
 var stub = function(object, method, replacement) {
+  if (!object || object.isDestroyed) { return; }
   stub.stubs = stub.stubs || [];
   var stash = object[method];
-  emberSet(object, method, replacement);
-  //console.log(stubs);
+  try {
+    object[method] = replacement;
+  } catch (e) {
+    emberSet(object, method, replacement);
+  }
   stub.stubs.push([object, method, stash]);
 };
 stub.stubs = [];
 
+function restoreStubs() {
+  stub.stubs.slice().reverse().forEach(function(list) {
+    var obj = list[0];
+    var method = list[1];
+    var stash = list[2];
+    if (!obj || obj.isDestroyed) { return; }
+    try {
+      obj[method] = stash;
+    } catch (e) { /* owner torn down */ }
+  });
+  stub.stubs = [];
+}
 
-export {context, describe, it, expect, beforeEach, afterEach, waitsFor, runs, stub};
+
+export {context, describe, it, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs};
