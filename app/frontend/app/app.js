@@ -309,6 +309,12 @@ LingoLinq.user_statuses = [
   {id: 'calendar'},
   {id: 'apple'},
   {id: 'blackboard'},
+  // Derived (not manually settable) status for the supervisor home's "Communicators
+  // Need Attention" card: a communicator who hasn't set a home board. No `on` flag, so
+  // it stays out of the status pickers (which require s.on && s.label); the label is
+  // here only so the attention card can render a human reason. Kept last so it never
+  // shifts the indices the status-breakdown chart reads.
+  {id: 'no-home-board', label: i18n.t('no_home_board_status', "No home board set")},
 ];
 LingoLinq.access_methods = {
   touch: 'hand-up',

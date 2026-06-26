@@ -61,6 +61,20 @@
       {{#if (is-equal this.activeTab "extras")}}
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
+      {{else if (and this.appState.currentUser.supporter_role (and (is-equal this.activeTab "home") (is-equal this.effectiveLayout "gentle")))}}
+        {{!-- Supervisor home header (Gentle view): centered stacked title ("Welcome
+             back, …") + subheader (role · rooms · communicators). Same from-left title /
+             from-right subheader motion as the default hero (the
+             md-hero__title--from-left / md-hero__sub--from-right rules apply since this
+             stays inside .md-hero--dashboard). Counts from supervised_units / supervisees
+             (see slpRoomCount / slpCommunicatorCount). Focused view keeps the default
+             header until its own supervisor treatment is built. --}}
+        <div class="md-slp-hero">
+          <div class="md-slp-hero__text">
+            <h1 class="md-hero__title md-slp-hero__title"><span class="md-hero__title--from-left">{{t "Welcome back," key="slp_hero_welcome"}} <em class="md-hero__gradient-text">{{this.slpFirstName}}</em></span></h1>
+            <p class="md-hero__sub md-slp-hero__sub"><span class="md-hero__sub--from-right">{{this.roleName}}<span class="md-slp-hero__dot" aria-hidden="true">&middot;</span>{{t "room" count=this.slpRoomCount key="slp_rooms"}}<span class="md-slp-hero__dot" aria-hidden="true">&middot;</span>{{t "communicator" count=this.slpCommunicatorCount key="slp_communicators"}}</span></p>
+          </div>
+        </div>
       {{else}}
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting_no_name"}}{{/if}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
@@ -172,6 +186,73 @@
         </div>
       </LinkTo>
       {{/if}}
+      {{!-- Rooms card — the supervisor's org units (supervised_units). Sits full-width
+           directly below My Caseload. Each room is a clickable card → organization.room;
+           only the first 5 (natural-sorted by room number) show, then a "View all rooms"
+           button → the org rooms page. Available only for supervisors WITH rooms; hidden
+           via cardHideStyle when turned off. --}}
+      {{#if this.sectionAvailable.rooms}}
+      <section class="md-card md-card--rooms" style={{this.cardHideStyle.rooms}} aria-label={{t "Rooms" key="rooms"}}>
+        <div class="md-card--rooms__top">
+          <div class="md-card__head md-card--rooms__head">
+            <div class="md-card__icon md-card__icon--rooms" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M14 12h.01"/></svg>
+            </div>
+            <div class="md-card__titles">
+              <h3 class="md-card__title">{{t "Rooms" key="rooms"}} <span class="md-rooms__count">{{this.sortedRooms.length}}</span></h3>
+              <div class="md-card__sub">{{t "Jump into a room" key="rooms_card_sub"}}</div>
+            </div>
+          </div>
+          {{#if (and this.roomsAllOrgId this.roomsOverflowCount)}}
+            <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="md-btn md-btn--primary md-rooms__all">
+              {{t "View all rooms →" key="view_all_rooms"}}
+            </LinkTo>
+          {{/if}}
+        </div>
+        <div class="md-card--boards__divider" aria-hidden="true"></div>
+        <div class="md-rooms__grid">
+          {{#each this.roomsShown as |room|}}
+            <LinkTo @route="organization.room" @models={{array room.organization_id room.id}} class="md-room-card" title={{room.name}}>
+              <span class="md-room-card__icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M14 12h.01"/></svg>
+              </span>
+              <span class="md-room-card__name">{{room.name}}</span>
+            </LinkTo>
+          {{/each}}
+        </div>
+      </section>
+      {{/if}}
+      {{!-- Communicators Need Attention — supervisees whose org_status is flagged
+           (no status / waiting / needing support; see ATTENTION_STATUS_IDS + the
+           backend org_status). Available only when ≥1 communicator needs attention;
+           hidden via cardHideStyle when turned off. Full-width, sits after Rooms. --}}
+      {{#if this.sectionAvailable.attention}}
+      <section class="md-card md-card--attention" style={{this.cardHideStyle.attention}} aria-label={{t "Communicators Need Attention" key="communicators_need_attention"}}>
+        <div class="md-card__head md-card--attention__head">
+          <div class="md-card__icon md-card__icon--attention" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "Communicators Need Attention" key="communicators_need_attention"}} <span class="md-attention__count">{{this.attentionCommunicators.length}}</span></h3>
+            <div class="md-card__sub">{{t "Follow up on these communicators" key="attention_card_sub"}}</div>
+          </div>
+        </div>
+        <div class="md-card--boards__divider" aria-hidden="true"></div>
+        <div class="md-attention__list">
+          {{#each this.attentionCommunicators as |c|}}
+            <LinkTo @route="user" @model={{c.user_name}} class="md-attention-item" title={{c.user_name}}>
+              {{#if c.avatar_url}}
+                <Dashboard::GlowAvatar @src={{c.avatar_url}} class="md-attention-item__avatar" />
+              {{/if}}
+              <span class="md-attention-item__text">
+                <span class="md-attention-item__name">{{c.user_name}}</span>
+                <span class="md-attention-item__status" data-status={{c.status_state}}>{{c.status_label}}</span>
+              </span>
+            </LinkTo>
+          {{/each}}
+        </div>
+      </section>
+      {{/if}}
       {{!-- Speak Mode mirrors My Caseload: two sibling variants, CSS @media
            rules show exactly one per viewport. >1024px: the wide card with a
            separate "Continue Speaking" button (--speak-wide-only). ≤1024px: the
@@ -264,24 +345,42 @@
       </button>
 
       {{#if this.sectionAvailable.org}}
-      {{!-- My Organizations is itself the action (like the Extras / Speak
-           card-as-buttons): the whole card is a single button that opens the
-           organizations list (or the add-organization flow when there are
-           none). `md-card--as-button` layers the shared glassy treatment;
-           the icon + wording are unchanged. Gated on AVAILABILITY (not
-           visibility) and hidden via cardHideStyle when turned off, so it
-           stays in the DOM for the Getting Started preview clone. --}}
-      <button type="button" class="md-card md-card--org-management md-card--as-button" style={{this.cardHideStyle.org}} aria-label={{t "My Organizations" key="my_organizations"}} {{on "click" this.onGoOrganizations}}>
-        <div class="md-card__head">
-          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+      {{!-- My Organizations — mirrors the Rooms card: header (org illustration +
+           title + count + subtitle) with a "View all organizations" button, a
+           divider, then a tile per organization the user manages/supervises (up
+           to 4 via orgsShown). Each tile → that organization; "View all" → the
+           organizations list. Reuses the Rooms classes so the styling is shared.
+           Gated on AVAILABILITY; hidden via cardHideStyle when turned off. --}}
+      <section class="md-card md-card--org-management" style={{this.cardHideStyle.org}} aria-label={{t "My Organizations" key="my_organizations"}}>
+        <div class="md-card--rooms__top">
+          <div class="md-card__head md-card--rooms__head">
+            <div class="md-card__icon md-card__icon--org" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+            </div>
+            <div class="md-card__titles">
+              <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}} <span class="md-rooms__count">{{this.all_orgs.length}}</span></h3>
+              <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
+            </div>
           </div>
-          <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
-            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
-          </div>
+          {{#if this.orgsOverflow}}
+            <LinkTo @route="organizations" class="md-btn md-btn--primary md-rooms__all">
+              {{t "View all organizations →" key="view_all_organizations"}}
+            </LinkTo>
+          {{/if}}
         </div>
-      </button>
+        <div class="md-card--boards__divider" aria-hidden="true"></div>
+        <div class="md-rooms__grid">
+          {{#each this.orgsShown as |org|}}
+            <LinkTo @route="organization" @model={{org.id}} class="md-room-card" title={{org.name}}>
+              <span class="md-room-card__icon" aria-hidden="true"></span>
+              <span class="md-org-card__text">
+                <span class="md-room-card__name">{{org.name}}</span>
+                <span class="md-org-card__desc">{{org.desc}}</span>
+              </span>
+            </LinkTo>
+          {{/each}}
+        </div>
+      </section>
       {{/if}}
 
       {{!-- Account — available to everyone, so ALWAYS rendered (hidden via
@@ -374,7 +473,7 @@
         {{else if this.previewBoards.length}}
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards key="key" as |preview|}}
-            <button type="button" class="md-strip__item {{if preview.isHome 'md-strip__item--home'}} {{if preview.board.starred_for_current_user 'md-strip__item--liked'}}" role="listitem" {{on "click" (fn this.onGoToBoard preview.key)}}>
+            <button type="button" class="md-strip__item {{if preview.isHome 'md-strip__item--home'}} {{if preview.isEmergency 'md-strip__item--emergency'}} {{if preview.board.starred_for_current_user 'md-strip__item--liked'}}" role="listitem" {{on "click" (fn this.onGoToBoard preview.key)}}>
               {{#if preview.isHome}}
                 {{!-- Home Board badge — pinned to the top of the tile
                      (absolute, see .md-strip__home-badge in app.scss)
@@ -406,7 +505,7 @@
                 <img src={{if preview.board preview.board.icon_url_with_fallback preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
               <div class="md-strip__label">
-                {{preview.name}}
+                <span class="md-strip__name">{{preview.name}}</span>
                 {{#if preview.languageLabel}}
                   <span class="md-strip__lang">{{preview.languageLabel}}</span>
                 {{/if}}

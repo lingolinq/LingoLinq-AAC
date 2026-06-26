@@ -11,8 +11,10 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import profiles from '../../utils/profiles';
 import persistence from '../../utils/persistence';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  router: service('router'),
   title: computed('model.user_name', function() {
     return "Log Details";
   }),
@@ -247,7 +249,7 @@ export default Controller.extend({
     },
     repeat_profile: function() {
       if(this.get('processed_profile.template.id')) {
-        this.transitionToRoute('profile', this.get('user.id'), this.get('processed_profile.template.id'));
+        this.router.transitionTo('profile', this.get('user.id'), this.get('processed_profile.template.id'));
       }
     }
   }

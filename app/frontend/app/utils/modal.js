@@ -528,7 +528,7 @@ var modal = EmberObject.extend({
   success: function(text, below_header, sticky, opts) {
     modal.flash(text, 'success', below_header, sticky, opts);
   },
-  board_preview: function(board, locale, allow_style, callback) {
+  board_preview: function(board, locale, allow_style, callback, opts) {
     var service = this._getService();
     var remove = (board && board.preview_remove) || null;
     if (service) {
@@ -538,7 +538,9 @@ var modal = EmberObject.extend({
         option: board.preview_option || board.get ? board.get('preview_option') : undefined,
         allow_style: allow_style,
         callback: callback,
-        remove: remove
+        remove: remove,
+        // opts.recommend → "recommended home board" header (see board-preview-overlay.hbs).
+        recommend: !!(opts && opts.recommend)
       });
     }
   },

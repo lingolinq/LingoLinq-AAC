@@ -8,6 +8,7 @@ import app_state from '../utils/app_state';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
+import { findExistingUserCopy } from '../utils/board-copy';
 import { preload_board_images } from '../utils/board_preview_warmer';
 
 /* Minimum time the loading overlay must stay visible after it first
@@ -242,13 +243,11 @@ export default Component.extend({
         preview.callback();
       }
     },
-    // Board-picker TOUR mode "Pick this Board": SEAMLESSLY copy the (public catalog)
-    // board into the user's own account, set the copy as their home board, then open
-    // the OWNED copy in board-detail EDIT mode. The user never sees a manual "needs
-    // copying" prompt — picking a board you don't own and editing it would otherwise
-    // require copying first. The route transition into board-detail tears down both
-    // this preview overlay and the tour modal underneath (app_state.global_transition
-    // closes both), ending the tour flow.
+    // Board-picker "Pick this Board": get the user an OWNED copy of the picked
+    // (public catalog) board set as their home board, then open it in board-detail
+    // SPEAK mode and auto-start the speak-mode tour. If the user already has a copy
+    // of this board (e.g. the signup provisioner already copied it into their
+    // library), that copy is reused instead of creating a duplicate.
     pick_for_home() {
       var _this = this;
       var preview = this.get('modal.boardPreview');
@@ -257,7 +256,7 @@ export default Component.extend({
       var user = app_state.get('currentUser');
       if (!user || !user.get || !user.save) {
         // Adversarial-review note ("raw English fallback string"): this is NOT a raw
-        // string — `i18n.t('key', "English default")` is the project's REQUIRED i18n
+        // string — an `i18n.t` call (key + English-default arg) is the project's REQUIRED i18n
         // pattern (CLAUDE.md). The second arg is the en-locale source string that
         // i18n_generator.rb extracts into the locale files; the rendered text is the
         // user's localized translation, falling back to this English default only when a
@@ -274,99 +273,128 @@ export default Component.extend({
           lib = 'original';
         }
       }
-      // Show the copying overlay while copy_board runs (server-side copy of the
-      // board + its linked sub-boards; resolves only once that finishes).
+      // Paint the shared "Preparing your Board" overlay (the SAME one a board
+      // card → speak-mode uses) the INSTANT the user clicks, so it covers the
+      // preview immediately and stays up through the copy + route change — no gap,
+      // and the brief CTA revert (when tour_board_picker_active clears below) is
+      // never seen. _finishPickForHome's go() reuses this same overlay to run the
+      // actual route transition (paint_view_switch_overlay short-circuits when the
+      // overlay already exists).
+      _this._paintPreparingOverlay();
       _this.set('copying', true);
-      // 'links_copy_as_home' copies the board + downstream links, sets the COPY as
-      // the user's home board, and resolves with the new owned board (mirrors
-      // set-as-home#copy_as_home).
-      editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
+      app_state.set('tour_board_picker_active', false);
+      // Dedup first: skip copying if the user already owns a copy of this board.
+      findExistingUserCopy(board, user).then(function(existing) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
-        app_state.set('tour_board_picker_active', false);
-        var key = copiedBoard.get('key') || '';
-        // Hand-off flag for the board-detail EDIT tour: the guided-tour edit-chrome
-        // instance reads this once it mounts on the board-detail edit page and
-        // auto-starts the edit tour, then clears it (see guided-tour.js
-        // _consumePendingBoardDetailTour, which polls until edit mode settles).
-        // SCOPED TO THE COPIED BOARD'S KEY (never a bare `true`): the consumer fires the
-        // tour only when the board-detail page it mounts on IS this copied board. That
-        // prevents the flag from auto-starting the tour on a DIFFERENT board if the user
-        // navigates away before the route settles, or in a second tab/session that reads
-        // the shared app_state flag (addresses the wrong-board / stale-flag race).
-        // We deliberately do NOT fall back to `true` when the key is empty — a bare `true`
-        // would reintroduce that very race. A freshly-copied board always has a key (the
-        // routing below relies on it); the `if (key)` is purely defensive, and skipping
-        // the flag just means the edit tour doesn't auto-open (graceful, never wrong-board).
-        if (key) { app_state.set('board_detail_tour_pending', key); }
-        // Preserve the language the user previewed/picked in so a translated board
-        // doesn't open in the wrong locale.
-        if (locale) { app_state.set('label_locale', locale); }
-        var parts = key.split('/');
-        var routerSvc = _this.get('router');
-        // The route change, masked by the shared body-level "Preparing your Board"
-        // overlay (paint_view_switch_overlay). It survives the modal close, so the
-        // board-picker page underneath is NEVER seen flashing through before
-        // board-detail paints, and stays up until the destination route settles.
-        // Route to the .edit route so EDIT mode is entered deterministically — the
-        // edit route's setupController sets edit_mode + persists current_mode='edit'
-        // (more reliable than the auto_edit flag for a freshly-copied board).
-        // Dark/light mirrors board-icon's card → board-detail navigation.
-        var go = function() {
-          if (_this.isDestroyed || _this.isDestroying) { return; }
-          if (parts.length >= 2) {
-            var isDark = true;
-            var themeMode = app_state.get('themeMode');
-            if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
-            paint_view_switch_overlay({
-              routerSvc: routerSvc,
-              isDark: isDark,
-              accentLight: false,
-              transition: function() {
-                return routerSvc.transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
-              }
-            });
-          } else {
-            routerSvc.transitionTo('board', key);
-          }
-        };
-        // Don't reveal board-detail until ALL the board's symbol images are cached
-        // (the "Setting up your board..." overlay stays up meanwhile), so the grid
-        // paints fully-loaded — the same readiness guarantee the preview gives.
-        // Usually instant: the preview the user just viewed already warmed these
-        // exact URLs into the browser cache. Bounded by preload's safety timeout.
-        //
-        // Clear `copying` as we hand off to `go` (on BOTH resolve and reject): go either
-        // shows its own body-level "Preparing your Board" overlay and navigates (which
-        // tears down this modal anyway), or — on a torn-down component or a malformed key
-        // (parts.length < 2) — takes a path that doesn't navigate. Clearing here ensures
-        // the "Setting up your board..." overlay can never stick visible in that case.
-        var finish = function() {
-          if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
-          go();
-        };
-        preload_board_images(copiedBoard).then(finish, finish);
-      }, function(err) {
+        if (existing) {
+          // Reuse the existing copy — just (re)set it as the home board, no new copy.
+          user.set('preferences.home_board', {
+            id: existing.get('id'),
+            key: existing.get('key'),
+            locale: locale
+          });
+          user.save().then(function() {
+            _this._finishPickForHome(existing, locale);
+          }, function() {
+            _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+          });
+        } else {
+          // No existing copy — 'links_copy_as_home' copies the board + downstream
+          // links AND sets the COPY as the user's home board, resolving with the new
+          // owned board (mirrors set-as-home#copy_as_home).
+          editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
+            _this._finishPickForHome(copiedBoard, locale);
+          }, function(err) {
+            // Only surface `err` directly when it's a display string — copy_board can
+            // reject with an Error/object, which would render as "[object Object]".
+            // copy_board only rejects with an already-localized i18n.t() STRING or a
+            // plain internal-code OBJECT; the fallback below covers the object case.
+            var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
+            _this._handlePickError(msg);
+          });
+        }
+      }, function() {
+        // Dedup lookup itself failed unexpectedly — fall back to copying so the user
+        // is never blocked (a duplicate is preferable to a dead end).
         if (_this.isDestroyed || _this.isDestroying) { return; }
-        // Leave the tour modal active so the user can retry from the preview.
-        _this.set('copying', false);
-        // Only surface `err` directly when it's a display string — copy_board can
-        // reject with an Error/object, which would render as "[object Object]".
-        //
-        // Adversarial-review false positives ("raw un-translated string" / "swallowed
-        // localized Error.message"): editManager.copy_board only ever rejects with one of
-        // (a) an already-localized i18n.t() STRING (e.g. user_home_find_failed /
-        // user_home_failed in edit_manager.js) — safe to show directly, already
-        // translated; or (b) a plain internal-code OBJECT ({error: 'view only' | 'not
-        // authorized' | ...}) — which is NOT a user-facing message and is correctly
-        // replaced by the localized fallback below. It never rejects with a raw
-        // un-translated string or an Error whose .message is a localized user string, so
-        // neither showing the string branch nor using the fallback violates the i18n rule.
-        // If a FUTURE copy_board change were to reject with a raw English string, the fix
-        // belongs at that source (reject with an i18n.t() string or a code object) — this
-        // handler intentionally trusts copy_board's string rejections to be localized.
-        var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-        modal.error(msg);
+        editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
+          _this._finishPickForHome(copiedBoard, locale);
+        }, function(err) {
+          var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
+          _this._handlePickError(msg);
+        });
       });
     }
+  },
+
+  // Common tail for pick_for_home: flag the speak-mode tour hand-off (scoped to the
+  // board's key), preserve the picked locale, preload images, then open the board in
+  // SPEAK (use) mode — the board-detail INDEX route (`.edit` would be edit mode).
+  _finishPickForHome: function(homeBoard, locale) {
+    var _this = this;
+    if (_this.isDestroyed || _this.isDestroying) { return; }
+    var key = (homeBoard && homeBoard.get && homeBoard.get('key')) || '';
+    // Hand-off flag for the board-detail SPEAK tour: the speak guided-tour instance
+    // reads this once it mounts on THIS board and auto-starts the speak tour, then
+    // clears it (see guided-tour.js _consumePendingBoardDetailSpeakTour). Scoped to
+    // the board key so a stale flag can't fire the tour on a different board.
+    if (key) { app_state.set('board_detail_tour_pending_speak', key); }
+    if (locale) { app_state.set('label_locale', locale); }
+    var parts = key.split('/');
+    var routerSvc = _this.get('router');
+    var go = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (parts.length >= 2) {
+        var isDark = true;
+        var themeMode = app_state.get('themeMode');
+        if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+        paint_view_switch_overlay({
+          routerSvc: routerSvc,
+          isDark: isDark,
+          accentLight: false,
+          transition: function() {
+            // Speak (use) mode = the board-detail INDEX route.
+            return routerSvc.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          }
+        });
+      } else {
+        routerSvc.transitionTo('board', key);
+      }
+    };
+    var finish = function() {
+      if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
+      go();
+    };
+    preload_board_images(homeBoard).then(finish, finish);
+  },
+
+  // Clear the copying overlay and surface a (localized) error. Leaves the preview
+  // open so the user can retry — and removes the full-screen "Preparing your Board"
+  // overlay so the user isn't stranded behind it (no route change will dismiss it).
+  _handlePickError: function(msg) {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    this._removePreparingOverlay();
+    this.set('copying', false);
+    modal.error(msg);
+  },
+
+  // Paint the shared "Preparing your Board" overlay immediately (same overlay a
+  // board card → speak-mode navigation uses). No transition here — it's painted to
+  // cover the screen NOW; the actual route change is fired later by
+  // _finishPickForHome's go() (which reuses this same overlay).
+  _paintPreparingOverlay: function() {
+    var isDark = true;
+    var themeMode = app_state.get('themeMode');
+    if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+    paint_view_switch_overlay({ routerSvc: this.get('router'), isDark: isDark });
+  },
+
+  // Tear down the "Preparing your Board" overlay by id (used on the error path,
+  // where no route change occurs to dismiss it on its own).
+  _removePreparingOverlay: function() {
+    try {
+      var ov = (typeof document !== 'undefined') && document.getElementById('ll-pre-reload-overlay');
+      if (ov && ov.parentNode) { ov.parentNode.removeChild(ov); }
+    } catch(e) { /* DOM may be unavailable; ignore */ }
   }
 });

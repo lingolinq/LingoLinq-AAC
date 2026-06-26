@@ -75,7 +75,11 @@ export default modal.ModalController.extend({
       window.removeEventListener('resize', _this.recompute);
     }
     _this.recompute = function() {
-      runDebounce(_this, _this.compute_styles, 500);
+      runDebounce(_this, function() {
+        if(highlightModel(_this)) {
+          _this.compute_styles();
+        }
+      }, 500);
     };
     window.addEventListener('resize', _this.recompute);
   },

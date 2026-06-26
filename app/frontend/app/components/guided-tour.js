@@ -7,6 +7,13 @@ import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 
+// Tracks which in-body tour-action buttons already have their click handler, so
+// re-shows of the SAME element don't double-bind. A WeakSet (keyed on the element,
+// no DOM mutation) instead of an expando property: a freshly-created element is
+// simply absent → gets wired; a reused element is present → skipped; and entries
+// are GC'd with their elements, so it never leaks across tours.
+var _wiredTourActionButtons = new WeakSet();
+
 // Apply "smooth scroll, THEN show" to every ATTACHED step of a built tour, so
 // the spotlight glides to each target and the popover is positioned once at the
 // settled spot (no mid-scroll flip-flash). Done at the runner level so EVERY tour
@@ -94,7 +101,13 @@ function _scrollHighlightIntoView(step) {
 // gated steps come and go.
 function _renderTourProgress(step) {
   if (!step || !step.el) { return; }
-  var steps = (step.tour && step.tour.steps) || [];
+  // Exclude the welcome step's "Skip tour" off-ramp (home_tour_skip_handoff): it's
+  // appended to the step list so tour.show() can reach it, but it's NOT part of the
+  // linear 1..N walkthrough, so it must not inflate the dot count or shift the
+  // active dot. When the skip step itself is showing, idx becomes -1 below → no dots.
+  var steps = ((step.tour && step.tour.steps) || []).filter(function(s) {
+    return (s.id || (s.options && s.options.id)) !== 'home_tour_skip_handoff';
+  });
   // Menu mode (returning user) is a hub-and-spoke, not a linear 1..N sequence —
   // the progress dots would misrepresent it, so skip them whenever the tour
   // includes the menu hub.
@@ -141,6 +154,28 @@ function _onTourStepShow() {
     document.body.classList.toggle('md-tour--centered-step', !!centered);
   } catch (e) { /* class toggle is decorative — never block the step */ }
   try { _renderTourProgress(step); } catch (e) { /* progress is decorative */ }
+  // Wire any in-BODY action buttons (rendered via shared.js tourBodyButton with a
+  // `data-tour-action`) to the Tour. Generic so any step/tour can put a driving
+  // button in its body: `show:<id>` jumps, `complete`/`cancel` end the tour.
+  // Wired once per element (Shepherd reuses the step element across re-shows).
+  try {
+    if (step.el) {
+      var actionEls = step.el.querySelectorAll('[data-tour-action]');
+      Array.prototype.forEach.call(actionEls, function(btn) {
+        if (_wiredTourActionButtons.has(btn)) { return; }
+        _wiredTourActionButtons.add(btn);
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          var spec = btn.getAttribute('data-tour-action') || '';
+          var tour = step.tour;
+          if (!tour) { return; }
+          if (spec.indexOf('show:') === 0) { tour.show(spec.slice(5)); }
+          else if (spec === 'complete') { tour.complete(); }
+          else if (spec === 'cancel') { tour.cancel(); }
+        });
+      });
+    }
+  } catch (e) { /* body-action wiring is best-effort */ }
   // Smooth "scroll the highlight into view" — keep page + spotlight visible,
   // hold the popover hidden during the motion, fade it in on settle.
   try { _scrollHighlightIntoView(step); } catch (e) { /* reveal is best-effort */ }
@@ -292,6 +327,41 @@ export default Component.extend({
     this._consumePendingBoardDetailTour();
   }),
 
+  // True only when THIS instance is the board-PICKER tour (tourKey
+  // 'board_picker_*'). Gates the pending-board-picker consumer so the flag is only
+  // honored once the navbar instance has actually landed on /board-picker — never
+  // on the home page it was set from (whose tourBuilder is the HOME tour).
+  _isBoardPickerTour: function() {
+    return (this.get('tourKey') || '').indexOf('board_picker') === 0;
+  },
+
+  // Auto-fire the board-PICKER tour when `appState.board_picker_tour_pending` is
+  // set — flipped by the home tour's onPickBoard handoff (skip-handoff "Choose
+  // Board" + first-time outro finish) right before routing to /board-picker. The
+  // navbar guided-tour instance is persistent (no remount across the in-app
+  // transition), so this observer on the flag + tourKey is the trigger: it fires
+  // when the flag flips AND again when tourKey recomputes to 'board_picker' after
+  // the route settles. Mirrors _boardDetailTourWatcher.
+  _boardPickerTourWatcher: observer('appState.board_picker_tour_pending', 'tourKey', function() {
+    this._consumePendingBoardPickerTour();
+  }),
+
+  // True only when THIS instance is the board-detail SPEAK tour (NON-edit board
+  // detail → tourKey 'board_detail_speak_*'). Gates the speak consumer so the flag
+  // is only honored once the page is recognizably board-detail speak mode — never
+  // on the board-picker page it was set from.
+  _isBoardDetailSpeakTour: function() {
+    return (this.get('tourKey') || '').indexOf('board_detail_speak') === 0;
+  },
+
+  // Auto-fire the board-detail SPEAK tour when `appState.board_detail_tour_pending_speak`
+  // is set — flipped by board-preview "Pick this Board" right before routing into
+  // board-detail SPEAK mode. Mirrors _boardDetailTourWatcher (edit), but keyed on
+  // the speak flag + the speak tourKey.
+  _boardDetailSpeakTourWatcher: observer('appState.board_detail_tour_pending_speak', 'tourKey', function() {
+    this._consumePendingBoardDetailSpeakTour();
+  }),
+
   // This component is `tagName: ''` (tagless), so `didInsertElement` does NOT fire,
   // and the observer above only fires on CHANGE — but `board_detail_tour_pending`
   // is already true (set during "Pick this Board", BEFORE this edit-chrome instance
@@ -299,6 +369,42 @@ export default Component.extend({
   init: function() {
     this._super(...arguments);
     this._consumePendingBoardDetailTour();
+    this._consumePendingBoardPickerTour();
+    this._consumePendingBoardDetailSpeakTour();
+  },
+
+  // Consume the pending-board-picker flag and auto-open the board-picker tour once
+  // this instance is the board-picker tour (route + tourKey settled). The flag is
+  // set on the home page, so the first observer pass (still 'user.home') polls on a
+  // bounded schedule until tourKey becomes 'board_picker' after the transition,
+  // then clears the flag ONCE and starts. The `_bpTourConsuming` guard stops the
+  // init + observer triggers from stacking parallel polls. Simpler than the
+  // board-detail consumer — there's a single board-picker page, so no board-key
+  // match is needed.
+  _consumePendingBoardPickerTour: function() {
+    var _this = this;
+    if (this.isDestroyed || this.isDestroying) { return; }
+    if (!this.get('appState.board_picker_tour_pending')) { return; }
+    if (this._bpTourConsuming) { return; }
+    this._bpTourConsuming = true;
+    var attempts = 0;
+    var tryConsume = function() {
+      if (_this.isDestroyed || _this.isDestroying) { _this._bpTourConsuming = false; return; }
+      // Another instance/hook may have consumed it first.
+      if (!_this.get('appState.board_picker_tour_pending')) { _this._bpTourConsuming = false; return; }
+      if (_this._isBoardPickerTour()) {
+        _this._bpTourConsuming = false;
+        _this.appState.set('board_picker_tour_pending', false);
+        _this._startTour();
+      } else if (attempts++ < 20) {              // ~3s ceiling (20 × 150ms)
+        runLater(_this, tryConsume, 150);
+      } else {
+        // Never became the board-picker tour (e.g. the transition failed) — stop
+        // polling but LEAVE the flag so a later board-picker mount can pick it up.
+        _this._bpTourConsuming = false;
+      }
+    };
+    scheduleOnce('afterRender', this, tryConsume);
   },
 
   // Consume the pending-edit-tour flag and auto-open the board-detail EDIT tour.
@@ -356,6 +462,53 @@ export default Component.extend({
         // Not a board-detail edit page after all — stop polling but LEAVE the flag
         // set so a genuine edit-chrome instance can still pick it up later.
         _this._bdTourConsuming = false;
+      }
+    };
+    scheduleOnce('afterRender', this, tryConsume);
+  },
+
+  // Consume the pending-SPEAK-tour flag and auto-open the board-detail SPEAK tour.
+  // Mirror of _consumePendingBoardDetailTour (edit): polls until this instance is
+  // the speak tour AND the page is the copied board (key match against
+  // currentBoardState.key), so a stale flag never fires the tour on the wrong board.
+  _consumePendingBoardDetailSpeakTour: function() {
+    var _this = this;
+    if (this.isDestroyed || this.isDestroying) { return; }
+    if (!this.get('appState.board_detail_tour_pending_speak')) { return; }
+    if (this._bdSpeakTourConsuming) { return; }
+    this._bdSpeakTourConsuming = true;
+    var attempts = 0;
+    var tryConsume = function() {
+      if (_this.isDestroyed || _this.isDestroying) { _this._bdSpeakTourConsuming = false; return; }
+      var pending = _this.get('appState.board_detail_tour_pending_speak');
+      if (!pending) { _this._bdSpeakTourConsuming = false; return; }
+      if (_this._isBoardDetailSpeakTour()) {
+        // `pending` carries the picked board's KEY — fire ONLY when the speak page
+        // this instance mounted on IS that board.
+        if (typeof pending === 'string') {
+          var curKey = _this.get('appState.currentBoardState.key');
+          if (!curKey) {
+            if (attempts++ < 20) { runLater(_this, tryConsume, 150); }
+            else { _this._bdSpeakTourConsuming = false; }   // give up; leave flag for a later mount
+            return;
+          }
+          if (curKey !== pending) {
+            // On a board-detail speak page, but NOT the picked board — consume the
+            // stale flag WITHOUT firing so it can't auto-open on the wrong board.
+            _this._bdSpeakTourConsuming = false;
+            _this.appState.set('board_detail_tour_pending_speak', false);
+            return;
+          }
+        }
+        _this._bdSpeakTourConsuming = false;
+        _this.appState.set('board_detail_tour_pending_speak', false);
+        _this._scheduleBoardDetailSpeakAutoOpen();
+      } else if (attempts++ < 20) {              // ~3s ceiling (20 × 150ms)
+        runLater(_this, tryConsume, 150);
+      } else {
+        // Not a board-detail speak page after all — stop polling but LEAVE the flag
+        // set so a genuine speak instance can still pick it up later.
+        _this._bdSpeakTourConsuming = false;
       }
     };
     scheduleOnce('afterRender', this, tryConsume);
@@ -442,6 +595,27 @@ export default Component.extend({
     scheduleOnce('afterRender', this, tryStart);
   },
 
+  // Board-detail SPEAK auto-open. Same shape as the edit auto-open: wait for the
+  // board grid to render (so the interior spotlights resolve instead of being
+  // skipped), re-confirm we're still the speak tour, then start. Bounded.
+  _scheduleBoardDetailSpeakAutoOpen: function() {
+    var _this = this;
+    var attempts = 0;
+    var tryStart = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      attempts++;
+      var ready = document.querySelector('.md-board-detail-grid .md-board-detail-symbol-card') ||
+                  document.querySelector('.md-board-detail-grid');
+      if (ready || attempts >= 20) {        // ~3s ceiling (20 × 150ms)
+        if (!_this._isBoardDetailSpeakTour()) { return; }
+        _this._startTour();
+      } else {
+        runLater(_this, tryStart, 150);
+      }
+    };
+    scheduleOnce('afterRender', this, tryStart);
+  },
+
   // Common tour-start path. Used by both the trigger-button action (manual
   // entry) and the auto-open path (post-registration). The `afterComplete`
   // option, when provided, is bound to BOTH the shepherd Tour's `complete` and
@@ -502,7 +676,16 @@ export default Component.extend({
     // A RETURNING user (already completed) launching manually gets the topic MENU.
     var firstTime = !this.get('tourSeen');
     var menuMode = isHomeTour && !firstTime && !options.afterComplete;
-    var onPickBoard = function() { _this.router.transitionTo('board-picker'); };
+    // Hand the user off to the board picker AND auto-open the board-picker tour
+    // there — flip the pending flag BEFORE the transition so the (persistent
+    // navbar) guided-tour instance's _boardPickerTourWatcher consumes it once the
+    // route + board_picker tourKey settle. Same mechanism as
+    // board_detail_tour_pending. Without the flag this would only navigate, leaving
+    // the board-picker page tour-less.
+    var onPickBoard = function() {
+      _this.appState.set('board_picker_tour_pending', true);
+      _this.router.transitionTo('board-picker');
+    };
     // Board-picker handoff on the FIRST-TIME finish:
     //  • auto-open (options.afterComplete supplied): the caller's critical-mode
     //    setup handoff, bound below to BOTH complete and cancel — a new user must

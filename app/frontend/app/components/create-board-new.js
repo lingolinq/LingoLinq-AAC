@@ -574,6 +574,16 @@ export default Component.extend({
     return this.appState.get('sessionUser.preferences.device.utterance_text_only') ? 'true' : 'false';
   }),
 
+  // Speak-bar chip layout — mirrors board-detail's `utterance_text_on_top` so
+  // the preview sentence bar stacks each chip's label/symbol the SAME way the
+  // user's `button_text_position` preference renders the board cells above
+  // (button_text_position_class). 'top' → label over symbol; anything else →
+  // symbol over label. Same default ('top') and same pref key as the grid.
+  utterance_text_on_top: computed('appState.sessionUser.preferences.device.button_text_position', function() {
+    var pos = this.appState.get('sessionUser.preferences.device.button_text_position') || 'top';
+    return pos === 'top';
+  }),
+
   // Preview hook: maps the chosen vocalization_height onto a class so
   // the preview speak bar visibly grows/shrinks with the Sentence Bar
   // dropdown (Tiny 50 / Small 70 / Medium 100 / Large 150 / Huge 200).
@@ -1322,6 +1332,8 @@ export default Component.extend({
       var key = board.get('key') || '';
       var parts = key.split('/');
       var transition = function() {
+        // Debounced "Preparing your Board" mask for the post-create board load.
+        _this.appState.arm_board_load_overlay(_this.get('router'));
         if (parts.length >= 2) {
           _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         } else {
@@ -2266,7 +2278,7 @@ export default Component.extend({
         this.set('show_paint_color_picker', false);
       }
     },
-    set_paint_mode: function(fill, border, part_of_speech) {
+    set_paint_mode: function(fill, border, part_of_speech, label) {
       this.set('show_paint_dropdown', false);
       this.set('show_paint_color_picker', false);
       if(!fill) { return; }
@@ -2276,7 +2288,11 @@ export default Component.extend({
       this.set('paint_mode', {
         fill: fill_tc ? fill_tc.toRgbString() : fill,
         border: border_tc ? border_tc.toRgbString() : (border || fill),
-        part_of_speech: part_of_speech
+        part_of_speech: part_of_speech,
+        // Human-readable name of the picked color (the swatch's POS label, e.g.
+        // "Pronoun"/"Verb", or "Custom" for a hand-picked hex) — surfaced above
+        // the palette swatch so the user can see which preset they selected.
+        label: label || null
       });
     },
     clear_paint_mode: function() {
@@ -2313,7 +2329,12 @@ export default Component.extend({
     apply_custom_paint_color: function() {
       var color = (this.get('custom_paint_color') || '').trim();
       if(!color) { return; }
-      this.send('set_paint_mode', color, null, null);
+      // Defense-in-depth: the swatch comes from <input type="color"> (browser-
+      // enforced hex), but the paired hex text field is hand-editable — only
+      // apply a value the browser parses as a bare CSS color so it can't smuggle
+      // extra declarations into a painted button's inline style.
+      if(window.CSS && window.CSS.supports && !window.CSS.supports('color', color)) { return; }
+      this.send('set_paint_mode', color, null, null, i18n.t('paint_color_custom', "Custom"));
     },
 
     previewDragOver: function(event) {

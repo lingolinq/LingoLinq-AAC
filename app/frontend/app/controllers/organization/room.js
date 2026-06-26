@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import Utils from '../../utils/misc';
 import persistence from '../../utils/persistence';
@@ -10,6 +11,7 @@ import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  router: service('router'),
   first_log: computed('model.logs.data', function() {
     return (this.get('model.logs.data') || [])[0];
   }),
@@ -147,7 +149,7 @@ export default Controller.extend({
       var _this = this;
       modal.open('confirm-delete-unit', {unit: _this.get('model')}).then(function(res) {
         if(res && res.deleted) {
-          _this.transitionToRoute('organization.rooms', _this.get('organization.id'));
+          _this.router.transitionTo('organization.rooms', _this.get('organization.id'));
         }
       });
     },

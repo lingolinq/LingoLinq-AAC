@@ -13,6 +13,7 @@
 import { buildHomeSteps } from './home';
 import { buildBoardPickerSteps } from './board-picker';
 import { buildBoardDetailSteps } from './board-detail';
+import { buildBoardDetailSpeakSteps } from './board-detail-speak';
 
 // Board-detail EDIT mode is a STATE (app_state.edit_mode), not its own route —
 // both `user.board-detail.index` and `user.board-detail.edit` can be in edit
@@ -36,6 +37,13 @@ function tourBuilderFor(route, layout, editMode) {
     var bdView = (layout === 'focused') ? 'focused' : 'gentle';
     return function(options) { return buildBoardDetailSteps(bdView, options); };
   }
+  // SPEAK (use) mode on a board-detail page — the walkthrough of using the board
+  // to communicate (auto-started after "Pick this Board"). Distinct from the edit
+  // tour above; both share the board-detail route, split on editMode.
+  if (!editMode && _isBoardDetail(route)) {
+    var bdsView = (layout === 'focused') ? 'focused' : 'gentle';
+    return function(options) { return buildBoardDetailSpeakSteps(bdsView, options); };
+  }
   return null;
 }
 
@@ -52,6 +60,9 @@ function tourKeyFor(route, layout, editMode) {
   }
   if (editMode && _isBoardDetail(route)) {
     return 'board_detail_edit_' + ((layout === 'focused') ? 'focused' : 'gentle');
+  }
+  if (!editMode && _isBoardDetail(route)) {
+    return 'board_detail_speak_' + ((layout === 'focused') ? 'focused' : 'gentle');
   }
   return null;
 }

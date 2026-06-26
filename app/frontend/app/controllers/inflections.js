@@ -7,9 +7,11 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 var extra_types = ['NW', 'N', 'NE', 'W', 'E', 'SW', 'S', 'SE'];
 export default Controller.extend({
+  router: service('router'),
   abort_if_unauthorized: observer('session.isAuthenticated', 'app_state.currentUser', function() {
     if(!session.get('isAuthenticated')) {
       app_state.return_to_index();
@@ -37,7 +39,7 @@ export default Controller.extend({
       var words = data.map(function(r) { return r; });
       _this.set('antonyms', null);
       if(words[0].get('word') != _this.get('ref') || words[0].get('locale') != _this.get('locale')) {
-        _this.transitionToRoute('inflections', words[0].get('word'), words[0].get('locale'));
+        _this.router.transitionTo('inflections', words[0].get('word'), words[0].get('locale'));
       }
       var extras = [];
       if(words[0]) {
@@ -293,7 +295,7 @@ export default Controller.extend({
             types.forEach(function(type) {
               emberSet(type, 'checked', false);
             });
-            _this.transitionToRoute('inflections', w.get('word'), w.get('locale'));
+            _this.router.transitionTo('inflections', w.get('word'), w.get('locale'));
           }
         });
       }, function(err) {

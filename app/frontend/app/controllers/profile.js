@@ -131,7 +131,7 @@ export default Controller.extend({
           stashes.push_log();
         }
         // navigate to the results page (should work even if offline and haven't been able to push yet)
-        app_state.controller.transitionToRoute('user.log', json.user_name, 'profile-' + json.guid);
+        app_state.controller.router.transitionTo('user.log', json.user_name, 'profile-' + json.guid);
     
         // stashes.log({
         //   profile: json

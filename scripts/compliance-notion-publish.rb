@@ -18,8 +18,8 @@
 #   * Publishes: headline counts, and an open / remediated-unverified findings table with
 #     id, legacyId, severity, frameworks, title, and the evidence file:line ANCHOR.
 #   * Does NOT publish: evidence snippets, finding notes, closed/accepted/superseded findings,
-#     remediation prose, or the unattested Compliance Posture Report (that stays DRAFT until
-#     Scot attests; it is linked, never embedded). No student/patient data ever - the register
+#     remediation prose, or the Compliance Posture Report itself (CEO-attested; it is linked
+#     from the Notes section, never embedded). No student/patient data ever - the register
 #     carries code-only evidence, and this render drops even the code snippet.
 #
 # Pure stdlib (json, time). Safe in CI. Usage:

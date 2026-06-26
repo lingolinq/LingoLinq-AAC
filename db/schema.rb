@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_06_18_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_06_21_120003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -43,12 +43,46 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_18_130000) do
     t.string "feature_flag"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.string "jurisdiction", limit: 10
+    t.boolean "article_50_disclosure_shown", default: false
+    t.boolean "ai_content_marked", default: false
+    t.string "ai_generated_content_id"
+    t.index ["ai_generated_content_id"], name: "index_ai_api_logs_on_ai_generated_content_id"
     t.index ["ai_provider", "created_at"], name: "index_ai_api_logs_on_provider_and_created_at"
     t.index ["ai_provider"], name: "index_ai_api_logs_on_ai_provider"
     t.index ["created_at"], name: "index_ai_api_logs_on_created_at"
+    t.index ["jurisdiction", "created_at"], name: "index_ai_api_logs_on_jurisdiction_and_created_at"
+    t.index ["jurisdiction"], name: "index_ai_api_logs_on_jurisdiction"
     t.index ["organization_global_id"], name: "index_ai_api_logs_on_organization_global_id"
     t.index ["request_type"], name: "index_ai_api_logs_on_request_type"
     t.index ["user_global_id"], name: "index_ai_api_logs_on_user_global_id"
+  end
+
+  create_table "ai_content_reviews", force: :cascade do |t|
+    t.string "user_global_id", null: false
+    t.string "content_type", null: false
+    t.string "content_global_id", null: false
+    t.text "reason"
+    t.string "review_type", default: "user_request", null: false
+    t.string "status", default: "pending", null: false
+    t.string "jurisdiction"
+    t.boolean "article_50_triggered", default: false, null: false
+    t.string "reviewer_global_id"
+    t.text "reviewer_notes"
+    t.string "action_taken"
+    t.datetime "requested_at", null: false
+    t.datetime "assigned_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["article_50_triggered"], name: "index_ai_content_reviews_on_article_50_triggered"
+    t.index ["content_type", "content_global_id"], name: "index_ai_content_reviews_on_content"
+    t.index ["jurisdiction"], name: "index_ai_content_reviews_on_jurisdiction"
+    t.index ["requested_at"], name: "index_ai_content_reviews_on_requested_at"
+    t.index ["reviewer_global_id", "status"], name: "index_ai_content_reviews_on_reviewer_and_status"
+    t.index ["status"], name: "index_ai_content_reviews_on_status"
+    t.index ["user_global_id", "content_type", "content_global_id"], name: "index_ai_content_reviews_unique_open_per_user_content", unique: true, where: "((status)::text <> ALL ((ARRAY['completed'::character varying, 'dismissed'::character varying])::text[]))"
+    t.index ["user_global_id"], name: "index_ai_content_reviews_on_user_global_id"
   end
 
   create_table "ai_focus_word_sets", id: :serial, force: :cascade do |t|

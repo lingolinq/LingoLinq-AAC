@@ -6,8 +6,10 @@ import app_state from '../../utils/app_state';
 import Utils from '../../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  router: service('router'),
   load_goals: function() {
     var controller = this;
     controller.set('goals', {loading: true});
@@ -71,7 +73,7 @@ export default Controller.extend({
       var _this = this;
       modal.open('new-goal', {user: this.get('model') }).then(function(res) {
         if(res && res.get('id') && res.get('set_badges')) {
-          _this.transitionToRoute('user.goal', _this.get('model.user_name'), res.get('id'));
+          _this.router.transitionTo('user.goal', _this.get('model.user_name'), res.get('id'));
         } else if(res) {
           _this.load_goals();
         }

@@ -35,6 +35,9 @@ export default Component.extend({
       var key = this.get('appState.currentBoardState.key');
       if(key && key.indexOf('/') !== -1) {
         var parts = key.split('/');
+        // Debounced "Preparing your Board" mask for the style-switch load (shown
+        // only if it's slow), matching the go_to_modern/go_to_classic paths.
+        this.get('appState').arm_board_load_overlay(this.get('router'));
         this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
       }
     }

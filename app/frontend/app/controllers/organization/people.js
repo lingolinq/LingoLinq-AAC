@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import { later as runLater } from '@ember/runloop';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
@@ -8,6 +9,7 @@ import { computed } from '@ember/object';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
+  router: service('router'),
   refresh_lists: function() {
     this.set('users', {});
     this.set('evals', {});
@@ -259,7 +261,7 @@ export default Controller.extend({
                   action: {
                     text: i18n.t('run_setup', "Run Setup Wizard"),
                     callback: function() {
-                      _this.transitionToRoute('setup', {queryParams: {user_id: user.get('id')}});
+                      _this.router.transitionTo('setup', {queryParams: {user_id: user.get('id')}});
                     }
                   }
                 };

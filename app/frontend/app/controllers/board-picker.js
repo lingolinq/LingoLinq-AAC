@@ -41,16 +41,13 @@ export default Controller.extend({
   actions: {
     // Find the public "Vocal Flair 84" catalog board by name (works whether the
     // catalog is owned by `lingolinq` in prod or `sampleorganization_user_1` in
-    // dev) and set it as this user's home board, then return to the dashboard.
+    // dev) and open its board-preview modal — the same overlay a board card opens.
+    // No assignment happens here; the user reviews the board in the preview.
     assign_default_home_board: function() {
       var _this = this;
-      var user = this.get('setup_user');
-      if(!user || !user.save) {
-        modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
-        return;
-      }
       this.set('assigning_home_board', true);
       LingoLinq.store.query('board', { q: 'Vocal Flair 84', public: true, per_page: 10 }).then(function(results) {
+        _this.set('assigning_home_board', false);
         var list = (results && results.slice) ? results.slice() : (results || []);
         var pick = function(re) {
           for(var i = 0; i < list.length; i++) {
@@ -60,24 +57,13 @@ export default Controller.extend({
         };
         var board = pick(/(^|\/)vocal-flair-84$/) || pick(/vocal-flair-84/) || list[0];
         if(!board) {
-          _this.set('assigning_home_board', false);
           modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
           return;
         }
-        user.set('preferences.home_board', {
-          id: board.get('id'),
-          key: board.get('key'),
-          locale: _this.appState.get('label_locale')
-        });
-        user.save().then(function() {
-          if(_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
-            _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
-          }
-          _this.appState.return_to_index();
-        }, function() {
-          _this.set('assigning_home_board', false);
-          modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
-        });
+        board.preview_locale = board.get('localized_locale') || _this.appState.get('label_locale');
+        // recommend:true swaps the preview header to the "We recommend this board"
+        // suggestion copy (this is the system's recommended home board).
+        modal.board_preview(board, board.preview_locale, false, null, { recommend: true });
       }, function() {
         _this.set('assigning_home_board', false);
         modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));

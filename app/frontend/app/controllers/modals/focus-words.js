@@ -5,6 +5,7 @@ import { htmlSafe } from '@ember/template';
 import { set as emberSet } from '@ember/object';
 import Button from '../../utils/button';
 import { computed,  observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import stashes from '../../utils/_stashes';
@@ -15,6 +16,7 @@ import editManager from '../../utils/edit_manager';
 import sync from '../../utils/sync';
 
 export default modal.ModalController.extend({
+  router: service('router'),
   opening: function() {
     this.set('analysis', null);
     this.set('search', null);
@@ -414,7 +416,7 @@ export default modal.ModalController.extend({
           _this.set('model.words', _this.get('words'));
           _this.set('model.title', _this.get('title'));
           app_state.set('focus_route', _this.get('model'));
-          _this.transitionToRoute('user.focus', _this.get('model.user.user_name'));
+          _this.router.transitionTo('user.focus', _this.get('model.user.user_name'));
         }
 
       });

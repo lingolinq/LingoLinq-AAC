@@ -20,6 +20,8 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
+- [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
@@ -5237,6 +5239,95 @@ worked: require a QUOTED value for generic credential assignments (`["'][^"'\s]{
 20+ token chars after `Bearer`. Always test a new scrub regex for BOTH catch and no-false-trip on
 ordinary code before shipping. Evidence: H4, node `PII Pre-Scrub (DeepSeek)` SECRETS/PII arrays.
 
+---
+
+## Pattern: Modernizing a legacy `la-*`/Bootstrap modal → the `md-modal-*` family
+
+**When:** a modal still uses the old `la-<name>-modal-*` wrapper + Bootstrap
+`form-horizontal`/`col-sm-*` grid (e.g. record-note), while newer modals (quick-assessment)
+use the shared `md-modal-*` system.
+
+**Recipe:**
+- Reuse the shared classes — they're already styled: `modal-header md-modal-header`,
+  `md-modal-icon-circle` (+ a `md-<name>-icon` tint), `md-modal-title`, `la-modal-close`
+  (shared SVG × close — keep it), `modal-body md-modal-body`, `md-modal-form`,
+  `md-modal-field` + `md-modal-label`, `modal-footer md-modal-footer`, `md-modal-btn`
+  (`--cancel`/`--primary`/`--secondary`), `md-modal-check`/`md-modal-check__input/__label`.
+- Add only a small `md-<name>-*` block for the bits unique to that modal; mirror
+  **quick-assessment** (`.md-quick-assess-*`, app.scss ~79839) for the design language
+  (verdigris icon tint `rgba($brand-verdigris,0.14)`, attached-dropdown, flow-anchored
+  `*-list` menu, steppers).
+- **Gotcha:** a `bound-select` / `.bound-select__list` inside the modal clips on the
+  body's `overflow:hidden` → set it `position: static` (flow-positioned) so it pushes
+  the form down (styling-recurring-problems.md #1).
+- **Gotcha:** the goal-status emoji is the `faces.png` sprite, scoped by `.face_button
+  .face` (app.scss ~8748). It only renders if the button keeps the `face_button` class
+  (it comes from the controller's `button_display_class`, which also carries `btn-primary`
+  for the active one — style `.md-<name>-status.btn-primary` for the selected look).
+- **Don't blindly delete** the old `.la-<name>-*` rules: some (e.g.
+  `.la-record-note-cancel-btn`/`-save-btn`) are reused by OTHER modals (assign-lesson).
+  Check usages first; leaving inert rules is safer than a cross-modal regression.
+
+## Image optimization (only ImageMagick available; no pngquant/optipng/pngcrush)
+- This box has **only `convert` (ImageMagick)** for image work — `pngquant`, `optipng`,
+  `pngcrush`, `zopflipng`, `magick` are all absent. Plan optimization around `convert`.
+- **Never use `PNG8:` for icons with soft/anti-aliased edges** — it forces **1-bit
+  (binary) alpha**, so smooth edges go jagged (verified: `-channel A -separate -format %k`
+  dropped to 2 alpha levels). Instead quantize colors WITHOUT the `PNG8:` prefix:
+  `convert in.png -strip -resize 256x256 -colors 256 -define png:compression-level=9 out.png`
+  keeps 8-bit alpha (~32 levels) while still cutting size dramatically (212KB→24KB, ~9×).
+- **Verify quality numerically**, don't guess: alpha richness via
+  `convert f.png -channel A -separate -format "%k" info:` (more = smoother edges) and total
+  colors via `identify -format "%k" f.png`. Then eyeball the result with the Read tool.
+- **Size for the display use, with retina headroom**: an 88px icon → 256px covers ~3×.
+- **Images must live in BOTH trees** to render on Ember and Rails:
+  `app/frontend/public/images/` (Ember source → built into `dist/images/`) AND
+  `public/images/` (Rails). SCSS `url(../images/<name>.png)` resolves against the compiled
+  CSS location in each. `dist/` is a gitignored build artifact — don't hand-edit it.
+- When swapping an asset, **re-check filters tuned for the OLD asset** (e.g. a
+  `filter: brightness(1.15)` added to lift a dull grayscale image will wash out a new
+  vivid color image — remove it rather than carry it over).
+
+## Cloning one dashboard card's styling onto another (e.g. Org card → Rooms card)
+- **Reuse the source card's CSS classes in the new markup** (`.md-card--rooms__top`,
+  `.md-rooms__grid`, `.md-room-card`, `.md-rooms__count`, `.md-rooms__all`) rather than
+  duplicating rules. Global (unscoped) classes work as-is; only the rules **scoped under
+  the source card** (`.md-grid .md-card.md-card--rooms .md-room-card`, …__head, divider,
+  :hover) need the new card's selector appended.
+- **Grid-area names ≠ section keys.** `dashboard_sections.js`'s `AREA` map renames some:
+  `org → org_mgmt`. The card's `grid-area` must match the `AREA` value, or it won't land
+  in the grid. Check `AREA` before assuming the class name equals the area name.
+- **Section background needs (0,3,0) specificity.** The base `.md-grid .md-card { background … !important }`
+  is (0,2,0); a card section rule must be `.md-grid .md-card.md-card--X` (0,3,0) to win
+  (Rooms does this; mirror it for the clone).
+- **Card-as-button → card conversion is low-risk for old CSS:** most legacy rules are
+  `.md-card--<name>.md-card--as-button …`-qualified, so they go **inert automatically**
+  once the element drops `md-card--as-button`. Only remove the rules that match the bare
+  `.md-card--<name>` and conflict (e.g. an old `display/justify/min-height` layout rule).
+- **Match peer buttons, don't assume a shared rule covers them:** Rooms' "View all" uses
+  the *generic* `.md-btn--primary` — Rooms is NOT in the speak/boards/caseload/org
+  denim-pill rule. To match Rooms, drop the clone from that rule rather than add Rooms in.
+
+## Boards strip: dashboard vs boards-page are DIFFERENT components
+- The dashboard Boards card and the actual boards page render board tiles with
+  **different** markup/classes — they do NOT share a component:
+  - Dashboard: `components/dashboard/authenticated-view.hbs` → `.md-strip` / `.md-strip__item`
+    / `.md-strip__home-badge` / `.md-strip__heart` (data from the `previewBoards` computed).
+  - Boards page: `components/available-boards-section.hbs` → `.ub-boards-page__board-item*`
+    / `.ub-boards-page__board-item-home-badge` (nested SCSS `&__board-item-home-badge`
+    ~app.scss:64196, NOT a flat selector — grep the `&__…` fragment, not the full class).
+  - So a "make X on the boards page match the home page" request means editing BOTH
+    selectors, not one shared rule.
+- The dashboard strip's HOME-board tile is flagged by `isHome`; the system Crisis/
+  Emergency tile is appended in `previewBoards` (key ends `crisis-vocabulary`). To target
+  it in CSS, add a flag there (`isEmergency`) + a template class — there's no built-in one.
+- Gentle-vs-Focused board sizing: dashboard rules are `.md-grid--dashboard …` (BOTH
+  layouts). To change Gentle only, add `.md-grid--layout-gentle …` rules AFTER them
+  (equal specificity → source order wins); the supervisor/admin thumb is a (0,4,0)
+  `.md-grid--dashboard.md-grid--with-caseload/--with-org-mgmt` rule, so a Gentle override
+  of the thumb must also be (0,4,0) to win.
+---
+
 ## Gotcha: EN 301 549 clause numbers (9.x.x.x) trip the register's IP-address PII scrubber
 
 When the `accessibility-auditor` finder emits a WCAG finding, any four-part dotted number in the
@@ -5383,3 +5474,198 @@ init() {
 ```
 
 `{{on "click" this.method}}` on the same component often still works; the issue is specifically **callbacks passed to children**. Store service must re-export `ember-data/store` (not `@ember-data/store`) until full legacy-compat migration. Custom `transforms/raw.js` must use **default** import: `import Transform from '@ember-data/serializer/transform'` — `{ Transform }` is undefined (`Transform.extend` crash on user fetch). See `docs/task-management/2026-06-17-ember5-upgrade.md`.
+
+---
+
+
+## Gotcha: the custom `{{and}}` helper is 2-ARG ONLY — extra operands are silently dropped
+
+`app/frontend/app/helpers/and.js` is `helper(function([a, b]) { return !!a && !!b; })`. It
+destructures exactly the first TWO positional args. A 3-operand `(and a b c)` compiles and runs
+with **no error**, but `c` is never evaluated — the condition collapses to `a && b`. This bit the
+supervisor dashboard hero: `(and supporter_role (is-equal activeTab "home") (is-equal effectiveLayout
+"gentle"))` dropped the layout check, so the Gentle hero leaked onto Focused view.
+
+- **Fix pattern:** nest — `(and a (and b c))` — or add a single combined computed on the component.
+- **Detection:** `grep -rEn '\(and ' app/frontend/app/templates/` then eyeball any call with >2
+  operands (watch for nested `(is-equal …)`/`(or …)` that each count as one operand). There are a few
+  pre-existing 3-operand `(and …)` calls in the tree that are also latent — they only "work" when the
+  dropped operand doesn't change the result.
+- Same caution applies to any other custom boolean helper; check its ar\-ity before passing 3+ args.
+
+## Gotcha: supervisor `currentUser.supervisees` is REFETCHED + overwritten at ≥10 — per-supervisee fields must also live on the `/supervisees` index serializer
+
+Per-supervisee data the dashboard needs (e.g. `org_status` for the "Communicators Need Attention"
+card) is set in `lib/json_api/user.rb`'s self-serialization loop, but that only covers
+`supervisees[0,10]`. When a supervisor has ≥10 communicators, `app/frontend/app/models/user.js:768-771`
+(`load_all_connections`) refetches `/api/v1/users/:id/supervisees` via `Utils.all_pages` and
+**overwrites** `currentUser.supervisees` wholesale. That index endpoint
+(`users_controller.rb` → `JsonApi::User.paginate(..., limited_identity: true, supervisor: user)`)
+must therefore set the SAME per-supervisee fields, or they vanish after the reload and the dependent
+UI silently empties for exactly the largest caseloads.
+
+- **Fix pattern:** set the field inside as_json's shared `limited_identity` + `args[:supervisor]`
+  branch (a single helper like `JsonApi::User.org_status_for`), which feeds BOTH the dashboard payload
+  and the index endpoint — not only in the dashboard loop. Then drop the redundant loop assignment.
+- A frontend merge-on-overwrite can't fully fix it: fields are only sent for the first 10, so
+  supervisees 11+ would still be missing the data. Fix at the serializer.
+- `org_status` shape is ALWAYS a hash `{'state' => '<id>', …}` (because `link['state']['status']`
+  is itself a `{state:…}` hash) — every consumer reads `org_status.state`. Don't "fix" it to a string.
+
+---
+
+## Ember 4.12 deprecation audit — what's still firing in this app (2026-06-22)
+
+After the 3.28 → 4.12 upgrade, the `until: 4.0` deprecations were already cleared (they'd be hard
+breaks otherwise). The `until: 5.0` ones still firing, found by grepping `app/frontend/app`:
+
+- **`routing.transition-methods` — the only broad one (~37 calls, ~30 files).** `Controller#transitionToRoute`
+  and `Route#transitionTo`/`replaceWith`. Fix: `router: service()` + `this.router.transitionTo(...)`.
+  ~76 files already use the router service, so the pattern is established. Breaks at Ember 5.
+- `component.mouseenter-leave-move` — 1 hit (`components/board-icon.js` `mouseEnter:`). Use `{{on "mouseenter"}}`.
+- ember-data `DS.*` namespace — 28 files / 505+ `DS.attr`. Works in 4.12; modernize to `@ember-data/*` later.
+
+Audit gotchas:
+- Grep over-counts `transitionTo`: `router.transitionTo()` (the correct replacement) is FINE — filter out
+  `router` and match `this.transitionTo(` / `this.transitionToRoute(` specifically.
+- `{{action}}` (424 files) is NOT a 4.12 deprecation — normal usage. Only the legacy object-first form
+  `(action someObject "name")` breaks in 4.x (fixed in highlight-outlet; that was the only template using it).
+- All `Ember.*` global matches here are in comments / commented-out code — already cleaned up.
+- `no-implicit-this` is NOT in ember-template-lint 2.21.0's `recommended` set, so templates were never
+  checked for `this-property-fallback`. Enable it to catch stragglers (they silently render nothing in 4.x).
+- The authoritative runtime list needs `ember-cli-deprecation-workflow` (catches implicit-injections +
+  this-property-fallback + ember-data deprecations that static grep can't). Full audit:
+  docs/task-management/2026-06-22-ember-412-deprecations.md
+
+---
+
+## ember-data `DS.*` → `@ember-data/*` migration + deprecation-workflow (2026-06-22)
+
+Resolved the `ember-data:deprecate-legacy-imports` deprecation across 26 files. Import-path map (ember-data 4.12):
+- `DS.Model` / `DS.attr` / `DS.hasMany` / `DS.belongsTo` → `import Model, { attr, hasMany, belongsTo } from '@ember-data/model'`
+- `DS.RESTAdapter` → `import RESTAdapter from '@ember-data/adapter/rest'`
+- `DS.RESTSerializer` → `import RESTSerializer from '@ember-data/serializer/rest'`
+- `DS.Transform` → `import Transform from '@ember-data/serializer/transform'`
+
+Gotchas:
+- `node -e "require.resolve('@ember-data/model')"` FAILS (MODULE_NOT_FOUND) even though the package is installed — these resolve via Ember's addon tree at build time, not Node CJS. Don't trust `require.resolve`; validate import paths with a real `ember build` instead. (Piloted the 4 paths on 5 files + build BEFORE the 21-file bulk.)
+- The `import DS from "ember-data"` grep misses double-quoted imports (`adapters/application.js` used `"`). Match both quote styles.
+- `DS.attr` appearing in COMMENTS (`serializers/user.js`, `controllers/user/board-detail.js`) is not real usage — skip. And `GRID_BANDS.slice()` / `STATUS_IDS.indexOf()` false-match `DS\.` — anchor on real `DS.<member>`.
+
+Runtime deprecation capture: installed `ember-cli-deprecation-workflow` v4. Setup = `app/deprecation-workflow.js` (`import setupDeprecationWorkflow from 'ember-cli-deprecation-workflow'; setupDeprecationWorkflow({throwOnUnhandled:false, workflow:[]})`) guarded on `config.environment !== 'production'`, imported from `app/app.js`. Avoid the README's `@embroider/macros` guard if macros aren't already used in app code (adds boot risk) — the env guard is safer. Capture the list by running the app then `deprecationWorkflow.flushDeprecations()` in the console.
+
+---
+
+## Gotcha: `ember build` success does NOT mean the app boots (classic build + v2-format addons)
+
+`ember-cli-deprecation-workflow` v4 is a v2/Embroider-format addon. In this CLASSIC ember-cli build,
+`ember build` compiled it fine, but at runtime the AMD loader threw
+`Uncaught Error: Could not find module 'ember-cli-deprecation-workflow'` at app-boot → white screen.
+v2-format addons don't expose a classic `addon/` AMD module, so a plain
+`import x from 'the-addon'` has nothing to resolve at runtime even though the build "passed."
+
+- **Lesson:** for ANY change touching addon imports / new dependencies / app.js boot wiring, a green
+  `ember build` is necessary but NOT sufficient — verify the app actually BOOTS (dev server + reload),
+  because module resolution differs between build and runtime.
+- For deprecation-workflow specifically on a classic build, use the **classic v2.x** of the addon
+  (ships a real `addon/` tree the loader resolves), not v4.
+- After uninstalling/installing an addon, RESTART `ember serve` — it doesn't reliably pick up
+  node_modules/package.json changes on a hot rebuild.
+
+## board-detail short-height scroll: speak FILLS, edit SCROLLS (deliberate)
+The board-detail page is a viewport-pinned layout (`.md-board-detail-layout` =
+`calc(100dvh - topbar)`) whose **only** intended scroller is `<main
+class="md-board-detail-main">` (`overflow-y:auto`). The scroll chain is already
+built for small viewports: `.md-board-detail-grid-sidebar-wrap` is `flex:1 0 auto`
+("stays at content height when main is over-constrained", app.scss:69729) and
+`.md-board-detail-grid-fade` is opacity-only (app.scss:2901, no clip). The board
+ONLY fails to scroll because the grid (`grid-template-rows: minmax(0,1fr)`)
+collapses to fit. At `@media (max-height:500px)` the two modes were intentionally
+OPPOSITE: **edit** drops `height:auto` + floors `.md-board-detail-grid__cell {
+min-height:96px }` so it overflows and main scrolls; **speak** flexed the
+grid-fade column to FILL (shrink buttons, no scroll). The board's REAL short/narrow
+mechanism is the square-collapse block (`@media (max-width:1024px)` ~app.scss:72143):
+default boards are `--shape-square` (from `stretch_buttons` pref); it makes cards
+`aspect-ratio:1` and the grid `height:auto` + `align-content:start`, so the `minmax(0,1fr)`
+rows resolve to the squares' aspect height — grid is exactly as tall as the squares (no
+inter-row gaps) and `main` (overflow-y:auto) scrolls. To get scroll on SHORT screens, add a
+`(max-height: …)` arm to THAT media query — do NOT invent a new floor. **Gap trap:** under
+aspect-squared cards, ANY rule that makes a row taller than the square opens an inter-row gap.
+Two wrong tries proved it: (a) `height:auto` + cell `min-height:96px`, (b) grid
+`min-height: calc(--board-rows*104px)` — both forced rows taller than the squares → gaps. The
+only gap-free path is the grid collapsing to the squares' own height. `computeHeight()` is
+EMPTY (board-detail.js:1920) so sizing is pure CSS; `--board-rows` is set by JS (board-detail.js:3044).
+
+## Pattern: white symbol matte and the `ll-symbol-white-matte` filter are mutually exclusive on one element
+
+A symbol image with transparent regions bleeds the button's Fitzgerald fill through its
+face in Colored mode (`symbol_background_clear`). The legacy classic board fixed this with
+an unconditional `.button img.symbol { background:#fff }` (first commit
+`coughdrop.css.scss:573`); that survives today as the `symbol_background_white` mode.
+Colored mode instead uses the `#ll-symbol-white-matte` SVG filter (alpha-only white
+knockout, defined in `app/frontend/app/index.html`). The trap: you cannot add
+`background:#fff` to an element that also carries that filter — CSS `filter` processes the
+element's own background, so the matte filter knocks the white right back out. To restore a
+white matte in Colored mode you must DROP the filter and paint white on a filter-free
+element. In the board-detail grid the symbol `<img>` is content-sized
+(`width/height:auto` + `object-fit:contain`), so a `background:#fff` on the img sits
+exactly behind the rendered image — no wrapper, and it does NOT stretch to the whole image
+band the way a container fill (`.md-board-detail-symbol-card__image`) would. Default for
+new users is `symbol_background = 'clear'` (`lib/json_api/user.rb:89`), so Colored mode is
+the common case. See [`2026-06-23-symbol-transparency-bleed-legacy.md`](./2026-06-23-symbol-transparency-bleed-legacy.md).
+## Gotcha: bootstrap 3 tooltip/popover is XSS-safe only via DOM-node content, not data-content strings
+Bootstrap 3.4.1 (`node_modules/bootstrap/dist/js/bootstrap.js`) `Popover.getContent` reads the
+`data-content` attribute FIRST, then falls back to the `content` option. `Popover.setContent`
+branches `typeof content === 'string' ? 'html' : 'append'` and runs `sanitizeHtml` ONLY on string
+content. So `$(el).attr('data-content', node.innerHTML).popover('show')` round-trips through a
+parsed+sanitized HTML string (safety depends on the EOL sanitizer), whereas passing
+`content: () => domNode` makes bootstrap `.append()` the real node, never parsing HTML at all
+(sanitizer irrelevant). When building popover/tooltip bodies, construct a DOM node with
+`document.createElement` + `.innerText` (escapes) + `img.src` (property, no attr injection) and hand
+bootstrap the NODE via the `content` function; do not set `data-content` to an HTML string. Verified
+in `utils/utterance.js:silent_speak_button` (LL-d1ea8659c3). Note bootstrap JS is also load-bearing
+for `data-toggle="dropdown"` (incl. keyboard a11y in `controllers/caseload.js`) and
+`data-dismiss="alert"`, so the EOL lib cannot simply be dropped without replacing those too.
+
+## Gotcha: bootstrap 3 popover('destroy') is async; home-grown init guards go stale after it
+Bootstrap 3's `Tooltip/Popover.destroy` defers `removeData('bs.popover')` into the `hide()`
+animation callback (~150ms, `animation:true` is the default), so the instance is still present
+synchronously right after `destroy` but gone a moment later. A home-grown "init once" guard keyed
+on a custom attribute (e.g. `if(!$el.attr('data-popover')){ ...popover(opts) }`) does NOT get
+cleared by destroy, so a later `.popover('show')` finds no instance, skips re-init, and bootstrap's
+`Plugin` rebuilds a DEFAULT popover (`html:false`, `content:''`, no `content` fn) -- an empty/blank
+widget that silently drops your configured options. Prefer bootstrap's own idempotency: call
+`$el.popover(opts)` unconditionally before `show` (no-op when an instance exists, re-creates with
+your opts after a destroy). Seen in `utils/utterance.js:silent_speak_button` where
+`services/app-state.js:2336` destroys `#speak_mode`'s popover on leaving a board (LL-d1ea8659c3).
+
+## Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention
+
+When a flow needs the user's existing copy of a public board (pick-as-home, add-to-sidebar),
+it's tempting to look up `username/<original-slug>` and reuse whatever's there — copies DO keep
+the slug under the user's namespace. But that key can also be an UNRELATED board the user
+copied from a different source with the same slug, so reusing on the bare convention can set
+the WRONG board as home — a correctness/safety bug for AAC users. Confirm lineage instead:
+reuse only when `parent_board_id === original.id` (or `parent_board_key === original.key`).
+App-made copies always set `parent_board_id` server-side, and `/show` always serializes it, so
+real copies confirm. Two gotchas: (1) a board cached as a LIST partial may omit
+`parent_board_id`, making a real copy look unconfirmed — use `findRecord(key, {reload:true})`
+so the parent fields are authoritative; (2) an unconfirmed match should fall back to copying
+fresh (a benign duplicate) rather than reuse-on-faith. Single shared helper:
+`app/frontend/app/utils/board-copy.js#findExistingUserCopy` (used by board-preview-overlay +
+sidebar-editor). Don't fork two copies of this logic — divergence is how the slug-trust branch
+crept back in.
+
+## Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"
+
+A UI that persists on every quick interaction (drag-reorder, up/down nudge, toggle) can fire
+several `record.save()` calls in quick succession. Concurrent saves on the SAME Ember Data
+record are unsafe: the network PUTs can complete out of order (the slower/earlier one wins,
+silently dropping a later change), and Ember Data can also throw when a save starts while one is
+already in flight. Fix: keep the optimistic `set()` synchronous (so the UI updates instantly),
+but CHAIN the actual `save()` off a module/instance `_saveChain` promise so saves run one at a
+time — each chained save serializes the model's CURRENT attributes (the latest array), so
+coalescing is safe. Keep the chain alive past a rejection (`prior.then(noop, noop)`) so one
+failed save can't wedge the queue, and expose the tail as `_lastSave` for callers that must wait
+for persistence to settle (e.g. a reload-on-close). See
+`app/frontend/app/components/sidebar-editor.js#_save`.

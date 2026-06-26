@@ -2518,11 +2518,16 @@ describe User, :type => :model do
     end
 
     it "should merge new default sidebar entries into an older saved default list" do
+      # The stored order IS the user's chosen sidebar order (drag / up-down reorder
+      # in the Edit Sidebar panel), so it must be PRESERVED on load — a newly-added
+      # auto-add default (crisis-vocabulary) is APPENDED, not re-sorted into its
+      # default-order slot. See User.merge_missing_default_sidebar_boards.
       u = User.new
-      old_defaults = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }
+      crisis_key = SystemBoardSources.board_key('crisis-vocabulary')
+      old_defaults = User.default_sidebar_boards.reject { |b| b['key'] == crisis_key }
       u.settings = {'preferences' => {'sidebar_boards' => old_defaults}}
       expect(u.sidebar_boards.map { |b| b['key'] || 'alert' }).to eq(
-        User.default_sidebar_boards.map { |b| b['key'] || 'alert' }
+        old_defaults.map { |b| b['key'] || 'alert' } + [crisis_key]
       )
     end
 

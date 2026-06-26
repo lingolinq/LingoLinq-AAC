@@ -52,18 +52,20 @@ export default Component.extend({
     return flash && flash.action && flash.action.text;
   }),
 
-  confirm() {
-    var flash = this.get('modalService.flashMessage');
-    if (flash && flash.redirect) {
-      if (flash.redirect.subscribe && !capabilities.installed_app) {
-        this.get('appState.controller').transitionToRoute('user.subscription', this.get('appState.currentUser.user_name'));
+  actions: {
+    confirm() {
+      var flash = this.get('modalService.flashMessage');
+      if (flash && flash.redirect) {
+        if (flash.redirect.subscribe && !capabilities.installed_app) {
+          this.get('appState.controller').router.transitionTo('user.subscription', this.get('appState.currentUser.user_name'));
+        }
+      } else if (flash && flash.action && flash.action.callback) {
+        flash.action.callback();
       }
-    } else if (flash && flash.action && flash.action.callback) {
-      flash.action.callback();
+      this.get('modalService').close(null, 'flash-message');
+    },
+    contact() {
+      this.get('appState.controller').router.transitionTo('contact');
     }
-    this.get('modalService').close(null, 'flash-message');
-  },
-  contact() {
-    this.get('appState.controller').transitionToRoute('contact');
   }
 });

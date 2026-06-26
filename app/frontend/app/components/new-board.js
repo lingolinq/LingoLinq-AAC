@@ -723,6 +723,8 @@ export default Component.extend({
           _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
           var key = board.get('key') || '';
           var parts = key.split('/');
+          // Debounced "Preparing your Board" mask for the post-create board load.
+          _this.appState.arm_board_load_overlay(_this.get('router'));
           if (parts.length >= 2) {
             return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
           } else {

@@ -313,6 +313,7 @@ export default Controller.extend(prefClasses, {
      the options menu itself closes so a fresh open lands on the
      normal menu. */
   board_collection_open: false,
+  sidebar_editor_open: false,
   show_paint_dropdown: false,
   button_menu_id: null,
   show_options_menu: false,
@@ -435,11 +436,29 @@ export default Controller.extend(prefClasses, {
     var grid = document.querySelector('.md-board-detail-grid');
     if(grid) { this._predictionGridRO.observe(grid); }
   },
+  /* Keep the inline speak-sidebar EXACTLY as tall as the center board grid so it
+     never extends past the bottom of the board; its content scrolls internally
+     instead. The grid's height is JS-driven (board/index computeHeight) and this
+     nested flex chain doesn't resolve a definite height for a pure-CSS cap, so we
+     mirror the measured grid height directly onto the shell. The absolutely-
+     positioned __scroll layer then has a definite height to scroll within. Synced
+     from the same triggers as the prediction rail (grid ResizeObserver + window
+     resize + board/grid-shape changes), so it tracks every relayout. */
+  _sync_inline_sidebar_height: function() {
+    if(typeof document === 'undefined') { return; }
+    var sidebar = document.querySelector('.md-board-detail-inline-sidebar');
+    if(!sidebar) { return; }
+    var board = document.querySelector('.md-board-detail-grid-fade') ||
+                document.querySelector('.md-board-detail-grid');
+    var h = board ? board.getBoundingClientRect().height : 0;
+    sidebar.style.height = (h && h > 1) ? (Math.round(h) + 'px') : '';
+  },
   _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', function() {
     var _this = this;
     runLater(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       _this._sync_prediction_tile_size();
+      _this._sync_inline_sidebar_height();
       _this._observe_prediction_grid();
     }, 160);
   }),
@@ -496,6 +515,9 @@ export default Controller.extend(prefClasses, {
     };
     _this.onCloseBoardCollection = function() {
       _this.send('close_board_collection');
+    };
+    _this.onCloseSidebarEditor = function() {
+      _this.send('close_sidebar_editor');
     };
     _this.onSelectBoardFromCollection = function(board) {
       _this.send('select_board_from_collection', board);
@@ -579,6 +601,7 @@ export default Controller.extend(prefClasses, {
         _this._predictionTileResizeTimer = runLater(function() {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           _this._sync_prediction_tile_size();
+          _this._sync_inline_sidebar_height();
         }, 120);
       };
       window.addEventListener('resize', this._predictionTileResizeHandler);
@@ -586,6 +609,7 @@ export default Controller.extend(prefClasses, {
       runLater(function() {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this._sync_prediction_tile_size();
+        _this._sync_inline_sidebar_height();
       }, 300);
       // A window-resize / fixed timer only catches viewport changes — NOT the
       // board re-laying-out (square-shape collapse, board switch, font/gap/shape
@@ -600,6 +624,7 @@ export default Controller.extend(prefClasses, {
           _this._predictionTileResizeTimer = runLater(function() {
             if(_this.isDestroyed || _this.isDestroying) { return; }
             _this._sync_prediction_tile_size();
+            _this._sync_inline_sidebar_height();
           }, 120);
         });
         runLater(function() {
@@ -4325,7 +4350,9 @@ export default Controller.extend(prefClasses, {
       this.set('inlineSidebarOpen', false);
       return;
     }
-    if(prefs.quick_sidebar && !this.get('edit_mode')) {
+    // effective_quick_sidebar treats an UNSET preference as show, so the sidebar is
+    // open by default until the user collapses it (which persists quick_sidebar=false).
+    if(this.get('app_state.effective_quick_sidebar') && !this.get('edit_mode')) {
       this.set('inlineSidebarOpen', true);
     }
   },
@@ -4854,6 +4881,16 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // Options-menu "Take a tour" item — start the board-detail SPEAK tour. The
+    // visible runner lives in the hidden {{guided-tour}} host; we trigger it by
+    // setting the same pending flag the post-"Pick this Board" auto-open uses
+    // (scoped to this board's key), which the host's watcher consumes and starts.
+    start_speak_tour: function() {
+      this.set('show_options_menu', false);
+      var app_state = this.get('app_state');
+      var key = app_state && app_state.get('currentBoardState.key');
+      if (key) { app_state.set('board_detail_tour_pending_speak', key); }
+    },
     enter_edit_mode: function() {
       var _this = this;
       var app_state = this.get('app_state');
@@ -5925,6 +5962,18 @@ export default Controller.extend(prefClasses, {
       this.set('board_collection_open', false);
     },
 
+    /* Edit Sidebar — opens the inline sidebar-editor drawer (same pinned host as
+       My Board Collection). Triggered by the "Edit Sidebar" button at the top of
+       the inline sidebar. */
+    open_sidebar_editor: function() {
+      this.set('show_options_menu', false);
+      this.set('board_collection_open', false);
+      this.set('sidebar_editor_open', true);
+    },
+    close_sidebar_editor: function() {
+      this.set('sidebar_editor_open', false);
+    },
+
     /* Row click inside the collection: close the menu + collection
        first (so the dropdown isn't lingering open across the route
        transition) and then route to the chosen board in MODERN view.
@@ -6609,7 +6658,8 @@ export default Controller.extend(prefClasses, {
     // gives the new value. lock_quick_sidebar still prevents closing.
     toggleInlineSidebar: function() {
       var prefs = this.get('app_state.currentUser.preferences') || {};
-      if(this.get('inlineSidebarOpen') && prefs.quick_sidebar && prefs.lock_quick_sidebar) {
+      // effective_quick_sidebar so the lock also holds the default-shown sidebar open.
+      if(this.get('inlineSidebarOpen') && this.get('app_state.effective_quick_sidebar') && prefs.lock_quick_sidebar) {
         return;
       }
       var appController = this._sidebarAppController();

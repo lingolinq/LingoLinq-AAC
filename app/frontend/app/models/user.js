@@ -613,6 +613,11 @@ LingoLinq.User = BaseModel.extend({
     var _this = this;
     boards.forEach(function(board) {
       var board_object = EmberObject.create(board);
+      // "Crisis Vocabulary" wraps awkwardly in the narrow sidebar — show the short
+      // "Crisis" label there (the editor reads raw prefs, so it keeps the full name).
+      if(board.key && (/crisis/i).test(board.key)) {
+        board_object.set('name', i18n.t('crisis_short', "Crisis"));
+      }
       _this.persistence.find_url(board.image, 'image').then(function(data_uri) {
         board_object.set('image', data_uri);
       }, function() { });

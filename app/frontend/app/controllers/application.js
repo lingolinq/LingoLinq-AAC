@@ -638,7 +638,9 @@ export default Controller.extend({
     },
     stickSidebar: function() {
       var user = this.appState.get('currentUser');
-      var wantQuickSidebar = !user.get('preferences.quick_sidebar');
+      // Toggle the EFFECTIVE state (unset is treated as shown), so the first
+      // collapse from the default-shown state persists `false` rather than `true`.
+      var wantQuickSidebar = !this.appState.get('effective_quick_sidebar');
       user.set('preferences.quick_sidebar', wantQuickSidebar);
       this.stashes.persist('sidebarEnabled', false);
       if(!wantQuickSidebar) {

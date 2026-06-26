@@ -11,5 +11,18 @@ export default Route.extend({
     this._super.apply(this, arguments);
     controller.set('setup_user', this.appState.get('currentUser'));
     controller.set('assigning_home_board', false);
+  },
+  // Board previews opened from this page (the "Assign a Home Board For Me" button
+  // and the board cards) use the board-picker "Pick this Board" action override
+  // (copy -> set-as-home -> open), the SAME override the tour board-picker source
+  // applies (tour-board-picker.js toggles this flag on init/willDestroy). Set on
+  // enter, cleared on leave so it never leaks to other pages.
+  activate: function() {
+    this._super.apply(this, arguments);
+    this.appState.set('tour_board_picker_active', true);
+  },
+  deactivate: function() {
+    this._super.apply(this, arguments);
+    this.appState.set('tour_board_picker_active', false);
   }
 });

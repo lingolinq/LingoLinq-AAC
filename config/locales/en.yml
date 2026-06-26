@@ -21,6 +21,9 @@
 
 en:
   hello: "Hello world"
+  write_freeze:
+    title: "Temporarily read-only"
+    body: "We are finishing some scheduled maintenance, so saving changes is paused for a moment. You can still view and speak your boards. Please try again shortly."
   parental_consent_mailer:
     subject: "Parental consent for a new %{app_name} account"
     greeting: "Hello,"

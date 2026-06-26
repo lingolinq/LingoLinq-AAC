@@ -21,6 +21,8 @@ var HOME_SECTIONS = [
   { key: 'speak',    cardClass: 'md-card--speak',         labelKey: 'speak_mode',       labelDefault: "Speak Mode",       available: function() { return true; } },
   { key: 'extras',   cardClass: 'md-card--extras',        labelKey: 'extras',           labelDefault: "Extras",           available: function() { return true; } },
   { key: 'caseload', cardClass: 'md-card--caseload',      labelKey: 'my_caseload',      labelDefault: "My Caseload",      available: function(user) { return !!(user && user.get('supporter_role')); } },
+  { key: 'rooms',    cardClass: 'md-card--rooms',         labelKey: 'rooms',            labelDefault: "Rooms",            available: function(user) { return !!(user && user.get('supporter_role') && (user.get('supervised_units') || []).length > 0); } },
+  { key: 'attention', cardClass: 'md-card--attention',    labelKey: 'communicators_need_attention', labelDefault: "Communicators Need Attention", available: function(user) { return !!(user && user.get('supporter_role') && communicatorsNeedingAttention(user).length > 0); } },
   { key: 'org',      cardClass: 'md-card--org-management', labelKey: 'my_organizations', labelDefault: "My Organizations", available: function(user) { return hasOrgManagement(user); } },
   { key: 'account',  cardClass: 'md-card--account',        labelKey: 'my_account',       labelDefault: "My Account",       available: function() { return true; } },
   { key: 'createboard', cardClass: 'md-card--create-board', labelKey: 'create_a_board',   labelDefault: "Create a Board",   available: function() { return true; } },
@@ -42,13 +44,36 @@ var EXTRA_HOME_TOGGLES = [
 // can't see. Register them here as literals so they land in the locale files:
 //   i18n.t('home_welcome_banner', "Welcome banner")
 
-// Mirrors authenticated-view's has_management_responsibility: a user manages
-// orgs if they have a non-restricted manager-type org, OR are a supporter.
+// The "My Organizations" card shows only when the user is actually connected to an
+// organization they manage or supervise — i.e. the same set the card's goOrganizations
+// action navigates to (all_orgs = non-restricted manager orgs + managing supervision
+// orgs). Being a supporter alone is NOT enough: a supporter with no org connection has
+// nothing to manage, so the card stays hidden (clicking would otherwise drop into the
+// add-organization flow).
 function hasOrgManagement(user) {
   if(!user) { return false; }
-  if(user.get('supporter_role')) { return true; }
   var orgs = user.get('organizations') || [];
-  return orgs.some(function(o) { return o.type == 'manager' && o.restricted != true; });
+  var managesOrg = orgs.some(function(o) { return o.type == 'manager' && o.restricted != true; });
+  var supervisionOrgs = user.get('managing_supervision_orgs') || [];
+  return managesOrg || supervisionOrgs.length > 0;
+}
+
+// Communicator org_status IDs that signal "needs attention": 'no-home-board' (the
+// derived status for a communicator who hasn't set a home board — see json_api/user.rb),
+// 'unchecked' (unset/unknown), plus the "waiting for…" and "needing support" clinical
+// statuses (see LingoLinq.user_statuses). Excludes the progressing states (training-
+// started / recently-implemented / making-progress). Edit this list to tune what the
+// "Communicators Need Attention" card flags.
+var ATTENTION_STATUS_IDS = ['no-home-board', 'unchecked', 'hourglass', 'equalizer', 'piggy-bank', 'phone', 'exclamation-sign'];
+
+// Supervisees whose org_status falls in ATTENTION_STATUS_IDS. org_status is the hash
+// {'state' => '<id>', …} the backend sends per supervisee (json_api/user.rb).
+function communicatorsNeedingAttention(user) {
+  if(!user) { return []; }
+  return (user.get('supervisees') || []).filter(function(s) {
+    var state = s && s.org_status && s.org_status.state;
+    return !!(state && ATTENTION_STATUS_IDS.indexOf(state) !== -1);
+  });
 }
 
 // The subset of sections that exist for this user (in display order).
@@ -82,7 +107,7 @@ function sectionLabel(section) {
 var RIGHT_SECTIONS = ['speak', 'extras', 'org'];
 
 // Grid area name per section key (`sup` is a constant 0-height bottom row).
-var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt', caseload: 'caseload', account: 'account', createboard: 'createboard', reports: 'reports', editdashboard: 'editdashboard' };
+var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt', caseload: 'caseload', rooms: 'rooms', attention: 'attention', account: 'account', createboard: 'createboard', reports: 'reports', editdashboard: 'editdashboard' };
 
 // ── THE LAYOUT ENGINE (ordered-list reorder model) ──────────────────────────
 // The dashboard is an ORDERED LIST of section keys. The user drags cards in the
@@ -97,15 +122,21 @@ var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt'
 
 // Canonical default order (used when the user hasn't reordered). For a
 // communicator this packs to: Account|Extras, full-width Boards, Create-a-Board|
-// Speak, full-width Reports — and slots Caseload/Org in for supervisors.
-var DEFAULT_ORDER = ['caseload', 'account', 'speak', 'org', 'boards', 'createboard', 'extras', 'reports', 'editdashboard'];
+// Speak, full-width Reports.
+var DEFAULT_ORDER = ['caseload', 'rooms', 'attention', 'org', 'account', 'speak', 'boards', 'createboard', 'extras', 'reports', 'editdashboard'];
+
+// Supervisor (non-communicator) Gentle default — distinct from the communicator
+// order so moving cards here never reshuffles a communicator's home. Boards sits
+// directly under My Organizations, and Speak Mode sits next as a FULL-WIDTH row
+// (see dashboardLayout's speak full-width handling for supervisors).
+var SUPERVISOR_DEFAULT_ORDER = ['caseload', 'rooms', 'attention', 'org', 'boards', 'speak', 'account', 'createboard', 'editdashboard', 'reports', 'extras'];
 
 // Focused View (focused) has its OWN default order. Speak becomes the full-width
 // hero and Extras is hidden, so those positions don't matter here; the rest packs
 // to (communicator): full-width Boards, My Account|Create a Board, Reports|Edit
 // Dashboard — with Caseload/Org slotted in for supervisors. Kept separate from
 // DEFAULT_ORDER so changing the Focused View default never affects Gentle View.
-var FOCUSED_DEFAULT_ORDER = ['speak', 'boards', 'caseload', 'org', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
+var FOCUSED_DEFAULT_ORDER = ['speak', 'boards', 'caseload', 'rooms', 'attention', 'org', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
 
 // The visible section keys in display order: start from the saved order (or the
 // default), append any visible key the saved order is missing (robustness when a
@@ -120,13 +151,22 @@ function orderedVisible(vis, order, defaultOrder) {
 // Pack an ordered list of visible keys into area-row strings (WITHOUT the trailing
 // '. sup' spacer). Small cards pair two-per-row; Boards is its own full-width row;
 // a small card left without a partner spans the full width.
-function packOrder(keys) {
+function packOrder(keys, extraFull) {
   var a = function(k) { return AREA[k]; };
   var rows = [], pending = null;
+  // Boards is always its own full-width row; Caseload, Rooms, Attention and the
+  // My Organizations card too — the supervisor hero + its room/org/attention lists
+  // sit full-width at the top of the Gentle home. (Caseload gets the tall big-icon
+  // Speak-style showcase via fullspan-caseload in app.scss.) `extraFull` adds more
+  // full-width keys per layout (e.g. Speak Mode on the supervisor home).
+  var fullWidth = function(key) {
+    if (key === 'boards' || key === 'caseload' || key === 'rooms' || key === 'attention' || key === 'org') { return true; }
+    return !!(extraFull && extraFull.indexOf(key) !== -1);
+  };
   keys.forEach(function(key) {
-    if (key === 'boards') {
+    if (fullWidth(key)) {
       if (pending) { rows.push(a(pending) + ' ' + a(pending)); pending = null; }
-      rows.push('boards boards');
+      rows.push(a(key) + ' ' + a(key));
     } else if (pending) {
       rows.push(a(pending) + ' ' + a(key)); pending = null;
     } else {
@@ -146,7 +186,13 @@ function framed(body) {
 }
 
 function dashboardLayout(vis, order) {
-  return framed(packOrder(orderedVisible(vis, order)));
+  // Supervisors (any supervisor-only section present) get their own default order
+  // (Boards under Organizations) and a full-width Speak Mode row; communicators
+  // keep the canonical order with Speak as a normal paired card.
+  var supervisor = !!(vis.caseload || vis.rooms || vis.attention || vis.org);
+  var def = supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER;
+  var extraFull = supervisor ? ['speak'] : null;
+  return framed(packOrder(orderedVisible(vis, order, def), extraFull));
 }
 
 // The small "utility" action cards that share ONE row on Focused View.
@@ -286,5 +332,5 @@ function reorderForFocused(order, srcKey, dstKey, after, defaultOrder) {
   return reorderInsert(order, srcKey, dstKey, after, defaultOrder);
 }
 
-export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused };
-export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused };
+export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };
+export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };

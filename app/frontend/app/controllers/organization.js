@@ -11,6 +11,7 @@ import app_state from '../utils/app_state';
 import capabilities from '../utils/capabilities';
 
 export default Controller.extend({
+  router: service('router'),
   appState: service('app-state'),
   app_state: alias('appState'),
   actions: {
@@ -61,10 +62,10 @@ export default Controller.extend({
       var _this = this;
       if(key) {
         LingoLinq.store.findRecord('board', key).then(function(res) {
-          _this.transitionToRoute('board', res.get('key'));
+          _this.router.transitionTo('board', res.get('key'));
         }, function(err) {
           if(err.deleted && err.key) {
-            _this.transitionToRoute('board', err.key);
+            _this.router.transitionTo('board', err.key);
           } else {
             modal.error(i18n.t('no_boards_found', "No boards found matching that lookup"));
           }
@@ -83,7 +84,7 @@ export default Controller.extend({
           if(res.content.length === 0) {
             modal.warning(i18n.t('no_user_result', "No results found for \"%{q}\"", {q: q}));
           } else if(res.content.length == 1) {
-            _this.transitionToRoute('user.index', res.slice()[0].get('user_name'));
+            _this.router.transitionTo('user.index', res.slice()[0].get('user_name'));
           } else {
             modal.open('user-results', {list: res, q: q});
           }

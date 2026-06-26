@@ -119,7 +119,7 @@ var evaluation = {
       evaluation.stashes.push_log();
     }
     // navigate to the results page (should work even if offline and haven't been able to push yet)
-    evaluation.appState.controller.transitionToRoute('user.log', assessment.user_name, 'last-eval');
+    evaluation.appState.controller.router.transitionTo('user.log', assessment.user_name, 'last-eval');
     assessment = {};
     working = {};
   },

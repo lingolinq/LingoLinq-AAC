@@ -91,6 +91,8 @@ export default Component.extend({
     editManager.auto_edit(board.id);
     this.appState.set('referenced_board', { id: board.id, key: board.key });
     var parts = (board.key || '').split('/');
+    // Debounced "Preparing your Board" mask for the post-import board load.
+    this.appState.arm_board_load_overlay(this.get('router'));
     if(parts.length >= 2) {
       this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
     } else {
@@ -154,7 +156,7 @@ export default Component.extend({
         file = input && input.files && input.files[0];
       }
       if(!file) {
-        this.set('status', { error: i18n.t('json_bundle_required', "Please choose a JSON bundle file.") });
+        this.set('status', { error: i18n.t('json_bundle_required', "Please choose an export file.") });
         return;
       }
 
@@ -169,11 +171,11 @@ export default Component.extend({
         try {
           var bundle = JSON.parse(loadEvent.target.result);
           if(!bundle || !Array.isArray(bundle.boards) || bundle.boards.length === 0) {
-            _this.set('status', { error: i18n.t('invalid_json_bundle', "The selected file is not a valid JSON bundle.") });
+            _this.set('status', { error: i18n.t('invalid_json_bundle', "The selected file is not a valid board export.") });
             return;
           }
         } catch(e) {
-          _this.set('status', { error: i18n.t('invalid_json_bundle', "The selected file is not valid JSON.") });
+          _this.set('status', { error: i18n.t('invalid_json_bundle', "The selected file is not a valid board export.") });
           return;
         }
 
@@ -211,7 +213,7 @@ export default Component.extend({
         });
       };
       reader.onerror = function() {
-        _this.set('status', { error: i18n.t('invalid_json_bundle', "The selected file is not valid JSON.") });
+        _this.set('status', { error: i18n.t('invalid_json_bundle', "The selected file is not a valid board export.") });
       };
       reader.readAsText(file);
     }
