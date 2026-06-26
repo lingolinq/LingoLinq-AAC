@@ -723,6 +723,7 @@ class User < ApplicationRecord
       'authenticated_user' => {
         'long_press_edit' => false,
         'require_speak_mode_pin' => false,
+        'require_sidebar_edit_pin' => false,
         'logging' => false,
         'geo_logging' => false,
         'role' => 'communicator',
@@ -1156,7 +1157,7 @@ class User < ApplicationRecord
   PREFERENCE_PARAMS = ['sidebar', 'auto_home_return', 'vocalize_buttons', 
       'sharing', 'button_spacing', 'quick_sidebar', 'disable_quick_sidebar', 
       'lock_quick_sidebar', 'clear_on_vocalize', 'logging', 'geo_logging', 
-      'require_speak_mode_pin', 'speak_mode_pin', 'activation_minimum',
+      'require_speak_mode_pin', 'speak_mode_pin', 'require_sidebar_edit_pin', 'activation_minimum',
       'activation_location', 'activation_cutoff', 'activation_on_start', 
       'confirm_external_links', 'external_links', 'long_press_edit', 'scanning', 'scanning_interval',
       'scanning_mode', 'scanning_select_keycode', 'scanning_next_keycode', 

@@ -56,7 +56,18 @@
         </div>
       </div>
     </div>
-    {{#if this.pending_preferences.require_speak_mode_pin}}
+    <div class="form-group">
+      <label for="require_sidebar_edit_pin" class="col-sm-3 control-label">{{t "Sidebar" key='sidebar'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.pending_preferences.require_sidebar_edit_pin}} id="require_sidebar_edit_pin" />
+            {{t "Require a PIN to edit the Sidebar" key='require_sidebar_edit_pin'}}
+          </label>
+        </div>
+      </div>
+    </div>
+    {{#if (or this.pending_preferences.require_speak_mode_pin this.pending_preferences.require_sidebar_edit_pin)}}
       <div class="form-group">
         <label for="speak_mode_pin" class="col-sm-3 control-label">{{t "Speak Mode PIN" key='speak_mode_pin'}}</label>
         <div class="col-sm-5">

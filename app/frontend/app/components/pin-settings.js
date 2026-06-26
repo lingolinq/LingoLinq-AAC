@@ -41,6 +41,16 @@ export default Component.extend({
     }
   }),
 
+  // Live-saved checkbox: require the PIN to open the sidebar editor. Reuses the
+  // same speak_mode_pin value as the speak-mode gate.
+  require_sidebar_edit_pin: computed('user.preferences.require_sidebar_edit_pin', {
+    get() { return !!this.get('user.preferences.require_sidebar_edit_pin'); },
+    set(key, value) {
+      this._save_pref('require_sidebar_edit_pin', !!value);
+      return !!value;
+    }
+  }),
+
   // Live-saved checkbox: hide the forgotten-PIN hint.
   hide_pin_hint: computed('user.preferences.hide_pin_hint', {
     get() { return !!this.get('user.preferences.hide_pin_hint'); },

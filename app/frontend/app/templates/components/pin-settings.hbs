@@ -13,7 +13,12 @@
       <span>{{t "Require a PIN when exiting Speak Mode" key='require_speak_mode_pin'}}</span>
     </label>
 
-    {{#if this.require_speak_mode_pin}}
+    <label class="la-edit-board-checkbox md-pin-settings__checkbox">
+      <Input @type="checkbox" @checked={{this.require_sidebar_edit_pin}} class="la-edit-board-check" id="require_sidebar_edit_pin" />
+      <span>{{t "Require a PIN to edit the Sidebar" key='require_sidebar_edit_pin'}}</span>
+    </label>
+
+    {{#if (or this.require_speak_mode_pin this.require_sidebar_edit_pin)}}
       <div class="form-group md-pin-settings__group">
         <label for="speak_mode_pin">{{t "Speak Mode PIN" key='speak_mode_pin'}}</label>
         <Input @value={{this.pin_value}} class="form-control md-pin-settings__input" id="speak_mode_pin" maxlength="4" inputmode="numeric" placeholder={{t "4-digit" key="pin_placeholder_4_digit"}} {{on "change" (action "save_pin")}} />

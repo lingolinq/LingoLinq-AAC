@@ -5848,9 +5848,30 @@ export default Controller.extend(prefClasses, {
        My Board Collection). Triggered by the "Edit Sidebar" button at the top of
        the inline sidebar. */
     open_sidebar_editor: function() {
-      this.set('show_options_menu', false);
-      this.set('board_collection_open', false);
-      this.set('sidebar_editor_open', true);
+      var _this = this;
+      var expand = function() {
+        _this.set('show_options_menu', false);
+        _this.set('board_collection_open', false);
+        _this.set('sidebar_editor_open', true);
+      };
+      // Optional PIN gate: when the user has enabled require_sidebar_edit_pin AND
+      // has a PIN configured, require the PIN before expanding the sidebar editor
+      // panel. Reuses the speak-mode-pin entry modal in validate-only 'none' mode
+      // (validates + resolves {correct_pin:true}, no side effect) — same shared
+      // speak_mode_pin value as the speak-mode exit/enter gates.
+      var user = this.get('app_state.currentUser');
+      var pin = user && user.get('preferences.speak_mode_pin');
+      if(user && user.get('preferences.require_sidebar_edit_pin') && pin) {
+        modal.open('speak-mode-pin', {
+          actual_pin: pin,
+          action: 'none',
+          hide_hint: user.get('preferences.hide_pin_hint')
+        }).then(function(res) {
+          if(res && res.correct_pin) { expand(); }
+        }, function() { });
+      } else {
+        expand();
+      }
     },
     close_sidebar_editor: function() {
       this.set('sidebar_editor_open', false);

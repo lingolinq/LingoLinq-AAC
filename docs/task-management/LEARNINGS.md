@@ -97,6 +97,7 @@ file (see [README.md](README.md)).
 
 ---
 
+- [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 ## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
 
 For user-entered AI prompts that become reusable data, scrub PII first, normalize the scrubbed text, and use a conservative exact key with behavior-shaping settings such as locale and include-core vocabulary. Store generated output separately from user-applied output; the applied list is the reviewed signal future recommendation layers should trust more. Keep v1 in Postgres and derive later vector/graph layers from the source rows rather than changing the modal/API contract. When verifying specs around seeded/template records after migrations, compare table-count deltas from each example's starting count instead of hard-coding absolute counts. First seen in [`ai-focus-word-library-architecture.md`](./ai-focus-word-library-architecture.md).
@@ -5604,3 +5605,28 @@ Live-saving a user preference from a modal: bind a checkbox `@checked` to a `com
 whose setter does `user.set('preferences.FIELD', v); user.set('preferences.device.updated', true);
 user.save();` — saves immediately on toggle. For text inputs, save on `{{on "change" ...}}` (blur)
 not per keystroke. Example: `app/frontend/app/components/pin-settings.js`.
+
+## Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action
+
+To PIN-gate ANY action (not just exiting Speak Mode), open the existing
+`speak-mode-pin` entry modal in validate-only mode and act on the resolved
+payload — no new modal, no separate PIN value:
+
+```js
+modal.open('speak-mode-pin', {
+  actual_pin: user.get('preferences.speak_mode_pin'),
+  action: 'none',                                   // validate only, no side effect
+  hide_hint: user.get('preferences.hide_pin_hint')
+}).then(function(res) {
+  if (res && res.correct_pin) { doTheGatedThing(); } // res is undefined on cancel
+}, function() {});
+```
+
+The modal resolves `modal.close({correct_pin:true})` on a correct PIN (and plain
+`close()` → `undefined` on cancel), so `modal.open(...).then(res => res && res.correct_pin)`
+is the gate. `action: 'none'` is the same mode the speak-mode ENTRY gate uses
+(`application.js:1094`). Gate only when `require_<x>_pin && speak_mode_pin` both set
+so a missing PIN can never lock the user out. First applied: `require_sidebar_edit_pin`
+gating `open_sidebar_editor` (board-detail.js), 2026-06-26. The PIN value
+(`speak_mode_pin`) is SHARED across all gates — a new gate is just a new boolean
+pref (3-touch) + this `.then` wrapper, NOT a new PIN.
