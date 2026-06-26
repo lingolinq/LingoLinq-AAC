@@ -15,7 +15,7 @@
                — which close the modal, see components/button-settings.js) interleave
                by their visible label. --}}
           <li class={{if this.actionState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.actionState "true" "false"}} {{action "setState" "action"}}>{{t "Action" key="action"}}</a></li>
-          <li class="inactive md-button-settings__nav-action" role="presentation"><a href="#" role="button" {{action "color_button"}}>{{t "Color" key="color"}}</a></li>
+          {{#if this.is_modern}}<li class="inactive md-button-settings__nav-action" role="presentation"><a href="#" role="button" {{action "color_button"}}>{{t "Color" key="color"}}</a></li>{{/if}}
           {{#if this.appState.feature_flags.board_levels}}
             <li class={{if this.extrasState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.extrasState "true" "false"}} {{action "setState" "extras"}}>{{t "Extras" key="extras"}}</a></li>
           {{/if}}
@@ -25,8 +25,10 @@
           {{/if}}
           <li class={{if this.pictureState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.pictureState "true" "false"}} {{action "setState" "picture"}}>{{t "Picture" key="picture"}}</a></li>
           <li class={{if this.soundState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.soundState "true" "false"}} {{action "setState" "sound"}}>{{t "Sound" key="sound"}}</a></li>
+          {{#if this.is_modern}}
           <li class="inactive md-button-settings__nav-action" role="presentation"><a href="#" role="button" {{action "stash_this_button"}}>{{t "Stash" key="stash"}}</a></li>
           <li class="inactive md-button-settings__nav-action" role="presentation"><a href="#" role="button" {{action "word_data_this_button"}}>{{t "Word Data" key="view_word_data_title"}}</a></li>
+          {{/if}}
         </ul>
       </div>
       <div class="col-sm-9 content" role="tabpanel">

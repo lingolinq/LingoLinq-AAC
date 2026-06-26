@@ -77470,7 +77470,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      far the CARD sits below the tab, never the tab itself. Bottom-anchored. */
   top: auto;
   bottom: -3px;
-  height: calc(100% + 3px - max(18px, var(--bd-button-text-size, 18px)) * 1.3);
+  /* max(24px, …) floor so the back can't collapse to 0 (and the tab detach)
+     when the protrusion (huge Text Size × 1.3) exceeds a short cell on a
+     dense/short board. */
+  height: max(24px, calc(100% + 3px - max(18px, var(--bd-button-text-size, 18px)) * 1.3));
   /* Top corners keep the base 14px 14px 20px 20px radius (no override). */
 }
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder,

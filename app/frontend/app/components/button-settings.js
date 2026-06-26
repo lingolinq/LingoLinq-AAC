@@ -27,6 +27,15 @@ export default Component.extend({
   contentGrabbers: service('content-grabbers'),
   tagName: '',
 
+  // True only in the Modern (board-detail) view. The relocated Color/Stash/Word
+  // Data nav actions route through editManager's controller, which only defines
+  // those actions in board-detail; in Classic (board-alt) board/index lacks
+  // open_color_picker (would throw) and its word_data expects an id. Classic
+  // never had these items, so gate them on Modern.
+  is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
+    return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
+  }),
+
   init() {
     this._super(...arguments);
     const modalService = this.get('modal');

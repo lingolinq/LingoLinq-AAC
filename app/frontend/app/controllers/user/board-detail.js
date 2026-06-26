@@ -1945,16 +1945,16 @@ export default Controller.extend(prefClasses, {
   suggestions: null,
   show_word_suggestions: computed('edit_mode', 'app_state.referenced_user.preferences.word_suggestions', function() {
     // Global user preference gates word prediction in speak mode. Default is
-    // OFF: only an explicit `true` shows it (undefined/null/false = off). Never
-    // shown in edit mode.
+    // ON: only an explicit `false` hides it (undefined/null = on), matching the
+    // registration default and the toggle below. Never shown in edit mode.
     if(this.get('edit_mode')) { return false; }
-    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
+    return this.get('app_state.referenced_user.preferences.word_suggestions') !== false;
   }),
-  // On/off state of word prediction (default OFF — only explicit true is on),
+  // On/off state of word prediction (default ON — only explicit false is off),
   // used by the BOARD SETTINGS → Word Prediction toggle — independent of
   // edit_mode, unlike show_word_suggestions which is always false while editing.
   word_suggestions_enabled: computed('app_state.referenced_user.preferences.word_suggestions', function() {
-    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
+    return this.get('app_state.referenced_user.preferences.word_suggestions') !== false;
   }),
   // Where word prediction renders in speak mode (user pref). 'speak_bar' /
   // 'side_rail' pin a layout at all widths via a shell class; 'auto' keeps the
@@ -2142,8 +2142,8 @@ export default Controller.extend(prefClasses, {
     'model.locale',
     function() {
       // Skip the lookup entirely when in edit mode or word prediction is off
-      // (default OFF — only an explicit `true` enables it).
-      if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
+      // (default ON — only an explicit `false` disables it).
+      if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') === false) {
         this.set('suggestions', null);
         return;
       }

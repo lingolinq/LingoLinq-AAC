@@ -151,10 +151,10 @@ export default Controller.extend({
     // so seed the DEFAULTS (on / side_rail — left of the sidebar) into BOTH
     // pending and original. That makes the toggle/selector render in their
     // default state without falsely marking the form dirty, and mirrors the
-    // server-side preference_defaults (user.rb). The authoritative stored value
-    // comes from preference_defaults for new users and the backfill rake task
-    // for existing ones (the speak page gates on word_suggestions === true, so it
-    // relies on the value actually being persisted, not on this form seed).
+    // server-side preference_defaults (user.rb). Both the speak page and this
+    // form now treat null as ON (word_suggestions !== false), so an existing
+    // user with no stored value sees — and gets — word prediction ON without
+    // any backfill; their next save persists the default via generate_defaults.
     if(this.get('pending_preferences.word_suggestions') == null) {
       this.set('pending_preferences.word_suggestions', true);
       this.set('original_preferences.word_suggestions', true);

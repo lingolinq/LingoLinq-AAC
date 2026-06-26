@@ -58,12 +58,24 @@ export default Component.extend({
     if(user && user.set && user.save) {
       user.set('preferences.' + field, value);
       user.set('preferences.device.updated', true);
-      user.save();
+      // Swallow a rejected save (e.g. offline) so it doesn't surface as an
+      // unhandled rejection — the in-memory pref is already set and persistence
+      // queues/retries. Mirrors the defensive .save() pattern used elsewhere.
+      user.save().then(null, function() {});
     }
   },
 
   actions: {
-    close() { this.get('modal').close(); },
+    close() {
+      // Persist the PIN on close too, in case the modal is dismissed (X /
+      // Escape / backdrop) before the input's change/blur fired. Only saves
+      // when it actually differs, to avoid a redundant write.
+      var pin = (this.get('pin_value') || '').toString();
+      if(pin !== ((this.get('user.preferences.speak_mode_pin') || '').toString())) {
+        this._save_pref('speak_mode_pin', pin);
+      }
+      this.get('modal').close();
+    },
     opening() { this.get('modal').setComponent(this); },
     closing() {},
     // The PIN value persists on change (blur/enter) rather than per keystroke.
