@@ -679,6 +679,11 @@ class User < ApplicationRecord
         # narrow).
         'word_suggestion_position' => 'side_rail',
         'hidden_buttons' => 'grid',
+        # Folder display style for sub-folder buttons: 'default' (plain folder
+        # face), 'tab_labels', or 'colored_corner'. Assigned at registration so
+        # the value is authoritative server-side; the client no longer supplies
+        # a fallback default for it.
+        'folder_display_style' => 'default',
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,

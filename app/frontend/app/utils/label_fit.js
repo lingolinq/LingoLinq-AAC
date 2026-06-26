@@ -68,6 +68,17 @@ function isInput(el) {
   return el && el.tagName === 'INPUT';
 }
 
+// Single-line labels are fitted by WIDTH, not by wrapped height. Inputs are
+// intrinsically single-line; folder-tab labels (Show-Labels-on-Tab mode) are
+// white-space: nowrap — folder labels can't wrap onto a tab — so they overflow
+// horizontally and must be width-fitted the same way (the wrapped/height path
+// would never shrink them, since a single nowrap line always fits the 3-line
+// height box).
+function isSingleLine(el) {
+  return isInput(el) ||
+    (el.classList && el.classList.contains('md-folder-tab__label'));
+}
+
 function labelText(el) {
   if(isInput(el)) { return el.value || ''; }
   return (el.textContent || '').trim();
@@ -165,7 +176,7 @@ function applyOne(el, basePx) {
     el.style.fontSize = '';
     return;
   }
-  var size = isInput(el) ? fitSingleLine(el, basePx) : fitWrapped(el, basePx);
+  var size = isSingleLine(el) ? fitSingleLine(el, basePx) : fitWrapped(el, basePx);
   if(size >= basePx) {
     el.style.fontSize = '';
   } else {
@@ -175,7 +186,8 @@ function applyOne(el, basePx) {
 
 function selectLabels(gridEl) {
   return gridEl.querySelectorAll(
-    '.md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input'
+    '.md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input, ' +
+    '.md-folder-tab__label, .md-folder-tab__label-input'
   );
 }
 

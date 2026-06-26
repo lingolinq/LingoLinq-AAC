@@ -808,6 +808,22 @@ export default Component.extend({
       this.set('model.hide_label', !!checked);
       editManager.change_button(this.get('model.id'), { hide_label: !!checked });
     },
+    // Quick actions (left nav, below Extras) relocated from the removed per-button
+    // edit menu. Each closes THIS modal, then (on the next runloop, so the close
+    // settles before the color picker / word-data modal opens) runs the matching
+    // board-detail action for the CURRENT button via editManager's controller —
+    // self-contained, so it also works after in-modal button navigation.
+    _run_button_action: function(action_name) {
+      var button = this.get('model');
+      modal.close();
+      runLater(null, function() {
+        var ctrl = editManager.get('controller');
+        if(ctrl && button) { ctrl.send(action_name, button); }
+      }, 0);
+    },
+    color_button: function() { this.send('_run_button_action', 'open_color_picker'); },
+    stash_this_button: function() { this.send('_run_button_action', 'stash_button'); },
+    word_data_this_button: function() { this.send('_run_button_action', 'word_data'); },
     updateModelPartOfSpeech(value) { this.set('model.part_of_speech', value); },
     updateImageLibrary(value) { this.set('image_library', value); },
     updateSkinPreference(value) { this.set('skin_preference', value); },

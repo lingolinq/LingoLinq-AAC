@@ -123,7 +123,9 @@ export default Controller.extend(prefClasses, {
   persistence: service('persistence'),
 
   is_board_detail: true,
-  folder_display_style: 'default',
+  // folder_display_style is initialized by the route, which resolves the user's
+  // saved preference first and falls back to 'default' for legacy users with no
+  // stored value (new users get it at registration server-side).
   // When true, folder card faces are painted with the button's Fitzgerald
   // color (var(--btn-bg)) regardless of which folder display style is
   // selected. Toggled via the checkmark item at the bottom of the folder
@@ -315,7 +317,6 @@ export default Controller.extend(prefClasses, {
   board_collection_open: false,
   sidebar_editor_open: false,
   show_paint_dropdown: false,
-  button_menu_id: null,
   show_options_menu: false,
   share_dropdown_open: false,
   details_dropdown_open: false,
@@ -372,12 +373,20 @@ export default Controller.extend(prefClasses, {
     if(!cell) { return; }
     var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
     var cardRect = card.getBoundingClientRect();
-    var cellRect = cell.getBoundingClientRect();
     if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
     var grid = document.querySelector('.md-board-detail-grid');
     var gridStyle = grid ? window.getComputedStyle(grid) : null;
     var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
     var rowGap = gridStyle ? (parseFloat(gridStyle.rowGap) || 0) : 0;
+    // Make the rail read as another board column: stack its tiles with the board's
+    // ROW gap (tiles line up with board rows — the tile height already equals the
+    // board card height) and space it from the board by the board's COLUMN gap.
+    // The user's grid-gap preference lives in --bd-button-gap on the GRID element,
+    // which the rail (a sibling) can't inherit, so publish the measured gaps as
+    // vars on .md-board-detail-main that the rail CSS reads. Set BEFORE the width
+    // calc below so it reads the updated (column-gap) left margin.
+    main.style.setProperty('--prediction-tile-gap', rowGap + 'px');
+    main.style.setProperty('--prediction-rail-gap-left', colGap + 'px');
     // WIDTH. The rail is a fixed-width sibling of the FLEXIBLE board grid, so
     // setting the rail to the measured card width is circular: the rail steals
     // that width back from the grid, the cards resize, and the two stay one step
@@ -400,12 +409,10 @@ export default Controller.extend(prefClasses, {
       var w = (shared - (cols - 1) * colGap - railMarginLeft) / (cols + 1);
       if(w > 1) { tileW = Math.round(w); }
     }
-    main.style.setProperty('--prediction-tile-w', tileW + 'px');
+    // Trim 4px off the computed width (per design) so the rail tiles sit just
+    // inside the board column width rather than flush to it.
+    main.style.setProperty('--prediction-tile-w', Math.max(0, tileW - 4) + 'px');
     main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
-    // Match the board's vertical RHYTHM so rail tiles line up with board rows:
-    // board row pitch = cellHeight + rowGap; rail pitch = tileHeight + railGap.
-    // Tile height = card height, so the rail gap absorbs the difference.
-    main.style.setProperty('--prediction-tile-gap', Math.max(0, Math.round(cellRect.height + rowGap - cardRect.height)) + 'px');
     // Align the first rail tile's top with the first board row. The rail is a
     // flex child of grid-sidebar-wrap (align-items:flex-start), so it naturally
     // starts at the wrap's content top; pad it down to the first card. Measured
@@ -490,14 +497,6 @@ export default Controller.extend(prefClasses, {
       }
       if(_this.get('folder_dropdown_open') && !e.target.closest('.md-board-detail-edit-toolbar__dropdown-wrap--folder')) {
         _this.set('folder_dropdown_open', false);
-      }
-      // Per-button edit menu (portal-rendered). Close it when the click lands
-      // outside both the dropdown itself AND the trigger (the three-dots
-      // button) that opened it.
-      if(_this.get('button_menu_id') &&
-         !e.target.closest('#button-edit-dropdown') &&
-         !e.target.closest('.md-board-detail-symbol-card__edit-menu-trigger')) {
-        _this.set('button_menu_id', null);
       }
       // Immersive quick-actions popover (mic/backspace/clear) — close on
       // any click outside both the popover and its chevron trigger.
@@ -2486,7 +2485,9 @@ export default Controller.extend(prefClasses, {
       (row || []).forEach(function(btn) {
         if(!btn) { return; }
         total += 1;
-        var mods = btn.get('level_modifications');
+        // Buttons in ordered_buttons can be plain objects (not Ember objects),
+        // so guard .get — a bare btn.get('…') throws "btn.get is not a function".
+        var mods = btn.get ? btn.get('level_modifications') : btn.level_modifications;
         if(mods && Object.keys(mods).length > 0) {
           with_rules += 1;
         }
@@ -4762,71 +4763,6 @@ export default Controller.extend(prefClasses, {
       }
     },
 
-    // Arrow Up/Down for the per-button Edit/Color/Stash/Word Data/Clear dropdown
-    button_dropdown_keydown: function(btn_id, event) {
-      if(!event) { return; }
-      var key = event.key || event.keyCode;
-      var items = Array.prototype.slice.call(
-        document.querySelectorAll('#button-edit-dropdown .md-board-detail-symbol-card__edit-dropdown-item')
-      ).filter(function(el) { return el.offsetParent !== null; });
-      if(!items.length) { return; }
-      var idx = items.indexOf(document.activeElement);
-      var _this = this;
-
-      if(key === 'ArrowDown' || key === 40) {
-        event.preventDefault();
-        event.stopPropagation();
-        items[(idx + 1) % items.length].focus();
-      } else if(key === 'ArrowUp' || key === 38) {
-        event.preventDefault();
-        event.stopPropagation();
-        items[(idx - 1 + items.length) % items.length].focus();
-      } else if(key === 'Escape' || key === 'Esc' || key === 27) {
-        event.preventDefault();
-        event.stopPropagation();
-        // Close and return focus to the trigger that opened this menu
-        var trigger = document.querySelector('.md-board-detail-symbol-card[data-id="' + btn_id + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-        _this.set('button_menu_id', null);
-        if(trigger) { trigger.focus(); }
-      } else if(key === 'Tab' || key === 9) {
-        event.preventDefault();
-        event.stopPropagation();
-        // Close dropdown, find the next board button's label input
-        var currentBtnId = btn_id;
-        _this.set('button_menu_id', null);
-        // Get all button IDs from ordered_buttons in grid order
-        var ordered = _this.get('ordered_buttons') || [];
-        var allIds = [];
-        for(var r = 0; r < ordered.length; r++) {
-          var row = ordered[r];
-          for(var c = 0; c < row.length; c++) {
-            var b = row[c];
-            var id = b && (b.get ? b.get('id') : b.id);
-            if(id !== undefined && id !== null) { allIds.push(String(id)); }
-          }
-        }
-        var curIdx = allIds.indexOf(String(currentBtnId));
-        // Find the next non-empty button after current
-        runLater(function() {
-          for(var j = curIdx + 1; j < allIds.length; j++) {
-            var nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[j] + '"] .md-board-detail-symbol-card__label-input');
-            if(nextInput) {
-              nextInput.focus();
-              return;
-            }
-          }
-          // Wrap to first if at end
-          for(var k = 0; k < curIdx; k++) {
-            var firstInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[k] + '"] .md-board-detail-symbol-card__label-input');
-            if(firstInput) {
-              firstInput.focus();
-              return;
-            }
-          }
-        }, 50);
-      }
-    },
-
     // Options-menu "Take a tour" item — start the board-detail SPEAK tour. The
     // visible runner lives in the hidden {{guided-tour}} host; we trigger it by
     // setting the same pending flag the post-"Pick this Board" auto-open uses
@@ -6125,7 +6061,6 @@ export default Controller.extend(prefClasses, {
     // ── Color Picker (board-detail specific) ──
 
     open_color_picker: function(button, event) {
-      this.set('button_menu_id', null);
       if(event) { event.stopPropagation(); }
       if(this.get('color_picker_button') === button) {
         this.set('color_picker_button', null);
@@ -6922,147 +6857,12 @@ export default Controller.extend(prefClasses, {
 
     // ── Button Operations ──
 
-    toggle_button_menu: function(btn) {
-      var _controller = this;
-      var btn_id = btn.get ? btn.get('id') : btn.id;
-      if(this.get('button_menu_id') === btn_id) {
-        this.set('button_menu_id', null);
-      } else {
-        this.set('button_menu_id', btn_id);
-        // Position the portal dropdown next to the trigger
-        runLater(function() {
-          var trigger = document.querySelector('.md-board-detail-symbol-card[data-id="' + btn_id + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-          var dropdown = document.getElementById('button-edit-dropdown');
-          if(trigger && dropdown) {
-            var rect = trigger.getBoundingClientRect();
-            var dropW = dropdown.offsetWidth;
-            var dropH = dropdown.offsetHeight;
-            var top = rect.top;
-            var left = rect.left - dropW;
-            if(top + dropH > window.innerHeight) { top = window.innerHeight - dropH - 8; }
-            if(top < 8) { top = 8; }
-            if(left < 8) { left = rect.right + 4; }
-            dropdown.style.top = top + 'px';
-            dropdown.style.left = left + 'px';
-            dropdown.style.visibility = 'visible';
-            // Focus the first menu item for keyboard navigation
-            var firstItem = dropdown.querySelector('.md-board-detail-symbol-card__edit-dropdown-item');
-            if(firstItem) { firstItem.focus(); }
-            // Attach native keydown to each menu item button
-            var menuItems = dropdown.querySelectorAll('.md-board-detail-symbol-card__edit-dropdown-item');
-            menuItems.forEach(function(item) {
-              if(item._keydownBound) { return; }
-              item._keydownBound = true;
-              item.addEventListener('keydown', function(e) {
-                var dd = document.getElementById('button-edit-dropdown');
-                if(!dd) { return; }
-                var btnId = dd.getAttribute('data-btn-id');
-                var items = Array.prototype.slice.call(
-                  dd.querySelectorAll('.md-board-detail-symbol-card__edit-dropdown-item')
-                );
-                var idx = items.indexOf(document.activeElement);
-                if(e.key === 'ArrowDown' || e.keyCode === 40) {
-                  e.preventDefault(); e.stopPropagation();
-                  items[(idx + 1) % items.length].focus();
-                } else if(e.key === 'ArrowUp' || e.keyCode === 38) {
-                  e.preventDefault(); e.stopPropagation();
-                  items[(idx - 1 + items.length) % items.length].focus();
-                } else if(e.key === 'Escape' || e.keyCode === 27) {
-                  e.preventDefault(); e.stopPropagation();
-                  _controller.set('button_menu_id', null);
-                  var trig = document.querySelector('.md-board-detail-symbol-card[data-id="' + btnId + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-                  if(trig) { trig.focus(); }
-                } else if(e.key === 'Tab' || e.keyCode === 9) {
-                  e.preventDefault(); e.stopPropagation();
-                  if(e.shiftKey) {
-                    // Shift+Tab: move to previous item, or exit on first
-                    if(idx <= 0) {
-                      // On first item — close and return to trigger
-                      _controller.set('button_menu_id', null);
-                      var trig2 = document.querySelector('.md-board-detail-symbol-card[data-id="' + btnId + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-                      if(trig2) { trig2.focus(); }
-                    } else {
-                      items[idx - 1].focus();
-                    }
-                  } else {
-                    // Tab: move to next item, or exit on last
-                    if(idx >= items.length - 1) {
-                      // On last item — close and move to next button
-                      var ordered = _controller.get('ordered_buttons') || [];
-                      var allIds = [];
-                      for(var r = 0; r < ordered.length; r++) {
-                        for(var c = 0; c < ordered[r].length; c++) {
-                          var b = ordered[r][c];
-                          var bid = b && (b.get ? b.get('id') : b.id);
-                          if(bid !== undefined && bid !== null) { allIds.push(String(bid)); }
-                        }
-                      }
-                      var curIdx = allIds.indexOf(String(btnId));
-                      var nextInput = null;
-                      for(var j = curIdx + 1; j < allIds.length && !nextInput; j++) {
-                        nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[j] + '"] .md-board-detail-symbol-card__label-input');
-                      }
-                      if(!nextInput) {
-                        for(var k = 0; k < curIdx && !nextInput; k++) {
-                          nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[k] + '"] .md-board-detail-symbol-card__label-input');
-                        }
-                      }
-                      if(nextInput) { nextInput.focus(); }
-                      _controller.set('button_menu_id', null);
-                    } else {
-                      items[idx + 1].focus();
-                    }
-                  }
-                }
-              });
-            });
-          }
-        }, 50);
-      }
-    },
-
-    // Portal dropdown action wrappers — accept a button ID string instead of a button object
-    edit_button_settings_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      if(btn_id) { this._open_button_settings(btn_id, 'general'); }
-    },
-    open_color_picker_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('open_color_picker', button); }
-    },
-    stash_button_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('stash_button', button); }
-    },
-    word_data_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('word_data', button); }
-    },
-    clear_button_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('clear_button', button); }
-    },
-
-    edit_button_settings: function(btn) {
-      this.set('button_menu_id', null);
-      var btn_id = this._btn_id(btn);
-      if(btn_id) {
-        this._open_button_settings(btn_id, 'general');
-      }
-    },
-
     clear_button: function(btn) {
-      this.set('button_menu_id', null);
       var btn_id = this._btn_id(btn);
       if(btn_id) { editManager.clear_button(btn_id); }
     },
 
     stash_button: function(btn) {
-      this.set('button_menu_id', null);
       var btn_id = this._btn_id(btn);
       if(btn_id) {
         editManager.stash_button(btn_id);
@@ -7071,7 +6871,6 @@ export default Controller.extend(prefClasses, {
     },
 
     word_data: function(btn) {
-      this.set('button_menu_id', null);
       if(!btn) { return; }
       var label = btn.get ? btn.get('label') : btn.label;
       var vocalization = btn.get ? btn.get('vocalization') : btn.vocalization;
@@ -7086,6 +6885,14 @@ export default Controller.extend(prefClasses, {
       var board = this.get('model');
       if(!board) { return; }
       modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
+    },
+
+    // Opens the Speak Mode PIN settings modal (Board Actions → PIN). The modal
+    // edits user.preferences.require_speak_mode_pin / speak_mode_pin /
+    // hide_pin_hint and saves each change live.
+    pin_settings: function() {
+      this.set('details_dropdown_open', false);
+      modal.open('pin-settings', {});
     },
 
     // Language → opens the Translate Boards modal. Called from the

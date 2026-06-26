@@ -10,16 +10,23 @@
       <div class="col-sm-3">
         <ul class="nav nav-pills nav-stacked" role="tablist">
           <li class={{if this.helpState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.helpState "true" "false"}} {{action "setState" "help"}}>{{t "Help" key="help"}}</a></li>
-          <li class={{if this.generalState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.generalState "true" "false"}} {{action "setState" "general"}}>{{t "General" key="general"}}</a></li>
-          <li class={{if this.pictureState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.pictureState "true" "false"}} {{action "setState" "picture"}}>{{t "Picture" key="picture"}}</a></li>
+          {{!-- Items below are alphabetized (Help stays pinned at the top). Tabs
+               ({{action "setState"}}) and quick ACTIONS (color/stash/word_data/clear
+               — which close the modal, see components/button-settings.js) interleave
+               by their visible label. --}}
           <li class={{if this.actionState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.actionState "true" "false"}} {{action "setState" "action"}}>{{t "Action" key="action"}}</a></li>
-          <li class={{if this.soundState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.soundState "true" "false"}} {{action "setState" "sound"}}>{{t "Sound" key="sound"}}</a></li>
-          {{#if this.board.translations}}
-            <li class={{if this.languageState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.languageState "true" "false"}} {{action "setState" "language"}}>{{t "Language" key="language"}}</a></li>
-          {{/if}}
+          <li class="inactive md-button-settings__nav-action" role="presentation"><a href="#" role="button" {{action "color_button"}}>{{t "Color" key="color"}}</a></li>
           {{#if this.appState.feature_flags.board_levels}}
             <li class={{if this.extrasState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.extrasState "true" "false"}} {{action "setState" "extras"}}>{{t "Extras" key="extras"}}</a></li>
           {{/if}}
+          <li class={{if this.generalState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.generalState "true" "false"}} {{action "setState" "general"}}>{{t "General" key="general"}}</a></li>
+          {{#if this.board.translations}}
+            <li class={{if this.languageState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.languageState "true" "false"}} {{action "setState" "language"}}>{{t "Language" key="language"}}</a></li>
+          {{/if}}
+          <li class={{if this.pictureState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.pictureState "true" "false"}} {{action "setState" "picture"}}>{{t "Picture" key="picture"}}</a></li>
+          <li class={{if this.soundState "active" "inactive"}} role="presentation"><a href="#" role="tab" aria-selected={{if this.soundState "true" "false"}} {{action "setState" "sound"}}>{{t "Sound" key="sound"}}</a></li>
+          <li class="inactive md-button-settings__nav-action" role="presentation"><a href="#" role="button" {{action "stash_this_button"}}>{{t "Stash" key="stash"}}</a></li>
+          <li class="inactive md-button-settings__nav-action" role="presentation"><a href="#" role="button" {{action "word_data_this_button"}}>{{t "Word Data" key="view_word_data_title"}}</a></li>
         </ul>
       </div>
       <div class="col-sm-9 content" role="tabpanel">
@@ -1350,8 +1357,8 @@
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
-    <a href="#" class="btn btn-default btn-lg" {{action "close"}} style='vertical-align: top;'>{{t "Close" key="close"}}</a>
     <button type="button" class="btn btn-default" {{action "clear_button"}}>{{t "Clear Button" key="clear_button"}}</button>
+    <a href="#" class="btn btn-default btn-lg" {{action "close"}} style='vertical-align: top;'>{{t "Close" key="close"}}</a>
   </div>
   {{#if this.show_clear_confirm}}
     <div class="ll-confirm-overlay" role="alertdialog" aria-modal="true" aria-labelledby="clear-confirm-title" aria-describedby="clear-confirm-desc">

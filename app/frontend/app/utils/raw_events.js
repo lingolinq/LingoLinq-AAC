@@ -925,7 +925,6 @@ var buttonTracker = EmberObject.extend({
                 'border-color': 'transparent'
               });
               $overClone.find('img, .md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input, .md-board-detail-symbol-card__folder-badge').css({'opacity': '0.3', 'filter': 'grayscale(100%)'});
-              $overClone.find('.md-board-detail-symbol-card__edit-actions').css('visibility', 'hidden');
               $overClone.css('opacity', 0.85);
             }
           }
@@ -2601,7 +2600,7 @@ var buttonTracker = EmberObject.extend({
 //                      target.className == 'dropdown-backdrop' ||
                       target.className == 'modal' ||
                       target.className == 'modal-dialog' ||
-                      ($target && $target.closest('.md-board-detail-symbol-card__edit-actions, .md-board-detail-symbol-card__edit-dropdown, .md-board-detail-color-picker, .md-folder-tab__label-input').length > 0)
+                      ($target && $target.closest('.md-board-detail-color-picker, .md-folder-tab__label-input').length > 0)
                     ));
     return result;
   },

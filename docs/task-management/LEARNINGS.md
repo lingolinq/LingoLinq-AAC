@@ -5588,3 +5588,19 @@ coalescing is safe. Keep the chain alive past a rejection (`prior.then(noop, noo
 failed save can't wedge the queue, and expose the tail as `_lastSave` for callers that must wait
 for persistence to settle (e.g. a reload-on-close). See
 `app/frontend/app/components/sidebar-editor.js#_save`.
+
+## Adding a new component-based modal (frontend)
+The modal system is component-based. To add a modal named `X`, FIVE wiring points are required —
+miss any one and it silently won't render:
+1. `app/components/X.js` — `tagName: ''`; `init` reads `modal.getSettingsFor('X')` into `model`;
+   actions `close` (`modal.close()`), `opening` (`modal.setComponent(this)`), `closing`.
+2. `app/templates/components/X.hbs` — wrap body in
+   `{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}`.
+   Modern classes: `md-modal-header` / `la-modal-close` / `md-modal-body` / `md-modal-footer`.
+3. `components/modal-container.js` — add `'X'` to the `convertedModals` array (the gate).
+4. `templates/components/modal-container.hbs` — add `{{else if (is-equal this.currentTemplate "X")}}{{X}}`.
+5. Open it with `modal.open('X', {...opts})` (opts are read back via `getSettingsFor('X')`).
+Live-saving a user preference from a modal: bind a checkbox `@checked` to a `computed({get,set})`
+whose setter does `user.set('preferences.FIELD', v); user.set('preferences.device.updated', true);
+user.save();` — saves immediately on toggle. For text inputs, save on `{{on "change" ...}}` (blur)
+not per keystroke. Example: `app/frontend/app/components/pin-settings.js`.

@@ -260,6 +260,14 @@
             </svg>
             <span class="md-board-edit-panel__label">{{t "Edit Board Details" key="edit_board_details"}}</span>
           </button>
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Speak Mode PIN" key="speak_mode_pin"}} {{on "click" (action "pin_settings")}}>
+            {{!-- Padlock — body = charcoal, shackle = verdigris. --}}
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#2A9D8F"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Set a PIN" key="set_a_pin"}}</span>
+          </button>
           <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Set as Favorite" key="set_as_favorite"}} {{on "click" (action "toggle_favorite")}}>
             <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill={{if this.model.starred "#2A9D8F" "none"}} stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -410,7 +418,7 @@
               </svg>
               <span class="md-board-edit-panel__tile-label">{{t "Copy" key="copy"}}</span>
             </button>
-            <button type="button" class="md-board-edit-panel__tile" data-tooltip={{t "Download" key="download"}} {{on "click" (action "download_board")}}>
+            <button type="button" class="md-board-edit-panel__tile md-board-edit-panel__tile--download" data-tooltip={{t "Download" key="download"}} {{on "click" (action "download_board")}}>
               <svg class="md-board-edit-panel__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor"/>
                 <polyline points="7 10 12 15 17 10" stroke="#2A9D8F"/>
@@ -514,43 +522,9 @@
              Theme: segmented Light/Dark toggle directly beneath, both
              options always visible. --}}
         <div class="md-board-edit-panel__bottom">
-          <div class="md-board-edit-panel__group md-board-edit-panel__group--view">
-            <div class="md-board-edit-view-style md-board-edit-view-style--segmented">
-              <div class="md-board-edit-panel__subheader">{{t "View Style" key="board_view_style_label"}}</div>
-              {{!-- Segmented toggle, same hierarchy level as the
-                   Light/Dark control beneath it. Modern is the
-                   currently-active surface (we're on the modern board
-                   detail page); clicking Classic invokes
-                   go_to_classic which navigates to the board-alt
-                   page after persisting the preference. The toggle's
-                   ::before thumb stays under Modern by default (the
-                   `--viewstyle-classic` modifier would slide it
-                   right, but the Classic option is a navigation
-                   trigger, not a state flip in this view, so it
-                   never gets set). --}}
-              {{!-- Classic on the LEFT, Modern on the RIGHT per request.
-                   Modern is the active (current view) option so the
-                   thumb sits under the right segment by default — the
-                   --viewstyle-modern modifier on the toggle slides the
-                   thumb to the right half (mirrors the --dark modifier
-                   on the Light/Dark toggle). --}}
-              <div class="md-board-edit-view-style__toggle md-board-edit-view-style__toggle--viewstyle md-board-edit-view-style__toggle--viewstyle-modern" role="group" aria-label={{t "View Style" key="board_view_style_label"}}>
-                <button type="button"
-                  class="md-board-edit-view-style__opt"
-                  aria-pressed="false"
-                  {{on "click" (action "go_to_classic")}}>
-                  {{t "Classic" key="board_view_classic_short"}}
-                </button>
-                <button type="button"
-                  class="md-board-edit-view-style__opt md-board-edit-view-style__opt--active"
-                  aria-pressed="true"
-                  aria-current="page">
-                  {{t "Modern" key="board_view_modern_short"}}
-                </button>
-              </div>
-            </div>
-          </div>
-
+          {{!-- View Style (Classic/Modern) was MOVED to the Board Actions modal
+               (components/board-actions) — between Record Messages and Delete
+               Board. The Theme (Board Display) toggle stays here. --}}
           <div class="md-board-edit-panel__group md-board-edit-panel__group--theme">
             <div class="md-board-edit-view-style md-board-edit-view-style--theme">
               <div class="md-board-edit-panel__subheader">{{t "Board Display" key="board_detail_board_display_label"}}</div>
@@ -2079,12 +2053,6 @@
         buttonEvent=(action "button_event")
         selectButton=(action "select_button")
         selectButtonKey=(action "select_button_key")
-        editButtonSettings=(action "edit_button_settings")
-        openColorPicker=(action "open_color_picker")
-        stashButton=(action "stash_button")
-        wordData=(action "word_data")
-        clearButton=(action "clear_button")
-        toggleButtonMenu=(action "toggle_button_menu")
         closeColorPicker=(action "close_color_picker")
         applySwatchColor=(action "apply_swatch_color")
         toggleMinicolors=(action "toggle_minicolors")
@@ -2170,7 +2138,7 @@
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
-                  <span>{{t "Edit" key="edit"}}</span>
+                  <span class="md-board-detail-inline-sidebar__edit-label">{{t "Edit" key="edit"}}</span>
                 </button>
               </div>
             {{/if}}
@@ -2182,36 +2150,9 @@
 
       </div>{{!-- /.md-board-detail-grid-sidebar-wrap --}}
 
-      {{!-- Button edit dropdown — rendered outside the grid to avoid
-           minmax(0,1fr) row clipping. Positioned via JS in toggle_button_menu. --}}
-      {{#if this.button_menu_id}}
-        <div class="md-board-detail-symbol-card__edit-dropdown" role="menu" id="button-edit-dropdown" data-btn-id={{this.button_menu_id}}>
-          {{#if this.edit_mode}}
-            <button type="button" role="menuitem" class="md-board-detail-symbol-card__edit-dropdown-item" {{on "click" (action "edit_button_settings_by_id" this.button_menu_id)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              <span>{{t "Edit" key="edit"}}</span>
-            </button>
-            <button type="button" role="menuitem" class="md-board-detail-symbol-card__edit-dropdown-item" {{on "click" (action "open_color_picker_by_id" this.button_menu_id)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-              <span>{{t "Color" key="color"}}</span>
-            </button>
-          {{/if}}
-          <button type="button" role="menuitem" class="md-board-detail-symbol-card__edit-dropdown-item" {{on "click" (action "stash_button_by_id" this.button_menu_id)}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            <span>{{t "Stash" key="stash"}}</span>
-          </button>
-          <button type="button" role="menuitem" class="md-board-detail-symbol-card__edit-dropdown-item" {{on "click" (action "word_data_by_id" this.button_menu_id)}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            <span>{{t "Word Data" key="view_word_data_title"}}</span>
-          </button>
-          {{#if this.edit_mode}}
-            <button type="button" role="menuitem" class="md-board-detail-symbol-card__edit-dropdown-item md-board-detail-symbol-card__edit-dropdown-item--danger" {{on "click" (action "clear_button_by_id" this.button_menu_id)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              <span>{{t "Clear" key="clear"}}</span>
-            </button>
-          {{/if}}
-        </div>
-      {{/if}}
+      {{!-- The per-button edit dropdown (triple-dot menu) was REMOVED. Edit-mode
+           button actions now live in the Button Settings modal (opened by clicking
+           the button); speak mode has no per-button menu. --}}
       {{/if}}
 
     </main>
@@ -2313,7 +2254,7 @@
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                     </span>
-                    <span style="font-size: 12.5px; line-height: 1.45; flex: 1; color: rgba(255,255,255,0.92); letter-spacing: 0.01em;">
+                    <span class="md-board-levels-callout-text" style="font-size: 12.5px; line-height: 1.45; flex: 1; letter-spacing: 0.01em;">
                       {{t "Levels let you start basic and gradually reveal vocabulary as a communicator grows." key="button_levels_intro_hint"}}
                     </span>
                   </div>
@@ -2321,7 +2262,7 @@
                        badge with a teal glow so it reads as a
                        status pill rather than body copy. --}}
                   <div style="display: flex; justify-content: center; margin-bottom: 14px;">
-                    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(42,157,143,0.14); border: 1px solid rgba(42,157,143,0.5); color: #fff; font-size: 11.5px; font-weight: 600; line-height: 1; box-shadow: 0 0 12px rgba(42,157,143,0.35), 0 0 4px rgba(42,157,143,0.55);">
+                    <span class="md-board-levels-callout-text" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(42,157,143,0.14); border: 1px solid rgba(42,157,143,0.5); font-size: 11.5px; font-weight: 600; line-height: 1; box-shadow: 0 0 12px rgba(42,157,143,0.35), 0 0 4px rgba(42,157,143,0.55);">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="10"/>
                         <line x1="12" y1="16" x2="12" y2="12"/>
@@ -2355,8 +2296,8 @@
                            once an add action is chosen. Click anywhere
                            on the banner (or the X) to clear the
                            selection and re-show the picker. --}}
-                      <button type="button"
-                        style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border-radius: 10px; cursor: pointer; margin-bottom: 12px; font-weight: 700; font-size: 12.5px; line-height: 1.2; color: #fff; background: rgba(42,157,143,0.18); border: 1px solid rgba(42,157,143,0.55); box-shadow: 0 0 14px rgba(42,157,143,0.35), 0 0 4px rgba(42,157,143,0.5);"
+                      <button type="button" class="md-board-levels-callout-text"
+                        style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border-radius: 10px; cursor: pointer; margin-bottom: 12px; font-weight: 700; font-size: 12.5px; line-height: 1.2; background: rgba(42,157,143,0.18); border: 1px solid rgba(42,157,143,0.55); box-shadow: 0 0 14px rgba(42,157,143,0.35), 0 0 4px rgba(42,157,143,0.5);"
                         aria-label={{t "Change action" key="level_paint_change_action_aria"}}
                         {{on "click" (action "set_level_paint_action" this.level_paint_action)}}>
                         <span style="width: 14px; flex-shrink: 0;" aria-hidden="true"></span>
@@ -2398,7 +2339,7 @@
                             {{t "Remove Rules" key="level_paint_subgroup_remove"}}
                           </div>
                           <button type="button" class="md-board-edit-right-panel__pill"
-                            style="display: flex; align-items: center; justify-content: center; text-align: center; background: rgba(192,57,43,0.16); border: 1px solid rgba(192,57,43,0.50); color: #fff; box-shadow: 0 0 12px rgba(192,57,43,0.30), 0 0 4px rgba(192,57,43,0.45);"
+                            style="display: flex; align-items: center; justify-content: center; text-align: center; background: rgba(192,57,43,0.16); border: 1px solid rgba(192,57,43,0.50); box-shadow: 0 0 12px rgba(192,57,43,0.30), 0 0 4px rgba(192,57,43,0.45);"
                             {{on "click" (action "set_level_paint_action" "clear")}}>{{t "Remove level rules" key="level_paint_remove_rules"}}</button>
                         </div>
                       {{/if}}
