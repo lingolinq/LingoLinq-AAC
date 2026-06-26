@@ -141,32 +141,4 @@ namespace :lingolinq do
     puts "\n#{dry_run ? '[DRY RUN] would update' : 'Updated'} #{updated} of #{scanned} users " \
          'to word prediction ON + side_rail position.'
   end
-
-  desc "Backfill existing users with the folder_display_style default ('default') so the " \
-       'value is stored server-side and the client no longer needs a fallback. Only sets it ' \
-       'when missing — preserves any user who explicitly chose tab_labels/colored_corner. ' \
-       'DRY_RUN=1 to preview without saving.'
-  task default_folder_display_style: :environment do
-    dry_run = ENV['DRY_RUN'].to_s =~ /^(1|true|yes)$/i
-    updated = 0
-    scanned = 0
-    User.find_each do |user|
-      scanned += 1
-      prefs = (user.settings && user.settings['preferences']) || {}
-      # Only-if-unset backfill: never override an explicit folder-style choice.
-      next unless prefs['folder_display_style'].nil?
-      unless dry_run
-        user.settings ||= {}
-        user.settings['preferences'] ||= {}
-        user.settings['preferences']['folder_display_style'] = 'default'
-        # secure_serialize :settings — mark dirty so the in-place mutation persists.
-        user.settings_will_change! if user.respond_to?(:settings_will_change!)
-        user.save!
-      end
-      updated += 1
-      print '.'
-    end
-    puts "\n#{dry_run ? '[DRY RUN] would update' : 'Updated'} #{updated} of #{scanned} users " \
-         "with folder_display_style = 'default'."
-  end
 end
