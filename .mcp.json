@@ -28,6 +28,15 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "forgecrm": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@horizon-tech-solutions/forgecrm-mcp"],
+      "env": {
+        "CRM_API_URL": "https://msipkjgfkcmjebgwtcni.supabase.co/functions/v1/mcp-api",
+        "CRM_API_TOKEN": "${CRM_API_TOKEN}"
+      }
     }
   }
 }
