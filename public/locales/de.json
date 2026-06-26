@@ -7828,6 +7828,7 @@
   "pin_settings_intro": "*** Require a PIN to exit Speak Mode, so a communicator can't leave Speak Mode without it. Changes here save automatically.",
   "hide_pin_reveal_option": "*** Hide the option to reveal a forgotten PIN when exiting",
   "hidden_pin_reveal_warning": "*** NOTE: With the reveal option hidden, you won't be able to exit Speak Mode unless you remember the PIN, or can look it up on a different device.",
+  "pin_placeholder_4_digit": "*** 4-digit",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "Am Datum [[ On the Date",
   "after_time": "Nach der Zeit [[ After Time",

@@ -8209,5 +8209,6 @@
   "board_view_style_explainer": "*** Modern shows panelled tools with a focused button grid; Classic is the full-device grid. Switching reloads the board.",
   "pin_settings_intro": "*** Require a PIN to exit Speak Mode, so a communicator can't leave Speak Mode without it. Changes here save automatically.",
   "hide_pin_reveal_option": "*** Hide the option to reveal a forgotten PIN when exiting",
-  "hidden_pin_reveal_warning": "*** NOTE: With the reveal option hidden, you won't be able to exit Speak Mode unless you remember the PIN, or can look it up on a different device."
+  "hidden_pin_reveal_warning": "*** NOTE: With the reveal option hidden, you won't be able to exit Speak Mode unless you remember the PIN, or can look it up on a different device.",
+  "pin_placeholder_4_digit": "*** 4-digit"
 }

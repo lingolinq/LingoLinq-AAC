@@ -76698,10 +76698,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   position: absolute;
   top: -4px;
   left: 10px;
-  // Default-mode folder tab is always 1/3 of the backdrop (.md-folder-back)
-  // width; as a percentage it tracks the backdrop — and thus the button —
+  // Default-mode folder tab width as a percentage of the backdrop
+  // (.md-folder-back), so it tracks the backdrop — and thus the button —
   // width automatically. Single authoritative tab width: the old per-breakpoint
-  // overrides (28/34/37.5/51%) were removed so it stays 1/3 at every size.
+  // overrides (28/34/37.5/51%) were removed so it stays consistent at every size.
   width: 40%;
   // 6px → 6.6px (+10%) — bumped across every tab size variant
   // so all modes get the taller tab proportionally.
@@ -76714,8 +76714,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   overflow: hidden;
 }
 /* Grid ROW gap (the purple gap in devtools) in Show-Labels-on-Tab: fixed 4px.
-   Column gap is untouched (keeps the user's button spacing). */
-.md-board-detail-grid--folder-tab-labels {
+   Column gap is untouched (keeps the user's button spacing). Two-class selector
+   so it beats the ≤768px `.md-board-detail-grid:not(--folder-colored-corner)
+   { gap: 8px }` shorthand (also 2-class), which would otherwise reset row-gap
+   to 8px on small screens. */
+.md-board-detail-grid.md-board-detail-grid--folder-tab-labels {
   row-gap: 4px !important;
 }
 .md-board-detail-grid--folder-tab-labels .md-folder-tab {
@@ -76731,6 +76734,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1;
+  /* Full tab width + centered (mirrors __label-input) so the shrink-to-fit
+     JS measures against the available tab width, not the text's own width —
+     otherwise a label that already fits gets over-shrunk. */
+  width: 100%;
+  text-align: center;
   font-family: var(--bd-button-font);
   text-transform: var(--bd-button-text-transform);
 }
