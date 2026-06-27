@@ -21,8 +21,18 @@ import editManager from '../../utils/edit_manager';
 import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 import $ from 'jquery';
+import { persistenceTarget } from '../helpers/persistence-stub';
+
+function logById(logs, id) {
+  return logs.find(function(l) { return l.id === id; });
+}
+
+function stubOnPersistence(method, replacement) {
+  stub(persistenceTarget(), method, replacement);
+  stubOnPersistence( method, replacement);
+}
 
 describe("persistence-sync", function() {
   var app = null;
@@ -48,13 +58,25 @@ describe("persistence-sync", function() {
     app_state.set('currentBoardState', null);
     app_state.set('sessionUser', null);
     persistence.set('sync_log', null);
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.set('syncing', false);
     stub(speecher, 'load_beep', function() { return RSVP.resolve({}); });
-    var pajax = persistence.ajax;
-    stub(persistence, 'ajax', function(url, opts) {
+    var target = persistenceTarget();
+    var pajax = target.ajax;
+    stub(target, 'ajax', function(url, opts) {
       if(url.match(/board_revisions$/)) {
         var rej = RSVP.reject({});
         rej.then(null, function() { });
         return rej;
+      } else if(url.match(/token_check/)) {
+        return RSVP.resolve({});
+      } else if(url.match(/search\/proxy/)) {
+        return RSVP.resolve({
+          url: (opts && opts.url) || url,
+          content_type: 'image/png',
+          data_uri: 'data:image/png;base64,abc'
+        });
       } else {
         return pajax.apply(this, arguments);
       }
@@ -64,6 +86,11 @@ describe("persistence-sync", function() {
   });
   afterEach(function() {
     capabilities.dbman = dbman;
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.set('syncing', false);
+    LingoLinq.all_wait = false;
+    LingoLinq.sync_testing = false;
   });
 
   var board = null;
@@ -74,7 +101,7 @@ describe("persistence-sync", function() {
         name: 'Best Board'
       }}});
       var record = null;
-      LingoLinq.store.find('board', '1234').then(function(res) {
+      LingoLinq.store.findRecord('board', '1234').then(function(res) {
         record = res;
       });
       var _this = this;
@@ -150,7 +177,7 @@ describe("persistence-sync", function() {
 
   it("should call find_changed", function() {
     var called = false;
-    stub(persistence, 'find_changed', function() {
+    stubOnPersistence( 'find_changed', function() {
       called = true;
       return RSVP.resolve([]);
     });
@@ -170,11 +197,11 @@ describe("persistence-sync", function() {
   it("should save the specified user's avatar as a data-uri", function() {
     LingoLinq.all_wait = true;
     var called = false;
-    stub(persistence, 'store_url', function(url, type) {
+    stubOnPersistence( 'store_url', function(url, type) {
       called = (url === "http://example.com/pic.png" && type === 'image');
       return RSVP.resolve({url: "http://example.com/pic.png"});
     });
-    stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
     queryLog.defineFixture({
       method: 'GET',
       type: 'user',
@@ -189,12 +216,12 @@ describe("persistence-sync", function() {
 
   it("should traverse all the user's boards, saving their icons and buttons and sounds", function() {
     var stores = [];
-    stub(persistence, 'store_url', function(url, type) {
+    stubOnPersistence( 'store_url', function(url, type) {
       stores.push(url);
       console.log(url);
       return RSVP.resolve({url: url});
     });
-    stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
     queryLog.defineFixture({
       method: 'GET',
       type: 'user',
@@ -265,12 +292,12 @@ describe("persistence-sync", function() {
 
   it("should not get stuck in a circular reference for board links", function() {
     var stores = [];
-    stub(persistence, 'store_url', function(url, type) {
+    stubOnPersistence( 'store_url', function(url, type) {
       stores.push(url);
       console.log(url);
       return RSVP.resolve({url: url});
     });
-    stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
     queryLog.defineFixture({
       method: 'GET',
       type: 'user',
@@ -342,12 +369,12 @@ describe("persistence-sync", function() {
   it("should persist to the local db the list of important ids", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
 
       queryLog.defineFixture({
         method: 'GET',
@@ -407,7 +434,7 @@ describe("persistence-sync", function() {
       });
       var ids = null;
 
-      emberRun.later(function() {
+      later(function() {
         persistence.sync(1340).then(function() {
           setTimeout(function() {
             persistence.find('settings', 'importantIds').then(function(res) {
@@ -436,12 +463,12 @@ describe("persistence-sync", function() {
   it("should persist to the local db the timestamp of the last sync", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -517,12 +544,12 @@ describe("persistence-sync", function() {
    it("should resolve on completion", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -612,12 +639,12 @@ describe("persistence-sync", function() {
  it("should resolve on completion, retrieving all boards", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -705,10 +732,10 @@ describe("persistence-sync", function() {
       waitsFor(function() { return done; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
-        expect(logs.findBy('id', '178')).toNotEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toNotEqual(undefined);
       });
     });
   });
@@ -717,12 +744,12 @@ describe("persistence-sync", function() {
     db_wait(function() {
       persistence.set('sync_log', [{a: 1}]);
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -810,10 +837,10 @@ describe("persistence-sync", function() {
       waitsFor(function() { return done; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
-        expect(logs.findBy('id', '178')).toNotEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toNotEqual(undefined);
         var log = persistence.get('sync_log');
         expect(log.length).toEqual(2);
         expect(log[0].a).toEqual(1);
@@ -826,13 +853,13 @@ describe("persistence-sync", function() {
     db_wait(function() {
       persistence.set('sync_log', null);
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
       stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -852,7 +879,7 @@ describe("persistence-sync", function() {
       waitsFor(function() { return error; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
 
         var log = persistence.get('sync_log');
         expect(log.length).toEqual(1);
@@ -865,13 +892,13 @@ describe("persistence-sync", function() {
     db_wait(function() {
       persistence.set('sync_log', null);
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
       stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -947,9 +974,9 @@ describe("persistence-sync", function() {
       waitsFor(function() { return result; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
 
         var log = persistence.get('sync_log');
         expect(log.length).toEqual(1);
@@ -966,7 +993,7 @@ describe("persistence-sync", function() {
   it("should skip board lookups that are already cached locally", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -1052,7 +1079,7 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        later(function() {
           stored = true;
         }, 50);
       }, function() {
@@ -1069,7 +1096,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1106,7 +1133,7 @@ describe("persistence-sync", function() {
   it("should not assume a board is cached locally if an image's dataCache is missing", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -1188,7 +1215,7 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        later(function() {
           lingoLinqExtras.storage.find_all('board').then(function(r) {
             expect(r.length).toEqual(3);
             stored = true;
@@ -1210,7 +1237,7 @@ describe("persistence-sync", function() {
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
 
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1237,7 +1264,7 @@ describe("persistence-sync", function() {
           }
           return RSVP.reject({});
         });
-        emberRun.later(function() {
+        later(function() {
           persistence.known_missing = null;
           persistence.sync(1340).then(function() {
             done = true;
@@ -1257,7 +1284,7 @@ describe("persistence-sync", function() {
   it("should not assume a board is cached locally if an image's db entry missing", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -1337,7 +1364,7 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
@@ -1355,7 +1382,7 @@ describe("persistence-sync", function() {
         queryLog.real_lookup = true;
 
 
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1383,7 +1410,7 @@ describe("persistence-sync", function() {
           return RSVP.reject({});
         });
 
-        emberRun.later(function() {
+        later(function() {
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -1402,7 +1429,7 @@ describe("persistence-sync", function() {
   it("should not assume a board is cached locally if a board's db entry missing", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -1481,7 +1508,7 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
@@ -1499,7 +1526,7 @@ describe("persistence-sync", function() {
         queryLog.real_lookup = true;
 
 
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1527,7 +1554,7 @@ describe("persistence-sync", function() {
           return RSVP.reject({});
         });
 
-        emberRun.later(function() {
+        later(function() {
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -1546,13 +1573,13 @@ describe("persistence-sync", function() {
   it("should error if a required board isn't available", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
       stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -1631,10 +1658,10 @@ describe("persistence-sync", function() {
       waitsFor(function() { return result; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
-        expect(logs.findBy('id', '178')).toEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toEqual(undefined);
 
         logs = persistence.get('sync_log');
         expect(logs.length).toEqual(1);
@@ -1650,12 +1677,12 @@ describe("persistence-sync", function() {
  it("should not error if a link_disabled board isn't available", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -1709,9 +1736,9 @@ describe("persistence-sync", function() {
       waitsFor(function() { return done; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
       });
     });
   });
@@ -1763,7 +1790,7 @@ describe("persistence-sync", function() {
         expect(!!found_record.id.match(/^tmp_/)).toEqual(true);
         expect(!!found_record.key.match(/^tmp_.+\/cool/)).toEqual(true);
         expect(found_record.name).toEqual("My Awesome Board");
-        emberRun.later(function() {
+        later(function() {
           found_record_id = found_record.id;
           persistence.set('online', true);
           persistence.sync(1340).then(null, function() {
@@ -1826,7 +1853,7 @@ describe("persistence-sync", function() {
 
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(record.get('id')).toEqual("1234");
           expect(record.get('name')).toEqual("Righteous Board");
           persistence.set('online', false);
@@ -1843,7 +1870,7 @@ describe("persistence-sync", function() {
       var done = false;
       waitsFor(function() { return updated_record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(updated_record.raw.id).toEqual("1234");
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
@@ -1921,7 +1948,7 @@ describe("persistence-sync", function() {
       });
       waitsFor(function() { return found_deletion; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           persistence.set('online', true);
           persistence.sync(1256).then(null, function() { });
         });
@@ -1972,7 +1999,7 @@ describe("persistence-sync", function() {
         return RSVP.reject({});
       });
 
-      stub(persistence, 'find_changed', function() {
+      stubOnPersistence( 'find_changed', function() {
         return RSVP.resolve([
           {store: 'board', data: { raw: { id: '1234', name: 'Yodeling Board' } }}
         ]);
@@ -1981,7 +2008,7 @@ describe("persistence-sync", function() {
 
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(record.get('id')).toEqual("1234");
           expect(record.get('name')).toEqual("Righteous Board");
           persistence.set('online', false);
@@ -1998,7 +2025,7 @@ describe("persistence-sync", function() {
       var error = null;
       waitsFor(function() { return updated_record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(updated_record.raw.id).toEqual("1234");
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
@@ -2050,7 +2077,7 @@ describe("persistence-sync", function() {
         return RSVP.reject({});
       });
       stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() {
+      stubOnPersistence( 'find_changed', function() {
         return RSVP.resolve([
           {store: 'board', data: {raw: {id: found_record.id, key: found_record.key} }}
         ]);
@@ -2075,7 +2102,7 @@ describe("persistence-sync", function() {
         expect(!!found_record.id.match(/^tmp_/)).toEqual(true);
         expect(!!found_record.key.match(/^tmp_.+\/cool/)).toEqual(true);
         expect(found_record.name).toEqual("My Awesome Board");
-        emberRun.later(function() {
+        later(function() {
           persistence.set('online', true);
           persistence.sync(1340).then(null, function(err) {
             error = err;
@@ -2157,7 +2184,7 @@ describe("persistence-sync", function() {
         }
         return RSVP.reject({});
       });
-      stub(persistence, 'find_changed', function() {
+      stubOnPersistence( 'find_changed', function() {
         return RSVP.resolve([
           {store: 'image', data: {raw: record }}
         ]);
@@ -2166,7 +2193,7 @@ describe("persistence-sync", function() {
       var done = false;
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(!!record.id.match(/^tmp_/)).toEqual(true);
           expect(record.url).toEqual('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==');
           persistence.set('online', true);
@@ -2259,7 +2286,7 @@ describe("persistence-sync", function() {
         }
         return RSVP.reject({});
       });
-      stub(persistence, 'find_changed', function() {
+      stubOnPersistence( 'find_changed', function() {
         return RSVP.resolve([
           {store: 'sound', data: {raw: record }}
         ]);
@@ -2268,7 +2295,7 @@ describe("persistence-sync", function() {
       var done = false;
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(!!record.id.match(/^tmp_/)).toEqual(true);
           expect(record.url).toEqual('data:audio/mp3;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==');
           persistence.set('online', true);
@@ -2321,7 +2348,7 @@ describe("persistence-sync", function() {
 
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(record.get('id')).toEqual("1234");
           expect(record.get('name')).toEqual("Righteous Board");
           persistence.set('online', false);
@@ -2338,7 +2365,7 @@ describe("persistence-sync", function() {
       var done = false;
       waitsFor(function() { return updated_record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(updated_record.raw.id).toEqual("1234");
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
@@ -2435,7 +2462,7 @@ describe("persistence-sync", function() {
       waitsFor(function() { return server_board; });
       runs(function() {
         persistence.set('online', false);
-        emberRun.later(function() {
+        later(function() {
           // create a temporary image
           // create a temporary sound
           // create a temporary board
@@ -2527,7 +2554,7 @@ describe("persistence-sync", function() {
         var tmp_sound_id = tmp_sound.id;
         persistence.set('online', true);
         // stub find_changed to return the records with the server-side board first
-        stub(persistence, 'find_changed', function() {
+        stubOnPersistence( 'find_changed', function() {
           return RSVP.resolve([
             {store: 'board', data: { raw: server_board }},
             {store: 'board', data: { raw: tmp_board }},
@@ -2535,7 +2562,7 @@ describe("persistence-sync", function() {
             {store: 'sound', data: { raw: tmp_sound }}
           ]);
         });
-        emberRun.later(function() {
+        later(function() {
           // call sync
           persistence.known_missing = null;
           persistence.sync(1567).then(function() {
@@ -2618,11 +2645,11 @@ describe("persistence-sync", function() {
       stub(modal, 'warning', function(message) {
         warnings.push(message);
       });
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -2822,12 +2849,12 @@ describe("persistence-sync", function() {
       stub(modal, 'warning', function(message) {
         warnings.push(message);
       });
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -2951,12 +2978,12 @@ describe("persistence-sync", function() {
   it("should sync sidebar boards if defined", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -3003,7 +3030,7 @@ describe("persistence-sync", function() {
   it("should query for fresh board_revisions", function() {
     db_wait(function() {
       var revisions_called = false;
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         if(url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
           return RSVP.resolve({
@@ -3013,7 +3040,7 @@ describe("persistence-sync", function() {
       });
 
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -3099,7 +3126,7 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
@@ -3116,7 +3143,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -3155,7 +3182,7 @@ describe("persistence-sync", function() {
   it("should not try to download boards that match the fresh revision from board_revisions", function() {
     db_wait(function() {
       var revisions_called = false;
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         if(url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
           return RSVP.resolve({
@@ -3169,7 +3196,7 @@ describe("persistence-sync", function() {
       });
 
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -3259,7 +3286,7 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
@@ -3277,7 +3304,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -3327,7 +3354,7 @@ describe("persistence-sync", function() {
   it("should try to download boards that don't match the fresh revision from board_revisions, even if they otherwise seem ok", function() {
     db_wait(function() {
       var revisions_called = false;
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         if(url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
           return RSVP.resolve({
@@ -3341,7 +3368,7 @@ describe("persistence-sync", function() {
       });
 
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubOnPersistence( 'store_url', function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -3427,7 +3454,7 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
@@ -3445,7 +3472,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {

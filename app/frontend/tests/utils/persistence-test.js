@@ -23,8 +23,14 @@ import editManager from '../../utils/edit_manager';
 import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 import $ from 'jquery';
+import { persistenceTarget } from '../helpers/persistence-stub';
+
+function stubOnPersistence(method, replacement) {
+  stub(persistenceTarget(), method, replacement);
+  stubOnPersistence( method, replacement);
+}
 
 describe("persistence", function() {
   var app = null;
@@ -50,6 +56,34 @@ describe("persistence", function() {
     app_state.set('currentBoardState', null);
     app_state.set('sessionUser', null);
     stub(speecher, 'load_beep', function() { return RSVP.resolve({}); });
+    var target = persistenceTarget();
+    var pajax = target.ajax;
+    stub(target, 'ajax', function(url, opts) {
+      if(url.match(/board_revisions$/)) {
+        var rej = RSVP.reject({});
+        rej.then(null, function() { });
+        return rej;
+      } else if(url.match(/token_check/)) {
+        return RSVP.resolve({});
+      } else if(url.match(/search\/proxy/)) {
+        var proxyUrl = url.match(/url=([^&]+)/);
+        var decoded = proxyUrl ? decodeURIComponent(proxyUrl[1]) : url;
+        if(decoded.match(/buttons\.json/)) {
+          return RSVP.resolve({
+            url: decoded,
+            content_type: 'text/json',
+            data_uri: 'data:text/json;base64,' + btoa('{"buttons":[]}')
+          });
+        }
+        return RSVP.resolve({
+          url: decoded,
+          content_type: 'image/png',
+          data_uri: 'data:image/png;base64,abc'
+        });
+      } else {
+        return pajax.apply(this, arguments);
+      }
+    });
     dbman = capabilities.dbman;
     capabilities.dbman = fake_dbman();
   });
@@ -65,7 +99,7 @@ describe("persistence", function() {
         name: 'Best Board'
       }}});
       var record = null;
-      LingoLinq.store.find('board', '1234').then(function(res) {
+      LingoLinq.store.findRecord('board', '1234').then(function(res) {
         record = res;
       });
       var _this = this;
@@ -276,7 +310,7 @@ describe("persistence", function() {
           board = LingoLinq.store.createRecord('board', record);
           expect(record.hat).toEqual(rnd);
           expect(board.get('fresh')).toEqual(true);
-          emberRun.later(function() {
+          later(function() {
             app_state.set('refresh_stamp', 1234);
             refreshed = true;
           }, 500);
@@ -612,7 +646,7 @@ describe("persistence", function() {
     });
 
     it("should make an API call to proxy the URL", function() {
-      stub(persistence, 'ajax', function(options) {
+      stubOnPersistence( 'ajax', function(options) {
         return RSVP.resolve({
           content_type: 'image/png',
           data: 'data:nunya'
@@ -635,7 +669,7 @@ describe("persistence", function() {
 
     it("should store the API results in the dataCache table", function() {
       db_wait(function() {
-        stub(persistence, 'ajax', function(options) {
+        stubOnPersistence( 'ajax', function(options) {
           return RSVP.resolve({
             content_type: 'image/png',
             data: 'data:nunya'
@@ -662,7 +696,7 @@ describe("persistence", function() {
 
     it("should error on a failed API call", function() {
       db_wait(function() {
-        stub(persistence, 'ajax', function(options) {
+        stubOnPersistence( 'ajax', function(options) {
           return RSVP.reject({error: "bacon"});
         });
         var result = null;
@@ -676,13 +710,13 @@ describe("persistence", function() {
       });
     });
     it("should error on a failed data storage", function() {
-      stub(persistence, 'ajax', function(options) {
+      stubOnPersistence( 'ajax', function(options) {
         return RSVP.resolve({
           content_type: 'image/png',
           data: 'data:nunya'
         });
       });
-      stub(persistence, 'store', function() {
+      stubOnPersistence( 'store', function() {
         return RSVP.reject({error: "no no"});
       });
       var result = null;
@@ -704,16 +738,16 @@ describe("persistence", function() {
         });
         stub(lingoLinqExtras, 'ready', true);
         stashes.set('auth_settings', {});
-        stub(persistence, 'ajax', function() {
+        stubOnPersistence( 'ajax', function() {
           return RSVP.resolve({
             content_type: 'application/json',
             data: 'data:application/json;base64,' + btoa('aes256-payload')
           });
         });
-        stub(persistence, 'decrypt_json', function() {
+        stubOnPersistence( 'decrypt_json', function() {
           return RSVP.resolve(buttons);
         });
-        stub(persistence, 'store', function() {
+        stubOnPersistence( 'store', function() {
           return RSVP.reject({error: 'rejected'});
         });
 
@@ -736,7 +770,7 @@ describe("persistence", function() {
     it("should normalize a url", function() {
       var url = "http://localhost/api/v1/users/123/protected_image/lessonpix/12345?user_token=asdfasdf";
       db_wait(function() {
-        stub(persistence, 'ajax', function(options) {
+        stubOnPersistence( 'ajax', function(options) {
           return RSVP.resolve({
             content_type: 'image/png',
             data: 'data:nunya'
@@ -765,7 +799,7 @@ describe("persistence", function() {
     it("should return json_payload without requiring a data_uri round trip", function() {
       var buttons = [{label: 'sí', board_id: 'board-1', depth: 0}];
       var result = null;
-      stub(persistence, 'store_url', function() {
+      stubOnPersistence( 'store_url', function() {
         return RSVP.resolve({
           url: 'http://www.example.com/buttons.json',
           type: 'json',
@@ -961,7 +995,7 @@ describe("persistence", function() {
   describe("DSAdapter", function() {
     describe("findRecord", function() {
       it("should return a promise", function() {
-        var res = LingoLinq.store.find('board', '1234');
+        var res = LingoLinq.store.findRecord('board', '1234');
         expect(res.then).not.toEqual(null);
       });
       it("should make an ajax query and find the record", function() {
@@ -976,7 +1010,7 @@ describe("persistence", function() {
           id: "987"
         });
         var result = null;
-        LingoLinq.store.find('board', '987').then(function(res) {
+        LingoLinq.store.findRecord('board', '987').then(function(res) {
           result = res;
         });
         waitsFor(function() { return result; });
@@ -998,13 +1032,13 @@ describe("persistence", function() {
             }
           });
           var local = null;
-          stub(persistence, 'store_eventually', function(store, obj) {
+          stubOnPersistence( 'store_eventually', function(store, obj) {
             local = obj;
             return RSVP.resolve(obj);
           });
 
           var result = null;
-          LingoLinq.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.findRecord('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1024,7 +1058,7 @@ describe("persistence", function() {
             ajax_called = true;
             return RSVP.reject({});
           });
-          stub(persistence, 'find', function(store, key) {
+          stubOnPersistence( 'find', function(store, key) {
             return RSVP.resolve({board: {
                 id: '9876',
                 name: 'Cool Board'
@@ -1032,7 +1066,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          LingoLinq.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.findRecord('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1055,7 +1089,7 @@ describe("persistence", function() {
             defer = RSVP.defer();
             return defer.promise;
           });
-          stub(persistence, 'find', function(store, key) {
+          stubOnPersistence( 'find', function(store, key) {
             return RSVP.resolve({board: {
                 id: '9876',
                 name: 'Cool Board'
@@ -1063,7 +1097,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          LingoLinq.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.findRecord('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1105,7 +1139,7 @@ describe("persistence", function() {
             ajax_called = true;
             return RSVP.reject({responseJSON: {invalid_token: true, error: {invalid_token: true, error: 'invalid token'}}});
           });
-          stub(persistence, 'find', function(store, key) {
+          stubOnPersistence( 'find', function(store, key) {
             return RSVP.resolve({board: {
                 id: '9876',
                 name: 'Cool Board'
@@ -1142,7 +1176,7 @@ describe("persistence", function() {
             ajax_called = true;
             return RSVP.reject({});
           });
-          stub(persistence, 'find', function(store, key) {
+          stubOnPersistence( 'find', function(store, key) {
             return RSVP.resolve({board: {
                 id: 'tmp_abcd',
                 name: 'Cool Board'
@@ -1150,7 +1184,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          LingoLinq.store.find('board', 'tmp_abcd').then(function(res) {
+          LingoLinq.store.findRecord('board', 'tmp_abcd').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1171,12 +1205,12 @@ describe("persistence", function() {
             ajax_called = true;
             return RSVP.reject({});
           });
-          stub(persistence, 'find', function(store, key) {
+          stubOnPersistence( 'find', function(store, key) {
             return RSVP.reject({});
           });
 
           var result = null;
-          LingoLinq.store.find('board', '8765').then(null, function(res) {
+          LingoLinq.store.findRecord('board', '8765').then(null, function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1440,7 +1474,7 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            emberRun.later(function() {
+            later(function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
                 expect(res.id).toEqual(record.id);
@@ -1477,7 +1511,7 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            emberRun.later(function() {
+            later(function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
                 setTimeout(function() {
@@ -1526,7 +1560,7 @@ describe("persistence", function() {
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
             var tmp_id = record.get('id');
-            emberRun.later(function() {
+            later(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1577,7 +1611,7 @@ describe("persistence", function() {
 
           waitsFor(function() { return record; });
           runs(function() {
-            emberRun.later(function() {
+            later(function() {
               expect(record.get('id')).toEqual("1234");
               expect(record.get('name')).toEqual("Righteous Board");
               persistence.set('online', false);
@@ -1640,7 +1674,7 @@ describe("persistence", function() {
             tmp_id = record.get('id');
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            emberRun.later(function() {
+            later(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1703,7 +1737,7 @@ describe("persistence", function() {
             tmp_id = record.get('id');
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            emberRun.later(function() {
+            later(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1801,7 +1835,7 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            emberRun.later(function() {
+            later(function() {
               record_id = record.id;
               record.deleteRecord();
               record.save().then(function(res) {
@@ -1826,7 +1860,7 @@ describe("persistence", function() {
           persistence.removals = [];
           board.deleteRecord();
           board.save().then(function(res) {
-            emberRun.later(function() {
+            later(function() {
               persistence.find('board', '1234').then(function() { dbg(); }, function() {
                 deleted = true;
               });
@@ -1835,7 +1869,7 @@ describe("persistence", function() {
           var found_deletion = null;
           waitsFor(function() { return deleted && persistence.removals.length > 0; });
           runs(function() {
-            emberRun.later(function() {
+            later(function() {
               lingoLinqExtras.storage.find('deletion', 'board_1234').then(function() {
                 found_deletion = true;
               });
@@ -1903,7 +1937,7 @@ describe("persistence", function() {
           waitsFor(function() { return found_deletion; });
 
           runs(function() {
-            emberRun.later(function() {
+            later(function() {
               persistence.set('online', true);
               persistence.sync(1256).then(null, function() { });
             }, 50);
@@ -2175,7 +2209,7 @@ describe("persistence", function() {
       stub(LingoLinq, 'sync_testing', true);
       stashes.set('auth_settings', {});
       var called = false;
-      stub(persistence, 'check_for_needs_sync', function(force) { called = !!force; });
+      stubOnPersistence( 'check_for_needs_sync', function(force) { called = !!force; });
       persistence.set('online', true);
       waitsFor(function() { return called; });
       runs();
@@ -2184,10 +2218,10 @@ describe("persistence", function() {
     it("should not sync if last_sync_event_at is sooner than the user's interval", function() {
       stub(session, 'restore', function() { });
       persistence.set('online');
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         return RSVP.reject();
       });
       stub(emberDebug, 'isTesting', function() { return false; });
@@ -2203,10 +2237,10 @@ describe("persistence", function() {
       lingoLinqExtras.ready = true;
       stub(session, 'restore', function() { });
       persistence.set('online');
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         return RSVP.reject();
       });
       stub(emberDebug, 'isTesting', function() { return false; });
@@ -2219,10 +2253,10 @@ describe("persistence", function() {
     });
 
     it("should not sync if offline", function() {
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         return RSVP.reject();
       });
       stub(emberDebug, 'isTesting', function() { return false; });
@@ -2236,10 +2270,10 @@ describe("persistence", function() {
     });
 
     it("should not sync if already syncing", function() {
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         return RSVP.reject();
       });
       stub(emberDebug, 'isTesting', function() { return false; });
@@ -2254,11 +2288,11 @@ describe("persistence", function() {
 
     it("should sync if it's been a long time since syncing", function() {
       var called = false;
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         called = true;
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         return RSVP.reject();
       });
       stub(emberDebug, 'isTesting', function() { return false; });
@@ -2273,10 +2307,10 @@ describe("persistence", function() {
 
     it("should sync if force is called and there's a last_sync_stamp", function() {
       var called = false;
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         called = true;
         return RSVP.reject();
       });
@@ -2294,10 +2328,10 @@ describe("persistence", function() {
 
     it("should not sync if there's not last_sync_stamp", function() {
       var called = false;
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(url, opts) {
+      stubOnPersistence( 'ajax', function(url, opts) {
         called = true;
         return RSVP.reject();
       });
@@ -2313,10 +2347,10 @@ describe("persistence", function() {
     it("should check remotely for a matching sync stamp", function() {
       var called = false;
       var url = null;
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(u, opts) {
+      stubOnPersistence( 'ajax', function(u, opts) {
         url = u;
         called = true;
         return RSVP.reject();
@@ -2337,11 +2371,11 @@ describe("persistence", function() {
     it("should not sync if it finds a matching remote sync stamp", function() {
       var called = false;
       var sync_called = false;
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         sync_called = true;
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(u, opts) {
+      stubOnPersistence( 'ajax', function(u, opts) {
         called = true;
         if(u == '/api/v1/users/self/sync_stamp') {
           return RSVP.resolve({sync_stamp: 'asdf'});
@@ -2369,11 +2403,11 @@ describe("persistence", function() {
     it("should sync if it finds an updated remote sync stamp", function() {
       var called = false;
       var sync_called = false;
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         sync_called = true;
         return RSVP.reject();
       });
-      stub(persistence, 'ajax', function(u, opts) {
+      stubOnPersistence( 'ajax', function(u, opts) {
         called = true;
         if(u == '/api/v1/users/self/sync_stamp') {
           return RSVP.resolve({sync_stamp: 'jkl'});
@@ -2397,7 +2431,7 @@ describe("persistence", function() {
       persistence.set('auto_sync', false);
 
       var sync_called = false;
-      stub(persistence, 'sync', function() {
+      stubOnPersistence( 'sync', function() {
         sync_called = true;
         return RSVP.reject();
       });

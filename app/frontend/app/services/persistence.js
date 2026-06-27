@@ -25,6 +25,29 @@ import { computed } from '@ember/object';
 
 var valid_stores = ['user', 'board', 'image', 'sound', 'settings', 'dataCache', 'buttonset'];
 var loaded = (new Date()).getTime() / 1000;
+
+function time_promise(inputPromise, msg, ms) {
+  ms = ms || 30000;
+  var wrapped = new RSVP.Promise(function(resolve, reject) {
+    var done = false;
+    RSVP.resolve(inputPromise).then(function(res) {
+      done = true;
+      resolve(res);
+    }, function(err) {
+      done = true;
+      reject(err);
+    });
+    setTimeout(function() {
+      if(!done) {
+        LingoLinq.track_error("sync promise took too long:" + msg);
+        reject({error: 'promise timed out:' + msg});
+      }
+    }, ms);
+  });
+  wrapped.promise_name = msg;
+  return wrapped;
+}
+
 var persistence = Service.extend({
   stashes: service('stashes'),
 
@@ -2058,27 +2081,7 @@ var persistence = Service.extend({
       this.set('sync_progress.canceled', true);
     }
   },
-  time_promise: function(promise, msg, ms) {
-    var promise = new RSVP.Promise(function(resolve, reject) {
-      ms = ms || 30000;
-      var done = false;
-      promise.then(function(res) {
-        done = true;
-        resolve(res);
-      }, function(err) {
-        done = true;
-        reject(err);
-      });
-      setTimeout(function() {
-        if(!done) {
-          LingoLinq.track_error("sync promise took too long:" + msg);
-          reject({error: 'promise timed out:' + msg});
-        }
-      }, ms);  
-    });
-    promise.promise_name = msg;
-    return promise;
-  },
+  time_promise: time_promise,
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
     var _this_sync = this;
     if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
@@ -2427,7 +2430,7 @@ var persistence = Service.extend({
           // store the list ids to settings.importantIds so they don't get expired
           // even after being offline for a long time. Also store lastSync somewhere
           // that's easy to get to (localStorage much?) for use in the interface.
-          persistence.important_ids = importantIds.uniq();
+          persistence.important_ids = Utils.uniq(importantIds, function(i) { return i; });
           _this_sync.store('settings', {ids: persistence.important_ids}, 'importantIds').then(function(r) {
             _this_sync.refresh_after_eventual_stores();
             sync_resolve(sync_log);
@@ -2539,7 +2542,7 @@ var persistence = Service.extend({
           _this_sync.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
         }
         var message = (err && err.error) || "unspecified sync error";
-        var statuses = statuses.uniq(function(s) { return s.id; });
+        statuses = Utils.uniq(statuses, function(s) { return s.id; });
         var log = [].concat(_this_sync.get('sync_log') || []);
         log.push({
           user_id: user_name,

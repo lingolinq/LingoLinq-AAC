@@ -145,6 +145,28 @@ var safeSet = function(instance, key, value) {
   }
 };
 
+function time_promise(inputPromise, msg, ms) {
+  ms = ms || 30000;
+  var wrapped = new RSVP.Promise(function(resolve, reject) {
+    var done = false;
+    RSVP.resolve(inputPromise).then(function(res) {
+      done = true;
+      resolve(res);
+    }, function(err) {
+      done = true;
+      reject(err);
+    });
+    setTimeout(function() {
+      if(!done) {
+        LingoLinq.track_error("sync promise took too long:" + msg);
+        reject({error: 'promise timed out:' + msg});
+      }
+    }, ms);
+  });
+  wrapped.promise_name = msg;
+  return wrapped;
+}
+
 var persistence = EmberObject.extend({
   setup: function(application) {
     // TEMPORARILY DISABLED: Old persistence setup should not be called during migration
@@ -2054,27 +2076,7 @@ var persistence = EmberObject.extend({
     persistence.log = [];
     persistence.errors = [];
   },
-  time_promise: function(promise, msg, ms) {
-    var promise = new RSVP.Promise(function(resolve, reject) {
-      ms = ms || 30000;
-      var done = false;
-      promise.then(function(res) {
-        done = true;
-        resolve(res);
-      }, function(err) {
-        done = true;
-        reject(err);
-      });
-      setTimeout(function() {
-        if(!done) {
-          LingoLinq.track_error("sync promise took too long:" + msg);
-          reject({error: 'promise timed out:' + msg});
-        }
-      }, ms);  
-    });
-    promise.promise_name = msg;
-    return promise;
-  },
+  time_promise: time_promise,
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
     if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
       return new RSVP.Promise(function(wait_resolve, wait_reject) {
@@ -2175,7 +2177,7 @@ var persistence = EmberObject.extend({
       var prime_caches = check_db;
       if(!ignore_supervisees && !sync_reason.match(/supervisee/)) {
         prime_caches = check_db.then(check_first(function() {
-          return persistence.time_promise(persistence.prime_caches(sync_reason == 'manual_sync').then(null, function() { return RSVP.resolve(); }), "priming caches");
+          return time_promise(persistence.prime_caches(sync_reason == 'manual_sync').then(null, function() { return RSVP.resolve(); }), "priming caches");
         }));
       }
 
@@ -2186,7 +2188,7 @@ var persistence = EmberObject.extend({
             // already reloaded in sync_supervisees
             return user;
           } else {
-            return persistence.time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
+            return time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
               sync_reject({error: "failed to retrieve user details"});
             });
           }
@@ -2232,7 +2234,7 @@ var persistence = EmberObject.extend({
       };
       next_eventually();
 
-      var confirm_quota_for_user = persistence.time_promise(find_user.then(check_first(function(user) {
+      var confirm_quota_for_user = time_promise(find_user.then(check_first(function(user) {
         if(user && !ignore_supervisees) {
           safeSet(getPersistence(), 'online', true);
           if(user.get('preferences.skip_supervisee_sync')) {
@@ -2258,7 +2260,7 @@ var persistence = EmberObject.extend({
       })), "confirming quota");
 
       // Ensure the image filename cache is up-to-date
-      var prime_image_cache = persistence.time_promise(confirm_quota_for_user.then(check_first(function(user) {
+      var prime_image_cache = time_promise(confirm_quota_for_user.then(check_first(function(user) {
         if(!ignore_supervisees) {
           return capabilities.storage.list_files('image').then(function(images) {
             persistence.image_filename_cache = {};
@@ -2338,7 +2340,7 @@ var persistence = EmberObject.extend({
         // http://www.cs.tufts.edu/~nr/pubs/sync.pdf
         if(safeGet(getPersistence(), 'sync_progress.root_user') == user_id) {
           spread_out(function() {
-            return persistence.time_promise(persistence.sync_changed(), "syncing changed");
+            return time_promise(persistence.sync_changed(), "syncing changed");
           }, "syncing changed");
         }
 
@@ -2349,7 +2351,7 @@ var persistence = EmberObject.extend({
         spread_out(function() {
           // Timed promised cannot call store_url() which gets queued
           // so it calls store_url_now instead
-          return persistence.time_promise(persistence.sync_user(user, importantIds), "sync user data");
+          return time_promise(persistence.sync_user(user, importantIds), "sync user data");
         }, "sync user data");
 
         // Step 3: If online
@@ -2382,7 +2384,7 @@ var persistence = EmberObject.extend({
         // Step 5: Cache needed sound files
         if(!ignore_supervisees) {
           spread_out(function() {
-            return persistence.time_promise(speecher.load_beep().then(null, function(err) {
+            return time_promise(speecher.load_beep().then(null, function(err) {
               modal.warning(i18n.t('sound_sync_failed', "Sound effects failed to sync"));
               console.error("sound sync error", err);
               return RSVP.resolve();
@@ -2393,18 +2395,18 @@ var persistence = EmberObject.extend({
         // Step 6: Push stored logs
         if(!ignore_supervisees) {
           spread_out(function() {
-            return persistence.time_promise(persistence.sync_logs(user), "pushing logs");
+            return time_promise(persistence.sync_logs(user), "pushing logs");
           }, "pushing logs");
         }
 
         // Step 7: Sync user tags
         spread_out(function() {
-          return persistence.time_promise(persistence.sync_tags(user), "syncing tags");
+          return time_promise(persistence.sync_tags(user), "syncing tags");
         }, "syncing tags");
 
         // Step 8: Sync contacts
         spread_out(function() {
-          return persistence.time_promise(persistence.sync_contacts(user), "syncing contacts", 2 * 60 * 1000);
+          return time_promise(persistence.sync_contacts(user), "syncing contacts", 2 * 60 * 1000);
         }, "syncing contacts");
 
         // reject on any errors
@@ -2424,7 +2426,7 @@ var persistence = EmberObject.extend({
           // store the list ids to settings.importantIds so they don't get expired
           // even after being offline for a long time. Also store lastSync somewhere
           // that's easy to get to (localStorage much?) for use in the interface.
-          persistence.important_ids = importantIds.uniq();
+          persistence.important_ids = Utils.uniq(importantIds, function(i) { return i; });
           persistence.store('settings', {ids: persistence.important_ids}, 'importantIds').then(function(r) {
             persistence.refresh_after_eventual_stores();
             sync_resolve(sync_log);
@@ -2530,7 +2532,7 @@ var persistence = EmberObject.extend({
           safeSet(getPersistence(), 'sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
         }
         var message = (err && err.error) || "unspecified sync error";
-        var statuses = statuses.uniq(function(s) { return s.id; });
+        statuses = Utils.uniq(statuses, function(s) { return s.id; });
         var log = [].concat(safeGet(getPersistence(), 'sync_log') || []);
         log.push({
           user_id: user_name,
@@ -2576,7 +2578,7 @@ var persistence = EmberObject.extend({
       };
       runLater(next_tag, 500);
     });
-    return persistence.time_promise(queue_tags, "sync tags for " + user.get('user_name')).then(function() {
+    return time_promise(queue_tags, "sync tags for " + user.get('user_name')).then(function() {
       return RSVP.all_wait(store_image_promises).then(null, function(err) {
         return RSVP.resolve([]);
       });
@@ -2585,7 +2587,7 @@ var persistence = EmberObject.extend({
   sync_contacts: function(user) {
     var wait = RSVP.resolve();
     if(user.get('all_connections_promise')) {
-      wait = persistence.time_promise(user.get('all_connections_promise'), "waiting for connections for " + user.get('user_name'));
+      wait = time_promise(user.get('all_connections_promise'), "waiting for connections for " + user.get('user_name'));
     }
     var retrieve_list = wait.then(null, function() { return RSVP.resolve(); }).then(function() {
       var all_store_images = [];
@@ -2601,12 +2603,12 @@ var persistence = EmberObject.extend({
       });
       return all_store_images;
     });
-    return persistence.time_promise(retrieve_list, 'syncing contacts').then(function(list) {
+    return time_promise(retrieve_list, 'syncing contacts').then(function(list) {
       return RSVP.all_wait(list);
     });
   },
   sync_logs: function(user) {
-    return persistence.time_promise(persistence.find('settings', 'bigLogs').then(function(res) {
+    return time_promise(persistence.find('settings', 'bigLogs').then(function(res) {
       res = res || {};
       var fails = [];
       var log_promises = [];
@@ -2667,7 +2669,7 @@ var persistence = EmberObject.extend({
         });
         var reload_supervisee = find_supervisee.then(function(record) {
           if(!record.get('fresh') || force) {
-            return persistence.time_promise(record.reload(), 'reload supervisor', 5000);
+            return time_promise(record.reload(), 'reload supervisor', 5000);
           } else {
             return record;
           }
@@ -2835,7 +2837,7 @@ var persistence = EmberObject.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return persistence.time_promise(record.reload(), "reload board", 5000);
+            return time_promise(record.reload(), "reload board", 5000);
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -3177,7 +3179,7 @@ var persistence = EmberObject.extend({
 
             // check if there's a local copy that's already been loaded
             
-            var find_board = persistence.time_promise(persistence.board_lookup(id, safely_cached_boards, fresh_revisions, sync_id, allow_any_cached), 'syncing board:' + id);
+            var find_board = time_promise(persistence.board_lookup(id, safely_cached_boards, fresh_revisions, sync_id, allow_any_cached), 'syncing board:' + id);
 
             find_board.then(function(board) {
               local_full_set_revision = board.get('local_full_set_revision');
@@ -3537,7 +3539,7 @@ var persistence = EmberObject.extend({
   sync_user: function(user, importantIds) {
     return new RSVP.Promise(function(resolve, reject) {
       importantIds.push('user_' + user.get('id'));
-      var lookup = persistence.time_promise(user.get('fresh') ? RSVP.resolve(user) : user.reload(), "getting latest user details", 5000);
+      var lookup = time_promise(user.get('fresh') ? RSVP.resolve(user) : user.reload(), "getting latest user details", 5000);
       var find_user = lookup.then(function(u) {
         if(safeGet(getPersistence(), 'sync_progress.root_user') == u.get('id')) {
           safeSet(getPersistence(), 'sync_progress.last_sync_stamp', u.get('sync_stamp'));
@@ -3632,7 +3634,7 @@ var persistence = EmberObject.extend({
               if(!record.get('id') && (item.store == 'image' || item.store == 'sound')) {
                 record.set('data_url', object.data_url);
                 return contentGrabbers.save_record(record).then(function() {
-                  return persistence.time_promise(record.reload(), "reload changed record", 10000);
+                  return time_promise(record.reload(), "reload changed record", 10000);
                 });
               } else {
                 return record.save();
