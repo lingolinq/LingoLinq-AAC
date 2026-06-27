@@ -1356,12 +1356,38 @@ describe Api::BoardsController, :type => :controller do
   describe "generate_labels" do
     it "should reject non-object JSON body" do
       token_user
-      expect(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
       request.headers['Content-Type'] = 'application/json'
       post :generate_labels, params: {}, body: '[]'
       expect(response).to have_http_status(:bad_request)
       json = JSON.parse(response.body)
       expect(json['error']).to eq('JSON body must be an object')
+    end
+
+    it "should pass the authenticated user through to the generator" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      captured = nil
+      allow(AiBoardGenerator).to receive(:generate_words) do |**kw|
+        captured = kw
+        { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+      end
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      expect(response).to be_successful
+      expect(captured[:user]).to be_present
+      expect(captured[:user].global_id).to eq(@user.global_id)
+    end
+
+    it "should return 403 and skip generation when AI is disabled for the org" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(false)
+      expect(AiBoardGenerator).not_to receive(:generate_words)
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Feature not available')
     end
   end
   
