@@ -20,6 +20,7 @@ import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import lingoLinqExtras from '../../utils/extras';
 import stashes from '../../utils/_stashes';
+import { primePersistenceService } from './persistence-stub';
 import session from '../../utils/session';
 import buttonTracker from '../../utils/raw_events';
 import ApplicationAdapter from 'frontend/adapters/application';
@@ -482,6 +483,9 @@ beforeEach(function() {
   // TODO: https://alexlafroscia.com/ember-upgrade-to-new-qunit-api/
   // App = startApp();
   // App.rootElement = '#ember-testing';
+  if (this.owner) {
+    primePersistenceService(this.owner);
+  }
   resetPersistenceForTest(this.owner);
   resetStashesForTest(this.owner);
   if (this.owner) {

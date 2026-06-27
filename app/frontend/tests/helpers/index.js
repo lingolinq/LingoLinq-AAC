@@ -3,6 +3,7 @@ import {
   setupRenderingTest as upstreamSetupRenderingTest,
   setupTest as upstreamSetupTest,
 } from 'ember-qunit';
+import { primePersistenceService } from './persistence-stub';
 
 // This file exists to provide wrappers around ember-qunit's / ember-mocha's
 // test setup functions. This way, you can easily extend the setup that is
@@ -38,12 +39,19 @@ function setupTest(hooks, options) {
   // never settles; ember-qunit's afterEach settled() then hangs ~60s.
   upstreamSetupTest(hooks, { waitForSettled: false, ...options });
 
-  // Additional setup for unit tests can be done here.
+  hooks.beforeEach(function() {
+    if (this.owner) {
+      primePersistenceService(this.owner);
+      this.owner.lookup('service:app-state');
+      this.owner.lookup('service:content-grabbers');
+    }
+  });
 }
 
 export { setupApplicationTest, setupRenderingTest, setupTest };
 export {
   persistenceTarget,
+  primePersistenceService,
   stubPersistence,
   stubPersistenceAjax,
   stubPersistenceGet

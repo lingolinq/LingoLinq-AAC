@@ -1,8 +1,7 @@
 import { module, test } from 'qunit';
 import Service from '@ember/service';
-import { setupTest } from '../../helpers';
+import { setupTest, stubPersistence, primePersistenceService } from '../../helpers';
 import RSVP from 'rsvp';
-import { stubPersistence } from '../../helpers/persistence-stub';
 import modal from 'frontend/utils/modal';
 import actionLock from 'frontend/utils/action-lock';
 
@@ -14,6 +13,7 @@ module('Unit | Component | confirm remove board action lock', function(hooks) {
 
   hooks.beforeEach(function() {
     actionLock.reset();
+    primePersistenceService(this.owner);
     originalClose = modal.close;
     originalWarning = modal.warning;
   });

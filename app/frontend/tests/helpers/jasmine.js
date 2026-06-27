@@ -256,8 +256,9 @@ function resolveStubTargets(object) {
 
   // utils/persistence is a Proxy whose get trap forwards to window.persistence.
   // Models inject the service instance, so mirror stubs onto the live target.
+  // Prime first so createRecord does not swap placeholder → service after stubbing.
   var livePersistence = persistenceTarget();
-  if (livePersistence && livePersistence !== object && object === persistence) {
+  if (livePersistence && livePersistence !== object && (object === persistence || object === livePersistence)) {
     targets.push(livePersistence);
   }
 

@@ -5838,6 +5838,10 @@ after `ember_helper` runs `owner.lookup('service:content-grabbers')`.
 get traps forward to `window.persistence` / `LingoLinq.appState`. Jasmine `stub()` mirrors
 onto the live service when stubbing the util export; QUnit tests should use
 `stubPersistence()` / `persistenceTarget()` instead of assigning `persistence.ajax`.
+**Prime first:** call `primePersistenceService(owner)` (via `setupTest` or
+`ember_helper` beforeEach) before stubbing — otherwise first model `createRecord`
+replaces the placeholder and drops ajax stubs (symptom: ember-ajax 404, ~4650ms
+timeouts in Board/User model tests).
 
 **First seen in:** [2026-06-27-ember-test-ci-failures.md](./2026-06-27-ember-test-ci-failures.md).
 
