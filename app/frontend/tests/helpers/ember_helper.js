@@ -544,4 +544,27 @@ afterEach(function() {
   // (all tests share the app). Run sync to avoid hangs from the waitsFor/runs pattern.
 });
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap };
+// PuppeteerChrome exposes window.localStorage as a getter-only property.
+// Tests that need isolation must replace it via defineProperty, not assignment.
+function replaceLocalStorage() {
+  var store = {};
+  var fake = {
+    getItem: function(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+    setItem: function(k, v) { store[k] = String(v); },
+    removeItem: function(k) { delete store[k]; },
+    clear: function() { store = {}; },
+    key: function(i) { return Object.keys(store)[i] || null; },
+    get length() { return Object.keys(store).length; }
+  };
+  var previous = Object.getOwnPropertyDescriptor(window, 'localStorage');
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: fake });
+  return function restoreLocalStorage() {
+    if (previous) {
+      Object.defineProperty(window, 'localStorage', previous);
+    } else {
+      delete window.localStorage;
+    }
+  };
+}
+
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage };

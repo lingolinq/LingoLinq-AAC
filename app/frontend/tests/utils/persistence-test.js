@@ -35,12 +35,13 @@ function stubOnPersistence(method, replacement) {
 describe("persistence", function() {
   var app = null;
   var dbman;
-  var pictureGrabber = contentGrabbers.pictureGrabber;
-  var soundGrabber = contentGrabbers.soundGrabber;
+  var pictureGrabber, soundGrabber;
   var dbg = function() {
     debugger;
   };
   beforeEach(function() {
+    pictureGrabber = contentGrabbers.pictureGrabber;
+    soundGrabber = contentGrabbers.soundGrabber;
     app = {
       register: function(key, obj, args) {
         app.registered = (key === 'lingolinq:persistence' && obj === persistence && args.singleton === true);

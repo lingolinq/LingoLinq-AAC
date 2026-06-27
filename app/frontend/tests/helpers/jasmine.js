@@ -55,10 +55,11 @@ function test_wrap(name, instance, befores, afters, lookup) {
       //   console.error(e);
       // }
 
-      restoreStubs();
-
       waitsFor(function() { return (waiting[current_test_id] || 0) <= 1; });
       runs(function() {
+        // Restore after async waitsFor/runs callbacks — sync restoreStubs() here
+        // cleared stubs before inner runs() executed (e.g. word_suggestions fallback_url).
+        restoreStubs();
         current_afters = [];
         post.forEach(function(callback) {
           callback.call(_this);

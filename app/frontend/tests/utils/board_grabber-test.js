@@ -19,10 +19,11 @@ import progress_tracker from '../../utils/progress_tracker';
 import LingoLinq from '../../app';
 
 describe('boardGrabber', function() {
-  var boardGrabber = contentGrabbers.boardGrabber;
+  var boardGrabber;
 
   var controller = null;
   beforeEach(function() {
+    boardGrabber = contentGrabbers.boardGrabber;
     var model = EmberObject.create({id: 1234});
     controller = EmberObject.create({model: model});
   });

@@ -14,7 +14,8 @@ import {
   fakeCanvas,
   queryLog,
   easyPromise,
-  queue_promise
+  queue_promise,
+  replaceLocalStorage
 } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import LingoLinq from 'frontend/app';
@@ -30,6 +31,7 @@ describe('word_suggestions', function() {
     word_suggestions.last_time_bucket = null;
     word_suggestions.last_topic_context = null;
     word_suggestions.last_locale = null;
+    word_suggestions.fallback_url_result = null;
   });
   describe("lookup", function() {
     it("should suggest words", function() {
@@ -163,14 +165,7 @@ describe('word_suggestions', function() {
         "": [['we', -1.0], ['you', -1.1], ['i', -1.2]]
       };
 
-      // Fake localStorage for test isolation
-      var store = {};
-      var oldLS = window.localStorage;
-      window.localStorage = {
-        getItem: function(k) { return store[k] || null; },
-        setItem: function(k, v) { store[k] = v; },
-        removeItem: function(k) { delete store[k]; }
-      };
+      var restoreLocalStorage = replaceLocalStorage();
 
       // Record selecting "you" a few times
       var now = Date.now();
@@ -183,7 +178,7 @@ describe('word_suggestions', function() {
       waitsFor(function() { return res; });
       runs(function() {
         expect(res[0].word.toLowerCase()).toEqual('you');
-        window.localStorage = oldLS;
+        restoreLocalStorage();
       });
     });
 
@@ -273,13 +268,7 @@ describe('word_suggestions', function() {
         'i want': [['to', -1.0], ['more', -1.1], ['help', -1.2]]
       };
 
-      var store = {};
-      var oldLS = window.localStorage;
-      window.localStorage = {
-        getItem: function(k) { return store[k] || null; },
-        setItem: function(k, v) { store[k] = v; },
-        removeItem: function(k) { delete store[k]; }
-      };
+      var restoreLocalStorage = replaceLocalStorage();
 
       var now = Date.now();
       word_suggestions.record_selection('more', now, 'i want');
@@ -294,7 +283,7 @@ describe('word_suggestions', function() {
       waitsFor(function() { return res; });
       runs(function() {
         expect(res[0].word.toLowerCase()).toEqual('more');
-        window.localStorage = oldLS;
+        restoreLocalStorage();
       });
     });
 

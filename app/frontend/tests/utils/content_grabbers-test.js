@@ -21,12 +21,13 @@ import { run as emberRun } from '@ember/runloop';
 
 describe("contentGrabbers", function() {
   var button, controller;
-  var pictureGrabber = contentGrabbers.pictureGrabber;
-  var soundGrabber = contentGrabbers.soundGrabber;
-  var boardGrabber = contentGrabbers.boardGrabber;
-  var linkGrabber = contentGrabbers.linkGrabber;
+  var pictureGrabber, soundGrabber, boardGrabber, linkGrabber;
 
   beforeEach(function() {
+    pictureGrabber = contentGrabbers.pictureGrabber;
+    soundGrabber = contentGrabbers.soundGrabber;
+    boardGrabber = contentGrabbers.boardGrabber;
+    linkGrabber = contentGrabbers.linkGrabber;
     stashes.flush();
     var obj = EmberObject.create({
       sentMessages: {},

@@ -5821,6 +5821,21 @@ Use `all_afters[0]` to match `beforeEach` / `unshift` symmetry.
 
 **First seen in:** [2026-06-26-ember5-ci-unit-test-fixes.md](./2026-06-26-ember5-ci-unit-test-fixes.md).
 
+**Also:** `restoreStubs()` in `test_wrap` must run **after** inner `waitsFor`/`runs` async
+callbacks (in the outer post-`runs` block), not synchronously after `instance.call()`.
+Early restore clears stubs before promise chains run — symptom: `word_suggestions` gets
+`images/square.svg` instead of stubbed `fallback_url`, persistence stubs ignored, hundreds
+of Jasmine assertion failures.
+
+**ContentGrabbers in Jasmine:** `utils/content_grabbers` is a Proxy to `window.cg`. Do not
+capture `contentGrabbers.videoGrabber` at describe registration time; assign in `beforeEach`
+after `ember_helper` runs `owner.lookup('service:content-grabbers')`.
+
+**Puppeteer localStorage:** use `replaceLocalStorage()` from `ember_helper` — assignment
+`window.localStorage = {…}` throws (getter-only).
+
+**First seen in:** [2026-06-27-ember-test-ci-failures.md](./2026-06-27-ember-test-ci-failures.md).
+
 ### 6. BoardHierarchy / store in copy-modal tests
 
 Monkey-patch `BoardHierarchy.load_with_button_set` and `load_from_live_links` in

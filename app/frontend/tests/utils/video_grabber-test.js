@@ -26,11 +26,11 @@ import EmberObject from '@ember/object';
 import $ from 'jquery';
 
 describe('videoGrabber', function() {
-  var videoGrabber = contentGrabbers.videoGrabber;
-  var navigator = window.navigator;
+  var videoGrabber;
 
   var button = null, controller = null;
   beforeEach(function() {
+    videoGrabber = contentGrabbers.videoGrabber;
     contentGrabbers.unlink();
 
     var user = EmberObject.create({user_name: 'bob', profile_url: 'http://www.bob.com/bob'});

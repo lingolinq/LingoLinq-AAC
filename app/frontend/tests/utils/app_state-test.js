@@ -29,10 +29,11 @@ import { run as emberRun } from '@ember/runloop';
 
 describe('app_state', function() {
   var navigator = window.navigator;
-  var boardGrabber = contentGrabbers.boardGrabber;
+  var boardGrabber;
   var app = null, route = null, controller = null;
   var last_sent_message = null;
   beforeEach(function() {
+    boardGrabber = contentGrabbers.boardGrabber;
     app = {
       register: function(key, obj, args) {
         app.registered = (key == 'lingolinq:app_state' && obj == app_state && args.singleton === true);

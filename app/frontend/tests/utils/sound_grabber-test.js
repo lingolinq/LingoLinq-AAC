@@ -18,7 +18,7 @@ import Utils from '../../utils/misc';
 import EmberObject from '@ember/object';
 
 describe('soundGrabber', function() {
-  var soundGrabber = contentGrabbers.soundGrabber;
+  var soundGrabber;
   var navigator = window.navigator;
   var wav_data_uri = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
@@ -27,6 +27,7 @@ describe('soundGrabber', function() {
   var recorder = fakeRecorder();
 
   beforeEach(function() {
+    soundGrabber = contentGrabbers.soundGrabber;
     contentGrabbers.unlink();
     var obj = EmberObject.create({
     });

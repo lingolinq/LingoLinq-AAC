@@ -26,11 +26,12 @@ import LingoLinq from '../../app';
 import $ from 'jquery';
 
 describe('pictureGrabber', function() {
-  var pictureGrabber = contentGrabbers.pictureGrabber;
+  var pictureGrabber;
   var navigator = window.navigator;
 
   var button = null, controller = null;
   beforeEach(function() {
+    pictureGrabber = contentGrabbers.pictureGrabber;
     contentGrabbers.unlink();
 
     var obj = EmberObject.create({
