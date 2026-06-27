@@ -25,6 +25,60 @@ if Render is never degraded during the cutover. Therefore:
   only after a clean soak AND Cloud SQL confirmed authoritative. See step 9b, a pointer, not an
   action.
 
+---
+
+## CLEAN-DB CUTOVER VARIANT (DECIDED: Scot, 2026-06-26) - read this first
+
+**`lingolinq-prod` carries no real client data - only fake/internal test accounts** (recorded in
+PR #483; `project_prod_no_real_users`). There is therefore **nothing to migrate**, and the
+default cutover path below collapses to "stand up the GCP stack on a fresh seeded DB and point DNS
+at it." This variant is the ACTIVE plan for the current window. The full-data path (steps 1-3, 7,
+S1) is **retained unchanged below** as the fallback: if real users are onboarded to prod before
+the window, revert to it.
+
+**What collapses (do NOT run these in the clean-DB path):**
+
+| Default step | Why it exists | Clean-DB action |
+|---|---|---|
+| 2. Fresh `pg_dump` | capture real prod data | **DROP** - nothing to capture |
+| 3. Restore -> Cloud SQL | move real data | **REPLACE** with a fresh `db:schema:load` + `db:seed` in the migrate Job |
+| S1 `phase4-setval-sequences` | realign PK sequences after a data restore (global_id uses raw PKs) | **DROP** - a fresh schema sets sequences correctly; nothing to realign |
+| 7. `phase5-delta-check.sh` | catch a writer that slipped the freeze | **DROP** - no source DB to reconcile against |
+| 1. write-freeze accepted-loss analysis (offline replay, `saml/consume` linkage, last-writer-wins, SNS/Stripe/SMS drop) | avoid losing in-flight real writes during the window | **MOOT** - no real writers, no real users. `WRITE_FREEZE` may still be toggled on at DNS time for tidiness, but it is no longer load-bearing and the accepted-loss sign-off is not needed |
+
+**What still runs (stack validation, not data) - unchanged from below:**
+
+- **0c Redis TLS live handshake (`LL-6619cc1811`)** - never exercised against live Memorystore;
+  silent-failure risk for all background jobs. **This is the real go/no-go gate of the clean-DB
+  path.**
+- 0b worker-pool health; step 6 migrate Job + deploys (now schema-load + seed, not restore);
+  the five-path smoke test (login, board load, S3 read, SES send, Resque process); the frontend
+  LB + Cloud Armor (step 8 / #476); the DNS flip (step 9, 60s TTL); soak; Phase 6 decommission.
+
+**Boot secrets (DECIDED: preserve, Scot 2026-06-26):** even on a clean DB, seed the four
+`generateValue` secrets (`SECRET_KEY_BASE`, `COOKIE_KEY`, `SECURE_ENCRYPTION_KEY`,
+`SECURE_NONCE_KEY`) via the already-built, byte-verified `scripts/gcp/phase4-seed-boot-secrets.sh`
+(`--verify` then `CONFIRM_SEED_SECRETS=1`). Preserving has zero downside and avoids any stale-key
+reference; regenerating fresh is also safe (all data is fake) but buys nothing. Do NOT regenerate.
+
+**Collapsed clean-DB sequence:**
+
+```
+1. Seed GCP boot secrets   phase4-seed-boot-secrets.sh --verify -> seed   (preserve the 4)
+2. Fresh Cloud SQL         migrate Job: db:schema:load + db:seed          (no dump/restore/setval)
+3. 0c Redis TLS handshake  PING -> PONG over rediss://, assert CA count   <- REAL GATE
+4. 0b + smoke test         worker RUNNABLE + 5 paths green on a run.app URL
+5. Frontend LB + Armor     phase5-frontend-lb.sh (#476)
+6. DNS flip (60s TTL) -> soak -> decommission Render (Phase 6)
+```
+
+**Operator runsheet for steps 1-4 (dry-run first):** `scripts/gcp/PHASE5-CLEAN-DB-REHEARSAL.md`.
+The live spin-up of Cloud SQL + Cloud Run + Memorystore is still GATED on Scot's explicit go and
+costs money; re-verify live state (Render cron, secrets, GCP provisioning) before any command
+lands on the action list.
+
+---
+
 ## Operator identity (HIPAA)
 
 Run as **Scot or a designated engineer** holding all three: prod GCP access (project
