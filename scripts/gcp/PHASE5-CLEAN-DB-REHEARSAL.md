@@ -52,8 +52,11 @@ register.
   - `SEED_LINGOLINQ_PASSWORD (lingolinq-prod)` - item `f3n4fl45syeqqmeif5rcjqfr2a`, username `lingolinq`.
 
   These are genuinely new secrets, not part of the four `generateValue` boot secrets.
-  **Remaining before the seed Job:** add each to GCP Secret Manager (`lingolinq-prod`) and reference
-  them in the seed Job's `--set-secrets` (Step 3b). Do NOT provision `SEED_DEMO_PASSWORD`.
+  **Seeded to GCP Secret Manager 2026-06-26** (project `lingolinq-prod`, `userManaged/us-central1`,
+  version 1, value piped op -> gcloud and sha256-verified against 1Password; runtime SA
+  `lingolinq-run@lingolinq-prod.iam.gserviceaccount.com` granted `secretAccessor`). Reference them
+  in the seed Job's `--set-secrets` (Step 3b) as `SEED_ADMIN_PASSWORD=SEED_ADMIN_PASSWORD:latest` and
+  `SEED_LINGOLINQ_PASSWORD=SEED_LINGOLINQ_PASSWORD:latest`. Do NOT provision `SEED_DEMO_PASSWORD`.
 
 - **P2. Confirm the four boot secrets are seeded (preserve, not regenerate). DRY then GATE.**
   ```bash
