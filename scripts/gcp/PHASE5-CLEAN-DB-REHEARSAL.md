@@ -79,35 +79,35 @@ register.
 
 ---
 
-## Step 1 - Host-bound proof that the target DB is EMPTY (irreversible gate). GATE: read live DB
+## Step 1 - Early read-only confirmation the target DB is EMPTY (DRY). DRY: reads only
 
-This is the irreversible gate. `db:schema:load` (`force: :cascade`) drops every table, and the
-committed migrate Job's own comment (`deploy-cloudrun.yml:118-131`) forbids schema-load precisely
-because, against the wrong/populated `DATABASE_URL`, it destroys data irreversibly. The clean-DB
-path re-introduces schema-load, so the guard MUST be bound to the exact `DATABASE_URL` secret the
-destructive Job uses - **not** a hand-typed proxy connection that could point somewhere else.
+This is an early sanity check so you do not provision secrets/services against a DB that is not
+what you expect. It is **informational only**: the AUTHORITATIVE, irreversible guard is folded
+INTO the schema-load execution (Step 3a) so the proof and the `force: :cascade` drop run in the
+SAME Job execution and cannot drift (a separate earlier proof does NOT bind to a later destructive
+execution - if `DATABASE_URL:latest` rotates between them, or the job re-runs, an earlier "it was
+empty" is stale). Run it as a read-only rails-runner Job wired with the SAME `DATABASE_URL` secret
+the schema-load Job will use:
 
-Run this as a **read-only rails-runner Job execution wired with the SAME `DATABASE_URL` secret** as
-the schema-load Job (i.e. deploy the Job with `--set-secrets "...DATABASE_URL=DATABASE_URL:latest"`
-and `--command rails --args "runner,<<preflight>>"`). It aborts unless the connection is the
-expected Cloud SQL host AND has zero app tables:
-
-```ruby
-# READ-ONLY preflight. Exits non-zero (fails the Job) unless BOTH hold.
-cfg  = ActiveRecord::Base.connection_db_config.configuration_hash
-host = cfg[:host] || cfg[:socket] || 'UNKNOWN'
-expected = ENV.fetch('EXPECTED_CLOUDSQL_HOST')                # from P3; pass via --set-env-vars
-abort("WRONG DB: connected to #{host}, expected #{expected}") unless host.to_s.include?(expected)
-tables = ActiveRecord::Base.connection.tables - %w[schema_migrations ar_internal_metadata]
-abort("DB NOT EMPTY: #{tables.size} app tables (#{tables.first(5).join(', ')}...)") unless tables.empty?
-puts "PREFLIGHT-OK host=#{host} app_tables=0"
+```bash
+# DRY. --command bundle --args "exec,rails,runner,<the ruby below>" with DATABASE_URL + EXPECTED_CLOUDSQL_HOST set.
+bundle exec rails runner '
+  cfg  = ActiveRecord::Base.connection_db_config.configuration_hash
+  host = cfg[:host] || cfg[:socket] || "UNKNOWN"
+  expected = ENV.fetch("EXPECTED_CLOUDSQL_HOST")              # from P3; pass via --set-env-vars
+  abort("WRONG DB: connected to #{host}, expected #{expected}") unless host.to_s.include?(expected)
+  tables = ActiveRecord::Base.connection.tables - %w[schema_migrations ar_internal_metadata]
+  abort("DB NOT EMPTY: #{tables.size} app tables") unless tables.empty?
+  puts "PREFLIGHT-OK host=#{host} app_tables=0"
+'
 ```
 
 - **Proceed only on `PREFLIGHT-OK`.** Any `WRONG DB` or `DB NOT EMPTY` abort is a HARD STOP - you
   are not in the clean-DB case (or `DATABASE_URL` is mis-pointed); use the full-data path instead
   and investigate where `DATABASE_URL` resolves.
 - Do NOT substitute a `psql` query over a hand-opened proxy: that proves a DB you chose, not the one
-  the Job will drop.
+  the Job will drop. And do not treat this early pass as sufficient on its own - the binding guard
+  in Step 3a is what actually protects the drop.
 
 ## Step 2 - Redis TLS live handshake (0c, closes LL-6619cc1811). GATE: real go/no-go, runs BEFORE seed
 
@@ -120,7 +120,9 @@ Run from a Cloud Run context holding the prod `REDIS_URL` (rediss://) + `REDIS_C
 one-off rails-runner Job execution with those secrets):
 
 ```bash
-ruby -e "require './config/initializers/resque'; puts(Resque.redis.ping == 'PONG' ? 'PONG-OK' : 'FAIL')"
+# Use rails runner (NOT `ruby -e require initializer`: that does not load ActiveSupport, so
+# cattr_accessor is undefined and the initializer raises before it ever reaches Redis).
+bundle exec rails runner 'puts(Resque.redis.ping == "PONG" ? "PONG-OK" : "FAIL")'
 ```
 
 - **Success:** `PING` returns `PONG` over `rediss://` (the `10.160.1.3:6378` endpoint) with
@@ -148,25 +150,38 @@ separate Job executions, not one combined `db:schema:load,db:seed`** - because `
 exists (e.g. after smoke testing in Step 4). Splitting lets you re-run the idempotent seed without
 re-dropping.
 
-**3a. Schema load (destructive; only after Step 1 PREFLIGHT-OK in the same run).** Recommended
-`db:schema:load` (fast, authoritative `db/schema.rb`). Alternative `db:migrate` from zero (slower,
-replays full migration history, no `force: :cascade`) only if `schema:load` surfaces schema.rb drift.
-Values below are illustrative - resolve every `${{ vars.* }}` against live config first:
+**3a. Guarded schema load (destructive; guard runs IN THE SAME execution).** The host+empty
+assertion MUST run in the same Job execution as the `force: :cascade` load, so the proof binds to
+the exact `DATABASE_URL` the drop uses and cannot drift. Do NOT rely on the Step 1 early pass as the
+guard. Recommended `db:schema:load` (fast, authoritative `db/schema.rb`); alternative `db:migrate`
+from zero (slower, replays full history, no `force: :cascade`) only if `schema:load` surfaces drift.
+Values are illustrative - resolve every `${{ vars.* }}` against live config first:
 
 ```bash
-# GATE. Resolve REGION / PROJECT / CLOUDSQL_INSTANCE / VPC from live deploy-workflow vars first.
+# GATE. Single execution: assert host+empty, then load ONLY if the assert passes (&& short-circuits).
+GUARD='
+  cfg=ActiveRecord::Base.connection_db_config.configuration_hash
+  host=cfg[:host]||cfg[:socket]||"UNKNOWN"
+  abort("WRONG DB #{host}") unless host.to_s.include?(ENV.fetch("EXPECTED_CLOUDSQL_HOST"))
+  t=ActiveRecord::Base.connection.tables-%w[schema_migrations ar_internal_metadata]
+  abort("DB NOT EMPTY #{t.size}") unless t.empty?
+'
 gcloud run jobs deploy lingolinq-migrate-cleandb \
   --image "$IMAGE" --region "$REGION" \
   --service-account "lingolinq-run@$PROJECT.iam.gserviceaccount.com" \
   --execution-environment gen2 \
   --set-cloudsql-instances "$CLOUDSQL_INSTANCE" \
   --network "$VPC_NETWORK" --subnet "$VPC_SUBNET" --vpc-egress private-ranges-only \
-  --command bundle --args "exec,rake,db:schema:load" \
+  --command /bin/bash \
+  --args "-lc,bundle exec rails runner \"\$GUARD\" && bundle exec rake db:schema:load" \
   --task-timeout 1800 \
-  --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
+  --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,EXPECTED_CLOUDSQL_HOST=$EXPECTED_CLOUDSQL_HOST,GUARD=$GUARD" \
   --set-secrets "$BOOT_SECRETS"
 gcloud run jobs execute lingolinq-migrate-cleandb --region "$REGION" --wait
 ```
+
+(If passing the GUARD heredoc through `--set-env-vars` is awkward, bake the assert+load into a
+small committed rake task, e.g. `rake gcp:guarded_schema_load`, so the guard ships with the image.)
 
 **3b. Seed (idempotent; needs Redis from Step 2 green and the SEED_* secrets).** Update the Job's
 args to `exec,rake,db:seed` and add the seed secrets, then execute:
@@ -186,11 +201,21 @@ gcloud run jobs execute lingolinq-migrate-cleandb --region "$REGION" --wait
   This is multi-minute and log-heavy; that is why 3b sets a generous `--task-timeout 3600` and why a
   truncated import looks like a Job timeout, not a clean failure.
 - **Success:** Job exits 0; `BetaSeed.ensure_baseline!` has created the admin org + `lingolinq_admin`.
-  **Assert the import completed** rather than assuming it: e.g. one-off `rails runner` ->
-  `WordData.where(locale: 'en').count` is non-trivial (hundreds+). A near-zero count means a
-  truncated import - re-run 3b (seed is idempotent; this does NOT re-drop tables).
-- **Re-run safety:** `db:seed` (3b) is idempotent and safe to re-run. `db:schema:load` (3a) is NOT -
-  re-running it drops all tables, so never re-run 3a once 3b or any Step-4 activity has written data.
+- **A timed-out word import does NOT self-heal on re-run.** `db/seeds.rb` calls
+  `MobyParser.import_words` (and `WordData.import_suggestions`) **only when `WordData.count == 0`**.
+  So if 3b times out after inserting some of the ~233k `lib/mobyposi.i` entries, re-running
+  `db:seed` SKIPS the import entirely and silently leaves a truncated word set. A vague "hundreds+"
+  check passes this. Therefore:
+  - **Validate against the expected total, not a floor.** Capture the known-good `WordData.count`
+    (per locale) from a clean staging seed and assert the prod count matches it (compare to
+    staging's live `WordData.count`), not merely "non-zero".
+  - **To fix a truncated import, drive the importer directly** (it is per-word idempotent via
+    `find_or_initialize_by`): `bundle exec rails runner 'MobyParser.import_words; WordData.import_suggestions'`
+    - which resumes/fills regardless of the count==0 gate - OR `WordData.delete_all` then re-run
+    `db:seed`. Do NOT just re-run `db:seed` and assume it resumed.
+- **Re-run safety:** `db:seed` (3b) is idempotent for the baseline org/users, but its word-import
+  step is count-gated (above). `db:schema:load` (3a) is NOT re-runnable - it drops all tables, so
+  never re-run 3a once 3b or any Step-4 activity has written data.
 
 ## Step 4 - Stack health + five-path smoke test (0b + smoke). GATE: money (services up)
 
