@@ -164,19 +164,16 @@ export default Controller.extend({
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));
     this.set('original_preferences', JSON.parse(str));
-    // Word prediction prefs predate these keys for existing users (the API
-    // returns null), so seed the default OFF / auto-position values into BOTH
-    // pending and original. That makes the toggle/selector render in their
-    // default state without falsely marking the form dirty (the speak pages
-    // treat null as off/auto anyway, so leaving them null in the DB stays
-    // correct).
-    if(this.get('pending_preferences.word_suggestions') == null) {
-      this.set('pending_preferences.word_suggestions', false);
-      this.set('original_preferences.word_suggestions', false);
-    }
+    // Word prediction is ON-by-default only for NEW users (assigned server-side
+    // at registration, user.rb generate_defaults / new_record?). Existing users
+    // with a null value are OFF — the speak page and the toggle treat null as off
+    // (=== true) — so DON'T seed word_suggestions here; let the checkbox render
+    // unchecked for them so the form matches the actual (off) behavior and isn't
+    // falsely marked dirty. The position selector still needs a value to render,
+    // so seed side_rail for it only.
     if(!this.get('pending_preferences.word_suggestion_position')) {
-      this.set('pending_preferences.word_suggestion_position', 'auto');
-      this.set('original_preferences.word_suggestion_position', 'auto');
+      this.set('pending_preferences.word_suggestion_position', 'side_rail');
+      this.set('original_preferences.word_suggestion_position', 'side_rail');
     }
     this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
     this.set('advanced', true);

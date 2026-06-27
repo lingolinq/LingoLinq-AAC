@@ -668,15 +668,16 @@ class User < ApplicationRecord
         'blank_status' => false,
         'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
-        # Word prediction on/off (global, governs BOTH classic board-alt and
-        # modern board-detail speak modes). Default OFF — the user opts in via
-        # Preferences or the board-detail edit panel.
-        'word_suggestions' => false,
-        # Where word prediction renders in board-detail speak mode: 'auto'
-        # (responsive — inline in the speak bar on wide screens, vertical side
-        # rail on narrow), or pinned to 'speak_bar' / 'side_rail'.
-        'word_suggestion_position' => 'auto',
+        # NOTE: word_suggestions / word_suggestion_position are intentionally NOT
+        # in this unconditional bucket — they default ON only for NEW users (set
+        # in generate_defaults under `new_record?`), so existing users who never
+        # set word prediction are never silently enabled.
         'hidden_buttons' => 'grid',
+        # Folder display style for sub-folder buttons: 'default' (plain folder
+        # face), 'tab_labels', or 'colored_corner'. Assigned at registration so
+        # the value is authoritative server-side; the client no longer supplies
+        # a fallback default for it.
+        'folder_display_style' => 'default',
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,
@@ -716,6 +717,7 @@ class User < ApplicationRecord
       'authenticated_user' => {
         'long_press_edit' => false,
         'require_speak_mode_pin' => false,
+        'require_sidebar_edit_pin' => false,
         'logging' => false,
         'geo_logging' => false,
         'role' => 'communicator',
@@ -768,6 +770,13 @@ class User < ApplicationRecord
     end
     if !FeatureFlags.user_created_after?(self, 'symbol_background')
       self.settings['preferences']['symbol_background'] = 'white' if self.settings['preferences']['symbol_background'] == nil
+    end
+    # Word prediction defaults ON for NEW users only (set once at registration,
+    # never backfilled) so existing users who never set it stay OFF. The client
+    # gates display on `word_suggestions === true`, so a nil value reads as off.
+    if self.new_record?
+      self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
+      self.settings['preferences']['word_suggestion_position'] = 'side_rail' if self.settings['preferences']['word_suggestion_position'] == nil
     end
     if !FeatureFlags.user_created_after?(self, 'battery_sounds')
       self.settings['preferences']['battery_sounds'] = true if self.settings['preferences']['battery_sounds'] == nil
@@ -1149,7 +1158,7 @@ class User < ApplicationRecord
   PREFERENCE_PARAMS = ['sidebar', 'auto_home_return', 'vocalize_buttons', 
       'sharing', 'button_spacing', 'quick_sidebar', 'disable_quick_sidebar', 
       'lock_quick_sidebar', 'clear_on_vocalize', 'logging', 'geo_logging', 
-      'require_speak_mode_pin', 'speak_mode_pin', 'activation_minimum',
+      'require_speak_mode_pin', 'speak_mode_pin', 'require_sidebar_edit_pin', 'activation_minimum',
       'activation_location', 'activation_cutoff', 'activation_on_start', 
       'confirm_external_links', 'external_links', 'long_press_edit', 'scanning', 'scanning_interval',
       'scanning_mode', 'scanning_select_keycode', 'scanning_next_keycode', 
@@ -1490,6 +1499,13 @@ class User < ApplicationRecord
     end
     if params['offline_actions']
       params['offline_actions'].each do |action|
+        # Defensive: the client-built offline_actions queue is meant to be an array
+        # of hashes, but a corrupt/stale entry (e.g. an array) would make the
+        # action['action'] read below raise "no implicit conversion of String into
+        # Integer" and 500 the whole update — which then never clears the queue, so
+        # the bad entry re-sends and fails on every save (a stuck poison-pill). Skip
+        # anything that isn't a hash so one malformed entry can't wedge saves.
+        next unless action.is_a?(Hash)
         if action['action'] == 'add_vocalization'
           self.settings['vocalizations'] ||= []
           action['id'] = nil if self.settings['vocalizations'].find{|v| v['id'] == action['id'] }

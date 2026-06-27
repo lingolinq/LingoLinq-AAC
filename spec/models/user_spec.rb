@@ -355,6 +355,31 @@ describe User, :type => :model do
       u.generate_defaults
       expect(u.settings['preferences']['word_suggestion_images']).to eq(true)
     end
+
+    it "should default word_suggestions ON for new users only, never backfilling existing users" do
+      # New users (new_record?) get word prediction ON by default at registration.
+      u = User.new
+      u.generate_defaults
+      expect(u.settings['preferences']['word_suggestions']).to eq(true)
+      expect(u.settings['preferences']['word_suggestion_position']).to eq('side_rail')
+
+      # Existing (already-persisted) users with no stored value are NOT backfilled
+      # — word prediction is never silently enabled for them (it stays nil/off).
+      u2 = User.new
+      u2.settings = {'preferences' => {}}
+      allow(u2).to receive(:new_record?).and_return(false)
+      u2.generate_defaults
+      expect(u2.settings['preferences']['word_suggestions']).to eq(nil)
+      expect(u2.settings['preferences']['word_suggestion_position']).to eq(nil)
+    end
+
+    it "should not carry word_suggestions in the unconditional preference_defaults bucket" do
+      # If it were in the bucket, the generate_defaults bucket loop would backfill
+      # every existing user — the regression this guards against.
+      User.preference_defaults.each do |bucket, defaults|
+        expect(defaults).not_to have_key('word_suggestions'), "found word_suggestions in preference_defaults['#{bucket}']"
+      end
+    end
   end
 
   describe "generate_email_hash" do
@@ -594,6 +619,22 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(false)
       u.process_params({'preferences' => {'cookies' => 'true'}}, {})
       expect(u.settings['preferences']['cookies']).to eq(true)
+    end
+
+    it "should persist require_sidebar_edit_pin (whitelisted) and coerce to boolean" do
+      # Guards the silent-drop failure mode: a preference not in PREFERENCE_PARAMS
+      # is dropped by process_params and never persists. require_sidebar_edit_pin
+      # gates the sidebar editor behind the speak-mode PIN.
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {'require_sidebar_edit_pin' => 'true'}}, {})
+      expect(u.settings['preferences']['require_sidebar_edit_pin']).to eq(true)
+      u.process_params({'preferences' => {'require_sidebar_edit_pin' => 'false'}}, {})
+      expect(u.settings['preferences']['require_sidebar_edit_pin']).to eq(false)
+    end
+
+    it "should default require_sidebar_edit_pin to false for authenticated users" do
+      expect(User.preference_defaults['authenticated_user']['require_sidebar_edit_pin']).to eq(false)
     end
 
     it "should ignore beta_program_access from preferences unless updater is admin" do
@@ -872,6 +913,21 @@ describe User, :type => :model do
         ]
       }}, {})
       expect(u.settings['preferences']['requested_phrases']).to eq(['I like you', 'I am you'])
+    end
+
+    it "should skip malformed (non-hash) offline_actions entries without raising" do
+      u = User.create
+      # A corrupt/stale entry that is an Array (not a hash) must not 500 the update
+      # via action['action'] (TypeError: no implicit conversion of String into
+      # Integer) — otherwise the queue never clears and re-fails on every save.
+      expect {
+        u.process({'offline_actions' => [
+          [{'label' => 'bogus'}],
+          {'action' => 'add_vocalization', 'id' => 'ok', 'list' => [{'label' => 'asdf'}]}
+        ]})
+      }.to_not raise_error
+      expect(u.settings['vocalizations'].length).to eq(1)
+      expect(u.settings['vocalizations'][0]['id']).to eq('ok')
     end
 
     it "should process offline_actions" do

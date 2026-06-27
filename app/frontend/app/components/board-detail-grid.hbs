@@ -54,54 +54,11 @@
         {{on "click" (this.invokeAttr "selectButton" btn)}}
         {{on "keydown" (this.invokeAttr "selectButtonKey" btn)}}>
         {{#if this.editMode}}
-          {{!-- Inline edit actions (shown when card is tall enough) --}}
-          <div class="md-board-detail-symbol-card__edit-actions md-board-detail-symbol-card__edit-actions--inline">
-            <button type="button" tabindex="-1"
-              class="md-board-detail-symbol-card__edit-btn"
-              title={{t "Edit button settings" key="board_detail_edit_button"}}
-              data-bd-edit-action="edit_button_settings"
-              {{on "click" (this.selfActionNoBubble "editButtonSettings" btn)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            <button type="button" tabindex="-1"
-              class="md-board-detail-symbol-card__edit-btn"
-              title={{t "Change button color" key="board_detail_change_color"}}
-              data-bd-edit-action="open_color_picker"
-              {{on "click" (this.selfActionNoBubble "openColorPicker" btn)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-            </button>
-            <button type="button" tabindex="-1"
-              class="md-board-detail-symbol-card__edit-btn"
-              title={{t "Copy to Button Stash" key="copy_to_button_stash_title"}}
-              data-bd-edit-action="stash_button"
-              {{on "click" (this.selfActionNoBubble "stashButton" btn)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-            <button type="button" tabindex="-1"
-              class="md-board-detail-symbol-card__edit-btn"
-              title={{t "Word Data" key="view_word_data_title"}}
-              data-bd-edit-action="word_data"
-              {{on "click" (this.selfActionNoBubble "wordData" btn)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            </button>
-            <button type="button" tabindex="-1"
-              class="md-board-detail-symbol-card__edit-btn md-board-detail-symbol-card__edit-btn--danger"
-              title={{t "Clear button" key="board_detail_clear_button"}}
-              data-bd-edit-action="clear_button"
-              {{on "click" (this.selfActionNoBubble "clearButton" btn)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-          </div>
-          {{!-- Dropdown menu trigger (shown when card is too short for inline actions) --}}
-          <div class="md-board-detail-symbol-card__edit-actions md-board-detail-symbol-card__edit-actions--dropdown">
-            <button type="button"
-              class="md-board-detail-symbol-card__edit-btn md-board-detail-symbol-card__edit-menu-trigger"
-              title={{t "Button options" key="board_detail_button_options"}}
-              data-bd-edit-action="toggle_button_menu"
-              {{on "click" (this.selfActionNoBubble "toggleButtonMenu" btn)}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-            </button>
-          </div>
+          {{!-- Per-button edit affordances (inline Edit/Color/Stash/Word Data/Clear
+               icons + the short-card triple-dot menu) were REMOVED: in edit mode,
+               clicking the button itself opens the Button Settings modal (see
+               board-detail#select_button → _open_button_settings), and those actions
+               now live in that modal's left nav (below Extras). No icon on the button. --}}
           {{!-- Level badge (edit mode only) — pinned to the bottom-left
                corner, surfaces the button's level rules so therapists
                can see at a glance which levels each button is wired
@@ -229,7 +186,9 @@
           <div class="md-board-detail-color-picker">
             <div class="md-board-detail-color-picker__header">
               <span class="md-board-detail-color-picker__title">{{t "Choose Color" key="board_detail_choose_color"}}</span>
-              <button type="button" class="md-board-detail-color-picker__close" {{on "click" (this.invokeAttr0 "closeColorPicker")}}>&times;</button>
+              <button type="button" class="md-board-detail-color-picker__close" {{on "click" (this.invokeAttr0 "closeColorPicker")}} aria-label={{t "Close" key="close"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
 
             <div class="md-board-detail-color-picker__swatches">

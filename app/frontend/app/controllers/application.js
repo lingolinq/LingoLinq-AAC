@@ -1099,7 +1099,7 @@ export default Controller.extend({
     toggleEditMode: function(decision) {
       if(!this.appState.get('edit_mode')) {
         if(this.appState.speak_mode_exit_pin_required()) {
-          modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+          modal.open('speak-mode-pin', {action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
         } else {
           this.appState.toggle_edit_mode(decision);
         }
@@ -1127,7 +1127,7 @@ export default Controller.extend({
     switch_communicators: function(opts) {
       var ready = RSVP.resolve({correct_pin: true});
       if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
-        ready = modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+        ready = modal.open('speak-mode-pin', {action: 'none', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
       }
       ready.then(function(res) {
         if(res && res.correct_pin) {

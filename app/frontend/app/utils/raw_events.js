@@ -686,6 +686,15 @@ var buttonTracker = EmberObject.extend({
         return;
       }
 
+      // allow PIN keypad (#pin) clicks to propagate so the Ember add_digit action
+      // runs IMMEDIATELY. Without this, keypad taps go through the up/down tracking
+      // + 500ms debounce below, which drops/delays fast consecutive digit entry.
+      // Eye-gaze/dwell have no native click and still route through the #pin
+      // synthetic-click path in element_release, so accessibility is unaffected.
+      if($(event.target).closest('#pin').length > 0) {
+        return;
+      }
+
       // allow dark mode toggle and theme picker to propagate so Ember actions run
       if($(event.target).closest('.ll-bento-dark-toggle, .bento-dark-toggle-wrap, .ll-bento-theme-picker, .ll-bento-theme-picker__row, .ll-bento-theme-picker__options, .ll-bento-theme-picker-wrap, .ll-bento-theme-picker-backdrop').length > 0) {
         return;
@@ -1141,7 +1150,6 @@ var buttonTracker = EmberObject.extend({
                 'border-color': 'transparent'
               });
               $overClone.find('img, .md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input, .md-board-detail-symbol-card__folder-badge').css({'opacity': '0.3', 'filter': 'grayscale(100%)'});
-              $overClone.find('.md-board-detail-symbol-card__edit-actions').css('visibility', 'hidden');
               $overClone.css('opacity', 0.85);
             }
           }
@@ -1502,8 +1510,19 @@ var buttonTracker = EmberObject.extend({
             }, 500);
             $elem.trigger('select');
           } else if($(elem_wrap.dom).closest('#pin').length > 0 && (elem_wrap.dom.tagName == 'A' || elem_wrap.dom.tagName == 'BUTTON')) {
-            event.preventDefault();
-            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            if(event_source === 'click' && event.type === 'mouseup') {
+              // Mouse: the native click propagates straight to Ember via the #pin
+              // carve-out in the .advanced_selection handler (immediate, single).
+              // Do NOT preventDefault or synthesize here — the document mouseup
+              // handler also lands here, and synthesizing would double-enter the
+              // digit on top of the native click.
+            } else {
+              // Touch (preventDefault cancels the slow native tap-click) + eye-gaze /
+              // dwell / scanning (no native click at all): synthesize the pass-through
+              // click so the Ember add_digit action still runs.
+              event.preventDefault();
+              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            }
           } else if(
             elem_wrap.dom.classList.contains('speak_menu_button') ||
             elem_wrap.dom.classList.contains('md-speak-menu__btn') ||
@@ -2881,7 +2900,7 @@ var buttonTracker = EmberObject.extend({
 //                      target.className == 'dropdown-backdrop' ||
                       target.className == 'modal' ||
                       target.className == 'modal-dialog' ||
-                      ($target && $target.closest('.md-board-detail-symbol-card__edit-actions, .md-board-detail-symbol-card__edit-dropdown, .md-board-detail-color-picker, .md-folder-tab__label-input').length > 0)
+                      ($target && $target.closest('.md-board-detail-color-picker, .md-folder-tab__label-input').length > 0)
                     ));
     return result;
   },

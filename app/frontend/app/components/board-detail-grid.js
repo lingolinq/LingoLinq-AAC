@@ -112,36 +112,6 @@ export default Component.extend({
       if(action) { action(button, event); }
     },
 
-    edit_button_settings(button) {
-      var action = this.get('editButtonSettings');
-      if(action) { action(button); }
-    },
-
-    open_color_picker(button) {
-      var action = this.get('openColorPicker');
-      if(action) { action(button); }
-    },
-
-    stash_button(button) {
-      var action = this.get('stashButton');
-      if(action) { action(button); }
-    },
-
-    word_data(button) {
-      var action = this.get('wordData');
-      if(action) { action(button); }
-    },
-
-    clear_button(button) {
-      var action = this.get('clearButton');
-      if(action) { action(button); }
-    },
-
-    toggle_button_menu(button) {
-      var action = this.get('toggleButtonMenu');
-      if(action) { action(button); }
-    },
-
     close_color_picker() {
       var action = this.get('closeColorPicker');
       if(action) { action(); }
