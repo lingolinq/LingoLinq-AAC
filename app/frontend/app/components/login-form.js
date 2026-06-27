@@ -514,6 +514,7 @@ export default Component.extend({
   // Thin wrapper so plan-07 tests can observe post-auth reload navigation without
   // overriding window.location.assign (frozen in modern Chrome / Puppeteer).
   _login_location_assign: function(url) {
+    if (isTesting()) { return; }
     location.assign(url);
   },
   // Post-auth web dispatch logic. Called from login_success's web `else`

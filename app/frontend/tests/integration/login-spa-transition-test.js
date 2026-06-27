@@ -5,11 +5,11 @@ import {
   beforeEach,
   afterEach,
   waitsFor,
-  runs,
-  stub
+  runs
 } from 'frontend/tests/helpers/jasmine';
 import { db_wait } from 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
+import { run } from '@ember/runloop';
 import RSVP from 'rsvp';
 import LoginForm from '../../components/login-form';
 
@@ -21,20 +21,39 @@ describe("login-form _login_dispatch_after_wait", function() {
   var component;
   var transitionToCalls, transitionToReturn;
   var locationAssignCalls;
+  var routeDidChangeHandler;
+  var routerStub;
+  var appStateStub;
 
-  beforeEach(function() {
-    transitionToCalls = [];
-    transitionToReturn = RSVP.resolve();
-    locationAssignCalls = [];
-
-    component = this.subject('login-form');
-
-    stub(component, '_login_location_assign', function(url) {
-      locationAssignCalls.push(url);
+  function stubLocationAssign(target) {
+    Object.defineProperty(target, '_login_location_assign', {
+      configurable: true,
+      writable: true,
+      value: function(url) {
+        locationAssignCalls.push(url);
+      }
     });
+  }
 
-    var routeDidChangeHandler = null;
-    component.router = {
+  function stubAppState(target, featureFlags) {
+    appStateStub = EmberObject.create({
+      feature_flags: featureFlags || { auth_spa_transition: false },
+      get: function(key) {
+        if (key === 'feature_flags.auth_spa_transition') {
+          return this.feature_flags && this.feature_flags.auth_spa_transition;
+        }
+        return null;
+      }
+    });
+    Object.defineProperty(target, 'appState', {
+      configurable: true,
+      get: function() { return appStateStub; }
+    });
+  }
+
+  function stubRouter(target) {
+    routeDidChangeHandler = null;
+    routerStub = {
       transitionTo: function() {
         transitionToCalls.push(Array.prototype.slice.call(arguments));
         var result = transitionToReturn;
@@ -52,17 +71,35 @@ describe("login-form _login_dispatch_after_wait", function() {
         if (event === 'routeDidChange') { routeDidChangeHandler = null; }
       }
     };
-
-    component.appState = EmberObject.create({
-      feature_flags: { auth_spa_transition: false },
-      get: function(key) {
-        if (key === 'feature_flags.auth_spa_transition') {
-          return this.feature_flags && this.feature_flags.auth_spa_transition;
-        }
-        return null;
-      }
+    Object.defineProperty(target, 'router', {
+      configurable: true,
+      get: function() { return routerStub; }
     });
+  }
 
+  function stubSpaEligible(target, value) {
+    Object.defineProperty(target, '_login_spa_eligible', {
+      configurable: true,
+      writable: true,
+      value: function() { return value; }
+    });
+  }
+
+  function dispatchAfterWait(waitPromise) {
+    run(function() {
+      component._login_dispatch_after_wait(waitPromise);
+    });
+  }
+
+  beforeEach(function() {
+    transitionToCalls = [];
+    transitionToReturn = RSVP.resolve();
+    locationAssignCalls = [];
+
+    component = this.subject('login-form');
+    stubLocationAssign(component);
+    stubAppState(component);
+    stubRouter(component);
     component.session = EmberObject.create({});
   });
 
@@ -74,9 +111,8 @@ describe("login-form _login_dispatch_after_wait", function() {
   });
 
   it("_login_spa_eligible returns false: _login_dispatch_after_wait calls location.assign('/'), does NOT call router.transitionTo", function() {
-    component.set('_login_spa_eligible', function() { return false; });
-    var wait = RSVP.resolve();
-    component._login_dispatch_after_wait(wait);
+    stubSpaEligible(component, false);
+    dispatchAfterWait(RSVP.resolve());
     waitsFor(function() { return locationAssignCalls.length > 0; });
     runs(function() {
       expect(locationAssignCalls.length).toEqual(1);
@@ -86,9 +122,8 @@ describe("login-form _login_dispatch_after_wait", function() {
   });
 
   it("_login_spa_eligible stubbed true: calls router.transitionTo('index'), does NOT call location.assign", function() {
-    component.set('_login_spa_eligible', function() { return true; });
-    var wait = RSVP.resolve();
-    component._login_dispatch_after_wait(wait);
+    stubSpaEligible(component, true);
+    dispatchAfterWait(RSVP.resolve());
     waitsFor(function() { return transitionToCalls.length > 0; });
     runs(function() {
       expect(transitionToCalls.length).toEqual(1);
@@ -98,10 +133,9 @@ describe("login-form _login_dispatch_after_wait", function() {
   });
 
   it("_login_spa_eligible stubbed true, transitionTo rejects: SPA attempted, then falls back to location.assign('/')", function() {
-    component.set('_login_spa_eligible', function() { return true; });
+    stubSpaEligible(component, true);
     transitionToReturn = RSVP.reject(new Error('simulated'));
-    var wait = RSVP.resolve();
-    component._login_dispatch_after_wait(wait);
+    dispatchAfterWait(RSVP.resolve());
     waitsFor(function() { return locationAssignCalls.length > 0; });
     runs(function() {
       expect(transitionToCalls.length).toEqual(1);
@@ -114,9 +148,8 @@ describe("login-form _login_dispatch_after_wait", function() {
     var fake = document.createElement('div');
     fake.id = 'll-pre-reload-overlay';
     document.body.appendChild(fake);
-    component.set('_login_spa_eligible', function() { return true; });
-    var wait = RSVP.resolve();
-    component._login_dispatch_after_wait(wait);
+    stubSpaEligible(component, true);
+    dispatchAfterWait(RSVP.resolve());
     waitsFor(function() {
       return transitionToCalls.length > 0 && document.getElementById('ll-pre-reload-overlay') === null;
     });
@@ -126,9 +159,8 @@ describe("login-form _login_dispatch_after_wait", function() {
   });
 
   it("wait promise rejects: falls back to location.assign('/'), no transition attempted", function() {
-    component.set('_login_spa_eligible', function() { return true; });
-    var wait = RSVP.reject(new Error('user fetch failed'));
-    component._login_dispatch_after_wait(wait);
+    stubSpaEligible(component, true);
+    dispatchAfterWait(RSVP.reject(new Error('user fetch failed')));
     waitsFor(function() { return locationAssignCalls.length > 0; });
     runs(function() {
       expect(transitionToCalls.length).toEqual(0);
@@ -137,7 +169,7 @@ describe("login-form _login_dispatch_after_wait", function() {
   });
 
   it("_login_spa_eligible unstubbed: returns false on a fresh appState (no flag set) — REGRESSION GUARD", function() {
-    component.appState.feature_flags = {};
+    appStateStub.set('feature_flags', {});
     var result = component._login_spa_eligible();
     expect(result).toEqual(false);
   });
