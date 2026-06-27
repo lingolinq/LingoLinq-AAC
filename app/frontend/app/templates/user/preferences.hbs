@@ -56,6 +56,8 @@
         </div>
       </div>
     </div>
+    {{! Only shown where the Edit-Sidebar feature exists (its only gate). }}
+    {{#if this.app_state.feature_flags.edit_sidebar}}
     <div class="form-group">
       <label for="require_sidebar_edit_pin" class="col-sm-3 control-label">{{t "Sidebar" key='sidebar'}}</label>
       <div class="col-sm-5">
@@ -67,6 +69,7 @@
         </div>
       </div>
     </div>
+    {{/if}}
     {{#if (or this.pending_preferences.require_speak_mode_pin this.pending_preferences.require_sidebar_edit_pin)}}
       <div class="form-group">
         <label for="speak_mode_pin" class="col-sm-3 control-label">{{t "Speak Mode PIN" key='speak_mode_pin'}}</label>
