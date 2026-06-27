@@ -560,7 +560,10 @@ class Api::BoardsController < ApplicationController
   end
 
   def generate_labels
-    unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
+    # Gate on the AI-specific check so an org-level AI opt-out (disable_ai_features) is
+    # enforced at the endpoint and returns a clean 403, instead of passing the plain flag
+    # check here and being rejected deeper in the generator as a 503.
+    unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
     processed_params, json_body_source = board_json_body_params_source

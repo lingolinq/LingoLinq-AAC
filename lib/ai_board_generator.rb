@@ -660,13 +660,18 @@ module AiBoardGenerator
                     pii_detected: false, pii_findings: [], success: true, error_message: nil,
                     request_type: 'board_generation')
       return unless defined?(AiApiLog)
+      # Scrub the model OUTPUT before it reaches AiApiLog. Generated board names/descriptions
+      # can echo user-supplied sensitive context, so the raw response must never be persisted
+      # unredacted (request_summary is already scrubbed upstream). nil passes through untouched
+      # for the API-error paths that log no response body.
+      safe_response_summary = response_summary.nil? ? nil : PiiScrubber.redact_for_ai(response_summary)[:payload]
       AiApiLog.log_ai_call(
         provider: provider,
         model: model,
         type: request_type,
         user: user,
         request_summary: request_summary,
-        response_summary: response_summary,
+        response_summary: safe_response_summary,
         tokens_sent: tokens_sent,
         tokens_received: tokens_received,
         duration_ms: duration_ms,
