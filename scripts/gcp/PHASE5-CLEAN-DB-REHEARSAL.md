@@ -47,9 +47,13 @@ register.
     NOT do against prod** (see P4). Omit it; do not provision a demo password for the clean-prod
     seed.
 
-  Create strong values in 1Password "LingoLinq Prod", add each to GCP Secret Manager, and reference
-  them in the seed Job's `--set-secrets` (Step 3). These are genuinely new secrets, not part of the
-  four `generateValue` boot secrets.
+  **Provisioned 2026-06-26** in 1Password "LingoLinq Prod" (strong 40-char alphanumeric values):
+  - `SEED_ADMIN_PASSWORD (lingolinq-prod)` - item `njww3nwgzpaiblfkgy7vid4iie`, username `lingolinq_admin`.
+  - `SEED_LINGOLINQ_PASSWORD (lingolinq-prod)` - item `f3n4fl45syeqqmeif5rcjqfr2a`, username `lingolinq`.
+
+  These are genuinely new secrets, not part of the four `generateValue` boot secrets.
+  **Remaining before the seed Job:** add each to GCP Secret Manager (`lingolinq-prod`) and reference
+  them in the seed Job's `--set-secrets` (Step 3b). Do NOT provision `SEED_DEMO_PASSWORD`.
 
 - **P2. Confirm the four boot secrets are seeded (preserve, not regenerate). DRY then GATE.**
   ```bash
