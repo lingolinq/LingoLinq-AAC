@@ -94,6 +94,7 @@ file (see [README.md](README.md)).
 - [Fact: the two dashboard layout keys are `focused` + `gentle` (renamed from `balanced`/`dynamic` 2026-06-11)](#fact-the-two-dashboard-layout-keys-are-focused--gentle-renamed-from-balanceddynamic-2026-06-11)
 - [Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state](#gotcha-dashboard-preview-tiles--selection-gates-leak-hidden-but-present-state)
 - [Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`](#gotcha-a-saved-frontend-preference-silently-vanishes-if-its-not-in-userpreference_params)
+- [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 
 ---
 
@@ -5588,3 +5589,86 @@ coalescing is safe. Keep the chain alive past a rejection (`prior.then(noop, noo
 failed save can't wedge the queue, and expose the tail as `_lastSave` for callers that must wait
 for persistence to settle (e.g. a reload-on-close). See
 `app/frontend/app/components/sidebar-editor.js#_save`.
+
+## Adding a new component-based modal (frontend)
+The modal system is component-based. To add a modal named `X`, FIVE wiring points are required —
+miss any one and it silently won't render:
+1. `app/components/X.js` — `tagName: ''`; `init` reads `modal.getSettingsFor('X')` into `model`;
+   actions `close` (`modal.close()`), `opening` (`modal.setComponent(this)`), `closing`.
+2. `app/templates/components/X.hbs` — wrap body in
+   `{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}`.
+   Modern classes: `md-modal-header` / `la-modal-close` / `md-modal-body` / `md-modal-footer`.
+3. `components/modal-container.js` — add `'X'` to the `convertedModals` array (the gate).
+4. `templates/components/modal-container.hbs` — add `{{else if (is-equal this.currentTemplate "X")}}{{X}}`.
+5. Open it with `modal.open('X', {...opts})` (opts are read back via `getSettingsFor('X')`).
+Live-saving a user preference from a modal: bind a checkbox `@checked` to a `computed({get,set})`
+whose setter does `user.set('preferences.FIELD', v); user.set('preferences.device.updated', true);
+user.save();` — saves immediately on toggle. For text inputs, save on `{{on "change" ...}}` (blur)
+not per keystroke. Example: `app/frontend/app/components/pin-settings.js`. When several settings
+can change in quick succession, SERIALIZE the saves — chain each onto the previous in-flight one
+(`this._save_chain = this._save_chain ? this._save_chain.then(run, run) : run()`) so overlapping
+`user.save()` calls can't drop a write (see "serialize rapid model saves"). For a PIN/credential
+text input, also SANITIZE on change AND on close (`(v||'').replace(/[^0-9]/g,'').slice(0,4)`) so a
+non-numeric/empty value can never be persisted — an empty PIN silently disables whatever it gates.
+
+## Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action
+
+To PIN-gate ANY action (not just exiting Speak Mode), open the existing
+`speak-mode-pin` entry modal in validate-only mode and act on the resolved
+payload — no new modal, no separate PIN value:
+
+```js
+modal.open('speak-mode-pin', {
+  action: 'none',                                   // validate only, no side effect
+  hide_hint: user.get('preferences.hide_pin_hint')
+}).then(function(res) {
+  if (res && res.correct_pin) { doTheGatedThing(); } // res is undefined on cancel
+}, function() {});
+```
+
+The modal resolves `modal.close({correct_pin:true})` on a correct PIN (and plain
+`close()` → `undefined` on cancel), so `modal.open(...).then(res => res && res.correct_pin)`
+is the gate. `action: 'none'` is the same mode the speak-mode ENTRY gate uses
+(`application.js:1094`). Gate only when `require_<x>_pin && speak_mode_pin` both set
+so a missing PIN can never lock the user out. First applied: `require_sidebar_edit_pin`
+gating `open_sidebar_editor` (board-detail.js), 2026-06-26. The PIN value
+(`speak_mode_pin`) is SHARED across all gates — a new gate is just a new boolean
+pref (3-touch) + this `.then` wrapper, NOT a new PIN.
+
+**Do NOT pass the PIN in the modal options** (`actual_pin: ...`). `modal.open`'s options
+are stored in the modal service's in-memory `settingsFor` blob, so putting the plaintext
+PIN there leaks it into shared state. Instead the `speak-mode-pin` component reads it LIVE
+via an `actual_pin` computed off `appState.currentUser.preferences.speak_mode_pin` (used for
+both validation and the Reveal link); callers pass only `action` + `hide_hint`. (Security
+fix, 2026-06-27 — external review flagged plaintext-in-options.)
+
+## Pattern: default a preference ON for NEW users only, never backfilling existing ones
+
+`generate_defaults` (before_save) runs on every save, and the `preference_defaults` bucket
+loop backfills any `nil` field on EVERY existing user's next save. So putting
+`'word_suggestions' => true` in a `preference_defaults` bucket silently turns the feature ON
+for every pre-existing user the next time they save — an unannounced behavior change (an
+external review rated this HIGH).
+
+To default a preference ON for **new** sign-ups only:
+1. Do NOT put it in any `preference_defaults` bucket (those backfill everyone).
+2. In `generate_defaults`, set it under a `new_record?` guard so it's applied once at
+   registration and never on later saves:
+   ```ruby
+   if self.new_record?
+     self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
+   end
+   ```
+   (For a date-cut default, the codebase's existing idiom is
+   `FeatureFlags.user_created_after?(self, 'flag')` — but that needs a flag date marker;
+   `new_record?` is simpler when the cut is "from now on".)
+3. Make the CLIENT read it as `=== true` (treat `nil`/`undefined` as OFF) so existing users
+   with no stored value read as off. A `!== false` read is the trap — it makes `nil` mean ON,
+   re-introducing the silent enablement client-side even after the server stops backfilling.
+Applied to `word_suggestions` / `word_suggestion_position`, 2026-06-27.
+
+**Review-lens note:** correctness / regression / accessibility / cascade passes do NOT catch
+security-or-input-validation gaps (silent default flips, missing PIN validation,
+plaintext-in-options, save races). When a change touches auth/PIN/preferences, run an explicit
+"abuse + input-validation + concurrency" lens as its OWN pass — three internal adversarial
+reviews missed all four of these because none was framed that way.

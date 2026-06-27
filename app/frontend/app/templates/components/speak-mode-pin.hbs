@@ -1,25 +1,24 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   {{#opening-observer opening=(action "opening")}}{{/opening-observer}}
-  <div class="modal-body md-modal-body" style="padding: 0; font-size: 18px;">
-    <div class="modal-header md-modal-header">
-      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-      <h3>{{t "PIN Required" key="pin_required"}}</h3>
+    <h3>{{t "PIN Required" key="pin_required"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body speak-mode-pin__body">
+    <div class="speak-mode-pin-entry">
+      <input type="text" class="form-control speak-mode-pin-entry__input" readonly value={{if this.show_typed_digits this.pin this.pin_dots}} rel={{this.pin}} aria-label={{t "Speak Mode PIN" key="speak_mode_pin"}}>
+      <button type="button" class="btn md-modal-btn md-modal-btn--primary pass_through speak-mode-pin-entry__submit" {{action "submit_pin"}}>{{t "Submit" key="pin_submit_button"}}</button>
     </div>
-    <div class="modal-body md-modal-body" style="text-align: center;">
-      <div class="speak-mode-pin-entry">
-        <input type="text" class="form-control speak-mode-pin-entry__input" readonly value={{if this.show_typed_digits this.pin this.pin_dots}} rel={{this.pin}} aria-label={{t "Speak Mode PIN" key="speak_mode_pin"}}>
-        <button type="button" class="btn btn-primary pass_through speak-mode-pin-entry__submit" {{action "submit_pin"}}>{{t "Submit" key="pin_submit_button"}}</button>
-      </div>
-      {{#if this.invalid_pin}}
-        <p class="text-danger speak-mode-pin-entry__error" role="alert">{{t "Invalid PIN. Try again!" key="invalid_pin_try_again"}}</p>
-      {{/if}}
-      <table class="table table-bordered advanced_selection" id="pin">
-        <colgroup>
-          <col span="3" style="width: 33.33%;">
-        </colgroup>
-        <tbody>
+    {{#if this.invalid_pin}}
+      <p class="text-danger speak-mode-pin-entry__error" role="alert">{{t "Invalid PIN. Try again!" key="invalid_pin_try_again"}}</p>
+    {{/if}}
+    <table id="pin" class="advanced_selection speak-mode-pin-keypad">
+      <colgroup>
+        <col span="3" style="width: 33.33%;">
+      </colgroup>
+      <tbody>
         <tr>
           <td><button type="button" class="pin-key" {{action "add_digit" "1"}}>1</button></td>
           <td><button type="button" class="pin-key" {{action "add_digit" "2"}}>2</button></td>
@@ -38,30 +37,30 @@
         <tr>
           <td>
             <button type="button" class="pin-key pin-key__icon" {{action "delete_digit"}} aria-label={{t "Backspace" key="backspace_lower"}}>
-              <img src={{path "images/delete.svg"}} alt="">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
             </button>
           </td>
           <td><button type="button" class="pin-key" {{action "add_digit" "0"}}>0</button></td>
           <td>
             <button type="button" class="pin-key pin-key__icon" {{action "toggle_typed_digits"}} aria-label={{if this.show_typed_digits (t "Hide digits" key="pin_hide_digits") (t "Show digits" key="pin_show_digits")}}>
               {{#if this.show_typed_digits}}
-                <span class="glyphicon glyphicon-eye-close" aria-hidden="true"></span>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               {{else}}
-                <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               {{/if}}
             </button>
           </td>
         </tr>
-      </tbody></table>
-    </div>
-    <div class="modal-footer md-modal-footer">
-      {{#unless this.model.hide_hint}}
-        {{#if this.show_pin}}
-          PIN: {{ this.model.actual_pin }}
-        {{else}}
-          <a href="#" class="pass_through" {{action "reveal_pin" on="click"}}>{{t "Reveal PIN" key="pin_reveal_pin"}}</a>
-        {{/if}}
-      {{/unless}}
-    </div>
+      </tbody>
+    </table>
+  </div>
+  <div class="modal-footer md-modal-footer speak-mode-pin__footer">
+    {{#unless this.model.hide_hint}}
+      {{#if this.show_pin}}
+        <span class="speak-mode-pin__revealed">{{t "PIN" key="pin_label"}}: {{this.actual_pin}}</span>
+      {{else}}
+        <a href="#" class="pass_through speak-mode-pin__reveal-link" {{action "reveal_pin" on="click"}}>{{t "Reveal PIN" key="pin_reveal_pin"}}</a>
+      {{/if}}
+    {{/unless}}
   </div>
 {{/modal-dialog}}

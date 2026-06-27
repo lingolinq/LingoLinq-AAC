@@ -8209,5 +8209,14 @@
   "sidebar_editor_reorder_hint": "*** Drag and drop the boards below to change their order on your sidebar.",
   "sidebar_editor_drag_to_reorder": "*** Drag to reorder",
   "sidebar_editor_move_up": "*** Move up",
-  "sidebar_editor_move_down": "*** Move down"
+  "sidebar_editor_move_down": "*** Move down",
+  "set_a_pin": "*** Set a PIN",
+  "board_view_style_explainer": "*** Modern shows panelled tools with a focused button grid; Classic is the full-device grid. Switching reloads the board.",
+  "pin_settings_intro": "*** Require a PIN to exit Speak Mode, so a communicator can't leave Speak Mode without it. Changes here save automatically.",
+  "hide_pin_reveal_option": "*** Hide the option to reveal a forgotten PIN when exiting",
+  "hidden_pin_reveal_warning": "*** NOTE: With the reveal option hidden, you won't be able to exit Speak Mode unless you remember the PIN, or can look it up on a different device.",
+  "pin_placeholder_4_digit": "*** 4-digit",
+  "require_sidebar_edit_pin": "*** Require a PIN to edit the Sidebar",
+  "pin_label": "*** PIN",
+  "pin_incomplete_warning": "*** Enter a 4-digit PIN, or this gate won't take effect."
 }

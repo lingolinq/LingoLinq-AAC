@@ -93,9 +93,10 @@ export default Controller.extend(prefClasses, {
     'model.locale',
     'model.translations',
     function() {
-      // Word prediction is governed by the global user preference (default
-      // OFF), not a per-board flag — it now behaves identically on the classic
-      // board-alt and modern board-detail speak pages.
+      // Word prediction is governed by the global user preference (only an
+      // explicit true is on; null/undefined = off), not a per-board flag — it
+      // behaves identically on the classic board-alt and modern board-detail
+      // speak pages.
       if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode')) { return; }
       var _this = this;
       var button_list = this.get('appState.button_list');
