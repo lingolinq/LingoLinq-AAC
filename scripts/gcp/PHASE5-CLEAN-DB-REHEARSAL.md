@@ -160,35 +160,33 @@ re-dropping.
 **3a. Guarded schema load (destructive; guard runs IN THE SAME execution).** The host+empty
 assertion MUST run in the same Job execution as the `force: :cascade` load, so the proof binds to
 the exact `DATABASE_URL` the drop uses and cannot drift. Do NOT rely on the Step 1 early pass as the
-guard. Recommended `db:schema:load` (fast, authoritative `db/schema.rb`); alternative `db:migrate`
-from zero (slower, replays full history, no `force: :cascade`) only if `schema:load` surfaces drift.
-Values are illustrative - resolve every `${{ vars.* }}` against live config first:
+guard. **Use the committed `gcp:guarded_schema_load` rake task** (`lib/tasks/gcp_clean_db.rake` +
+`lib/gcp_clean_db_guard.rb`, unit-tested in `spec/lib/gcp_clean_db_guard_spec.rb`): it runs the
+`GcpCleanDbGuard.assert_clean_target!` check (asserts the connection host contains
+`EXPECTED_CLOUDSQL_HOST` AND zero application tables; fail-closed if `EXPECTED_CLOUDSQL_HOST` is
+unset) and THEN `db:schema:load`, in one process, so the guard ships in the image rather than as a
+fragile inline command. Values are illustrative - resolve every `${{ vars.* }}` against live config
+first:
 
 ```bash
-# GATE. Single execution: assert host+empty, then load ONLY if the assert passes (&& short-circuits).
-GUARD='
-  cfg=ActiveRecord::Base.connection_db_config.configuration_hash
-  host=cfg[:host]||cfg[:socket]||"UNKNOWN"
-  abort("WRONG DB #{host}") unless host.to_s.include?(ENV.fetch("EXPECTED_CLOUDSQL_HOST"))
-  t=ActiveRecord::Base.connection.tables-%w[schema_migrations ar_internal_metadata]
-  abort("DB NOT EMPTY #{t.size}") unless t.empty?
-'
+# GATE. The rake task aborts (non-zero, no load) unless the target is the expected EMPTY Cloud SQL DB.
 gcloud run jobs deploy lingolinq-migrate-cleandb \
   --image "$IMAGE" --region "$REGION" \
   --service-account "lingolinq-run@$PROJECT.iam.gserviceaccount.com" \
   --execution-environment gen2 \
   --set-cloudsql-instances "$CLOUDSQL_INSTANCE" \
   --network "$VPC_NETWORK" --subnet "$VPC_SUBNET" --vpc-egress private-ranges-only \
-  --command /bin/bash \
-  --args "-lc,bundle exec rails runner \"\$GUARD\" && bundle exec rake db:schema:load" \
+  --command bundle --args "exec,rake,gcp:guarded_schema_load" \
   --task-timeout 1800 \
-  --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,EXPECTED_CLOUDSQL_HOST=$EXPECTED_CLOUDSQL_HOST,GUARD=$GUARD" \
+  --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,EXPECTED_CLOUDSQL_HOST=$EXPECTED_CLOUDSQL_HOST" \
   --set-secrets "$BOOT_SECRETS"
 gcloud run jobs execute lingolinq-migrate-cleandb --region "$REGION" --wait
 ```
 
-(If passing the GUARD heredoc through `--set-env-vars` is awkward, bake the assert+load into a
-small committed rake task, e.g. `rake gcp:guarded_schema_load`, so the guard ships with the image.)
+`EXPECTED_CLOUDSQL_HOST` is the Cloud SQL host/socket the `DATABASE_URL` secret resolves to (P3) -
+e.g. `/cloudsql/lingolinq-prod:us-central1:lingolinq-prod-pg` for the socket DSN. Alternative if
+`schema:load` ever surfaces `schema.rb` drift: `db:migrate` from zero (slower, replays full history,
+no `force: :cascade`) - but run it behind the same guard.
 
 **3b. Seed (idempotent; needs Redis from Step 2 green and the SEED_* secrets).** Update the Job's
 args to `exec,rake,db:seed` and add the seed secrets, then execute:
