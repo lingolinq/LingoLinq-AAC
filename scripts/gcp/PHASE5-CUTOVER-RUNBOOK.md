@@ -44,16 +44,23 @@ the window, revert to it.
 | 3. Restore -> Cloud SQL | move real data | **REPLACE** with a fresh `db:schema:load` + `db:seed` in the migrate Job |
 | S1 `phase4-setval-sequences` | realign PK sequences after a data restore (global_id uses raw PKs) | **DROP** - a fresh schema sets sequences correctly; nothing to realign |
 | 7. `phase5-delta-check.sh` | catch a writer that slipped the freeze | **DROP** - no source DB to reconcile against |
-| 1. write-freeze accepted-loss analysis (offline replay, `saml/consume` linkage, last-writer-wins, SNS/Stripe/SMS drop) | avoid losing in-flight real writes during the window | **MOOT** - no real writers, no real users. `WRITE_FREEZE` may still be toggled on at DNS time for tidiness, but it is no longer load-bearing and the accepted-loss sign-off is not needed |
+| 1. write-freeze accepted-loss analysis (offline replay, `saml/consume` linkage, last-writer-wins, SNS/Stripe/SMS drop) | avoid losing in-flight real writes during the window | **Accepted-loss sign-off not needed** (no real writers/users) - BUT keep building `WRITE_FREEZE` and **toggle it on at DNS time**: it is still the cheap guard against split-brain on the seeded `lingolinq_admin`/`lingolinq` accounts (which exist on BOTH DBs) when a DNS-stale client hits the old Render IP during TTL propagation. Do NOT read "no data to protect" as "drop the build." |
 
 **What still runs (stack validation, not data) - unchanged from below:**
 
-- **0c Redis TLS live handshake (`LL-6619cc1811`)** - never exercised against live Memorystore;
-  silent-failure risk for all background jobs. **This is the real go/no-go gate of the clean-DB
-  path.**
-- 0b worker-pool health; step 6 migrate Job + deploys (now schema-load + seed, not restore);
-  the five-path smoke test (login, board load, S3 read, SES send, Resque process); the frontend
-  LB + Cloud Armor (step 8 / #476); the DNS flip (step 9, 60s TTL); soak; Phase 6 decommission.
+- **Two hard gates, both irreversible if wrong:**
+  - **Host-bound empty-DB proof (irreversible gate).** `db:schema:load` uses `force: :cascade` and
+    drops every table; the proof that the target DB is the empty Cloud SQL instance (not the still
+    authoritative Render DB) MUST be bound to the live `DATABASE_URL` secret the Job uses, not a
+    hand-typed proxy. This is the one step that can cause permanent loss - treat it as THE
+    irreversible gate.
+  - **0c Redis TLS live handshake (`LL-6619cc1811`)** - never exercised against live Memorystore;
+    silent-failure risk for all background jobs, and **seeding itself enqueues to Redis
+    synchronously**, so this runs BEFORE the seed. The functional go/no-go gate.
+- 0b worker-pool health; the schema-load + seed (two separate executions, NOT a combined re-runnable
+  Job; seeding performs a full Moby word import - budget a long task-timeout); the five-path smoke
+  test (login, board load, S3 read, SES send, Resque process); the frontend LB + Cloud Armor
+  (step 8 / #476); the DNS flip (step 9, 60s TTL); soak; Phase 6 decommission.
 
 **Boot secrets (DECIDED: preserve, Scot 2026-06-26):** even on a clean DB, seed the four
 `generateValue` secrets (`SECRET_KEY_BASE`, `COOKIE_KEY`, `SECURE_ENCRYPTION_KEY`,
@@ -64,12 +71,13 @@ reference; regenerating fresh is also safe (all data is fake) but buys nothing. 
 **Collapsed clean-DB sequence:**
 
 ```
-1. Seed GCP boot secrets   phase4-seed-boot-secrets.sh --verify -> seed   (preserve the 4)
-2. Fresh Cloud SQL         migrate Job: db:schema:load + db:seed          (no dump/restore/setval)
-3. 0c Redis TLS handshake  PING -> PONG over rediss://, assert CA count   <- REAL GATE
-4. 0b + smoke test         worker RUNNABLE + 5 paths green on a run.app URL
-5. Frontend LB + Armor     phase5-frontend-lb.sh (#476)
-6. DNS flip (60s TTL) -> soak -> decommission Render (Phase 6)
+1. Seed GCP boot secrets    phase4-seed-boot-secrets.sh --verify -> seed   (preserve the 4)
+2. Host-bound empty proof   rails-runner: assert Cloud SQL host + 0 tables <- IRREVERSIBLE GATE
+3. 0c Redis TLS handshake   PING -> PONG over rediss://, assert CA count   <- REAL GATE (before seed)
+4. Fresh schema, then seed  db:schema:load THEN db:seed (two separate execs; seeds Moby words)
+5. 0b + smoke test          worker RUNNABLE + 5 paths green on a run.app URL
+6. Frontend LB + Armor      phase5-frontend-lb.sh (#476)
+7. DNS flip (60s TTL) -> soak -> decommission Render (Phase 6)
 ```
 
 **Operator runsheet for steps 1-4 (dry-run first):** `scripts/gcp/PHASE5-CLEAN-DB-REHEARSAL.md`.
