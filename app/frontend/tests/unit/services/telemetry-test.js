@@ -3,25 +3,32 @@ import Service from '@ember/service';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import { setupTest } from '../../helpers';
+import { stubPersistence } from '../../helpers/persistence-stub';
 
 module('Unit | Service | telemetry', function(hooks) {
   setupTest(hooks);
 
   hooks.beforeEach(function() {
     this.ajaxCalls = [];
+    var testContext = this;
     this.owner.register('service:app-state', Service.extend({
       current_route: 'board.index',
       feature_flags: { product_telemetry: true },
       currentUser: EmberObject.create({ admin: false })
     }));
-    var testContext = this;
-    this.owner.register('service:persistence', Service.extend({
+    this.restorePersistence = stubPersistence({
       online: true,
       ajax: function(url, opts) {
         testContext.ajaxCalls.push({url: url, opts: opts});
         return RSVP.resolve({success: true});
       }
-    }));
+    });
+  });
+
+  hooks.afterEach(function() {
+    if (this.restorePersistence) {
+      this.restorePersistence();
+    }
   });
 
   test('board activation telemetry omits button text', function(assert) {

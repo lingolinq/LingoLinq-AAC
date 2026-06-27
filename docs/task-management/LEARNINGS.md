@@ -5834,6 +5834,11 @@ after `ember_helper` runs `owner.lookup('service:content-grabbers')`.
 **Puppeteer localStorage:** use `replaceLocalStorage()` from `ember_helper` — assignment
 `window.localStorage = {…}` throws (getter-only).
 
+**Persistence/app-state stubs:** `utils/persistence` and `utils/app_state` are Proxies whose
+get traps forward to `window.persistence` / `LingoLinq.appState`. Jasmine `stub()` mirrors
+onto the live service when stubbing the util export; QUnit tests should use
+`stubPersistence()` / `persistenceTarget()` instead of assigning `persistence.ajax`.
+
 **First seen in:** [2026-06-27-ember-test-ci-failures.md](./2026-06-27-ember-test-ci-failures.md).
 
 ### 6. BoardHierarchy / store in copy-modal tests

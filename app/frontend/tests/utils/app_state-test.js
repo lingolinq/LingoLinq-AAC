@@ -66,7 +66,6 @@ describe('app_state', function() {
     }).create();
     app_state.route = route;
     app_state.controller = controller;
-    app_state.testing = true;
     last_sent_message = null;
   });
 

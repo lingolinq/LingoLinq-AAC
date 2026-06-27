@@ -4,6 +4,9 @@ import { setupRenderingTest, setupTest, setupApplicationTest } from './index';
 import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import persistence from '../../utils/persistence';
+import appStateUtil from '../../utils/app_state';
+import { persistenceTarget } from './persistence-stub';
 
 var names = [];
 var all_befores = [[]];
@@ -237,16 +240,54 @@ var afterEach = function(callback) {
   all_afters[0].push(callback);
 };
 
-var stub = function(object, method, replacement) {
-  if (!object || object.isDestroyed) { return; }
-  stub.stubs = stub.stubs || [];
+function liveAppStateTarget() {
+  if (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState) {
+    return window.LingoLinq.appState;
+  }
+  return null;
+}
+
+function resolveStubTargets(object) {
+  var targets = [];
+  if (!object || object.isDestroyed) {
+    return targets;
+  }
+  targets.push(object);
+
+  // utils/persistence is a Proxy whose get trap forwards to window.persistence.
+  // Models inject the service instance, so mirror stubs onto the live target.
+  var livePersistence = persistenceTarget();
+  if (livePersistence && livePersistence !== object && object === persistence) {
+    targets.push(livePersistence);
+  }
+
+  var liveAppState = liveAppStateTarget();
+  if (liveAppState && liveAppState !== object && object === appStateUtil) {
+    targets.push(liveAppState);
+  }
+
+  return targets;
+}
+
+function applyStub(object, method, replacement, stashList) {
   var stash = object[method];
   try {
     object[method] = replacement;
   } catch (e) {
     emberSet(object, method, replacement);
   }
-  stub.stubs.push([object, method, stash]);
+  stashList.push([object, method, stash]);
+}
+
+var stub = function(object, method, replacement) {
+  if (!object || object.isDestroyed) { return; }
+  stub.stubs = stub.stubs || [];
+  var seen = {};
+  resolveStubTargets(object).forEach(function(target) {
+    if (seen[target]) { return; }
+    seen[target] = true;
+    applyStub(target, method, replacement, stub.stubs);
+  });
 };
 stub.stubs = [];
 
@@ -258,7 +299,11 @@ function restoreStubs() {
     if (!obj || obj.isDestroyed) { return; }
     try {
       obj[method] = stash;
-    } catch (e) { /* owner torn down */ }
+    } catch (e) {
+      try {
+        emberSet(obj, method, stash);
+      } catch (e2) { /* owner torn down */ }
+    }
   });
   stub.stubs = [];
 }
