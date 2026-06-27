@@ -93,11 +93,11 @@ export default Controller.extend(prefClasses, {
     'model.locale',
     'model.translations',
     function() {
-      // Word prediction is governed by the global user preference (default
-      // ON — only an explicit false is off), not a per-board flag — it now
+      // Word prediction is governed by the global user preference (only an
+      // explicit true is on; null/undefined = off), not a per-board flag — it
       // behaves identically on the classic board-alt and modern board-detail
       // speak pages.
-      if(this.appState.get('referenced_user.preferences.word_suggestions') === false || !this.appState.get('speak_mode')) { return; }
+      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode')) { return; }
       var _this = this;
       var button_list = this.get('appState.button_list');
       var last_button = button_list[button_list.length - 1];
@@ -430,7 +430,7 @@ export default Controller.extend(prefClasses, {
       }
       var topHeight = header_base + (this.appState.get('extra_header_height') || 0);
       var sidebarTopHeight = topHeight;
-      this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') !== false) && this.appState.get('speak_mode'));
+      this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode'));
       if(this.get('show_word_suggestions')) {
         topHeight = topHeight + 55;
         var style = this.get('get_style');

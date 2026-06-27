@@ -668,16 +668,10 @@ class User < ApplicationRecord
         'blank_status' => false,
         'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
-        # Word prediction on/off (global, governs BOTH classic board-alt and
-        # modern board-detail speak modes). Default ON — the user can opt out via
-        # Preferences or the board-detail edit panel.
-        'word_suggestions' => true,
-        # Where word prediction renders in board-detail speak mode. Default
-        # 'side_rail' — a vertical rail to the right of the board, i.e. just LEFT
-        # of the speak-mode sidebar. Other options: 'speak_bar' (inline in the
-        # speak bar) or 'auto' (responsive — inline on wide screens, side rail on
-        # narrow).
-        'word_suggestion_position' => 'side_rail',
+        # NOTE: word_suggestions / word_suggestion_position are intentionally NOT
+        # in this unconditional bucket — they default ON only for NEW users (set
+        # in generate_defaults under `new_record?`), so existing users who never
+        # set word prediction are never silently enabled.
         'hidden_buttons' => 'grid',
         # Folder display style for sub-folder buttons: 'default' (plain folder
         # face), 'tab_labels', or 'colored_corner'. Assigned at registration so
@@ -776,6 +770,13 @@ class User < ApplicationRecord
     end
     if !FeatureFlags.user_created_after?(self, 'symbol_background')
       self.settings['preferences']['symbol_background'] = 'white' if self.settings['preferences']['symbol_background'] == nil
+    end
+    # Word prediction defaults ON for NEW users only (set once at registration,
+    # never backfilled) so existing users who never set it stay OFF. The client
+    # gates display on `word_suggestions === true`, so a nil value reads as off.
+    if self.new_record?
+      self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
+      self.settings['preferences']['word_suggestion_position'] = 'side_rail' if self.settings['preferences']['word_suggestion_position'] == nil
     end
     if !FeatureFlags.user_created_after?(self, 'battery_sounds')
       self.settings['preferences']['battery_sounds'] = true if self.settings['preferences']['battery_sounds'] == nil

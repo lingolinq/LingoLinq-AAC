@@ -8217,5 +8217,6 @@
   "hidden_pin_reveal_warning": "*** NOTE: With the reveal option hidden, you won't be able to exit Speak Mode unless you remember the PIN, or can look it up on a different device.",
   "pin_placeholder_4_digit": "*** 4-digit",
   "require_sidebar_edit_pin": "*** Require a PIN to edit the Sidebar",
-  "pin_label": "*** PIN"
+  "pin_label": "*** PIN",
+  "pin_incomplete_warning": "*** Enter a 4-digit PIN, or this gate won't take effect."
 }

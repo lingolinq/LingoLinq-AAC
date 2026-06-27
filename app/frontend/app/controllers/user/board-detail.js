@@ -1944,17 +1944,18 @@ export default Controller.extend(prefClasses, {
   // Word suggestions
   suggestions: null,
   show_word_suggestions: computed('edit_mode', 'app_state.referenced_user.preferences.word_suggestions', function() {
-    // Global user preference gates word prediction in speak mode. Default is
-    // ON: only an explicit `false` hides it (undefined/null = on), matching the
-    // registration default and the toggle below. Never shown in edit mode.
+    // Global user preference gates word prediction in speak mode. NEW users get
+    // it ON at registration (user.rb generate_defaults, new_record? only); for
+    // everyone else only an explicit `true` shows it (null/undefined = off), so
+    // existing users are never silently enabled. Never shown in edit mode.
     if(this.get('edit_mode')) { return false; }
-    return this.get('app_state.referenced_user.preferences.word_suggestions') !== false;
+    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
   }),
-  // On/off state of word prediction (default ON — only explicit false is off),
+  // On/off state of word prediction (only an explicit `true` is on; null = off),
   // used by the BOARD SETTINGS → Word Prediction toggle — independent of
   // edit_mode, unlike show_word_suggestions which is always false while editing.
   word_suggestions_enabled: computed('app_state.referenced_user.preferences.word_suggestions', function() {
-    return this.get('app_state.referenced_user.preferences.word_suggestions') !== false;
+    return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
   }),
   // Where word prediction renders in speak mode (user pref). 'speak_bar' /
   // 'side_rail' pin a layout at all widths via a shell class; 'auto' keeps the
@@ -2142,8 +2143,8 @@ export default Controller.extend(prefClasses, {
     'model.locale',
     function() {
       // Skip the lookup entirely when in edit mode or word prediction is off
-      // (default ON — only an explicit `false` disables it).
-      if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') === false) {
+      // (only an explicit `true` enables it; null/undefined = off).
+      if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
         this.set('suggestions', null);
         return;
       }
@@ -5688,7 +5689,7 @@ export default Controller.extend(prefClasses, {
     toggle_word_suggestions: function() {
       var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
       if(!prefUser) { return; }
-      var currentlyOn = prefUser.get('preferences.word_suggestions') !== false;
+      var currentlyOn = prefUser.get('preferences.word_suggestions') === true;
       prefUser.set('preferences.word_suggestions', !currentlyOn);
       if(prefUser.save) {
         prefUser.set('preferences.device.updated', true);
@@ -5863,7 +5864,6 @@ export default Controller.extend(prefClasses, {
       var pin = user && user.get('preferences.speak_mode_pin');
       if(user && user.get('preferences.require_sidebar_edit_pin') && pin) {
         modal.open('speak-mode-pin', {
-          actual_pin: pin,
           action: 'none',
           hide_hint: user.get('preferences.hide_pin_hint')
         }).then(function(res) {

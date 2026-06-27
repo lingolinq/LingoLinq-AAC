@@ -57,7 +57,7 @@
   <div class="modal-footer md-modal-footer speak-mode-pin__footer">
     {{#unless this.model.hide_hint}}
       {{#if this.show_pin}}
-        <span class="speak-mode-pin__revealed">{{t "PIN" key="pin_label"}}: {{this.model.actual_pin}}</span>
+        <span class="speak-mode-pin__revealed">{{t "PIN" key="pin_label"}}: {{this.actual_pin}}</span>
       {{else}}
         <a href="#" class="pass_through speak-mode-pin__reveal-link" {{action "reveal_pin" on="click"}}>{{t "Reveal PIN" key="pin_reveal_pin"}}</a>
       {{/if}}

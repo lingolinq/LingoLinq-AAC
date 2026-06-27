@@ -7793,6 +7793,7 @@
   "hidden_pin_reveal_warning": "*** NOTE: With the reveal option hidden, you won't be able to exit Speak Mode unless you remember the PIN, or can look it up on a different device.",
   "pin_placeholder_4_digit": "*** 4-digit",
   "pin_label": "*** PIN",
+  "pin_incomplete_warning": "*** Enter a 4-digit PIN, or this gate won't take effect.",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "デート中 [[ On the Date",
   "after_time": "時間が経過した後 [[ After Time",

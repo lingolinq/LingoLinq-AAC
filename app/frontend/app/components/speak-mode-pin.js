@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { observer } from '@ember/object';
+import { observer, computed } from '@ember/object';
 import modal from '../utils/modal';
 
 /**
@@ -24,6 +24,13 @@ export default Component.extend({
     this.set('show_typed_digits', false);
     this.set('invalid_pin', false);
   },
+
+  // The PIN to validate/reveal is the current user's stored speak_mode_pin, read
+  // live from app-state — it is NOT passed through the modal options (which would
+  // place the plaintext PIN in the modal service's in-memory settings blob).
+  actual_pin: computed('appState.currentUser.preferences.speak_mode_pin', function() {
+    return (this.get('appState.currentUser.preferences.speak_mode_pin') || '').toString();
+  }),
 
   update_pin: observer('pin_dots', function() {
     const str = this.get('pin_dots') || '';
@@ -81,7 +88,7 @@ export default Component.extend({
     },
     submit_pin() {
       const pin = String(this.get('pin') || '');
-      const actual = String(this.get('model.actual_pin') || '');
+      const actual = this.get('actual_pin');
       if (pin === actual) {
         this.set('invalid_pin', false);
         this.set('pin', '');

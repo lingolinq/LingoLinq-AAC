@@ -355,6 +355,31 @@ describe User, :type => :model do
       u.generate_defaults
       expect(u.settings['preferences']['word_suggestion_images']).to eq(true)
     end
+
+    it "should default word_suggestions ON for new users only, never backfilling existing users" do
+      # New users (new_record?) get word prediction ON by default at registration.
+      u = User.new
+      u.generate_defaults
+      expect(u.settings['preferences']['word_suggestions']).to eq(true)
+      expect(u.settings['preferences']['word_suggestion_position']).to eq('side_rail')
+
+      # Existing (already-persisted) users with no stored value are NOT backfilled
+      # — word prediction is never silently enabled for them (it stays nil/off).
+      u2 = User.new
+      u2.settings = {'preferences' => {}}
+      allow(u2).to receive(:new_record?).and_return(false)
+      u2.generate_defaults
+      expect(u2.settings['preferences']['word_suggestions']).to eq(nil)
+      expect(u2.settings['preferences']['word_suggestion_position']).to eq(nil)
+    end
+
+    it "should not carry word_suggestions in the unconditional preference_defaults bucket" do
+      # If it were in the bucket, the generate_defaults bucket loop would backfill
+      # every existing user — the regression this guards against.
+      User.preference_defaults.each do |bucket, defaults|
+        expect(defaults).not_to have_key('word_suggestions'), "found word_suggestions in preference_defaults['#{bucket}']"
+      end
+    end
   end
 
   describe "generate_email_hash" do
