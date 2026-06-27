@@ -30,3 +30,10 @@ paths = [
   '''audit-reports/FINDINGS\.md''',
   '''audit-reports/run-log/.*\.jsonl''',
 ]
+
+[[allowlists]]
+description = "i18n translation key 'pin_placeholder_4_digit' (the Speak Mode PIN field placeholder, referenced from pin-settings.hbs and the locale files) trips generic-api-key's high-entropy heuristic because the literal contains 'pin' + a digit. It is an Ember i18n key, not a secret. Narrowest possible scope: matched by the exact key string via regexes (so ONLY that literal is exempted, anywhere it appears) and only generic-api-key is relaxed — every other rule still scans everything, and no other value is allowlisted."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''pin_placeholder_4_digit''',
+]
