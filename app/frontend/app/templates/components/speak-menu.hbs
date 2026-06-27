@@ -1,15 +1,5 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body advanced_selection modal_targets md-speak-menu" id="speak_menu" role="dialog" aria-modal="true" aria-labelledby="md-speak-menu__title">
-    {{!-- SVG gradient for two-toned icons --}}
-    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-      <defs>
-        <linearGradient id="md-speak-icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#2A9D8F"/>
-          <stop offset="100%" stop-color="#4C86D8"/>
-        </linearGradient>
-      </defs>
-    </svg>
-
     {{!-- Header with close button --}}
     <div class="md-speak-menu__header pass_to_btn_list">
       <h2 id="md-speak-menu__title" class="md-speak-menu__title">{{t "Speak Options" key="speak_options"}}</h2>

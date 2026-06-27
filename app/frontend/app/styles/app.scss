@@ -16281,10 +16281,12 @@ form.row.subscription-form-with-cards {
 }
 .md-speak-menu__btn svg {
   flex-shrink: 0;
-  /* Flat duotone base: every icon's primary shapes are teal; accent paths set
-     their own stroke="#46505F" (charcoal) inline. Matches the dashboard
-     action-card duotone. (Per-path stroke attrs win over this inherited value.) */
-  stroke: #2A9D8F;
+  /* Flat duotone base: every icon's primary shapes are AA-contrast teal; accent
+     paths set their own stroke="#46505F" (charcoal) inline. Uses the AA token
+     ($brand-verdigris-aa, 4.73:1 on white) rather than the dashboard's #2A9D8F
+     so the icons clear WCAG 1.4.11 on the grey speak-menu button background.
+     (Per-path stroke attrs win over this inherited value.) */
+  stroke: $brand-verdigris-aa;
 }
 .md-speak-menu__btn-label {
   font-size: 1.125rem; /* 18px — AAC requirement */
