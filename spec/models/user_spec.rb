@@ -596,6 +596,22 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(true)
     end
 
+    it "should persist require_sidebar_edit_pin (whitelisted) and coerce to boolean" do
+      # Guards the silent-drop failure mode: a preference not in PREFERENCE_PARAMS
+      # is dropped by process_params and never persists. require_sidebar_edit_pin
+      # gates the sidebar editor behind the speak-mode PIN.
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {'require_sidebar_edit_pin' => 'true'}}, {})
+      expect(u.settings['preferences']['require_sidebar_edit_pin']).to eq(true)
+      u.process_params({'preferences' => {'require_sidebar_edit_pin' => 'false'}}, {})
+      expect(u.settings['preferences']['require_sidebar_edit_pin']).to eq(false)
+    end
+
+    it "should default require_sidebar_edit_pin to false for authenticated users" do
+      expect(User.preference_defaults['authenticated_user']['require_sidebar_edit_pin']).to eq(false)
+    end
+
     it "should ignore beta_program_access from preferences unless updater is admin" do
       u = User.new
       u.settings = {'preferences' => {}}

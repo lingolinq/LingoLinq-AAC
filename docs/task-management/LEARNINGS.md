@@ -94,10 +94,10 @@ file (see [README.md](README.md)).
 - [Fact: the two dashboard layout keys are `focused` + `gentle` (renamed from `balanced`/`dynamic` 2026-06-11)](#fact-the-two-dashboard-layout-keys-are-focused--gentle-renamed-from-balanceddynamic-2026-06-11)
 - [Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state](#gotcha-dashboard-preview-tiles--selection-gates-leak-hidden-but-present-state)
 - [Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`](#gotcha-a-saved-frontend-preference-silently-vanishes-if-its-not-in-userpreference_params)
+- [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 
 ---
 
-- [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 ## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
 
 For user-entered AI prompts that become reusable data, scrub PII first, normalize the scrubbed text, and use a conservative exact key with behavior-shaping settings such as locale and include-core vocabulary. Store generated output separately from user-applied output; the applied list is the reviewed signal future recommendation layers should trust more. Keep v1 in Postgres and derive later vector/graph layers from the source rows rather than changing the modal/API contract. When verifying specs around seeded/template records after migrations, compare table-count deltas from each example's starting count instead of hard-coding absolute counts. First seen in [`ai-focus-word-library-architecture.md`](./ai-focus-word-library-architecture.md).

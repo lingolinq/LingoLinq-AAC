@@ -48898,10 +48898,17 @@ a.md-goal-nav-action:hover,
    every other card's icon. The image inside is width/height:100%, so it scales
    up with the container automatically. One rule per context so each grows from
    its own base. */
-.md-grid.md-grid--fullspan-extras .md-card.md-card--extras.md-card--as-button .md-card__icon.md-card__icon--extras {
-  border-radius: 50% !important;
-  width: 120px !important;  /* 96 × 1.25 */
-  height: 120px !important;
+/* The 120px (full-span) size must be gated to the SAME breakpoint as its 96px
+   baseline (@media min-width:951px) — below 951px the grid collapses to one
+   column but keeps the fullspan-extras class, so an ungated 120px would oversize
+   the icon on mobile. Below 951px the 80px rule below applies (circle preserved
+   by both rules). */
+@media (min-width: 951px) {
+  .md-grid.md-grid--fullspan-extras .md-card.md-card--extras.md-card--as-button .md-card__icon.md-card__icon--extras {
+    border-radius: 50% !important;
+    width: 120px !important;  /* 96 × 1.25 */
+    height: 120px !important;
+  }
 }
 .md-grid .md-card.md-card--extras.md-card--as-button .md-card__icon.md-card__icon--extras {
   border-radius: 50% !important;
@@ -77651,6 +77658,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: color-mix(in srgb, var(--btn-bg, #46505F) 80%, black 20%);
   z-index: 2;
   transition: background 0.15s ease, color 0.15s ease;
+}
+/* Hide the folder badge on very narrow folder cards so it doesn't crowd a tiny
+   tile. (Re-added after it was accidentally dropped alongside the dead
+   edit-actions container query; the badge itself is still rendered. The card
+   establishes container-type:size / container-name:symbol-card above.) */
+@container symbol-card (max-width: 59px) {
+  .md-board-detail-symbol-card__folder-badge {
+    display: none !important;
+  }
 }
 /* Default AND Show-Labels-on-Tab folder styles: place the folder badge at the
    BOTTOM-right of the folder face instead of the shared top-right (top-right
