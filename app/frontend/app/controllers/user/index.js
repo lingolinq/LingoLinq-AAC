@@ -636,7 +636,9 @@ export default Controller.extend({
         var was_done = list.done;
         list = filterBrandRoots(list);
         if(root_dedupe) {
-          list = dedupeByName(filterRootBoards(list, this.get('model.id')));
+          list = dedupeByName(filterRootBoards(list, this.get('model.id')), {
+            preferUserNames: boardsPagePreferUserNames(this.get('appState'))
+          });
         }
         list.done = was_done;
       }
@@ -731,7 +733,12 @@ export default Controller.extend({
             ref.str = "99999999 " + (ref.board || {}).name;
           }
         });
-        new_list = new_list.sort(function(a, b) { return a.str.localeCompare(b.str); });
+        /* Public tab keeps the server's popularity / query order — only
+           Mine and other grouped tabs use the legacy str sort here
+           (Mine re-sorts again below for home/star/alpha). */
+        if (this.get('selected') !== 'public') {
+          new_list = new_list.sort(function(a, b) { return a.str.localeCompare(b.str); });
+        }
         // TODO: sort this list on something better than just id
         for(var id in copies) {
           if(cluster_orphans) {
@@ -878,15 +885,27 @@ export default Controller.extend({
           });
           new_list = dedupeBoardRows(new_list, { preferUserNames: preferOwners });
         } else if (selectedTab === 'mine' || !selectedTab) {
-          var mineRootIds = Object.create(null);
-          filterBoardsPageTopLevelRoots(list, this.get('model.id')).forEach(function(b) {
-            if (b) { mineRootIds[String(emberGet(b, 'id'))] = true; }
-          });
-          new_list = new_list.filter(function(row) {
-            if (row && row.orphan) { return true; }
-            if (!row || !row.board) { return false; }
-            return mineRootIds[String(emberGet(row.board, 'id'))];
-          });
+          /* Folder drill-in already scoped new_list to tagged roots in
+             this folder — re-applying the top-level root filter would
+             drop tagged tiles whose ids are global_ids not present in
+             filterBoardsPageTopLevelRoots(list). */
+          if (!this.get('mineTagFolderDrillIn')) {
+            var mineRootIds = Object.create(null);
+            filterBoardsPageTopLevelRoots(list, this.get('model.id')).forEach(function(b) {
+              if (b) { mineRootIds[String(emberGet(b, 'id'))] = true; }
+              var rootGid = b && emberGet(b, 'global_id');
+              if (rootGid) { mineRootIds[String(rootGid)] = true; }
+            });
+            new_list = new_list.filter(function(row) {
+              if (row && row.orphan) { return true; }
+              if (!row || !row.board) { return false; }
+              var rowId = String(emberGet(row.board, 'id'));
+              var rowGid = emberGet(row.board, 'global_id');
+              if (mineRootIds[rowId]) { return true; }
+              if (rowGid && mineRootIds[String(rowGid)]) { return true; }
+              return false;
+            });
+          }
           new_list = dedupeBoardRows(new_list, { preferUserNames: preferOwners });
         }
       }

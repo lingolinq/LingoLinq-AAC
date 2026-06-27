@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import Service from '@ember/service';
-import { setupTest } from 'ember-qunit';
+import { setupTest } from '../../helpers';
 
 module('Unit | Component | beta feedback form', function(hooks) {
   setupTest(hooks);

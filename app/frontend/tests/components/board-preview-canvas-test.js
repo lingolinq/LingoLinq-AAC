@@ -2,10 +2,14 @@ import {
   describe,
   it,
   expect,
-  beforeEach
+  beforeEach,
+  afterEach,
+  waitsFor,
+  runs
 } from 'frontend/tests/helpers/jasmine';
 import 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
+import { cancel as runCancel } from '@ember/runloop';
 
 /*
  * board-preview-canvas component coverage — Scot #3 (High) + #5 (High)
@@ -36,9 +40,25 @@ import EmberObject from '@ember/object';
  */
 describe('BoardPreviewCanvasComponent', 'component:board-preview-canvas', function() {
   var testOwner;
+  var activeComponent = null;
 
   beforeEach(function() {
     testOwner = this.owner;
+  });
+
+  afterEach(function() {
+    if(activeComponent && !activeComponent.isDestroyed) {
+      if(activeComponent._renderDebounce) {
+        runCancel(activeComponent._renderDebounce);
+        activeComponent._renderDebounce = null;
+      }
+      if(activeComponent._previewStallTimer) {
+        runCancel(activeComponent._previewStallTimer);
+        activeComponent._previewStallTimer = null;
+      }
+      activeComponent.destroy();
+    }
+    activeComponent = null;
   });
 
   /* Build a stub 2D context that records every method call + every
@@ -67,6 +87,8 @@ describe('BoardPreviewCanvasComponent', 'component:board-preview-canvas', functi
       moveTo: record('moveTo'),
       lineTo: record('lineTo'),
       arc: record('arc'),
+      arcTo: record('arcTo'),
+      clip: record('clip'),
       fill: record('fill'),
       stroke: record('stroke'),
       fillText: record('fillText'),
@@ -111,6 +133,14 @@ describe('BoardPreviewCanvasComponent', 'component:board-preview-canvas', functi
   }
 
   function setupCanvasComponent(persistence_online) {
+    var persistenceStub = EmberObject.create({
+      online: persistence_online,
+      url_cache: {},
+      url_uncache: {},
+      get: function(key) {
+        return this[key];
+      }
+    });
     var component = testOwner.factoryFor('component:board-preview-canvas').create();
     var ctxStub = buildContextStub();
     // Fake canvas element returning our context stub.
@@ -119,17 +149,22 @@ describe('BoardPreviewCanvasComponent', 'component:board-preview-canvas', functi
       setAttribute: function() {},
       getBoundingClientRect: function() { return { width: 400, height: 300 }; }
     };
-    // Fake host element exposing the canvas via getElementsByTagName.
-    component.set('element', {
+    // element is read-only on Ember components; override per-instance for this unit test.
+    var fakeHost = {
+      style: {},
       getElementsByTagName: function(tag) {
         return tag === 'canvas' ? [fakeCanvas] : [];
       }
+    };
+    Object.defineProperty(component, 'element', {
+      configurable: true,
+      get: function() { return fakeHost; }
     });
-    component.set('persistence', EmberObject.create({
-      online: persistence_online,
-      url_cache: {},
-      url_uncache: {}
-    }));
+    // render_canvas reads `_this.persistence` (service injection), not only get('persistence').
+    Object.defineProperty(component, 'persistence', {
+      configurable: true,
+      get: function() { return persistenceStub; }
+    });
     component.set('appState', EmberObject.create({
       get: function(key) {
         if(key === 'currentUser.preferences.skin') { return null; }
@@ -139,7 +174,14 @@ describe('BoardPreviewCanvasComponent', 'component:board-preview-canvas', functi
     }));
     component.set('board', buildBoard());
     component.set('dark_mode', false);
+    activeComponent = component;
     return { component: component, ctx: ctxStub };
+  }
+
+  function offlineFillTextCall(ctx) {
+    return ctx.calls.find(function(c) {
+      return c.name === 'fillText' && c.args[0] === 'Offline';
+    });
   }
 
   describe('offline indicator (Scot #5)', function() {
@@ -147,21 +189,21 @@ describe('BoardPreviewCanvasComponent', 'component:board-preview-canvas', functi
       var setup = setupCanvasComponent(false);
       setup.component.render_canvas();
 
-      // The badge calls fillText('Offline', ...) — find that call.
-      var offlineFill = setup.ctx.calls.find(function(c) {
-        return c.name === 'fillText' && c.args[0] === 'Offline';
+      // Badge paints in do_emit via runLater(0) after the render loop finishes.
+      waitsFor(function() { return offlineFillTextCall(setup.ctx); });
+      runs(function() {
+        expect(offlineFillTextCall(setup.ctx)).not.toEqual(undefined);
       });
-      expect(offlineFill).not.toEqual(undefined);
     });
 
     it('does NOT draw the badge when persistence.online is true (default-state preview)', function() {
       var setup = setupCanvasComponent(true);
       setup.component.render_canvas();
 
-      var offlineFill = setup.ctx.calls.find(function(c) {
-        return c.name === 'fillText' && c.args[0] === 'Offline';
+      waitsFor(function() { return setup.ctx.calls.length > 0; });
+      runs(function() {
+        expect(offlineFillTextCall(setup.ctx)).toEqual(undefined);
       });
-      expect(offlineFill).toEqual(undefined);
     });
 
     it('uses modern pill design — sets a linear gradient fill on the badge', function() {
@@ -175,23 +217,33 @@ describe('BoardPreviewCanvasComponent', 'component:board-preview-canvas', functi
       };
       setup.component.render_canvas();
 
-      // The badge applies a glass-veil gradient via createLinearGradient
-      // (modern pill design per LEARNINGS atmospheric-depth pattern).
-      expect(gradient_created).toEqual(true);
+      waitsFor(function() { return gradient_created; });
+      runs(function() {
+        // The badge applies a glass-veil gradient via createLinearGradient
+        // (modern pill design per LEARNINGS atmospheric-depth pattern).
+        expect(gradient_created).toEqual(true);
+      });
     });
 
     it('paints the badge with a drop shadow (atmospheric depth)', function() {
       var setup = setupCanvasComponent(false);
       setup.component.render_canvas();
 
-      // Per the atmospheric-depth recipe the badge sets shadowBlur and
-      // shadowOffsetY before its first fill — that's how the "ambient
-      // haze" tier is approximated on canvas (canvas can't stack three
-      // shadows). Confirm at least one non-zero shadowBlur write occurred.
-      var hadShadowBlur = setup.ctx.styles.some(function(s) {
-        return s.prop === 'shadowBlur' && s.value > 0;
+      waitsFor(function() {
+        return setup.ctx.styles.some(function(s) {
+          return s.prop === 'shadowBlur' && s.value > 0;
+        });
       });
-      expect(hadShadowBlur).toEqual(true);
+      runs(function() {
+        // Per the atmospheric-depth recipe the badge sets shadowBlur and
+        // shadowOffsetY before its first fill — that's how the "ambient
+        // haze" tier is approximated on canvas (canvas can't stack three
+        // shadows). Confirm at least one non-zero shadowBlur write occurred.
+        var hadShadowBlur = setup.ctx.styles.some(function(s) {
+          return s.prop === 'shadowBlur' && s.value > 0;
+        });
+        expect(hadShadowBlur).toEqual(true);
+      });
     });
   });
 

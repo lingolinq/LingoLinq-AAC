@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import Service from '@ember/service';
-import { setupTest } from 'ember-qunit';
+import { setupTest } from '../../helpers';
 import RSVP from 'rsvp';
 import persistence from 'frontend/utils/persistence';
 import modal from 'frontend/utils/modal';

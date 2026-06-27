@@ -61,6 +61,7 @@ file (see [README.md](README.md)).
 - [Pattern: Every `belongs_to`/`has_one` access in a `JsonApi::*` serializer is a potential N+1 — eager-load it at the list-endpoint controller](#pattern-every-belongs_tohas_one-access-in-a-jsonapi-serializer-is-a-potential-n1--eager-load-it-at-the-list-endpoint-controller)
 - [Pattern: Query-count specs must be verified to FAIL against the broken state — otherwise they're no-ops](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)
 - [Pattern: For component tests in this codebase, use legacy Jasmine — not `setupApplicationTest` + Mirage (which hangs)](#pattern-for-component-tests-in-this-codebase-use-legacy-jasmine--not-setupapplicationtest--mirage-which-hangs)
+- [Pattern: Ember 5 QUnit unit tests — persistence proxy, run loop, and subject shape](#pattern-ember-5-qunit-unit-tests--persistence-proxy-run-loop-and-subject-shape)
 - [Pattern: Canvas component tests use a context-recorder stub, not pixel inspection](#pattern-canvas-component-tests-use-a-context-recorder-stub-not-pixel-inspection)
 - [Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim](#pattern-installing-a-v2-format-ember-addon-on-ember-328-requires-ember-auto-import--a-jquery-externals-shim)
 - [Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence](#pattern-same-named-computeds-defined-across-modelcomponentcontroller-are-widespread-and-often-diverge--gate-visibility-dependent-code-on-dom-presence)
@@ -5669,3 +5670,171 @@ coalescing is safe. Keep the chain alive past a rejection (`prior.then(noop, noo
 failed save can't wedge the queue, and expose the tail as `_lastSave` for callers that must wait
 for persistence to settle (e.g. a reload-on-close). See
 `app/frontend/app/components/sidebar-editor.js#_save`.
+
+---
+
+## Pattern: Ember 5 QUnit unit tests — persistence proxy, run loop, and subject shape
+
+**Surface:** `app/frontend/tests/unit/**`, `tests/helpers/persistence-stub.js`, any test
+that stubs `frontend/utils/persistence`, uses `setupTest` / `settled()` / `waitUntil()`,
+or boots a full controller/component to assert on a single method.
+
+**Context:** On `feat/melissa-ember-5-12-upgrade`, CI QUnit failures clustered into a
+few repeatable families (see
+[`2026-06-26-ember5-ci-unit-test-fixes.md`](./2026-06-26-ember5-ci-unit-test-fixes.md)).
+Unit modules listed in [`tests/test-helper.js`](../app/frontend/tests/test-helper.js)
+explicit imports **do** run under `npx ember test`; the older gotcha that the unit
+suite is never loaded is stale for those modules — but most `tests/unit/**` files are
+still not auto-discovered unless added there or pre-loaded by the AMD loop.
+
+### 1. Stub persistence on the service instance, not the module export
+
+`frontend/utils/persistence` re-exports a **Proxy** that forwards method calls to
+`window.persistence` (the running service). Assigning `persistence.ajax = …` on the
+import does nothing at runtime → real ember-ajax 404s in tests.
+
+```js
+import { persistenceTarget, stubPersistenceAjax } from '../../helpers/persistence-stub';
+
+hooks.beforeEach(function() {
+  this._restorePersistenceAjax = stubPersistenceAjax(function() {
+    return RSVP.reject({ error: 'offline in test' });
+  });
+});
+hooks.afterEach(function() {
+  if (this._restorePersistenceAjax) { this._restorePersistenceAjax(); }
+});
+```
+
+Also stub `url_cache` / `url_uncache` on `persistenceTarget()`, not on the module.
+
+### 2. Use the container — not bare `.create()`
+
+`BoardIndexController.create()` (and similar) bypasses injection; Ember 5 asserts when
+computed properties resolve `persistence` / `app-state` without a container.
+
+```js
+// Prefer
+this.owner.factoryFor('controller:copying-board').create();
+
+// Or pass mocks explicitly when testing a method in isolation
+BoardIndexController.create({
+  persistence: EmberObject.create({ … }),
+  appState: EmberObject.create({ … })
+});
+```
+
+### 3. A 60s timeout on a “sync” test is usually async cleanup, not the assertion
+
+**Default fix (2026-06):** import `setupTest` from `frontend/tests/helpers` (or
+`../../helpers`), **not** directly from `ember-qunit`. The wrapper sets
+`waitForSettled: false` by default so `afterEach` does not call `settled()`.
+Jasmine-style tests use the same wrapper via `tests/helpers/jasmine.js`.
+
+Raw `setupTest(hooks)` from `ember-qunit` wires `afterEach` → `teardownContext` →
+**`settled()`**. Booting a heavy object (`controller:user/board-detail`,
+`component:copying-board`, Ember Data records) schedules `runLater`, observers, and
+RSVP chains that never finish in a unit test → `settled()` blocks until QUnit’s 60s cap.
+
+**Symptom:** test body is one or two `assert.equal` calls; browser log is empty;
+runtime ≈ 60000ms exactly.
+
+**Fix ladder (pick the shallowest that fits):**
+
+| Situation | Fix |
+|-----------|-----|
+| Test only calls pure prototype methods (`_resolve_cached_image_url`, `_word_prediction_locale`, …) | Prefer **`Controller.create({ …stubs })`** or **`factoryFor().create()`** with `setupTest` from **`tests/helpers`**. Copying `Controller.prototype.method` onto `EmberObject.create({ … })` often fails — the method may be missing on `.prototype` in the test bundle, so the instance property is `undefined`. For small controllers, bare `.create()` with mocked injections works (see `board-index-word-prediction-locale-test.js`). |
+| Test drives async modal/hierarchy code | `setupTest` from **`tests/helpers`**; poll completion with **`run` + `later`**, not native `setTimeout` or `await settled()`. |
+| Test stubs a loader that never settles (hung buttonset) | Reject the hung RSVP in `afterEach` so orphans don't wedge the next test. |
+| Code under test uses `@ember/runloop` (`opening()`, `init` → `runOpening`) | Wrap the trigger in `run(function() { … })`. |
+
+**Do not** reach for `await settled()` or `@ember/test-helpers` `waitUntil()` when
+orphan RSVP promises exist (never-settling stubs) — `waitUntil` polls with `settled()`
+between attempts and hangs the same way.
+
+### 4. Native `setTimeout` does not flush Ember `later()`
+
+`copy_hierarchy_loader.js` schedules early live-links fallback with `later()`. A
+`pollUntil` loop built on `setTimeout(tick, 10)` never advances those timers → the
+promise never resolves → `loading` stays true → 60s timeout.
+
+```js
+import { run, later } from '@ember/runloop';
+
+function pollUntil(condition, timeoutMs) {
+  timeoutMs = timeoutMs || 10000;
+  return new RSVP.Promise(function(resolve, reject) {
+    var start = Date.now();
+    function tick() {
+      if (condition()) { resolve(); return; }
+      if (Date.now() - start >= timeoutMs) {
+        reject(new Error('pollUntil timed out after ' + timeoutMs + 'ms'));
+        return;
+      }
+      later(tick, 10);
+    }
+    run(tick);
+  });
+}
+```
+
+Contrast: `hide_loading_overlay()` uses `runLater` — poll with `run`/`later` (see
+`loading-overlay-cache-test.js#waitForOverlayHidden`), not `await settled()`, when
+orphan promises may still be pending.
+
+### 5. ember-qunit 8 / Ember 5 component gotchas
+
+- Legacy Jasmine **`this.subject()`** is not wired reliably — use
+  `this.owner.factoryFor('component:audio-browser').create()`.
+- **`element` is read-only** on Ember 5 components — use
+  `Object.defineProperty(component, 'element', { get: () => fakeHost })`, not
+  `component.set('element', …)`.
+- **`clear_user_state`** must not `set('referenced_user', null)` — that property is
+  now a computed derived from `currentUser`.
+
+### 6. Jasmine `describe()` errors poison global state
+
+`tests/helpers/jasmine.js` keeps module-global `names`, `all_befores`, etc. If a
+top-level `describe()` callback throws **before** `names.pop()` (e.g.
+`afterEach is not defined` in `board-preview-canvas-test.js`), the stack stays dirty:
+later suites register **without** `QUnit.module` + `setupTest`, test titles pick up
+the leaked prefix (`BoardPreviewCanvasComponent capabilities …`), and
+`ember_helper`’s `beforeEach` calls `persistence.set` on a **destroyed** service
+from the last torn-down owner.
+
+**Fix recipe:**
+
+- Import every jasmine helper you use (`afterEach`, `waitsFor`, `runs`, …).
+- `jasmine.js` wraps `add_test()` in `try/finally` so `names.pop()` always runs.
+- `ember_helper` resets persistence via `owner.lookup('service:persistence')` when
+  `this.owner` exists, and skips `set` when the target is destroyed.
+
+**Symptom:** hundreds of legacy Jasmine tests fail with
+`calling set on destroyed object: … persistence … online = true`, often with wrong
+test name prefixes. Or `Cannot read properties of undefined (reading 'lookup')` in
+`runs()` / post `afterEach` when `testOwner.lookup` runs after ember-qunit teardown.
+
+**Also:** `afterEach` in `jasmine.js` pushed to `all_afters[length - 1]` (the root bucket)
+while nested describes `unshift` new levels at index 0 — so every nested `afterEach` (e.g.
+`testOwner.lookup` cleanup in `application-test.js`) leaked into **all** tests' post hooks.
+Use `all_afters[0]` to match `beforeEach` / `unshift` symmetry.
+
+**First seen in:** [2026-06-26-ember5-ci-unit-test-fixes.md](./2026-06-26-ember5-ci-unit-test-fixes.md).
+
+### 6. BoardHierarchy / store in copy-modal tests
+
+Monkey-patch `BoardHierarchy.load_with_button_set` and `load_from_live_links` in
+the test **before** calling `opening()`. Never rely on real `load_from_live_links`
+(`LingoLinq.store.findRecord`) in unit tests — it hangs without a populated store.
+Set `earlyLiveLinksDelayMs: 0` (or a small ms value) on the controller/component so
+tests don't wait for the production 6000ms default.
+
+**Reference implementations:**
+
+- `tests/helpers/index.js` — `setupTest` wrapper with default `waitForSettled: false`
+- `tests/unit/controllers/copying-board-test.js` — `pollUntil`, `openCopyModal`, hung-buttonset cleanup
+- `tests/unit/controllers/user-board-detail-image-cache-test.js` — `factoryFor` + `waitForSettled: false`; side-effect `import 'frontend/models/board'` for `LingoLinq.Board.*` statics
+- `tests/unit/controllers/board-index-word-prediction-locale-test.js` — isolated method context
+
+**First seen in:** [`2026-06-26-ember5-ci-unit-test-fixes.md`](./2026-06-26-ember5-ci-unit-test-fixes.md)
+(on `feat/melissa-ember-5-12-upgrade`).

@@ -2,7 +2,7 @@ import { module, test } from 'qunit';
 import Service from '@ember/service';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import { setupTest } from 'ember-qunit';
+import { setupTest } from '../../helpers';
 
 module('Unit | Service | telemetry', function(hooks) {
   setupTest(hooks);

@@ -3,6 +3,7 @@ import RSVP from 'rsvp';
 import boardDetailCache from 'frontend/utils/board_detail_cache';
 import persistence from 'frontend/utils/persistence';
 import LingoLinq from 'frontend/app';
+import { persistenceTarget } from '../../helpers/persistence-stub';
 
 module('Unit | Utility | board-detail-cache', function() {
   test('set skips re-caching a fresh entry unless force is true', function(assert) {
@@ -91,10 +92,11 @@ module('Unit | Utility | board-detail-cache', function() {
   test('prefetch_lingolinq_catalog lists roots then fetches each tree', function(assert) {
     boardDetailCache.clear();
     var calls = [];
-    var origAjax = persistence.ajax;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
     var origAppState = LingoLinq.appState;
 
-    persistence.ajax = function(url, opts) {
+    p.ajax = function(url, opts) {
       calls.push({ url: url, type: opts && opts.type });
       if (url.indexOf('user_id=lingolinq') !== -1) {
         return RSVP.resolve({
@@ -137,7 +139,7 @@ module('Unit | Utility | board-detail-cache', function() {
     };
 
     return boardDetailCache.prefetch_lingolinq_catalog(user).then(function() {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
 
       assert.ok(calls.some(function(c) { return c.url.indexOf('user_id=lingolinq') !== -1; }), 'lists lingolinq roots');
@@ -147,7 +149,7 @@ module('Unit | Utility | board-detail-cache', function() {
       assert.ok(treeCalls[1].url.indexOf('board-b') !== -1, 'second tree is board-b');
       assert.ok(boardDetailCache.get('lingolinq/sub-a'), 'caches descendants as JSON only');
     }, function(err) {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
       throw err;
     });
@@ -156,12 +158,13 @@ module('Unit | Utility | board-detail-cache', function() {
   test('prefetch_lingolinq_catalog skips roots already fresh in cache', function(assert) {
     boardDetailCache.clear();
     var calls = [];
-    var origAjax = persistence.ajax;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
     var origAppState = LingoLinq.appState;
 
     boardDetailCache.set({ key: 'lingolinq/board-a', id: '1_1', buttons: [] });
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       calls.push(url);
       if (url.indexOf('user_id=lingolinq') !== -1) {
         return RSVP.resolve({
@@ -199,13 +202,13 @@ module('Unit | Utility | board-detail-cache', function() {
     };
 
     return boardDetailCache.prefetch_lingolinq_catalog(user).then(function() {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
       var treeCalls = calls.filter(function(u) { return u.indexOf('/tree') !== -1; });
       assert.equal(treeCalls.length, 1, 'only fetches uncached root');
       assert.ok(treeCalls[0].indexOf('board-b') !== -1, 'skipped cached board-a');
     }, function(err) {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
       throw err;
     });
@@ -235,7 +238,8 @@ module('Unit | Utility | board-detail-cache', function() {
 
   test('prefetch_lingolinq_catalog warms images for root only', function(assert) {
     boardDetailCache.clear();
-    var origAjax = persistence.ajax;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
     var origAppState = LingoLinq.appState;
     var warmCalls = [];
     var origWarm = boardDetailCache.warm_images;
@@ -245,7 +249,7 @@ module('Unit | Utility | board-detail-cache', function() {
       return RSVP.resolve();
     };
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       if (url.indexOf('user_id=lingolinq') !== -1) {
         return RSVP.resolve({
           board: [{ key: 'lingolinq/board-a', id: '1_1' }],
@@ -279,13 +283,13 @@ module('Unit | Utility | board-detail-cache', function() {
     };
 
     return boardDetailCache.prefetch_lingolinq_catalog(user).then(function() {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
       boardDetailCache.warm_images = origWarm;
       assert.equal(warmCalls.length, 1, 'warms root images once');
       assert.equal(warmCalls[0], 'lingolinq/board-a', 'does not warm descendant images');
     }, function(err) {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
       boardDetailCache.warm_images = origWarm;
       throw err;
@@ -296,13 +300,14 @@ module('Unit | Utility | board-detail-cache', function() {
     boardDetailCache.clear();
     var done = assert.async();
     var treeOrder = [];
-    var origAjax = persistence.ajax;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
     var origAppState = LingoLinq.appState;
-    var origGet = persistence.get;
+    var origGet = p.get;
 
-    persistence.get = function(key) {
+    p.get = function(key) {
       if (key === 'online') { return true; }
-      if (origGet) { return origGet.call(persistence, key); }
+      if (origGet) { return origGet.call(p, key); }
       return true;
     };
 
@@ -313,7 +318,7 @@ module('Unit | Utility | board-detail-cache', function() {
       }
     };
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       if (url.indexOf('/tree') !== -1) {
         var key = url.split('/boards/')[1].split('/tree')[0];
         treeOrder.push(key);
@@ -350,15 +355,15 @@ module('Unit | Utility | board-detail-cache', function() {
     };
 
     boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       assert.deepEqual(treeOrder, ['user/home', 'user/liked', 'user/owned'], 'runs phased trees in order');
       done();
     }, function(err) {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       throw err;
     });
   });
@@ -367,19 +372,20 @@ module('Unit | Utility | board-detail-cache', function() {
     boardDetailCache.clear();
     var done = assert.async();
     var treeOrder = [];
-    var origAjax = persistence.ajax;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
     var origAppState = LingoLinq.appState;
-    var origGet = persistence.get;
+    var origGet = p.get;
 
-    persistence.get = function(key) {
+    p.get = function(key) {
       if (key === 'online') { return true; }
-      if (origGet) { return origGet.call(persistence, key); }
+      if (origGet) { return origGet.call(p, key); }
       return true;
     };
 
     LingoLinq.appState = { get: function() { return null; } };
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       if (url.indexOf('/tree') !== -1) {
         var key = url.split('/boards/')[1].split('/tree')[0];
         treeOrder.push(key);
@@ -403,15 +409,15 @@ module('Unit | Utility | board-detail-cache', function() {
     };
 
     boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       assert.deepEqual(treeOrder, ['user/home'], 'only home phase when flag off');
       done();
     }, function(err) {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       throw err;
     });
   });
@@ -420,15 +426,16 @@ module('Unit | Utility | board-detail-cache', function() {
     boardDetailCache.clear();
     var done = assert.async();
     var treeOrder = [];
-    var origAjax = persistence.ajax;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
     var origAppState = LingoLinq.appState;
-    var origGet = persistence.get;
+    var origGet = p.get;
 
     boardDetailCache.set({ key: 'user/liked', id: '1_2', buttons: [] });
 
-    persistence.get = function(key) {
+    p.get = function(key) {
       if (key === 'online') { return true; }
-      if (origGet) { return origGet.call(persistence, key); }
+      if (origGet) { return origGet.call(p, key); }
       return true;
     };
 
@@ -439,7 +446,7 @@ module('Unit | Utility | board-detail-cache', function() {
       }
     };
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       if (url.indexOf('/tree') !== -1) {
         var key = url.split('/boards/')[1].split('/tree')[0];
         treeOrder.push(key);
@@ -473,15 +480,15 @@ module('Unit | Utility | board-detail-cache', function() {
     };
 
     boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       assert.deepEqual(treeOrder, ['user/home'], 'skips cached liked board');
       done();
     }, function(err) {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       throw err;
     });
   });
@@ -490,14 +497,15 @@ module('Unit | Utility | board-detail-cache', function() {
     boardDetailCache.clear();
     var done = assert.async();
     var treeCount = 0;
-    var origAjax = persistence.ajax;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
     var origAppState = LingoLinq.appState;
-    var origGet = persistence.get;
+    var origGet = p.get;
     var origHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 
-    persistence.get = function(key) {
+    p.get = function(key) {
       if (key === 'online') { return true; }
-      if (origGet) { return origGet.call(persistence, key); }
+      if (origGet) { return origGet.call(p, key); }
       return true;
     };
 
@@ -513,7 +521,7 @@ module('Unit | Utility | board-detail-cache', function() {
       get: function() { return treeCount >= 1; }
     });
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       if (url.indexOf('/tree') !== -1) {
         treeCount++;
         var key = url.split('/boards/')[1].split('/tree')[0];
@@ -552,9 +560,9 @@ module('Unit | Utility | board-detail-cache', function() {
       var phaseDone = boardDetailCache._prefetch_phase_done['1_50'] || {};
       assert.ok(phaseDone.phase1, 'phase1 marked done when home tree finishes');
       assert.notOk(phaseDone.phase2, 'phase2 stays incomplete when tab hidden mid-phase');
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       if (origHidden) {
         Object.defineProperty(document, 'hidden', origHidden);
       } else {
@@ -562,9 +570,9 @@ module('Unit | Utility | board-detail-cache', function() {
       }
       done();
     }, function(err) {
-      persistence.ajax = origAjax;
+      p.ajax = origAjax;
       LingoLinq.appState = origAppState;
-      persistence.get = origGet;
+      p.get = origGet;
       if (origHidden) {
         Object.defineProperty(document, 'hidden', origHidden);
       }
@@ -576,14 +584,15 @@ module('Unit | Utility | board-detail-cache', function() {
     boardDetailCache.clear();
     var treeCalls = [];
     var findCalls = [];
-    var origAjax = persistence.ajax;
-    var origGet = persistence.get;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
+    var origGet = p.get;
     var origStore = LingoLinq.store;
     var origAppState = LingoLinq.appState;
 
-    persistence.get = function(key) {
+    p.get = function(key) {
       if (key === 'online') { return true; }
-      if (origGet) { return origGet.call(persistence, key); }
+      if (origGet) { return origGet.call(p, key); }
       return true;
     };
 
@@ -611,7 +620,7 @@ module('Unit | Utility | board-detail-cache', function() {
       push: function() {}
     };
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       if (url.indexOf('/tree') !== -1) {
         var key = url.split('/boards/')[1].split('/tree')[0];
         treeCalls.push(key);
@@ -644,16 +653,16 @@ module('Unit | Utility | board-detail-cache', function() {
     return first.then(function() {
       return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0 });
     }).then(function() {
-      persistence.ajax = origAjax;
-      persistence.get = origGet;
+      p.ajax = origAjax;
+      p.get = origGet;
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
 
       assert.deepEqual(treeCalls, ['student-1_1/home', 'student-1_2/home'], 'prefetches only the capped supervisee set');
       assert.deepEqual(findCalls.map(function(c) { return c.id; }), ['1_1', '1_2'], 'loads full supervisee user records once');
     }, function(err) {
-      persistence.ajax = origAjax;
-      persistence.get = origGet;
+      p.ajax = origAjax;
+      p.get = origGet;
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
       throw err;
@@ -665,15 +674,16 @@ module('Unit | Utility | board-detail-cache', function() {
     var treeCalls = [];
     var treeCount = 0;
     var hidden = false;
-    var origAjax = persistence.ajax;
-    var origGet = persistence.get;
+    var p = persistenceTarget();
+    var origAjax = p.ajax;
+    var origGet = p.get;
     var origStore = LingoLinq.store;
     var origAppState = LingoLinq.appState;
     var origHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 
-    persistence.get = function(key) {
+    p.get = function(key) {
       if (key === 'online') { return true; }
-      if (origGet) { return origGet.call(persistence, key); }
+      if (origGet) { return origGet.call(p, key); }
       return true;
     };
 
@@ -711,7 +721,7 @@ module('Unit | Utility | board-detail-cache', function() {
       get: function() { return hidden; }
     });
 
-    persistence.ajax = function(url) {
+    p.ajax = function(url) {
       if (url.indexOf('/tree') !== -1) {
         var key = url.split('/boards/')[1].split('/tree')[0];
         treeCalls.push(key);
@@ -746,8 +756,8 @@ module('Unit | Utility | board-detail-cache', function() {
       hidden = false;
       return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 1, gapMs: 0 });
     }).then(function() {
-      persistence.ajax = origAjax;
-      persistence.get = origGet;
+      p.ajax = origAjax;
+      p.get = origGet;
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
       if (origHidden) {
@@ -758,8 +768,8 @@ module('Unit | Utility | board-detail-cache', function() {
 
       assert.deepEqual(treeCalls, ['student/home', 'student/liked'], 'reruns incomplete caseload prefetch phases after visibility returns');
     }, function(err) {
-      persistence.ajax = origAjax;
-      persistence.get = origGet;
+      p.ajax = origAjax;
+      p.get = origGet;
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
       if (origHidden) {

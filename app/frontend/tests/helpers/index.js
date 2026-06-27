@@ -34,9 +34,17 @@ function setupRenderingTest(hooks, options) {
 }
 
 function setupTest(hooks, options) {
-  upstreamSetupTest(hooks, options);
+  // Booted app + stubbed persistence leave orphan RSVP/runLater work that
+  // never settles; ember-qunit's afterEach settled() then hangs ~60s.
+  upstreamSetupTest(hooks, { waitForSettled: false, ...options });
 
   // Additional setup for unit tests can be done here.
 }
 
 export { setupApplicationTest, setupRenderingTest, setupTest };
+export {
+  persistenceTarget,
+  stubPersistence,
+  stubPersistenceAjax,
+  stubPersistenceGet
+} from './persistence-stub';

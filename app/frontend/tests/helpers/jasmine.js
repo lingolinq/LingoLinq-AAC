@@ -1,6 +1,6 @@
 // Use the same QUnit instance as ember-qunit/test-helper so jasmine-style tests register and run.
 import * as QUnit from 'qunit';
-import { setupRenderingTest, setupTest, setupApplicationTest } from 'ember-qunit';
+import { setupRenderingTest, setupTest, setupApplicationTest } from './index';
 import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -28,7 +28,9 @@ function test_wrap(name, instance, befores, afters, lookup) {
     });
   });
   current_afters = post;
-  QUnit.test(name, async function(current_assert) {
+  // Do not mark this test `async`: an immediately-resolved promise lets ember-qunit
+  // teardown (waitForSettled: false) run before runs() finishes post afterEach hooks.
+  QUnit.test(name, function(current_assert) {
     var _this = this;
     assert = current_assert;
     emberRun(function() {
@@ -78,18 +80,24 @@ var describe = function(name, lookup, callback) {
     all_tests.push([]);
     all_befores.push([]);
     all_afters.unshift([]);
-    callback();
-    all_tests[all_tests.length - 1].forEach(function(args) {
-      if(args[1]) {
-        test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters, container_lookup);
-      } else {
-        console.debug('PENDING TEST: ' + names.join(" ") + " - " + args[0]);
+    try {
+      callback();
+      all_tests[all_tests.length - 1].forEach(function(args) {
+        if(args[1]) {
+          test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters, container_lookup);
+        } else {
+          console.debug('PENDING TEST: ' + names.join(" ") + " - " + args[0]);
+        }
+      });
+    } finally {
+      names.pop();
+      all_befores.pop();
+      all_afters.shift();
+      all_tests.pop();
+      if (names.length === 0) {
+        container_lookup = null;
       }
-    });
-    names.pop();
-    all_befores.pop();
-    all_afters.shift();
-    all_tests.pop();
+    }
   }
   if(names.length === 0) {
     QUnit.module(name, function(hooks) {
@@ -222,7 +230,10 @@ var beforeEach = function(callback) {
   all_befores[all_befores.length - 1].push(callback);
 };
 var afterEach = function(callback) {
-  all_afters[all_afters.length - 1].push(callback);
+  // Mirrors unshift in add_test: the current describe level is all_afters[0], not the last
+  // entry (which is the root ember_helper bucket). Using length - 1 leaked every nested
+  // afterEach into the root list so all tests ran every module's cleanup hooks.
+  all_afters[0].push(callback);
 };
 
 var stub = function(object, method, replacement) {

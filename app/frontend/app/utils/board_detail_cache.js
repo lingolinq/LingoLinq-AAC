@@ -285,11 +285,11 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
   var index = 0;
 
   var processNext = function() {
-    if (_document_hidden() || !_is_online()) {
-      return RSVP.resolve(false);
-    }
     if (index >= rootKeys.length) {
       return RSVP.resolve(true);
+    }
+    if (_document_hidden() || !_is_online()) {
+      return RSVP.resolve(false);
     }
     var key = rootKeys[index++];
     var existing = _lookup(key);

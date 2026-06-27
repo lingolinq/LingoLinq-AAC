@@ -427,6 +427,50 @@ ApplicationAdapter.reopen({
 });
 
 var App;
+
+function serviceForTest(owner, serviceName, moduleFallback) {
+  if (owner) {
+    try {
+      return owner.lookup('service:' + serviceName);
+    } catch (e) {
+      return null;
+    }
+  }
+  var target = moduleFallback;
+  if (typeof window !== 'undefined') {
+    if (serviceName === 'persistence' && window.persistence) {
+      target = window.persistence;
+    } else if (serviceName === 'stashes' && window.stashes) {
+      target = window.stashes;
+    }
+  }
+  if (!target || target.isDestroyed) {
+    return null;
+  }
+  return target;
+}
+
+function resetPersistenceForTest(owner) {
+  var target = serviceForTest(owner, 'persistence', persistence);
+  if (!target) {
+    return;
+  }
+  target.set('online', true);
+  target.storing_urls = null;
+  target.url_cache = null;
+  target.url_uncache = null;
+  target.known_missing = null;
+  target.sync_actions = null;
+}
+
+function resetStashesForTest(owner) {
+  var target = serviceForTest(owner, 'stashes', stashes);
+  if (!target) {
+    return;
+  }
+  target.set('online', true);
+}
+
 beforeEach(function() {
   // Jasmine afterEach hooks run via delayed runs() AFTER ember-qunit teardown,
   // so restore/clear stubs here while the owner is still live.
@@ -438,13 +482,8 @@ beforeEach(function() {
   // TODO: https://alexlafroscia.com/ember-upgrade-to-new-qunit-api/
   // App = startApp();
   // App.rootElement = '#ember-testing';
-  persistence.set('online', true);
-  persistence.storing_urls = null;
-  persistence.url_cache = null;
-  persistence.url_uncache = null;
-  persistence.known_missing = null;
-  persistence.sync_actions = null;
-  stashes.set('online', true);
+  resetPersistenceForTest(this.owner);
+  resetStashesForTest(this.owner);
   if (this.owner) {
     LingoLinq.store = this.owner.lookup('service:store');
     LingoLinq.appState = this.owner.lookup('service:app-state');

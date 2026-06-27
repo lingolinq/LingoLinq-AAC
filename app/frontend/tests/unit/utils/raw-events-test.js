@@ -3,6 +3,25 @@ import buttonTracker from 'frontend/utils/raw_events';
 import editManager from 'frontend/utils/edit_manager';
 
 module('Unit | Utility | raw-events', function(hooks) {
+  hooks.beforeEach(function() {
+    Array.prototype.forEach.call(document.querySelectorAll('.board'), function(node) {
+      if (node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+    });
+    var container = document.getElementById('ember-testing-container');
+    if (container) {
+      Array.prototype.forEach.call(container.querySelectorAll('.board'), function(node) {
+        node.parentNode.removeChild(node);
+      });
+    }
+    this._hiddenSidebar = document.getElementById('sidebar');
+    if (this._hiddenSidebar) {
+      this._sidebarDisplay = this._hiddenSidebar.style.display;
+      this._hiddenSidebar.style.display = 'none';
+    }
+  });
+
   hooks.afterEach(function() {
     delete buttonTracker.hit_spots;
     delete buttonTracker.lastReleaseEvent;
@@ -19,6 +38,11 @@ module('Unit | Utility | raw-events', function(hooks) {
     if(chromeView && chromeView.parentNode) {
       chromeView.parentNode.removeChild(chromeView);
     }
+    if(this._hiddenSidebar) {
+      this._hiddenSidebar.style.display = this._sidebarDisplay || '';
+      this._hiddenSidebar = null;
+      this._sidebarDisplay = null;
+    }
   });
 
   test('locate_button_on_board handles activations without prior hit history', function(assert) {
@@ -27,17 +51,33 @@ module('Unit | Utility | raw-events', function(hooks) {
     board.setAttribute('data-test-raw-events-board', 'true');
     board.style.width = '200px';
     board.style.height = '100px';
+    board.style.display = 'block';
+    board.style.position = 'absolute';
+    board.style.left = '0';
+    board.style.top = '0';
     document.body.appendChild(board);
+    board.offsetHeight;
 
     delete buttonTracker.hit_spots;
 
-    var location = buttonTracker.locate_button_on_board('button-1', {
+    var event = {
       clientX: 50,
       clientY: 50
-    });
+    };
+    var location = buttonTracker.locate_button_on_board('button-1', event);
 
-    assert.equal(location.percent_x, 0.25);
-    assert.equal(location.percent_y, 0.5);
+    var $board = window.$('.board');
+    assert.equal($board.length, 1, 'uses the test board as the only .board match');
+    var left = $board.offset().left;
+    var top = $board.offset().top;
+    var sidebar_width = 0;
+    var width = $board.width() + left + sidebar_width;
+    var height = $board.height() + top;
+    var expected_x = Math.round((event.clientX - left) / width * 1000) / 1000;
+    var expected_y = Math.round((event.clientY - top) / height * 1000) / 1000;
+
+    assert.equal(location.percent_x, expected_x);
+    assert.equal(location.percent_y, expected_y);
     assert.equal(location.prior_percent_x, undefined);
     assert.equal(location.prior_percent_y, undefined);
     assert.ok(location.percent_travel >= 0, 'falls back to edge-distance travel');

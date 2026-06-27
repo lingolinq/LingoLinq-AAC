@@ -511,6 +511,11 @@ export default Component.extend({
   _login_spa_eligible: function() {
     return !!this.appState.get('feature_flags.auth_spa_transition');
   },
+  // Thin wrapper so plan-07 tests can observe post-auth reload navigation without
+  // overriding window.location.assign (frozen in modern Chrome / Puppeteer).
+  _login_location_assign: function(url) {
+    location.assign(url);
+  },
   // Post-auth web dispatch logic. Called from login_success's web `else`
   // branch (the existing branch after `if(isTesting()) ... else if(installed_app)`).
   // Extracted as a method so plan 07 tests can call it directly with a
@@ -538,7 +543,7 @@ export default Component.extend({
       if(_this.get('return')) {
         _this.session.set('return', true);
       }
-      location.assign('/');
+      _this._login_location_assign('/');
     };
 
     var removePreReloadOverlay = function() {

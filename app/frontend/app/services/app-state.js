@@ -1994,7 +1994,6 @@ export default Service.extend({
     this.set('currentUser', null);
     this.set('speakModeUser', null);
     this.set('referenced_speak_mode_user', null);
-    this.set('referenced_user', null);
     this.set('modeling_for_self', null);
 
     // Per-user board / navigation state

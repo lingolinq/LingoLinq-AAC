@@ -103,6 +103,7 @@ describe('RegisterController', 'controller:register', function() {
     var controller = testOwner.lookup('controller:register');
     controller.set('googleSignupBusy', false);
     controller.set('googleSignupTerms', true);
+    controller.set('age_attested', true);
     controller.set('googleSignupUserName', '');
 
     expect(controller.get('googleSignupSubmitDisabled')).toEqual(true);
