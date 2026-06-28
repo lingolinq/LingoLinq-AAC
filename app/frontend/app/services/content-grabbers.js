@@ -1898,8 +1898,8 @@ var videoGrabber = EmberObject.extend({
           console.error('native vidoe capture failed', e) 
         }, {limit: 1});
       } else if(navigator.getUserMedia) {
-        if(this.controller.get('video_recording.stream')) {
-          _this.user_media_ready(this.controller.get('video_recording.stream'));
+        if(_this.controller.get('video_recording.stream')) {
+          _this.user_media_ready(_this.controller.get('video_recording.stream'));
           return;
         }
 

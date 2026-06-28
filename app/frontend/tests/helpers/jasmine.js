@@ -1,12 +1,10 @@
 // Use the same QUnit instance as ember-qunit/test-helper so jasmine-style tests register and run.
 import * as QUnit from 'qunit';
 import { setupRenderingTest, setupTest, setupApplicationTest } from './index';
-import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import persistence from '../../utils/persistence';
 import appStateUtil from '../../utils/app_state';
-import { persistenceTarget } from './persistence-stub';
+import LingoLinq from '../../app';
 
 var names = [];
 var all_befores = [[]];
@@ -247,24 +245,66 @@ function liveAppStateTarget() {
   return null;
 }
 
+function looksLikePersistenceModule(object) {
+  return !!(object && typeof object.find === 'function' && typeof object.sync === 'function' && typeof object.store === 'function');
+}
+
+function shouldMirrorPersistenceStub(object, method) {
+  if (!object || !LingoLinq || !LingoLinq.testOwner) {
+    return false;
+  }
+  var persistenceMethods = {
+    ajax: true,
+    get: true,
+    set: true,
+    find: true,
+    find_json: true,
+    find_url: true,
+    find_urls: true,
+    store: true,
+    store_json: true,
+    sync: true,
+    remove: true
+  };
+  if (!persistenceMethods[method]) {
+    return false;
+  }
+  if (object.jquery) {
+    return false;
+  }
+  try {
+    var svc = LingoLinq.testOwner.lookup('service:persistence');
+    return !!(svc && object !== svc && looksLikePersistenceModule(object));
+  } catch (e) {
+    return false;
+  }
+}
+
+function mirrorPersistenceServiceStub(object, method, replacement, stashList) {
+  if (!shouldMirrorPersistenceStub(object, method)) {
+    return;
+  }
+  try {
+    applyStub(LingoLinq.testOwner.lookup('service:persistence'), method, replacement, stashList);
+  } catch (e) { /* owner torn down */ }
+}
+
 function resolveStubTargets(object) {
   var targets = [];
+  var seen = {};
   if (!object || object.isDestroyed) {
     return targets;
   }
-  targets.push(object);
-
-  // utils/persistence is a Proxy whose get trap forwards to window.persistence.
-  // Models inject the service instance, so mirror stubs onto the live target.
-  // Prime first so createRecord does not swap placeholder → service after stubbing.
-  var livePersistence = persistenceTarget();
-  if (livePersistence && livePersistence !== object && (object === persistence || object === livePersistence)) {
-    targets.push(livePersistence);
+  function add(target) {
+    if (!target || target.isDestroyed || seen[target]) { return; }
+    seen[target] = true;
+    targets.push(target);
   }
+  add(object);
 
   var liveAppState = liveAppStateTarget();
   if (liveAppState && liveAppState !== object && object === appStateUtil) {
-    targets.push(liveAppState);
+    add(liveAppState);
   }
 
   return targets;
@@ -289,6 +329,7 @@ var stub = function(object, method, replacement) {
     seen[target] = true;
     applyStub(target, method, replacement, stub.stubs);
   });
+  mirrorPersistenceServiceStub(object, method, replacement, stub.stubs);
 };
 stub.stubs = [];
 

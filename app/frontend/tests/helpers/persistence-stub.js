@@ -1,5 +1,6 @@
 import persistence from 'frontend/utils/persistence';
 import { set as emberSet } from '@ember/object';
+import LingoLinq from '../../app';
 
 export function persistenceTarget() {
   if (typeof window !== 'undefined' && window.persistence) {
@@ -14,8 +15,18 @@ export function primePersistenceService(owner) {
     return persistenceTarget();
   }
   var svc = owner.lookup('service:persistence');
-  if (svc && typeof svc.set === 'function') {
-    svc.set('online', true);
+  if (svc) {
+    // Keep window.persistence on the DI singleton — models inject this instance,
+    // not the utils/persistence Proxy export tests import for stubbing.
+    if (typeof window !== 'undefined') {
+      window.persistence = svc;
+    }
+    if (typeof LingoLinq !== 'undefined') {
+      LingoLinq.persistenceService = svc;
+    }
+    if (typeof svc.set === 'function') {
+      svc.set('online', true);
+    }
   }
   return svc;
 }

@@ -10,13 +10,24 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import { queryLog, asStoreRecordArray } from 'frontend/tests/helpers/ember_helper';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
 
 describe('Board', function() {
+  function stubButtonset(attrs) {
+    attrs = attrs || {};
+    if (!attrs.buttons) {
+      attrs.buttons = [{ id: 1 }];
+    }
+    var bs = EmberObject.create(attrs);
+    stub(bs, 'load_buttons', function() { return RSVP.resolve(bs); });
+    stub(bs, 'redepth', function() { return bs.get('buttons'); });
+    return bs;
+  }
+
   describe("icon_url_with_fallback", function() {
     it("should not error on null image_url", function() {
       var board = LingoLinq.store.createRecord('board', {});
@@ -455,46 +466,41 @@ describe('Board', function() {
   describe("load_button_set", function() {
     it('should return the set value if already set', function() {
       var b = LingoLinq.store.createRecord('board');
-      b.set('button_set', 'asdf');
+      var bs = stubButtonset();
+      b.set('button_set', bs);
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
       waitsFor(function() { return res; });
       runs(function() {
-        expect(res).toEqual('asdf');
+        expect(res).toEqual(bs);
       });
     });
 
     it('should return the peeked value if found', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
+      var bs = stubButtonset();
       stub(LingoLinq.store, 'peekRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
-          return 'asdf';
+          return bs;
         }
       });
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
       waitsFor(function() { return res; });
       runs(function() {
-        expect(res).toEqual('asdf');
+        expect(res).toEqual(bs);
       });
     });
 
     it('should return the peeked value for a linked board if found', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: true});
-      var bs2 = EmberObject.create({board_ids: ['2345'], fresh: true});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: true });
+      var bs2 = stubButtonset({ board_ids: ['2345'], fresh: true });
       stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
-          return {
-            map: function(cb) {
-              return [
-                bs1,
-                bs2
-              ];
-            }
-          };
+          return asStoreRecordArray([bs1, bs2]);
         }
       });
       var res = null;
@@ -508,18 +514,11 @@ describe('Board', function() {
     it('should not return the peeked value for a linked board if it is not fresh', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
-      var bs2 = EmberObject.create({board_ids: ['2345', '1234'], fresh: true});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: false });
+      var bs2 = stubButtonset({ board_ids: ['2345', '1234'], fresh: true });
       stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
-          return {
-            map: function(cb) {
-              return [
-                bs1,
-                bs2
-              ];
-            }
-          };
+          return asStoreRecordArray([bs1, bs2]);
         }
       });
       var res = null;
@@ -533,11 +532,14 @@ describe('Board', function() {
     it('should try to find the record if not found other ways', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: true});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: true });
       stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
           return RSVP.resolve(bs1);
         }
+      });
+      stub(LingoLinq.Buttonset, 'load_button_set', function() {
+        return RSVP.resolve(bs1);
       });
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
@@ -550,14 +552,17 @@ describe('Board', function() {
     it('should reload the record if found but not fresh', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      b.set('fresh', true);
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
+      b.set('retrieved', (new Date()).getTime());
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: false });
       var reloaded = false;
       stub(bs1, 'reload', function() { reloaded = true; return RSVP.resolve(bs1); });
       stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
           return RSVP.resolve(bs1);
         }
+      });
+      stub(LingoLinq.Buttonset, 'load_button_set', function() {
+        return RSVP.resolve(bs1);
       });
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
@@ -571,7 +576,7 @@ describe('Board', function() {
     it('should not reload again when load_button_set already loaded remote buttons', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      b.set('fresh', true);
+      b.set('retrieved', (new Date()).getTime());
       var bs1 = LingoLinq.store.createRecord('buttonset', {
         id: '1234',
         buttons_loaded: true,
@@ -600,20 +605,15 @@ describe('Board', function() {
     it('should reload if force is called, regardless of other factors', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      b.set('button_set', 'asdf');
+      var bs = stubButtonset();
+      b.set('button_set', bs);
       stub(LingoLinq.store, 'peekRecord', function(type, id) {
         return 'asdf';
       });
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: false });
       stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
-          return {
-            map: function(cb) {
-              return [
-                bs1
-              ];
-            }
-          };
+          return asStoreRecordArray([bs1]);
         }
       });
       var reloaded = false;
@@ -661,18 +661,35 @@ describe('Board', function() {
     it('should return true if not protected but content is protected', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.get('protected_material')).toEqual(false);
-      b.set('local_images_with_license', [
-        EmberObject.create({protected: false})
-      ]);
+      stub(b, 'get', function(key) {
+        if (key === 'local_images_with_license') {
+          return [EmberObject.create({ protected: false })];
+        }
+        if (key === 'local_sounds_with_license') {
+          return [];
+        }
+        return EmberObject.prototype.get.call(this, key);
+      });
       expect(b.get('protected_material')).toEqual(false);
-      b.set('local_images_with_license', [
-        EmberObject.create({protected: true})
-      ]);
+      stub(b, 'get', function(key) {
+        if (key === 'local_images_with_license') {
+          return [EmberObject.create({ protected: true })];
+        }
+        if (key === 'local_sounds_with_license') {
+          return [];
+        }
+        return EmberObject.prototype.get.call(this, key);
+      });
       expect(b.get('protected_material')).toEqual(true);
-      b.set('local_sounds_with_license', [
-        EmberObject.create({protected: true})
-      ]);
-      b.set('local_images_with_license', []);
+      stub(b, 'get', function(key) {
+        if (key === 'local_images_with_license') {
+          return [];
+        }
+        if (key === 'local_sounds_with_license') {
+          return [EmberObject.create({ protected: true })];
+        }
+        return EmberObject.prototype.get.call(this, key);
+      });
       expect(b.get('protected_material')).toEqual(true);
     });
   });
@@ -681,12 +698,12 @@ describe('Board', function() {
     it('should return the correct value', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.get('valid_id')).toEqual(false);
-      b.set('id', '1234');
-      expect(b.get('valid_id')).toEqual(true);
-      b.set('id', '1_123');
-      expect(b.get('valid_id')).toEqual(true);
-      b.set('id', 'bad');
-      expect(b.get('valid_id')).toEqual(false);
+      var withNumericId = LingoLinq.store.createRecord('board', { id: '1234' });
+      expect(withNumericId.get('valid_id')).toEqual(true);
+      var withShardId = LingoLinq.store.createRecord('board', { id: '1_123' });
+      expect(withShardId.get('valid_id')).toEqual(true);
+      var withBadId = LingoLinq.store.createRecord('board', { id: 'bad' });
+      expect(withBadId.get('valid_id')).toEqual(false);
     });
   });
 

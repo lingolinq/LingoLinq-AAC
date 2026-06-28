@@ -484,6 +484,7 @@ beforeEach(function() {
   // App = startApp();
   // App.rootElement = '#ember-testing';
   if (this.owner) {
+    LingoLinq.testOwner = this.owner;
     primePersistenceService(this.owner);
   }
   resetPersistenceForTest(this.owner);
@@ -571,4 +572,17 @@ function replaceLocalStorage() {
   };
 }
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage };
+function asStoreRecordArray(items) {
+  items = items || [];
+  return {
+    forEach: function(cb) {
+      items.forEach(cb);
+    },
+    map: function(cb) {
+      return items.map(cb);
+    },
+    length: items.length
+  };
+}
+
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray };
