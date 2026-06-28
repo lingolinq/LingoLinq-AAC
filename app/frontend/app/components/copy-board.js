@@ -64,7 +64,7 @@ export default Component.extend({
       this.set('model.known_supervisees', supervisees);
       // Default to "me" (self) when no specific supervisee was pre-selected, so
       // the modal opens with a valid selection instead of a required-pick prompt.
-      this.set('currently_selected_id', selected_user_id || 'self');
+      this.set('currently_selected_id', selected_user_id != null ? selected_user_id : 'self');
     } else {
       this.set('currently_selected_id', 'self');
     }

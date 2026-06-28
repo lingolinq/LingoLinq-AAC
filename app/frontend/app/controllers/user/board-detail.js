@@ -894,10 +894,13 @@ export default Controller.extend(prefClasses, {
     this.set('swap_source_index', null);
   },
   _announce_sentence_edit: function(msg) {
-    // Toggle a trailing non-breaking space so repeated identical messages still
-    // re-trigger the aria-live region.
+    // Toggle a trailing (regular) space so a repeated IDENTICAL message still
+    // re-triggers the aria-live region. A plain trailing space changes the text
+    // node (so the region re-announces) but is NOT read aloud, unlike a U+00A0;
+    // most messages already differ (word + position), so this is a rare-case
+    // belt-and-suspenders.
     this._announce_flip = !this._announce_flip;
-    this.set('sentence_edit_announcement', (msg || '') + (this._announce_flip ? '' : ' '));
+    this.set('sentence_edit_announcement', (msg || '') + (this._announce_flip ? '' : ' '));
   },
 
   // FULL MIRROR of app_state.button_list → sentence_parts. Rebuilt in global
