@@ -836,8 +836,22 @@ export default Controller.extend(prefClasses, {
     return list;
   },
 
+  // Cache key for a carried-forward chip image. Board buttons key by their stable
+  // button_id so two same-label buttons with DIFFERENT symbols can't cross-
+  // contaminate; typed/predicted words (no real button_id → 'utt-N') fall back to
+  // the label (same word → same image, which is correct).
+  _chip_image_key: function(id, label) {
+    return (id && String(id).indexOf('utt-') !== 0) ? ('b:' + id) : ('l:' + (label || '').toLowerCase());
+  },
   _apply_sentence_chip_image: function(part, img) {
     if(!part || !img) { return false; }
+    // Carry this resolved image forward across rebuilds/reorders (raw_index isn't
+    // stable). Keyed by button_id when present so it can't leak to a different
+    // same-label button.
+    if(part.label) {
+      if(!this._resolved_label_images) { this._resolved_label_images = {}; }
+      this._resolved_label_images[this._chip_image_key(part.id, part.label)] = img;
+    }
     var current = (this.get('sentence_parts') || []).slice();
     var idx = current.findIndex(function(p) {
       return p && ((part.raw_index != null && p.raw_index === part.raw_index) ||
@@ -851,16 +865,63 @@ export default Controller.extend(prefClasses, {
     return false;
   },
 
+  // ----- Speak-bar active edit (feature: sentence_bar_editing) -----
+  // Which chip currently shows its edit controls (visual index; null = none).
+  selected_chip_index: null,
+  // Which chip is "held" for a swap/replace (visual index; null = none). While
+  // set, tapping ANOTHER chip swaps positions and tapping a board grid button
+  // replaces the held chip (see select_button).
+  swap_source_index: null,
+  // Bound to an aria-live region — set to announce the result of each edit.
+  sentence_edit_announcement: '',
+
+  // Gate: edit controls only in SPEAK mode (never while editing the board) and
+  // only when the feature flag is on.
+  sentence_bar_editing_enabled: computed('app_state.feature_flags.sentence_bar_editing', 'edit_mode', function() {
+    return !this.get('edit_mode') && !!this.get('app_state.feature_flags.sentence_bar_editing');
+  }),
+  // True while a chip is held for swap/replace.
+  chip_swap_active: computed('swap_source_index', function() {
+    return this.get('swap_source_index') != null;
+  }),
+
+  _chip_label: function(index) {
+    var parts = this.get('sentence_parts') || [];
+    return (parts[index] && parts[index].label) || '';
+  },
+  _deselect_chip: function() {
+    this.set('selected_chip_index', null);
+    this.set('swap_source_index', null);
+  },
+  _announce_sentence_edit: function(msg) {
+    // Toggle a trailing (regular) space so a repeated IDENTICAL message still
+    // re-triggers the aria-live region. A plain trailing space changes the text
+    // node (so the region re-announces) but is NOT read aloud, unlike a U+00A0;
+    // most messages already differ (word + position), so this is a rare-case
+    // belt-and-suspenders.
+    this._announce_flip = !this._announce_flip;
+    this.set('sentence_edit_announcement', (msg || '') + (this._announce_flip ? '' : ' '));
+  },
+
+  // FULL MIRROR of app_state.button_list → sentence_parts. Rebuilt in global
+  // order every sync so REMOVE / REORDER / SWAP / REPLACE on the global utterance
+  // (the source of truth) are reflected faithfully — order and membership both
+  // mirror the global list (the previous additive, raw_index-keyed merge could
+  // not survive a reorder, since set_button_list reassigns raw_index). Resolved
+  // images are carried forward via a label-keyed cache so a reorder/swap (which
+  // changes raw_index) never drops or re-fetches an already-resolved symbol.
   sync_sentence_from_button_list: function() {
     var _this = this;
     var global_list = this.get('app_state.button_list') || [];
-    if(!global_list.length) { return; }
-    var parts = (this.get('sentence_parts') || []).slice();
-    var by_raw = {};
-    parts.forEach(function(p, idx) {
-      if(p && p.raw_index != null) { by_raw[p.raw_index] = idx; }
+    var old_parts = this.get('sentence_parts') || [];
+    if(!this._resolved_label_images) { this._resolved_label_images = {}; }
+    var label_images = this._resolved_label_images;
+    old_parts.forEach(function(p) {
+      if(p && p.label && p.image_url && !p.in_progress) {
+        label_images[_this._chip_image_key(p.id, p.label)] = p.image_url;
+      }
     });
-    var changed = false;
+    var parts = [];
     global_list.forEach(function(b, list_idx) {
       if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { return; }
       var raw_index = emberGet(b, 'raw_index');
@@ -888,31 +949,43 @@ export default Controller.extend(prefClasses, {
            typeof raw_image === 'string' && wordSuggestionsModule.is_placeholder_image(raw_image)) {
           image_url = raw_image;
         }
+        // Carry forward a previously-resolved image (async lookup, or a value
+        // resolved before a reorder/swap shuffled raw_index) so it doesn't flicker.
+        if(!image_url) {
+          image_url = label_images[_this._chip_image_key(emberGet(b, 'button_id'), label)] || null;
+        }
       }
-      var chip = {
+      parts.push({
         id: emberGet(b, 'button_id') || ('utt-' + raw_index),
         raw_index: raw_index,
         label: label,
         in_progress: in_progress,
         image_url: image_url
-      };
-      if(by_raw[raw_index] != null) {
-        var existing = parts[by_raw[raw_index]];
-        if(existing.label !== chip.label || existing.image_url !== chip.image_url ||
-          !!existing.in_progress !== in_progress) {
-          parts[by_raw[raw_index]] = Object.assign({}, existing, chip);
-          changed = true;
-        }
-      } else {
-        parts.push(chip);
-        by_raw[raw_index] = parts.length - 1;
-        changed = true;
-      }
+      });
     });
-    if(changed) {
+    if(!_this._sentence_parts_equal(old_parts, parts)) {
       this.set('sentence_parts', parts);
     }
+    // If the list shrank (e.g. async button_list churn — image/suggestion
+    // resolution, a condense rule, a modeling session) a held/selected chip index
+    // can dangle past the end; clear it so an edit can't act on a stale index.
+    var n = parts.length;
+    if(this.get('selected_chip_index') != null && this.get('selected_chip_index') >= n) { this.set('selected_chip_index', null); }
+    if(this.get('swap_source_index') != null && this.get('swap_source_index') >= n) { this.set('swap_source_index', null); }
     this._resolve_missing_sentence_images();
+  },
+
+  // Shallow value-equality for the chip mirror, so a no-op sync doesn't churn
+  // sentence_parts (which would re-render and could interrupt an in-flight drag).
+  _sentence_parts_equal: function(a, b) {
+    a = a || []; b = b || [];
+    if(a.length !== b.length) { return false; }
+    for(var i = 0; i < a.length; i++) {
+      var x = a[i] || {}, y = b[i] || {};
+      if(x.raw_index !== y.raw_index || x.label !== y.label || x.id !== y.id ||
+         x.image_url !== y.image_url || !!x.in_progress !== !!y.in_progress) { return false; }
+    }
+    return true;
   },
 
   _resolve_missing_sentence_images: function() {
@@ -5965,6 +6038,28 @@ export default Controller.extend(prefClasses, {
       var isEmpty = _get(button, 'empty') || !(_get(button, 'label') || _get(button, 'image_id') || _get(button, 'vocalization'));
       if(isEmpty) { return; }
 
+      // Swap mode: a held chip is REPLACED by any tapped board button — handled
+      // synchronously BEFORE folder navigation. On a SUCCESSFUL replace the held
+      // state clears + announces; on failure (button not resolvable / specialty /
+      // a condense-guarded utterance) the held state is KEPT so the user can pick a
+      // different target. Either way the tap is swallowed (never navigates/speaks
+      // mid-swap).
+      if(this.get('sentence_bar_editing_enabled') && this.get('swap_source_index') != null) {
+        var swap_em = editManager.find_button(this._btn_id(button));
+        var swap_src = this.get('swap_source_index');
+        var swap_label = _get(button, 'label') || _get(button, 'vocalization') || '';
+        if(swap_em && swap_em.get && utterance.replace_button(swap_src, swap_em)) {
+          this._deselect_chip();
+          this._announce_sentence_edit(i18n.t('sentence_bar_replaced', "Replaced word with %{word}", {word: swap_label}));
+        } else {
+          // Replace couldn't happen (button not resolvable / specialty / a
+          // condense-guarded utterance) — tell the user so the KEPT held state
+          // isn't a silent no-op; they can pick another word or cancel with ⇄/Esc.
+          this._announce_sentence_edit(i18n.t('sentence_bar_replace_unavailable', "That word can't replace the held one — pick another, or cancel."));
+        }
+        return;
+      }
+
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(button, 'load_board');
       if(load_board && !_get(button, 'link_disabled')) {
@@ -6033,6 +6128,7 @@ export default Controller.extend(prefClasses, {
       var board = _this.get('model');
       var em_button = editManager.find_button(btn_id);
       var has_em = em_button && em_button.get && typeof em_button.get === 'function';
+      // (Swap-mode replace is handled earlier, before folder navigation.)
       if(has_em && appController && appController.activateButton && board) {
         appController.activateButton(em_button, { board: board, trigger_source: 'click' });
       } else {
@@ -6158,21 +6254,87 @@ export default Controller.extend(prefClasses, {
       // Skipping the global clear would leave button_list dirty, so a
       // subsequent activation that grows it would re-sync the stale
       // entries back into sentence_parts via the observer.
+      this._deselect_chip();
       this.set('sentence_parts', []);
       this._sentence_image_lookups = {};
       this._suggestion_image_lookups = {};
+      this._resolved_label_images = {};
       try { utterance.clear(); } catch(e) { }
     },
 
     backspace_sentence: function() {
       // Pop both local and global so the observer's next sync sees a
       // consistent state and does not restore the dropped entry.
+      this._deselect_chip();
       var parts = (this.get('sentence_parts') || []).slice();
       if(parts.length > 0) {
         parts.pop();
         this.set('sentence_parts', parts);
       }
       try { utterance.backspace(); } catch(e) { }
+    },
+
+    // ----- Speak-bar chip active-edit actions (feature: sentence_bar_editing) -----
+    // Tap a chip body: toggle its edit controls (or, in swap mode, treat as the
+    // swap target — handled by chip_swap_target, which the component calls instead).
+    select_chip: function(index) {
+      if(this.get('selected_chip_index') === index) {
+        this._deselect_chip();
+      } else {
+        this.set('swap_source_index', null);
+        this.set('selected_chip_index', index);
+      }
+    },
+    // Tap ✕ — remove the chip (and its raw block) from the utterance.
+    remove_chip: function(index) {
+      var label = this._chip_label(index);
+      var ok = utterance.remove_button(index);
+      this._deselect_chip();
+      if(ok) { this._announce_sentence_edit(i18n.t('sentence_bar_removed', "Removed %{word}", {word: label})); }
+    },
+    // Tap ‹ / › — move the chip one position; selection follows it.
+    move_chip: function(index, direction) {
+      var total = (this.get('sentence_parts') || []).length;
+      var target = index + direction;
+      if(target < 0 || target >= total) { return; }
+      var label = this._chip_label(index);
+      var ok = utterance.move_button(index, direction);
+      if(ok) {
+        this.set('selected_chip_index', target);
+        this._announce_sentence_edit(i18n.t('sentence_bar_moved', "Moved %{word} to %{pos} of %{total}", {word: label, pos: target + 1, total: total}));
+      }
+    },
+    // Tap ⇄ — toggle swap/hold mode for this chip.
+    toggle_chip_swap: function(index) {
+      if(this.get('swap_source_index') === index) {
+        this.set('swap_source_index', null);
+        this._announce_sentence_edit(i18n.t('sentence_bar_swap_cancelled', "Cancelled swap"));
+      } else {
+        this.set('selected_chip_index', index);
+        this.set('swap_source_index', index);
+        this._announce_sentence_edit(i18n.t('sentence_bar_swap_holding', "Holding %{word}. Tap another word to swap, or a board button to replace it.", {word: this._chip_label(index)}));
+      }
+    },
+    // In swap mode, tapping another chip swaps the two positions.
+    chip_swap_target: function(index) {
+      var src = this.get('swap_source_index');
+      if(src == null || src === index) { this.set('swap_source_index', null); return; }
+      var a = this._chip_label(src), b = this._chip_label(index);
+      var ok = utterance.swap_buttons(src, index);
+      this._deselect_chip();
+      if(ok) { this._announce_sentence_edit(i18n.t('sentence_bar_swapped', "Swapped %{a} and %{b}", {a: a, b: b})); }
+    },
+    // Drop a dragged chip onto another position (pointer reorder).
+    chip_drag_move: function(from, to) {
+      var total = (this.get('sentence_parts') || []).length;
+      var label = this._chip_label(from);
+      var ok = utterance.move_to_index(from, to);
+      this._deselect_chip();
+      if(ok) { this._announce_sentence_edit(i18n.t('sentence_bar_moved', "Moved %{word} to %{pos} of %{total}", {word: label, pos: to + 1, total: total})); }
+    },
+    // Escape / outside — leave edit/swap mode.
+    cancel_chip_edit: function() {
+      this._deselect_chip();
     },
 
     open_speak_menu: function() {

@@ -5672,3 +5672,60 @@ security-or-input-validation gaps (silent default flips, missing PIN validation,
 plaintext-in-options, save races). When a change touches auth/PIN/preferences, run an explicit
 "abuse + input-validation + concurrency" lens as its OWN pass — three internal adversarial
 reviews missed all four of these because none was framed that way.
+
+## Pattern: editing the speak bar must mutate the GLOBAL utterance, not just the display mirror
+
+`utils/utterance.js` `rawButtonList` is the source of truth; `set_button_list` (observer)
+recomputes the VISUAL `app_state.button_list` from it (handling inflections, spelled-letter
+merges, `:complete`/`:space`, capitalization, punctuation). The board-detail controller keeps a
+local `sentence_parts` MIRROR of button_list for the chip UI. Two non-obvious rules:
+
+1. **Edit on rawButtonList, never only the mirror.** If you remove/reorder a chip by mutating
+   `sentence_parts` alone, the spoken/logged/synced sentence (derived from rawButtonList) silently
+   diverges from what's displayed. Add edit methods to utterance.js that re-`set('rawButtonList',
+   …)` and let set_button_list recompute. Each VISUAL chip owns a CONTIGUOUS block of raw entries
+   bounded by consecutive `button_list[i].raw_index` (set_button_list walks raw in order and merges
+   modifiers into the prior visual button). So remove = drop a block, move/swap = reorder blocks,
+   replace = relocate a block. Implemented as `visual_raw_blocks` / `remove_button` /
+   `move_to_index` / `move_button` / `swap_buttons` / `replace_with_last` (2026-06-27).
+   **Make the partition FAIL-SAFE:** if `raw_index` values are missing / out-of-range /
+   non-increasing, return null and have callers no-op — a wrong guess must never corrupt the
+   utterance.
+
+2. **The additive, raw_index-keyed sync CANNOT survive a reorder.** The old
+   `sync_sentence_from_button_list` only appended/updated chips matched by `raw_index` and never
+   removed or reordered. But set_button_list REASSIGNS `raw_index` on every change, so after a
+   reorder the keys no longer line up (you get duplicates / stale order). Rewrite the sync as a
+   FULL MIRROR (rebuild `sentence_parts` in global order, dropping anything no longer present), with
+   a value-equality guard to avoid churn and a **label-keyed image cache** (`_resolved_label_images`)
+   so async-resolved symbols survive a rebuild (object identity and raw_index are both unstable
+   across a reorder; the label is stable).
+
+3. **Replace-with-a-board-button:** don't hand-build a raw entry (you'd miss image/vocalization/
+   sound/content processing). Route the tapped board button through the normal activate pipeline
+   (`appController.activateButton`) so it APPENDS a correct entry, then `replace_with_last(target)`
+   relocates that last block onto the target and drops the old one.
+
+For the accessible reorder UX itself, see the research in
+`docs/task-management/2026-06-27-speak-bar-active-edit.md`: move buttons (‹ ›) are the most
+accessible non-drag path; pair native HTML5 DnD (pointer) with full keyboard (Enter/Space select,
+arrows move, Esc cancel) + an `aria-live` region announcing each result. Don't add a DnD library to
+this Ember 3.28 app — dnd-kit / pragmatic-drag-and-drop are React-first; native DnD + buttons covers it.
+
+## Gotcha: selective board-set copying ALREADY exists — reuse `board_hierarchy`, don't rebuild
+
+Before adding any "choose which sub-boards to copy" UI, know the infra is already there end-to-end:
+- **Frontend:** `utils/board_hierarchy.js` builds the downstream tree with per-board `selected`
+  flags, `selected_board_ids()`, `root_deselected`, `set_downstream(id,'selected',bool)`, `toggle()`.
+  The `{{board-hierarchy selectable=true hierarchy=…}}` component renders the selectable tree
+  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, and the `copying-board` modal).
+  `components/board-hierarchy.js` `select_all(state)` now honors `state` → `select_all false`
+  is Deselect All (existing callers pass no arg, so they still select).
+- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols); the EXECUTION modal is
+  `copying-board`, which loads the hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all
+  selected by default) and passes `hierarchy.selected_board_ids()` as the include list.
+- **Backend:** the copy endpoint already accepts `expand_selected_board_ids` (users_controller →
+  user.rb#2559 → relinking.rb `copy_board_links_for`), so partial copies are supported server-side.
+So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
+existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
+`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)

@@ -6,7 +6,10 @@ export default Component.extend({
       this.get('hierarchy').toggle(board_id, state);
     },
     select_all: function(state) {
-      this.get('hierarchy').set_downstream(null, 'selected', true);
+      // Honor the passed state so the same action drives both Select All
+      // (no arg / true) and Deselect All (false). Existing callers pass no
+      // argument, so they keep selecting everything.
+      this.get('hierarchy').set_downstream(null, 'selected', state !== false);
     },
   }
 });

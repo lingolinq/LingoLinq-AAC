@@ -958,6 +958,166 @@ var utterance = EmberObject.extend({
     app_state.refresh_suggestions();
     this.set('list_vocalized', false);
   },
+  // ----- Active-edit support (board-detail speak bar) -----
+  // Partition rawButtonList (the source of truth) into one CONTIGUOUS block per
+  // VISUAL chip, so a single chip can be removed or reordered while the spoken /
+  // logged utterance stays perfectly in sync. set_button_list walks rawButtonList
+  // in order, assigns `raw_index`, and merges modifiers (inflections, spelled
+  // letters) into the prior visual button — so each chip owns the contiguous raw
+  // range [raw_index(i) .. raw_index(i+1)). Returns {visual, blocks} or null when
+  // the indices are unusable (missing / out-of-range / non-increasing), in which
+  // case callers must no-op rather than risk corrupting the utterance.
+  visual_raw_blocks: function() {
+    var appState = this.appState || app_state;
+    var visual = (appState.get('button_list') || []).filter(function(b) {
+      return b && !emberGet(b, 'ghost') && !emberGet(b, 'hint');
+    });
+    var raw = this.get('rawButtonList') || [];
+    if(!visual.length || !raw.length) { return null; }
+    // Grammar "condense" rules drop entries from the VISUAL list while leaving
+    // them in rawButtonList, so a chip's block would absorb an orphaned raw
+    // entry the monotonic check below can't see. Bail (the edit no-ops rather
+    // than corrupting the utterance).
+    if(raw.some(function(b) { return b && emberGet(b, 'condense_items'); })) { return null; }
+    var bounds = [];
+    for(var i = 0; i < visual.length; i++) {
+      var ri = emberGet(visual[i], 'raw_index');
+      if(ri == null || ri < 0 || ri >= raw.length) { return null; }
+      if(i > 0 && ri <= bounds[i - 1]) { return null; }
+      bounds.push(ri);
+    }
+    // The first chip must own rawButtonList[0]; a non-zero start means leading
+    // raw entries belong to no chip (e.g. a condensed-away first word).
+    if(bounds[0] !== 0) { return null; }
+    var blocks = [];
+    for(var k = 0; k < visual.length; k++) {
+      var start = bounds[k];
+      var end = (k + 1 < visual.length) ? bounds[k + 1] : raw.length;
+      blocks.push(raw.slice(start, end));
+    }
+    return { visual: visual, blocks: blocks };
+  },
+  // Remove the visual chip at `visual_index` (its whole raw block) from the
+  // utterance. rawButtonList stays authoritative; set_button_list recomputes the
+  // visual + spoken sentence. Returns true on success.
+  remove_button: function(visual_index, opts) {
+    opts = opts || {};
+    var appState = this.appState || app_state;
+    var parts = this.visual_raw_blocks();
+    if(!parts || visual_index < 0 || visual_index >= parts.blocks.length) { return false; }
+    appState.set('shift', null);
+    appState.set('inflection_shift', null);
+    appState.set('insertion', null);
+    var newRaw = [];
+    parts.blocks.forEach(function(block, idx) {
+      if(idx !== visual_index) { newRaw = newRaw.concat(block); }
+    });
+    this.set('rawButtonList', newRaw);
+    if(!opts.skip_logging) {
+      stashes.log({ action: 'backspace', button_triggered: opts.button_triggered });
+    }
+    app_state.refresh_suggestions();
+    this.set('list_vocalized', false);
+    return true;
+  },
+  // Reset shared cursor/shift state + re-set rawButtonList, the common tail of
+  // every block-level edit below. set_button_list recomputes the visual+spoken
+  // sentence; reordering invalidates the insertion cursor.
+  _commit_raw: function(blocks) {
+    var appState = this.appState || app_state;
+    appState.set('shift', null);
+    appState.set('inflection_shift', null);
+    appState.set('insertion', null);
+    var newRaw = [];
+    blocks.forEach(function(block) { newRaw = newRaw.concat(block); });
+    this.set('rawButtonList', newRaw);
+    app_state.refresh_suggestions();
+    this.set('list_vocalized', false);
+  },
+  // Move the visual chip from index `from` to index `to` (drag-to-reorder).
+  move_to_index: function(from, to) {
+    var parts = this.visual_raw_blocks();
+    if(!parts) { return false; }
+    var n = parts.blocks.length;
+    if(from < 0 || from >= n || to < 0 || to >= n || from === to) { return false; }
+    var blocks = parts.blocks.slice();
+    var moved = blocks.splice(from, 1)[0];
+    blocks.splice(to, 0, moved);
+    this._commit_raw(blocks);
+    return true;
+  },
+  // Move the visual chip at `visual_index` by `direction` (-1 left / +1 right).
+  // Thin wrapper over move_to_index for the ‹ › arrow controls.
+  move_button: function(visual_index, direction) {
+    return this.move_to_index(visual_index, visual_index + direction);
+  },
+  // Swap the positions of two visual chips (the swap-mode chip↔chip target).
+  swap_buttons: function(index_a, index_b) {
+    var parts = this.visual_raw_blocks();
+    if(!parts) { return false; }
+    var n = parts.blocks.length;
+    if(index_a < 0 || index_b < 0 || index_a >= n || index_b >= n || index_a === index_b) { return false; }
+    var blocks = parts.blocks.slice();
+    var tmp = blocks[index_a];
+    blocks[index_a] = blocks[index_b];
+    blocks[index_b] = tmp;
+    this._commit_raw(blocks);
+    return true;
+  },
+  // Replace the visual chip at `visual_index` with a raw entry built directly
+  // from a board (editManager) button. SYNCHRONOUS + deterministic on purpose:
+  // the normal activate pipeline (application.js#activateButton) adds the word a
+  // runloop tick LATER (it waits on findContentLocally / a 300ms fallback), so
+  // doing the swap right after it would run on stale state — leaving the old chip
+  // in place and the new word inserted after it. Building the entry here mirrors
+  // the obj add_button receives; the image is refined asynchronously via the
+  // board button's loader (same as add_button). No speech — this is an edit.
+  replace_button: function(visual_index, board_button) {
+    var _this = this;
+    if(!board_button || !board_button.get) { return false; }
+    var parts = this.visual_raw_blocks();
+    if(!parts || visual_index < 0 || visual_index >= parts.blocks.length) { return false; }
+    var label = board_button.get('label');
+    var vocalization = board_button.get('vocalization');
+    // Specialty buttons (modifiers / inline actions / completions) need the full
+    // add_button pipeline to interpret their tokens — a hand-built raw entry
+    // would leave the literal token in the list. Refuse to replace with one.
+    if((vocalization || label || '').toString().match(/&&|:[a-zA-Z]|(^|\s)\+/)) { return false; }
+    var entry = {
+      label: label,
+      vocalization: vocalization,
+      image: board_button.get('image_url') || board_button.get('image') || board_button.get('original_image_url'),
+      button_id: board_button.get('id'),
+      part_of_speech: board_button.get('part_of_speech'),
+      sound: board_button.get('sound'),
+      type: 'speak'
+    };
+    // Capitalize when replacing the sentence-leading chip (add_button would).
+    if(visual_index === 0) {
+      if(entry.label) { entry.label = _this.capitalize(entry.label); }
+      if(entry.vocalization) { entry.vocalization = _this.capitalize(entry.vocalization); }
+    }
+    var blocks = [];
+    parts.blocks.forEach(function(block, idx) {
+      blocks.push(idx === visual_index ? [entry] : block);
+    });
+    this._commit_raw(blocks);
+    // Refine the image to the best local URL the same way add_button does — but
+    // only if we're still alive AND the entry is still in the list (the user may
+    // have cleared/edited again before the async resolved).
+    if(board_button.load_image) {
+      board_button.load_image('local').then(function(image) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if((_this.get('rawButtonList') || []).indexOf(entry) === -1) { return; }
+        image = image || board_button.get('image');
+        if(image && image.get) {
+          emberSet(entry, 'image', image.get('best_url'));
+          _this.set_button_list();
+        }
+      }, function() {});
+    }
+    return true;
+  },
   set_and_say_buttons: function(buttons) {
     this.set('rawButtonList', buttons);
     this.controller.vocalize();
