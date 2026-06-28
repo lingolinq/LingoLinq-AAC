@@ -2064,6 +2064,7 @@
   "sentence_bar_swap_cancelled": "*** Cancelled swap",
   "sentence_bar_swap_holding": "*** Holding %{word}. Tap another word to swap, or a board button to replace it.",
   "sentence_bar_swapped": "*** Swapped %{a} and %{b}",
+  "sentence_bar_replace_unavailable": "*** That word can't replace the held one — pick another, or cancel.",
   "==== lvl7 ============": "Below are all words for priority level 7 (this string does not need to be translated)",
   "no_valid_image_found": "有効な画像が見つかりません [[ No valid image found",
   "no_valid_sound_found": "有効なサウンドが見つかりません [[ No valid sound found",

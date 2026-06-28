@@ -8234,5 +8234,6 @@
   "sentence_bar_move_left": "*** Move left",
   "sentence_bar_remove": "*** Remove",
   "sentence_bar_move_right": "*** Move right",
-  "sentence_bar_swap": "*** Swap or replace"
+  "sentence_bar_swap": "*** Swap or replace",
+  "sentence_bar_replace_unavailable": "*** That word can't replace the held one — pick another, or cancel."
 }

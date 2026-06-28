@@ -6051,6 +6051,11 @@ export default Controller.extend(prefClasses, {
         if(swap_em && swap_em.get && utterance.replace_button(swap_src, swap_em)) {
           this._deselect_chip();
           this._announce_sentence_edit(i18n.t('sentence_bar_replaced', "Replaced word with %{word}", {word: swap_label}));
+        } else {
+          // Replace couldn't happen (button not resolvable / specialty / a
+          // condense-guarded utterance) — tell the user so the KEPT held state
+          // isn't a silent no-op; they can pick another word or cancel with ⇄/Esc.
+          this._announce_sentence_edit(i18n.t('sentence_bar_replace_unavailable', "That word can't replace the held one — pick another, or cancel."));
         }
         return;
       }

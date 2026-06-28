@@ -935,6 +935,7 @@
   "loading_home_page": "Loading Home Page...",
   "no_home_board_set": "No Home<br/>Board Set",
   "sentence_bar_replaced": "Replaced word with %{word}",
+  "sentence_bar_replace_unavailable": "That word can't replace the held one — pick another, or cancel.",
   "sentence_bar_removed": "Removed %{word}",
   "sentence_bar_moved": "Moved %{word} to %{pos} of %{total}",
   "sentence_bar_swap_cancelled": "Cancelled swap",
