@@ -24,17 +24,18 @@
         <p class="md-copying-board-loading__label">{{t "Loading..." key="loading"}}</p>
       </div>
     {{else if this.hierarchy}}
-      <p>{{t "Please choose the boards you would like copied. By default all are copied." key="choose_boards_to_copy"}}</p>
-      {{#if this.hierarchyRootOnlyWarning}}
-        <p class="text-warning">{{t "The saved linked board list could not be loaded, so this list was rebuilt from the board's folder links. All discovered linked boards are selected for copying." key="copy_hierarchy_live_links_warning"}}</p>
-      {{/if}}
-      {{board-hierarchy selectable=true hierarchy=this.hierarchy}}
-      {{#if this.hierarchyRootOnlyWarning}}
-        <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
-        <button class='btn btn-default' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
-      {{else}}
-        <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
-      {{/if}}
+      <p class="md-modal-hint">{{t "All linked boards will be copied. Open the list below only if you want to leave some out." key="copy_all_default_hint"}}</p>
+      <div class="md-modal-expander {{if this.show_board_picker "md-modal-expander--open"}}">
+        <button type="button" class="md-modal-expander__toggle" aria-expanded={{if this.show_board_picker "true" "false"}} {{action "toggle_board_picker"}}>
+          <svg class="md-modal-expander__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+          <span>{{t "Choose which boards to copy" key="choose_which_boards"}}</span>
+        </button>
+        {{#if this.show_board_picker}}
+          <div class="md-modal-expander__body">
+            {{board-hierarchy selectable=true hierarchy=this.hierarchy}}
+          </div>
+        {{/if}}
+      </div>
     {{else}}
       {{!-- In-progress copy state — same spinner pattern as the
            hierarchy-loading branch above, replacing the legacy
@@ -46,6 +47,14 @@
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">
-    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+    {{#if this.hierarchy}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      {{#if this.hierarchyRootOnlyWarning}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--secondary" {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
+      {{/if}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
+    {{else}}
+      <a href="#" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Close" key="close"}}</a>
+    {{/if}}
   </div>
 {{/modal-dialog}}

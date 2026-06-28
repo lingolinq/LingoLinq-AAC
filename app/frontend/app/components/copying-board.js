@@ -210,6 +210,11 @@ export default Component.extend({
     copy_all() {
       this.set('includeMissing', true);
       this.start_copying();
+    },
+    // The board picker is collapsed by default — every board is already selected,
+    // so opening it is an opt-in step for deselecting specific sub-boards.
+    toggle_board_picker() {
+      this.toggleProperty('show_board_picker');
     }
   }
 });

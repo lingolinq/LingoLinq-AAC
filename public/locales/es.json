@@ -8218,5 +8218,22 @@
   "pin_placeholder_4_digit": "*** 4-digit",
   "require_sidebar_edit_pin": "*** Require a PIN to edit the Sidebar",
   "pin_label": "*** PIN",
-  "pin_incomplete_warning": "*** Enter a 4-digit PIN, or this gate won't take effect."
+  "pin_incomplete_warning": "*** Enter a 4-digit PIN, or this gate won't take effect.",
+  "sentence_bar_replaced": "*** Replaced word with %{word}",
+  "sentence_bar_removed": "*** Removed %{word}",
+  "sentence_bar_moved": "*** Moved %{word} to %{pos} of %{total}",
+  "sentence_bar_swap_cancelled": "*** Cancelled swap",
+  "sentence_bar_swap_holding": "*** Holding %{word}. Tap another word to swap, or a board button to replace it.",
+  "sentence_bar_swapped": "*** Swapped %{a} and %{b}",
+  "sentence_bar_edit_word": "*** Edit word",
+  "sentence_bar_move_left": "*** Move left",
+  "sentence_bar_swap": "*** Swap or replace",
+  "sentence_bar_remove": "*** Remove",
+  "sentence_bar_move_right": "*** Move right",
+  "set_as_users_home_board": "*** Set as the User's Home Board",
+  "set_as_my_home_board": "*** Set as My Home Board",
+  "deselect_all": "*** Deselect All",
+  "copy_all_default_hint": "*** All linked boards will be copied. Open the list below only if you want to leave some out.",
+  "choose_which_boards": "*** Choose which boards to copy",
+  "copy_all_linked_selected": "*** All linked boards are selected for copying."
 }

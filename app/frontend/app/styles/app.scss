@@ -14233,15 +14233,15 @@ select.la-tag-board-input::-ms-expand,
 /* Tighter list rhythm for the recursive board hierarchy items. */
 .la-board-privacy-boards .board_hierarchy ul {
   list-style: none;
-  padding-left: 18px;
+  /* Indent comes from each node's content (depth padding), not the list, so
+     the checkboxes line up in one column here too. */
+  padding-left: 0;
   margin: 0;
 }
 .la-board-privacy-boards .board_hierarchy > ul {
   padding-left: 0;
 }
-.la-board-privacy-boards .board_hierarchy li {
-  display: flex;
-  align-items: center;
+.la-board-privacy-boards .board_hierarchy .recursive-board__row {
   padding: 4px 0;
   font-size: 14px;
   color: $brand-charcoal-dark;
@@ -16746,16 +16746,96 @@ form.row.subscription-form-with-cards {
   }
   ul {
     list-style-type: none;
-    li {
-      padding-top: 5px;
-      padding-bottom: 5px;
-      opacity: 0.7;
-      &.selected {
-        opacity: 1.0;
-      }
-    }
-    
+    /* No list indent — every row (and thus every checkbox) starts at the same
+       left edge. Hierarchy is shown by indenting each node's CONTENT by depth
+       (.recursive-board__content), so all checkboxes line up in one column. */
+    padding-left: 0;
+    margin: 0;
   }
+  .recursive-board__item {
+    padding: 0;
+    opacity: 0.65;
+    &.selected { opacity: 1; }
+  }
+  /* The row (checkbox + toggle + label) is its OWN flex line so the nested
+     <ul> stays a block below it — the checkbox/toggle/label line up while the
+     children indent normally. */
+  .recursive-board__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 15px;
+  }
+  /* The content (toggle + label) carries the depth indent via inline
+     padding-left, leaving the checkbox before it fixed in a single column. */
+  .recursive-board__content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  /* Fixed-width toggle column (chevron for folders, empty for leaves) so leaf
+     rows align with folder rows. */
+  .recursive-board__toggle {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7683;
+    text-decoration: none;
+  }
+  .recursive-board__chevron {
+    transition: transform 0.15s ease;
+  }
+  .recursive-board__chevron--open {
+    transform: rotate(90deg);
+  }
+  .recursive-board__label {
+    min-width: 0;
+    word-break: break-word;
+  }
+  /* Modern custom checkbox (verdigris fill) — same treatment the board-privacy
+     hierarchy already used, now shared by every board-hierarchy consumer. */
+  .recursive-board__check {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1.5px solid rgba($la-navy, 0.30);
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .recursive-board__check:hover { border-color: rgba($brand-verdigris, 0.55); }
+  .recursive-board__check:checked {
+    background: $brand-verdigris;
+    border-color: $brand-verdigris;
+  }
+  .recursive-board__check:checked::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    width: 5px;
+    height: 9px;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(45deg);
+  }
+  .recursive-board__check:focus-visible {
+    outline: 2px solid rgba($brand-verdigris, 0.5);
+    outline-offset: 1px;
+  }
+  .recursive-board__check:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
 span.hidden-xs {
@@ -66434,7 +66514,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   /* Height stretches to match the surrounding stacked button groups via the
      parent .md-board-detail-sentence-row's `align-items: stretch`. */
   min-height: 82px;
-  padding: 2px 10px;
+  /* Tighter 4px left padding so chips/words start closer to the bar's edge. */
+  padding: 2px 10px 2px 4px;
   border-radius: 18px;
   background: rgba(110, 122, 140, 0.32);
   backdrop-filter: blur(16px) saturate(1.4);
@@ -67026,6 +67107,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   height: 86px;
   align-self: flex-start;
   box-sizing: border-box;
+  /* Anchor for the absolute edit-controls overlay + smooth state transitions
+     (active-edit feature). Harmless when the feature is off. */
+  position: relative;
+  transition: box-shadow 0.16s ease, opacity 0.16s ease, transform 0.16s ease;
 }
 .md-board-detail-sentence-bar__chip-img {
   width: 50px;
@@ -67033,6 +67118,118 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   object-fit: contain;
   flex-shrink: 1;
   min-height: 0;
+}
+/* ----- Speak-bar chip ACTIVE EDIT (feature: sentence_bar_editing) ----- */
+.md-board-detail-sentence-bar__chip--editable {
+  cursor: pointer;
+}
+.md-board-detail-sentence-bar__chip--editable:focus-visible {
+  outline: 3px solid $brand-verdigris-aa;
+  outline-offset: 2px;
+}
+.md-board-detail-sentence-bar__chip--selected {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 2px $brand-verdigris-aa,
+    0 6px 18px rgba(27, 54, 93, 0.28);
+  /* Guarantee room for the two top + two bottom corner controls so they never
+     overlap on a narrow (text-only) chip. */
+  min-width: 58px;
+}
+.md-board-detail-sentence-bar__chip--swapping {
+  animation: bd-chip-swap-pulse 1.15s ease-in-out infinite;
+}
+@keyframes bd-chip-swap-pulse {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 3px rgba(240,168,48,0.95), 0 6px 18px rgba(27,54,93,0.28); }
+  50%      { box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 6px rgba(240,168,48,0.30), 0 6px 18px rgba(27,54,93,0.28); }
+}
+.md-board-detail-sentence-bar__chip--swap-target {
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 2px rgba(240, 168, 48, 0.55);
+}
+.md-board-detail-sentence-bar__chip--swap-target:hover,
+.md-board-detail-sentence-bar__chip--swap-target:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 3px #f0a830;
+}
+.md-board-detail-sentence-bar__chip--dragging {
+  opacity: 0.4;
+}
+.md-board-detail-sentence-bar__chip--drag-over {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    -4px 0 0 -1px $brand-verdigris-aa,
+    0 4px 14px rgba(27, 54, 93, 0.18);
+}
+/* Controls overlay — dim scrim + buttons that wrap to fit the chip width
+   (the ‹ › arrows hide at the ends, so 2-4 buttons total). */
+.md-board-detail-sentence-bar__chip-tools {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(16, 24, 33, 0.62);
+  backdrop-filter: blur(3px) saturate(120%);
+  -webkit-backdrop-filter: blur(3px) saturate(120%);
+  z-index: 6;
+}
+.md-board-detail-sentence-bar__chip-tool {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.14s ease, transform 0.14s ease;
+}
+/* Fixed 2x2 corner layout: ✕ delete top-right, ⇄ swap bottom-right,
+   ‹ move-left top-left, › move-right bottom-left. */
+.md-board-detail-sentence-bar__chip-tool--left   { top: 4px;    left: 4px; }
+.md-board-detail-sentence-bar__chip-tool--remove { top: 4px;    right: 4px; }
+.md-board-detail-sentence-bar__chip-tool--right  { bottom: 4px; left: 4px; }
+.md-board-detail-sentence-bar__chip-tool--swap   { bottom: 4px; right: 4px; }
+.md-board-detail-sentence-bar__chip-tool:hover {
+  background: rgba(255, 255, 255, 0.34);
+}
+.md-board-detail-sentence-bar__chip-tool:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+.md-board-detail-sentence-bar__chip-tool:active {
+  transform: scale(0.9);
+}
+.md-board-detail-sentence-bar__chip-tool svg {
+  width: 15px;
+  height: 15px;
+}
+.md-board-detail-sentence-bar__chip-tool--remove:hover {
+  background: rgba(225, 82, 65, 0.92);
+}
+.md-board-detail-sentence-bar__chip-tool--swap.is-active {
+  background: #f0a830;
+  color: #1b2330;
+}
+.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar__chip-tool,
+.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar__chip-tool {
+  width: 30px;
+  height: 30px;
+}
+.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar__chip-tool svg,
+.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar__chip-tool svg {
+  width: 18px;
+  height: 18px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-board-detail-sentence-bar__chip--swapping { animation: none; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 3px #f0a830, 0 6px 18px rgba(27,54,93,0.28); }
 }
 /* Dark-mode icon visibility lift — sentence-bar chip thumbs are mostly
    ARASAAC / OpenSymbols PNGs with dark line art on transparent. The
@@ -71623,6 +71820,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   height: 16px;
   color: $brand-verdigris-aa;
 }
+/* Dark mode: the pill's default navy label is unreadable on the dark sidebar,
+   so lift the Edit text to a light tone (the teal icon keeps its own accent). */
+.md-board-detail--dark .md-board-detail-inline-sidebar__edit-btn,
+.md-board-detail--dark .md-board-detail-inline-sidebar__edit-label {
+  color: rgba(255, 255, 255, 0.92);
+}
 /* On narrow screens (<=1024px) the sidebar is tight — collapse the Edit button to
    ICON ONLY: hide the "Edit" label and let the pill shrink to the icon. The
    button keeps its aria-label="Edit Sidebar", so its accessible name is intact. */
@@ -71707,6 +71910,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: $brand-slate-blue;
 }
 .md-board-detail--dark .md-sidebar-editor__hint { color: rgba(240, 244, 250, 0.72); }
+/* Dark mode: the add-list board names in the Edit Sidebar panel inherit a dark
+   tone — the My Boards overlay lights them via .md-board-collection__item, but
+   these rows wrap the name in .md-sidebar-editor__display instead, so it never
+   picks that up. Lift the names (and any plain display text) to light here. */
+.md-board-detail--dark .md-sidebar-editor__display,
+.md-board-detail--dark .md-sidebar-editor__row .md-board-collection__item-name {
+  color: rgba(255, 255, 255, 0.92);
+}
 /* Drag handle (grip) — the draggable affordance for reordering. */
 .md-sidebar-editor__grip {
   flex-shrink: 0;
@@ -78375,6 +78586,27 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 4px 14px rgba(0, 0, 0, 0.22);
 }
+/* Tour spotlight (dark mode): the "Your message" step targets the INNER __text,
+   which is transparent — so the white `.shepherd-target` glow follows the words
+   rather than the bar, leaving the dark glass pill looking un-highlighted while
+   only its contents pop. While that step is active, brighten the bar's glass +
+   add an inset sheen and a faint edge ring so the SPEAK BAR ITSELF reads as the
+   spotlit element. Medium tone keeps the light __text readable. */
+.md-board-detail--dark .md-board-detail-sentence-bar:has(.md-board-detail-sentence-bar__text.shepherd-target) {
+  background: linear-gradient(180deg, rgba(249, 251, 253, 0.98), rgba(240, 244, 249, 0.97));
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 0 0 1px rgba(214, 244, 240, 0.65),
+    0 4px 16px rgba(0, 0, 0, 0.26);
+}
+/* On the near-white spotlit bar, flip the (normally light) dark-mode text,
+   placeholder and chip labels to dark ink so they stay readable. */
+.md-board-detail--dark .md-board-detail-sentence-bar:has(.md-board-detail-sentence-bar__text.shepherd-target) .md-board-detail-sentence-bar__text,
+.md-board-detail--dark .md-board-detail-sentence-bar:has(.md-board-detail-sentence-bar__text.shepherd-target) .md-board-detail-sentence-bar__placeholder,
+.md-board-detail--dark .md-board-detail-sentence-bar:has(.md-board-detail-sentence-bar__text.shepherd-target) .md-board-detail-sentence-bar__chip-label {
+  color: rgba(40, 52, 74, 0.88);
+}
 .md-board-detail--dark .md-board-detail-sentence-bar__text {
   color: #e1e5eb;
 }
@@ -79676,6 +79908,67 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba($brand-slate-blue, 0.55) !important;
   cursor: not-allowed;
   box-shadow: none;
+}
+/* Modern modal disclosure/expander — a collapsed-by-default section (e.g. the
+   copy-board sub-board picker: everything is selected, so the picker is opt-in). */
+.md-modal-expander {
+  margin: 10px 0 6px;
+  border: 1px solid #e2e6ea;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.md-modal-expander__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  background: #f6f8fa;
+  color: $brand-charcoal-blue;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.md-modal-expander__toggle:hover {
+  background: #eef1f4;
+}
+.md-modal-expander__toggle:focus-visible {
+  outline: 2px solid $brand-verdigris-aa;
+  outline-offset: -2px;
+}
+.md-modal-expander__chevron {
+  flex-shrink: 0;
+  color: #6b7683;
+  transition: transform 0.18s ease;
+}
+.md-modal-expander--open .md-modal-expander__chevron {
+  transform: rotate(90deg);
+}
+.md-modal-expander__body {
+  padding: 10px 14px 12px;
+  border-top: 1px solid #e2e6ea;
+}
+/* board-hierarchy selectable toolbar (Select All / Deselect All / Expand / Collapse). */
+.md-hierarchy-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+.md-hierarchy-toolbar__link {
+  color: $brand-verdigris-aa;
+  font-weight: 600;
+  text-decoration: none;
+}
+.md-hierarchy-toolbar__link:hover {
+  text-decoration: underline;
+}
+.md-hierarchy-toolbar__sep {
+  color: #c2c9d1;
 }
 /* Inline spinner inside a modal button — appears next to the label
    while a network request is in flight (e.g. "Adding Goal…"). Uses
@@ -92082,6 +92375,11 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   position: relative;
   z-index: 1;
   flex: 1 1 0;
+  /* Icon + label centered together on one line. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   /* Compact: tighter segment padding (was 7px 10px). */
   padding: 4px 8px;
   border: none;
@@ -92092,6 +92390,11 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   color: rgba($la-navy, 0.55);
   cursor: pointer;
   transition: color 0.18s ease;
+}
+/* Light (sun) / Dark (moon) icon — inherits the option's currentColor, so it
+   dims when inactive and brightens with the active label automatically. */
+.md-board-edit-view-style__opt-icon {
+  flex-shrink: 0;
 }
 .md-board-edit-view-style__opt:hover:not(.md-board-edit-view-style__opt--active),
 .md-board-edit-view-style__opt:focus-visible:not(.md-board-edit-view-style__opt--active) {

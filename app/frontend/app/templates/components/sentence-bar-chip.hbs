@@ -1,0 +1,63 @@
+{{!-- One speak-bar chip. When editing is enabled the chip is focusable,
+      draggable, and keyboard-operable; when disabled it renders plainly and
+      clicks bubble up to the bar's whole-sentence speak handler. --}}
+<span
+  class="md-board-detail-sentence-bar__chip
+    {{if this.textOnTop "md-board-detail-sentence-bar__chip--text-top"}}
+    {{if this.editingEnabled "md-board-detail-sentence-bar__chip--editable"}}
+    {{if this.selected "md-board-detail-sentence-bar__chip--selected"}}
+    {{if this.swapSource "md-board-detail-sentence-bar__chip--swapping"}}
+    {{if this.is_swap_target "md-board-detail-sentence-bar__chip--swap-target"}}
+    {{if this.dragging "md-board-detail-sentence-bar__chip--dragging"}}
+    {{if this.drag_over "md-board-detail-sentence-bar__chip--drag-over"}}"
+  draggable={{if this.editingEnabled "true" "false"}}
+  tabindex={{if this.editingEnabled "0"}}
+  role={{if this.editingEnabled "button"}}
+  aria-pressed={{if this.editingEnabled (if this.swapSource "true" "false")}}
+  aria-label={{if this.editingEnabled this.part.label}}
+  {{on "click" (action "tap")}}
+  {{on "keydown" (action "keydown")}}
+  {{on "dragstart" (action "dragStart")}}
+  {{on "dragover" (action "dragOver")}}
+  {{on "dragleave" (action "dragLeave")}}
+  {{on "drop" (action "drop")}}
+  {{on "dragend" (action "dragEnd")}}
+>
+  {{#if this.textOnTop}}
+    <span class="md-board-detail-sentence-bar__chip-label">{{this.part.label}}</span>
+  {{/if}}
+  {{#if this.part.image_url}}
+    <img src={{this.part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
+  {{/if}}
+  {{#unless this.textOnTop}}
+    <span class="md-board-detail-sentence-bar__chip-label">{{this.part.label}}</span>
+  {{/unless}}
+
+  {{#if this.selected}}
+    <span class="md-board-detail-sentence-bar__chip-tools" role="group" aria-label={{t "Edit word" key='sentence_bar_edit_word'}}>
+      {{!-- Fixed corners: ‹ top-left, ✕ top-right, › bottom-left, ⇄ bottom-right
+           (positioned by their --left / --remove / --right / --swap classes). --}}
+      {{#if this.show_move_left}}
+        <button type="button" class="md-board-detail-sentence-bar__chip-tool md-board-detail-sentence-bar__chip-tool--left"
+          aria-label="{{t "Move left" key='sentence_bar_move_left'}} ({{this.part.label}})" {{on "click" (action "move" -1)}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      {{/if}}
+      <button type="button" class="md-board-detail-sentence-bar__chip-tool md-board-detail-sentence-bar__chip-tool--remove"
+        aria-label="{{t "Remove" key='sentence_bar_remove'}} ({{this.part.label}})" {{on "click" (action "remove")}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      {{#if this.show_move_right}}
+        <button type="button" class="md-board-detail-sentence-bar__chip-tool md-board-detail-sentence-bar__chip-tool--right"
+          aria-label="{{t "Move right" key='sentence_bar_move_right'}} ({{this.part.label}})" {{on "click" (action "move" 1)}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      {{/if}}
+      <button type="button" class="md-board-detail-sentence-bar__chip-tool md-board-detail-sentence-bar__chip-tool--swap {{if this.swapSource "is-active"}}"
+        aria-pressed={{if this.swapSource "true" "false"}}
+        aria-label="{{t "Swap or replace" key='sentence_bar_swap'}} ({{this.part.label}})" {{on "click" (action "toggleSwap")}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+    </span>
+  {{/if}}
+</span>
