@@ -83,7 +83,10 @@ export default Component.extend({
       emberSet(sup, 'currently_selected', sup.id == sel);
     });
   },
-  _sync_external_selection: observer('selection', 'users', function() {
+  // Only watch `selection` — the initial reflect after `users` is built is done
+  // by the explicit call in didInsertElement, so watching `users` here would just
+  // double-fire the loop on first render.
+  _sync_external_selection: observer('selection', function() {
     this._apply_external_selection();
   }),
   users_with_extras: computed('users', 'extra_users', 'extra_users.loading', 'extra_users.length', function() {
