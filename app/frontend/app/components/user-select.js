@@ -77,6 +77,9 @@ export default Component.extend({
   // Keep the highlighted button in sync with an externally-provided `selection`
   // (initial value or a later programmatic change). No-op when nothing is passed.
   _apply_external_selection: function() {
+    // The `selection` observer can fire during teardown if a bound parent prop
+    // changes as the modal closes — bail so we don't iterate on a destroyed view.
+    if(this.isDestroyed || this.isDestroying) { return; }
     var sel = this.get('selection');
     if(sel == null) { return; }
     (this.get('users') || []).forEach(function(sup) {
