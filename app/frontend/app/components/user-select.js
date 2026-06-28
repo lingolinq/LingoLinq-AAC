@@ -67,7 +67,31 @@ export default Component.extend({
       }
     }
     this.set('users', this.get('users') || supervisees);
+    // Reflect a pre-set `selection` (e.g. copy-board defaulting to "me") onto the
+    // per-user `currently_selected` flag the buttons template highlights on — the
+    // `select` action only sets that flag on click, so without this an initial
+    // selection rendered with no button highlighted.
+    this._apply_external_selection();
   },
+
+  // Keep the highlighted button in sync with an externally-provided `selection`
+  // (initial value or a later programmatic change). No-op when nothing is passed.
+  _apply_external_selection: function() {
+    // The `selection` observer can fire during teardown if a bound parent prop
+    // changes as the modal closes — bail so we don't iterate on a destroyed view.
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var sel = this.get('selection');
+    if(sel == null) { return; }
+    (this.get('users') || []).forEach(function(sup) {
+      emberSet(sup, 'currently_selected', sup.id == sel);
+    });
+  },
+  // Only watch `selection` — the initial reflect after `users` is built is done
+  // by the explicit call in didInsertElement, so watching `users` here would just
+  // double-fire the loop on first render.
+  _sync_external_selection: observer('selection', function() {
+    this._apply_external_selection();
+  }),
   users_with_extras: computed('users', 'extra_users', 'extra_users.loading', 'extra_users.length', function() {
     var _this = this;
     var res = [].concat(this.get('users') || []);

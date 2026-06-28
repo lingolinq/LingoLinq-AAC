@@ -33,9 +33,9 @@
         <Input @type="checkbox" @checked={{this.set_as_home}} class="md-modal-checkbox" />
         <span>
           {{#if this.has_supervisees}}
-            {{t "Set as the User's Home Board (required for offline syncing)" key="set_as_new_home_board_offline"}}
+            {{t "Set as the User's Home Board (optional)" key="set_as_users_home_board"}}
           {{else}}
-            {{t "Set as My Home Board (required for offline syncing)" key="set_as_new_home_board"}}
+            {{t "Set as My Home Board (optional)" key="set_as_my_home_board"}}
           {{/if}}
         </span>
       </label>

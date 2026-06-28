@@ -534,12 +534,14 @@
                   class="md-board-edit-view-style__opt {{unless this.dark_mode 'md-board-edit-view-style__opt--active'}}"
                   aria-pressed={{if this.dark_mode "false" "true"}}
                   {{on "click" (this.ctrlAction "set_dark_mode" false)}}>
+                  <svg class="md-board-edit-view-style__opt-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                   {{t "Light" key="board_detail_light_short"}}
                 </button>
                 <button type="button"
                   class="md-board-edit-view-style__opt {{if this.dark_mode 'md-board-edit-view-style__opt--active'}}"
                   aria-pressed={{if this.dark_mode "true" "false"}}
                   {{on "click" (this.ctrlAction "set_dark_mode" true)}}>
+                  <svg class="md-board-edit-view-style__opt-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                   {{t "Dark" key="board_detail_dark_short"}}
                 </button>
               </div>
@@ -678,19 +680,25 @@
              duplicate "Speak sentence" tab stop). --}}
         <div class="md-board-detail-sentence-bar__text {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
           {{#if this.has_sentence}}
-            {{#if this.utterance_show_symbols}}
-              {{#each this.sentence_parts as |part|}}
-                <span class="md-board-detail-sentence-bar__chip {{if this.utterance_text_on_top "md-board-detail-sentence-bar__chip--text-top"}}">
-                  {{#if this.utterance_text_on_top}}
-                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
-                  {{/if}}
-                  {{#if part.image_url}}
-                    <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
-                  {{/if}}
-                  {{#unless this.utterance_text_on_top}}
-                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
-                  {{/unless}}
-                </span>
+            {{#if (or this.utterance_show_symbols this.sentence_bar_editing_enabled)}}
+              {{#each this.sentence_parts as |part index|}}
+                <SentenceBarChip
+                  @part={{part}}
+                  @index={{index}}
+                  @total={{this.sentence_parts.length}}
+                  @editingEnabled={{this.sentence_bar_editing_enabled}}
+                  @selected={{is-equal this.selected_chip_index index}}
+                  @swapSource={{is-equal this.swap_source_index index}}
+                  @swapActive={{this.chip_swap_active}}
+                  @textOnTop={{this.utterance_text_on_top}}
+                  @showSymbols={{this.utterance_show_symbols}}
+                  @onSelect={{action "select_chip"}}
+                  @onRemove={{action "remove_chip"}}
+                  @onMove={{action "move_chip"}}
+                  @onToggleSwap={{action "toggle_chip_swap"}}
+                  @onSwapTarget={{action "chip_swap_target"}}
+                  @onDragMove={{action "chip_drag_move"}}
+                  @onCancel={{action "cancel_chip_edit"}} />
               {{/each}}
             {{else}}
               {{this.sentence_text}}
@@ -718,6 +726,11 @@
             <span class="md-board-detail-sentence-bar__placeholder">{{t "Tap symbols to build your message" key="board_detail_tap_symbols"}}</span>
           {{/if}}
         </div>
+        {{!-- Screen-reader announcements for speak-bar edits (remove / move /
+             swap / replace) — visually hidden, polite so it never steals focus. --}}
+        {{#if this.sentence_bar_editing_enabled}}
+          <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{this.sentence_edit_announcement}}</div>
+        {{/if}}
         <div class="md-board-detail-sentence-bar__actions">
           {{!-- Inline mic = the primary, keyboard/SR-accessible speak control.
                Tapping the sentence-bar text above also speaks (a bonus

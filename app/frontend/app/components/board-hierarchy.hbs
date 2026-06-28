@@ -1,8 +1,12 @@
 <div style='width: 100%; overflow-x: auto;'>
   {{#if this.selectable}}
-    <a href="#" {{on "click" (this.ctrlAction "select_all")}}>{{t "Select All" key="select_all"}}</a> |
-    <a href="#" {{on "click" (this.ctrlAction "toggle_board_hierarchy" "all" true)}}>{{t "Expand All" key="expand_all"}}</a> |
-    <a href="#" {{on "click" (this.ctrlAction "toggle_board_hierarchy" "all" false)}}>{{t "Collapse All" key="collapse_all"}}</a>
+    <div class="md-hierarchy-toolbar">
+      <a href="#" class="md-hierarchy-toolbar__link" {{on "click" (this.ctrlAction "select_all" true)}}>{{t "Select All" key="select_all"}}</a>
+      <a href="#" class="md-hierarchy-toolbar__link" {{on "click" (this.ctrlAction "select_all" false)}}>{{t "Deselect All" key="deselect_all"}}</a>
+      <span class="md-hierarchy-toolbar__sep" aria-hidden="true">|</span>
+      <a href="#" class="md-hierarchy-toolbar__link" {{on "click" (this.ctrlAction "toggle_board_hierarchy" "all" true)}}>{{t "Expand All" key="expand_all"}}</a>
+      <a href="#" class="md-hierarchy-toolbar__link" {{on "click" (this.ctrlAction "toggle_board_hierarchy" "all" false)}}>{{t "Collapse All" key="collapse_all"}}</a>
+    </div>
   {{/if}}
   {{#if this.hierarchy.boards_missing}}
     {{#if this.hierarchy.boards_meta_missing}}
@@ -21,7 +25,7 @@
     {{#if board}}
       <div class="board_hierarchy" style='margin-top: 10px;'>
         <ul>
-          <RecursiveBoard @board={{board}} @selectable={{this.selectable}} @toggleBoardHierarchy={{this.ctrlAction "toggle_board_hierarchy"}} />
+          <RecursiveBoard @board={{board}} @depth={{0}} @selectable={{this.selectable}} @toggleBoardHierarchy={{this.ctrlAction "toggle_board_hierarchy"}} />
         </ul>
       </div>
     {{/if}}

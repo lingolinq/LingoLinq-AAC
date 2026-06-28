@@ -28,7 +28,8 @@ module FeatureFlags
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
-              'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar']
+              'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
+              'sentence_bar_editing']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -45,7 +46,8 @@ module FeatureFlags
               'background_board_prefetch',
               'signup_default_library_boards', 'english_first_board_generation',
               'dashboard_drag_layout', # TEMPORARY (2026-06-09): ON for everyone pre-production so the Getting Started drag-to-swap home layout can be validated. REMOVE from this list before production — canonical state is AVAILABLE-only (beta opt-in per user).
-              'edit_sidebar'] # TEMPORARY (2026-06-25): ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
+              'edit_sidebar', # TEMPORARY (2026-06-25): ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
+              'sentence_bar_editing'] # TEMPORARY (2026-06-27): ON for everyone so the speak-bar active-edit controls (remove + reorder chips) can be validated in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
