@@ -836,13 +836,21 @@ export default Controller.extend(prefClasses, {
     return list;
   },
 
+  // Cache key for a carried-forward chip image. Board buttons key by their stable
+  // button_id so two same-label buttons with DIFFERENT symbols can't cross-
+  // contaminate; typed/predicted words (no real button_id → 'utt-N') fall back to
+  // the label (same word → same image, which is correct).
+  _chip_image_key: function(id, label) {
+    return (id && String(id).indexOf('utt-') !== 0) ? ('b:' + id) : ('l:' + (label || '').toLowerCase());
+  },
   _apply_sentence_chip_image: function(part, img) {
     if(!part || !img) { return false; }
-    // Cache by label so the full-mirror sync carries this resolved image forward
-    // across rebuilds/reorders (raw_index isn't stable; label is).
+    // Carry this resolved image forward across rebuilds/reorders (raw_index isn't
+    // stable). Keyed by button_id when present so it can't leak to a different
+    // same-label button.
     if(part.label) {
       if(!this._resolved_label_images) { this._resolved_label_images = {}; }
-      this._resolved_label_images[part.label.toLowerCase()] = img;
+      this._resolved_label_images[this._chip_image_key(part.id, part.label)] = img;
     }
     var current = (this.get('sentence_parts') || []).slice();
     var idx = current.findIndex(function(p) {
@@ -907,7 +915,7 @@ export default Controller.extend(prefClasses, {
     var label_images = this._resolved_label_images;
     old_parts.forEach(function(p) {
       if(p && p.label && p.image_url && !p.in_progress) {
-        label_images[p.label.toLowerCase()] = p.image_url;
+        label_images[_this._chip_image_key(p.id, p.label)] = p.image_url;
       }
     });
     var parts = [];
@@ -941,7 +949,7 @@ export default Controller.extend(prefClasses, {
         // Carry forward a previously-resolved image (async lookup, or a value
         // resolved before a reorder/swap shuffled raw_index) so it doesn't flicker.
         if(!image_url) {
-          image_url = label_images[label.toLowerCase()] || null;
+          image_url = label_images[_this._chip_image_key(emberGet(b, 'button_id'), label)] || null;
         }
       }
       parts.push({
