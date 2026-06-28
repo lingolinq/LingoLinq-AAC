@@ -14,6 +14,10 @@ export default Component.extend({
   appState: service('app-state'),
   tagName: '',
 
+  // Collapsed by default — the board picker is an opt-in disclosure (all boards
+  // are already selected). Explicit so aria-expanded reads "false" from the start.
+  show_board_picker: false,
+
   init() {
     this._super(...arguments);
     const modalService = this.get('modal');
