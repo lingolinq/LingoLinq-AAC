@@ -955,6 +955,12 @@ export default Controller.extend(prefClasses, {
     if(!_this._sentence_parts_equal(old_parts, parts)) {
       this.set('sentence_parts', parts);
     }
+    // If the list shrank (e.g. async button_list churn — image/suggestion
+    // resolution, a condense rule, a modeling session) a held/selected chip index
+    // can dangle past the end; clear it so an edit can't act on a stale index.
+    var n = parts.length;
+    if(this.get('selected_chip_index') != null && this.get('selected_chip_index') >= n) { this.set('selected_chip_index', null); }
+    if(this.get('swap_source_index') != null && this.get('swap_source_index') >= n) { this.set('swap_source_index', null); }
     this._resolve_missing_sentence_images();
   },
 
@@ -6021,6 +6027,19 @@ export default Controller.extend(prefClasses, {
       var isEmpty = _get(button, 'empty') || !(_get(button, 'label') || _get(button, 'image_id') || _get(button, 'vocalization'));
       if(isEmpty) { return; }
 
+      // Swap mode: a held chip is REPLACED by any tapped board button — handled
+      // BEFORE folder navigation (synchronously), and the held state is always
+      // cleared so it can never leak onto a navigated-to board.
+      if(this.get('sentence_bar_editing_enabled') && this.get('swap_source_index') != null) {
+        var swap_em = editManager.find_button(this._btn_id(button));
+        var swap_src = this.get('swap_source_index');
+        var swap_label = _get(button, 'label') || _get(button, 'vocalization') || '';
+        var swapped = (swap_em && swap_em.get) ? utterance.replace_button(swap_src, swap_em) : false;
+        this._deselect_chip();
+        if(swapped) { this._announce_sentence_edit(i18n.t('sentence_bar_replaced', "Replaced word with %{word}", {word: swap_label})); }
+        return;
+      }
+
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(button, 'load_board');
       if(load_board && !_get(button, 'link_disabled')) {
@@ -6089,17 +6108,7 @@ export default Controller.extend(prefClasses, {
       var board = _this.get('model');
       var em_button = editManager.find_button(btn_id);
       var has_em = em_button && em_button.get && typeof em_button.get === 'function';
-      // Swap mode: a tapped board button REPLACES the held chip — done SYNCHRONOUSLY
-      // (the activate pipeline below adds asynchronously, which would leave the old
-      // chip in place and drop the new word after it).
-      if(this.get('sentence_bar_editing_enabled') && this.get('swap_source_index') != null && has_em) {
-        var src = this.get('swap_source_index');
-        var replaced_label = _get(button, 'label') || _get(button, 'vocalization') || '';
-        var did_replace = utterance.replace_button(src, em_button);
-        this._deselect_chip();
-        if(did_replace) { this._announce_sentence_edit(i18n.t('sentence_bar_replaced', "Replaced word with %{word}", {word: replaced_label})); }
-        return;
-      }
+      // (Swap-mode replace is handled earlier, before folder navigation.)
       if(has_em && appController && appController.activateButton && board) {
         appController.activateButton(em_button, { board: board, trigger_source: 'click' });
       } else {

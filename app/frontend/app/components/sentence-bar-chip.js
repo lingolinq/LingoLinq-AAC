@@ -65,6 +65,11 @@ export default Component.extend({
 
     keydown(event) {
       if(!this.get('editingEnabled')) { return; }
+      // Keydown on a tool button (✕ / ‹ / › / ⇄) bubbles up to this chip-level
+      // handler; let the button's own click handle it and don't double-fire the
+      // chip's select/swap (which broke keyboard swap mode).
+      if(event && event.target && event.target.closest &&
+         event.target.closest('.md-board-detail-sentence-bar__chip-tool')) { return; }
       var key = event.key;
       if(key === 'Enter' || key === ' ' || key === 'Spacebar') {
         event.stopPropagation(); event.preventDefault();

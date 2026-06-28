@@ -16729,17 +16729,6 @@ form.row.subscription-form-with-cards {
   font-size: 18px;
 }
 
-.caret-right {
-  border-bottom: 4px solid transparent;
-  border-top: 4px solid transparent;
-  border-left: 4px solid;
-  display: inline-block;
-  height: 0;
-  vertical-align: middle;
-  width: 0;
-  margin-right: 4px;
-  margin-left: 2px;
-}
 .board_hierarchy {
   > ul {
     padding-left: 0;
@@ -67227,6 +67216,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar__chip-tool svg {
   width: 18px;
   height: 18px;
+}
+/* The 30px corner buttons need ~68px of width; a text-only (image-less) chip can
+   collapse below that, so widen the selected floor at these sizes to keep the
+   top-left/top-right (and bottom) pairs from overlapping. */
+.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar__chip--selected,
+.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar__chip--selected {
+  min-width: 72px;
 }
 @media (prefers-reduced-motion: reduce) {
   .md-board-detail-sentence-bar__chip--swapping { animation: none; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 3px #f0a830, 0 6px 18px rgba(27,54,93,0.28); }

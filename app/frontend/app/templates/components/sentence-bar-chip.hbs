@@ -26,7 +26,7 @@
   {{#if this.textOnTop}}
     <span class="md-board-detail-sentence-bar__chip-label">{{this.part.label}}</span>
   {{/if}}
-  {{#if this.part.image_url}}
+  {{#if (and this.showSymbols this.part.image_url)}}
     <img src={{this.part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
   {{/if}}
   {{#unless this.textOnTop}}

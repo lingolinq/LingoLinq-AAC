@@ -974,6 +974,11 @@ var utterance = EmberObject.extend({
     });
     var raw = this.get('rawButtonList') || [];
     if(!visual.length || !raw.length) { return null; }
+    // Grammar "condense" rules drop entries from the VISUAL list while leaving
+    // them in rawButtonList, so a chip's block would absorb an orphaned raw
+    // entry the monotonic check below can't see. Bail (the edit no-ops rather
+    // than corrupting the utterance).
+    if(raw.some(function(b) { return b && emberGet(b, 'condense_items'); })) { return null; }
     var bounds = [];
     for(var i = 0; i < visual.length; i++) {
       var ri = emberGet(visual[i], 'raw_index');
@@ -981,6 +986,9 @@ var utterance = EmberObject.extend({
       if(i > 0 && ri <= bounds[i - 1]) { return null; }
       bounds.push(ri);
     }
+    // The first chip must own rawButtonList[0]; a non-zero start means leading
+    // raw entries belong to no chip (e.g. a condensed-away first word).
+    if(bounds[0] !== 0) { return null; }
     var blocks = [];
     for(var k = 0; k < visual.length; k++) {
       var start = bounds[k];
@@ -1069,23 +1077,38 @@ var utterance = EmberObject.extend({
     if(!board_button || !board_button.get) { return false; }
     var parts = this.visual_raw_blocks();
     if(!parts || visual_index < 0 || visual_index >= parts.blocks.length) { return false; }
+    var label = board_button.get('label');
+    var vocalization = board_button.get('vocalization');
+    // Specialty buttons (modifiers / inline actions / completions) need the full
+    // add_button pipeline to interpret their tokens — a hand-built raw entry
+    // would leave the literal token in the list. Refuse to replace with one.
+    if((vocalization || label || '').toString().match(/&&|:[a-zA-Z]|(^|\s)\+/)) { return false; }
     var entry = {
-      label: board_button.get('label'),
-      vocalization: board_button.get('vocalization'),
+      label: label,
+      vocalization: vocalization,
       image: board_button.get('image_url') || board_button.get('image') || board_button.get('original_image_url'),
       button_id: board_button.get('id'),
       part_of_speech: board_button.get('part_of_speech'),
       sound: board_button.get('sound'),
       type: 'speak'
     };
+    // Capitalize when replacing the sentence-leading chip (add_button would).
+    if(visual_index === 0) {
+      if(entry.label) { entry.label = _this.capitalize(entry.label); }
+      if(entry.vocalization) { entry.vocalization = _this.capitalize(entry.vocalization); }
+    }
     var blocks = [];
     parts.blocks.forEach(function(block, idx) {
       blocks.push(idx === visual_index ? [entry] : block);
     });
     this._commit_raw(blocks);
-    // Refine the image to the best local URL the same way add_button does.
+    // Refine the image to the best local URL the same way add_button does — but
+    // only if we're still alive AND the entry is still in the list (the user may
+    // have cleared/edited again before the async resolved).
     if(board_button.load_image) {
       board_button.load_image('local').then(function(image) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if((_this.get('rawButtonList') || []).indexOf(entry) === -1) { return; }
         image = image || board_button.get('image');
         if(image && image.get) {
           emberSet(entry, 'image', image.get('best_url'));
