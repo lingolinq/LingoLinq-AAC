@@ -63,14 +63,19 @@ SET_GH_VARS="${SET_GH_VARS:-0}"
 MELISSA_EMAIL="${MELISSA_EMAIL:-}"
 DOMINIC_EMAIL="${DOMINIC_EMAIL:-}"
 
-# The 9 boot secrets the web service, worker pool, AND migration Job all need (PR #349).
+# The boot secrets the web service, worker pool, AND migration Job all need (PR #349).
 # Created here as EMPTY containers; values are seeded by hand from 1Password in Phase 2/3.
+# DB connection uses discrete params (DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD), NOT a DATABASE_URL:
+# the Cloud SQL socket-form URL has an empty host that uri >= 1.0 rejects at boot.
 BOOT_SECRETS=(
   SECRET_KEY_BASE
   COOKIE_KEY
   SECURE_ENCRYPTION_KEY
   SECURE_NONCE_KEY
-  DATABASE_URL
+  DB_HOST
+  DB_NAME
+  DB_USERNAME
+  DB_PASSWORD
   REDIS_URL
   DEFAULT_HOST
   DEFAULT_EMAIL_FROM

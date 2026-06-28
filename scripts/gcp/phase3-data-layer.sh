@@ -284,16 +284,16 @@ if [ "$CONFIRM_SQL" = "1" ]; then
 
   SEED_DB_SECRET=0
   if [ "$USER_EXISTS" -eq 1 ] && [ "$ROTATE_DB_PASSWORD" != "1" ]; then
-    # Re-run, user already provisioned: do NOT touch the password or the DATABASE_URL secret.
+    # Re-run, user already provisioned: do NOT touch the password or the DB_PASSWORD secret.
     # Rotating it would desync already-running Cloud Run instances holding the old value until
     # they redeploy. Pass ROTATE_DB_PASSWORD=1 to force a rotation (then redeploy web+worker).
-    skip "DB user $APP_DB_USER exists; leaving password + $SECRET_DATABASE_URL unchanged (ROTATE_DB_PASSWORD=1 to rotate)"
+    skip "DB user $APP_DB_USER exists; leaving password + DB_PASSWORD secret unchanged (ROTATE_DB_PASSWORD=1 to rotate)"
   else
     # First provisioning, or an explicit rotation. Generate a strong password unless supplied.
     APP_DB_PASSWORD="${APP_DB_PASSWORD:-$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-32)}"
     if [ "$USER_EXISTS" -eq 1 ]; then
       gcloud sql users set-password "$APP_DB_USER" --instance="$SQL_INSTANCE" --project="$PROJECT_ID" --password="$APP_DB_PASSWORD" >/dev/null
-      log "ROTATED password for existing DB user $APP_DB_USER -- redeploy web + worker so they pick up the new DATABASE_URL"
+      log "ROTATED password for existing DB user $APP_DB_USER -- redeploy web + worker so they pick up the new DB_PASSWORD"
     else
       gcloud sql users create "$APP_DB_USER" --instance="$SQL_INSTANCE" --project="$PROJECT_ID" --password="$APP_DB_PASSWORD" >/dev/null
     fi
@@ -306,23 +306,23 @@ if [ "$CONFIRM_SQL" = "1" ]; then
     --role=roles/cloudsql.client --condition=None --quiet >/dev/null
 
   if [ "$SEED_DB_SECRET" -eq 1 ]; then
-    log "Step 2d: seed $SECRET_DATABASE_URL secret (socket DSN for the built-in proxy)"
-    # config/database.yml production reads `url: ENV['DATABASE_URL']`. The socket DSN
-    #   postgres://USER:PASS@/DB?host=/cloudsql/CONN
-    # is Google's documented Rails-on-Cloud-Run form: Rails' UrlConfig passes the `host`
-    # query param through to the pg adapter, and libpq ignores sslmode for Unix-socket
-    # connections (so the production stanza's `sslmode: require` is a no-op over the socket).
-    # Reject an operator-supplied password containing URL-reserved chars so the DSN cannot be
-    # silently corrupted (the generated password already excludes / + =).
-    case "$APP_DB_PASSWORD" in
-      *[/+=@:?\#\&]*) echo "ERROR: APP_DB_PASSWORD contains a URL-reserved char; use one without / + = @ : ? # &" >&2; exit 1 ;;
-    esac
-    DB_URL="postgres://${APP_DB_USER}:${APP_DB_PASSWORD}@/${APP_DB_NAME}?host=/cloudsql/${CONNECTION_NAME}"
-    gcloud secrets describe "$SECRET_DATABASE_URL" --project="$PROJECT_ID" >/dev/null 2>&1 \
-      || { echo "ERROR: secret $SECRET_DATABASE_URL not found; it should have been created EMPTY in Phase 1." >&2; exit 1; }
-    printf '%s' "$DB_URL" | gcloud secrets versions add "$SECRET_DATABASE_URL" --project="$PROJECT_ID" --data-file=- >/dev/null
-    echo "    new version added to secret $SECRET_DATABASE_URL (value not shown)"
-    unset DB_URL
+    log "Step 2d: seed discrete DB_* secrets (app connects via config/database.yml discrete params)"
+    # config/database.yml production builds the connection from discrete env vars when DATABASE_URL is
+    # absent: DB_HOST is the Cloud SQL unix-socket dir, DB_NAME/DB_USERNAME/DB_PASSWORD the creds,
+    # DB_SSLMODE defaults to 'disable'. We deliberately do NOT seed a socket-form DATABASE_URL: its
+    # empty host (postgres://USER:PASS@/DB?host=/cloudsql/CONN) is rejected by uri >= 1.0 at boot
+    # (URI::InvalidURIError), which would fail every Rails boot path. No URL-encoding concerns apply
+    # to discrete params, so an operator-supplied password needs no reserved-char restriction.
+    seed_secret() {  # $1=secret name, $2=value
+      gcloud secrets describe "$1" --project="$PROJECT_ID" >/dev/null 2>&1 \
+        || { echo "ERROR: secret $1 not found; it should have been created EMPTY in Phase 1." >&2; exit 1; }
+      printf '%s' "$2" | gcloud secrets versions add "$1" --project="$PROJECT_ID" --data-file=- >/dev/null
+      echo "    new version added to secret $1 (value not shown)"
+    }
+    seed_secret DB_HOST     "/cloudsql/${CONNECTION_NAME}"
+    seed_secret DB_NAME     "${APP_DB_NAME}"
+    seed_secret DB_USERNAME "${APP_DB_USER}"
+    seed_secret DB_PASSWORD "${APP_DB_PASSWORD}"
   fi
   unset APP_DB_PASSWORD
   # Restore xtrace if the operator had it on.

@@ -25,16 +25,22 @@ production:
     # rejects at boot (URI::InvalidURIError), failing every Rails boot path. So when DATABASE_URL is
     # absent we configure the connection from discrete env vars instead of a URL. Render still sets
     # DATABASE_URL and keeps the url path unchanged.
-    <%- if ENV['DATABASE_URL'].to_s.strip.empty? && ENV['LEADER_POSTGRES_URL'].to_s.strip.empty? -%>
+    # NOTE: uses plain ERB conditionals (no dash-trim markers) because Rails renders this file with
+    # ERB.new(content) and NO trim_mode; dash-trim markers would raise SyntaxError at boot. The
+    # control tags sit at column 0 (same as the replica block below) so they render to blank lines
+    # that YAML ignores.
+    # NOTE: sslmode is inert over a unix socket (libpq ignores it); in-transit encryption to Cloud SQL
+    # is provided by the Cloud SQL connector behind --set-cloudsql-instances, not by this value.
+<% if ENV['DATABASE_URL'].to_s.strip.empty? && ENV['LEADER_POSTGRES_URL'].to_s.strip.empty? %>
     host: <%= ENV['DB_HOST'] %>
     database: <%= ENV['DB_NAME'] %>
     username: <%= ENV['DB_USERNAME'] %>
     password: <%= ENV['DB_PASSWORD'] %>
     sslmode: <%= ENV['DB_SSLMODE'] || 'disable' %>
-    <%- else -%>
+<% else %>
     url: <%= ENV['DATABASE_URL'] || ENV['LEADER_POSTGRES_URL'] %>
     sslmode: require
-    <%- end -%>
+<% end %>
     pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
     timeout: 5000
 <% if false %>
