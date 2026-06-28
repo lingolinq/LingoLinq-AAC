@@ -6036,15 +6036,19 @@ export default Controller.extend(prefClasses, {
       if(isEmpty) { return; }
 
       // Swap mode: a held chip is REPLACED by any tapped board button — handled
-      // BEFORE folder navigation (synchronously), and the held state is always
-      // cleared so it can never leak onto a navigated-to board.
+      // synchronously BEFORE folder navigation. On a SUCCESSFUL replace the held
+      // state clears + announces; on failure (button not resolvable / specialty /
+      // a condense-guarded utterance) the held state is KEPT so the user can pick a
+      // different target. Either way the tap is swallowed (never navigates/speaks
+      // mid-swap).
       if(this.get('sentence_bar_editing_enabled') && this.get('swap_source_index') != null) {
         var swap_em = editManager.find_button(this._btn_id(button));
         var swap_src = this.get('swap_source_index');
         var swap_label = _get(button, 'label') || _get(button, 'vocalization') || '';
-        var swapped = (swap_em && swap_em.get) ? utterance.replace_button(swap_src, swap_em) : false;
-        this._deselect_chip();
-        if(swapped) { this._announce_sentence_edit(i18n.t('sentence_bar_replaced', "Replaced word with %{word}", {word: swap_label})); }
+        if(swap_em && swap_em.get && utterance.replace_button(swap_src, swap_em)) {
+          this._deselect_chip();
+          this._announce_sentence_edit(i18n.t('sentence_bar_replaced', "Replaced word with %{word}", {word: swap_label}));
+        }
         return;
       }
 
@@ -6246,6 +6250,7 @@ export default Controller.extend(prefClasses, {
       this.set('sentence_parts', []);
       this._sentence_image_lookups = {};
       this._suggestion_image_lookups = {};
+      this._resolved_label_images = {};
       try { utterance.clear(); } catch(e) { }
     },
 
