@@ -52,9 +52,14 @@ RUNTIME_SA="${RUNTIME_SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 OP_AWS_VAULT="${OP_AWS_VAULT:-LingoLinq Prod}"
 OP_AWS_ITEM="${OP_AWS_ITEM:-AWS Cloud Run}"
 
-# The 16 secrets sourced from live Render prod (exact running bytes).
+# The 15 secrets sourced from live Render prod (exact running bytes).
+# NOTE: MAPS_KEY is intentionally NOT here. It is a CLIENT-PUBLIC key emitted into the browser via
+# app/assets/javascripts/globals.js.erb at `rake assets:precompile` (BUILD time), not read by any
+# runtime server code -- so a runtime Secret Manager mount would never reach the browser. It must be
+# passed as a Docker build ARG for Maps client features to work on GCP. Tracked as a pre-cutover gate
+# (Maps is not in the clean-DB rehearsal smoke path). See the PR / iam README. (Adversary 4.E1, M2.)
 RENDER_SECRETS=(
-  GOOGLE_TTS_TOKEN GOOGLE_PLACES_TOKEN GOOGLE_TRANSLATE_TOKEN MAPS_KEY
+  GOOGLE_TTS_TOKEN GOOGLE_PLACES_TOKEN GOOGLE_TRANSLATE_TOKEN
   GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET STRIPE_SECRET_KEY
   ANTHROPIC_API_KEY GEMINI_API_KEY SENTRY_DSN SMS_ENCRYPTION_KEY
   INTERNAL_API_TOKEN CACHE_TOKEN OPENSYMBOLS_SECRET IPLOCATE_API_KEY YOUTUBE_API_KEY
@@ -85,18 +90,30 @@ warn() { printf '    \033[1;33m[warn]\033[0m %s\n' "$*"; }
 gate() { printf '\n\033[1;31m[GATE]\033[0m %s\n' "$*"; }
 
 # ---- arg parsing -----------------------------------------------------------------------------
-MODE="plan"; ONLY=""
+MODE="plan"; ONLY=""; ALLOW_RENDER_ABSENT=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --verify)      MODE="verify" ;;
-    --xcheck)      MODE="xcheck" ;;
-    --only)        ONLY="${2:-}"; shift ;;
-    --only=*)      ONLY="${1#--only=}" ;;
-    *) echo "usage: $0 [--verify | --xcheck] [--only K1,K2]   (set CONFIRM_SEED_SECRETS=1 to seed)" >&2; exit 2 ;;
+    --verify)              MODE="verify" ;;
+    --xcheck)              MODE="xcheck" ;;
+    --only)                ONLY="${2:-}"; shift ;;
+    --only=*)              ONLY="${1#--only=}" ;;
+    --allow-render-absent) ALLOW_RENDER_ABSENT=1 ;;
+    *) echo "usage: $0 [--verify | --xcheck] [--only K1,K2] [--allow-render-absent]   (CONFIRM_SEED_SECRETS=1 to seed)" >&2; exit 2 ;;
   esac
   shift
 done
 [ "$MODE" = "plan" ] && [ "$CONFIRM_SEED_SECRETS" = "1" ] && MODE="seed"
+
+# Validate every --only token against the known names: a typo (e.g. AWS_SECRETT) must HARD-FAIL, not
+# silently filter to an empty set and report "complete" having written nothing. (Adversary 4.E1, L5.)
+if [ -n "$ONLY" ]; then
+  KNOWN=" ${RENDER_SECRETS[*]} ${AWS_SECRETS[*]} "
+  IFS=',' read -ra _only_toks <<< "$ONLY"
+  for t in "${_only_toks[@]}"; do
+    [ -z "$t" ] && continue
+    case "$KNOWN" in *" $t "*) : ;; *) echo "ERROR: --only token '$t' is not a known app secret name." >&2; exit 2 ;; esac
+  done
+fi
 
 # Build the working set, honoring --only.
 selected() {
@@ -240,12 +257,23 @@ if [ "${#SEL_AWS[@]}" -gt 0 ]; then
     fi
     H1P="$(sha "$V1P")"
     VR="$(render_value "$NAME")" || true
-    if [ -n "$VR" ] && [ "$(sha "$VR")" = "$H1P" ]; then
+    if [ -z "$VR" ]; then
+      # Absent on Render is INCONCLUSIVE, not a pass: we cannot prove the 1Password value isn't the
+      # old broad key. Require an explicit override before seeding. (Adversary 4.E1, L4.)
+      if [ "$ALLOW_RENDER_ABSENT" != "1" ]; then
+        echo "STOP: $NAME has no same-named value on Render to compare against, so the 'differs from the" >&2
+        echo "      old broad key' guarantee cannot be checked. If you are certain 1Password holds the NEW" >&2
+        echo "      least-priv key, re-run with --allow-render-absent. See scripts/gcp/iam/README.md." >&2
+        unset V1P H1P VR; [ "${XWAS:-0}" -eq 1 ] && set -x || true; exit 1
+      fi
+      warn "$NAME: absent on Render; --allow-render-absent set, trusting 1Password value (sha256 ${H1P:0:12}...)"
+    elif [ "$(sha "$VR")" = "$H1P" ]; then
       echo "STOP: $NAME in 1Password EQUALS Render's value - that is the OLD broad key, not the new" >&2
       echo "      least-priv IAM user. Refusing to seed the broad key. See scripts/gcp/iam/README.md." >&2
       unset V1P H1P VR; [ "${XWAS:-0}" -eq 1 ] && set -x || true; exit 1
+    else
+      echo "    $NAME: from 1Password, differs from Render's key OK (sha256 ${H1P:0:12}...)"
     fi
-    echo "    $NAME: from 1Password, differs from Render's key OK (sha256 ${H1P:0:12}...)"
     [ "$MODE" = "seed" ] && { seed_one "$NAME" "$V1P" "$H1P" || { unset V1P H1P VR; [ "${XWAS:-0}" -eq 1 ] && set -x || true; exit 1; }; }
     unset V1P H1P VR
   done
