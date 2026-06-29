@@ -146,7 +146,7 @@ Additionally, the admin organization has a special importing tool, "Word Data Im
 
 ##### Troubleshooting
 
-Need console access? Use `bin/audit_console` from wherever you already have a shell on the app (the Render Shell tab, a Cloud Run exec shell, or a local checkout). It sets `USER_KEY` so any record changes you make during the session are attributed to you via PaperTrail. Since LingoLinq needs to ensure user data remains protected, prefer this wrapper over a bare `bundle exec rails console` so privileged access stays accountable (see the `AuditEvent` model).
+Need console access? Use `bin/audit_console` from wherever you already have a shell on the app (the Render Shell tab, a Cloud Run exec shell, or a local checkout). It sets `USER_KEY` so any record changes you make during the session are attributed to you via PaperTrail. Prefer this wrapper over a bare `bundle exec rails console` for write attribution. It does not yet provide per-session `AuditEvent` logging or enforce refusal of an un-keyed console; that open control gap is tracked as LL-7f7372e3eb.
 
 ```
 b = Board.find_by_path('example/keyboard')
