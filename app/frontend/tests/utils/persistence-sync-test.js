@@ -2340,11 +2340,35 @@ describe("persistence-sync", function() {
 
   it("should update any changed records from find_changed", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       LingoLinq.all_wait = true;
       queryLog.real_lookup = true;
+      primeLocalSyncStorage([]);
+      window.persistence = persistenceTarget() || persistence;
+      var persistTarget = persistenceTarget();
       var record = null;
       var updated_record = null;
       var remote_updated = null;
+
+      stubOnPersistence('find_changed', function() {
+        return lingoLinqExtras.storage.find_changed();
+      });
+      stubOnPersistence('sync_boards', function() {
+        return RSVP.resolve({});
+      });
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFindRecord.apply(this, arguments).then(function(rec) {
+          if (type === 'user' && String(id) === '1567' && rec && rec.reload) {
+            stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+          }
+          return rec;
+        });
+      });
 
       var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
       board.save().then(function(res) {
@@ -2381,6 +2405,9 @@ describe("persistence-sync", function() {
           expect(record.get('id')).toEqual("1234");
           expect(record.get('name')).toEqual("Righteous Board");
           persistence.set('online', false);
+          if (persistTarget) {
+            persistTarget.set('online', false);
+          }
           record.set('name', 'My Gnarly Board');
           record.save().then(function() {
             setTimeout(function() {
@@ -2399,31 +2426,33 @@ describe("persistence-sync", function() {
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
           persistence.set('online', true);
-          persistence.sync('1567').then(function() { dbg(); }, function() {
-            setTimeout(function() {
-              done = true;
-            }, 10);
+          if (persistTarget) {
+            persistTarget.set('online', true);
+          }
+          persistence.sync('1567').then(function() {
+            done = true;
+          }, function() {
+            done = true;
           });
         }, 10);
       });
       var final_record = null;
-      window.persistence = persistence;
-      waitsFor(function() { return done && remote_updated; });
+      waitsFor(function() { return done && remote_updated && syncDoneWait(); });
       runs(function() {
         setTimeout(function() {
           persistence.find('board', '1234').then(function(res) {
             final_record = res;
           }, function() { dbg(); });
-          setTimeout(function() {
-            persistence.find('board', '1234').then(function(res) { console.log(res); });
-          }, 10);
         }, 50);
       });
       waitsFor(function() { return final_record; });
       runs(function() {
-        persistence.find('board', '1234').then(function(res) { console.log(res); });
         expect(final_record.name).toEqual("Stellar Board");
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
+      waitsFor(function() { return syncSettled(); });
+      runs();
     });
   });
 
@@ -2484,11 +2513,32 @@ describe("persistence-sync", function() {
 
   it("should error on failure updating a changed record", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       LingoLinq.all_wait = true;
       queryLog.real_lookup = true;
+      primeLocalSyncStorage([]);
+      window.persistence = persistenceTarget() || persistence;
+      var persistTarget = persistenceTarget();
       var record = null;
       var updated_record = null;
       var remote_updated = null;
+
+      stubOnPersistence('sync_boards', function() {
+        return RSVP.resolve({});
+      });
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFindRecord.apply(this, arguments).then(function(rec) {
+          if (type === 'user' && String(id) === '1567' && rec && rec.reload) {
+            stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+          }
+          return rec;
+        });
+      });
 
       var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
       board.save().then(function(res) {
@@ -2501,11 +2551,6 @@ describe("persistence-sync", function() {
             user_name: 'freddy',
             avatar_url: 'data:image/png;base64,a0a'
           }});
-        } else if(options.type === 'GET' && options.url === "/api/v1/board/1234") {
-          return RSVP.resolve({ board: {
-            id: '1234',
-            name: 'Righteous Board'
-          }});
         } else if(options.type === 'POST' && options.url === "/api/v1/boards") {
           if(options.data.board.name === "My Awesome Board") {
             return RSVP.resolve({ board: {
@@ -2514,18 +2559,20 @@ describe("persistence-sync", function() {
             }});
           }
         } else if(options.type === 'PUT' && options.url === "/api/v1/boards/1234") {
-          if(options.data.board.name === "Yodeling Board") {
+          if(options.data.board.name === "My Gnarly Board") {
             remote_updated = true;
             return RSVP.reject({});
           }
         }
-        dbg();
         return RSVP.reject({});
       });
 
-      stubOnPersistence( 'find_changed', function() {
+      stubOnPersistence('find_changed', function() {
+        if (!updated_record) {
+          return RSVP.resolve([]);
+        }
         return RSVP.resolve([
-          {store: 'board', data: { raw: { id: '1234', name: 'Yodeling Board' } }}
+          {store: 'board', data: { raw: updated_record.raw }}
         ]);
       });
       stub(modal, 'error', function() { });
@@ -2536,6 +2583,9 @@ describe("persistence-sync", function() {
           expect(record.get('id')).toEqual("1234");
           expect(record.get('name')).toEqual("Righteous Board");
           persistence.set('online', false);
+          if (persistTarget) {
+            persistTarget.set('online', false);
+          }
           record.set('name', 'My Gnarly Board');
           record.save().then(function() {
             setTimeout(function() {
@@ -2554,17 +2604,20 @@ describe("persistence-sync", function() {
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
           persistence.set('online', true);
+          if (persistTarget) {
+            persistTarget.set('online', true);
+          }
           persistence.sync('1567').then(function() { dbg(); }, function(err) {
             error = err;
           });
         }, 50);
       });
       var final_record = null;
-      waitsFor(function() { return error; });
+      waitsFor(function() { return error && remote_updated && syncSettled(); });
       runs(function() {
         setTimeout(function() {
-          persistence.find('board', '1234').then(function(res) {
-            final_record = res;
+          lingoLinqExtras.storage.find('board', '1234').then(function(res) {
+            final_record = res.raw;
           }, function() { dbg(); });
         }, 50);
       });
@@ -2572,18 +2625,46 @@ describe("persistence-sync", function() {
       runs(function() {
         expect(final_record.name).toEqual("My Gnarly Board");
         expect(error.error).toEqual("failed to save offline record, board 1234");
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
+      waitsFor(function() { return syncSettled(); });
+      runs();
     });
   });
 
   it("should error on failure creating a changed record", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       LingoLinq.all_wait = true;
       queryLog.real_lookup = true;
+      primeLocalSyncStorage([]);
+      window.persistence = persistenceTarget() || persistence;
       persistence.set('online', false);
+      var persistTarget = persistenceTarget();
+      if (persistTarget) {
+        persistTarget.set('online', false);
+      }
       var record = null;
       var found_record = null;
       var created = null;
+
+      stubOnPersistence('sync_boards', function() {
+        return RSVP.resolve({});
+      });
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFindRecord.apply(this, arguments).then(function(rec) {
+          if (type === 'user' && String(id) === '1340' && rec && rec.reload) {
+            stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+          }
+          return rec;
+        });
+      });
 
       stub($, 'realAjax', function(options) {
         if(options.url === '/api/v1/users/1340') {
@@ -2593,7 +2674,7 @@ describe("persistence-sync", function() {
             avatar_url: 'data:image/png;base64,a0a'
           }});
         } else if(options.type === 'POST' && options.url === '/api/v1/boards') {
-          if(options.data.board.key === found_record.key) {
+          if(found_record && options.data.board.key === found_record.key) {
             created = true;
             return RSVP.reject({});
           }
@@ -2601,9 +2682,12 @@ describe("persistence-sync", function() {
         return RSVP.reject({});
       });
       stub(modal, 'error', function() { });
-      stubOnPersistence( 'find_changed', function() {
+      stubOnPersistence('find_changed', function() {
+        if (!found_record) {
+          return RSVP.resolve([]);
+        }
         return RSVP.resolve([
-          {store: 'board', data: {raw: {id: found_record.id, key: found_record.key} }}
+          {store: 'board', data: {raw: {id: found_record.id, key: found_record.key, name: found_record.name} }}
         ]);
       });
 
@@ -2614,11 +2698,19 @@ describe("persistence-sync", function() {
 
       waitsFor(function() { return record; });
       runs(function() {
-        setTimeout(function() {
-          persistence.find('board', record.id).then(function(res) {
-            found_record = res;
+        var boardKey = (record && record.get) ? record.get('key') : ((record.board && record.board.key) || record.key);
+        var attempts = 0;
+        var tryFind = function() {
+          lingoLinqExtras.storage.find('board', boardKey).then(function(res) {
+            found_record = res.raw;
+          }, function() {
+            attempts++;
+            if (attempts < 50) {
+              setTimeout(tryFind, 50);
+            }
           });
-        }, 50);
+        };
+        tryFind();
       });
       var error = null;
       waitsFor(function() { return found_record; });
@@ -2628,16 +2720,23 @@ describe("persistence-sync", function() {
         expect(found_record.name).toEqual("My Awesome Board");
         later(function() {
           persistence.set('online', true);
-          persistence.sync(1340).then(null, function(err) {
+          if (persistTarget) {
+            persistTarget.set('online', true);
+          }
+          persistence.sync(1340).then(function() { dbg(); }, function(err) {
             error = err;
           });
         });
       });
-      var removed = false;
-      waitsFor(function() { return error; });
+      waitsFor(function() { return error && syncSettled(); });
       runs(function() {
+        expect(created).toEqual(true);
         expect(!!error.error.match(/failed to save offline record, board tmp_/)).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
+      waitsFor(function() { return syncSettled(); });
+      runs();
     });
   });
 
