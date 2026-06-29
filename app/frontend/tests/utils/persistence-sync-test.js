@@ -2042,6 +2042,12 @@ describe("persistence-sync", function() {
 
   it("should error if a required board isn't available", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_log', null);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      enableRealSyncBoards(stubOnPersistence);
       var stores = [];
       stubStoreUrl( function(url, type) {
         stores.push(url);
@@ -2096,36 +2102,36 @@ describe("persistence-sync", function() {
         response: r,
         id: '167'
       });
-
       queryLog.defineFixture({
         method: 'GET',
         type: 'board',
-        response: RSVP.resolve({board: {
-          id: '178',
-          image_url: 'http://example.com/board.png',
-          permissions: {},
-          buttons: [
-            {id: '1', image_id: '2', load_board: {id: '145'}},
-            {id: '2', image_id: '2', load_board: {id: '167'}},
-            {id: '3', image_id: '2', load_board: {id: '178'}}
-          ],
-          grid: {
-            rows: 1,
-            columns: 1,
-            order: [['1']]
-          }
-        },
-          image: [
-            {id: '2', url: 'http://example.com/image2.png'}
-          ]
-        }),
-        id: '178'
+        response: r,
+        id: 'aa/cc'
       });
-      var result = null;
-      persistence.sync(1340).then(function(res) {
-        result = res;
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        if (type === 'board' && (String(id) === '167' || String(id) === 'aa/cc')) {
+          queryLog.log({
+            method: 'GET',
+            type: { modelName: 'board' },
+            id: String(id)
+          });
+          return RSVP.reject({error: 'Not authorized'});
+        }
+        return prevFindRecord.apply(this, arguments);
       });
-      waitsFor(function() { return result; });
+
+      var done = false;
+      persistence.sync(1340).then(function() {
+        done = true;
+      }, function() {
+        done = true;
+      });
+      waitsFor(function() {
+        var log = persistence.get('sync_log');
+        return done && log && log.length === 1 && syncSettled();
+      });
       runs(function() {
         var logs = queryLog;
         expect(logById(logs, '1340')).toNotEqual(undefined);
@@ -2139,8 +2145,12 @@ describe("persistence-sync", function() {
         expect(logs[0].user_id).toEqual('fred');
         expect(logs[0].statuses[0].key).toEqual('aa/bb');
         expect(logs[0].statuses[1].error).toEqual('board aa/cc failed retrieval for syncing, linked from aa/bb');
-
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
+      waitsFor(function() { return syncSettled(); });
+      runs();
     });
   });
 
@@ -2215,12 +2225,39 @@ describe("persistence-sync", function() {
 
   it("should create any newly-created records from find_changed", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       LingoLinq.all_wait = true;
       queryLog.real_lookup = true;
+      primeLocalSyncStorage([]);
+      window.persistence = persistenceTarget() || persistence;
       persistence.set('online', false);
+      var persistTarget = persistenceTarget();
+      if (persistTarget) {
+        persistTarget.set('online', false);
+      }
       var record = null;
       var found_record = null;
       var created = null;
+
+      stubOnPersistence('find_changed', function() {
+        return lingoLinqExtras.storage.find_changed();
+      });
+      stubOnPersistence('sync_boards', function() {
+        return RSVP.resolve({});
+      });
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFindRecord.apply(this, arguments).then(function(rec) {
+          if (type === 'user' && String(id) === '1340' && rec && rec.reload) {
+            stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+          }
+          return rec;
+        });
+      });
 
       stub($, 'realAjax', function(options) {
         if(options.url === '/api/v1/users/1340') {
@@ -2247,11 +2284,19 @@ describe("persistence-sync", function() {
 
       waitsFor(function() { return record; });
       runs(function() {
-        setTimeout(function() {
-          persistence.find('board', record.id).then(function(res) {
-            found_record = res;
+        var boardKey = (record && record.get) ? record.get('key') : ((record.board && record.board.key) || record.key);
+        var attempts = 0;
+        var tryFind = function() {
+          lingoLinqExtras.storage.find('board', boardKey).then(function(res) {
+            found_record = res.raw;
+          }, function() {
+            attempts++;
+            if (attempts < 50) {
+              setTimeout(tryFind, 50);
+            }
           });
-        }, 50);
+        };
+        tryFind();
       });
       var done = false;
       var found_record_id = null;
@@ -2263,7 +2308,12 @@ describe("persistence-sync", function() {
         later(function() {
           found_record_id = found_record.id;
           persistence.set('online', true);
-          persistence.sync(1340).then(null, function() {
+          if (persistTarget) {
+            persistTarget.set('online', true);
+          }
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() {
             done = true;
           });
         });
@@ -2271,15 +2321,19 @@ describe("persistence-sync", function() {
       var removed = false;
       waitsFor(function() { return done && syncDoneWait(); });
       runs(function() {
-        setTimeout(function() {
-          persistence.find('board', '1998').then(function(res) {
-            persistence.find('board', found_record_id).then(function() { dbg(); }, function() {
-              removed = true;
-            });
-          }, function() { dbg(); });
-        }, 50);
+        expect(created).toEqual(true);
+        persistence.find('board', '1998').then(function() {
+          persistence.find('board', found_record_id).then(function() { dbg(); }, function() {
+            removed = true;
+          });
+        }, function() { dbg(); });
       });
       waitsFor(function() { return removed; });
+      runs(function() {
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+      waitsFor(function() { return syncSettled(); });
       runs();
     });
   });
