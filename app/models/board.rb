@@ -1453,14 +1453,20 @@ class Board < ApplicationRecord
 
     # Google TTS is one HTTP call per button; large boards exceed Rack::Timeout during POST /boards#create.
     # Defer to Progress + worker (same pattern as other long-running board work).
-    if ENV['GOOGLE_TTS_TOKEN'].present?
+    #
+    # Also defer when the record is not yet persisted: this is a before_save callback, so a brand-new
+    # board has no id. process_suggested_sounds_async reloads self (and writes board-scoped
+    # associations), which raises ActiveRecord::RecordNotFound ("Board ... id IS NULL") on a new
+    # record. The after_commit hook reruns it once the id exists. (Without GOOGLE_TTS_TOKEN this used
+    # to crash board creation entirely - e.g. db:seed on a fresh DB.)
+    if ENV['GOOGLE_TTS_TOKEN'].present? || !persisted?
       @defer_suggested_sounds = true
       return
     end
 
-    # For non-Google providers, generate suggested sounds inline so locales that
-    # do not require GOOGLE_TTS_TOKEN (for example Abair-backed locales) still
-    # receive auto-generated sounds during the save flow.
+    # For non-Google providers updating an already-persisted board, generate suggested sounds inline
+    # so locales that do not require GOOGLE_TTS_TOKEN (for example Abair-backed locales) still receive
+    # auto-generated sounds during the save flow.
     process_suggested_sounds_async
   end
 
@@ -1468,12 +1474,18 @@ class Board < ApplicationRecord
     return unless @defer_suggested_sounds
 
     @defer_suggested_sounds = false
-    return unless id && ENV['GOOGLE_TTS_TOKEN'].present?
+    return unless id
 
     b = self.class.find_by(id: id)
     return unless b
 
-    Progress.schedule(b, :process_suggested_sounds_async)
+    if ENV['GOOGLE_TTS_TOKEN'].present?
+      Progress.schedule(b, :process_suggested_sounds_async)
+    else
+      # Non-Google providers: run inline now that the record is persisted (reload succeeds). Wrapped by
+      # the rescue below so a sound-generation failure never rolls back the already-committed board.
+      b.process_suggested_sounds_async
+    end
   rescue => e
     Rails.logger.error "enqueue_suggested_sounds_if_deferred failed: #{e.class}: #{e.message}"
   end
