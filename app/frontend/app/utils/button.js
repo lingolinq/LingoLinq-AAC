@@ -67,6 +67,11 @@ var Button = EmberObject.extend({
     }
   },
   buttonAction: 'talk',
+  // Holds the integration sub-type string ('webhook' | 'render'). Kept
+  // separate from the `integrationAction`/`webhookAction` boolean computeds
+  // below: Ember 5 forbids `set()`-ing a computed without a setter, so the
+  // stored value and the derived booleans can no longer share one name.
+  integration_action_type: null,
   updateAction: observer(
     'load_board',
     'url',

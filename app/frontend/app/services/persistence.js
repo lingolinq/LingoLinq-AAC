@@ -1968,7 +1968,20 @@ var persistence = Service.extend({
     }
   }),
   */
-  syncing: computed('sync_status', function() {
+  syncing: computed('sync_status', {
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. Tests and
+      // legacy callers assign `syncing` directly; reflect it into the
+      // backing `sync_status` (which the real sync flow drives) so the
+      // getter stays consistent.
+      if(value) {
+        this.set('sync_status', 'syncing');
+      } else if(this.get('sync_status') == 'syncing') {
+        this.set('sync_status', null);
+      }
+      return !!value;
+    },
+    get: function() {
     // Defensive: wrap entire function to catch any errors
     var _vb = (window.LingoLinq || {}).verboseDebug;
     try {
@@ -2016,6 +2029,7 @@ var persistence = Service.extend({
     } catch(e) {
       if (_vb) { console.error('[PERSISTENCE COMPUTED] ERROR in syncing computed:', e, e.stack); }
       return false;
+    }
     }
   }),
   sync_failed: computed('sync_status', function() {

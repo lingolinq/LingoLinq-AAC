@@ -2997,11 +2997,30 @@ export default Service.extend({
       text_fallback(tag.text.slice(1, tag.text.length - 2));
     }
   },
-  speak_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+  speak_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. As with
+      // edit_mode, the app drives mode via stashes.current_mode and only
+      // tests force speak_mode directly; cache the forced value (it
+      // re-derives from current_mode/currentBoardState on dependency change).
+      return !!value;
+    }
   }),
-  edit_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+  edit_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. The app itself
+      // never assigns edit_mode on app-state (it drives mode via
+      // stashes.current_mode in toggle_edit_mode); only tests force it
+      // directly. Accept and cache the forced value; it re-derives from
+      // current_mode/currentBoardState if a dependency later changes.
+      return !!value;
+    }
   }),
   default_mode: computed('stashes.current_mode', 'currentBoardState', function() {
     return !!(this.stashes.get('current_mode') == 'default' || !this.get('currentBoardState'));
