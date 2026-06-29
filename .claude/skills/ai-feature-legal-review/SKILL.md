@@ -72,7 +72,7 @@ small-cell aggregates need suppression before they are "safe."
 - [ ] Processes "personal information" per 16 CFR 312.2 (now includes biometric identifiers:
       voiceprints, faceprints) or FERPA education-record data?
 - [ ] Does the feature interact directly with users or generate outputs about them? -> EU AI Act
-      Art. 50 transparency applies (in force 2026-08-02).
+      Art. 50 transparency applies (generally applicable 2026-08-02).
 - [ ] Is a DPIA / AI impact assessment warranted (systematic processing of children's data, new tech)?
 
 ### B. Disclosure completeness (COPPA 16 CFR 312.4(c), 7 elements)
@@ -112,9 +112,13 @@ small-cell aggregates need suppression before they are "safe."
 ### E. Vendor due diligence
 - [ ] DPA executed with every named vendor; BAA where HIPAA applies (company rule: no identifiable
       data to external models without a BAA).
-- [ ] Vendor commitment, by tier, that API data is not used for training (Anthropic API/DPA; OpenAI
-      API since 2023-03-01; Google ONLY via Vertex AI / paid tier -- the free AI Studio tier trains
-      on input and its terms prohibit under-18 products).
+- [ ] Vendor commitment, by exact product and tier, that API data is not used for training. Record
+      the live source/contract and verification date; do not carry a marketing-page claim forward as
+      a durable assurance. For Google, do not treat paid Gemini API as equivalent to Vertex AI:
+      current Gemini API terms prohibit API clients directed to or likely accessed by anyone under
+      18 even on paid service. Use Vertex AI only after contract/DPA/BAA review confirms the specific
+      child-directed and healthcare use case; unpaid Gemini services also use submitted content to
+      improve Google products.
 - [ ] ZDR status confirmed in writing where claimed (Anthropic ZDR is not publicly documented).
 - [ ] Vendor sub-processor list reviewed for fourth-party / residency exposure.
 
@@ -148,9 +152,11 @@ Return:
 - `app/models/ai_api_log.rb` -- audit log; scrubs request+response summaries; 90-day IP redaction.
 - `lib/ai_board_generator.rb`, `lib/ai_word_predictor.rb` -- outbound AI paths; thread `user:`.
   As of 2026-06: primary vendor is **Anthropic Claude Haiku** (`ANTHROPIC_API_KEY`); a **Google
-  Gemini** fallback (`GEMINI_API_KEY`) calls the `generativelanguage.googleapis.com` (AI Studio)
-  endpoint -- the wrong tier for child users (under-18 TOS prohibition + free-tier training). Pin
-  to Anthropic-only or move the fallback to Vertex AI for child-directed use.
+  Gemini** fallback (`GEMINI_API_KEY`) calls the `generativelanguage.googleapis.com` Gemini API
+  endpoint. Current Gemini API terms prohibit API clients directed to or likely accessed by anyone
+  under 18 regardless of paid/unpaid tier; unpaid service also permits product-improvement use.
+  Pin to Anthropic-only or migrate to Vertex AI only after contract/DPA/BAA review confirms the
+  specific child-directed and healthcare use case.
 - `lib/feature_flags.rb` -- `ai_feature_enabled_for?`, `coppa_blocks_ai_for?` (signup-COPPA gate).
 - `User#ai_consent_granted?/grant_ai_consent!/revoke_ai_consent!` -- second-tier consent (Phase 1).
 - Project: `.planning/` AI Data-Sharing VPC; this skill is its Phase 2 acceptance gate.
@@ -164,7 +170,11 @@ Return:
 - ED/PTAC PII in education records: https://studentprivacy.ed.gov/content/personally-identifiable-information-education-records
 - HHS HIPAA de-identification: https://www.hhs.gov/hipaa/for-professionals/special-topics/de-identification/index.html
 - ICO pseudonymisation: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-sharing/anonymisation/pseudonymisation/
-- EU AI Act Art. 50 (in force 2026-08-02): https://artificialintelligenceact.eu/transparency-rules-article-50/
+- EU AI Act, official text (Art. 50; generally applicable 2026-08-02):
+  https://eur-lex.europa.eu/eli/reg/2024/1689/oj
 - Anthropic Commercial Terms: https://www.anthropic.com/legal/commercial-terms
 - OpenAI Enterprise Privacy: https://openai.com/enterprise-privacy/
-- Google Vertex AI / Gemini terms + HIPAA: https://ai.google.dev/gemini-api/terms , https://cloud.google.com/security/compliance/hipaa
+- Google Gemini API terms (effective 2026-03-23; re-check before use):
+  https://ai.google.dev/gemini-api/terms
+- Google Cloud HIPAA offering (scope alone is not approval for a use case):
+  https://cloud.google.com/security/compliance/hipaa
