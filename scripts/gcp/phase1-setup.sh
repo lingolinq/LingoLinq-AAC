@@ -63,14 +63,19 @@ SET_GH_VARS="${SET_GH_VARS:-0}"
 MELISSA_EMAIL="${MELISSA_EMAIL:-}"
 DOMINIC_EMAIL="${DOMINIC_EMAIL:-}"
 
-# The 9 boot secrets the web service, worker pool, AND migration Job all need (PR #349).
+# The boot secrets the web service, worker pool, AND migration Job all need (PR #349).
 # Created here as EMPTY containers; values are seeded by hand from 1Password in Phase 2/3.
+# DB connection uses discrete params (DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD), NOT a DATABASE_URL:
+# the Cloud SQL socket-form URL has an empty host that uri >= 1.0 rejects at boot.
 BOOT_SECRETS=(
   SECRET_KEY_BASE
   COOKIE_KEY
   SECURE_ENCRYPTION_KEY
   SECURE_NONCE_KEY
-  DATABASE_URL
+  DB_HOST
+  DB_NAME
+  DB_USERNAME
+  DB_PASSWORD
   REDIS_URL
   DEFAULT_HOST
   DEFAULT_EMAIL_FROM
@@ -412,7 +417,7 @@ GitHub repo vars to set (GCP_PROJECT_ID deferred until deploy-enable):
     Without it, Cloud Run runs as the DEFAULT COMPUTE SA (Editor), which (a) makes this
     script's runtime SA + all 9 per-secret accessor grants + the AR reader grant INERT,
     and (b) BREAKS BOOT - the default compute SA has no secretAccessor, so the app cannot
-    read SECRET_KEY_BASE/DATABASE_URL/etc. This is the runtime-identity contract for the
+    read SECRET_KEY_BASE/DB_PASSWORD/etc. This is the runtime-identity contract for the
     whole least-privilege design; fix it in the workflow before any deploy.
 
 PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
@@ -421,7 +426,7 @@ PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
   - Cloud SQL Postgres instance (zonal at launch) -> sets GCP_CLOUDSQL_INSTANCE
     (PROJECT:REGION:INSTANCE) for --set-cloudsql-instances.
   - Grant roles/cloudsql.client to ${RUNTIME_SA} once the instance exists.
-  - DB-auth choice: password-over-socket vs IAM DB auth (drives DATABASE_URL secret value).
+  - DB-auth choice: password-over-socket vs IAM DB auth (drives the DB_* secret values).
   - VPC network/subnet -> GCP_VPC_NETWORK / GCP_VPC_SUBNET repo vars.
   - Worker pool has no autoscaling: --instances is a manual scaling control (ops runbook).
   - Secret Manager: seed the 9 empty secrets from the 1Password Prod vault (Phase 2.8).

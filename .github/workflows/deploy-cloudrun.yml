@@ -37,8 +37,10 @@ name: Deploy to Cloud Run
 # NOTE: worker pools are on the `gcloud beta` surface (not GA on SDK 564), hence `beta` below.
 #
 # GCP SECRET MANAGER secrets Phase 2 step 4 must seed (referenced by name via --set-secrets,
-# NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DATABASE_URL,
-#   REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY, DEFAULT_HOST.
+# NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DB_HOST, DB_NAME,
+#   DB_USERNAME, DB_PASSWORD, REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY,
+#   DEFAULT_HOST. (DB_* replaced the single DATABASE_URL: the Cloud SQL socket URL is unparseable
+#   by uri >= 1.0, so config/database.yml builds the connection from discrete params instead.)
 #   REDIS_CA_CERT is seeded later by scripts/gcp/phase3-data-layer.sh (the Memorystore
 #   per-instance CA, fetched from the live instance) -- the app's Redis client loads it to
 #   verify the rediss:// TLS chain.
@@ -85,10 +87,14 @@ jobs:
       # production loads these (see the asset-precompile env block in the Dockerfile).
       # The worker (rake environment resque:work) and the migration Job (rake db:migrate)
       # both fully boot Rails, so they need the same boot set as the web service -- not a
-      # narrower subset, which would crash them on boot.
-      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest
-      # Web adds the mail-sending envs used by request-path mailers.
-      WEB_EXTRA_SECRETS: DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest
+      # narrower subset, which would crash them on boot. config/environment.rb hard-requires
+      # DEFAULT_EMAIL_FROM and SYSTEM_ERROR_EMAIL at boot for EVERY process, so they belong here
+      # (not in a web-only extra set) or the migrate/seed Jobs crash on boot.
+      # DB connection is configured from discrete params (config/database.yml production stanza), NOT a
+      # DATABASE_URL: the Cloud SQL socket-form URL (empty host) is rejected by uri >= 1.0 at boot.
+      # DB_HOST is the Cloud SQL unix socket dir (/cloudsql/<conn>); database.yml defaults DB_SSLMODE
+      # to 'disable' for the socket.
+      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DB_HOST=DB_HOST:latest,DB_NAME=DB_NAME:latest,DB_USERNAME=DB_USERNAME:latest,DB_PASSWORD=DB_PASSWORD:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
@@ -162,7 +168,7 @@ jobs:
             --subnet "${{ vars.GCP_VPC_SUBNET }}" \
             --vpc-egress private-ranges-only \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
-            --set-secrets "$BOOT_SECRETS,$WEB_EXTRA_SECRETS" \
+            --set-secrets "$BOOT_SECRETS" \
             --allow-unauthenticated
 
       - name: Deploy worker pool
