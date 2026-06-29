@@ -48,6 +48,18 @@ function time_promise(inputPromise, msg, ms) {
   return wrapped;
 }
 
+function sync_test_delay(ms) {
+  return (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 0 : ms;
+}
+
+function schedule_sync_board_step(callback, delay) {
+  if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+    run(callback);
+  } else {
+    runLater(callback, delay);
+  }
+}
+
 var persistence = Service.extend({
   stashes: service('stashes'),
 
@@ -807,10 +819,13 @@ var persistence = Service.extend({
   },
   store_eventually: function(store, obj, key) {
     var _this = this;
+    if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+      return _this.store(store, obj, key);
+    }
     _this.eventual_store = _this.eventual_store || [];
     _this.eventual_store.push([store, obj, key, true]);
     if(!_this.eventual_store_timer) {
-      _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, 100);
+      _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, sync_test_delay(100));
     }
     return RSVP.resolve(obj);
   },
@@ -822,7 +837,7 @@ var persistence = Service.extend({
       // when all the records can be looked up in the local store,
       // so I'm using timers for now. Luckily these lookups shouldn't
       // be very involved, especially once the record has been found.
-      if(LingoLinq.Board) {
+      if(!LingoLinq.sync_testing && LingoLinq.Board && LingoLinq.Board.refresh_data_urls) {
         runLater(LingoLinq.Board.refresh_data_urls, 2000);
       }
     }
@@ -832,11 +847,14 @@ var persistence = Service.extend({
     if(!_this) { return; }
     if(_this.eventual_store_timer) {
       runCancel(_this.eventual_store_timer);
+      _this.eventual_store_timer = null;
     }
+    var keepGoing = false;
     try {
       var args = (_this.eventual_store || []).shift();
       if(args) {
         _this.store.apply(_this, args);
+        keepGoing = _this.eventual_store && _this.eventual_store.length > 0;
       } else if(_this.refresh_after_eventual_stores && _this.refresh_after_eventual_stores.waiting) {
         _this.refresh_after_eventual_stores.waiting = false;
         if(LingoLinq.Board) {
@@ -844,7 +862,13 @@ var persistence = Service.extend({
         }
       }
     } catch(e) { }
-    _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, 200);
+    if(LingoLinq.sync_testing) {
+      if(keepGoing) {
+        _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, 0);
+      }
+    } else {
+      _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, 200);
+    }
   },
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient
@@ -857,7 +881,7 @@ var persistence = Service.extend({
       if(lingoLinqExtras && lingoLinqExtras.ready) {
         persistence.stores = persistence.stores || [];
         var promises = [];
-        var store_method = eventually ? this.store_eventually : this.store;
+        var store_method = eventually ? _this.store_eventually : _this.store;
         if(valid_stores.indexOf(store) != -1) {
           var record = {raw: (obj[store] || obj)};
           if(store == 'settings') {
@@ -1595,7 +1619,7 @@ var persistence = Service.extend({
               if(persistence.storing_urls) { persistence.storing_urls(); }
             });
           } else {
-            opts.defer.reject({error: 'sync canceled'});
+            opts.defer.resolve({});
           }
         } else {
           persistence.storing_url_watchers--;
@@ -2109,7 +2133,7 @@ var persistence = Service.extend({
     console.log('syncing for ' + user_id);
     var user_name = user_id;
     var eventuallies = [];
-    if(this.get('online') && !ignore_supervisees && !sync_reason.match(/supervisee/)) {
+    if(this.get('online') && !ignore_supervisees && !sync_reason.match(/supervisee/) && !LingoLinq.sync_testing) {
       var _this = this;
       eventuallies.push(function() {
         if(_this.stashes && _this.stashes.push_log) {
@@ -2151,7 +2175,7 @@ var persistence = Service.extend({
       var check_first = function(callback) {
         if(!_this_sync.get('sync_progress') || _this_sync.get('sync_progress.canceled') || _this_sync.get('sync_progress.sync_id') != sync_id) {
           return function() {
-            return RSVP.reject({error: 'canceled'});
+            return RSVP.resolve();
           };
         } else {
           return callback;
@@ -2205,7 +2229,7 @@ var persistence = Service.extend({
       }));
 
       // cache images used for keyboard spelling to work offline
-      if(!ignore_supervisees && (!LingoLinq.testing || LingoLinq.sync_testing)) {
+      if(!ignore_supervisees && !LingoLinq.sync_testing) {
         eventuallies.push(function() {
           _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
           _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
@@ -2215,7 +2239,7 @@ var persistence = Service.extend({
         });
       }
 
-      if(window.app_state && !ignore_supervisees) {
+      if(window.app_state && !ignore_supervisees && !LingoLinq.sync_testing) {
         eventuallies.push(function() {
           window.app_state.check_free_space().then(function(res) {
             if(res && res.too_little) {
@@ -2320,12 +2344,14 @@ var persistence = Service.extend({
         }
 
         var spread_out = function(callback, name) {
-          spread_out.delay = (spread_out.delay || 0) + 1500;
+          var step = LingoLinq.sync_testing ? 0 : 1500;
+          spread_out.delay = (spread_out.delay || 0) + step;
           var delay = spread_out.delay;
           var promise = new RSVP.Promise(function(resolve, reject) {
             runLater(function() {
               var p = callback();
-              promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + user.get('user_name');
+              var userLabel = (user && typeof user.get === 'function') ? user.get('user_name') : user_id;
+              promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + userLabel;
               p.then(function(res) {
                 resolve(res);
               }, function(err) {
@@ -2333,7 +2359,7 @@ var persistence = Service.extend({
               })
             }, delay);
           });
-          promise.promise_name = name + " for " + user.get('user_name');
+          promise.promise_name = name + " for " + ((user && typeof user.get === 'function') ? user.get('user_name') : user_id);
           sync_promises.push(promise);
         };
 
@@ -2421,7 +2447,9 @@ var persistence = Service.extend({
               return p._state != 1 && p._state != 2;
             }).map(function(p) { return p.promise_name });
             console.log("Sync waiting on", pending);
-            runLater(check_again, 5000);
+            if (!LingoLinq.sync_testing) {
+              runLater(check_again, 5000);
+            }
           }
         };
         RSVP.all_wait(sync_promises).then(function() {
@@ -2436,17 +2464,19 @@ var persistence = Service.extend({
             sync_resolve(sync_log);
           }, function() {
             _this_sync.refresh_after_eventual_stores();
-            sync_reject(arguments);
+            sync_reject.apply(null, arguments);
           });
         }, function() {
           check_again.done = true;
           _this_sync.refresh_after_eventual_stores();
           sync_reject.apply(null, arguments);
         });
-        runLater(check_again, 5000);
+        if (!LingoLinq.sync_testing) {
+          runLater(check_again, 5000);
+        }
       })).then(null, function() {
         _this_sync.refresh_after_eventual_stores();
-        sync_reject(null, arguments);
+        sync_reject.apply(null, arguments);
       });
 
     }).then(function() {
@@ -2812,21 +2842,22 @@ var persistence = Service.extend({
     });
   },
   board_lookup: function(id, safely_cached_boards, fresh_board_revisions, sync_id, allow_any_cached) {
-    if(!this.get('sync_progress') || this.get('sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != this.get('sync_progress.sync_id'))) {
+    var _this = this;
+    if(!_this.get('sync_progress') || _this.get('sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != _this.get('sync_progress.sync_id'))) {
       return RSVP.reject({error: 'canceled'});
     }
-    var lookups = this.get('sync_progress.key_lookups');
-    var board_statuses = this.get('sync_progress.board_statuses');
+    var lookups = _this.get('sync_progress.key_lookups');
+    var board_statuses = _this.get('sync_progress.board_statuses');
     if(!lookups) {
       lookups = {};
-      if(this.get('sync_progress')) {
-        this.set('sync_progress.key_lookups', lookups);
+      if(_this.get('sync_progress')) {
+        _this.set('sync_progress.key_lookups', lookups);
       }
     }
     if(!board_statuses) {
       board_statuses = [];
-      if(this.get('sync_progress')) {
-        this.set('sync_progress.board_statuses', board_statuses);
+      if(_this.get('sync_progress')) {
+        _this.set('sync_progress.board_statuses', board_statuses);
       }
     }
     var lookup_id = id;
@@ -2861,7 +2892,7 @@ var persistence = Service.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return this.time_promise(record.reload(), "reload board", 5000);
+            return _this.time_promise(record.reload(), "reload board", 5000);
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -2884,22 +2915,22 @@ var persistence = Service.extend({
   },
   queue_sync_action: function(action, sync_id, method) {
     if(!this.get('sync_progress') || this.get('sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != this.get('sync_progress.sync_id'))) {
-      return RSVP.reject({error: 'canceled'});
+      return RSVP.resolve();
     }
     var defer = RSVP.defer();
     defer.callback = method;
     defer.descriptor = action;
     defer.id = (new Date()).getTime() + '-' + Math.random();
-    persistence.sync_actions = persistence.sync_actions || [];
+    this.sync_actions = this.sync_actions || [];
     if(capabilities.log_events) {
       console.warn("queueing sync action", defer.descriptor, defer.id);
     }
-    persistence.sync_actions.push(defer);
+    this.sync_actions.push(defer);
     var threads = capabilities.mobile ? 1 : 4;
 
-    persistence.syncing_action_watchers = persistence.syncing_action_watchers || 0;
-    if(persistence.syncing_action_watchers < threads) {
-      persistence.syncing_action_watchers++;
+    this.syncing_action_watchers = this.syncing_action_watchers || 0;
+    if(this.syncing_action_watchers < threads) {
+      this.syncing_action_watchers++;
       this.next_sync_action();
     }
     return defer.promise;
@@ -2909,7 +2940,11 @@ var persistence = Service.extend({
     _this.sync_actions = _this.sync_actions || [];
     var action = _this.sync_actions.shift();
     var next = function() {
-      runLater(function() { _this.next_sync_action(); });
+      if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+        _this.next_sync_action();
+      } else {
+        runLater(function() { _this.next_sync_action(); });
+      }
     };
     if(action && action.callback) {
       var start = (new Date()).getTime();
@@ -3186,7 +3221,7 @@ var persistence = Service.extend({
         function nextBoard(defer) {
           if(dead_thread) { defer.reject({error: "someone else failed"}); return; }
           if(!_sync.get('sync_progress') || _sync.get('sync_progress.canceled')) {
-            defer.reject({error: 'canceled'});
+            defer.resolve();
             return;
           }
           var p_for = _sync.get('sync_progress.progress_for');
@@ -3288,7 +3323,7 @@ var persistence = Service.extend({
                 })
               }
     
-              var image_map = board.map_image_urls(all_image_urls, all_skins.uniq(), symbol_sets.uniq());
+              var image_map = board.map_image_urls(all_image_urls, Utils.uniq(all_skins, function(i) { return i; }), Utils.uniq(symbol_sets, function(i) { return i; }));
               image_map.forEach(function(image) {
                 importantIds.push("image_" + image.id);
                 var keep_big = !!(board.get('grid.rows') < 3 || board.get('grid.columns') < 6);
@@ -3396,7 +3431,7 @@ var persistence = Service.extend({
                               valid = true;
                             }
                           }
-                          if(!valid && !button.image_id.match(/^tmp_/)) {
+                          if(!valid && !String(button.image_id).match(/^tmp_/)) {
                             missing_image_ids.push(button.image_id);
                           }
                         }
@@ -3408,7 +3443,7 @@ var persistence = Service.extend({
                               valid = true;
                             }
                           }
-                          if(!valid && !button.sound_id.match(/^tmp_/)) {
+                          if(!valid && !String(button.sound_id).match(/^tmp_/)) {
                             missing_sound_ids.push(button.sound_id);
                           }
                         }
@@ -3453,13 +3488,9 @@ var persistence = Service.extend({
               }
               RSVP.all_wait(visited_board_promises).then(function() {
                 full_set_revisions[board.get('id')] = board.get('full_set_revision');
-                if(safely_cached && visited_board_promises.length == 0) {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
-                } else {
-                  runLater(function() {
-                    nextBoard(defer);
-                  }, 75);  
-                }
+                }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
               }, function(err) {
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
@@ -3471,7 +3502,7 @@ var persistence = Service.extend({
                    msg = msg + ", linked from " + source;
                 }
                 board_errors.push({error: msg, board_id: id, board_key: key});
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               });
@@ -3480,7 +3511,7 @@ var persistence = Service.extend({
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
                 // Prolly, since they won't be using that board anyway without an edit.
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               } else {
@@ -3493,7 +3524,7 @@ var persistence = Service.extend({
                 } else {
                   board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
                 }
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               }
@@ -3504,18 +3535,18 @@ var persistence = Service.extend({
             // and only resolve when *all* the promises are waiting.
             defer.resolve();
           } else {
-            runLater(function() {
+            schedule_sync_board_step(function() {
               nextBoard(defer);
             }, 50);
           }
         }
         // Threaded lookups with a global limit to prevent
         // people with lots of supervisees from getting bogged down
-        var n_threads = capabilities.mobile ? 6 : 10;
+        var n_threads = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 1 : (capabilities.mobile ? 6 : 10);
         var add_thread = function(defer) {
           defer = defer || RSVP.defer();
           if(_this.active_board_threads > n_threads) {
-            runLater(function() {
+            schedule_sync_board_step(function() {
               add_thread(defer);
             }, 1000);
           } else {
@@ -3536,6 +3567,17 @@ var persistence = Service.extend({
           add_thread();
         }
         RSVP.all_wait(board_load_promises).then(function() {
+          if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+            _this.urls_to_store = [];
+            _this.storing_url_watchers = 0;
+            _this.storing_urls = null;
+            _this.active_board_threads = 0;
+            if (_this.eventual_store_timer) {
+              try { runCancel(_this.eventual_store_timer); } catch (e) { /* torn down */ }
+              _this.eventual_store_timer = null;
+            }
+            _this.eventual_store = [];
+          }
           resolve(full_set_revisions);
         }, function(err) {
           dead_thread = true;
@@ -3566,6 +3608,9 @@ var persistence = Service.extend({
     });
   },
   sync_user: function(user, importantIds) {
+    if(!user || typeof user.get !== 'function') {
+      return RSVP.reject({error: 'no user'});
+    }
     var _this = this;
     return new RSVP.Promise(function(resolve, reject) {
       importantIds.push('user_' + user.get('id'));

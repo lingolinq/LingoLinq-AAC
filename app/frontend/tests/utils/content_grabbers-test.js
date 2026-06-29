@@ -17,7 +17,7 @@ import app_state from '../../utils/app_state';
 import editManager from '../../utils/edit_manager';
 import stashes from '../../utils/_stashes';
 import progress_tracker from '../../utils/progress_tracker';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 
 describe("contentGrabbers", function() {
   var button, controller;
@@ -231,7 +231,7 @@ describe("contentGrabbers", function() {
         return {remote_upload: {a: 2}};
       });
       stub(contentGrabbers, 'upload_to_remote', function(args) {
-        emberRun.later(function() {
+        later(function() {
           defer2.reject({
             abc: "123"
           });

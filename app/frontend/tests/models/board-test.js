@@ -11,6 +11,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog, asStoreRecordArray } from 'frontend/tests/helpers/ember_helper';
+import { persistenceTarget } from 'frontend/tests/helpers/persistence-stub';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
@@ -418,7 +419,7 @@ describe('Board', function() {
         {id: 4}
       ]);
       var call_args = [];
-      persistence.primed = true;
+      persistenceTarget().primed = true;
       stub(persistence, 'push_records', function(type, ids) {
         if(type == 'image') {
           LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/pic.png'}}});
@@ -561,9 +562,6 @@ describe('Board', function() {
           return RSVP.resolve(bs1);
         }
       });
-      stub(LingoLinq.Buttonset, 'load_button_set', function() {
-        return RSVP.resolve(bs1);
-      });
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
       waitsFor(function() { return res; });
@@ -608,7 +606,7 @@ describe('Board', function() {
       var bs = stubButtonset();
       b.set('button_set', bs);
       stub(LingoLinq.store, 'peekRecord', function(type, id) {
-        return 'asdf';
+        return null;
       });
       var bs1 = stubButtonset({ board_ids: ['1234'], fresh: false });
       stub(LingoLinq.store, 'peekAll', function(type) {
@@ -659,38 +657,31 @@ describe('Board', function() {
     });
 
     it('should return true if not protected but content is protected', function() {
+      var grid = { order: [[1]] };
       var b = LingoLinq.store.createRecord('board');
       expect(b.get('protected_material')).toEqual(false);
-      stub(b, 'get', function(key) {
-        if (key === 'local_images_with_license') {
-          return [EmberObject.create({ protected: false })];
-        }
-        if (key === 'local_sounds_with_license') {
-          return [];
-        }
-        return EmberObject.prototype.get.call(this, key);
+      b.set('grid', grid);
+      b.set('buttons', [{ id: 1, image_id: 'img1', depth: 0, board_id: '1' }]);
+      LingoLinq.store.push({
+        data: { type: 'image', id: 'img1', attributes: { id: 'img1', protected: false, license: { type: 'private' } } }
       });
       expect(b.get('protected_material')).toEqual(false);
-      stub(b, 'get', function(key) {
-        if (key === 'local_images_with_license') {
-          return [EmberObject.create({ protected: true })];
-        }
-        if (key === 'local_sounds_with_license') {
-          return [];
-        }
-        return EmberObject.prototype.get.call(this, key);
+
+      var protectedBoard = LingoLinq.store.createRecord('board');
+      protectedBoard.set('grid', grid);
+      protectedBoard.set('buttons', [{ id: 1, image_id: 'img2', depth: 0, board_id: '1' }]);
+      LingoLinq.store.push({
+        data: { type: 'image', id: 'img2', attributes: { id: 'img2', protected: true, license: { type: 'private' } } }
       });
-      expect(b.get('protected_material')).toEqual(true);
-      stub(b, 'get', function(key) {
-        if (key === 'local_images_with_license') {
-          return [];
-        }
-        if (key === 'local_sounds_with_license') {
-          return [EmberObject.create({ protected: true })];
-        }
-        return EmberObject.prototype.get.call(this, key);
+      expect(protectedBoard.get('protected_material')).toEqual(true);
+
+      var soundBoard = LingoLinq.store.createRecord('board');
+      soundBoard.set('grid', grid);
+      soundBoard.set('buttons', [{ id: 1, sound_id: 'snd1', depth: 0, board_id: '1' }]);
+      LingoLinq.store.push({
+        data: { type: 'sound', id: 'snd1', attributes: { id: 'snd1', protected: true, license: { type: 'private' } } }
       });
-      expect(b.get('protected_material')).toEqual(true);
+      expect(soundBoard.get('protected_material')).toEqual(true);
     });
   });
 

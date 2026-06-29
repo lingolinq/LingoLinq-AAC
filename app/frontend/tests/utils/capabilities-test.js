@@ -11,7 +11,7 @@ import {
 import { db_wait } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import capabilities from '../../utils/capabilities';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 
 describe("capabilities", function() {
   describe("volume_check", function() {
@@ -118,7 +118,7 @@ describe("capabilities", function() {
           var evt = {
             attempt: attempt
           };
-          emberRun.later(function() {
+          later(function() {
             db_req.onerror(evt);
             if(attempt == 2) {
               expect(deleted_databases).toEqual([key]);
@@ -135,7 +135,7 @@ describe("capabilities", function() {
         });
         stub(capabilities.idb, 'webkitGetDatabaseNames', function() {
           var res = {};
-          emberRun.later(function() {
+          later(function() {
             res.onsuccess({
               target: {
                 result: [other]

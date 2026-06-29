@@ -71,7 +71,7 @@ describe('utterance', function() {
         {label: "how"}, {label: "are"}, {label: "you"}
       ];
       utterance.set('rawButtonList', buttons);
-      expect(app_state.get('button_list').mapBy('label')).toEqual(buttons.mapBy('label'));
+      expect(app_state.get('button_list').map(function(b) { return b.label; })).toEqual(buttons.map(function(b) { return b.label; }));
     });
     it("should set buttonList to the controller and stash", function() {
       var buttons = [

@@ -81,9 +81,9 @@ var Button = EmberObject.extend({
       } else if(this.get('integration') != null) {
         this.set('buttonAction', 'integration');
         if(this.get('integration.action_type') == 'webhook') {
-          this.set('integrationAction', 'webhook');
+          this.set('integration_action_type', 'webhook');
         } else {
-          this.set('integrationAction', 'render');
+          this.set('integration_action_type', 'render');
         }
       } else if(this.get('url') != null) {
         this.set('buttonAction', 'link');
@@ -109,14 +109,14 @@ var Button = EmberObject.extend({
   folderAction: computed('buttonAction', function() {
     return this.get('buttonAction') == 'folder';
   }),
-  integrationAction: computed('buttonAction', 'integrationAction', function() {
-    return this.get('buttonAction') == 'integration' && this.get('integrationAction') == 'render';
+  integrationAction: computed('buttonAction', 'integration_action_type', function() {
+    return this.get('buttonAction') == 'integration' && this.get('integration_action_type') == 'render';
   }),
   integrationOrWebhookAction: computed('buttonAction', function() {
     return this.get('buttonAction') == 'integration';
   }),
-  webhookAction: computed('buttonAction', 'integrationAction', function() {
-    return this.get('buttonAction') == 'integration' && this.get('integrationAction') == 'webhook';
+  webhookAction: computed('buttonAction', 'integration_action_type', function() {
+    return this.get('buttonAction') == 'integration' && this.get('integration_action_type') == 'webhook';
   }),
   action_styling: computed(
     'buttonAction',

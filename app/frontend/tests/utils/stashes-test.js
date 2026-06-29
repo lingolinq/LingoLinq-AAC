@@ -8,13 +8,13 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import { queryLog, asEmberArray } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
 import EmberObject from '@ember/object';
 import LingoLinq from 'frontend/app';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 
 var App;
@@ -89,6 +89,9 @@ describe('stashes', function() {
   });
 
   describe("remember", function() {
+    beforeEach(function() {
+      stashes.set('remembered_vocalizations', asEmberArray([]));
+    });
     it("should do nothing when history is disabled", function() {
       stashes.set('history_enabled', false);
       var count = stashes.get('remembered_vocalizations').length;
@@ -99,14 +102,14 @@ describe('stashes', function() {
 
     it("should append to remembered vocalizations", function() {
       stashes.set('history_enabled', true);
-      stashes.persist('remembered_vocalizations', []);
+      stashes.persist('remembered_vocalizations', asEmberArray([]));
       stashes.persist('working_vocalization', [{label: "ok"}, {label: "go"}]);
       stashes.remember();
       expect(stashes.get('remembered_vocalizations').length).toEqual(1);
     });
     it("should generate a sentence based on vocalizations", function() {
       stashes.set('history_enabled', true);
-      stashes.persist('remembered_vocalizations', []);
+      stashes.persist('remembered_vocalizations', asEmberArray([]));
       var count = stashes.get('remembered_vocalizations').length;
       stashes.persist('working_vocalization',  [{label: "ok"}, {label: "go"}]);
       stashes.remember();
@@ -115,7 +118,7 @@ describe('stashes', function() {
     it("should not append to remembered vocalizations more than once");
     it("should not append empty vocalizations", function() {
       stashes.set('history_enabled', true);
-      stashes.persist('remembered_vocalizations', []);
+      stashes.persist('remembered_vocalizations', asEmberArray([]));
       var count = stashes.get('remembered_vocalizations').length;
       stashes.persist('working_vocalization', []);
       stashes.remember();
@@ -548,7 +551,7 @@ describe('stashes', function() {
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
         stashes.push_log();
-        emberRun.later(function() {
+        later(function() {
           pushed = true;
         }, 200);
       });
@@ -582,7 +585,7 @@ describe('stashes', function() {
       LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       stashes.push_log();
       var pushed = false;
-      emberRun.later(function() { pushed = true; }, 200);
+      later(function() { pushed = true; }, 200);
       waitsFor(function() { return pushed; });
       runs(function() {
         expect(pushes).toEqual(0);

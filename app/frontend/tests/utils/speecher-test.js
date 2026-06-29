@@ -15,7 +15,7 @@ import capabilities from '../../utils/capabilities';
 import speecher from '../../utils/speecher';
 import app_state from '../../utils/app_state';
 import persistence from '../../utils/persistence';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 
 describe('speecher', function() {
   beforeEach(function() {
@@ -631,7 +631,7 @@ describe('speecher', function() {
         var go_again = function() {
           if(window.keep_going) {
             audio_elem.currentTime++;
-            emberRun.later(function() {
+            later(function() {
               go_again();
             }, 25);
           }
@@ -815,7 +815,7 @@ describe('speecher', function() {
         audio_elem.dispatchEvent(new window.Event('abort'));
       });
       var not_ended = false;
-      emberRun.later(function() {
+      later(function() {
         if(!ended) { not_ended = true; }
       }, 500);
       waitsFor(function() { return not_ended; });

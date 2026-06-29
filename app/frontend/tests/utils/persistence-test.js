@@ -29,7 +29,6 @@ import { persistenceTarget } from '../helpers/persistence-stub';
 
 function stubOnPersistence(method, replacement) {
   stub(persistenceTarget(), method, replacement);
-  stubOnPersistence( method, replacement);
 }
 
 describe("persistence", function() {
@@ -2192,8 +2191,10 @@ describe("persistence", function() {
       persistence.set('last_sync_stamp_interval', null);
       persistence.set('last_sync_stamp', null);
       persistence.set('last_sync_at', null);
-      persistence.set('syncing', null);
+      persistence.set('sync_status', null);
       persistence.set('auto_sync', true);
+      lingoLinqExtras.ready = true;
+      window.lingoLinqExtras = lingoLinqExtras;
     });
     afterEach(function() {
       persistence.set('last_sync_stamp_check', null);
@@ -2201,13 +2202,13 @@ describe("persistence", function() {
       persistence.set('last_sync_stamp_interval', null);
       persistence.set('last_sync_stamp', null);
       persistence.set('last_sync_at', null);
-      persistence.set('syncing', null);
+      persistence.set('sync_status', null);
       stashes.set('auth_settings', null);
     });
 
     it("should get called when online status changes", function() {
       persistence.set('online', false);
-      stub(LingoLinq, 'sync_testing', true);
+      LingoLinq.sync_testing = true;
       stashes.set('auth_settings', {});
       var called = false;
       stubOnPersistence( 'check_for_needs_sync', function(force) { called = !!force; });
@@ -2217,8 +2218,7 @@ describe("persistence", function() {
     });
 
     it("should not sync if last_sync_event_at is sooner than the user's interval", function() {
-      stub(session, 'restore', function() { });
-      persistence.set('online');
+      persistence.set('online', true);
       stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
@@ -2236,8 +2236,7 @@ describe("persistence", function() {
 
     it("should sync if force is true", function() {
       lingoLinqExtras.ready = true;
-      stub(session, 'restore', function() { });
-      persistence.set('online');
+      persistence.set('online', true);
       stubOnPersistence( 'sync', function() {
         return RSVP.reject();
       });
@@ -2282,7 +2281,7 @@ describe("persistence", function() {
       persistence.set('last_sync_event_at', 2);
       persistence.set('last_sync_stamp_interval', 10000);
       persistence.set('last_sync_at', 1);
-      persistence.set('syncing', true);
+      persistence.set('sync_status', 'syncing');
       var res = persistence.check_for_needs_sync();
       expect(res).toEqual(false);
     });

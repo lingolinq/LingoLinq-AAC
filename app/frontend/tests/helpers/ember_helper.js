@@ -13,15 +13,17 @@ import {
   waitsFor,
   runs,
   stub,
-  restoreStubs
+  restoreStubs,
+  currentAssert
 } from './jasmine';
 import app_state from '../../utils/app_state';
 import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import lingoLinqExtras from '../../utils/extras';
 import stashes from '../../utils/_stashes';
-import { primePersistenceService } from './persistence-stub';
-import session from '../../utils/session';
+import { primeAllServices } from './service-stub';
+import modal from '../../utils/modal';
+import boundClasses from '../../utils/bound_classes';
 import buttonTracker from '../../utils/raw_events';
 import ApplicationAdapter from 'frontend/adapters/application';
 // import startApp from '../helpers/start-app';
@@ -43,7 +45,6 @@ var JasmineAdapter = TestAdapter.extend({
 
   asyncStart: function() {
     testAdapter.asyncRunning = true;
-    waitsFor(function() { return testAdapter.asyncComplete(); });
   },
 
   asyncComplete: function() {
@@ -55,6 +56,10 @@ var JasmineAdapter = TestAdapter.extend({
   },
 
   exception: function(error) {
+    if (!currentAssert()) {
+      console.warn('JasmineAdapter.exception after test ended:', inspect(error));
+      return;
+    }
     if(error) { debugger; }
     expect(inspect(error)).toBeFalsy();
   }
@@ -101,7 +106,9 @@ queryLog.respondAndLog = function(event, defaultResponse) {
             meta: fixture.response._result.meta
           });
         }
-        return fixture.response;
+        return fixture.response.then(function(payload) {
+          return JSON.parse(JSON.stringify(payload));
+        });
       }
     }
   }
@@ -345,6 +352,9 @@ function result_wrap(data) {
   res.map = function(cb) {
     return res.list.map(function(i) { return cb(i); });
   };
+  res.slice = function() {
+    return Array.prototype.slice.apply(res.list, arguments);
+  };
 
   return res;
 }
@@ -485,7 +495,24 @@ beforeEach(function() {
   // App.rootElement = '#ember-testing';
   if (this.owner) {
     LingoLinq.testOwner = this.owner;
-    primePersistenceService(this.owner);
+    primeAllServices(this.owner);
+    if (LingoLinq.Buttonset && LingoLinq.Buttonset.clear_button_set_cache) {
+      LingoLinq.Buttonset.clear_button_set_cache();
+    }
+    if (LingoLinq.Buttonset) {
+      LingoLinq.Buttonset.pending_promises = {};
+    }
+    stub(persistence, 'ajax', function() {
+      return RSVP.reject({ error: 'offline in test' });
+    });
+    stub(persistence, 'find_url', function() {
+      return RSVP.resolve(null);
+    });
+    if (LingoLinq.appState && typeof LingoLinq.appState.set === 'function') {
+      try {
+        patchAppStateUserReload(LingoLinq.appState);
+      } catch (e) { /* service mid-teardown */ }
+    }
   }
   resetPersistenceForTest(this.owner);
   resetStashesForTest(this.owner);
@@ -529,6 +556,13 @@ beforeEach(function() {
     app_state.reset();
   }
   LingoLinq.all_wait = false;
+  modal.setup(EmberObject.create({
+    controllerFor: function() {
+      return EmberObject.create({});
+    }
+  }));
+  stub(modal, 'flash', function() { });
+  boundClasses.setup(true);
 });
 
 afterEach(function() {
@@ -581,8 +615,106 @@ function asStoreRecordArray(items) {
     map: function(cb) {
       return items.map(cb);
     },
+    find: function(cb) {
+      for (var i = 0; i < items.length; i++) {
+        if (cb(items[i], i)) {
+          return items[i];
+        }
+      }
+      return undefined;
+    },
+    filter: function(cb) {
+      return asStoreRecordArray(items.filter(cb));
+    },
     length: items.length
   };
 }
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray };
+function asEmberArray(items) {
+  items = items || [];
+  var arr = asStoreRecordArray(items);
+  arr.pushObject = function(o) {
+    items.push(o);
+    arr.length = items.length;
+    return o;
+  };
+  arr.slice = function() {
+    return asEmberArray(Array.prototype.slice.apply(items, arguments));
+  };
+  arr.mapBy = function(key) {
+    return items.map(function(i) {
+      if (i && typeof i.get === 'function') {
+        return i.get(key);
+      }
+      return i ? i[key] : undefined;
+    });
+  };
+  arr.findBy = function(key, val) {
+    for (var idx = 0; idx < items.length; idx++) {
+      var i = items[idx];
+      var candidate = (i && typeof i.get === 'function') ? i.get(key) : i[key];
+      if (candidate === val) {
+        return i;
+      }
+    }
+    return undefined;
+  };
+  arr.uniq = function() {
+    return asEmberArray(items.filter(function(item, index) {
+      return items.indexOf(item) === index;
+    }));
+  };
+  arr.toArray = function() {
+    return items.slice();
+  };
+  return arr;
+}
+
+function stubComputed(object, key, value) {
+  Object.defineProperty(object, key, {
+    configurable: true,
+    enumerable: true,
+    get: function() {
+      return value;
+    }
+  });
+}
+
+function ensureUserReload(user) {
+  if (user && typeof user.reload !== 'function' && typeof user.get === 'function') {
+    user.reload = function() {
+      return RSVP.resolve(user);
+    };
+  }
+  return user;
+}
+
+function patchAppStateUserReload(appStateSvc) {
+  if (!appStateSvc || appStateSvc._testUserReloadPatch || typeof appStateSvc.set !== 'function') {
+    return;
+  }
+  var origSet = appStateSvc.set.bind(appStateSvc);
+  appStateSvc.set = function(key, value) {
+    if (key === 'currentUser' || key === 'referenced_speak_mode_user' || key === 'speakModeUser') {
+      ensureUserReload(value);
+    }
+    return origSet(key, value);
+  };
+  appStateSvc._testUserReloadPatch = true;
+  ensureUserReload(appStateSvc.get('currentUser'));
+}
+
+function boardModelStub(attrs) {
+  return EmberObject.create(Object.assign({
+    contextualized_buttons: function() {
+      return this.get('buttons') || [];
+    },
+    variant_image_urls: function() {
+      return {};
+    }
+  }, attrs || {}));
+}
+
+import { persistenceTarget } from './persistence-stub';
+
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, persistenceTarget };

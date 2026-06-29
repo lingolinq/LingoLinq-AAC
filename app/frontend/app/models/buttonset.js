@@ -304,7 +304,11 @@ LingoLinq.Buttonset = BaseModel.extend({
                   fallback();
                 });
               }, function(err) {
-                fallback();
+                if(err && err.error === 'generation_stalled') {
+                  reject(err);
+                } else {
+                  fallback();
+                }
               });
             } catch(e) {
               fallback();
@@ -1082,32 +1086,42 @@ LingoLinq.Buttonset = BaseModel.extend({
         var root_button_set_lookups = [];
         var button_sets = [];
 
-        var lookup = function(key, home_lock) {
-          var button_set = key && (button_set_cache[key] || LingoLinq.store.peekRecord('buttonset', key));
-          if(button_set) {
-            button_set.set('home_lock_set', home_lock);
-            button_sets.push(button_set);
-            button_set_cache[key] = button_set;
+        var lookup = function(key, home_lock, is_home) {
+          if(!key) { return; }
+          var button_set = button_set_cache[key];
+          if(button_set && button_set.isDestroyed) {
+            delete button_set_cache[key];
+            button_set = null;
+          }
+          if(!button_set) {
+            button_set = LingoLinq.store.peekRecord('buttonset', key);
+          }
+          var add_button_set = function(bs) {
+            bs.set('home_lock_set', home_lock);
+            button_sets.push({button_set: bs, is_home: !!is_home});
+            button_set_cache[key] = bs;
+          };
+          if(button_set && !button_set.isDestroyed) {
+            add_button_set(button_set);
           } else if(key) {
             console.log("extra load!");
-            root_button_set_lookups.push(LingoLinq.Buttonset.load_button_set(key).then(function(button_set) {
-              button_set.set('home_lock_set', home_lock);
-              button_sets.push(button_set);
-              button_set_cache[key] = button_set;
+            root_button_set_lookups.push(LingoLinq.Buttonset.load_button_set(key).then(function(loaded) {
+              add_button_set(loaded);
             }, function() { return RSVP.resolve(); }));
           }
         };
         if(home_board_id) {
-          lookup(home_board_id);
+          lookup(home_board_id, undefined, true);
         }
         (_this.appState.get('sidebar_boards') || []).forEach(function(brd) {
-          lookup(brd.id, brd.home_lock);
+          lookup(brd.id, brd.home_lock, false);
         });
         console.log("waiting on", root_button_set_lookups.length);
         RSVP.all_wait(root_button_set_lookups).then(function() {
-          button_sets = Utils.uniq(button_sets, function(b) { return b.get('id'); });
-          button_sets.forEach(function(button_set, idx) {
-            var is_home = (idx === 0);
+          button_sets = Utils.uniq(button_sets, function(entry) { return entry.button_set.get('id'); });
+          button_sets.forEach(function(entry) {
+            var button_set = entry.button_set;
+            var is_home = entry.is_home;
             if(button_set) {
               var promise = button_set.find_buttons(str).then(function(buttons) {
                 buttons.forEach(function(button) {
@@ -1146,11 +1160,11 @@ LingoLinq.Buttonset = BaseModel.extend({
 
     var sort_results = other_buttons.then(function() {
       matching_buttons = matching_buttons.sort(function(a, b) {
-        var a_depth = a.current_depth ? 1 : 0;
-        var b_depth = b.current_depth ? 1 : 0;
-        if(a_depth > b_depth) {
+        var a_on_board = a.on_this_board ? 0 : 1;
+        var b_on_board = b.on_this_board ? 0 : 1;
+        if(a_on_board > b_on_board) {
           return 1;
-        } else if(a_depth < b_depth) {
+        } else if(a_on_board < b_on_board) {
           return -1;
         } else {
           if(a.match_level > b.match_level) {
@@ -1163,7 +1177,7 @@ LingoLinq.Buttonset = BaseModel.extend({
             } else if(a.label.toLowerCase() < b.label.toLowerCase()) {
               return -1;
             } else {
-              return (a.current_depth || 0) - (b.current_depth || 0);
+              return ((a.pre_buttons || []).length) - ((b.pre_buttons || []).length);
             }
           }
         }
@@ -1215,6 +1229,7 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
 LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, skipEmberRecordReload) {
   // use promises to make this call idempotent
   if(!id) { return RSVP.reject({error: 'missing button set id'}); }
+  id = id.toString();
   LingoLinq.Buttonset.pending_promises = LingoLinq.Buttonset.pending_promises || {};
   if(force) { delete LingoLinq.Buttonset.pending_promises[id]; }
   var promise = LingoLinq.Buttonset.pending_promises[id];
@@ -1241,7 +1256,7 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, ski
       }
     });
   }
-  if(found) {
+  if(found && !force) {
     var board = LingoLinq.store.peekRecord('board', found.get('id'));
     if(!board || board.get('full_set_revision') == found.get('full_set_revision')) {
       if((found.get('buttons') && found.get('buttons').length) || found.get('root_url')) {
@@ -1382,6 +1397,10 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, ski
     }
   }, 30000);
   return res;
+};
+
+LingoLinq.Buttonset.clear_button_set_cache = function() {
+  button_set_cache = {};
 };
 
 export default LingoLinq.Buttonset;

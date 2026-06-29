@@ -17,7 +17,7 @@ import stashes from '../../utils/_stashes';
 import persistence from '../../utils/persistence';
 import EmberObject from '@ember/object';
 import LingoLinq from '../../app';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 
 describe('session', function() {
   beforeEach(function() {
@@ -25,24 +25,11 @@ describe('session', function() {
     });
   });
   describe("setup", function() {
-    it("should set session information", function() {
-      var app = EmberObject.create();
-      var registered = false;
-      var injections = [];
-      app.register = function(key, session, args) {
-        if(key == 'lingolinq:session' && session == session && args.singleton && !args.instantiate) {
-          registered = true;
-        }
-      };
-      app.inject = function(injection, attr, key) {
-        if(attr == 'session' && key == 'lingolinq:session') {
-          injections.push(injection);
-        }
-      };
-      session.setup(app);
-      expect(LingoLinq.session).toEqual(session);
-      expect(injections).toEqual(['model', 'controller', 'view', 'route']);
-      expect(registered).toEqual(true);
+    it("should expose session on LingoLinq via the DI service", function() {
+      var svc = LingoLinq.session;
+      expect(svc).toBeTruthy();
+      expect(typeof svc.persist).toEqual('function');
+      expect(typeof svc.clear).toEqual('function');
     });
   });
 
@@ -334,7 +321,7 @@ describe('session', function() {
       var queried = false;
       stub(persistence, 'ajax', function(url, opts) {
         if(url == '/api/v1/token_check?access_token=12345') {
-          emberRun.later(function() {
+          later(function() {
             queried = true;
           }, 50);
         }

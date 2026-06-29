@@ -8,7 +8,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import { queryLog, persistenceTarget } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import editManager from '../../utils/edit_manager';
 import Button from '../../utils/button';
@@ -21,6 +21,60 @@ import progress_tracker from '../../utils/progress_tracker';
 import LingoLinq from '../../app';
 import EmberObject, { observer } from '@ember/object';
 import $ from 'jquery';
+
+import boundClasses from '../../utils/bound_classes';
+
+function setupEditBoard(boardRef, buttonGrid) {
+  buttonGrid = buttonGrid || [[]];
+  boardRef.set('ordered_buttons', buttonGrid);
+  boundClasses.setup(true);
+  editManager.setup(boardRef, LingoLinq.appState, persistenceTarget(), window.stashes);
+  return boardRef;
+}
+
+function editButton(boardRef, id, attrs) {
+  attrs = Object.assign({}, attrs || {});
+  if (attrs.image_id) {
+    attrs.local_image_url = attrs.local_image_url || 'data:image/png;base64,test';
+  }
+  if (attrs.sound_id) {
+    attrs.local_sound_url = attrs.local_sound_url || 'data:audio/wav;base64,test';
+  }
+  return Button.create(Object.assign({ id: id }, attrs));
+}
+
+function setEditMode(enabled) {
+  if (enabled) {
+    stashes.set('current_mode', 'edit');
+    if (!app_state.get('currentBoardState')) {
+      app_state.set('currentBoardState', { key: 'test/board', id: 'test-board-1' });
+    }
+  } else {
+    stashes.set('current_mode', 'default');
+  }
+}
+
+function prepareSaveGrid(boardRef, buttonDefs, priorButtons) {
+  buttonDefs = buttonDefs || [];
+  var grid = [];
+  var flat = [];
+  buttonDefs.forEach(function(row) {
+    var gridRow = [];
+    row.forEach(function(def) {
+      if (def === null) {
+        gridRow.push(editManager.fake_button());
+      } else {
+        var btn = editButton(boardRef, def.id, def);
+        gridRow.push(btn);
+        flat.push(btn);
+      }
+    });
+    grid.push(gridRow);
+  });
+  setupEditBoard(boardRef, grid);
+  boardRef.get('model').set('buttons', priorButtons || []);
+  return flat;
+}
 
 function setAllReady() {
   var allReady = true;
@@ -43,6 +97,12 @@ describe('editManager', function() {
       },
       translated_buttons: function() {
         return this.get('buttons');
+      },
+      contextualized_buttons: function() {
+        return this.get('buttons') || [];
+      },
+      variant_image_urls: function() {
+        return {};
       }
     }).create();
     stub(app_state, 'controller', EmberObject.create({
@@ -59,7 +119,11 @@ describe('editManager', function() {
       redraw: function() {
       }
     }).create({sent_messages: []});
+    editManager.Button = Button;
     editManager.controller = null;
+    if (LingoLinq.appState) {
+      editManager.register_services(LingoLinq.appState, persistenceTarget(), window.stashes);
+    }
   });
 
   describe("setup", function() {
@@ -91,12 +155,12 @@ describe('editManager', function() {
       editManager.controller = EmberObject.create({
         ordered_buttons: [[
           {id: 'plain-button'},
-          {
+          Button.create({
             id: 'ember-button',
             apply_level: function(level) {
               applied = level;
             }
-          }
+          })
         ]]
       });
       stub(editManager, 'update_color_key_id', function() { });
@@ -263,7 +327,7 @@ describe('editManager', function() {
         mode = val;
       });
       editManager.setup(board);
-      app_state.set('edit_mode', false);
+      setEditMode(false);
       var not_called = false;
       setTimeout(function() {
         not_called = (mode !== 'edit');
@@ -280,7 +344,7 @@ describe('editManager', function() {
         mode = val;
       });
       editManager.setup(board);
-      app_state.set('edit_mode', false);
+      setEditMode(false);
       app_state.set('currentUser', EmberObject.create({
         preferences: {long_press_edit: true}
       }));
@@ -322,13 +386,8 @@ describe('editManager', function() {
 
   describe("change_button", function() {
     it("should allow clearing known attributes on buttons", function() {
-      editManager.setup(board);
-      board.set('ordered_buttons', [[]]);
-      editManager.clear_button(1);
-      var button = Button.create({
-        id: 123, label: 'happen', chicken: true
-      });
-      board.set('ordered_buttons', [[button]]);
+      var button = editButton(board, 123, { label: 'happen', chicken: true });
+      setupEditBoard(board, [[button]]);
       editManager.clear_button(123);
       expect(button.get('label')).toEqual('');
       expect(button.get('image')).toEqual(null);
@@ -337,33 +396,25 @@ describe('editManager', function() {
     });
 
     it("should error gracefully when it can't find the button", function() {
-      editManager.setup(board);
-      board.set('ordered_buttons', [[]]);
+      setupEditBoard(board, [[]]);
       expect(function() { editManager.change_button(1, {}); }).not.toThrow();
 
     });
     it("should update attributes on the button when found", function() {
-      editManager.setup(board);
-      board.set('ordered_buttons', [[]]);
-      editManager.clear_button(1);
-      var button = Button.create({
-        id: 123, label: 'happen'
-      });
-      board.set('ordered_buttons', [[button]]);
+      var button = editButton(board, 123, { label: 'happen' });
+      setupEditBoard(board, [[button]]);
       editManager.change_button(123, {label: 'square', horse: 'radish'});
       expect(button.get('label')).toEqual('square');
       expect(button.get('horse')).toEqual('radish');
       expect(editManager.lastChange).toEqual({button_id: 123, changes: ['label', 'horse']});
     });
     it("should mirror image.best_url to image_url and local_image_url", function() {
-      editManager.setup(board);
-      board.set('ordered_buttons', [[]]);
-      var button = Button.create({
-        id: 123, label: 'wipe',
+      var button = editButton(board, 123, {
+        label: 'wipe',
         image_url: 'https://example.com/old.png',
         image_id: 1
       });
-      board.set('ordered_buttons', [[button]]);
+      setupEditBoard(board, [[button]]);
       var image = EmberObject.create({
         url: 'https://example.com/new.png',
         best_url: 'https://example.com/new.png'
@@ -376,12 +427,9 @@ describe('editManager', function() {
       expect(button.get('image')).toEqual(image);
     });
     it("should add the prior state to the edit history", function() {
-      editManager.setup(board);
-      board.set('ordered_buttons', [[]]);
+      var button = editButton(board, 123, { label: 'happen' });
+      setupEditBoard(board, [[]]);
       editManager.clear_button(1);
-      var button = Button.create({
-        id: 123, label: 'happen'
-      });
       board.set('ordered_buttons', [[button]]);
       editManager.change_button(123, {label: 'square', horse: 'radish'});
       var history = editManager.get('history');
@@ -394,13 +442,8 @@ describe('editManager', function() {
       expect(history[1][0][0].label).toEqual('happen');
     });
     it("should mark cleared buttons as empty", function() {
-      editManager.setup(board);
-      board.set('ordered_buttons', [[]]);
-      editManager.clear_button(1);
-      var button = Button.create({
-        id: 123, label: 'happen', chicken: true
-      });
-      board.set('ordered_buttons', [[button]]);
+      var button = editButton(board, 123, { label: 'happen', chicken: true });
+      setupEditBoard(board, [[button]]);
       editManager.clear_button(123);
       expect(button.get('empty')).toEqual(true);
     });
@@ -1096,7 +1139,7 @@ describe('editManager', function() {
       expect(button.get('label')).toEqual('');
       expect(button.get('image')).toEqual(undefined);
       expect(button.get('empty')).toEqual(true);
-      expect(button.get('display_class')).toEqual('button b___ empty');
+      expect(button.get('display_class')).toEqual('button b_ empty');
     });
   });
 
@@ -1414,7 +1457,7 @@ describe('editManager', function() {
   describe("lucky_symbol", function() {
     it("should search for and set a searched image based on the label", function() {
       editManager.setup(board);
-      app_state.set('edit_mode', true);
+      setEditMode(true);
       var button = Button.create({id: 1, label: "ham"});
       board.set('ordered_buttons', [[
         button
@@ -1472,7 +1515,7 @@ describe('editManager', function() {
 
     it("should clear button's pending state when search returns no results", function() {
       editManager.setup(board);
-      app_state.set('edit_mode', true);
+      setEditMode(true);
       var button = Button.create({id: 1, label: "ham"});
       board.set('ordered_buttons', [[
         button
@@ -1519,7 +1562,7 @@ describe('editManager', function() {
     });
     it("should search for parts of speech data", function() {
       editManager.setup(board);
-      app_state.set('edit_mode', true);
+      setEditMode(true);
       var button = Button.create({id: 1, label: "ham"});
       board.set('ordered_buttons', [[
         button
@@ -1567,7 +1610,7 @@ describe('editManager', function() {
     });
     it("should fail gracefully if the button doesn't have a label", function() {
       editManager.setup(board);
-      app_state.set('edit_mode', true);
+      setEditMode(true);
       var button = Button.create({id: 1});
       board.set('ordered_buttons', [[
         button
@@ -1584,7 +1627,7 @@ describe('editManager', function() {
     });
     it("should fail gracefully on ajax error", function() {
       editManager.setup(board);
-      app_state.set('edit_mode', true);
+      setEditMode(true);
       var button = Button.create({id: 1, label: "onward"});
       board.set('ordered_buttons', [[
         button
@@ -1614,7 +1657,7 @@ describe('editManager', function() {
     it("should search the last library selected by the user", function() {
       stashes.set('last_image_library', 'lessonpix');
       editManager.setup(board);
-      app_state.set('edit_mode', true);
+      setEditMode(true);
       var button = Button.create({id: 1, label: "onward"});
       board.set('ordered_buttons', [[
         button
@@ -1642,7 +1685,7 @@ describe('editManager', function() {
       stashes.set('last_image_library', 'lessonpix');
       editManager.setup(board);
       stub(persistence, 'ajax', function() { return RSVP.reject(); });
-      app_state.set('edit_mode', true);
+      setEditMode(true);
       var button = Button.create({id: 1, label: "onward"});
       board.set('ordered_buttons', [[
         button
@@ -1669,32 +1712,16 @@ describe('editManager', function() {
 
   describe("process_for_saving", function() {
     it("should update attributes for buttons", function() {
-      editManager.setup(board);
-      var button = Button.create({
-        label: 'hat',
-        image_id: 1,
-        sound_id: 2,
-        vocalization: 'hat',
-        background_color: 'mahogany',
-        border_color: '#88aabbff',
-        id: 245
-      });
-      var button2 = Button.create({
-        label: 'happen',
-        image_id: 1,
-        sound_id: 3,
-        vocalization: 'it happened',
-        background_color: 'rgb(255, 0, 0)',
-        border_color: 'rbg(300, 100, 0)'
-      });
-      var button3 = Button.create({
-        label: 'cheese',
-        background_color: '#abf',
-        border_color: 'hsv(320, 100%, 59%)'
-      });
-      var button4 = editManager.fake_button();
-      board.set('ordered_buttons', [[button, button2],[button3, button4]]);
-      board.set('model.buttons', []);
+      prepareSaveGrid(board, [
+        [
+          { id: 1, label: 'hat', image_id: 1, sound_id: 2, vocalization: 'hat', background_color: 'mahogany', border_color: '#88aabbff' },
+          { id: 2, label: 'happen', image_id: 1, sound_id: 3, vocalization: 'it happened', background_color: 'rgb(255, 0, 0)', border_color: 'rbg(300, 100, 0)' }
+        ],
+        [
+          { id: 3, label: 'cheese', background_color: '#abf', border_color: 'hsv(320, 100%, 59%)' },
+          null
+        ]
+      ]);
       var state = editManager.process_for_saving();
 
       expect(state.buttons.length).toEqual(3);
@@ -1708,13 +1735,14 @@ describe('editManager', function() {
         label: 'hat',
         image_id: 1,
         sound_id: 2,
-        border_color: 'rgba(170, 187, 255, 0.53)',
+        border_color: 'rgb(136, 170, 187)',
         link_disabled: false,
         blocking_speech: false,
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: true,
         hide_label: false,
-        home_lock: false
+        home_lock: false,
+        meta_home: false
       });
       expect(state.buttons[1]).toEqual({
         id: 2,
@@ -1726,9 +1754,10 @@ describe('editManager', function() {
         link_disabled: false,
         blocking_speech: false,
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: true,
         hide_label: false,
-        home_lock: false
+        home_lock: false,
+        meta_home: false
       });
       expect(state.buttons[2]).toEqual({
         id: 3,
@@ -1738,43 +1767,24 @@ describe('editManager', function() {
         link_disabled: false,
         blocking_speech: false,
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: true,
         hide_label: false,
-        home_lock: false
+        home_lock: false,
+        meta_home: false
       });
     });
 
     it("should set part_of_speech attributes for buttons", function() {
-      editManager.setup(board);
-      var button = Button.create({
-        label: 'hat',
-        image_id: 1,
-        sound_id: 2,
-        vocalization: 'hat',
-        background_color: 'mahogany',
-        border_color: '#88aabbff',
-        part_of_speech: 'noun',
-        suggested_part_of_speech: 'verb',
-        id: 245
-      });
-      var button2 = Button.create({
-        label: 'happen',
-        image_id: 1,
-        sound_id: 3,
-        vocalization: 'it happened',
-        background_color: 'rgb(255, 0, 0)',
-        border_color: 'rbg(300, 100, 0)',
-        part_of_speech: 'noun',
-        painted_part_of_speech: 'noun'
-      });
-      var button3 = Button.create({
-        label: 'cheese',
-        background_color: '#abf',
-        border_color: 'hsv(320, 100%, 59%)'
-      });
-      var button4 = editManager.fake_button();
-      board.set('ordered_buttons', [[button, button2],[button3, button4]]);
-      board.set('model.buttons', []);
+      prepareSaveGrid(board, [
+        [
+          { id: 1, label: 'hat', image_id: 1, sound_id: 2, vocalization: 'hat', background_color: 'mahogany', border_color: '#88aabbff', part_of_speech: 'noun', suggested_part_of_speech: 'verb' },
+          { id: 2, label: 'happen', image_id: 1, sound_id: 3, vocalization: 'it happened', background_color: 'rgb(255, 0, 0)', border_color: 'rbg(300, 100, 0)', part_of_speech: 'noun', painted_part_of_speech: 'noun' }
+        ],
+        [
+          { id: 3, label: 'cheese', background_color: '#abf', border_color: 'hsv(320, 100%, 59%)' },
+          null
+        ]
+      ]);
       var state = editManager.process_for_saving();
 
       expect(state.buttons.length).toEqual(3);
@@ -1788,15 +1798,16 @@ describe('editManager', function() {
         label: 'hat',
         image_id: 1,
         sound_id: 2,
-        border_color: 'rgba(170, 187, 255, 0.53)',
+        border_color: 'rgb(136, 170, 187)',
         link_disabled: false,
         blocking_speech: false,
         hidden: false,
         hide_label: false,
         part_of_speech: 'noun',
         suggested_part_of_speech: 'verb',
-        add_to_vocalization: false,
-        home_lock: false
+        add_vocalization: true,
+        home_lock: false,
+        meta_home: false
       });
       expect(state.buttons[1]).toEqual({
         id: 2,
@@ -1811,8 +1822,9 @@ describe('editManager', function() {
         hide_label: false,
         part_of_speech: 'noun',
         painted_part_of_speech: 'noun',
-        add_to_vocalization: false,
-        home_lock: false
+        add_vocalization: true,
+        home_lock: false,
+        meta_home: false
       });
       expect(state.buttons[2]).toEqual({
         id: 3,
@@ -1822,37 +1834,24 @@ describe('editManager', function() {
         link_disabled: false,
         blocking_speech: false,
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: true,
         home_lock: false,
+        meta_home: false,
         hide_label: false
       });
     });
 
     it("should clear removed buttons", function() {
-      editManager.setup(board);
-      var button = Button.create({
-        sound_id: 2,
-        vocalization: 'hat',
-        background_color: 'mahogany',
-        border_color: '#88aabbff',
-        id: 245
-      });
-      var button2 = Button.create({
-        label: 'happen',
-        image_id: 1,
-        sound_id: 3,
-        vocalization: 'it happened',
-        background_color: 'rgb(255, 0, 0)',
-        border_color: 'rbg(300, 100, 0)'
-      });
-      var button3 = Button.create({
-        label: 'cheese',
-        background_color: '#abf',
-        border_color: 'hsv(320, 100%, 59%)'
-      });
-      var button4 = editManager.fake_button();
-      board.set('ordered_buttons', [[button, button2],[button3, button4]]);
-      board.set('model.buttons', []);
+      prepareSaveGrid(board, [
+        [
+          { id: 1, sound_id: 2, vocalization: 'hat', background_color: 'mahogany', border_color: '#88aabbff' },
+          { id: 2, label: 'happen', image_id: 1, sound_id: 3, vocalization: 'it happened', background_color: 'rgb(255, 0, 0)', border_color: 'rbg(300, 100, 0)' }
+        ],
+        [
+          { id: 3, label: 'cheese', background_color: '#abf', border_color: 'hsv(320, 100%, 59%)' },
+          null
+        ]
+      ]);
       var state = editManager.process_for_saving();
 
       expect(state.buttons.length).toEqual(2);
@@ -1871,9 +1870,10 @@ describe('editManager', function() {
         blocking_speech: false,
         background_color: 'rgb(255, 0, 0)',
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: true,
         hide_label: false,
-        home_lock: false
+        home_lock: false,
+        meta_home: false
       });
       expect(state.buttons[1]).toEqual({
         id: 2,
@@ -1883,27 +1883,18 @@ describe('editManager', function() {
         link_disabled: false,
         blocking_speech: false,
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: true,
         hide_label: false,
-        home_lock: false
+        home_lock: false,
+        meta_home: false
       });
     });
 
     it("should handle integration buttons", function() {
-      editManager.setup(board);
-      var button = Button.create({
-        label: 'okay hat',
-        vocalization: 'hat',
-        integration: {okay: true},
-        background_color: 'mahogany',
-        border_color: '#88aabbff',
-        id: 245
-      });
-      var button2 = editManager.fake_button();
-      var button3 = editManager.fake_button();
-      var button4 = editManager.fake_button();
-      board.set('ordered_buttons', [[button, button2],[button3, button4]]);
-      board.set('model.buttons', []);
+      prepareSaveGrid(board, [
+        [{ id: 1, label: 'okay hat', vocalization: 'hat', integration: { okay: true }, background_color: 'mahogany', border_color: '#88aabbff' }, null],
+        [null, null]
+      ]);
       var state = editManager.process_for_saving();
 
       expect(state.buttons.length).toEqual(1);
@@ -1919,30 +1910,21 @@ describe('editManager', function() {
         vocalization: 'hat',
         link_disabled: false,
         blocking_speech: false,
-        border_color: 'rgba(170, 187, 255, 0.53)',
+        border_color: 'rgb(136, 170, 187)',
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: false,
         hide_label: false,
-        home_lock: false
+        home_lock: false,
+        meta_home: false
       });
     });
 
     it('should set translations if defined for a button', function() {
-      editManager.setup(board);
-      var button = Button.create({
-        label: 'okay hat',
-        vocalization: 'hat',
-        integration: {okay: true},
-        background_color: 'mahogany',
-        border_color: '#88aabbff',
-        id: 245
-      });
-      button.set('translations', [{245: {}}]);
-      var button2 = editManager.fake_button();
-      var button3 = editManager.fake_button();
-      var button4 = editManager.fake_button();
-      board.set('ordered_buttons', [[button, button2],[button3, button4]]);
-      board.set('model.buttons', []);
+      var buttons = prepareSaveGrid(board, [
+        [{ id: 1, label: 'okay hat', vocalization: 'hat', integration: { okay: true }, background_color: 'mahogany', border_color: '#88aabbff' }, null],
+        [null, null]
+      ]);
+      buttons[0].set('translations', [{ 245: {} }]);
       var state = editManager.process_for_saving();
 
       expect(state.buttons.length).toEqual(1);
@@ -1958,11 +1940,12 @@ describe('editManager', function() {
         vocalization: 'hat',
         link_disabled: false,
         blocking_speech: false,
-        border_color: 'rgba(170, 187, 255, 0.53)',
+        border_color: 'rgb(136, 170, 187)',
         hidden: false,
-        add_to_vocalization: false,
+        add_vocalization: false,
         hide_label: false,
         home_lock: false,
+        meta_home: false,
         translations: [{245: {}}]
       });
     });

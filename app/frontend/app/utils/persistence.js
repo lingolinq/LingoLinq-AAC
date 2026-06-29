@@ -106,6 +106,9 @@ if(!window.persistence || typeof window.persistence.get !== 'function') {
 var getPersistence = function() {
   // Prefer window.persistence (service instance) over module-level persistence (class)
   if(window.persistence && typeof window.persistence.get === 'function') {
+    if(window.persistence.isDestroyed || window.persistence.isDestroying) {
+      return null;
+    }
     return window.persistence;
   }
   return null;
@@ -136,7 +139,7 @@ var safeGet = function(instance, key, defaultValue) {
 
 // Safe property setter - does nothing if instance not available
 var safeSet = function(instance, key, value) {
-  if(instance && typeof instance.set === 'function') {
+  if(instance && typeof instance.set === 'function' && !instance.isDestroyed && !instance.isDestroying) {
     try {
       return instance.set(key, value);
     } catch(e) {
@@ -165,6 +168,18 @@ function time_promise(inputPromise, msg, ms) {
   });
   wrapped.promise_name = msg;
   return wrapped;
+}
+
+function sync_test_delay(ms) {
+  return (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 0 : ms;
+}
+
+function schedule_sync_board_step(callback, delay) {
+  if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+    run(callback);
+  } else {
+    runLater(callback, delay);
+  }
 }
 
 var persistence = EmberObject.extend({
@@ -743,10 +758,13 @@ var persistence = EmberObject.extend({
     return RSVP.resolve(obj);
   },
   store_eventually: function(store, obj, key) {
+    if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+      return persistence.store(store, obj, key);
+    }
     persistence.eventual_store = persistence.eventual_store || [];
     persistence.eventual_store.push([store, obj, key, true]);
     if(!persistence.eventual_store_timer) {
-      persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 100);
+      persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, sync_test_delay(100));
     }
     return RSVP.resolve(obj);
   },
@@ -758,7 +776,7 @@ var persistence = EmberObject.extend({
       // when all the records can be looked up in the local store,
       // so I'm using timers for now. Luckily these lookups shouldn't
       // be very involved, especially once the record has been found.
-      if(LingoLinq.Board) {
+      if(!LingoLinq.sync_testing && LingoLinq.Board && LingoLinq.Board.refresh_data_urls) {
         runLater(LingoLinq.Board.refresh_data_urls, 2000);
       }
     }
@@ -766,11 +784,14 @@ var persistence = EmberObject.extend({
   next_eventual_store: function() {
     if(persistence.eventual_store_timer) {
       runCancel(persistence.eventual_store_timer);
+      persistence.eventual_store_timer = null;
     }
+    var keepGoing = false;
     try {
       var args = (persistence.eventual_store || []).shift();
       if(args) {
         persistence.store.apply(persistence, args);
+        keepGoing = persistence.eventual_store && persistence.eventual_store.length > 0;
       } else if(persistence.refresh_after_eventual_stores.waiting) {
         persistence.refresh_after_eventual_stores.waiting = false;
         if(LingoLinq.Board) {
@@ -778,7 +799,13 @@ var persistence = EmberObject.extend({
         }
       }
     } catch(e) { }
-    persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 200);
+    if(LingoLinq.sync_testing) {
+      if(keepGoing) {
+        persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 0);
+      }
+    } else {
+      persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 200);
+    }
   },
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient
@@ -1597,7 +1624,7 @@ var persistence = EmberObject.extend({
               if(persistence.storing_urls) { persistence.storing_urls(); }
             });
           } else {
-            opts.defer.reject({error: 'sync canceled'});
+            opts.defer.resolve({});
           }
         } else {
           persistence.storing_url_watchers--;
@@ -2107,7 +2134,7 @@ var persistence = EmberObject.extend({
     console.log('syncing for ' + user_id);
     var user_name = user_id;
     var eventuallies = [];
-    if(this.get('online') && !ignore_supervisees && !sync_reason.match(/supervisee/)) {
+    if(this.get('online') && !ignore_supervisees && !sync_reason.match(/supervisee/) && !LingoLinq.sync_testing) {
       eventuallies.push(function() {
         stashes.push_log();
       });
@@ -2198,7 +2225,7 @@ var persistence = EmberObject.extend({
       }));
 
       // cache images used for keyboard spelling to work offline
-      if(!ignore_supervisees && (!LingoLinq.testing || LingoLinq.sync_testing)) {
+      if(!ignore_supervisees && !LingoLinq.sync_testing) {
         eventuallies.push(function() {
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
@@ -2208,7 +2235,7 @@ var persistence = EmberObject.extend({
         });
       }
 
-      if(window.appState && !ignore_supervisees) {
+      if(window.appState && !ignore_supervisees && !LingoLinq.sync_testing) {
         // We only really care about checking free space if we're dealing with
         // a user who has supervisees, because we might need to purge old ones.
         // It's expensive to run so we just skip it for normal users.
@@ -2317,19 +2344,26 @@ var persistence = EmberObject.extend({
 
         var spread_out = function(callback, name) {
           spread_out.delay = (spread_out.delay || 0) + 1500;
-          var delay = spread_out.delay;
+          var delay = sync_test_delay(spread_out.delay);
+          var userLabel = (user && user.get) ? user.get('user_name') : user_name;
           var promise = new RSVP.Promise(function(resolve, reject) {
-            runLater(function() {
-              var p = callback();
-              promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + user.get('user_name');
+            var runStep = function() {
+              var wrapped = check_first(callback);
+              var p = wrapped();
+              promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + userLabel;
               p.then(function(res) {
                 resolve(res);
               }, function(err) {
                 reject(err);
-              })
-            }, delay);
+              });
+            };
+            if (delay === 0) {
+              run(runStep);
+            } else {
+              runLater(runStep, delay);
+            }
           });
-          promise.promise_name = name + " for " + user.get('user_name');
+          promise.promise_name = name + " for " + userLabel;
           sync_promises.push(promise);
         };
 
@@ -2364,9 +2398,13 @@ var persistence = EmberObject.extend({
           if(safeGet(getPersistence(), 'sync_progress') && !safeGet(getPersistence(), 'sync_progress.full_set_revisions')) {
             safeSet(getPersistence(), 'sync_progress.full_set_revisions', res);
           }
-          return persistence.sync_boards(user, importantIds, synced_boards, force);
+          return check_first(function() {
+            return persistence.sync_boards(user, importantIds, synced_boards, force);
+          })();
         }, function() {
-          return persistence.sync_boards(user, importantIds, synced_boards, force);
+          return check_first(function() {
+            return persistence.sync_boards(user, importantIds, synced_boards, force);
+          })();
         });
         get_local_revisions.promise_name = "syncing boards for " + user.get('user_name');
         sync_promises.push(get_local_revisions);
@@ -2417,7 +2455,9 @@ var persistence = EmberObject.extend({
               return p._state != 1 && p._state != 2;
             }).map(function(p) { return p.promise_name });
             console.log("Sync waiting on", pending);
-            runLater(check_again, 5000);
+            if (!LingoLinq.sync_testing) {
+              runLater(check_again, 5000);
+            }
           }
         };
         RSVP.all_wait(sync_promises).then(function() {
@@ -2432,17 +2472,19 @@ var persistence = EmberObject.extend({
             sync_resolve(sync_log);
           }, function() {
             persistence.refresh_after_eventual_stores();
-            sync_reject(arguments);
+            sync_reject.apply(null, arguments);
           });
         }, function() {
           check_again.done = true;
           persistence.refresh_after_eventual_stores();
           sync_reject.apply(null, arguments);
         });
-        runLater(check_again, 5000);
+        if (!LingoLinq.sync_testing) {
+          runLater(check_again, 5000);
+        }
       })).then(null, function() {
         persistence.refresh_after_eventual_stores();
-        sync_reject(null, arguments);
+        sync_reject.apply(null, arguments);
       });
 
     }).then(function() {
@@ -2860,7 +2902,7 @@ var persistence = EmberObject.extend({
   },
   queue_sync_action: function(action, sync_id, method) {
     if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != safeGet(getPersistence(), 'sync_progress.sync_id'))) {
-      return RSVP.reject({error: 'canceled'});
+      return RSVP.resolve();
     }
     var defer = RSVP.defer();
     defer.callback = method;
@@ -2884,7 +2926,11 @@ var persistence = EmberObject.extend({
     persistence.sync_actions = persistence.sync_actions || [];
     var action = persistence.sync_actions.shift();
     var next = function() {
-      runLater(function() { persistence.next_sync_action(); });
+      if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+        persistence.next_sync_action();
+      } else {
+        runLater(function() { persistence.next_sync_action(); });
+      }
     };
     if(action && action.callback) {
       var start = (new Date()).getTime();
@@ -3093,6 +3139,11 @@ var persistence = EmberObject.extend({
     var sync_all_boards = get_sounds.then(function() {
       var startBoardSync = function(listData) {
         return new RSVP.Promise(function(resolve, reject) {
+        var persist = getPersistence();
+        if(!persist || persist.isDestroyed || persist.isDestroying || !safeGet(persist, 'sync_progress') || safeGet(persist, 'sync_progress.canceled')) {
+          resolve();
+          return;
+        }
         var to_visit_boards = [];
         var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
         if(user.get('preferences.home_board.id')) {
@@ -3158,7 +3209,7 @@ var persistence = EmberObject.extend({
         function nextBoard(defer) {
           if(dead_thread) { defer.reject({error: "someone else failed"}); return; }
           if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled')) {
-            defer.reject({error: 'canceled'});
+            defer.resolve();
             return;
           }
           var p_for = safeGet(getPersistence(), 'sync_progress.progress_for');
@@ -3260,7 +3311,7 @@ var persistence = EmberObject.extend({
                 })
               }
     
-              var image_map = board.map_image_urls(all_image_urls, all_skins.uniq(), symbol_sets.uniq());
+              var image_map = board.map_image_urls(all_image_urls, Utils.uniq(all_skins, function(i) { return i; }), Utils.uniq(symbol_sets, function(i) { return i; }));
               image_map.forEach(function(image) {
                 importantIds.push("image_" + image.id);
                 var keep_big = !!(board.get('grid.rows') < 3 || board.get('grid.columns') < 6);
@@ -3367,7 +3418,7 @@ var persistence = EmberObject.extend({
                               valid = true;
                             }
                           }
-                          if(!valid && !button.image_id.match(/^tmp_/)) {
+                          if(!valid && !String(button.image_id).match(/^tmp_/)) {
                             missing_image_ids.push(button.image_id);
                           }
                         }
@@ -3379,7 +3430,7 @@ var persistence = EmberObject.extend({
                               valid = true;
                             }
                           }
-                          if(!valid && !button.sound_id.match(/^tmp_/)) {
+                          if(!valid && !String(button.sound_id).match(/^tmp_/)) {
                             missing_sound_ids.push(button.sound_id);
                           }
                         }
@@ -3424,13 +3475,9 @@ var persistence = EmberObject.extend({
               }
               RSVP.all_wait(visited_board_promises).then(function() {
                 full_set_revisions[board.get('id')] = board.get('full_set_revision');
-                if(safely_cached && visited_board_promises.length == 0) {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
-                } else {
-                  runLater(function() {
-                    nextBoard(defer);
-                  }, 75);  
-                }
+                }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
               }, function(err) {
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
@@ -3442,7 +3489,7 @@ var persistence = EmberObject.extend({
                    msg = msg + ", linked from " + source;
                 }
                 board_errors.push({error: msg, board_id: id, board_key: key});
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               });
@@ -3451,7 +3498,7 @@ var persistence = EmberObject.extend({
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
                 // Prolly, since they won't be using that board anyway without an edit.
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               } else {
@@ -3464,7 +3511,7 @@ var persistence = EmberObject.extend({
                 } else {
                   board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
                 }
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               }
@@ -3475,18 +3522,18 @@ var persistence = EmberObject.extend({
             // and only resolve when *all* the promises are waiting.
             defer.resolve();
           } else {
-            runLater(function() {
+            schedule_sync_board_step(function() {
               nextBoard(defer);
             }, 50);
           }
         }
         // Threaded lookups with a global limit to prevent
         // people with lots of supervisees from getting bogged down
-        var n_threads = capabilities.mobile ? 6 : 10;
+        var n_threads = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 1 : (capabilities.mobile ? 6 : 10);
         var add_thread = function(defer) {
           defer = defer || RSVP.defer();
           if(persistence.active_board_threads > n_threads) {
-            runLater(function() {
+            schedule_sync_board_step(function() {
               add_thread(defer);
             }, 1000);
           } else {
@@ -3507,6 +3554,17 @@ var persistence = EmberObject.extend({
           add_thread();
         }
         RSVP.all_wait(board_load_promises).then(function() {
+          if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+            persistence.urls_to_store = [];
+            persistence.storing_url_watchers = 0;
+            persistence.storing_urls = null;
+            persistence.active_board_threads = 0;
+            if (persistence.eventual_store_timer) {
+              try { runCancel(persistence.eventual_store_timer); } catch (e) { /* torn down */ }
+              persistence.eventual_store_timer = null;
+            }
+            persistence.eventual_store = [];
+          }
           resolve(full_set_revisions);
         }, function(err) {
           dead_thread = true;

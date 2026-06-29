@@ -144,7 +144,7 @@ LingoLinq.User = BaseModel.extend({
         res = res.concat(org.home_board_keys);
       }
     })
-    return res.uniq();
+    return Utils.uniq(res);
   }),
   manages_multiple_orgs: computed('managed_orgs', function() {
     return (this.get('managed_orgs') || []).length > 1;

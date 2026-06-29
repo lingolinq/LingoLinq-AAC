@@ -12,7 +12,7 @@ import { easyPromise, db_wait } from 'frontend/tests/helpers/ember_helper';
 import modal from '../../utils/modal';
 import scanner from '../../utils/scanner';
 import EmberObject from '@ember/object';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 
 describe('modal', function() {
   var route = null;
@@ -213,7 +213,7 @@ describe('modal', function() {
         scanner.scanning = true;
       });
 
-      emberRun.later(function() {
+      later(function() {
         modal.close();
       }, 100);
       waitsFor(function() { return scanner.scanning; });

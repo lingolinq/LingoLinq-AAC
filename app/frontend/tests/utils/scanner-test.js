@@ -32,7 +32,7 @@ describe('scanner', function() {
     it("should set the controller", function() {
       db_wait(function() {
         expect(scanner.controller).toEqual(undefined);
-        var con = {a: 1};
+        var con = EmberObject.create({ appState: app_state });
         scanner.setup(con);
         expect(scanner.controller).toEqual(con);
       });
@@ -1326,7 +1326,8 @@ describe('scanner', function() {
       scanner.scanning = true;
       scanner.hide_input();
       expect(hidden).toEqual(false);
-      app_state.set('speak_mode', true);
+      stashes.set('current_mode', 'speak');
+      app_state.set('currentBoardState', true);
       scanner.hide_input();
       expect(hidden).toEqual(false);
 

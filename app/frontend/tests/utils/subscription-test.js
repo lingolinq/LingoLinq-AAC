@@ -329,7 +329,6 @@ describe('subscription', function() {
         expect(s.get('cheaper_offer')).toEqual(false);
         expect(s.get('discount_period')).toEqual(false);
         u.set('joined_within_24_hours', true);
-        s.set('discount_period', true);
         expect(s.get('discount_period')).toEqual(true);
         expect(s.get('cheaper_offer')).toEqual(true);
         expect(s.get('much_cheaper_offer')).toEqual(false);
