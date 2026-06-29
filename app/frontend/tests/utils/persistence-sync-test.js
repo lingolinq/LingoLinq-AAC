@@ -31,7 +31,8 @@ import {
   primeSyncBoardHarness,
   enableRealSyncBoards,
   cacheRealSyncBoards,
-  unloadSyncStoreRecords
+  unloadSyncStoreRecords,
+  stubSoundTranscriptionCheck
 } from '../helpers/sync-test-cleanup';
 
 function logById(logs, id) {
@@ -149,11 +150,30 @@ function primeLocalSyncStorage(imageSpecs) {
   });
 }
 
+function clearLocalSyncDb() {
+  var repo = capabilities.dbman && capabilities.dbman.repo;
+  if (repo) {
+    Object.keys(repo).forEach(function(store) {
+      repo[store] = [];
+    });
+  }
+}
+
+function boardAjaxGetResponse(boardId, boardKey, boardName) {
+  return { board: {
+    id: String(boardId),
+    key: boardKey,
+    name: boardName,
+    permissions: { view: true, edit: true }
+  }};
+}
+
 function primeFindChangedSyncHarness(userId, findChangedFn, opts) {
   opts = opts || {};
   cancelSyncTailWork();
   if (!opts.keepStore) {
     unloadSyncStoreRecords();
+    clearLocalSyncDb();
   }
   persistence.set('sync_log', null);
   persistence.set('sync_progress', null);
@@ -196,6 +216,13 @@ function finishFindChangedSyncTest() {
   persistence.set('sync_progress', null);
   persistence.set('sync_status', null);
   unloadSyncStoreRecords();
+  clearLocalSyncDb();
+  resetSyncTestCaches();
+  var target = persistenceTarget();
+  if (target) {
+    target.removals = [];
+  }
+  persistence.removals = [];
 }
 
 function waitForBoardsStored(boardIds) {
@@ -307,6 +334,7 @@ function primeSyncHarness() {
     stub(LingoLinq.session, 'check_token', function() { });
   }
   stub(modal, 'error', function() { });
+  stubSoundTranscriptionCheck();
   if (capabilities.storage) {
     if (capabilities.storage.list_files) {
       stub(capabilities.storage, 'list_files', function() { return RSVP.resolve([]); });
@@ -428,6 +456,9 @@ describe("persistence-sync", function() {
     if (typeof LingoLinq !== 'undefined') {
       LingoLinq.sync_testing_real_boards = false;
     }
+    if (LingoLinq.Board && LingoLinq.Board.refresh_data_urls) {
+      stub(LingoLinq.Board, 'refresh_data_urls', function() {});
+    }
   });
   afterEach(function() {
     cancelSyncTailWork();
@@ -437,6 +468,8 @@ describe("persistence-sync", function() {
     persistence.set('sync_status', null);
     persistence.url_cache = {};
     persistence.url_uncache = {};
+    persistence.known_missing = {};
+    persistence.important_ids = null;
     if (capabilities.dbman && capabilities.dbman.clear) {
       capabilities.dbman.clear('settings', function() {});
       capabilities.dbman.clear('deletion', function() {});
@@ -1259,7 +1292,7 @@ describe("persistence-sync", function() {
       queryLog.defineFixture({
         method: 'GET',
         type: 'sound',
-        response: RSVP.resolve({sound: {id: '3', url: 'http://example.com/sound.mp3'}}),
+        response: RSVP.resolve({sound: {id: '3', url: 'http://example.com/sound.mp3', transcription: 'fixture'}}),
         id: '3'
       });
 
@@ -1575,8 +1608,14 @@ describe("persistence-sync", function() {
       store_promises.push(persistence.store('board', b3, b3.id));
       store_promises.push(persistence.store('board', b4, b4.id));
       store_promises.push(persistence.store('image', {id: '2', url: 'http://www.example.com/pic.png'}, '2'));
+      store_promises.push(persistence.store('sound', {id: '3', url: 'http://example.com/sound.mp3'}, '3'));
       store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic.png', content_type: 'image/png', data_uri: 'data:image/png;base64,a0a'}, 'http://www.example.com/pic.png'));
+      store_promises.push(persistence.store('dataCache', {url: 'http://example.com/sound.mp3', content_type: 'audio/mp3', data_uri: 'data:audio/mp3;base64,eee'}, 'http://example.com/sound.mp3'));
       store_promises.push(persistence.store('settings', revisions, 'synced_full_set_revisions'));
+      primeSyncUrlCache({
+        'http://example.com/sound.mp3': 'data:audio/mp3;base64,eee'
+      });
+      LingoLinq.store.push({ data: { type: 'sound', id: '3', attributes: { id: '3', url: 'http://example.com/sound.mp3' } } });
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
@@ -1617,6 +1656,10 @@ describe("persistence-sync", function() {
           } else if(options.url == '/api/v1/boards/178') {
             return RSVP.resolve({
               board: b3
+            });
+          } else if(options.url == '/api/v1/boards/179') {
+            return RSVP.resolve({
+              board: b4
             });
           }
           return RSVP.reject({});
@@ -2205,12 +2248,23 @@ describe("persistence-sync", function() {
 
  it("should not error if a link_disabled board isn't available", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       var stores = [];
       stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
+      primeSyncUrlCache({
+        'http://example.com/board.png': 'data:image/png;base64,bbb',
+        'http://example.com/image.png': 'data:image/png;base64,ccc',
+        'http://example.com/sound.mp3': 'data:audio/mp3;base64,ddd'
+      });
+      LingoLinq.store.push({ data: { type: 'image', id: '2', attributes: { id: '2', url: 'http://example.com/image.png' } } });
+      LingoLinq.store.push({ data: { type: 'sound', id: '3', attributes: { id: '3', url: 'http://example.com/sound.mp3' } } });
       stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
@@ -2268,7 +2322,11 @@ describe("persistence-sync", function() {
         expect(logById(logs, '1340')).toNotEqual(undefined);
         expect(logById(logs, '145')).toNotEqual(undefined);
         expect(logById(logs, '167')).toNotEqual(undefined);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
+      waitsFor(function() { return syncSettled(); });
+      runs();
     });
   });
 
@@ -2291,14 +2349,27 @@ describe("persistence-sync", function() {
             created = true;
             return RSVP.resolve({board: {
               id: '1998',
-              key: 'fred/cool'
+              key: 'fred/create-31',
+              name: 'Create Sync Board 31'
             }});
           }
+        } else if(options.type === 'PUT' && options.url === '/api/v1/boards/1998') {
+          return RSVP.resolve({board: {
+            id: '1998',
+            key: 'fred/create-31',
+            name: options.data.board.name || 'Create Sync Board 31'
+          }});
+        } else if(options.type === 'GET' && options.url === '/api/v1/boards/1998') {
+          return RSVP.resolve({board: {
+            id: '1998',
+            key: 'fred/create-31',
+            name: 'Create Sync Board 31'
+          }});
         }
         return RSVP.reject({});
       });
 
-      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+      var board = LingoLinq.store.createRecord('board', {key: 'fred/create-31', name: "Create Sync Board 31"});
       board.save().then(function(res) {
         record = res;
       });
@@ -2324,8 +2395,8 @@ describe("persistence-sync", function() {
       waitsFor(function() { return found_record; });
       runs(function() {
         expect(!!found_record.id.match(/^tmp_/)).toEqual(true);
-        expect(!!found_record.key.match(/^tmp_.+\/cool/)).toEqual(true);
-        expect(found_record.name).toEqual("My Awesome Board");
+        expect(!!found_record.key.match(/^tmp_.+\/create-31/)).toEqual(true);
+        expect(found_record.name).toEqual("Create Sync Board 31");
         later(function() {
           found_record_id = found_record.id;
           setSyncOnline(true, persistTarget);
@@ -2337,8 +2408,9 @@ describe("persistence-sync", function() {
         });
       });
       var removed = false;
-      waitsFor(function() { return done && syncDoneWait(); });
+      waitsFor(function() { return done; });
       runs(function() {
+        cancelSyncTailWork();
         expect(created).toEqual(true);
         persistence.find('board', '1998').then(function() {
           persistence.find('board', found_record_id).then(function() { dbg(); }, function() {
@@ -2360,14 +2432,11 @@ describe("persistence-sync", function() {
       var persistTarget = primeFindChangedSyncHarness('1567');
       var boardId = '9234';
       var boardKey = 'freddy/update-sync';
+      var boardName = 'Update Sync Board 9234';
       var record = null;
       var updated_record = null;
       var remote_updated = null;
 
-      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: "My Awesome Board"});
-      board.save().then(function(res) {
-        record = res;
-      });
       stub($, 'realAjax', function(options) {
         if(options.type === 'GET' && options.url === "/api/v1/users/1567") {
           return RSVP.resolve({ user: {
@@ -2375,7 +2444,7 @@ describe("persistence-sync", function() {
             user_name: 'freddy'
           }});
         } else if(options.type === 'POST' && options.url === "/api/v1/boards") {
-          if(options.data.board.name === "My Awesome Board") {
+          if(options.data.board.name === boardName) {
             return RSVP.resolve({ board: {
               id: boardId,
               name: 'Righteous Board'
@@ -2389,8 +2458,19 @@ describe("persistence-sync", function() {
               name: 'Stellar Board'
             }});
           }
+        } else if(options.type === 'GET' && options.url === "/api/v1/boards/" + boardId) {
+          return RSVP.resolve(boardAjaxGetResponse(
+            boardId,
+            boardKey,
+            remote_updated ? 'Stellar Board' : boardName
+          ));
         }
         return RSVP.reject({});
+      });
+
+      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: boardName});
+      board.save().then(function(res) {
+        record = res;
       });
 
       waitsFor(function() { return record; });
@@ -2961,14 +3041,11 @@ describe("persistence-sync", function() {
       var persistTarget = primeFindChangedSyncHarness('1567');
       var boardId = '9238';
       var boardKey = 'freddy/partial-sync';
+      var boardName = 'Partial Sync Board 9238';
       var record = null;
       var updated_record = null;
       var remote_updated = null;
 
-      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: "My Awesome Board"});
-      board.save().then(function(res) {
-        record = res;
-      });
       stub($, 'realAjax', function(options) {
         if(options.type === 'GET' && options.url === "/api/v1/users/1567") {
           return RSVP.resolve({ user: {
@@ -2976,7 +3053,7 @@ describe("persistence-sync", function() {
             user_name: 'freddy'
           }});
         } else if(options.type === 'POST' && options.url === "/api/v1/boards") {
-          if(options.data.board.name === "My Awesome Board") {
+          if(options.data.board.name === boardName) {
             return RSVP.resolve({ board: {
               id: boardId,
               name: 'Righteous Board'
@@ -2990,8 +3067,19 @@ describe("persistence-sync", function() {
               name: 'Stellar Board'
             }});
           }
+        } else if(options.type === 'GET' && options.url === "/api/v1/boards/" + boardId) {
+          return RSVP.resolve(boardAjaxGetResponse(
+            boardId,
+            boardKey,
+            remote_updated ? 'Stellar Board' : boardName
+          ));
         }
         return RSVP.reject({});
+      });
+
+      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: boardName});
+      board.save().then(function(res) {
+        record = res;
       });
 
       waitsFor(function() { return record; });
@@ -3048,6 +3136,12 @@ describe("persistence-sync", function() {
   it("should update all board links to sub-boards, images and sounds containing temporary identifiers as part of sync", function() {
     db_wait(function() {
       var persistTarget = primeFindChangedSyncHarness('1567');
+      var serverBoardId = '9334';
+      var tmpBoardId = '9335';
+      var imageId = '9336';
+      var soundId = '9337';
+      var serverBoardName = 'Tmp Link Server Board 9334';
+      var tmpBoardName = 'Tmp Link Temp Board 9335';
 
       stub($, 'realAjax', function(options) {
         if(options.type == 'GET' && options.url == "/api/v1/users/1567") {
@@ -3058,54 +3152,56 @@ describe("persistence-sync", function() {
           }});
         } else if(options.type == 'POST' && options.url == "/api/v1/boards") {
           var board = options.data.board;
-          if(board.name == "My Awesome Board") {
+          if(board.name == serverBoardName) {
             return RSVP.resolve({ board: {
-              id: '1234',
+              id: serverBoardId,
               name: 'Righteous Board',
               buttons: board.buttons,
               order: board.order
             }});
-          } else if(options.data.board.name == "Temp Board") {
+          } else if(options.data.board.name == tmpBoardName) {
             return RSVP.resolve({ board: {
-              id: '1235',
+              id: tmpBoardId,
               name: 'Previously-Temp Board',
               buttons: board.buttons,
               order: board.order
             }});
           }
-        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/1234') {
+        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/' + serverBoardId) {
           var res = options.data.board;
-          res.id = '1234';
+          res.id = serverBoardId;
           return RSVP.resolve({ board: res });
-        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/1235') {
+        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/' + tmpBoardId) {
           var res = options.data.board;
-          res.id = '1235';
+          res.id = tmpBoardId;
           return RSVP.resolve({ board: res });
         } else if(options.type == 'POST' && options.url == '/api/v1/images') {
           return RSVP.resolve({ image: {
-            id: '1236'
+            id: imageId
           }});
         } else if(options.type == 'POST' && options.url == '/api/v1/sounds') {
           return RSVP.resolve({ sound: {
-            id: '1237'
+            id: soundId
           }});
-        } else if(options.type == 'GET' && options.url == '/api/v1/images/1236') {
+        } else if(options.type == 'GET' && options.url == '/api/v1/images/' + imageId) {
           return RSVP.resolve({ image: {
-            id: '1236'
+            id: imageId
           }});
-        } else if(options.type == 'GET' && options.url == '/api/v1/sounds/1237') {
+        } else if(options.type == 'GET' && options.url == '/api/v1/sounds/' + soundId) {
           return RSVP.resolve({ sound: {
-            id: '1237'
+            id: soundId
           }});
+        } else if(options.type == 'GET' && options.url == '/api/v1/boards/' + serverBoardId) {
+          return RSVP.resolve(boardAjaxGetResponse(serverBoardId, 'freddy/tmp-link-server', 'Righteous Board'));
+        } else if(options.type == 'GET' && options.url == '/api/v1/boards/' + tmpBoardId) {
+          return RSVP.resolve(boardAjaxGetResponse(tmpBoardId, 'freddy/tmp-link-temp', 'Previously-Temp Board'));
         }
-        dbg();
         return RSVP.reject({});
       });
 
       var server_board, tmp_board, tmp_image, tmp_sound;
       var new_image, new_board, new_sound;
-      // create a server-side board
-      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+      var board = LingoLinq.store.createRecord('board', {key: 'freddy/tmp-link-server', name: serverBoardName});
       board.save().then(function(res) {
         server_board = res;
       });
@@ -3118,10 +3214,10 @@ describe("persistence-sync", function() {
           // create a temporary image
           // create a temporary sound
           // create a temporary board
-          expect(server_board.get('id')).toEqual("1234");
+          expect(server_board.get('id')).toEqual(serverBoardId);
           expect(server_board.get('name')).toEqual("Righteous Board");
 
-          var board2 = LingoLinq.store.createRecord('board', {key: 'ok/cool2', name: 'Temp Board'});
+          var board2 = LingoLinq.store.createRecord('board', {key: 'freddy/tmp-link-temp', name: tmpBoardName});
           board2.save().then(function(res) {
             tmp_board = res;
           });
