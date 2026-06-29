@@ -54,8 +54,11 @@ if(!window.persistence || typeof window.persistence.get !== 'function') {
       if(key === 'last_sync_stamp') return this.last_sync_stamp;
       if(key === 'sync_progress') return this.sync_progress;
       if(key === 'sync_stamps') return this.sync_stamps;
+      if(key && key.indexOf('sync_progress.') === 0) {
+        var progressKey = key.slice('sync_progress.'.length);
+        return this.sync_progress ? this.sync_progress[progressKey] : null;
+      }
       if(key && key.indexOf('local_system') === 0) return null;
-      if(key && key.indexOf('sync_progress') === 0) return null;
       return null;
     },
     // Safe set method - stores property on placeholder
@@ -176,7 +179,11 @@ function sync_test_delay(ms) {
 
 function schedule_sync_board_step(callback, delay) {
   if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
-    run(callback);
+    if (delay && delay > 0) {
+      runLater(callback, 1);
+    } else {
+      run(callback);
+    }
   } else {
     runLater(callback, delay);
   }
@@ -2901,35 +2908,51 @@ var persistence = EmberObject.extend({
     });
   },
   queue_sync_action: function(action, sync_id, method) {
-    if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != safeGet(getPersistence(), 'sync_progress.sync_id'))) {
+    var inst = getPersistence() || this;
+    if(!safeGet(inst, 'sync_progress') || safeGet(inst, 'sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != safeGet(inst, 'sync_progress.sync_id'))) {
       return RSVP.resolve();
     }
     var defer = RSVP.defer();
     defer.callback = method;
     defer.descriptor = action;
     defer.id = (new Date()).getTime() + '-' + Math.random();
-    persistence.sync_actions = persistence.sync_actions || [];
+    inst.sync_actions = inst.sync_actions || [];
     if(capabilities.log_events) {
       console.warn("queueing sync action", defer.descriptor, defer.id);
     }
-    persistence.sync_actions.push(defer);
+    inst.sync_actions.push(defer);
     var threads = capabilities.mobile ? 1 : 4;
 
-    persistence.syncing_action_watchers = persistence.syncing_action_watchers || 0;
-    if(persistence.syncing_action_watchers < threads) {
-      persistence.syncing_action_watchers++;
-      persistence.next_sync_action();
+    inst.syncing_action_watchers = inst.syncing_action_watchers || 0;
+    if(inst.syncing_action_watchers < threads) {
+      inst.syncing_action_watchers++;
+      if(typeof inst.next_sync_action === 'function') {
+        inst.next_sync_action();
+      } else {
+        persistence.next_sync_action();
+      }
     }
     return defer.promise;
   },
   next_sync_action: function() {
-    persistence.sync_actions = persistence.sync_actions || [];
-    var action = persistence.sync_actions.shift();
+    var inst = getPersistence() || this;
+    inst.sync_actions = inst.sync_actions || [];
+    var action = inst.sync_actions.shift();
     var next = function() {
       if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
-        persistence.next_sync_action();
+        if(typeof inst.next_sync_action === 'function') {
+          inst.next_sync_action();
+        } else {
+          persistence.next_sync_action();
+        }
       } else {
-        runLater(function() { persistence.next_sync_action(); });
+        runLater(function() {
+          if(typeof inst.next_sync_action === 'function') {
+            inst.next_sync_action();
+          } else {
+            persistence.next_sync_action();
+          }
+        });
       }
     };
     if(action && action.callback) {
@@ -2944,19 +2967,29 @@ var persistence = EmberObject.extend({
             console.warn(end - start, "done executing sync action", action.descriptor, action.id);
           }
           action.resolve(r);
+          if(inst.syncing_action_watchers) {
+            inst.syncing_action_watchers--;
+          }
           next();
         }, function(e) {
           action.reject(e);
+          if(inst.syncing_action_watchers) {
+            inst.syncing_action_watchers--;
+          }
           next();
         });
       } catch(e) {
         action.reject(e);
+        if(inst.syncing_action_watchers) {
+          inst.syncing_action_watchers--;
+        }
         next();
       }
     } else {
-      if(persistence.syncing_action_watchers) {
-        persistence.syncing_action_watchers--;
+      if(inst.syncing_action_watchers) {
+        inst.syncing_action_watchers--;
       }
+      next();
     }
   },
   sync_boards: function(user, importantIds, synced_boards, force) {
@@ -3055,6 +3088,9 @@ var persistence = EmberObject.extend({
                     if(safeGet(getPersistence(), 'sync_progress')) {
                       safeSet(getPersistence(), 'sync_progress.pre_visited', need_fresh_ids.length - ids_left.length);
                     }
+                    if(list.length === 0) {
+                      next_batch();
+                    } else {
                     list.forEach(function(board_json) {
                       var json_api = { data: {
                         id: board_json.id,
@@ -3071,6 +3107,7 @@ var persistence = EmberObject.extend({
                         next_batch();
                       });
                     });
+                    }
                   }, function(err) {
                     // On error, just stop trying to pre-batch and
                     // fall back to the old way

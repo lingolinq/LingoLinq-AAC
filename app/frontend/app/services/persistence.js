@@ -54,7 +54,11 @@ function sync_test_delay(ms) {
 
 function schedule_sync_board_step(callback, delay) {
   if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
-    run(callback);
+    if (delay && delay > 0) {
+      runLater(callback, 1);
+    } else {
+      run(callback);
+    }
   } else {
     runLater(callback, delay);
   }
@@ -3085,6 +3089,9 @@ var persistence = Service.extend({
                     if(_this_sync_boards.get('sync_progress')) {
                       _this_sync_boards.set('sync_progress.pre_visited', need_fresh_ids.length - ids_left.length);
                     }
+                    if(list.length === 0) {
+                      next_batch();
+                    } else {
                     list.forEach(function(board_json) {
                       var json_api = { data: {
                         id: board_json.id,
@@ -3101,6 +3108,7 @@ var persistence = Service.extend({
                         next_batch();
                       });
                     });
+                    }
                   }, function(err) {
                     // On error, just stop trying to pre-batch and
                     // fall back to the old way
