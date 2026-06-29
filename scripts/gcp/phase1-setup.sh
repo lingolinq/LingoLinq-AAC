@@ -417,7 +417,7 @@ GitHub repo vars to set (GCP_PROJECT_ID deferred until deploy-enable):
     Without it, Cloud Run runs as the DEFAULT COMPUTE SA (Editor), which (a) makes this
     script's runtime SA + all 9 per-secret accessor grants + the AR reader grant INERT,
     and (b) BREAKS BOOT - the default compute SA has no secretAccessor, so the app cannot
-    read SECRET_KEY_BASE/DATABASE_URL/etc. This is the runtime-identity contract for the
+    read SECRET_KEY_BASE/DB_PASSWORD/etc. This is the runtime-identity contract for the
     whole least-privilege design; fix it in the workflow before any deploy.
 
 PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
@@ -426,7 +426,7 @@ PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
   - Cloud SQL Postgres instance (zonal at launch) -> sets GCP_CLOUDSQL_INSTANCE
     (PROJECT:REGION:INSTANCE) for --set-cloudsql-instances.
   - Grant roles/cloudsql.client to ${RUNTIME_SA} once the instance exists.
-  - DB-auth choice: password-over-socket vs IAM DB auth (drives DATABASE_URL secret value).
+  - DB-auth choice: password-over-socket vs IAM DB auth (drives the DB_* secret values).
   - VPC network/subnet -> GCP_VPC_NETWORK / GCP_VPC_SUBNET repo vars.
   - Worker pool has no autoscaling: --instances is a manual scaling control (ops runbook).
   - Secret Manager: seed the 9 empty secrets from the 1Password Prod vault (Phase 2.8).

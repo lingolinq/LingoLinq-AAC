@@ -95,7 +95,7 @@ REDIS_VERSION="${REDIS_VERSION:-redis_7_2}"
 REDIS_TIER="${REDIS_TIER:-basic}"                     # single node pre-MVP; HA = post-launch
 
 # Secret Manager names (created EMPTY in Phase 1; we add VALUE versions here)
-SECRET_DATABASE_URL="${SECRET_DATABASE_URL:-DATABASE_URL}"
+# DB connection uses discrete DB_* secrets (seeded in Step 2d); no single DATABASE_URL secret.
 SECRET_REDIS_URL="${SECRET_REDIS_URL:-REDIS_URL}"
 SECRET_REDIS_CA_CERT="${SECRET_REDIS_CA_CERT:-REDIS_CA_CERT}"
 
@@ -462,7 +462,7 @@ VPC / subnet:      ${VPC_NAME} / ${SUBNET_NAME} (${SUBNET_RANGE})
 Cloud SQL:         ${SQL_INSTANCE} (${SQL_DB_VERSION}, private IP) [CONFIRM_SQL=${CONFIRM_SQL}]
 Memorystore:       ${REDIS_INSTANCE} (${REDIS_TIER}, ${REDIS_SIZE_GB}GB)      [CONFIRM_REDIS=${CONFIRM_REDIS}]
 Runtime SA grant:  roles/cloudsql.client on ${RUNTIME_SA}
-Secrets seeded:    ${SECRET_DATABASE_URL}, ${SECRET_REDIS_URL} (only when their gate ran)
+Secrets seeded:    DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD, ${SECRET_REDIS_URL} (only when their gate ran)
 
 PHASE 3 -> deploy-workflow edits (DONE on this branch, still INERT):
   - deploy-cloudrun.yml already passes Direct VPC egress + Cloud SQL on all three deploy
