@@ -443,7 +443,7 @@ var editManager = EmberObject.extend({
       // TO BE verb overrides
       var overrides = [];
       if(rules.fallback_list) {
-        overrides.push({lookback: [{words: ["i"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["i"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "am"};
           inflections["are"] = {type:'override', label: "am"};
           inflections["does"] = {type:'override', label: "do"};
@@ -452,10 +452,10 @@ var editManager = EmberObject.extend({
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "am not"};
         }});
-        overrides.push({lookback: [{words: ["feel", "feels", "felt", "feeling"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{type: 'pronoun'}, {type: 'adverb', optional: true}, {words: ["feel", "feels", "felt", "feeling"]}], callback: function(inflections) {
           inflections["like"] = {type:'override', label: "like"};
         }});
-        overrides.push({lookback: [{words: ["you", "we", "they"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["you", "we", "they"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "are"};
           inflections["am"] = {type:'override', label: "are"};
           inflections["was"] = {type:'override', label: "were"};
@@ -464,39 +464,40 @@ var editManager = EmberObject.extend({
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "aren't"};
         }});
-        overrides.push({lookback: [{words: ["those", "these"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["those", "these"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "are"};
           inflections["am"] = {type:'override', label: "are"};
           inflections["was"] = {type:'override', label: "were"};
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "aren't"};
         }});
-        overrides.push({lookback: [{words: ["he", "she"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["he", "she"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "is"};
           inflections["is"] = {type:'override', label: "is"};
           inflections["were"] = {type:'override', label: "was"};
           inflections["no"] = {type:'override', label: "doesn't"};
           inflections["not"] = {type:'override', label: "isn't"};
+          inflections["done"] = {type:'override', label: "does"};
         }});
-        overrides.push({lookback: [{words: ["can", "will", "could", "should", "would", "may", "might", "must", "shall"]}, {words: ["it", "that", "this", "he", "she", "they", "i", "we"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["can", "will", "could", "should", "would", "may", "might", "must", "shall"]}, {words: ["it", "that", "this", "he", "she", "they", "i", "we"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "be"};
           inflections["is"] = {type:'override', label: "be"};
         }});
-        overrides.push({lookback: [{words: ["it", "that", "this"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["it", "that", "this"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "is"};
           inflections["is"] = {type:'override', label: "is"};
           inflections["were"] = {type:'override', label: "was"};
           inflections["no"] = {type:'override', label: "doesn't"};
           inflections["not"] = {type:'override', label: "isn't"};
         }});
-        overrides.push({lookback: [{words: ["what"]}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["what"]}], callback: function(inflections) {
           inflections["happen"] = {type:'override', label: "happened"};
         }});
-        overrides.push({lookback: [{words: ["will", "won't", "can", "can't", "do", "don't"]}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["will", "won't", "can", "can't", "do", "don't"]}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "be"};
           inflections["is"] = {type:'override', label: "be"};
         }});
-        overrides.push({lookback: [{words: ["is", "are", "am", "be"]}, {words: ["she", "he", "i", "they", "we"], optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["is", "are", "am", "be"]}, {words: ["she", "he", "i", "they", "we", "you"], optional: true}], callback: function(inflections) {
           inflections["I"] = {type:'override', label: "my"};
           inflections["done"] = {type:'override', label: "done"};
         }});
