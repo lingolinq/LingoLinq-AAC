@@ -251,14 +251,27 @@ var evaluation = {
     if(step.intro == 'find_target' || step.intro == 'intro') {
       // The welcome intro ('intro') now combines the old welcome + intro2 +
       // find_target messages into one screen, so Starting from it jumps
-      // straight to the first find assessment step (find-4) — same target
-      // the find_target intro used. (intro2 / find_target intros are folded
-      // into the combined checklist and no longer shown as separate steps.)
-      var start_step = level.find(function(s) { return s.id == "find-4"; });
+      // straight to the first find assessment step (find-4) — the same target
+      // the find_target intro uses. find-4 lives in a LATER level than the
+      // welcome (welcome is levels[0]; find-4 is in the find_target level), so
+      // when it isn't in the current level, search every level and jump to it.
+      // We resync `level` too, so the level-overflow normalization below
+      // (`if(!level[working.step])`) checks the destination level, not the old
+      // welcome level — otherwise it would re-increment past find-4.
+      var is_find_4 = function(s) { return s.id == "find-4"; };
+      var start_step = level.find(is_find_4);
       if(start_step) {
         working.step = level.indexOf(start_step);
       } else {
-        working.step++;
+        for(var li = 0; li < levels.length; li++) {
+          var idx = levels[li].findIndex(is_find_4);
+          if(idx != -1) {
+            working.level = li;
+            working.step = idx;
+            level = levels[li];
+            break;
+          }
+        }
       }
     } else if(step.intro == 'diff_target') {
       var step_id = 'diff-4';

@@ -85503,11 +85503,8 @@ a.md-caseload__action {
     margin-top: 40px !important;
   }
 }
-/* Keep the caseload pillnav pills at their full desktop size on every
-   viewport — the global ≤820px / ≤550px rules tighten padding to
-   8px 12px which shrinks the Home / My Caseload pills below the
-   visual weight the caseload page expects. Higher specificity
-   (.md-shell--caseload chained) overrides the breakpoint rules. */
+/* Extra left padding on the active caseload pill (when it isn't the first
+   pill) so the dark active pill doesn't crowd the pill to its left. */
 .md-shell--caseload .md-pillnav__pill.is-active:not(:first-child),
 .md-shell--caseload a.md-pillnav__pill.active:not(:first-child) {
   padding-left: 18px !important;
@@ -86961,6 +86958,15 @@ a.md-caseload__action {
   font-size: 15px;
   line-height: 1.5;
   color: var(--md-muted, $la-navy);
+}
+/* Secondary caseload pointer shown only to supporters (supervisors). */
+.md-org-viewonly__hint {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.85;
 }
 .md-org-rooms-empty {
   text-align: center;

@@ -5759,3 +5759,16 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   Caseload. UI rule: gate org-management nav links + the home "My Organizations" card behind
   `permissions.edit` / a manager-type org, and skip edit-gated controller fetches for view-only users
   — never surface a link to a page whose API the user's role can't call. (2026-06-29)
+
+- eat_events mobile gotcha: any NEW {{action}}-bound <button>/<a> that renders on the CLASSIC board
+  page while speak_mode is active (e.g. the eval intro `.md-eval-intro`) needs a carve-out in BOTH
+  raw_events handlers, not just `click`. The touchstart/mousedown `eat_events` (raw_events.js:~66)
+  preventDefaults on mobile when `eatable` (speak_mode) && capabilities.mobile && !ignored_region —
+  which SUPPRESSES click synthesis on Android/iOS, so a `.closest()` exception added only to the
+  click handler leaves the control dead on touch devices. Add the selector to the eat_events
+  carve-out (alongside `.board-detail-view, .md-board-detail-grid`) too. (2026-06-29, adversarial review)
+- eval.js `intro_header_start` gotcha: `level` is captured as `levels[working.level]` at the top; the
+  level-overflow normalization at the end (`if(!level[working.step]){ working.level++ }`) re-reads that
+  SAME captured `level`. If a branch jumps to a different level (welcome → find-4, which lives in a
+  later level), you must resync `level = levels[working.level]` after setting working.level, or the
+  normalization re-increments past the target. (2026-06-29, adversarial review)

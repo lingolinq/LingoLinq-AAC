@@ -76,7 +76,11 @@ var eat_events = function(event) {
   // click synthesis on Android, so ANY tap inside board-detail silently does
   // nothing — not just grid buttons. Widen the carve-out to the whole
   // board-detail view so chrome taps work too.
-  if($(event.target).closest('.board-detail-view, .md-board-detail-grid').length > 0) { return; }
+  // The bespoke eval intro (.md-eval-intro) renders on the classic board page
+  // in speak_mode (so eat_events fires), and its Start/Settings/nav are
+  // {{action}}-bound <button>s that need the synthesized click — without this
+  // carve-out the eval can't be started on touch devices.
+  if($(event.target).closest('.board-detail-view, .md-board-detail-grid, .md-eval-intro').length > 0) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
