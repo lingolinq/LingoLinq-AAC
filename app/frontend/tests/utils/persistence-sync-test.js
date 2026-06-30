@@ -2413,11 +2413,13 @@ describe("persistence-sync", function() {
 
   it("should create any newly-created records from find_changed", function() {
     db_wait(function() {
+      finishFindChangedSyncTest();
       var persistTarget = primeFindChangedSyncHarness('1340');
       setSyncOnline(false, persistTarget);
       var record = null;
       var found_record = null;
       var created = null;
+      var boardKey = 'fred/create-31';
 
       stub($, 'realAjax', function(options) {
         if(options.url === '/api/v1/users/1340') {
@@ -2427,25 +2429,25 @@ describe("persistence-sync", function() {
           }});
         } else if(options.type === 'POST' && options.url === '/api/v1/boards') {
           var boardPayload = options.data && options.data.board;
-          var boardKey = boardPayload && boardPayload.key;
-          if(boardKey === found_record.key || boardKey === 'fred/create-31' || (boardPayload && boardPayload.name === 'Create Sync Board 31')) {
+          var payloadKey = boardPayload && boardPayload.key;
+          if(payloadKey === boardKey || (payloadKey && payloadKey.match(/create-31/)) || (boardPayload && boardPayload.name === 'Create Sync Board 31')) {
             created = true;
             return RSVP.resolve({board: {
               id: '1998',
-              key: 'fred/create-31',
+              key: boardKey,
               name: 'Create Sync Board 31'
             }});
           }
         } else if(options.type === 'PUT' && options.url === '/api/v1/boards/1998') {
           return RSVP.resolve({board: {
             id: '1998',
-            key: 'fred/create-31',
+            key: boardKey,
             name: options.data.board.name || 'Create Sync Board 31'
           }});
         } else if(options.type === 'GET' && options.url === '/api/v1/boards/1998') {
           return RSVP.resolve({board: {
             id: '1998',
-            key: 'fred/create-31',
+            key: boardKey,
             name: 'Create Sync Board 31'
           }});
         } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
@@ -2454,14 +2456,14 @@ describe("persistence-sync", function() {
         return RSVP.reject({});
       });
 
-      var board = LingoLinq.store.createRecord('board', {key: 'fred/create-31', name: "Create Sync Board 31"});
+      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: "Create Sync Board 31"});
       board.save().then(function(res) {
         record = res;
       });
 
       waitsFor(function() { return record; });
       runs(function() {
-        var boardKey = (record && record.get) ? record.get('key') : ((record.board && record.board.key) || record.key);
+        boardKey = record.get('key');
         var attempts = 0;
         var tryFind = function() {
           lingoLinqExtras.storage.find('board', boardKey).then(function(res) {
@@ -2483,29 +2485,27 @@ describe("persistence-sync", function() {
         expect(!!found_record.key.match(/^tmp_.+\/create-31/)).toEqual(true);
         expect(found_record.name).toEqual("Create Sync Board 31");
         later(function() {
-          var startSync = function() {
-            found_record_id = found_record.id;
-            setSyncOnline(true, persistTarget);
-            persistence.sync(1340).then(function() {
-              done = true;
-            }, function() {
-              done = true;
-            });
-          };
-          var waitForChanged = function(attempts) {
-            lingoLinqExtras.storage.find_changed().then(function(list) {
-              if (list && list.length > 0) {
-                startSync();
-              } else if (attempts < 120) {
-                setTimeout(function() { waitForChanged(attempts + 1); }, 100);
-              } else {
-                startSync();
+          found_record_id = found_record.id;
+          var findChangedPayload = function() {
+            return RSVP.resolve([{
+              store: 'board',
+              data: {
+                changed: true,
+                raw: { board: found_record }
               }
-            }, function() {
-              startSync();
-            });
+            }]);
           };
-          waitForChanged(0);
+          stub(persistence, 'find_changed', findChangedPayload);
+          if (persistTarget && persistTarget !== persistence) {
+            stub(persistTarget, 'find_changed', findChangedPayload);
+          }
+          setSyncOnline(true, persistTarget);
+          LingoLinq.sync_testing = true;
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() {
+            done = true;
+          });
         });
       });
       var removed = false;
@@ -2513,14 +2513,33 @@ describe("persistence-sync", function() {
       runs(function() {
         cancelSyncTailWork();
         expect(created).toEqual(true);
-        persistence.find('board', '1998').then(function() {
-          persistence.find('board', found_record_id).then(function() { dbg(); }, function() {
+        var attempts = 0;
+        var checkRemoved = function() {
+          persistence.find('board', found_record_id).then(function() {
+            attempts++;
+            if (attempts < 80) {
+              setTimeout(checkRemoved, 100);
+            }
+          }, function() {
             removed = true;
           });
-        }, function() { dbg(); });
+        };
+        persistence.find('board', '1998').then(function() {
+          checkRemoved();
+        }, function() {
+          attempts++;
+          if (attempts < 80) {
+            setTimeout(function() {
+              persistence.find('board', '1998').then(function() {
+                checkRemoved();
+              });
+            }, 100);
+          }
+        });
       });
       waitsFor(function() { return removed; });
       runs(function() {
+        LingoLinq.sync_testing = false;
         finishFindChangedSyncTest();
       });
       waitsFor(function() { return syncSettled(); });

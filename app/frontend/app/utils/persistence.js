@@ -4439,12 +4439,12 @@ persistence.DSExtend = {
             });
           } else {
             if(skip_db) {
-              return find_reject(persistence.offline_reject());
+              return find_reject({offline: true, error: "not online"});
             } else {
               if(local_data) {
                 return local_processed(local_data)
               } else {
-                return find_reject(persistence.offline_reject());
+                return find_reject({offline: true, error: "not online"});
               }
             }
           }
