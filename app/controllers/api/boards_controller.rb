@@ -608,9 +608,13 @@ class Api::BoardsController < ApplicationController
       fallback_board_name(prompt)
     end
     response[:description] = result[:description].presence || prompt
-    # EU AI Act Article 50(2): surface the signed AI-generated marker so the client
-    # can carry it into the board-save payload, where it is verified and persisted
-    # onto board.settings (and propagated on copy). Unconditional; not flag-gated.
+    # EU AI Act Article 50(2): surface the signed AI-generated marker on the
+    # generation response (unconditional; not flag-gated). NOTE: durable persistence
+    # of this marker onto board.settings at save time, and its propagation through
+    # relinking copy_for, are NOT yet implemented -- they are the follow-up
+    # persistence slice. Until then the marker exists only on this transient
+    # response, so saved/exported/shared boards are not yet marked. The Art. 50
+    # register entry stays OPEN until persistence lands.
     response[:ai_generated] = result[:ai_generated] if result[:ai_generated]
     render json: response
   end

@@ -133,11 +133,19 @@ module AiBoardGenerator
               log_params[:tokens_sent] = last_response.dig('usage', 'prompt_tokens')
               log_params[:tokens_received] = last_response.dig('usage', 'completion_tokens')
             end
-            # EU AI Act Article 50(2): mark the AI-generated output (unconditional,
-            # not feature-flag-gated). The signed marker travels with the content so
-            # a saved board can persist it (see relinking copy_for) and detection
-            # tools can verify provenance. ai_generated_content_id links this output
-            # to its audit row in AiApiLog.
+            # EU AI Act Article 50(2): mark the board-generation output. The marking
+            # is NOT feature-flag-gated (only the Article 50(1) disclosure is); within
+            # this path every successful AI output is marked. SCOPE: this slice marks
+            # board generation only. Other AI-output surfaces are NOT yet marked and are
+            # tracked follow-up: generate_focus_words (below; persists via AiFocusWordSet
+            # cache), AiWordPredictor.predict, eval narration, AiPredictionGenerator.
+            # Durable persistence of this marker (board.settings + relinking copy_for)
+            # is also follow-up; see boards_controller#generate_labels. Until those land,
+            # do not record the Article 50(2) obligation as closed.
+            # ai_generated_content_id is a best-effort link to this output's AiApiLog
+            # row; under alert-but-continue an audit-write failure is alerted (loud) but
+            # the marker is still returned, so a valid marker does not by itself prove a
+            # persisted audit row.
             marker = Art50Marker.build(provider: provider.to_s, model: model)
             log_params[:ai_content_marked] = true
             log_params[:ai_generated_content_id] = marker['content_id']

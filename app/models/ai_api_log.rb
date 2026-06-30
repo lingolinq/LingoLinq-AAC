@@ -99,11 +99,16 @@ class AiApiLog < ApplicationRecord
     log.ai_generated_content_id = params[:ai_generated_content_id]
     log.save!
     log
-  rescue ActiveRecord::RecordInvalid => e
+  rescue ActiveRecord::ActiveRecordError => e
     # Alert-but-continue: a failed AI compliance audit write (incl. EU AI Act
     # Article 50 fields) must be LOUD so the gap surfaces in monitoring, but it
-    # must NOT fail the user's AI generation on an audit-DB hiccup. Mirror
-    # AuditEvent: scrub the message, log it, and Sentry the scrubbed MESSAGE (not
+    # must NOT fail the user's AI generation on an audit-DB hiccup. Catch the whole
+    # ActiveRecordError tree (RecordInvalid for validation bugs AND StatementInvalid
+    # / ConnectionNotEstablished / lock+timeout for real DB incidents) -- the
+    # operational "audit loss looks like success" case is a DB hiccup, not a
+    # validation failure, so rescuing only RecordInvalid would have left exactly
+    # that case silent. Mirror AuditEvent: scrub the message, log it, and Sentry the
+    # scrubbed MESSAGE (not
     # the raw exception, which CoppaSentryScrub#before_send does not scrub for
     # non-child users), guarded so alerting can never raise. Previously this was
     # a silent Rails.logger.error -> audit loss looked like success (finding P3).

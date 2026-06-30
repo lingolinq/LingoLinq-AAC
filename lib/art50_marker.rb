@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'go_secure'
 require 'active_support/security_utils'
 
@@ -17,6 +18,14 @@ require 'active_support/security_utils'
 #   content-bound signature would falsely invalidate the moment a user edits a word.
 #   Provenance binding keeps the marker valid through legitimate editing while still
 #   being unforgeable by a client.
+# - CONSEQUENCE (state it, do not gloss it): because the signature does not cover the
+#   words, the marker is a server-issued PROVENANCE/BEARER attestation, not a binding
+#   to specific content. `marked?` proves "an AI-generation event occurred on this
+#   server," NOT "these exact words are that output." A valid marker could be lifted
+#   onto unrelated content. This is the accepted tradeoff against post-edit
+#   invalidation; it must be documented in the compliance record, not over-claimed as
+#   content integrity. A future hardening could co-sign a normalized, edit-tolerant
+#   digest of the delivered words if content binding becomes required.
 # - The signature is a keyed HMAC-SHA512 (GoSecure.lite_hmac) over a canonical
 #   serialization of the signed fields, keyed by the app encryption secret. A client
 #   cannot mint or alter a marker without the server secret, so a forged or stripped
@@ -82,9 +91,15 @@ module Art50Marker
   # Computes the signature over the canonical serialization of the signed fields.
   # Extra (unsigned) keys on the input are ignored, so #verify can pass the full
   # marker hash here without stripping marked/sig_alg/signature first.
+  #
+  # The canonical form is a JSON array of [key, value] pairs in fixed SIGNED_KEYS
+  # order. JSON escaping makes it injective: no field value (even one containing a
+  # delimiter) can collide with a different field assignment, so two distinct field
+  # sets can never produce the same signing input. (Today provider/model come from
+  # server config and the rest are hex/ISO8601, but signing must not depend on that.)
   def sign(payload)
     p = stringify(payload)
-    canonical = SIGNED_KEYS.map { |k| "#{k}=#{p[k]}" }.join('&')
+    canonical = JSON.generate(SIGNED_KEYS.map { |k| [k, p[k]] })
     GoSecure.lite_hmac(canonical, SIG_SALT, 1)
   end
 

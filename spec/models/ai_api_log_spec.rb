@@ -558,5 +558,24 @@ describe AiApiLog, :type => :model do
         AiApiLog.log_ai_call(provider: 'evilcorp', type: 'board_generation')
       }.not_to raise_error
     end
+
+    it "also alerts (not just validation errors) on a real DB failure during save" do
+      captured = nil
+      allow(fake_sentry).to receive(:capture_message) { |msg, *| captured = msg }
+      # Simulate an operational DB hiccup -- a StatementInvalid, NOT a validation
+      # RecordInvalid -- which is the scenario the loud fix is meant to surface.
+      allow_any_instance_of(AiApiLog).to receive(:save!)
+        .and_raise(ActiveRecord::StatementInvalid.new('PG::ConnectionBad: server closed the connection'))
+
+      log = nil
+      expect {
+        log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
+      }.not_to raise_error
+
+      expect(log).to be_a(AiApiLog)
+      expect(captured).to include('failed to persist audit log')
+      expect(fake_sentry).to have_received(:capture_message)
+        .with(kind_of(String), hash_including(level: 'error', tags: { audit: 'ai_api_log_persist_failed' }))
+    end
   end
 end
