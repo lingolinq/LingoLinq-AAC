@@ -164,14 +164,12 @@ module Audit
       explicit = nil
 
       args.each_with_index do |arg, i|
-        case arg
-        when '-e', '--environment'
+        if env_flag?(arg)
           nxt = args[i + 1]
           explicit = nxt if nxt && !nxt.start_with?('-')
-        when /\A--environment=(.+)\z/, /\A-e=(.+)\z/
-          explicit = Regexp.last_match(1)
-        when /\A-e(.+)\z/ # glued short form, e.g. -eprod
-          explicit = Regexp.last_match(1)
+        else
+          value = inline_env_value(arg)
+          explicit = value if value
         end
       end
 
@@ -185,9 +183,45 @@ module Audit
       nil
     end
 
+    # True for the bare environment flag whose value is the FOLLOWING token:
+    # `-e`, `--environment`, or any unambiguous long abbreviation
+    # (`--e`..`--environmen`). Thor accepts long-option prefixes, and none of
+    # console/runner/dbconsole define another `--e...` option, so every such
+    # prefix means the environment.
+    def env_flag?(arg)
+      arg == '-e' || (arg.start_with?('--e') && '--environment'.start_with?(arg))
+    end
+
+    # Value for an inline environment form, or nil: `-e=v`, glued `-ev`,
+    # `--environment=v`, and the abbreviated `--env=v`. (Long options require
+    # `=` or a space, so there is no glued `--envv` form.)
+    def inline_env_value(arg)
+      if (m = arg.match(/\A-e=(.+)\z/))
+        m[1]
+      elsif (m = arg.match(/\A(--e[a-z]*)=(.+)\z/)) && '--environment'.start_with?(m[1])
+        m[2]
+      elsif (m = arg.match(/\A-e(.+)\z/)) # glued short form, e.g. -eprod
+        m[1]
+      end
+    end
+
     def args_before_double_dash(args)
       idx = args.index('--')
       idx ? args[0...idx] : args
+    end
+
+    # Authoritative, parser-free backstop, run from the Rails console/runner
+    # hooks AFTER railties has resolved and applied the environment (so
+    # Rails.env is correct for any -e/--environment form, including ones the
+    # pre-boot parser might not model). Refuses an un-keyed console/runner in
+    # production before the REPL or runner payload executes. dbconsole has no
+    # such hook, so its refusal stays in the pre-boot guard.
+    def enforce_runtime!(kind, env = ENV)
+      return unless defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
+      return if key_present?(env)
+
+      raise UnauthorizedConsole,
+            "ENV['USER_KEY'] is required to open an audited #{kind} in production"
     end
   end
 

@@ -117,6 +117,23 @@ describe Audit::ConsoleGuard do
           .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
       end
 
+      it 'refuses the long-option abbreviation `--env=production`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console --env=production], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'refuses `--env production` and `--env=p`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console --env production], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console --env=p], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'forbids `dbconsole --env=p` (HIPAA refusal sees the long abbreviation)' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('dbconsole', %w[dbconsole --env=p], {}) }
+          .to raise_error(Audit::ConsoleGuard::ForbiddenCommand)
+      end
+
       it 'refuses an abbreviated positional `console pro`' do
         expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console pro], {}) }
           .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
@@ -229,6 +246,35 @@ describe Audit::ConsoleGuard do
 
     it 'is true for a real key' do
       expect(Audit::ConsoleGuard.key_present?('USER_KEY' => 'scot')).to be(true)
+    end
+  end
+
+  describe '.enforce_runtime! (authoritative in-hook backstop)' do
+    def prod_env!
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
+    end
+
+    it 'raises for an un-keyed production console (no CLI parsing involved)' do
+      prod_env!
+      expect { Audit::ConsoleGuard.enforce_runtime!('console', {}) }
+        .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+    end
+
+    it 'raises for an un-keyed production runner' do
+      prod_env!
+      expect { Audit::ConsoleGuard.enforce_runtime!('runner', { 'USER_KEY' => '  ' }) }
+        .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+    end
+
+    it 'allows a keyed production session' do
+      prod_env!
+      expect { Audit::ConsoleGuard.enforce_runtime!('console', { 'USER_KEY' => 'scot' }) }
+        .not_to raise_error
+    end
+
+    it 'allows an un-keyed non-production session' do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      expect { Audit::ConsoleGuard.enforce_runtime!('console', {}) }.not_to raise_error
     end
   end
 end

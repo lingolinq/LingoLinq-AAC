@@ -21,14 +21,21 @@ unless ENV['SKIP_VALIDATIONS']
 
   init_args = defined?(INIT_ARGS) ? INIT_ARGS : []
 
-  # Reline-safe session-open auditing. run_console_blocks fires before the IRB
-  # REPL starts; load_runner fires before the runner payload runs -- so in
-  # production a fail-closed write aborts the session before any work happens.
-  Rails.application.console do
-    Audit::SessionLogger.record!('console', ENV['USER_KEY'], init_args)
+  # Reline-safe session-open auditing. The console hook fires before the IRB
+  # REPL starts; the runner hook before the runner payload runs. Each hook first
+  # runs the authoritative, parser-free production refusal (Rails.env is fully
+  # resolved by now, so it catches any -e/--environment form the pre-boot parser
+  # might miss), then records the session-open AuditEvent. In production a
+  # fail-closed audit write also aborts the session before any work happens.
+  open_audited_session = lambda do |kind|
+    begin
+      Audit::ConsoleGuard.enforce_runtime!(kind, ENV)
+    rescue Audit::ConsoleGuard::Error => e
+      abort("refused: #{e.message}")
+    end
+    Audit::SessionLogger.record!(kind, ENV['USER_KEY'], init_args)
   end
 
-  Rails.application.runner do
-    Audit::SessionLogger.record!('runner', ENV['USER_KEY'], init_args)
-  end
+  Rails.application.console { open_audited_session.call('console') }
+  Rails.application.runner  { open_audited_session.call('runner') }
 end
