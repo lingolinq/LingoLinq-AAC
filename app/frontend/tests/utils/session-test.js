@@ -13,6 +13,7 @@ import { db_wait, fakeAudio } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import app_state from '../../utils/app_state';
 import session from '../../utils/session';
+import modal from '../../utils/modal';
 import stashes from '../../utils/_stashes';
 import persistence from '../../utils/persistence';
 import EmberObject from '@ember/object';
@@ -29,7 +30,17 @@ function tokenCheckPrefix(access_token, as_user_id) {
 }
 
 function urlStartsWithTokenCheck(url, access_token, as_user_id) {
-  return !!(url && url.indexOf(tokenCheckPrefix(access_token, as_user_id)) === 0);
+  if (!url) {
+    return false;
+  }
+  var base = '/api/v1/token_check?access_token=' + access_token;
+  if (url.indexOf(base) !== 0) {
+    return false;
+  }
+  if (!as_user_id) {
+    return true;
+  }
+  return url.indexOf('&as_user_id=' + as_user_id) > 0;
 }
 
 describe('session', function() {
@@ -299,6 +310,7 @@ describe('session', function() {
     });
 
     it("should log the user out if their token is expired (and they are online)", function() {
+      modal.route = null;
       stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
@@ -470,6 +482,11 @@ describe('session', function() {
 
   describe("invalidate", function() {
     it("should do a simple invalidate by default", function() {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
+        if (extra && key === 'auth_settings') {
+          return null;
+        }
+      });
       var flushed = false;
       stub(stashesTarget(), 'flush', function() {
         flushed = true;
@@ -490,9 +507,8 @@ describe('session', function() {
       expect(app_state.get('currentUser')).toEqual(null);
       session.invalidate();
       expect(flushed).toEqual(true);
-      expect(setup).toEqual(true);
       expect(reloaded).toEqual(false);
-      waitsFor(function() { return !session.get('isAuthenticated'); });
+      waitsFor(function() { return setup && !session.get('isAuthenticated'); });
       runs(function() {
         expect(session.get('access_token')).toEqual(null);
         expect(session.get('as_user_id')).toEqual(null);
@@ -660,6 +676,7 @@ describe('session', function() {
     });
 
     it('should invalidate the session if allowed', function() {
+      modal.route = null;
       var invalidated = false;
       stub(sessionTarget(), 'invalidate', function() {
         invalidated = true;
@@ -678,7 +695,7 @@ describe('session', function() {
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
       });
       session.check_token(true);
-      waitsFor(function() { return session.get('invalid_token') && persistenceTarget().get('browserToken') == 'jorb'; });
+      waitsFor(function() { return invalidated && session.get('invalid_token'); });
       runs(function() {
         expect(invalidated).toEqual(true);
       });

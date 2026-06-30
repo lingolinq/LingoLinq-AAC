@@ -10,7 +10,24 @@ import Subscription from '../../utils/subscription';
 import ttsVoices from '../../utils/tts_voices';
 import modalUtil from '../../utils/modal';
 
+function sessionServiceField(field) {
+  try {
+    var session = (typeof LingoLinq !== 'undefined' && LingoLinq.session) || null;
+    if (session && !session.isDestroyed) {
+      var svc = session[field];
+      if (svc && !svc.isDestroyed) {
+        return svc;
+      }
+    }
+  } catch (e) { /* owner mid-teardown */ }
+  return null;
+}
+
 export function persistenceTarget() {
+  var fromSession = sessionServiceField('persistence');
+  if (fromSession) {
+    return fromSession;
+  }
   if (typeof window !== 'undefined' && window.persistence) {
     return window.persistence;
   }
@@ -35,6 +52,10 @@ export function appStateTarget() {
 }
 
 export function stashesTarget() {
+  var fromSession = sessionServiceField('stashes');
+  if (fromSession) {
+    return fromSession;
+  }
   if (typeof window !== 'undefined' && window.stashes) {
     return window.stashes;
   }
