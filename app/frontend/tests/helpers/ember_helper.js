@@ -21,8 +21,11 @@ import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import lingoLinqExtras from '../../utils/extras';
 import stashes from '../../utils/_stashes';
-import { primeAllServices } from './service-stub';
+import { primeAllServices, stashesTarget, appStateTarget, persistenceTarget } from './service-stub';
 import modal from '../../utils/modal';
+import utterance from '../../utils/utterance';
+import Button from '../../utils/button';
+import speecher from '../../utils/speecher';
 import boundClasses from '../../utils/bound_classes';
 import buttonTracker from '../../utils/raw_events';
 import ApplicationAdapter from 'frontend/adapters/application';
@@ -595,6 +598,7 @@ beforeEach(function() {
   }
   LingoLinq.all_wait = false;
   var modalTests = isModalTestModule((typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null);
+  var utteranceTests = isUtteranceTestModule((typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null);
   if (modalTests) {
     setupModalTestHarness();
   } else {
@@ -605,6 +609,9 @@ beforeEach(function() {
       }
     }));
   }
+  if (utteranceTests) {
+    setupUtteranceTestHarness();
+  }
   boundClasses.setup(true);
 });
 
@@ -612,6 +619,9 @@ afterEach(function() {
   var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
   if (isModalTestModule(moduleName)) {
     teardownModalTestHarness();
+  }
+  if (isUtteranceTestModule(moduleName)) {
+    teardownUtteranceTestHarness();
   }
   capabilities.setup_database.already_tried = false;
   capabilities.setup_database.already_tried_deleting = false;
@@ -850,6 +860,66 @@ function teardownModalTestHarness() {
   } catch (e) { /* mid-teardown */ }
 }
 
+function isUtteranceTestModule(moduleName) {
+  if (moduleName === 'utterance') {
+    return true;
+  }
+  if (typeof QUnit === 'undefined' || !QUnit.config) {
+    return false;
+  }
+  var current = QUnit.config.current;
+  if (current && current.module && current.module.name === 'utterance') {
+    return true;
+  }
+  var testName = current && current.testName;
+  return !!(testName && /^utterance(\s|-)/.test(testName));
+}
+
+function setupUtteranceTestHarness() {
+  var stashesSvc = stashesTarget();
+  var appStateSvc = appStateTarget();
+  var persistenceSvc = persistenceTarget();
+  if (!LingoLinq._utteranceTestController) {
+    LingoLinq._utteranceTestController = EmberObject.extend({
+      vocalize: function() {
+        this.vocalized = true;
+      }
+    }).create();
+  } else {
+    LingoLinq._utteranceTestController.set('vocalized', false);
+  }
+  if (stashesSvc && stashesSvc.persist) {
+    stashesSvc.persist('working_vocalization', []);
+    stashesSvc.persist('ghost_utterance', false);
+  }
+  if (appStateSvc && appStateSvc.set) {
+    appStateSvc.set('button_list', []);
+    appStateSvc.set('insertion', null);
+    appStateSvc.set('shift', null);
+    appStateSvc.set('inflection_shift', null);
+    appStateSvc.set('clearable_history', 0);
+    appStateSvc.set('sessionUser', EmberObject.create({
+      preference: EmberObject.create({ auto_capitalize: false })
+    }));
+  }
+  Button.load_actions();
+  utterance.scope = window;
+  utterance.setup(LingoLinq._utteranceTestController, appStateSvc, persistenceSvc, stashesSvc);
+  utterance.set('rawButtonList', []);
+  utterance.set('hint_button', null);
+  utterance.set('list_vocalized', false);
+  utterance.set('clear_on_vocalize', true);
+}
+
+function teardownUtteranceTestHarness() {
+  utterance.scope = window;
+  try {
+    if (speecher && typeof speecher.stop === 'function') {
+      speecher.stop('all');
+    }
+  } catch (e) { /* mid-teardown */ }
+}
+
 function stubModalSafe(owner) {
   stub(modal, 'open', function() { return RSVP.resolve(); });
   stub(modal, 'notice', function() { return RSVP.resolve(); });
@@ -892,6 +962,4 @@ function boardModelStub(attrs) {
   }, attrs || {}));
 }
 
-import { persistenceTarget } from './persistence-stub';
-
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, ensureUserReload, persistenceTarget };
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, ensureUserReload, persistenceTarget };
