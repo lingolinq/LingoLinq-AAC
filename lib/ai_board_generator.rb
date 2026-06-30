@@ -4,6 +4,7 @@ require 'anthropic'
 require 'openai'
 require 'set'
 require_relative 'pii_scrubber'
+require_relative 'art50_marker'
 
 module AiBoardGenerator
   # Default model for board generation — Haiku is fast and cheap for structured output
@@ -132,11 +133,28 @@ module AiBoardGenerator
               log_params[:tokens_sent] = last_response.dig('usage', 'prompt_tokens')
               log_params[:tokens_received] = last_response.dig('usage', 'completion_tokens')
             end
+            # EU AI Act Article 50(2): mark the board-generation output. The marking
+            # is NOT feature-flag-gated (only the Article 50(1) disclosure is); within
+            # this path every successful AI output is marked. SCOPE: this slice marks
+            # board generation only. Other AI-output surfaces are NOT yet marked and are
+            # tracked follow-up: generate_focus_words (below; persists via AiFocusWordSet
+            # cache), AiWordPredictor.predict, eval narration, AiPredictionGenerator.
+            # Durable persistence of this marker (board.settings + relinking copy_for)
+            # is also follow-up; see boards_controller#generate_labels. Until those land,
+            # do not record the Article 50(2) obligation as closed.
+            # ai_generated_content_id is a best-effort link to this output's AiApiLog
+            # row; under alert-but-continue an audit-write failure is alerted (loud) but
+            # the marker is still returned, so a valid marker does not by itself prove a
+            # persisted audit row.
+            marker = Art50Marker.build(provider: provider.to_s, model: model)
+            log_params[:ai_content_marked] = true
+            log_params[:ai_generated_content_id] = marker['content_id']
             log_ai_call(**log_params)
             return {
               words: words.first(cell_count),
               name: last_payload[:name].presence,
               description: last_payload[:description].presence,
+              ai_generated: marker,
               error: nil
             }
           end
@@ -658,7 +676,8 @@ module AiBoardGenerator
     def log_ai_call(provider:, model:, user:, request_summary:, response_summary:,
                     tokens_sent: nil, tokens_received: nil, duration_ms: nil,
                     pii_detected: false, pii_findings: [], success: true, error_message: nil,
-                    request_type: 'board_generation')
+                    request_type: 'board_generation',
+                    ai_content_marked: false, ai_generated_content_id: nil)
       return unless defined?(AiApiLog)
       # Scrub the model OUTPUT before it reaches AiApiLog. Generated board names/descriptions
       # can echo user-supplied sensitive context, so the raw response must never be persisted
@@ -679,7 +698,11 @@ module AiBoardGenerator
         pii_findings: pii_findings,
         success: success,
         error_message: error_message,
-        feature_flag: 'ai_board_generation'
+        feature_flag: 'ai_board_generation',
+        # EU AI Act Article 50(2): record that the output was machine-readable marked
+        # and link this audit row to the marked content via its content_id.
+        ai_content_marked: ai_content_marked,
+        ai_generated_content_id: ai_generated_content_id
       )
     rescue StandardError => e
       Rails.logger.warn "AiBoardGenerator: failed to log AI API call: #{e.message}"
