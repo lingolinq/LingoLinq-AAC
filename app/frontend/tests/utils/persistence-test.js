@@ -40,7 +40,7 @@ describe("persistence", function() {
     soundGrabber = contentGrabbers.soundGrabber;
     app = {
       register: function(key, obj, args) {
-        app.registered = (key === 'lingolinq:persistence' && obj === persistence && args.singleton === true);
+        app.registered = (key === 'lingolinq:persistence' && args.singleton === true && args.instantiate === false);
       },
       inject: function(component, name, key) {
         if(name === 'persistence' && key === 'lingolinq:persistence') {
@@ -56,6 +56,9 @@ describe("persistence", function() {
     installDefaultPersistenceAjaxStub();
     dbman = capabilities.dbman;
     capabilities.dbman = fake_dbman();
+    if (typeof persistence.create === 'function') {
+      window.persistence = persistence.create();
+    }
   });
   afterEach(function() {
     capabilities.dbman = dbman;
@@ -120,7 +123,10 @@ describe("persistence", function() {
 
   describe("setup", function() {
     it("should properly inject settings", function() {
+      var saved = window.persistence;
+      window.persistence = null;
       persistence.setup(app);
+      window.persistence = saved;
       expect(app.registered).toEqual(true);
       expect(app.injections).toEqual(['model', 'controller', 'view', 'route']);
     });
@@ -129,7 +135,10 @@ describe("persistence", function() {
         persistence.set('last_sync_at', 12345);
         persistence.remove('settings', {storageId: 'lastSync'}, 'lastSync').then(function() {
           setTimeout(function() {
+            var saved = window.persistence;
+            window.persistence = null;
             persistence.setup(app);
+            window.persistence = saved;
             lingoLinqExtras.set('ready', false);
             lingoLinqExtras.set('ready', true);
           }, 10);

@@ -192,267 +192,70 @@ var persistence = Service.extend({
   },
 
   setup: function() {
-    // WRAP ENTIRE METHOD IN TRY-CATCH TO CATCH EXACT ERROR LOCATION
     try {
-      // CRITICAL: Fix stashes injection FIRST, before any logging or other code
-      // This prevents "Cannot read properties of undefined (reading 'get')" errors
-      if(this.stashes && typeof this.stashes.create === 'function') {
-        // this.stashes is a class, not an instance - fix it immediately
+      if (this.stashes && typeof this.stashes.create === 'function') {
         try {
-          // Try owner lookup
-            var owner = (this.constructor && this.constructor.owner) || (this.owner) || (this.get && this.get('owner'));
-            if(owner && typeof owner.lookup === 'function') {
-              var stashesService = owner.lookup('service:stashes');
-              if(stashesService && typeof stashesService.get === 'function') {
-                this.stashes = stashesService;
-              }
+          var owner = (this.constructor && this.constructor.owner) || this.owner || (this.get && this.get('owner'));
+          if (owner && typeof owner.lookup === 'function') {
+            var stashesService = owner.lookup('service:stashes');
+            if (stashesService && typeof stashesService.get === 'function') {
+              this.stashes = stashesService;
             }
-            // Final fallback: set to null to prevent errors
-            if(!this.stashes || typeof this.stashes.get !== 'function') {
-              this.stashes = null;
-            }
-        } catch(e) {
+          }
+          if (!this.stashes || typeof this.stashes.get !== 'function') {
+            this.stashes = null;
+          }
+        } catch (e) {
           console.warn('[PERSISTENCE SETUP] Error fixing stashes injection:', e);
           this.stashes = null;
         }
       }
-    
-    // IMMEDIATE logging - before anything else to catch errors
-    try {
-      console.log('[PERSISTENCE SETUP] ========== setup() CALLED (IMMEDIATE) ==========');
-      console.log('[PERSISTENCE SETUP] this exists:', !!this);
-      console.log('[PERSISTENCE SETUP] this type:', typeof this);
-    } catch(e) {
-      console.error('[PERSISTENCE SETUP] ERROR in immediate logging:', e);
-    }
-    // Detailed logging to track when and why setup() is called
-    var stack = new Error().stack;
-    console.log('[PERSISTENCE SETUP] ========== setup() CALLED ==========');
-    console.log('[PERSISTENCE SETUP] this:', this);
-    console.log('[PERSISTENCE SETUP] this type:', typeof this);
-    console.log('[PERSISTENCE SETUP] has get:', typeof (this && this.get));
-    console.log('[PERSISTENCE SETUP] has set:', typeof (this && this.set));
-    // Safely check stashes without triggering errors
-    try {
-      console.log('[PERSISTENCE SETUP] has stashes:', !!this.stashes);
-      console.log('[PERSISTENCE SETUP] stashes type:', typeof this.stashes);
-      if(this.stashes && typeof this.stashes.create === 'function') {
-        console.warn('[PERSISTENCE SETUP] stashes is a class, not an instance!');
-      }
-    } catch(e) {
-      console.warn('[PERSISTENCE SETUP] Error checking stashes:', e);
-    }
-    console.log('[PERSISTENCE SETUP] Call stack:', stack);
-    console.log('[PERSISTENCE SETUP] ====================================');
-    
-    // Defensive: check this before doing anything
-    if(typeof this === 'undefined' || this === null) {
-      console.error('[PERSISTENCE SETUP] ERROR: setup() called with undefined/null this!');
-      return;
-    }
-    // Guard: ensure service is fully initialized before proceeding
-    if(typeof this.get !== 'function' || typeof this.set !== 'function') {
-      console.warn('[PERSISTENCE SETUP] WARNING: setup() called before service is fully initialized, deferring...');
+
       var _this = this;
       runLater(function() {
-        if(_this && typeof _this.setup === 'function') {
-          console.log('[PERSISTENCE SETUP] Retrying setup() after deferral');
-          _this.setup();
+        if (!_this || typeof _this.find !== 'function') {
+          return;
         }
-      }, 100);
-      return;
-    }
-    
-    // If stashes is still not an instance, try to get it from the owner
-    if(!this.stashes || typeof this.stashes.get !== 'function') {
-      try {
-        var owner = this.get('owner') || (this.constructor && this.constructor.owner);
-        if(owner && typeof owner.lookup === 'function') {
-          var stashesService = owner.lookup('service:stashes');
-          if(stashesService && typeof stashesService.get === 'function') {
-            console.log('[PERSISTENCE SETUP] Found stashes service via owner.lookup');
-            this.stashes = stashesService;
+        _this.find('settings', 'lastSync').then(function(res) {
+          if (_this && _this.set) {
+            _this.set('last_sync_at', res.last_sync);
+            _this.set('sync_stamps', res.stamps);
           }
+        }, function() { });
+      }, 0);
+      runLater(function() {
+        var extras = window.lingoLinqExtras || lingoLinqExtras;
+        if (!extras) {
+          return;
         }
-      } catch(e) {
-        console.warn('[PERSISTENCE SETUP] Error looking up stashes service:', e);
-      }
-    }
-    // Final fallback
-    if(!this.stashes || typeof this.stashes.get !== 'function') {
-        console.warn('[PERSISTENCE SETUP] WARNING: stashes service not available!');
-    }
-    
-    // TEMPORARILY DISABLED: Empty setup to debug initialization error
-    console.log('[PERSISTENCE SETUP] setup() returning early (disabled for debugging)');
-    return;
-    /*
-    var _this = this;
-    // TEMPORARILY COMMENTED OUT TO TEST
-    // Defer initial find to ensure service is fully initialized
-    /*
-    runLater(function() {
-      _this.find('settings', 'lastSync').then(function(res) {
-        _this.set('last_sync_at', res.last_sync);
-        _this.set('sync_stamps', res.stamps);
-      }, function() { });
-    }, 0);
-    */
-    // TEMPORARILY COMMENTED OUT TO TEST IF OBSERVER IS CAUSING THE ERROR
-    // Defer observer registration to ensure service is fully ready
-    // Use window.lingoLinqExtras to ensure we're using the actual instance
-    /*
-    runLater(function() {
-      var extras = window.lingoLinqExtras || lingoLinqExtras;
-      if(extras) {
-        // Check if ready is already set
-        if(extras.get && typeof extras.get === 'function' && extras.get('ready')) {
+        if (extras.get && typeof extras.get === 'function' && extras.get('ready')) {
           _this.find('settings', 'lastSync').then(function(res) {
-            if(_this && _this.set) {
+            if (_this && _this.set) {
               _this.set('last_sync_at', res.last_sync);
               _this.set('sync_stamps', res.stamps);
             }
           }, function() {
-            if(_this && _this.set) {
+            if (_this && _this.set) {
               _this.set('last_sync_at', 1);
             }
           });
-        } else if(extras.addObserver && typeof extras.addObserver === 'function') {
-          // Only add observer if not already ready
-          // Use a bound function to ensure proper context
-          var observerCallback = function() {
-            // Use window.persistence to get the service instance (set by instance-initializer)
-            var service = window.persistence;
-            if(!service) {
-              // Fallback to _this if window.persistence not set yet
-              service = _this;
+        } else if (extras.addObserver && typeof extras.addObserver === 'function') {
+          extras.addObserver('ready', function() {
+            var service = window.persistence || _this;
+            if (!service || !service.find || !service.set) {
+              return;
             }
-            if(service && service.find && service.set) {
-              service.find('settings', 'lastSync').then(function(res) {
-                if(service && service.set) {
-                  service.set('last_sync_at', res.last_sync);
-                  service.set('sync_stamps', res.stamps);
-                }
-              }, function() {
-                if(service && service.set) {
-                  service.set('last_sync_at', 1);
-                }
-              });
-            }
-          };
-          try {
-            extras.addObserver('ready', observerCallback);
-          } catch(e) {
-            console.warn('Failed to add observer to lingoLinqExtras:', e);
-          }
-        }
-      }
-    }, 0);
-    */
-    
-    // TEMPORARILY COMMENTED OUT TO TEST
-    // Setup online/offline listeners
-    // this._setupOnlineListeners();
-    
-    // TEMPORARILY COMMENTED OUT TO TEST IF THIS OBSERVER IS CAUSING THE ERROR
-    // Defer stashes access until after service initialization is complete
-    /*
-    runLater(function() {
-      // Guard: ensure stashes service is available
-      if(!_this || !_this.stashes || !_this.stashes.addObserver) {
-        console.warn('Persistence service: stashes not available yet, skipping observer registration');
-        return;
-      }
-      var ignore_big_log_change = false;
-      _this.stashes.addObserver('big_logs', function() {
-        if(lingoLinqExtras && lingoLinqExtras.ready && !ignore_big_log_change) {
-          var rnd_key = (new Date()).getTime() + "_" + Math.random();
-          _this.find('settings', 'bigLogs').then(null, function(err) {
-            return RSVP.resvole({});
-          }).then(function(res) {
-            res = res || {};
-            res.logs = res.logs || [];
-            var big_logs = (_this.stashes.get('big_logs') || []);
-            big_logs.forEach(function(log) {
-              res.logs.push(log);
-            });
-            ignore_big_log_change = rnd_key;
-            _this.stashes.set('big_logs', []);
-            runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
-            _this.store('settings', res, 'bigLogs').then(function(res) {
+            service.find('settings', 'lastSync').then(function(res) {
+              service.set('last_sync_at', res.last_sync);
+              service.set('sync_stamps', res.stamps);
             }, function() {
-              rnd_key = rnd_key + "2";
-              var logs = (_this.stashes.get('big_logs') || []).concat(big_logs);
-              ignore_big_log_change = rnd_key;
-              _this.stashes.set('big_logs', logs);
-              runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
+              service.set('last_sync_at', 1);
             });
           });
         }
-      });
-      if(_this.stashes.get('allow_local_filesystem_request') == false) {
-        capabilities.storage.already_limited_size = true;      
-      }
-      if(_this.stashes.get_object('just_logged_in', false) && _this.stashes.get('auth_settings') && !isTesting()) {
-        _this.stashes.persist_object('just_logged_in', null, false);
-        runLater(function() {
-          _this.check_for_needs_sync(true);
-        }, 10 * 1000);
-      }
-    }, 0);
-    */
-    // TEMPORARILY COMMENTED OUT TO TEST
-    /*
-    if(lingoLinqExtras && lingoLinqExtras.advance && lingoLinqExtras.advance.watch) {
-      lingoLinqExtras.advance.watch('device', function() {
-        // Guard: ensure _this is valid before using it
-        var service = _this || window.persistence;
-        if(!service || typeof service !== 'object' || typeof service.set !== 'function') {
-          console.warn('persistence: service not available in advance.watch callback');
-          return;
-        }
-        if(!LingoLinq.ignore_filesystem) {
-          capabilities.storage.status().then(function(res) {
-            if(res.available && !res.requires_confirmation) {
-              res.allowed = true;
-            }
-            if(service && typeof service.set === 'function') {
-              service.set('local_system', res);
-            }
-          });
-          runLater(function() {
-            if(service && typeof service.prime_caches === 'function') {
-              service.prime_caches().then(null, function() { });
-            }
-          }, 100);
-          runLater(function() {
-            if(service && typeof service.get === 'function' && service.get('local_system.allowed')) {
-              if(typeof service.prime_caches === 'function') {
-                service.prime_caches(true).then(null, function() { });
-              }
-            }
-          }, 2000);
-        }
-      });
-    }
-    */
-    } catch(error) {
-      // CATCH ALL ERRORS IN SETUP TO PROVIDE DETAILED CONTEXT
-      console.error('[PERSISTENCE SETUP] ========== CRITICAL ERROR IN SETUP() ==========');
-      console.error('[PERSISTENCE SETUP] Error message:', error.message);
-      console.error('[PERSISTENCE SETUP] Error stack:', error.stack);
-      console.error('[PERSISTENCE SETUP] Error at line:', error.lineNumber || 'unknown');
-      console.error('[PERSISTENCE SETUP] Error at column:', error.columnNumber || 'unknown');
-      console.error('[PERSISTENCE SETUP] this:', this);
-      console.error('[PERSISTENCE SETUP] this type:', typeof this);
-      console.error('[PERSISTENCE SETUP] this.stashes:', this.stashes);
-      console.error('[PERSISTENCE SETUP] this.stashes type:', typeof this.stashes);
-      console.error('[PERSISTENCE SETUP] window.stashes:', window.stashes);
-      console.error('[PERSISTENCE SETUP] window.stashes type:', typeof window.stashes);
-      console.error('[PERSISTENCE SETUP] Full error object:', error);
-      console.error('[PERSISTENCE SETUP] Call stack when error occurred:', new Error().stack);
-      console.error('[PERSISTENCE SETUP] ============================================');
-      // Re-throw so we can see it in the console
+      }, 0);
+    } catch (error) {
+      console.warn('[PERSISTENCE SETUP] Error in setup():', error);
       throw error;
     }
   },

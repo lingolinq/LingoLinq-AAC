@@ -191,213 +191,45 @@ function schedule_sync_board_step(callback, delay) {
 
 var persistence = EmberObject.extend({
   setup: function(application) {
-    // TEMPORARILY DISABLED: Old persistence setup should not be called during migration
-    // The new persistence service handles initialization via init()
-    // This setup method is kept for backward compatibility but should not execute
-    console.log('[OLD PERSISTENCE SETUP] ========== OLD setup() CALLED (DISABLED) ==========');
-    console.log('[OLD PERSISTENCE SETUP] application:', application);
-    console.log('[OLD PERSISTENCE SETUP] persistence:', persistence);
-    console.log('[OLD PERSISTENCE SETUP] Call stack:', new Error().stack.split('\n').slice(0, 15).join('\n'));
-    console.warn('[OLD PERSISTENCE SETUP] WARNING: Old persistence setup is disabled! The new service handles everything.');
-    
-    // Early return to prevent execution - the new service handles everything
-    // This prevents the error "Cannot read properties of undefined (reading 'get')"
-    return;
-    
-    // Code below is disabled - new service handles initialization
-    /*
+    if (!application || typeof application.register !== 'function') {
+      return;
+    }
     application.register('lingolinq:persistence', persistence, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'persistence', 'lingolinq:persistence');
     });
     // Use window.persistence (new service) if available, otherwise use old persistence class
     // Note: The old persistence is a class, not an instance, so we need to use window.persistence
-    var persistenceInstance = window.persistence || persistence;
-    if(persistenceInstance && typeof persistenceInstance.find === 'function') {
+    var persistenceInstance = window.persistence;
+    if (!persistenceInstance || typeof persistenceInstance.find !== 'function') {
+      persistenceInstance = null;
+    }
+    if (persistenceInstance && typeof persistenceInstance.find === 'function') {
       persistenceInstance.find('settings', 'lastSync').then(function(res) {
-        if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+        if (persistenceInstance && typeof persistenceInstance.set === 'function') {
           persistenceInstance.set('last_sync_at', res.last_sync);
           persistenceInstance.set('sync_stamps', res.stamps);
         }
       }, function() { });
     }
-    // Guard: ensure persistence instance is available before registering observers
-    // Note: persistence is a class, not an instance, so we check window.persistence (new service)
-    var persistenceInstance = window.persistence || persistence;
-    if(!persistenceInstance || typeof persistenceInstance.find !== 'function' || typeof persistenceInstance.set !== 'function') {
-      console.warn('Persistence instance not ready, skipping observer registration');
-      // Don't return - continue with observer registration using window.persistence when available
-    }
     try {
-      if(lingoLinqExtras && typeof lingoLinqExtras.addObserver === 'function') {
+      if (lingoLinqExtras && typeof lingoLinqExtras.addObserver === 'function') {
         lingoLinqExtras.addObserver('ready', function() {
-          console.log('[OLD PERSISTENCE OBSERVER] lingoLinqExtras ready observer fired', {
-            persistence: persistence,
-            persistenceType: typeof persistence,
-            hasFind: typeof (persistence && persistence.find),
-            hasSet: typeof (persistence && persistence.set),
-            stack: new Error().stack.split('\n').slice(0, 10).join('\n')
-          });
-          // Guard: ensure persistence is still valid in callback
-          if(!persistence || typeof persistence.find !== 'function' || typeof persistence.set !== 'function') {
-            console.warn('[OLD PERSISTENCE OBSERVER] lingoLinqExtras ready: persistence invalid');
+          var inst = window.persistence || persistenceInstance;
+          if (!inst || typeof inst.find !== 'function' || typeof inst.set !== 'function') {
             return;
           }
-          try {
-            // Use window.persistence (new service) if available, otherwise use old persistence class
-            var persistenceInstance = window.persistence || persistence;
-            if(persistenceInstance && typeof persistenceInstance.find === 'function') {
-              persistenceInstance.find('settings', 'lastSync').then(function(res) {
-                if(persistenceInstance && typeof persistenceInstance.set === 'function') {
-                  persistenceInstance.set('last_sync_at', res.last_sync);
-                  persistenceInstance.set('sync_stamps', res.stamps);
-                }
-              }, function() {
-                if(persistenceInstance && typeof persistenceInstance.set === 'function') {
-                  persistenceInstance.set('last_sync_at', 1);
-                }
-              });
-            }
-          } catch(e) {
-            console.warn('Error in lingoLinqExtras ready observer:', e);
-          }
+          inst.find('settings', 'lastSync').then(function(res) {
+            inst.set('last_sync_at', res.last_sync);
+            inst.set('sync_stamps', res.stamps);
+          }, function() {
+            inst.set('last_sync_at', 1);
+          });
         });
       }
-    } catch(e) {
+    } catch (e) {
       console.warn('Error registering lingoLinqExtras observer:', e);
     }
-    var ignore_big_log_change = false;
-    try {
-      // Use window.stashes (new service instance) if available, otherwise use old stashes class
-      // Note: stashes is a class, not an instance, so we need to use window.stashes
-      var stashesInstance = window.stashes || stashes;
-      if(!stashesInstance || typeof stashesInstance.addObserver !== 'function') {
-        console.warn('Stashes instance not ready, skipping big_logs observer registration');
-        return;
-      }
-      stashesInstance.addObserver('big_logs', function() {
-        // Use window.stashes (new service instance) if available, otherwise use old stashes class
-        var stashesInstance = window.stashes || stashes;
-        console.log('[OLD PERSISTENCE OBSERVER] big_logs observer fired', {
-          this: this,
-          persistence: persistence,
-          stashes: stashesInstance,
-          stack: new Error().stack.split('\n').slice(0, 10).join('\n')
-        });
-        // Guard: ensure all dependencies are valid
-        var persistenceInstance = window.persistence || persistence;
-        if(!persistenceInstance || typeof persistenceInstance.find !== 'function' || typeof persistenceInstance.store !== 'function') {
-          console.warn('[OLD PERSISTENCE OBSERVER] big_logs: persistence invalid');
-          return;
-        }
-        if(!stashesInstance || typeof stashesInstance.get !== 'function' || typeof stashesInstance.set !== 'function') {
-          console.warn('[OLD PERSISTENCE OBSERVER] big_logs: stashes invalid');
-          return;
-        }
-        try {
-          if(lingoLinqExtras && lingoLinqExtras.ready && !ignore_big_log_change) {
-            // Use window.persistence (new service) if available, otherwise use old persistence class
-            var persistenceInstance = window.persistence || persistence;
-            if(!persistenceInstance || typeof persistenceInstance.find !== 'function') {
-              console.warn('[OLD PERSISTENCE OBSERVER] big_logs: persistence instance not available');
-              return;
-            }
-            // Use window.stashes (new service instance) if available
-            var stashesInstance = window.stashes || stashes;
-            if(!stashesInstance || typeof stashesInstance.get !== 'function') {
-              console.warn('[OLD PERSISTENCE OBSERVER] big_logs: stashes instance not available');
-              return;
-            }
-            var rnd_key = (new Date()).getTime() + "_" + Math.random();
-            persistenceInstance.find('settings', 'bigLogs').then(null, function(err) {
-              return RSVP.resvole({});
-            }).then(function(res) {
-              if(!persistenceInstance || !stashesInstance) return;
-              res = res || {};
-              res.logs = res.logs || [];
-              var big_logs = (stashesInstance.get('big_logs') || []);
-              big_logs.forEach(function(log) {
-                res.logs.push(log);
-              });
-              ignore_big_log_change = rnd_key;
-              stashesInstance.set('big_logs', []);
-              runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
-              if(typeof persistenceInstance.store === 'function') {
-                persistenceInstance.store('settings', res, 'bigLogs').then(function(res) {
-                }, function() {
-                  if(!persistenceInstance || !stashesInstance) return;
-                  rnd_key = rnd_key + "2";
-                  var logs = (stashesInstance.get('big_logs') || []).concat(big_logs);
-                  ignore_big_log_change = rnd_key;
-                  stashesInstance.set('big_logs', logs);
-                  runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
-                });
-              }
-            });
-          }
-        } catch(e) {
-          console.warn('Error in stashes big_logs observer:', e);
-        }
-      });
-    } catch(e) {
-      console.warn('Error registering stashes big_logs observer:', e);
-    }
-    // Guard: ensure stashes instance is available and has get method before accessing properties
-    // Use window.stashes (new service instance) if available, otherwise use old stashes class
-    var stashesInstance = window.stashes || stashes;
-    if(stashesInstance && typeof stashesInstance.get === 'function') {
-      if(stashesInstance.get('allow_local_filesystem_request') == false) {
-        capabilities.storage.already_limited_size = true;      
-      }
-      if(stashesInstance.get_object && typeof stashesInstance.get_object === 'function' && stashesInstance.get('auth_settings') && !isTesting()) {
-        if(stashesInstance.get_object('just_logged_in', false)) {
-          stashesInstance.persist_object('just_logged_in', null, false);
-          runLater(function() {
-            // Use window.persistence (new service) if available, otherwise use old persistence class
-            var persistenceInstance = window.persistence || persistence;
-            if(persistenceInstance && typeof persistenceInstance.check_for_needs_sync === 'function') {
-              persistenceInstance.check_for_needs_sync(true);
-            }
-          }, 10 * 1000);
-        }
-      }
-    }
-    // Guard: ensure lingoLinqExtras and advance exist before calling watch
-    if(lingoLinqExtras && lingoLinqExtras.advance && typeof lingoLinqExtras.advance.watch === 'function') {
-      lingoLinqExtras.advance.watch('device', function() {
-        // Use window.persistence (new service) if available, otherwise use old persistence class
-        var persistenceInstance = window.persistence || persistence;
-        if(!persistenceInstance || typeof persistenceInstance.set !== 'function') {
-          console.warn('[OLD PERSISTENCE] advance.watch callback: persistence instance not available');
-          return;
-        }
-        if(!LingoLinq.ignore_filesystem) {
-          capabilities.storage.status().then(function(res) {
-            if(res.available && !res.requires_confirmation) {
-              res.allowed = true;
-            }
-            if(persistenceInstance && typeof persistenceInstance.set === 'function') {
-              persistenceInstance.set('local_system', res);
-            }
-          });
-          runLater(function() {
-            if(persistenceInstance && typeof persistenceInstance.prime_caches === 'function') {
-              persistenceInstance.prime_caches().then(null, function() { });
-            }
-          }, 100);
-          runLater(function() {
-            if(persistenceInstance && typeof persistenceInstance.get === 'function') {
-              if(persistenceInstance.get('local_system.allowed')) {
-                if(typeof persistenceInstance.prime_caches === 'function') {
-                  persistenceInstance.prime_caches(true).then(null, function() { });
-                }
-              }
-            }
-          }, 2000);
-        }
-      });
-    }
-    */
   },
   test: function(method, args) {
     method.apply(this, args).then(function(res) {

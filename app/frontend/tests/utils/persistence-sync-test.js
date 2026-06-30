@@ -1703,9 +1703,6 @@ describe("persistence-sync", function() {
       revisions[b3.id] = b3.full_set_revision;
       revisions[b4.id] = b4.full_set_revision;
 
-      persistence.url_uncache = {
-        'http://www.example.com/pic.png': true
-      };
       primeLocalSyncStorage([
         {id: '2', url: 'http://www.example.com/pic.png'}
       ]);
@@ -1720,6 +1717,7 @@ describe("persistence-sync", function() {
       store_promises.push(persistence.store('dataCache', {url: 'http://example.com/sound.mp3', content_type: 'audio/mp3', data_uri: 'data:audio/mp3;base64,eee'}, 'http://example.com/sound.mp3'));
       store_promises.push(persistence.store('settings', revisions, 'synced_full_set_revisions'));
       primeSyncUrlCache({
+        'http://www.example.com/pic.png': 'data:image/png;base64,a0a',
         'http://example.com/sound.mp3': 'data:audio/mp3;base64,eee'
       });
       LingoLinq.store.push({ data: { type: 'sound', id: '3', attributes: { id: '3', url: 'http://example.com/sound.mp3' } } });
@@ -1734,6 +1732,7 @@ describe("persistence-sync", function() {
       });
 
       var done = false;
+      var reloads = {};
       waitsFor(function() { return stored; });
       runs(function() {
         LingoLinq.all_wait = true;
@@ -1743,6 +1742,9 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
+        seedBoardsInStore([b1, b2, b3, b4], { fresh: true });
+        cacheStoredUrl('http://www.example.com/pic.png');
+        cacheStoredUrl('http://example.com/sound.mp3');
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
@@ -1752,30 +1754,49 @@ describe("persistence-sync", function() {
               avatar_url: 'http://example.com/pic.png',
               preferences: {home_board: {id: '145'}}
             }});
+          } else if(options.url == '/api/v1/sounds/3') {
+            return RSVP.resolve({ sound: { id: '3', url: 'http://example.com/sound.mp3' } });
           } else if(options.url == '/api/v1/boards/145') {
+            reloads['145'] = true;
             return RSVP.resolve({
               board: b1
             });
           } else if(options.url == '/api/v1/boards/167') {
+            reloads['167'] = true;
             return RSVP.resolve({
               board: b2
             });
           } else if(options.url == '/api/v1/boards/178') {
+            reloads['178'] = true;
             return RSVP.resolve({
               board: b3
             });
           } else if(options.url == '/api/v1/boards/179') {
+            reloads['179'] = true;
             return RSVP.resolve({
               board: b4
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-        persistence.sync(1340).then(function() {
-          done = true;
-        }, function() { done = true; });
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          primeSyncUrlCache({
+            'http://www.example.com/pic.png': 'data:image/png;base64,a0a',
+            'http://example.com/sound.mp3': 'data:audio/mp3;base64,eee'
+          });
+          persistence.known_missing = null;
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() { done = true; });
+        }, 50);
       });
-      waitsFor(function() { return done && syncDoneWait(); });
+      waitsFor(function() { return done; });
       runs(function() {
         cancelSyncTailWork();
         persistence.set('sync_progress', null);
@@ -4182,6 +4203,7 @@ describe("persistence-sync", function() {
   it("should not try to download boards that match the fresh revision from board_revisions", function() {
     db_wait(function() {
       primeBoardRevisionsSyncHarness();
+      persistence.known_missing = {};
       var revisions_called = false;
       chainPersistenceAjax(function(url, opts) {
         if (url == '/api/v1/users/1340/board_revisions') {
@@ -4309,6 +4331,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
+        seedBoardsInStore([b1, b2, b3, b4], { fresh: true });
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
@@ -4338,14 +4361,23 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b4
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-        persistence.sync(1340).then(function() {
-          done = true;
-        }, function() { done = true; });
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = null;
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() { done = true; });
+        }, 50);
       });
-      waitsFor(function() { return done && syncDoneWait(); });
+      waitsFor(function() { return done; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads).toEqual({
