@@ -150,7 +150,17 @@ Return:
 
 - `lib/pii_scrubber.rb` -- regex + blocklist; free-text/small-cohort residual risk.
 - `app/models/ai_api_log.rb` -- audit log; scrubs request+response summaries; 90-day IP redaction.
-- `lib/ai_board_generator.rb`, `lib/ai_word_predictor.rb` -- outbound AI paths; thread `user:`.
+- Outbound AI egress paths -- do NOT trust this list as static; re-derive on every review with
+  `git grep -nE 'generativelanguage\.googleapis\.com|draft_via_anthropic|call_anthropic' -- 'lib/*.rb' 'app/**/*.rb'`
+  so new AI modules cannot silently escape the gate. As of 2026-06 the surface is:
+  - `lib/ai_board_generator.rb` -- board generation; thread `user:`.
+  - `lib/ai_word_predictor.rb` -- word prediction; scrubbed sentence input.
+  - `lib/ai_prediction_generator.rb` -- batch prediction generation (callers in
+    `lib/tasks/generate_predictions.rake`, which also uploads results to S3).
+  - `lib/eval_narrator.rb` (`draft_via_anthropic`, the `comprehensive_eval_ai` SLP-narrative flow;
+    callers at `app/controllers/api/eval_sessions_controller.rb:94` and `lib/eval_narrator.rb:227`)
+    -- HIGHEST SENSITIVITY: drafts evaluation narratives from assessment data, which Step 1
+    classifies as "Never send externally." Treat any change here as never-send by default.
   As of 2026-06: primary vendor is **Anthropic Claude Haiku** (`ANTHROPIC_API_KEY`); a **Google
   Gemini** fallback (`GEMINI_API_KEY`) calls the `generativelanguage.googleapis.com` Gemini API
   endpoint. Current Gemini API terms prohibit API clients directed to or likely accessed by anyone
@@ -158,7 +168,10 @@ Return:
   Pin to Anthropic-only or migrate to Vertex AI only after contract/DPA/BAA review confirms the
   specific child-directed and healthcare use case.
 - `lib/feature_flags.rb` -- `ai_feature_enabled_for?`, `coppa_blocks_ai_for?` (signup-COPPA gate).
-- `User#ai_consent_granted?/grant_ai_consent!/revoke_ai_consent!` -- second-tier consent (Phase 1).
+- `User#ai_consent_granted?(disclosures_version:)/grant_ai_consent!(disclosures_version:, granted_by:, source:)/revoke_ai_consent!`
+  -- second-tier consent (Phase 1). Consent is scoped to a disclosure version: `ai_consent_granted?`
+  is NOT a versionless boolean, and `grant_ai_consent!` raises `ArgumentError` on an unlisted
+  `source`. Ties to checklist item D: a material change bumps the version and forces re-consent.
 - Project: `.planning/` AI Data-Sharing VPC; this skill is its Phase 2 acceptance gate.
 
 ## Primary sources (re-verify dates on use)
