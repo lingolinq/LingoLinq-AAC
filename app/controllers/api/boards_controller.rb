@@ -608,6 +608,10 @@ class Api::BoardsController < ApplicationController
       fallback_board_name(prompt)
     end
     response[:description] = result[:description].presence || prompt
+    # EU AI Act Article 50(2): surface the signed AI-generated marker so the client
+    # can carry it into the board-save payload, where it is verified and persisted
+    # onto board.settings (and propagated on copy). Unconditional; not flag-gated.
+    response[:ai_generated] = result[:ai_generated] if result[:ai_generated]
     render json: response
   end
 

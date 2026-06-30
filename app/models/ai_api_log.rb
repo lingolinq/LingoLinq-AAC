@@ -100,7 +100,27 @@ class AiApiLog < ApplicationRecord
     log.save!
     log
   rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "AiApiLog: failed to persist audit log: #{e.message}"
+    # Alert-but-continue: a failed AI compliance audit write (incl. EU AI Act
+    # Article 50 fields) must be LOUD so the gap surfaces in monitoring, but it
+    # must NOT fail the user's AI generation on an audit-DB hiccup. Mirror
+    # AuditEvent: scrub the message, log it, and Sentry the scrubbed MESSAGE (not
+    # the raw exception, which CoppaSentryScrub#before_send does not scrub for
+    # non-child users), guarded so alerting can never raise. Previously this was
+    # a silent Rails.logger.error -> audit loss looked like success (finding P3).
+    detail = begin
+      PiiScrubber.scrub_log_line(e.message.to_s).truncate(300)
+    rescue ScriptError, StandardError => scrub_err
+      "[unscrubbable:#{scrub_err.class}]"
+    end
+    message = "AiApiLog: failed to persist audit log: #{detail}"
+    Rails.logger.error(message)
+    begin
+      if defined?(Sentry) && Sentry.respond_to?(:initialized?) && Sentry.initialized?
+        Sentry.capture_message(message, level: 'error', tags: { audit: 'ai_api_log_persist_failed' })
+      end
+    rescue StandardError
+      nil
+    end
     log
   end
 
