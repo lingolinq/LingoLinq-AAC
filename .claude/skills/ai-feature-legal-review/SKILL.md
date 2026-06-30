@@ -151,14 +151,18 @@ Return:
 - `lib/pii_scrubber.rb` -- regex + blocklist; free-text/small-cohort residual risk.
 - `app/models/ai_api_log.rb` -- audit log; scrubs request+response summaries; 90-day IP redaction.
 - Outbound AI egress paths -- do NOT trust this list as static; re-derive on every review with
-  `git grep -nE 'generativelanguage\.googleapis\.com|draft_via_anthropic|call_anthropic' -- 'lib/*.rb' 'app/**/*.rb'`
-  so new AI modules cannot silently escape the gate. As of 2026-06 the surface is:
+  `git grep -nE 'api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|draft_via_anthropic|call_anthropic|call_openai' -- 'lib/**' 'app/**'`
+  so new AI modules cannot silently escape the gate. The pathspec recurses into subdirs and `.rake`
+  files (a top-level `lib/*.rb` glob would miss `lib/tasks/generate_predictions.rake`); the pattern
+  is keyed to current vendor hosts and dispatch method names, so widen it whenever a new vendor or
+  naming convention lands. As of 2026-06 the surface is:
   - `lib/ai_board_generator.rb` -- board generation; thread `user:`.
   - `lib/ai_word_predictor.rb` -- word prediction; scrubbed sentence input.
   - `lib/ai_prediction_generator.rb` -- batch prediction generation (callers in
     `lib/tasks/generate_predictions.rake`, which also uploads results to S3).
   - `lib/eval_narrator.rb` (`draft_via_anthropic`, the `comprehensive_eval_ai` SLP-narrative flow;
-    callers at `app/controllers/api/eval_sessions_controller.rb:94` and `lib/eval_narrator.rb:227`)
+    external entry `EvalNarrator.draft_narrative` at `app/controllers/api/eval_sessions_controller.rb:75`,
+    internal dispatch at `lib/eval_narrator.rb:37`)
     -- HIGHEST SENSITIVITY: drafts evaluation narratives from assessment data, which Step 1
     classifies as "Never send externally." Treat any change here as never-send by default.
   As of 2026-06: primary vendor is **Anthropic Claude Haiku** (`ANTHROPIC_API_KEY`); a **Google
