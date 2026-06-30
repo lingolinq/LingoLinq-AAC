@@ -29,6 +29,15 @@
       ]
     },
     {
+      "Sid": "KMSForUploadsBucketSSE",
+      "Effect": "Allow",
+      "Action": [
+        "kms:GenerateDataKey",
+        "kms:Decrypt"
+      ],
+      "Resource": "arn:aws:kms:us-west-2:239044785114:key/d5a1a377-8f55-469d-a0ab-4a86481dba67"
+    },
+    {
       "Sid": "SESSendFromUsWest2",
       "Effect": "Allow",
       "Action": [
