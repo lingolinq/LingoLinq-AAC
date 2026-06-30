@@ -232,13 +232,25 @@ describe('app_state', function() {
   });
 
   describe('speak_mode_handlers', function() {
+    function stubModalWarning(callback) {
+      stub(modal, 'warning', callback);
+      if (LingoLinq.testOwner) {
+        try {
+          var modalSvc = LingoLinq.testOwner.lookup('service:modal');
+          stub(modalSvc, 'warning', callback);
+        } catch (e) { /* owner mid-teardown */ }
+      }
+    }
+
     beforeEach(function() {
+      app_state.set('last_speak_mode', null);
+      stashesForTests().persist('current_mode', 'default');
       stubSpeakModeEntry();
     });
     afterEach(function() {
       app_state.set('last_speak_mode', null);
       app_state.set('currentBoardState', null);
-      stashes.set('current_mode', 'default');
+      stashesForTests().persist('current_mode', 'default');
       if (LingoLinq.persistenceService && typeof LingoLinq.persistenceService.set === 'function') {
         LingoLinq.persistenceService.set('online', true);
       }
@@ -260,14 +272,15 @@ describe('app_state', function() {
           return RSVP.resolve(1.0);
         }
       });
-      stub(modal, 'warning', function(message) {
+      stubModalWarning(function(message) {
         warnings++;
         warning = message;
       });
 
       expect(checks).toEqual(0);
 
-      stashes.set('current_mode', 'speak');
+      app_state.set('last_speak_mode', null);
+      stashesForTests().persist('current_mode', 'speak');
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       expect(app_state.get('speak_mode')).toEqual(true);
 
@@ -302,14 +315,15 @@ describe('app_state', function() {
         checks++;
         return RSVP.resolve(false);
       });
-      stub(modal, 'warning', function(message) {
+      stubModalWarning(function(message) {
         warnings++;
         warning = message;
       });
 
       expect(checks).toEqual(0);
 
-      stashes.set('current_mode', 'speak');
+      app_state.set('last_speak_mode', null);
+      stashesForTests().persist('current_mode', 'speak');
       expect(app_state.get('speak_mode')).toEqual(false);
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       expect(app_state.get('speak_mode')).toEqual(true);
@@ -333,14 +347,15 @@ describe('app_state', function() {
         checks++;
         return RSVP.resolve(true);
       });
-      stub(modal, 'warning', function(message) {
+      stubModalWarning(function(message) {
         warnings++;
         warning = message;
       });
 
       expect(checks).toEqual(0);
 
-      stashes.set('current_mode', 'speak');
+      app_state.set('last_speak_mode', null);
+      stashesForTests().persist('current_mode', 'speak');
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       expect(app_state.get('speak_mode')).toEqual(true);
 

@@ -631,7 +631,7 @@ var Button = EmberObject.extend({
       if(_this.get('no_lookups')) {
         return RSVP.reject('no image lookups');
       } else {
-        if(!(requestedId || '').match(/^tmp/) && preference != 'remote') {
+        if(!String(requestedId || '').match(/^tmp/) && preference != 'remote') {
           console.warn("had to revert to image record lookup");
         }
         var find = LingoLinq.store.findRecord('image', requestedId).then(function(image) {

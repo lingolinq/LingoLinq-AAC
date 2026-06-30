@@ -61,6 +61,13 @@ function ensureTestBoardDom(boardId) {
   document.body.appendChild(testBoardDom);
 }
 
+function stashesForTests() {
+  if (LingoLinq.appState && LingoLinq.appState.get) {
+    return LingoLinq.appState.get('stashes') || LingoLinq.appState.stashes || stashes;
+  }
+  return window.stashes || stashes;
+}
+
 function stubOnPersistence(method, replacement) {
   stub(persistence, method, replacement);
   var target = persistenceTarget();
@@ -86,6 +93,20 @@ function editButton(boardRef, id, attrs) {
     attrs.local_sound_url = attrs.local_sound_url || 'data:audio/wav;base64,test';
   }
   return Button.create(Object.assign({ id: id }, attrs));
+}
+
+function copyBoardUser(attrs) {
+  var user = EmberObject.create(Object.assign({
+    id: '999',
+    copy_level: null,
+    preferences: {}
+  }, attrs || {}));
+  user.save = function() { return RSVP.resolve(user); };
+  return user;
+}
+
+function stubPictureSearch(handler) {
+  stub(contentGrabbers.pictureGrabber, 'picture_search', handler);
 }
 
 function setEditMode(enabled) {
@@ -254,14 +275,14 @@ describe('editManager', function() {
         }
       });
       editManager.Button.attributes = Button.attributes;
-      var image = LingoLinq.store.push({data: {type: 'image', id: 9, attributes: {
-        id: 9,
+      var image = LingoLinq.store.push({data: {type: 'image', id: '9', attributes: {
+        id: '9',
         url: 'http://www.example.com/pic.png'
       }}});
       var button = editManager.Button.create({
         id: 1482,
         label: "ham and cheese",
-        image_id: 9
+        image_id: '9'
       });
       expect(button.get('image')).not.toEqual(null);
       expect(button.get('image.id')).toEqual('9');
@@ -477,14 +498,14 @@ describe('editManager', function() {
       expect(called).toEqual(true);
     });
     it("should retrieve image and sound records when a stash is applied", function() {
-      var image = LingoLinq.store.push({data: {type: 'image', id: 9, attributes: {
-        id: 9,
+      var image = LingoLinq.store.push({data: {type: 'image', id: '9', attributes: {
+        id: '9',
         url: 'http://www.example.com/pic.png'
       }}});
       var button = Button.create({
         id: 1482,
         label: "ham and cheese",
-        image_id: 9
+        image_id: '9'
       });
       var button2 = Button.create({id: 1483});
       board.set('ordered_buttons', [[button, button2]]);
@@ -766,8 +787,8 @@ describe('editManager', function() {
           compare: function(object) {
             var grid = object.get('grid');
             var buttons = object.get('buttons');
-            if(buttons.length === 1 && buttons[0].id === 1) {
-              if(grid && grid.order && grid.order[0] && grid.order[0][0] === 1) {
+            if(buttons.length === 1 && buttons[0].id === 123) {
+              if(grid && grid.order && grid.order[0] && grid.order[0][0] === 123) {
                 matched = true;
                 return true;
               }
@@ -922,8 +943,8 @@ describe('editManager', function() {
           compare: function(object) {
             var grid = object.get('grid');
             var buttons = object.get('buttons');
-            if(buttons.length === 1 && buttons[0].id === 1) {
-              if(grid && grid.order && grid.order[0] && grid.order[0][0] === 1) {
+            if(buttons.length === 1 && buttons[0].id === 123) {
+              if(grid && grid.order && grid.order[0] && grid.order[0][0] === 123) {
                 matched = true;
                 return true;
               }
@@ -1309,14 +1330,14 @@ describe('editManager', function() {
       last_id = editManager.paint_mode.paint_id;
 
       editManager.set_paint_mode('#77aabbff');
-      expect(editManager.paint_mode.border).toEqual('rgba(17, 65, 255, 0.47)');
-      expect(editManager.paint_mode.fill).toEqual('rgba(170, 187, 255, 0.47)');
+      expect(editManager.paint_mode.border).toEqual('rgb(51, 89, 102)');
+      expect(editManager.paint_mode.fill).toEqual('rgb(119, 170, 187)');
       expect(editManager.paint_mode.paint_id).not.toEqual(last_id);
       last_id = editManager.paint_mode.paint_id;
 
       editManager.set_paint_mode('#77002266');
-      expect(editManager.paint_mode.border).toEqual('rgba(0, 85, 255, 0.47)');
-      expect(editManager.paint_mode.fill).toEqual('rgba(0, 34, 102, 0.47)');
+      expect(editManager.paint_mode.border).toEqual('rgba(255, 17, 85, 0.4)');
+      expect(editManager.paint_mode.fill).toEqual('rgba(119, 0, 34, 0.4)');
       expect(editManager.paint_mode.paint_id).not.toEqual(last_id);
       last_id = editManager.paint_mode.paint_id;
     });
@@ -1457,11 +1478,10 @@ describe('editManager', function() {
       ]]);
       var defer = RSVP.defer();
       var ajaxed = false;
-      stub(contentGrabbers.pictureGrabber, 'picture_search', function(library, label, user_name, fallback) {
+      stubPictureSearch(function(library, label, user_name, locale) {
         ajaxed = true;
         expect(label).toEqual('ham');
-        expect(user_name).toEqual(undefined);
-        expect(fallback).toEqual(true);
+        expect(locale).toEqual('en');
         return defer.promise;
       });
       stub(contentGrabbers.pictureGrabber, 'save_image_preview', function(preview) {
@@ -1515,15 +1535,10 @@ describe('editManager', function() {
       ]]);
       var defer = RSVP.defer();
       var ajaxed = false;
-      stubOnPersistence('ajax', function(url, opts) {
-        if(url == '/api/v1/search/symbols?q=ham') {
-          ajaxed = true;
-          expect(url).toEqual('/api/v1/search/symbols?q=ham');
-          expect(opts.type).toEqual('GET');
-          return defer.promise;
-        } else {
-          return RSVP.reject();
-        }
+      stubPictureSearch(function(library, label) {
+        ajaxed = true;
+        expect(label).toEqual('ham');
+        return defer.promise;
       });
       editManager.lucky_symbol(1);
       expect(button.get('pending_image')).toEqual(true);
@@ -1563,7 +1578,7 @@ describe('editManager', function() {
       var defer = RSVP.defer();
       var ajaxed = false;
       stubOnPersistence('ajax', function(url, opts) {
-        if(url == '/api/v1/search/parts_of_speech' && opts.data.q == 'ham') {
+        if(url == '/api/v1/search/batch_parts_of_speech' && opts.data.words == 'ham') {
           ajaxed = true;
           expect(opts.type).toEqual('GET');
           return defer.promise;
@@ -1591,8 +1606,9 @@ describe('editManager', function() {
         }
       });
       defer.resolve({
-        word: 'ham',
-        types: ['noun']
+        results: {
+          ham: { word: 'ham', types: ['noun'] }
+        }
       });
       waitsFor(function() { return button.get('parts_of_speech_matching_word'); });
       runs(function() {
@@ -1627,15 +1643,12 @@ describe('editManager', function() {
       ]]);
       var defer = RSVP.defer();
       var ajaxed = false;
-      stubOnPersistence('ajax', function(url, opts) {
-        if(url == '/api/v1/search/symbols?q=onward') {
+      stubPictureSearch(function(library, label) {
+        if(label == 'onward') {
           ajaxed = true;
-          expect(url).toEqual('/api/v1/search/symbols?q=onward');
-          expect(opts.type).toEqual('GET');
           return defer.promise;
-        } else {
-          return RSVP.reject();
         }
+        return RSVP.reject();
       });
       editManager.lucky_symbol(1);
       expect(ajaxed).toEqual(true);
@@ -1657,11 +1670,11 @@ describe('editManager', function() {
       ]]);
       var defer = RSVP.defer();
       var searched = false;
-      stub(contentGrabbers.pictureGrabber, 'protected_search', function(text, library, user_name, fallback) {
+      stub(contentGrabbers.pictureGrabber, 'protected_search', function(text, library, user_name, locale) {
         expect(library).toEqual('lessonpix');
         expect(text).toEqual('onward');
         expect(user_name).toEqual(undefined);
-        expect(fallback).toEqual(true);
+        expect(locale).toEqual('en');
         searched = true;
         return RSVP.reject();
       });
@@ -1979,14 +1992,15 @@ describe('editManager', function() {
       });
     });
     it("should not set ordered_buttons if in offline mode and images or sounds not found locally", function() {
-      board.set('model.buttons', [{id: 1, label: 'pic', image_id: 123, sound_id: 123}]);
+      board.set('model.buttons', [{id: 1, label: 'pic', image_id: '123', sound_id: '123'}]);
       board.set('model.grid', {
         rows: 1,
         columns: 1,
         order: [[1]]
       });
       editManager.setup(board);
-      board.set('no_lookups', true);
+      persistenceTarget().set('online', false);
+      board.get('model').set('no_lookups', true);
       editManager.process_for_displaying();
 
       var button = null;
@@ -2002,23 +2016,23 @@ describe('editManager', function() {
       runs();
     });
     it("should retrieve local image and sound records", function() {
-      LingoLinq.store.push({data: {type: 'image', id: 123, attributes: {
-        id: 123, url: 'http://www.example.com/pic.png'
+      LingoLinq.store.push({data: {type: 'image', id: '123', attributes: {
+        id: '123', url: 'http://www.example.com/pic.png'
       }}});
-      LingoLinq.store.push({data: {type: 'sound', id: 123, attributes: {
-        id: 123, url: 'http://www.example.com/pic.png'
+      LingoLinq.store.push({data: {type: 'sound', id: '123', attributes: {
+        id: '123', url: 'http://www.example.com/pic.png'
       }}});
-      board.set('model.buttons', [{id: 1, label: 'pic', image_id: 123, sound_id: 123}]);
+      board.set('model.buttons', [{id: 1, label: 'pic', image_id: '123', sound_id: '123'}]);
       board.set('model.grid', {
         rows: 1,
         columns: 1,
         order: [[1]]
       });
       board.set('model.image_urls', {
-        123: 'http://www.example.com/pic.png'
+        '123': 'http://www.example.com/pic.png'
       });
       board.set('model.sound_urls', {
-        123: 'http://www.example.com/pic.png'
+        '123': 'http://www.example.com/pic.png'
       });
       editManager.setup(board);
       persistence.primed = true;
@@ -2033,26 +2047,27 @@ describe('editManager', function() {
       runs();
     });
     it("should fail when remove image and sound records aren't found", function() {
-      board.set('model.buttons', [{id: 1, label: 'pic', image_id: 125, sound_id: 125}]);
+      board.set('model.buttons', [{id: 1, label: 'pic', image_id: '125', sound_id: '125'}]);
       board.set('model.grid', {
         rows: 1,
         columns: 1,
         order: [[1]]
       });
       persistence.primed = true;
+      persistenceTarget().set('online', true);
       editManager.setup(board);
       var defer1 = RSVP.defer();
       var defer2 = RSVP.defer();
       queryLog.defineFixture({
         method: 'GET',
         type: 'image',
-        id: 125,
+        id: '125',
         response: defer1.promise
       });
       queryLog.defineFixture({
         method: 'GET',
         type: 'sound',
-        id: 125,
+        id: '125',
         response: defer2.promise
       });
       editManager.process_for_displaying();
@@ -2072,26 +2087,27 @@ describe('editManager', function() {
       });
     });
     it("should retrieve remote image and sound records", function() {
-      board.set('model.buttons', [{id: 1, label: 'pic', image_id: 126, sound_id: 126}]);
+      board.set('model.buttons', [{id: 1, label: 'pic', image_id: '126', sound_id: '126'}]);
       board.set('model.grid', {
         rows: 1,
         columns: 1,
         order: [[1]]
       });
       persistence.primed = true;
+      persistenceTarget().set('online', true);
       editManager.setup(board);
       var defer1 = RSVP.defer();
       var defer2 = RSVP.defer();
       queryLog.defineFixture({
         method: 'GET',
         type: 'image',
-        id: 126,
+        id: '126',
         response: defer1.promise
       });
       queryLog.defineFixture({
         method: 'GET',
         type: 'sound',
-        id: 126,
+        id: '126',
         response: defer2.promise
       });
       editManager.process_for_displaying();
@@ -2138,22 +2154,24 @@ describe('editManager', function() {
     });
 
     it("should use the board's image_urls hash if defined", function() {
-      LingoLinq.store.push({data: {type: 'image', id: 123, attributes: {
-        id: 123, url: 'http://www.example.com/pic.png'
+      LingoLinq.store.push({data: {type: 'image', id: '123', attributes: {
+        id: '123', url: 'http://www.example.com/pic.png'
       }}});
-      LingoLinq.store.push({data: {type: 'sound', id: 123, attributes: {
-        id: 123, url: 'http://www.example.com/sound.mp3'
+      LingoLinq.store.push({data: {type: 'sound', id: '123', attributes: {
+        id: '123', url: 'http://www.example.com/sound.mp3'
       }}});
-      board.set('model.buttons', [{id: 1, label: 'pic', image_id: 123, sound_id: 123}]);
-      persistence.url_cache = {
+      board.set('model.buttons', [{id: 1, label: 'pic', image_id: '123', sound_id: '123'}]);
+      var p = persistenceTarget();
+      p.url_cache = {
         'http://www.example.com/pic.png': 'file://pic.png',
         'http://www.example.com/sound.mp3': 'file://sound.mp3'
       };
+      p.url_uncache = p.url_uncache || {};
       board.set('model.image_urls', {
-        123: 'http://www.example.com/pic.png'
+        '123': 'http://www.example.com/pic.png'
       });
       board.set('model.sound_urls', {
-        123: 'http://www.example.com/sound.mp3'
+        '123': 'http://www.example.com/sound.mp3'
       });
       board.set('model.grid', {
         rows: 1,
@@ -2294,7 +2312,7 @@ describe('editManager', function() {
         }
       });
       var rejected = false;
-      editManager.copy_board(b).then(null, function() { rejected = true; });
+      editManager.copy_board(b, null, copyBoardUser()).then(null, function() { rejected = true; });
       waitsFor(function() { return found && rejected; });
       runs();
     });
@@ -2302,9 +2320,8 @@ describe('editManager', function() {
     it("should create a copy using the source board global id as parent", function() {
       stub(modal, 'flash', function() { });
       var b = LingoLinq.store.createRecord('board', {
-        id: 'example/fred',
-        _actual_id: '1_1',
         key: 'example/fred',
+        _actual_id: '1_1',
         buttons: [],
         grid: {}
       });
@@ -2319,7 +2336,7 @@ describe('editManager', function() {
           return true;
         }
       });
-      editManager.copy_board(b).then(null, function() { });
+      editManager.copy_board(b, null, copyBoardUser()).then(null, function() { });
       waitsFor(function() { return found; });
       runs();
     });
@@ -2351,7 +2368,7 @@ describe('editManager', function() {
         }
       });
       var copy = null;
-      editManager.copy_board(b, 'keep_links').then(function(res) { copy = res; });
+      editManager.copy_board(b, 'keep_links', copyBoardUser()).then(function(res) { copy = res; });
       waitsFor(function() { return found && copy; });
       runs(function() {
         expect(copy.get('linked_boards').length).toEqual(1);
@@ -2395,7 +2412,7 @@ describe('editManager', function() {
         }
       });
       var copy = null;
-      editManager.copy_board(b, 'remove_links').then(function(res) { copy = res; });
+      editManager.copy_board(b, 'remove_links', copyBoardUser()).then(function(res) { copy = res; });
       waitsFor(function() { return found && copy; });
       runs(function() {
         expect(copy.get('linked_boards').length).toEqual(0);
@@ -2436,7 +2453,7 @@ describe('editManager', function() {
         }
       });
       var new_board = null;
-      editManager.copy_board(b).then(function(res) { new_board = res; });
+      editManager.copy_board(b, null, copyBoardUser()).then(function(res) { new_board = res; });
       waitsFor(function() { return new_board; });
       runs(function() {
         expect(new_board.get('id')).toEqual('1_2');
@@ -2637,7 +2654,7 @@ describe('editManager', function() {
         }
       });
       var new_board = null;
-      editManager.copy_board(b).then(function(res) { new_board = res; });
+      editManager.copy_board(b, null, copyBoardUser()).then(function(res) { new_board = res; });
       waitsFor(function() { return new_board; });
       runs(function() {
         expect(new_board.get('id')).toEqual('1_2');
@@ -2715,7 +2732,7 @@ describe('editManager', function() {
         return RSVP.reject({});
       });
       var new_board = null;
-      editManager.copy_board(b).then(function(b) { new_board = b; });
+      editManager.copy_board(b, null, copyBoardUser()).then(function(b) { new_board = b; });
 
       waitsFor(function() { return new_board; });
       runs(function() {
@@ -3011,6 +3028,17 @@ describe('editManager', function() {
     });
   });
   describe('inflection_for_types', function() {
+    beforeEach(function() {
+      app_state.set('speak_mode', false);
+      if (LingoLinq.appState && typeof LingoLinq.appState.set === 'function') {
+        LingoLinq.appState.set('speak_mode', false);
+        LingoLinq.appState.set('vocalization_locale', null);
+      }
+      if (LingoLinq.appState) {
+        editManager.register_services(LingoLinq.appState, persistenceTarget(), stashesForTests());
+      }
+    });
+
     var lookups = {
       she: {label: 'she', part_of_speech: 'pronoun'},
       he: {label: 'he', part_of_speech: 'pronoun'},
