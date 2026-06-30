@@ -6006,3 +6006,27 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
 `md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+
+---
+
+## Pattern: Ember 5 CI hang — destroyed-object read in post-teardown callback
+
+**Surface:** Full `ember test` in CI wedges for hours with no pass/fail count; local module
+filters may look fine.
+
+**Cause:** After a test tears down the app, a leaked `observer` / `later()` reads a computed on a
+destroyed service. Ember 3.28 returned `undefined`; **Ember 5 throws**. The throw re-enters
+`window.onerror` / app `Ember.onerror` until stack overflow, corrupting Testem so every later test
+appears to timeout.
+
+**Fix (production):** Guard chokepoints — e.g. `edit_manager.process_for_displaying` bails when
+`appState.isDestroyed` (`a98bd1b7a`). Same pattern on high-traffic observers/timers
+(`app-state` `on_user_change`, `refresh_user`, `check_for_board_readiness`); cancel recurring
+`runLater` in `willDestroy`.
+
+**Fix (harness):** `start({ setupTestIsolationValidation: true, testIsolationValidationDelay: 50 })`;
+lower `QUnit.config.testTimeout` so wedges fail in seconds. Do **not** expect fixing
+`window.onerror` recursion alone to turn red tests green — it only amplifies the underlying error.
+
+See [`2026-06-27-ember5-ci-remaining-test-fixes.md`](./2026-06-27-ember5-ci-remaining-test-fixes.md).
+

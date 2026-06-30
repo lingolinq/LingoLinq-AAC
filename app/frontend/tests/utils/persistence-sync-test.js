@@ -44,6 +44,21 @@ function stubOnPersistence(method, replacement) {
   stub(persistenceTarget(), method, replacement);
 }
 
+function chainPersistenceAjax(overrideFn) {
+  var target = persistenceTarget();
+  var priorAjax = target.ajax;
+  stubOnPersistence('ajax', function(url, opts) {
+    if (typeof url !== 'string') {
+      return priorAjax.apply(this, arguments);
+    }
+    var custom = overrideFn.apply(this, arguments);
+    if (custom !== undefined) {
+      return custom;
+    }
+    return priorAjax.apply(this, arguments);
+  });
+}
+
 function cacheStoredUrl(url) {
   persistence.url_cache = persistence.url_cache || {};
   persistence.url_uncache = persistence.url_uncache || {};
@@ -197,18 +212,6 @@ function boardAjaxGetResponse(boardId, boardKey, boardName) {
     name: boardName,
     permissions: { view: true, edit: true }
   }};
-}
-
-function chainPersistenceAjax(overrideFn) {
-  var target = persistenceTarget();
-  var priorAjax = target.ajax;
-  stubOnPersistence('ajax', function(url, opts) {
-    var custom = overrideFn.apply(this, arguments);
-    if (custom !== undefined) {
-      return custom;
-    }
-    return priorAjax.apply(this, arguments);
-  });
 }
 
 function primeSuperviseeSyncHarness() {
@@ -518,6 +521,9 @@ describe("persistence-sync", function() {
     var target = persistenceTarget();
     var pajax = target.ajax;
     stub(target, 'ajax', function(url, opts) {
+      if (typeof url !== 'string') {
+        return pajax.apply(this, arguments);
+      }
       if(url.match(/board_revisions$/)) {
         return RSVP.resolve({});
       } else if(url.match(/\/boards\?/)) {
@@ -2420,7 +2426,9 @@ describe("persistence-sync", function() {
             user_name: 'fred'
           }});
         } else if(options.type === 'POST' && options.url === '/api/v1/boards') {
-          if(options.data.board.key === found_record.key) {
+          var boardPayload = options.data && options.data.board;
+          var boardKey = boardPayload && boardPayload.key;
+          if(boardKey === found_record.key || boardKey === 'fred/create-31' || (boardPayload && boardPayload.name === 'Create Sync Board 31')) {
             created = true;
             return RSVP.resolve({board: {
               id: '1998',
@@ -2440,6 +2448,8 @@ describe("persistence-sync", function() {
             key: 'fred/create-31',
             name: 'Create Sync Board 31'
           }});
+        } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+          return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
         }
         return RSVP.reject({});
       });
@@ -2473,13 +2483,29 @@ describe("persistence-sync", function() {
         expect(!!found_record.key.match(/^tmp_.+\/create-31/)).toEqual(true);
         expect(found_record.name).toEqual("Create Sync Board 31");
         later(function() {
-          found_record_id = found_record.id;
-          setSyncOnline(true, persistTarget);
-          persistence.sync(1340).then(function() {
-            done = true;
-          }, function() {
-            done = true;
-          });
+          var startSync = function() {
+            found_record_id = found_record.id;
+            setSyncOnline(true, persistTarget);
+            persistence.sync(1340).then(function() {
+              done = true;
+            }, function() {
+              done = true;
+            });
+          };
+          var waitForChanged = function(attempts) {
+            lingoLinqExtras.storage.find_changed().then(function(list) {
+              if (list && list.length > 0) {
+                startSync();
+              } else if (attempts < 120) {
+                setTimeout(function() { waitForChanged(attempts + 1); }, 100);
+              } else {
+                startSync();
+              }
+            }, function() {
+              startSync();
+            });
+          };
+          waitForChanged(0);
         });
       });
       var removed = false;

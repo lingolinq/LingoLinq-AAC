@@ -25,11 +25,7 @@ import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
 import { run as emberRun, later } from '@ember/runloop';
 import $ from 'jquery';
-import { persistenceTarget } from '../helpers/persistence-stub';
-
-function stubOnPersistence(method, replacement) {
-  stub(persistenceTarget(), method, replacement);
-}
+import { persistenceTarget, stubOnPersistence, installDefaultPersistenceAjaxStub } from '../helpers/persistence-stub';
 
 describe("persistence", function() {
   var app = null;
@@ -56,34 +52,7 @@ describe("persistence", function() {
     app_state.set('currentBoardState', null);
     app_state.set('sessionUser', null);
     stub(speecher, 'load_beep', function() { return RSVP.resolve({}); });
-    var target = persistenceTarget();
-    var pajax = target.ajax;
-    stub(target, 'ajax', function(url, opts) {
-      if(url.match(/board_revisions$/)) {
-        var rej = RSVP.reject({});
-        rej.then(null, function() { });
-        return rej;
-      } else if(url.match(/token_check/)) {
-        return RSVP.resolve({});
-      } else if(url.match(/search\/proxy/)) {
-        var proxyUrl = url.match(/url=([^&]+)/);
-        var decoded = proxyUrl ? decodeURIComponent(proxyUrl[1]) : url;
-        if(decoded.match(/buttons\.json/)) {
-          return RSVP.resolve({
-            url: decoded,
-            content_type: 'text/json',
-            data_uri: 'data:text/json;base64,' + btoa('{"buttons":[]}')
-          });
-        }
-        return RSVP.resolve({
-          url: decoded,
-          content_type: 'image/png',
-          data_uri: 'data:image/png;base64,abc'
-        });
-      } else {
-        return pajax.apply(this, arguments);
-      }
-    });
+    installDefaultPersistenceAjaxStub();
     dbman = capabilities.dbman;
     capabilities.dbman = fake_dbman();
   });

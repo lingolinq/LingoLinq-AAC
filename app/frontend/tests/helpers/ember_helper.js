@@ -502,7 +502,14 @@ beforeEach(function() {
     if (LingoLinq.Buttonset) {
       LingoLinq.Buttonset.pending_promises = {};
     }
-    stub(persistence, 'ajax', function() {
+    var persistenceAjaxTarget = persistenceTarget();
+    var priorPersistenceAjax = persistenceAjaxTarget && persistenceAjaxTarget.ajax;
+    stub(persistence, 'ajax', function(url, opts) {
+      if (typeof url !== 'string') {
+        if (priorPersistenceAjax) {
+          return priorPersistenceAjax.apply(persistenceAjaxTarget, arguments);
+        }
+      }
       return RSVP.reject({ error: 'offline in test' });
     });
     stub(persistence, 'find_url', function() {

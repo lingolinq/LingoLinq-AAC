@@ -160,6 +160,18 @@ export default Service.extend({
     }, 0);
   },
 
+  willDestroy() {
+    this._super(...arguments);
+    if (this.refreshing_user) {
+      runCancel(this.refreshing_user);
+      this.refreshing_user = null;
+    }
+    if (this.check_for_board_readiness && this.check_for_board_readiness.timer) {
+      runCancel(this.check_for_board_readiness.timer);
+      this.check_for_board_readiness.timer = null;
+    }
+  },
+
   setup: function() {
     // CRITICAL: Fix stashes injection FIRST, before any code that uses it
     // This prevents "Cannot read properties of undefined (reading 'get')" errors
@@ -609,11 +621,14 @@ export default Service.extend({
   },
   refresh_user: function() {
     var _this = this;
+    if (_this.isDestroyed || _this.isDestroying) { return; }
     runCancel(_this.refreshing_user);
 
     function refresh() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
       runCancel(_this.refreshing_user);
       _this.refreshing_user = runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.refresh_user();
       }, 60000 * 15);
     }
@@ -795,6 +810,7 @@ export default Service.extend({
     this.set('latest_board_id', this.get('currentBoardState.id'));
   }),
   check_for_board_readiness: function(delay) {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.check_for_board_readiness.timer) {
       runCancel(this.check_for_board_readiness.timer);
     }
@@ -2650,6 +2666,7 @@ export default Service.extend({
     }
   },
   on_user_change: observer('currentUser', function() {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.get('currentUser') && LingoLinq.Board) {
       LingoLinq.Board.clear_fast_html();
     }
@@ -2684,6 +2701,7 @@ export default Service.extend({
     'referenced_user.preferences.logging',
     'referenced_user.id',
     function() {
+      if (this.isDestroyed || this.isDestroying) { return; }
       if(this.session.get('isAuthenticated') && !this.get('currentUser.id')) {
         // Don't run handlers on page reload until user is loaded
         return;
