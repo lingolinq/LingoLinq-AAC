@@ -205,6 +205,45 @@ describe Audit::ConsoleGuard do
       end
     end
 
+    context 'when a non-prod env is named on a production deployment (DATABASE_URL binds to Rails.env)' do
+      # `bin/rails console -e development` on a prod box still reaches the prod
+      # DB (ActiveRecord merges DATABASE_URL into whatever Rails.env resolves to).
+      # The ambient RAILS_ENV/RACK_ENV, read pre-boot before railties overrides
+      # it, must keep gating the refusal so -e cannot dodge it.
+      let(:prod_box) { { 'RAILS_ENV' => 'production' } }
+
+      it 'refuses un-keyed `console -e development` when ambient RAILS_ENV=production' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e development], prod_box) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'refuses un-keyed `runner -e development` on a prod box' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('runner', %w[runner -e development Foo.bar], prod_box) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'forbids `dbconsole -e development` on a prod box (no runtime hook backs db up)' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('dbconsole', %w[dbconsole -e development], prod_box) }
+          .to raise_error(Audit::ConsoleGuard::ForbiddenCommand)
+      end
+
+      it 'refuses when production is ambient via RACK_ENV and a dev env is named' do
+        env = { 'RACK_ENV' => 'production' }
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e development], env) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'still allows a KEYED `console -e development` on a prod box (it is audited)' do
+        expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e development], prod_box.merge('USER_KEY' => 'scot')))
+          .to eq(:console)
+      end
+
+      it 'does not over-refuse on a non-prod box (ambient development, -e development)' do
+        expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e development], { 'RAILS_ENV' => 'development' }))
+          .to eq(:console)
+      end
+    end
+
     context 'in development' do
       it 'allows an un-keyed console (local-dev DX preserved)' do
         expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console], dev)).to eq(:console)

@@ -86,26 +86,38 @@ module Audit
       { 'type' => "rails/#{kind}", 'command' => Array(init_args).join(' ') }
     end
 
-    # True when the session will run in production, resolved the way Rails will
-    # resolve it: an explicit -e/--environment flag (or, for `console`, a
-    # positional environment arg) overrides ENV['RAILS_ENV']/ENV['RACK_ENV'].
+    # Production-sensitive when the CLI names production OR the ambient deployment
+    # is production. BOTH must gate the refusal, because the database a session
+    # reaches is bound to whatever Rails.env resolves to, NOT to the name on the
+    # command line: ActiveRecord merges DATABASE_URL (or the discrete prod
+    # params) into the config for the resolved env, so `bin/rails console
+    # -e development` on a prod box (where DATABASE_URL points at prod) still
+    # connects to the production database. The ambient check is read here at
+    # pre-boot, BEFORE railties applies any -e override to ENV['RAILS_ENV'], so a
+    # -e flag can ADD production (ambient unset, `-e production`) but can never
+    # CLEAR a production deployment.
+    #
+    # Residual, tracked as a follow-up on LL-7f7372e3eb: a deployment that
+    # reaches the prod DB while ambient RAILS_ENV/RACK_ENV is not 'production'
+    # (e.g. only DATABASE_URL set, RAILS_ENV unset) is not detected here; the
+    # fully robust fix gates on the resolved connection target. Both real prod
+    # deployments (Render and Cloud Run) set RAILS_ENV=production, so the
+    # realistic `-e development` dodge is covered.
     def production?(command, init_args, env = ENV)
-      effective_environment(command, init_args, env) == 'production'
+      cli_production?(command, init_args) || ambient_production?(env)
     end
 
-    # Resolve the effective environment exactly the way railties does, so no
-    # invocation can boot production while the guard believes it is not:
-    #   * a CLI -e/--environment value is prefix-expanded (Rails expands any
-    #     abbreviation of production/development/test) and wins when present;
-    #   * otherwise ENV['RAILS_ENV'] then ENV['RACK_ENV'] are used VERBATIM --
-    #     Rails does NOT abbreviation-expand the env vars -- treating a blank /
-    #     whitespace value as absent (Rails uses String#presence);
-    #   * otherwise 'development'.
-    def effective_environment(command, init_args, env = ENV)
-      cli = cli_environment(command, Array(init_args))
-      return cli if cli
+    # The CLI-named environment resolves to production. A repeated flag uses the
+    # last occurrence; abbreviations are prefix-expanded the way railties does.
+    def cli_production?(command, init_args)
+      cli_environment(command, Array(init_args)) == 'production'
+    end
 
-      presence(env['RAILS_ENV']) || presence(env['RACK_ENV']) || 'development'
+    # The ambient deployment is production: RAILS_ENV then RACK_ENV, verbatim
+    # (Rails does not abbreviation-expand the env vars) with String#presence
+    # semantics (a blank/whitespace value is treated as absent).
+    def ambient_production?(env = ENV)
+      (presence(env['RAILS_ENV']) || presence(env['RACK_ENV'])) == 'production'
     end
 
     def presence(value)
