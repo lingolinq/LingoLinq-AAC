@@ -1,4 +1,20 @@
 #!/usr/bin/env ruby
 APP_PATH = File.expand_path('../config/application', __dir__)
+
+# Audited-console boot-path capture + guard (LL-7f7372e3eb).
+# Capture the invoked command and full argv BEFORE Rails boots so
+# config/initializers/auditing.rb can attribute the session, and refuse an
+# un-keyed console/runner (or HIPAA-sensitive db/dbconsole) in production
+# before any database connection is established. The guard is pure Ruby and is
+# required here, ahead of config/boot, so the refusal never reaches Rails.
+INIT_ARGS    = ARGV.dup.freeze
+ARGV_COMMAND = ARGV.first
+require_relative '../lib/audit/console_guard'
+begin
+  Audit::ConsoleGuard.enforce_pre_boot!(ARGV_COMMAND, INIT_ARGS, ENV)
+rescue Audit::ConsoleGuard::Error => e
+  abort("refused: #{e.message}")
+end
+
 require_relative "../config/boot"
 require "rails/commands"

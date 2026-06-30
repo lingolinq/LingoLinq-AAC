@@ -47,6 +47,7 @@ module LingoLinq
     unless ENV['RESQUE_WORKER'] == 'true'
       config.autoload_lib(
         ignore: %w[
+          audit
           converters
           templates
           obf_lingolinq_patch.rb
