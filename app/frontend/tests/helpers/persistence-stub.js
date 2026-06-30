@@ -2,10 +2,11 @@ import { set as emberSet } from '@ember/object';
 import {
   persistenceTarget,
   primePersistenceService,
-  primeAllServices
+  primeAllServices,
+  primeUtilSingletons
 } from './service-stub';
 
-export { persistenceTarget, primePersistenceService, primeAllServices };
+export { persistenceTarget, primePersistenceService, primeAllServices, primeUtilSingletons };
 
 export function stubPersistence(overrides) {
   var target = persistenceTarget();

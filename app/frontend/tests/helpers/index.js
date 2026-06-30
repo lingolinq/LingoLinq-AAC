@@ -3,7 +3,7 @@ import {
   setupRenderingTest as upstreamSetupRenderingTest,
   setupTest as upstreamSetupTest,
 } from 'ember-qunit';
-import { primePersistenceService } from './persistence-stub';
+import { primeAllServices } from './persistence-stub';
 
 // This file exists to provide wrappers around ember-qunit's / ember-mocha's
 // test setup functions. This way, you can easily extend the setup that is
@@ -41,9 +41,7 @@ function setupTest(hooks, options) {
 
   hooks.beforeEach(function() {
     if (this.owner) {
-      primePersistenceService(this.owner);
-      this.owner.lookup('service:app-state');
-      this.owner.lookup('service:content-grabbers');
+      primeAllServices(this.owner);
     }
   });
 }

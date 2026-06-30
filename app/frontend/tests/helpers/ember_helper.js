@@ -513,6 +513,7 @@ beforeEach(function() {
         patchAppStateUserReload(LingoLinq.appState);
       } catch (e) { /* service mid-teardown */ }
     }
+    stubModalSafe(this.owner);
   }
   resetPersistenceForTest(this.owner);
   resetStashesForTest(this.owner);
@@ -561,7 +562,6 @@ beforeEach(function() {
       return EmberObject.create({});
     }
   }));
-  stub(modal, 'flash', function() { });
   boundClasses.setup(true);
 });
 
@@ -689,19 +689,62 @@ function ensureUserReload(user) {
   return user;
 }
 
+var USER_RELOAD_PATCH_KEYS = {
+  currentUser: true,
+  referenced_user: true,
+  referenced_speak_mode_user: true,
+  speakModeUser: true,
+  sessionUser: true
+};
+
 function patchAppStateUserReload(appStateSvc) {
   if (!appStateSvc || appStateSvc._testUserReloadPatch || typeof appStateSvc.set !== 'function') {
     return;
   }
   var origSet = appStateSvc.set.bind(appStateSvc);
   appStateSvc.set = function(key, value) {
-    if (key === 'currentUser' || key === 'referenced_speak_mode_user' || key === 'speakModeUser') {
+    if (USER_RELOAD_PATCH_KEYS[key]) {
       ensureUserReload(value);
     }
     return origSet(key, value);
   };
   appStateSvc._testUserReloadPatch = true;
-  ensureUserReload(appStateSvc.get('currentUser'));
+  Object.keys(USER_RELOAD_PATCH_KEYS).forEach(function(key) {
+    ensureUserReload(appStateSvc.get(key));
+  });
+}
+
+function userRecordStub(owner, attrs) {
+  var store = (owner && owner.lookup('service:store')) || LingoLinq.store;
+  if (!store || typeof store.createRecord !== 'function') {
+    return EmberObject.create(Object.assign({ id: 'test-user' }, attrs || {}));
+  }
+  var user = store.createRecord('user', Object.assign({
+    id: 'test-user-' + String(Date.now())
+  }, attrs || {}));
+  return ensureUserReload(user);
+}
+
+function stubModalSafe(owner) {
+  stub(modal, 'open', function() { return RSVP.resolve(); });
+  stub(modal, 'notice', function() { return RSVP.resolve(); });
+  stub(modal, 'flash', function() { });
+  stub(modal, 'warning', function() { });
+  stub(modal, 'error', function() { });
+  stub(modal, 'success', function() { });
+  if (owner) {
+    try {
+      var modalSvc = owner.lookup('service:modal');
+      if (modalSvc && !modalSvc.isDestroyed) {
+        stub(modalSvc, 'open', function() { return RSVP.resolve(); });
+        stub(modalSvc, 'notice', function() { return RSVP.resolve(); });
+        stub(modalSvc, 'flash', function() { });
+        stub(modalSvc, 'warning', function() { });
+        stub(modalSvc, 'error', function() { });
+        stub(modalSvc, 'success', function() { });
+      }
+    } catch (e) { /* owner mid-teardown */ }
+  }
 }
 
 function boardModelStub(attrs) {
@@ -717,4 +760,4 @@ function boardModelStub(attrs) {
 
 import { persistenceTarget } from './persistence-stub';
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, persistenceTarget };
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, ensureUserReload, persistenceTarget };

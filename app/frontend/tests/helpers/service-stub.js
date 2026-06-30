@@ -4,6 +4,11 @@ import sessionUtil from '../../utils/session';
 import appStateUtil from '../../utils/app_state';
 import stashesUtil from '../../utils/_stashes';
 import contentGrabbersUtil from '../../utils/content_grabbers';
+import speecher from '../../utils/speecher';
+import editManager from '../../utils/edit_manager';
+import Subscription from '../../utils/subscription';
+import ttsVoices from '../../utils/tts_voices';
+import modalUtil from '../../utils/modal';
 
 export function persistenceTarget() {
   if (typeof window !== 'undefined' && window.persistence) {
@@ -126,12 +131,39 @@ export function primeContentGrabbersService(owner) {
   return svc;
 }
 
+export function primeUtilSingletons(owner) {
+  var appState = primeAppStateService(owner);
+  var persistenceSvc = primePersistenceService(owner);
+  var stashesSvc = primeStashesService(owner);
+
+  if (typeof window !== 'undefined') {
+    window.appState = appState || appStateTarget();
+    window.tts_voices = ttsVoices;
+  }
+
+  if (speecher) {
+    if (typeof speecher.setup === 'function') {
+      speecher.setup(appState, persistenceSvc, stashesSvc, ttsVoices);
+    }
+    if (typeof speecher.register_services === 'function') {
+      speecher.register_services(appState, persistenceSvc, stashesSvc, ttsVoices);
+    }
+  }
+  if (editManager && typeof editManager.register_services === 'function') {
+    editManager.register_services(appState, persistenceSvc, stashesSvc);
+  }
+  if (Subscription && typeof Subscription.register_services === 'function') {
+    Subscription.register_services(appState, persistenceSvc, stashesSvc);
+  }
+}
+
 export function primeAllServices(owner) {
   primePersistenceService(owner);
   primeSessionService(owner);
   primeAppStateService(owner);
   primeStashesService(owner);
   primeContentGrabbersService(owner);
+  primeUtilSingletons(owner);
 }
 
 /** Service mirror rules used by tests/helpers/jasmine.js stub(). */
@@ -208,5 +240,21 @@ export var SERVICE_MIRROR_RULES = [
       return object === contentGrabbersUtil;
     },
     methods: null
+  },
+  {
+    serviceName: 'modal',
+    moduleRef: modalUtil,
+    detect: function(object) {
+      return object === modalUtil;
+    },
+    methods: {
+      open: true,
+      close: true,
+      flash: true,
+      warning: true,
+      error: true,
+      notice: true,
+      success: true
+    }
   }
 ];
