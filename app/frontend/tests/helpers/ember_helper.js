@@ -549,23 +549,10 @@ beforeEach(function() {
       } catch (e) { /* service mid-teardown */ }
     }
     var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
-    if (moduleName !== 'modal' && this.owner) {
+    if (!isModalTestModule(moduleName) && this.owner) {
       stubModalSafe(this.owner);
     }
-  }
-  resetPersistenceForTest(this.owner);
-  resetStashesForTest(this.owner);
-  if (this.owner) {
-    LingoLinq.store = this.owner.lookup('service:store');
-    LingoLinq.appState = this.owner.lookup('service:app-state');
-    LingoLinq.session = this.owner.lookup('service:session');
-    stub(LingoLinq.session, 'reload', function() {
-      LingoLinq.session.reloaded = true;
-    });
-    // Prime ContentGrabbers so window.cg is set before tests that need it run
-    this.owner.lookup('service:content-grabbers');
     var owner = this.owner;
-    var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
     this.subject = function(componentNameOrAttrs, attrs) {
       var componentName;
       var actualAttrs;
@@ -585,6 +572,18 @@ beforeEach(function() {
       }
       return factory.create(actualAttrs);
     };
+  }
+  resetPersistenceForTest(this.owner);
+  resetStashesForTest(this.owner);
+  if (this.owner) {
+    LingoLinq.store = this.owner.lookup('service:store');
+    LingoLinq.appState = this.owner.lookup('service:app-state');
+    LingoLinq.session = this.owner.lookup('service:session');
+    stub(LingoLinq.session, 'reload', function() {
+      LingoLinq.session.reloaded = true;
+    });
+    // Prime ContentGrabbers so window.cg is set before tests that need it run
+    this.owner.lookup('service:content-grabbers');
   } else if (!LingoLinq.session || LingoLinq.session.isDestroyed) {
     LingoLinq.session = EmberObject.create({});
     stub(LingoLinq.session, 'reload', function() {
@@ -595,15 +594,25 @@ beforeEach(function() {
     app_state.reset();
   }
   LingoLinq.all_wait = false;
-  modal.setup(EmberObject.create({
-    controllerFor: function() {
-      return EmberObject.create({});
-    }
-  }));
+  var modalTests = isModalTestModule((typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null);
+  if (modalTests) {
+    setupModalTestHarness();
+  } else {
+    modal.last_promise = null;
+    modal.setup(EmberObject.create({
+      controllerFor: function() {
+        return EmberObject.create({});
+      }
+    }));
+  }
   boundClasses.setup(true);
 });
 
 afterEach(function() {
+  var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
+  if (isModalTestModule(moduleName)) {
+    teardownModalTestHarness();
+  }
   capabilities.setup_database.already_tried = false;
   capabilities.setup_database.already_tried_deleting = false;
   capabilities.setup_database.already_tried_deleting_all = false;
@@ -763,6 +772,84 @@ function userRecordStub(owner, attrs) {
   return ensureUserReload(user);
 }
 
+function isModalTestModule(moduleName) {
+  if (moduleName === 'modal') {
+    return true;
+  }
+  if (typeof QUnit === 'undefined' || !QUnit.config) {
+    return false;
+  }
+  var current = QUnit.config.current;
+  if (current && current.module && current.module.name === 'modal') {
+    return true;
+  }
+  var testName = current && current.testName;
+  return !!(testName && /^modal(\s|-)/.test(testName));
+}
+
+function unstubModalHarnessMethods() {
+  var methods = ['open', 'notice', 'flash', 'warning', 'error', 'success', '_getService', '_getAppState'];
+  if (!stub.stubs) {
+    return;
+  }
+  stub.stubs.slice().reverse().forEach(function(entry) {
+    if (entry[0] !== modal || methods.indexOf(entry[1]) < 0) {
+      return;
+    }
+    var obj = entry[0];
+    var method = entry[1];
+    var stash = entry[2];
+    if (!obj || obj.isDestroyed) {
+      return;
+    }
+    try {
+      if (typeof emberSet === 'function' && typeof emberGet === 'function') {
+        emberSet(obj, method, stash);
+      } else {
+        obj[method] = stash;
+      }
+    } catch (e) {
+      try { obj[method] = stash; } catch (e2) { /* mid-teardown */ }
+    }
+    var idx = stub.stubs.indexOf(entry);
+    if (idx >= 0) {
+      stub.stubs.splice(idx, 1);
+    }
+  });
+}
+
+function setupModalTestHarness() {
+  unstubModalHarnessMethods();
+  modal.last_promise = null;
+  modal.last_template = null;
+  modal._component_based_template = null;
+  modal.resume_scanning = false;
+  stub(modal, '_getService', function() { return null; });
+  stub(modal, '_getAppState', function() { return null; });
+  if (!LingoLinq._modalTestRoute) {
+    LingoLinq._modalTestRoute = EmberObject.extend({
+      render: function() {
+        this.lastRender = arguments;
+      },
+      disconnectOutlet: function() {
+        this.lastDisconnect = arguments;
+      }
+    }).create();
+  }
+  LingoLinq._modalTestRoute.lastRender = null;
+  modal.setup(LingoLinq._modalTestRoute);
+}
+
+function teardownModalTestHarness() {
+  modal.last_promise = null;
+  modal.last_template = null;
+  modal._component_based_template = null;
+  modal.resume_scanning = false;
+  try {
+    modal.close(true);
+  } catch (e) { /* mid-teardown */ }
+}
+
 function stubModalSafe(owner) {
   stub(modal, 'open', function() { return RSVP.resolve(); });
   stub(modal, 'notice', function() { return RSVP.resolve(); });
@@ -807,4 +894,4 @@ function boardModelStub(attrs) {
 
 import { persistenceTarget } from './persistence-stub';
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, ensureUserReload, persistenceTarget };
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, ensureUserReload, persistenceTarget };
