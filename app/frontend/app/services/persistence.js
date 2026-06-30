@@ -52,6 +52,15 @@ function sync_test_delay(ms) {
   return (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 0 : ms;
 }
 
+function extrasIsReady() {
+  var e = window.lingoLinqExtras;
+  if (!e) { return false; }
+  if (typeof e.get === 'function') {
+    return !!e.get('ready');
+  }
+  return !!e.ready;
+}
+
 function schedule_sync_board_step(callback, delay) {
   if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
     if (delay && delay > 0) {
@@ -316,9 +325,9 @@ var persistence = Service.extend({
           });
           for(var idx in hash) {
             if(hash[idx] === true) {
-              persistence.known_missing = persistence.known_missing || {};
-              persistence.known_missing[store] = persistence.known_missing[store] || {};
-              persistence.known_missing[store][idx] = true;
+              _this.known_missing = _this.known_missing || {};
+              _this.known_missing[store] = _this.known_missing[store] || {};
+              _this.known_missing[store][idx] = true;
             }
           }
           resolve(res);
@@ -331,18 +340,19 @@ var persistence = Service.extend({
     }
   },
   get_important_ids: function() {
-    if(persistence.important_ids) {
-      return RSVP.resolve(persistence.important_ids);
+    var root = this;
+    if(root.important_ids) {
+      return RSVP.resolve(root.important_ids);
     } else {
       return lingoLinqExtras.storage.find('settings', 'importantIds').then(function(res) {
-        persistence.important_ids = res.raw.ids || [];
-        return persistence.important_ids;
+        root.important_ids = res.raw.ids || [];
+        return root.important_ids;
       });
     }
   },
   find: function(store, key, wrapped, already_waited) {
     var _this_find = this;
-    if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
+    if(!extrasIsReady()) {
       if(already_waited) {
         return RSVP.reject({error: "extras not ready"});
       } else {
@@ -364,7 +374,7 @@ var persistence = Service.extend({
           reject({error: "invalid type: " + store});
           return;
         }
-        if(persistence.known_missing && persistence.known_missing[store] && persistence.known_missing[store][key]) {
+        if(_this_find.known_missing && _this_find.known_missing[store] && _this_find.known_missing[store][key]) {
   //         console.error('found a known missing!');
           reject({error: 'record known missing: ' + store + ' ' + key});
           return;
@@ -423,15 +433,15 @@ var persistence = Service.extend({
             }
             resolve(result);
           } else {
-            persistence.known_missing = persistence.known_missing || {};
-            persistence.known_missing[store] = persistence.known_missing[store] || {};
-            persistence.known_missing[store][key] = true;
+            _this_find.known_missing = _this_find.known_missing || {};
+            _this_find.known_missing[store] = _this_find.known_missing[store] || {};
+            _this_find.known_missing[store][key] = true;
             reject({error: "record not found: " + store + ' ' + key});
           }
         }, function(err) {
-          persistence.known_missing = persistence.known_missing || {};
-          persistence.known_missing[store] = persistence.known_missing[store] || {};
-          persistence.known_missing[store][key] = true;
+          _this_find.known_missing = _this_find.known_missing || {};
+          _this_find.known_missing[store] = _this_find.known_missing[store] || {};
+          _this_find.known_missing[store][key] = true;
           reject(err);
         });
       }, 0);
@@ -527,7 +537,7 @@ var persistence = Service.extend({
     }
   },
   find_changed: function() {
-    if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
+    if(!extrasIsReady()) {
       return RSVP.resolve([]);
     }
     return lingoLinqExtras.storage.find_changed();
@@ -679,14 +689,18 @@ var persistence = Service.extend({
   },
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient
-    persistence.known_missing = persistence.known_missing || {};
-    persistence.known_missing[store] = {};
+    var root = this;
+    if(!root || typeof root.known_missing === 'undefined') {
+      root = window.persistence || this;
+    }
+    root.known_missing = root.known_missing || {};
+    root.known_missing[store] = {};
 
     var _this = this;
 
     return new RSVP.Promise(function(resolve, reject) {
-      if(lingoLinqExtras && lingoLinqExtras.ready) {
-        persistence.stores = persistence.stores || [];
+      if(extrasIsReady()) {
+        root.stores = root.stores || [];
         var promises = [];
         var store_method = eventually ? _this.store_eventually : _this.store;
         if(valid_stores.indexOf(store) != -1) {
@@ -705,7 +719,7 @@ var persistence = Service.extend({
 
           var store_promise = lingoLinqExtras.storage.store(store, record, key).then(function() {
             if(store == 'user' && key == 'self') {
-              return store_method('settings', {id: record.id}, 'selfUserId').then(function() {
+              return store_method.call(_this, 'settings', {id: record.id}, 'selfUserId').then(function() {
                 return RSVP.resolve(record.raw);
               }, function() {
                 return RSVP.reject({error: "selfUserId not persisted"});
@@ -714,34 +728,32 @@ var persistence = Service.extend({
               return RSVP.resolve(record.raw);
             }
           });
-          store_promise.then(null, function() { });
           promises.push(store_promise);
         }
         if(store == 'board' && obj.images) {
           obj.images.forEach(function(img) {
             // TODO: I don't think we need these anymore
-            promises.push(store_method('image', img, null));
+            promises.push(store_method.call(_this, 'image', img, null));
           });
         }
         if(store == 'board' && obj.sounds) {
           obj.sounds.forEach(function(snd) {
             // TODO: I don't think we need these anymore
-            promises.push(store_method('sound', snd, null));
+            promises.push(store_method.call(_this, 'sound', snd, null));
           });
         }
         RSVP.all(promises).then(function() {
           // Completely clear known_missing for the store when a new
           // record is persisted
-          persistence.known_missing = persistence.known_missing || {};
-          persistence.known_missing[store] = {};
-          persistence.stores.push({object: obj});
-          persistence.log = persistence.log || [];
-          persistence.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
+          root.known_missing = root.known_missing || {};
+          root.known_missing[store] = {};
+          root.stores.push({object: obj});
+          root.log = root.log || [];
+          root.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
         }, function(error) {
-          persistence.errors = persistence.errors || [];
-          persistence.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
+          root.errors = root.errors || [];
+          root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
         });
-        promises.forEach(function(p) { p.then(null, function() { }); });
       }
 
       resolve(obj);
@@ -1012,6 +1024,8 @@ var persistence = Service.extend({
       _this.find_url(url, 'json').then(function(uri) {
         if(uri && uri.json_payload) {
           resolve(uri.json_payload);
+        } else if(Array.isArray(uri)) {
+          resolve(uri);
         } else if(typeof(uri) == 'string' && uri.match(/^data:/)) {
           try {
             _this.bg_parse_json(decode_data_uri(uri)).then(function(json) {
@@ -1134,6 +1148,9 @@ var persistence = Service.extend({
   },
   find_url: function(url, type) {
     if(!this.primed) {
+      if (isTesting()) {
+        this.primed = true;
+      } else {
       var _this = this;
       return new RSVP.Promise(function(res, rej) {
         runLater(function() {
@@ -1144,6 +1161,7 @@ var persistence = Service.extend({
           _this.find_url(url, type).then(function(r) { res(r); }, function(e) { rej(e); });
         }, 500);
       });
+      }
     }
     url = this.normalize_url(url);
     // Looks like we changed all our images to the CDN without updating
@@ -3935,7 +3953,7 @@ var persistence = Service.extend({
         return false;
       }
 
-      if(_this.stashes.get('auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
+      if(_this.stashes.get('auth_settings') && extrasIsReady()) {
         var synced = _this.get('last_sync_at') || 0;
         var syncable = _this.get('online') && !isTesting() && !_this.get('syncing');
         var interval = _this.get('last_sync_stamp_interval') || (5 * 60 * 1000);
@@ -3957,6 +3975,7 @@ var persistence = Service.extend({
           if(force || !last_check || (last_check < (new Date()).getTime() - interval)) {
             _this.set('last_sync_stamp_check', (new Date()).getTime());
             _this.ajax('/api/v1/users/self/sync_stamp', {type: 'GET'}).then(function(res) {
+              if(_this.isDestroyed || _this.isDestroying) { return; }
               _this.set('last_sync_stamp_check', (new Date()).getTime());
               if(!_this.get('last_sync_stamp') || res.sync_stamp != _this.get('last_sync_stamp')) {
                 var not_still_changing = false;
@@ -3984,6 +4003,7 @@ var persistence = Service.extend({
                 }
               }
             }, function(err) {
+              if(_this.isDestroyed || _this.isDestroying) { return; }
               _this.set('last_sync_stamp_check', (new Date()).getTime());
               if(err && err.result && err.result.invalid_token) {
                 if(_this.stashes && _this.stashes.get && _this.stashes.get('auth_settings') && !isTesting()) {

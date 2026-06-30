@@ -117,6 +117,23 @@ var getPersistence = function() {
   return null;
 };
 
+function activePersistenceRoot() {
+  var inst = getPersistence();
+  if (inst && typeof inst.store === 'function') {
+    return inst;
+  }
+  return persistence;
+}
+
+function extrasIsReady() {
+  var e = window.lingoLinqExtras;
+  if (!e) { return false; }
+  if (typeof e.get === 'function') {
+    return !!e.get('ready');
+  }
+  return !!e.ready;
+}
+
 var getStashes = function() {
   // Prefer window.stashes (service instance) over module-level stashes
   if(window.stashes && typeof window.stashes.get === 'function') {
@@ -287,9 +304,10 @@ var persistence = EmberObject.extend({
           });
           for(var idx in hash) {
             if(hash[idx] === true) {
-              persistence.known_missing = persistence.known_missing || {};
-              persistence.known_missing[store] = persistence.known_missing[store] || {};
-              persistence.known_missing[store][idx] = true;
+              var root = activePersistenceRoot();
+              root.known_missing = root.known_missing || {};
+              root.known_missing[store] = root.known_missing[store] || {};
+              root.known_missing[store][idx] = true;
             }
           }
           resolve(res);
@@ -302,17 +320,18 @@ var persistence = EmberObject.extend({
     }
   },
   get_important_ids: function() {
-    if(persistence.important_ids) {
-      return RSVP.resolve(persistence.important_ids);
+    var root = activePersistenceRoot();
+    if(root.important_ids) {
+      return RSVP.resolve(root.important_ids);
     } else {
       return lingoLinqExtras.storage.find('settings', 'importantIds').then(function(res) {
-        persistence.important_ids = res.raw.ids || [];
-        return persistence.important_ids;
+        root.important_ids = res.raw.ids || [];
+        return root.important_ids;
       });
     }
   },
   find: function(store, key, wrapped, already_waited) {
-    if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
+    if(!extrasIsReady()) {
       if(already_waited) {
         return RSVP.reject({error: "extras not ready"});
       } else {
@@ -340,7 +359,8 @@ var persistence = EmberObject.extend({
           reject({error: "invalid type: " + store});
           return;
         }
-        if(persistence.known_missing && persistence.known_missing[store] && persistence.known_missing[store][key]) {
+        var root = activePersistenceRoot();
+        if(root.known_missing && root.known_missing[store] && root.known_missing[store][key]) {
   //         console.error('found a known missing!');
           reject({error: 'record known missing: ' + store + ' ' + key});
           return;
@@ -399,15 +419,17 @@ var persistence = EmberObject.extend({
             }
             resolve(result);
           } else {
-            persistence.known_missing = persistence.known_missing || {};
-            persistence.known_missing[store] = persistence.known_missing[store] || {};
-            persistence.known_missing[store][key] = true;
+            var missRoot = activePersistenceRoot();
+            missRoot.known_missing = missRoot.known_missing || {};
+            missRoot.known_missing[store] = missRoot.known_missing[store] || {};
+            missRoot.known_missing[store][key] = true;
             reject({error: "record not found: " + store + ' ' + key});
           }
         }, function(err) {
-          persistence.known_missing = persistence.known_missing || {};
-          persistence.known_missing[store] = persistence.known_missing[store] || {};
-          persistence.known_missing[store][key] = true;
+          var missRoot = activePersistenceRoot();
+          missRoot.known_missing = missRoot.known_missing || {};
+          missRoot.known_missing[store] = missRoot.known_missing[store] || {};
+          missRoot.known_missing[store][key] = true;
           reject(err);
         });
       }, 0);
@@ -499,7 +521,7 @@ var persistence = EmberObject.extend({
     }
   },
   find_changed: function() {
-    if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
+    if(!extrasIsReady()) {
       return RSVP.resolve([]);
     }
     return lingoLinqExtras.storage.find_changed();
@@ -648,14 +670,15 @@ var persistence = EmberObject.extend({
   },
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient
-    persistence.known_missing = persistence.known_missing || {};
-    persistence.known_missing[store] = {};
+    var root = activePersistenceRoot();
+    root.known_missing = root.known_missing || {};
+    root.known_missing[store] = {};
 
     var _this = this;
 
     return new RSVP.Promise(function(resolve, reject) {
-      if(lingoLinqExtras && lingoLinqExtras.ready) {
-        persistence.stores = persistence.stores || [];
+      if(extrasIsReady()) {
+        root.stores = root.stores || [];
         var promises = [];
         var store_method = eventually ? persistence.store_eventually : persistence.store;
         if(valid_stores.indexOf(store) != -1) {
@@ -674,7 +697,7 @@ var persistence = EmberObject.extend({
 
           var store_promise = lingoLinqExtras.storage.store(store, record, key).then(function() {
             if(store == 'user' && key == 'self') {
-              return store_method('settings', {id: record.id}, 'selfUserId').then(function() {
+              return store_method.call(_this, 'settings', {id: record.id}, 'selfUserId').then(function() {
                 return RSVP.resolve(record.raw);
               }, function() {
                 return RSVP.reject({error: "selfUserId not persisted"});
@@ -683,34 +706,32 @@ var persistence = EmberObject.extend({
               return RSVP.resolve(record.raw);
             }
           });
-          store_promise.then(null, function() { });
           promises.push(store_promise);
         }
         if(store == 'board' && obj.images) {
           obj.images.forEach(function(img) {
             // TODO: I don't think we need these anymore
-            promises.push(store_method('image', img, null));
+            promises.push(store_method.call(_this, 'image', img, null));
           });
         }
         if(store == 'board' && obj.sounds) {
           obj.sounds.forEach(function(snd) {
             // TODO: I don't think we need these anymore
-            promises.push(store_method('sound', snd, null));
+            promises.push(store_method.call(_this, 'sound', snd, null));
           });
         }
         RSVP.all(promises).then(function() {
           // Completely clear known_missing for the store when a new
           // record is persisted
-          persistence.known_missing = persistence.known_missing || {};
-          persistence.known_missing[store] = {};
-          persistence.stores.push({object: obj});
-          persistence.log = persistence.log || [];
-          persistence.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
+          root.known_missing = root.known_missing || {};
+          root.known_missing[store] = {};
+          root.stores.push({object: obj});
+          root.log = root.log || [];
+          root.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
         }, function(error) {
-          persistence.errors = persistence.errors || [];
-          persistence.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
+          root.errors = root.errors || [];
+          root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
         });
-        promises.forEach(function(p) { p.then(null, function() { }); });
       }
 
       resolve(obj);
@@ -1055,6 +1076,8 @@ var persistence = EmberObject.extend({
       _this.find_url(url, 'json').then(function(uri) {
         if(uri && uri.json_payload) {
           resolve(uri.json_payload);
+        } else if(Array.isArray(uri)) {
+          resolve(uri);
         } else if(typeof(uri) == 'string' && uri.match(/^data:/)) {
           try {
             persistence.bg_parse_json(decode_data_uri(uri)).then(function(json) {
@@ -1177,12 +1200,16 @@ var persistence = EmberObject.extend({
   },
   find_url: function(url, type) {
     if(!this.primed) {
+      if (isTesting()) {
+        this.primed = true;
+      } else {
       var _this = this;
       return new RSVP.Promise(function(res, rej) {
         runLater(function() {
           _this.find_url(url, type).then(function(r) { res(r); }, function(e) { rej(e); });
         }, 500);
       });
+      }
     }
     url = this.normalize_url(url);
     // Looks like we changed all our images to the CDN without updating
@@ -1671,7 +1698,7 @@ var persistence = EmberObject.extend({
               object.persisted = true;
               object.url = url_id;
             }
-            return persistence.store('dataCache', object, object.url).then(function() {
+            return activePersistenceRoot().store('dataCache', object, object.url).then(function() {
               return object;
             });
           }
@@ -1724,7 +1751,7 @@ var persistence = EmberObject.extend({
                   object.local_url = res;
                   object.persisted = true;
                   object.url = url_id;
-                  write_resolve(persistence.store('dataCache', object, object.url));
+                  write_resolve(activePersistenceRoot().store('dataCache', object, object.url));
                 }, function(err) { write_reject(err); });
               };
               // this is a promise-lite, to it can't handle reframing rejects into resolves
@@ -1737,7 +1764,7 @@ var persistence = EmberObject.extend({
           if(!object.persisted) {
             object.persisted = true;
             object.url = url_id;
-            return persistence.store('dataCache', object, object.url);
+            return activePersistenceRoot().store('dataCache', object, object.url);
           } else {
             return object;
           }
@@ -3880,6 +3907,122 @@ var persistence = EmberObject.extend({
       });
     } else {
       return RSVP.reject({offline: true, error: "not online", short_circuit: true});
+    }
+  },
+  on_connect: observer('online', function() {
+    if(!this || typeof this !== 'object' || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) {
+      return;
+    }
+    var _this = this;
+    try {
+      var stashesRef = _this.stashes || getStashes();
+      if(stashesRef && typeof stashesRef.set === 'function') {
+        stashesRef.set('online', _this.get('online'));
+      }
+      if(_this.get('online') && (!LingoLinq.testing || LingoLinq.sync_testing)) {
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          var stash = _this.stashes || getStashes();
+          if(stash && typeof stash.get === 'function' && stash.get('auth_settings')) {
+            if(typeof _this.check_for_needs_sync === 'function') {
+              _this.check_for_needs_sync(true);
+            }
+          }
+          if(typeof _this.getBrowserToken === 'function') {
+            _this.tokens = {};
+            if(LingoLinq.session) {
+              LingoLinq.session.restore(!_this.getBrowserToken());
+            }
+          }
+        }, sync_test_delay(500));
+      }
+    } catch(e) {
+      console.warn('Error in on_connect observer:', e);
+    }
+  }),
+  check_for_needs_sync: function(force) {
+    try {
+      var _this = this;
+      if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+        _this = getPersistence();
+        if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+          return false;
+        }
+      }
+      force = (force === true);
+      var stashesRef = _this.stashes || getStashes();
+      if(!stashesRef || typeof stashesRef.get !== 'function') {
+        return false;
+      }
+
+      if(stashesRef.get('auth_settings') && extrasIsReady()) {
+        var synced = _this.get('last_sync_at') || 0;
+        var syncable = _this.get('online') && !isTesting() && !_this.get('syncing');
+        var interval = _this.get('last_sync_stamp_interval') || (5 * 60 * 1000);
+        interval = interval + (0.2 * interval * Math.random());
+        if(_this.get('last_sync_event_at')) {
+          syncable = syncable && (_this.get('last_sync_event_at') < ((new Date()).getTime() - interval));
+        }
+        var now = (new Date()).getTime() / 1000;
+        if(!isTesting() && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
+          return false;
+        } else if(_this.get('auto_sync') === false || _this.get('auto_sync') == null) {
+          return false;
+        } else if(synced > 0 && (now - synced) > (48 * 60 * 60) && syncable) {
+          console.debug('syncing because it has been more than 48 hours');
+          _this.sync('self', null, null, 'long_time_since_sync:' + synced + ":" + now).then(null, function() { });
+          return true;
+        } else if(force || (syncable && _this.get('last_sync_stamp'))) {
+          var last_check = _this.get('last_sync_stamp_check');
+          if(force || !last_check || (last_check < (new Date()).getTime() - interval)) {
+            _this.set('last_sync_stamp_check', (new Date()).getTime());
+            _this.ajax('/api/v1/users/self/sync_stamp', {type: 'GET'}).then(function(res) {
+              if(_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(!_this.get('last_sync_stamp') || res.sync_stamp != _this.get('last_sync_stamp')) {
+                var not_still_changing = false;
+                var cutoff = window.moment && window.moment(res.sync_stamp).add(5, 'minutes');
+                var now_m = window.moment && window.moment();
+                if(now_m && now_m.toISOString().substring(0, 10) != res.sync_stamp.substring(0, 10)) {
+                  not_still_changing = true;
+                } else if(cutoff) {
+                  not_still_changing = cutoff < window.moment();
+                } else {
+                  not_still_changing = true;
+                }
+                if(not_still_changing) {
+                  console.debug('syncing because sync_stamp has changed');
+                  _this.sync('self', null, null, 'sync_stamp_changed:' + res.sync_stamp + ":" + _this.get('last_sync_stamp')).then(null, function() { });
+                }
+              }
+              if(window.app_state && window.app_state.get('currentUser')) {
+                window.app_state.set('currentUser.last_sync_stamp_check', (new Date()).getTime());
+                if(res.unread_messages != null) {
+                  window.app_state.set('currentUser.unread_messages', res.unread_messages);
+                }
+                if(res.unread_alerts != null) {
+                  window.app_state.set('currentUser.unread_alerts', res.unread_alerts);
+                }
+              }
+            }, function(err) {
+              if(_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(err && err.result && err.result.invalid_token) {
+                if(stashesRef.get('auth_settings') && !isTesting()) {
+                  if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
+                    LingoLinq.session.check_token(false);
+                  }
+                }
+              }
+            });
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch(e) {
+      console.warn('Error in check_for_needs_sync:', e);
+      return false;
     }
   },
   // TEMPORARILY DISABLED: Old persistence observers disabled during migration to new service
