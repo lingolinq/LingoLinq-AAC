@@ -10,7 +10,7 @@
 #   - least-privilege IAM (runtime SA, deploy SA, human team access)
 #   - Workload Identity Federation (keyless GitHub Actions deploy, repo-locked)
 #   - Artifact Registry repo `lingolinq`
-#   - 9 named (EMPTY) Secret Manager secrets the app needs to boot
+#   - named (EMPTY) Secret Manager secrets the app needs (boot set + runtime app set)
 #   - GitHub repo variables the workflow reads (GCP_PROJECT_ID deliberately deferred)
 #
 # It does NOT provision Cloud SQL, Memorystore, a VPC connector, or any Cloud Run
@@ -63,18 +63,50 @@ SET_GH_VARS="${SET_GH_VARS:-0}"
 MELISSA_EMAIL="${MELISSA_EMAIL:-}"
 DOMINIC_EMAIL="${DOMINIC_EMAIL:-}"
 
-# The 9 boot secrets the web service, worker pool, AND migration Job all need (PR #349).
+# The boot secrets the web service, worker pool, AND migration Job all need (PR #349).
 # Created here as EMPTY containers; values are seeded by hand from 1Password in Phase 2/3.
+# DB connection uses discrete params (DB_HOST/DB_NAME/DB_USERNAME/DB_PASSWORD), NOT a DATABASE_URL:
+# the Cloud SQL socket-form URL has an empty host that uri >= 1.0 rejects at boot.
 BOOT_SECRETS=(
   SECRET_KEY_BASE
   COOKIE_KEY
   SECURE_ENCRYPTION_KEY
   SECURE_NONCE_KEY
-  DATABASE_URL
+  DB_HOST
+  DB_NAME
+  DB_USERNAME
+  DB_PASSWORD
   REDIS_URL
   DEFAULT_HOST
   DEFAULT_EMAIL_FROM
   SYSTEM_ERROR_EMAIL
+)
+
+# The non-boot APP secrets the web service + worker need at RUNTIME (not at boot): S3/SES creds,
+# Google/Stripe/AI/Sentry/SMS tokens, misc integration keys. Created here as EMPTY containers;
+# values are seeded by scripts/gcp/phase4-seed-app-secrets.sh (Render-prod-first). The migration
+# Job does NOT load these (it only needs the boot set), so they are NOT in the workflow's migrate
+# step. These hold API keys / tokens only - NEVER PHI. (Migration env reconciliation 4.E1.)
+# SMS_ENCRYPTION_KEY is preserve-exact (salts persisted RemoteTarget.source_hash); AWS_KEY/AWS_SECRET
+# are a NEW least-privilege IAM user minted for Cloud Run (see scripts/gcp/iam/), NOT Render's key.
+APP_SECRETS=(
+  AWS_KEY
+  AWS_SECRET
+  GOOGLE_TTS_TOKEN
+  GOOGLE_PLACES_TOKEN
+  GOOGLE_TRANSLATE_TOKEN
+  GOOGLE_OAUTH_CLIENT_ID
+  GOOGLE_OAUTH_CLIENT_SECRET
+  STRIPE_SECRET_KEY
+  ANTHROPIC_API_KEY
+  GEMINI_API_KEY
+  SENTRY_DSN
+  SMS_ENCRYPTION_KEY
+  INTERNAL_API_TOKEN
+  CACHE_TOKEN
+  OPENSYMBOLS_SECRET
+  IPLOCATE_API_KEY
+  YOUTUBE_API_KEY
 )
 
 log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -339,13 +371,15 @@ gcloud artifacts repositories add-iam-policy-binding "$AR_REPO" \
   --member="serviceAccount:${RUNTIME_SA}" --role="roles/artifactregistry.reader" --quiet >/dev/null
 
 # ---------------------------------------------------------------------------------------
-# 8. [FREE] Secret Manager - create the 9 boot secrets as EMPTY containers (names only).
-#    No values here. Seeding from the 1Password Prod vault is Phase 2.8 / Phase 3.
+# 8. [FREE] Secret Manager - create the boot + app secrets as EMPTY containers (names only).
+#    No values here. Boot secrets are seeded by phase4-seed-boot-secrets.sh; the app secrets
+#    by phase4-seed-app-secrets.sh (Render-prod-first). (App set added in migration 4.E1.)
 #    Secrets are pinned to us-central1 (user-managed replication) for in-region auditability.
 #    They hold API keys / connection strings only - NEVER PHI.
 # ---------------------------------------------------------------------------------------
-log "Step 8: Secret Manager - 9 named empty secrets + runtime SA accessor"
-for secret in "${BOOT_SECRETS[@]}"; do
+ALL_SECRETS=("${BOOT_SECRETS[@]}" "${APP_SECRETS[@]}")
+log "Step 8: Secret Manager - ${#ALL_SECRETS[@]} named empty secrets (${#BOOT_SECRETS[@]} boot + ${#APP_SECRETS[@]} app) + runtime SA accessor"
+for secret in "${ALL_SECRETS[@]}"; do
   if gcloud secrets describe "$secret" --project="$PROJECT_ID" >/dev/null 2>&1; then
     skip "secret $secret already exists"
   else
@@ -360,7 +394,7 @@ for secret in "${BOOT_SECRETS[@]}"; do
     --member="serviceAccount:${RUNTIME_SA}" \
     --role="roles/secretmanager.secretAccessor" --quiet >/dev/null
 done
-echo "    Created/verified ${#BOOT_SECRETS[@]} empty secrets (no versions yet)."
+echo "    Created/verified ${#ALL_SECRETS[@]} empty secrets (no versions yet)."
 
 # ---------------------------------------------------------------------------------------
 # 9. [FREE] GitHub repo variables the workflow reads. GCP_PROJECT_ID is DELIBERATELY
@@ -399,7 +433,8 @@ Runtime SA:        ${RUNTIME_SA}
 Deploy SA:         ${DEPLOY_SA}
 WIF provider:      ${WIF_PROVIDER_RESOURCE:-<not created - rerun past the API gate>}
 Artifact Registry: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}
-Secrets (empty):   ${BOOT_SECRETS[*]}
+Secrets (empty):   boot: ${BOOT_SECRETS[*]}
+                   app:  ${APP_SECRETS[*]}
 
 GitHub repo vars to set (GCP_PROJECT_ID deferred until deploy-enable):
   GCP_REGION=${REGION}
@@ -412,7 +447,7 @@ GitHub repo vars to set (GCP_PROJECT_ID deferred until deploy-enable):
     Without it, Cloud Run runs as the DEFAULT COMPUTE SA (Editor), which (a) makes this
     script's runtime SA + all 9 per-secret accessor grants + the AR reader grant INERT,
     and (b) BREAKS BOOT - the default compute SA has no secretAccessor, so the app cannot
-    read SECRET_KEY_BASE/DATABASE_URL/etc. This is the runtime-identity contract for the
+    read SECRET_KEY_BASE/DB_PASSWORD/etc. This is the runtime-identity contract for the
     whole least-privilege design; fix it in the workflow before any deploy.
 
 PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
@@ -421,10 +456,11 @@ PHASE 1 -> 3 HANDOFF (do NOT build now - Phase 3):
   - Cloud SQL Postgres instance (zonal at launch) -> sets GCP_CLOUDSQL_INSTANCE
     (PROJECT:REGION:INSTANCE) for --set-cloudsql-instances.
   - Grant roles/cloudsql.client to ${RUNTIME_SA} once the instance exists.
-  - DB-auth choice: password-over-socket vs IAM DB auth (drives DATABASE_URL secret value).
+  - DB-auth choice: password-over-socket vs IAM DB auth (drives the DB_* secret values).
   - VPC network/subnet -> GCP_VPC_NETWORK / GCP_VPC_SUBNET repo vars.
   - Worker pool has no autoscaling: --instances is a manual scaling control (ops runbook).
-  - Secret Manager: seed the 9 empty secrets from the 1Password Prod vault (Phase 2.8).
+  - Secret Manager: seed the boot secrets (phase4-seed-boot-secrets.sh, 1Password-first) and
+    the app secrets (phase4-seed-app-secrets.sh, Render-prod-first) before deploy.
 
 SECURITY HARDENING TO APPLY WHEN THE DEPLOY WORKFLOW IS ACTIVATED (Phase 2/3):
   - Scope the WIF deploy identity to a protected GitHub environment: add

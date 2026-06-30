@@ -105,14 +105,17 @@ bundle exec rspec spec/models/user_spec.rb:42
 
 **Console access:**
 ```bash
-# Audited console wrapper (currently legacy Heroku-backed)
+# Audited console wrapper (platform-agnostic; run from any app shell)
 bin/audit_console
 ```
 
-> Note: this script was previously named `bin/heroku_console`. It was renamed
-> for clarity; the body still invokes the Heroku CLI and needs a follow-up
-> rewrite to target Render's shell. Until then, the wrapper records an
-> `AuditEvent` per session but only works against the legacy Heroku environment.
+> Note: this script was previously named `bin/heroku_console`. It no longer
+> invokes the Heroku CLI; it sets `USER_KEY` and `exec`s `bundle exec rails
+> console`, so it works from the Render Shell tab, a Cloud Run exec shell, or a
+> local checkout. `USER_KEY` provides self-asserted PaperTrail write-attribution
+> only (see the Security section); the wrapper does NOT currently record a
+> per-session `AuditEvent` (the Reline-bypassed Readline hook is non-operative),
+> a gap tracked under open finding LL-7f7372e3eb.
 
 **Scheduled tasks (run periodically in production):**
 ```bash
@@ -319,7 +322,7 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model (use `bin/audit_console`, not `rails console`)
+- Console access: use `bin/audit_console` (sets `USER_KEY` so console record-writes are attributed to you via PaperTrail, and works from the Render Shell tab, a Cloud Run exec shell, or locally), not a bare `rails console`. NOTE: `USER_KEY` is self-asserted free text, not derived from an authenticated principal, so the attributed actor is spoofable and the wrapper is opt-in (a bare `rails console` bypasses it with no attribution). The per-session `AuditEvent` logging this is meant to feed is also currently non-operative on the Ruby 3.4 / Reline stack (Readline hook bypassed; `ARGV_COMMAND` undefined at boot so the un-keyed-console refusal never fires). All three gaps are tracked as open finding LL-7f7372e3eb
 - Protected IDs require nonce to prevent snooping
 
 ## Environment Setup
