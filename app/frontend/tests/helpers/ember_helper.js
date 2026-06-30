@@ -244,7 +244,12 @@ function fakeAudio() {
       setTimeout(function() {
         _this.trigger('ended');
       }, Math.random() * 100);
-    }
+      return RSVP.resolve();
+    },
+    cloneNode: function() {
+      return fakeAudio();
+    },
+    load: function() { }
   }).create({currentTime: 123});
 }
 
