@@ -102,7 +102,8 @@ jobs:
       # are the NEW least-priv IAM user, scripts/gcp/iam/). Every name here is asserted to have a
       # SEEDED VERSION in Secret Manager by the "Assert referenced secrets exist" step before deploy.
       # MAPS_KEY is intentionally NOT here: it is a client-public key emitted at asset-precompile
-      # (globals.js.erb), not read at runtime, so it needs a Docker build ARG, not a runtime mount.
+      # (globals.js.erb), not read at runtime, so it is passed as a Docker build ARG in the
+      # "Build and push image" step (alongside DEFAULT_HOST), not mounted at runtime.
       NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
       # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. S3 bucket
       # names + AWS/SES regions are not secret. Stripe PUBLISHABLE key, registration email, and the
@@ -133,8 +134,22 @@ jobs:
         run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
 
       - name: Build and push image
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
         run: |
-          docker build -t "$IMAGE" .
+          set -euo pipefail
+          # globals.js.erb bakes window.maps_key + window.default_host at asset-precompile (build
+          # time), so the real client-public values must reach the build as ARGs -- a runtime secret
+          # mount is too late (the asset is already compiled, and on GCP would otherwise bake
+          # default_host=localhost + omit maps_key). Both are fetched from Secret Manager as the
+          # deploy SA (which already reads DEFAULT_HOST for the boot set; MAPS_KEY granted alongside).
+          # Values are client-public (emitted to the browser) and never echoed.
+          MAPS_KEY="$(gcloud secrets versions access latest --secret=MAPS_KEY --project="$GCP_PROJECT_ID")"
+          APP_DEFAULT_HOST="$(gcloud secrets versions access latest --secret=DEFAULT_HOST --project="$GCP_PROJECT_ID")"
+          docker build \
+            --build-arg MAPS_KEY="$MAPS_KEY" \
+            --build-arg APP_DEFAULT_HOST="$APP_DEFAULT_HOST" \
+            -t "$IMAGE" .
           docker push "$IMAGE"
 
       - name: Assert referenced secrets exist + assemble runtime env
