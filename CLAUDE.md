@@ -105,14 +105,17 @@ bundle exec rspec spec/models/user_spec.rb:42
 
 **Console access:**
 ```bash
-# Audited console wrapper (currently legacy Heroku-backed)
+# Audited console wrapper (platform-agnostic; run from any app shell)
 bin/audit_console
 ```
 
-> Note: this script was previously named `bin/heroku_console`. It was renamed
-> for clarity; the body still invokes the Heroku CLI and needs a follow-up
-> rewrite to target Render's shell. Until then, the wrapper records an
-> `AuditEvent` per session but only works against the legacy Heroku environment.
+> Note: this script was previously named `bin/heroku_console`. It no longer
+> invokes the Heroku CLI; it sets `USER_KEY` and `exec`s `bundle exec rails
+> console`, so it works from the Render Shell tab, a Cloud Run exec shell, or a
+> local checkout. `USER_KEY` provides self-asserted PaperTrail write-attribution
+> only (see the Security section); the wrapper does NOT currently record a
+> per-session `AuditEvent` (the Reline-bypassed Readline hook is non-operative),
+> a gap tracked under open finding LL-7f7372e3eb.
 
 **Scheduled tasks (run periodically in production):**
 ```bash
