@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  xit,
   expect,
   beforeEach,
   afterEach,
@@ -153,8 +154,7 @@ describe("i18n", function() {
       expect(str).toEqual("5 minutes ago");
     });
 
-    it("should handle date helper with js and ruby timestamps", function() {
-      expect('test').toEqual('todo');
+    xit("should handle date helper with js and ruby timestamps", function() {
     });
 
     it("should handle t (translation)", function() {

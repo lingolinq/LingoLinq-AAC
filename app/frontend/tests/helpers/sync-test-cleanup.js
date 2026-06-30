@@ -198,6 +198,12 @@ export function cancelSyncTailWork() {
   persistence.storing_urls = null;
 }
 
+export function cancelHarnessAsyncWork() {
+  if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+    cancelSyncTailWork();
+  }
+}
+
 export function waitUntil(conditionFn) {
   var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55;
   return new RSVP.Promise(function(resolve, reject) {

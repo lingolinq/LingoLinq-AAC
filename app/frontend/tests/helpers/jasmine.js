@@ -7,7 +7,7 @@ import appStateUtil from '../../utils/app_state';
 import LingoLinq from '../../app';
 import RSVP from 'rsvp';
 import { SERVICE_MIRROR_RULES } from './service-stub';
-import { cancelSyncTailWork } from './sync-test-cleanup';
+import { cancelHarnessAsyncWork } from './sync-test-cleanup';
 
 var names = [];
 var all_befores = [[]];
@@ -49,9 +49,7 @@ function async_test_wrap(name, instance, befores, afters, lookup) {
       assert.ok(false, e.message || String(e));
     }
     emberRun(function() {
-      if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
-        cancelSyncTailWork();
-      }
+      cancelHarnessAsyncWork();
       post.forEach(function(callback) {
         callback.call(_this);
       });
@@ -104,9 +102,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
           var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0;
           var runCleanup = function() {
             emberRun(function() {
-              if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
-                cancelSyncTailWork();
-              }
+              cancelHarnessAsyncWork();
               current_afters = [];
               post.forEach(function(callback) {
                 callback.call(_this);
@@ -130,6 +126,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
           setTimeout(pollUntilIdle, delay);
         } else {
           assert.ok(false, 'async work did not finish in time');
+          cancelHarnessAsyncWork();
           restoreStubs();
           assert = null;
           testDone();
@@ -206,9 +203,27 @@ var expect = function(data) {
       assert.equal(data, arg);
     }
   };
+  expectation.toBeTruthy = function() {
+    assert.ok(!!data, JSON.stringify(data) + ' should be truthy');
+  };
   expectation.toBeFalsy = function() {
     var falsy = !!data;
     assert.ok(falsy === false, data + ' should be falsey');
+  };
+  expectation.toBeDefined = function() {
+    assert.ok(typeof data !== 'undefined', 'expected value to be defined');
+  };
+  expectation.toBeUndefined = function() {
+    assert.ok(typeof data === 'undefined', JSON.stringify(data) + ' should be undefined');
+  };
+  expectation.toContain = function(arg) {
+    if (typeof data === 'string') {
+      assert.ok(data.indexOf(arg) !== -1, data + ' should contain ' + arg);
+    } else if (data && typeof data.indexOf === 'function') {
+      assert.ok(data.indexOf(arg) !== -1, JSON.stringify(data) + ' should contain ' + arg);
+    } else {
+      assert.ok(false, 'toContain requires a string or array');
+    }
   };
 
   expectation.toNotEqual = function(arg) {
@@ -406,12 +421,29 @@ function resolveStubTargets(object) {
   return targets;
 }
 
+function shouldUseEmberSet(object, method, replacement) {
+  if (!object || typeof object.set !== 'function' || typeof object.get !== 'function') {
+    return false;
+  }
+  var current = object[method];
+  if (typeof replacement === 'function' && typeof current === 'function') {
+    return false;
+  }
+  return true;
+}
+
 function applyStub(object, method, replacement, stashList) {
-  var stash = object[method];
-  try {
-    object[method] = replacement;
-  } catch (e) {
+  var stash;
+  if (shouldUseEmberSet(object, method, replacement)) {
+    stash = emberGet(object, method);
     emberSet(object, method, replacement);
+  } else {
+    stash = object[method];
+    try {
+      object[method] = replacement;
+    } catch (e) {
+      emberSet(object, method, replacement);
+    }
   }
   stashList.push([object, method, stash]);
 }
@@ -443,7 +475,11 @@ function restoreStubs() {
     var stash = list[2];
     if (!obj || obj.isDestroyed) { return; }
     try {
-      obj[method] = stash;
+      if (shouldUseEmberSet(obj, method, stash)) {
+        emberSet(obj, method, stash);
+      } else {
+        obj[method] = stash;
+      }
     } catch (e) {
       try {
         emberSet(obj, method, stash);

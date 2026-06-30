@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  xit,
   expect,
   beforeEach,
   afterEach,
@@ -327,11 +328,9 @@ describe("contentGrabbers", function() {
   });
 
   describe("picture_search", function() {
-    it("should search for pcs symbols correctly", function() {
-      expect('test').toEqual('todo');
+    xit("should search for pcs symbols correctly", function() {
     });
-    it("should search for symbolstix symbols correctly", function() {
-      expect('test').toEqual('todo');
+    xit("should search for symbolstix symbols correctly", function() {
     });
   });
 

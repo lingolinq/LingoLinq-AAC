@@ -3599,8 +3599,14 @@ export default Service.extend({
       if(LingoLinq.store && user && !user.get('supporter_role') && user.get('currently_premium') && last_check < (now - 600000)) {
         _this.set('last_user_badge_load_for_' + user.get('id'), now);
         runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           _this.set('user_badge_hash', badge_hash);
           LingoLinq.store.query('badge', {user_id: user.get('id'), recent: 1}).then(function(badges) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', badge_hash);
             badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
             var badge = LingoLinq.Badge.best_earned_badge(badges);
@@ -3610,6 +3616,9 @@ export default Service.extend({
             }
             _this.set('user_badge', badge);
           }, function(err) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', old_badge_hash);
           });
         });
