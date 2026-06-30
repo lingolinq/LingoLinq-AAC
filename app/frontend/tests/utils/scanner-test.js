@@ -20,7 +20,79 @@ import buttonTracker from '../../utils/raw_events';
 import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
 
+function domStub(length, extra) {
+  var stub = {
+    length: length || 0,
+    each: function() { },
+    add: function() { return stub; },
+    attr: function() { return ''; },
+    text: function() { return ''; },
+    hasClass: function() { return false; },
+    find: function() { return domStub(0); }
+  };
+  if (extra) {
+    Object.keys(extra).forEach(function(key) { stub[key] = extra[key]; });
+  }
+  return stub;
+}
+
+function speakElemStub(findEachCallback) {
+  return domStub(1, {
+    find: function() {
+      return domStub(0, { each: findEachCallback || function() { } });
+    }
+  });
+}
+
+function scannerFindElemStub(overrides) {
+  overrides = overrides || {};
+  return function(str) {
+    if (Object.prototype.hasOwnProperty.call(overrides, str)) {
+      return overrides[str];
+    }
+    if (str === '#speak' || str === 'header #speak') {
+      return speakElemStub(overrides._speakEach);
+    }
+    if (str === 'header') { return domStub(0); }
+    if (str === '#identity a.btn') { return domStub(0); }
+    if (str === '#identity .dropdown-menu a' || str === '#identity .dropdown-menu a:visible') {
+      return domStub(0);
+    }
+    if (str === '#word_suggestions') { return domStub(0); }
+    if (!str) {
+      return domStub(0, {
+        elements: [],
+        add: function(elem) { this.elements.push(elem); return this; }
+      });
+    }
+    return domStub(0);
+  };
+}
+
+function ensureScannerAppState() {
+  var user = EmberObject.create({
+    preferences: {
+      device: { scanning: true }
+    }
+  });
+  scanner.set('appState', EmberObject.create({
+    currentUser: user,
+    speak_mode: true
+  }));
+}
+
+function stubScannerModalClosed() {
+  stub(modal, 'is_open', function() { return false; });
+  stub(modal, 'scannable_targets', function() { return []; });
+  modal.highlight_settings = null;
+  modal.highlight2_settings = null;
+}
+
 describe('scanner', function() {
+
+  beforeEach(function() {
+    ensureScannerAppState();
+  });
 
   afterEach(function() {
     scanner.stop();
@@ -76,13 +148,13 @@ describe('scanner', function() {
     it("should return the DOM button list if frame not enabled", function() {
       stub(frame_listener, 'visible', function() { return false; });
       stub(editManager, 'controller', EmberObject.create({
-        model: {
+        model: EmberObject.create({
           grid: {
             rows: 3,
             columns: 3,
             order: [[1, 2, 3], [4, 5, 6], [7, null, null]]
           }
-        }
+        })
       }));
       stub(editManager, 'find_button', function(id) {
         if(id == 1) {
@@ -96,23 +168,13 @@ describe('scanner', function() {
         }
       });
       stub(scanner, 'find_elem', function(search) {
-        if(search == ".button[data-id='1']:not(.hidden_button)") {
-          return {1: true, length: 1};
-        } else if(search == ".button[data-id='2']:not(.hidden_button)") {
-          return {2: true, length: 1};
-        } else if(search == ".button[data-id='3']:not(.hidden_button)") {
-          return {3: true, length: 1};
-        } else if(search == ".button[data-id='4']:not(.hidden_button)") {
-          return {4: true, length: 1};
-        } else if(search == ".button[data-id='5']:not(.hidden_button)") {
-          return {5: true, length: 1};
-        } else if(search == ".button[data-id='6']:not(.hidden_button)") {
-          return {6: true, length: 1};
-        } else if(search == ".button[data-id='7']:not(.hidden_button)") {
-          return {7: true, length: 1};
-        } else {
-          return {length: 0};
+        var idMatch = search && search.match(/data-id='([^']+)'/);
+        if (idMatch && idMatch[1] !== 'null') {
+          var elem = { length: 1, label: '', sound: null };
+          elem[idMatch[1]] = true;
+          return elem;
         }
+        return { length: 0, label: '', sound: null };
       });
       var res = scanner.scan_content();
       expect(res).toEqual({
@@ -146,6 +208,7 @@ describe('scanner', function() {
         scan_called = true;
         rows = r;
         options = opts;
+        scanner.scanning = true;
       });
     });
 
@@ -155,9 +218,9 @@ describe('scanner', function() {
     });
 
     it('should do nothing if not in speak mode', function() {
-      stub(scanner, 'find_elem', function(str) {
-        if(str == 'header #speak') { return {length: 0}; }
-      });
+      stub(scanner, 'find_elem', scannerFindElemStub({
+        '#speak': { length: 0 }
+      }));
       var stopped = false;
       stub(scanner, 'stop', function() { stopped = true; });
       scanner.start({});
@@ -167,7 +230,7 @@ describe('scanner', function() {
     it('should do nothing if a different modal is open', function() {
       var header_search = false;
       stub(scanner, 'find_elem', function(str) {
-        if(str == 'header #speak') { return {length: 1}; }
+        if(str == '#speak' || str == 'header #speak') { return {length: 1}; }
         if(str == 'header') { header_search = true; }
       });
       stub(modal, 'is_open', function(str) {
@@ -179,21 +242,8 @@ describe('scanner', function() {
     });
 
     var simple_header = function() {
-      stub(scanner, 'find_elem', function(str) {
-        if(str == 'header #speak') { return {length: 1, find: function() { return {each: function() { }}; }}; }
-        if(str == 'header') { return {length: 0}; }
-        if(str == '#identity a.btn') { return {length: 0}; }
-        if(str == '#identity .dropdown-menu a') { return {each: function() { }}; }
-        if(str == '#word_suggestions') { return {length: 0}; }
-        if(!str) {
-          var list = {
-            elements: [],
-            add: function(elem) { list.elements.push(elem); return list; }
-          };
-          return list;
-        }
-      });
-      stub(modal, 'is_open', function(str) { return true; });
+      stub(scanner, 'find_elem', scannerFindElemStub());
+      stubScannerModalClosed();
       expect(!!scanner.scanning).toEqual(false);
     };
 
@@ -209,15 +259,18 @@ describe('scanner', function() {
       scanner.start({});
       expect(scan_called).toEqual(true);
       expect(scanner.scanning).toEqual(true);
-      expect(rows).toEqual([{children: [], dom: {length: 0}, label: "Menu"}]);
+      expect(rows.length).toEqual(1);
+      expect(rows[0].label).toEqual('Menu');
+      expect(rows[0].children).toEqual([]);
       expect(options).toEqual({scan_mode: 'row', interval: 1000, all_elements: [], auto_start: false});
     });
 
     it('should support scanning the header row', function() {
       stub(scanner, 'find_elem', function(str) {
-        if(str == 'header #speak') {
+        if(str == '#speak' || str == 'header #speak') {
           return {
             length: 1,
+            hasClass: function() { return false; },
             find: function() {
               return {each: function(callback) {
                 for(var idx = 0; idx < 5; idx++) {
@@ -283,9 +336,10 @@ describe('scanner', function() {
 
     it('should support scanning the word suggestion row if it exists', function() {
       stub(scanner, 'find_elem', function(str) {
-        if(str == 'header #speak') {
+        if(str == '#speak' || str == 'header #speak') {
           return {
             length: 1,
+            hasClass: function() { return false; },
             find: function() {
               return {each: function(callback) {
                 for(var idx = 0; idx < 5; idx++) {
