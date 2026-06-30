@@ -190,7 +190,8 @@ export var SERVICE_MIRROR_RULES = [
       push_records: true,
       time_promise: true,
       url_cache: true,
-      url_uncache: true
+      url_uncache: true,
+      meta: true
     }
   },
   {

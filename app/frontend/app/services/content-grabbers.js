@@ -2701,7 +2701,7 @@ var boardGrabber = EmberObject.extend({
             });
           } else {
             _this.controller.set('foundBoards.ready', true);
-            _this.controller.set('foundBoards.results', data.slice());
+            _this.controller.set('foundBoards.results', Utils.query_results_as_array(data));
           }
         });
       } else {

@@ -198,7 +198,7 @@ describe('boardGrabber', function() {
   describe("file_selected", function() {
     it("should error on invalid file type", function() {
       var message = null;
-      stub(modal, 'flash', function(text) {
+      stub(modal, 'error', function(text) {
         message = text;
       });
       boardGrabber.file_selected();

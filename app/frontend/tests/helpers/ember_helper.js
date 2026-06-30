@@ -73,10 +73,23 @@ LingoLinq.testing = true;
 var queryLog = [];
 queryLog.log = function(event) {
   if(event && event.type) {
-    event.simple_type = event.type.modelName || event.type.toString().split(/:/)[1];
+    event.simple_type = event.type.modelName || event.type.typeKey || event.type.toString().split(/:/)[1];
   }
   queryLog.push(event);
 };
+function queryFixtureMatches(fixtureQuery, eventQuery) {
+  if (!fixtureQuery) {
+    return false;
+  }
+  eventQuery = eventQuery || {};
+  for (var key in fixtureQuery) {
+    if (Object.prototype.hasOwnProperty.call(fixtureQuery, key) &&
+      JSON.stringify(fixtureQuery[key]) !== JSON.stringify(eventQuery[key])) {
+      return false;
+    }
+  }
+  return true;
+}
 queryLog.respondAndLog = function(event, defaultResponse) {
   if(!queryLog.fixtures) { return defaultResponse; }
   queryLog.log(event);
@@ -93,7 +106,7 @@ queryLog.respondAndLog = function(event, defaultResponse) {
       } else if(fixture.method == 'PUT' && fixture.compare && fixture.compare(event.object.record)) {
         found = true;
         // updateRecord
-      } else if(fixture.method == 'GET' && fixture.query && JSON.stringify(fixture.query) == JSON.stringify(event.query)) {
+      } else if(fixture.method == 'GET' && fixture.query && queryFixtureMatches(fixture.query, event.query)) {
         found = true;
         // findQuery
       }
@@ -429,8 +442,9 @@ ApplicationAdapter.reopen({
     if(queryLog.real_lookup) {
       return this._super.apply(this, arguments);
     }
+    var modelName = type.modelName || type.typeKey;
     var res = {};
-    res[type.typeKey] = [];
+    res[modelName] = [];
     var nothing = RSVP.resolve(res);
     return queryLog.respondAndLog({
       method: 'GET',

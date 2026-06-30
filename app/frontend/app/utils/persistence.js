@@ -3689,6 +3689,9 @@ var persistence = EmberObject.extend({
   },
   meta: function(store, obj) {
     if(obj) {
+      if (obj.meta) {
+        return obj.meta;
+      }
       // store.query() returns a RecordArray; .get() is deprecated on array-like results (ED 4+).
       if(Array.isArray(obj) && obj.modelName) {
         return obj.meta || null;

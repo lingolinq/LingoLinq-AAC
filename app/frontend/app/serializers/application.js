@@ -61,6 +61,11 @@ export default RESTSerializer.extend({
       }
     }
 
+    // store.query expects an array; keyed board lookups may return a single object.
+    if (primaryModelClass.modelName === 'board' && requestType === 'query' && payload && payload.board && !Array.isArray(payload.board)) {
+      payload = Object.assign({}, payload, { board: [payload.board] });
+    }
+
     // Handle board findRecord when API returns a list (meta + board array) instead of a single board.
     // This can happen if the wrong endpoint is hit or the response shape is a list. Extract the
     // matching board so the board route gets a single record and the board page can render.
