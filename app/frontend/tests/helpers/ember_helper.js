@@ -548,7 +548,10 @@ beforeEach(function() {
         patchAppStateUserReload(LingoLinq.appState);
       } catch (e) { /* service mid-teardown */ }
     }
-    stubModalSafe(this.owner);
+    var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
+    if (moduleName !== 'modal' && this.owner) {
+      stubModalSafe(this.owner);
+    }
   }
   resetPersistenceForTest(this.owner);
   resetStashesForTest(this.owner);

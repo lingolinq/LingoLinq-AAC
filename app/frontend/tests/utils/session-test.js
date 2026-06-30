@@ -18,10 +18,23 @@ import persistence from '../../utils/persistence';
 import EmberObject from '@ember/object';
 import LingoLinq from '../../app';
 import { run as emberRun, later } from '@ember/runloop';
+import { sessionTarget, stashesTarget, persistenceTarget } from '../helpers/service-stub';
+
+function tokenCheckPrefix(access_token, as_user_id) {
+  var prefix = '/api/v1/token_check?access_token=' + access_token;
+  if (as_user_id) {
+    prefix += '&as_user_id=' + as_user_id;
+  }
+  return prefix;
+}
+
+function urlStartsWithTokenCheck(url, access_token, as_user_id) {
+  return !!(url && url.indexOf(tokenCheckPrefix(access_token, as_user_id)) === 0);
+}
 
 describe('session', function() {
   beforeEach(function() {
-    stub(session, 'alert', function(message) {
+    stub(sessionTarget(), 'alert', function(message) {
     });
   });
   describe("setup", function() {
@@ -36,10 +49,11 @@ describe('session', function() {
   describe("persist", function() {
     it("should persist to stashes", function() {
       var val = null;
-      stub(stashes, 'persist_object', function(key, data, extra) {
+      stub(stashesTarget(), 'persist_object', function(key, data, extra) {
         if(key == 'auth_settings' && extra) {
           val = data;
         }
+        return RSVP.resolve();
       });
       session.persist({a: 1, b: 2});
       expect(val).toEqual({a: 1, b:2});
@@ -51,7 +65,7 @@ describe('session', function() {
   describe("clear", function() {
     it("should flush the stash with a prefix", function() {
       var prefix = null;
-      stub(stashes, 'flush', function(p) {
+      stub(stashesTarget(), 'flush', function(p) {
         prefix = p;
       });
       session.clear();
@@ -62,7 +76,10 @@ describe('session', function() {
   describe("authenticate", function() {
     it("should resolve on proper request", function() {
       var post_data = null;
-      stub(persistence, 'ajax', function(url, args) {
+      stub(sessionTarget(), 'hashed_password', function(password) {
+        return RSVP.resolve(password);
+      });
+      stub(persistenceTarget(), 'ajax', function(url, args) {
         expect(url).toEqual('/token');
         post_data = args.data;
         return RSVP.resolve({
@@ -71,7 +88,7 @@ describe('session', function() {
         });
       });
       var persisted = null;
-      stub(session, 'persist', function(data) {
+      stub(sessionTarget(), 'persist', function(data) {
         persisted = data;
       });
       var resolved = false;
@@ -100,7 +117,10 @@ describe('session', function() {
 
     it("should reject on error", function() {
       var post_data = null;
-      stub(persistence, 'ajax', function(url, args) {
+      stub(sessionTarget(), 'hashed_password', function(password) {
+        return RSVP.resolve(password);
+      });
+      stub(persistenceTarget(), 'ajax', function(url, args) {
         expect(url).toEqual('/token');
         post_data = args.data;
         return RSVP.reject({
@@ -112,7 +132,7 @@ describe('session', function() {
         });
       });
       var persisted = null;
-      stub(session, 'persist', function(data) {
+      stub(sessionTarget(), 'persist', function(data) {
         persisted = data;
       });
       var errored = false;
@@ -140,22 +160,22 @@ describe('session', function() {
 
   describe("restore", function() {
     beforeEach(function() {
-      stashes.setup();
-      persistence.tokens = {};
+      stashesTarget().setup();
+      persistenceTarget().tokens = {};
     });
     it("should do nothing if stashes are disabled", function() {
       var called = false;
-      stub(stashes, 'get_object', function() {
+      stub(stashesTarget(), 'get_object', function() {
         called = true;
       });
-      stashes.set('enabled', false);
+      stashesTarget().set('enabled', false);
       var res = session.restore();
       expect(res).toEqual({});
       expect(called).toEqual(false);
     });
 
     it("should retrieve and return stashed data", function() {
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             a: 1
@@ -168,23 +188,24 @@ describe('session', function() {
 
     it("should invalidate the session if no access token found", function() {
       var called = false;
-      stub(session, 'invalidate', function() {
+      stub(sessionTarget(), 'invalidate', function() {
         called = true;
       });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
-          return {
-            a: 1
-          };
+          return {};
         }
       });
       var res = session.restore();
-      expect(res).toEqual({a: 1});
-      expect(called).toEqual(true);
+      expect(res).toEqual({});
+      waitsFor(function() { return called; });
+      runs(function() {
+        expect(called).toEqual(true);
+      });
     });
 
     it("should set session attributes", function() {
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -201,7 +222,7 @@ describe('session', function() {
 
     it("should confirm token validity if specified", function() {
       stub(emberDebug, 'isTesting', function() { return false; });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -210,8 +231,8 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/token_check?access_token=12345') {
+      stub(persistenceTarget(), 'ajax', function(url, opts) {
+        if(urlStartsWithTokenCheck(url, '12345')) {
           queried = true;
         }
         return RSVP.resolve({authenticated: true});
@@ -228,7 +249,7 @@ describe('session', function() {
 
     it("should confirm token invalidity if specified", function() {
       stub(emberDebug, 'isTesting', function() { return false; });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -237,8 +258,8 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/token_check?access_token=12345') {
+      stub(persistenceTarget(), 'ajax', function(url, opts) {
+        if(urlStartsWithTokenCheck(url, '12345')) {
           queried = true;
         }
         return RSVP.reject({});
@@ -255,7 +276,7 @@ describe('session', function() {
 
     it("should not confirm token validity if online and already checked", function() {
       stub(emberDebug, 'isTesting', function() { return false; });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -264,10 +285,10 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistence, 'ajax', function(url, opts) {
+      stub(persistenceTarget(), 'ajax', function(url, opts) {
         queried = true;
       });
-      persistence.tokens['12345'] = true;
+      persistenceTarget().tokens['12345'] = true;
       var res = session.restore();
 
       expect(res).toEqual({user_name: 'cheddar', access_token: '12345'});
@@ -279,7 +300,7 @@ describe('session', function() {
 
     it("should log the user out if their token is expired (and they are online)", function() {
       stub(emberDebug, 'isTesting', function() { return false; });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -288,14 +309,14 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/token_check?access_token=12345') {
+      stub(persistenceTarget(), 'ajax', function(url, opts) {
+        if(urlStartsWithTokenCheck(url, '12345')) {
           queried = true;
         }
         return RSVP.resolve({authenticated: false});
       });
       var invalidated = false;
-      stub(session, 'invalidate', function(force) {
+      stub(sessionTarget(), 'invalidate', function(force) {
         if(force) { invalidated = true; }
       });
       var res = session.restore(true);
@@ -310,7 +331,7 @@ describe('session', function() {
 
     it("should not log the user out if there is an unexpected issue confirming the token", function() {
       stub(emberDebug, 'isTesting', function() { return false; });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -319,8 +340,8 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/token_check?access_token=12345') {
+      stub(persistenceTarget(), 'ajax', function(url, opts) {
+        if(urlStartsWithTokenCheck(url, '12345')) {
           later(function() {
             queried = true;
           }, 50);
@@ -328,7 +349,7 @@ describe('session', function() {
         return RSVP.reject({authenticated: false});
       });
       var invalidated = false;
-      stub(session, 'invalidate', function(force) {
+      stub(sessionTarget(), 'invalidate', function(force) {
         if(force) { invalidated = true; }
       });
       var res = session.restore(true);
@@ -344,9 +365,9 @@ describe('session', function() {
     });
 
     it("should set browserToken on success response", function() {
-      persistence.set('browserToken', null);
+      persistenceTarget().set('browserToken', null);
       stub(emberDebug, 'isTesting', function() { return false; });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -355,14 +376,14 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/token_check?access_token=12345') {
+      stub(persistenceTarget(), 'ajax', function(url, opts) {
+        if(urlStartsWithTokenCheck(url, '12345')) {
           queried = true;
         }
         return RSVP.resolve({authenticated: true, meta: {fakeXHR: { browserToken: '11111'}}});
       });
       var invalidated = false;
-      stub(session, 'invalidate', function(force) {
+      stub(sessionTarget(), 'invalidate', function(force) {
         if(force) { invalidated = true; }
       });
       var res = session.restore(true);
@@ -371,16 +392,16 @@ describe('session', function() {
       expect(session.get('isAuthenticated')).toEqual(true);
       expect(session.get('access_token')).toEqual('12345');
       expect(session.get('as_user_id')).toEqual(undefined);
-      waitsFor(function() { return queried && persistence.get('browserToken'); });
+      waitsFor(function() { return queried && persistenceTarget().get('browserToken'); });
       runs(function() {
         expect(invalidated).toEqual(false);
-        expect(persistence.get('browserToken')).toEqual('11111');
+        expect(persistenceTarget().get('browserToken')).toEqual('11111');
       });
     });
 
     it("should set browserToken on error response", function() {
       stub(emberDebug, 'isTesting', function() { return false; });
-      stub(stashes, 'get_object', function(key, extra) {
+      stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
             user_name: 'cheddar',
@@ -389,14 +410,14 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/token_check?access_token=12345') {
+      stub(persistenceTarget(), 'ajax', function(url, opts) {
+        if(urlStartsWithTokenCheck(url, '12345')) {
           queried = true;
         }
         return RSVP.reject({fakeXHR: { browserToken: '11111'}});
       });
       var invalidated = false;
-      stub(session, 'invalidate', function(force) {
+      stub(sessionTarget(), 'invalidate', function(force) {
         if(force) { invalidated = true; }
       });
       var res = session.restore(true);
@@ -405,10 +426,10 @@ describe('session', function() {
       expect(session.get('isAuthenticated')).toEqual(true);
       expect(session.get('access_token')).toEqual('12345');
       expect(session.get('as_user_id')).toEqual(undefined);
-      waitsFor(function() { return queried && persistence.get('browserToken'); });
+      waitsFor(function() { return queried && persistenceTarget().get('browserToken'); });
       runs(function() {
         expect(invalidated).toEqual(false);
-        expect(persistence.get('browserToken')).toEqual('11111');
+        expect(persistenceTarget().get('browserToken')).toEqual('11111');
       });
     });
   });
@@ -416,44 +437,50 @@ describe('session', function() {
   describe("override", function() {
     it("should override correctly", function() {
       var reloaded = false;
-      stub(session, 'reload', function() {
+      stub(sessionTarget(), 'reload', function() {
         reloaded = true;
       });
       var flushed = false;
-      stub(stashes, 'flush', function() {
+      stub(stashesTarget(), 'flush', function() {
         flushed = true;
+        return RSVP.resolve();
       });
       var setup = false;
-      stub(stashes, 'setup', function() {
+      stub(stashesTarget(), 'setup', function() {
         setup = true;
       });
       var data = null;
-      stub(session, 'persist', function(d) {
+      stub(sessionTarget(), 'persist', function(d) {
         data = d;
+        return RSVP.resolve();
       });
-      stub(session, 'restore', function() {
+      stub(sessionTarget(), 'restore', function() {
         return {a: 1};
       });
       session.override({user_name: "broccoli", user_id: '1_1', access_token: "123456"});
-      expect(reloaded).toEqual(true);
-      expect(flushed).toEqual(true);
-      expect(setup).toEqual(true);
-      expect(data).toEqual({a: 1, user_name: "broccoli", user_id: '1_1', access_token: "123456"});
+      waitsFor(function() { return flushed && setup && data; });
+      runs(function() {
+        expect(reloaded).toEqual(true);
+        expect(flushed).toEqual(true);
+        expect(setup).toEqual(true);
+        expect(data).toEqual({a: 1, user_name: "broccoli", user_id: '1_1', access_token: "123456"});
+      });
     });
   });
 
   describe("invalidate", function() {
     it("should do a simple invalidate by default", function() {
       var flushed = false;
-      stub(stashes, 'flush', function() {
+      stub(stashesTarget(), 'flush', function() {
         flushed = true;
+        return RSVP.resolve();
       });
       var setup = false;
-      stub(stashes, 'setup', function() {
+      stub(stashesTarget(), 'setup', function() {
         setup = true;
       });
       var reloaded = false;
-      stub(session, 'reload', function() {
+      stub(sessionTarget(), 'reload', function() {
         reloaded = true;
       });
       session.set('isAuthenticated', true);
@@ -480,16 +507,16 @@ describe('session', function() {
         }
       }));
       var flushed = false;
-      stub(stashes, 'flush', function() {
+      stub(stashesTarget(), 'flush', function() {
         flushed = true;
         return RSVP.resolve();
       });
       var setup = false;
-      stub(stashes, 'setup', function() {
+      stub(stashesTarget(), 'setup', function() {
         setup = true;
       });
       var reloaded = false;
-      stub(session, 'reload', function() {
+      stub(sessionTarget(), 'reload', function() {
         reloaded = true;
       });
       session.set('isAuthenticated', true);
@@ -511,7 +538,7 @@ describe('session', function() {
   describe('check_token', function() {
     it('should return a promise', function() {
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
+      stub(persistenceTarget(), 'ajax', function(url, o) {
         return RSVP.reject({});
       });
       var res = session.check_token();
@@ -521,8 +548,8 @@ describe('session', function() {
     it('should query remotely', function() {
       var called = false;
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
-        expect(url).toEqual('/api/v1/token_check?access_token=undefined');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        expect(urlStartsWithTokenCheck(url, 'none')).toEqual(true);
         called = true;
         opts = o;
         return RSVP.reject({});
@@ -533,15 +560,15 @@ describe('session', function() {
     });
 
     it('should include as_user_id if specified', function() {
-      stub(stashes, 'get_object', function(key, bool) {
+      stub(stashesTarget(), 'get_object', function(key, bool) {
         if(key == 'auth_settings') {
           return {access_token: 'happy_token', as_user_id: 'whatever'};
         }
       });
       var called = false;
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
-        expect(url).toEqual('/api/v1/token_check?access_token=happy_token&as_user_id=whatever');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        expect(urlStartsWithTokenCheck(url, 'happy_token', 'whatever')).toEqual(true);
         called = true;
         opts = o;
         return RSVP.reject({});
@@ -554,54 +581,54 @@ describe('session', function() {
     it('should do nothing on error if offline', function() {
       var called = false;
       var opts = {};
-      persistence.set('online', false);
-      persistence.tokens['none'] = 'asdf';
-      stub(persistence, 'ajax', function(url, o) {
+      persistenceTarget().set('online', false);
+      persistenceTarget().tokens['none'] = 'asdf';
+      stub(persistenceTarget(), 'ajax', function(url, o) {
         called = true;
         return RSVP.reject({});
       });
       session.check_token();
       waitsFor(function() { return called; });
       runs(function() {
-        expect(persistence.tokens['none']).toEqual(true);
+        expect(persistenceTarget().tokens['none']).toEqual(true);
       });
     });
 
     it('should set the browser token on error result providing token', function() {
       var called = false;
       var opts = {};
-      persistence.set('online', true);
-      stub(persistence, 'ajax', function(url, o) {
+      persistenceTarget().set('online', true);
+      stub(persistenceTarget(), 'ajax', function(url, o) {
         called = true;
         return RSVP.reject({fakeXHR: {browserToken: 'tokeny'}});
       });
       session.check_token();
-      waitsFor(function() { return persistence.get('browserToken') == 'tokeny'; });
+      waitsFor(function() { return persistenceTarget().get('browserToken') == 'tokeny'; });
       runs();
     });
 
     it('should clear the key cache on any other error', function() {
       var called = false;
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
+      stub(persistenceTarget(), 'ajax', function(url, o) {
         called = true;
         return RSVP.reject({});
       });
       session.check_token();
-      waitsFor(function() { return persistence.tokens['none'] === false; });
+      waitsFor(function() { return persistenceTarget().tokens['none'] === false; });
       runs();
     });
 
     it('should set as invalid token if returned as such', function() {
-      stub(stashes, 'get_object', function(key, bool) {
+      stub(stashesTarget(), 'get_object', function(key, bool) {
         if(key == 'auth_settings') {
           return {access_token: 'happy_token'};
         }
       });
       var called = false;
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
-        expect(url).toEqual('/api/v1/token_check?access_token=happy_token');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false});
@@ -612,46 +639,46 @@ describe('session', function() {
     });
 
     it('should set browserToken if returned on success', function() {
-      stub(stashes, 'get_object', function(key, bool) {
+      stub(stashesTarget(), 'get_object', function(key, bool) {
         if(key == 'auth_settings') {
           return {access_token: 'happy_token'};
         }
       });
       var called = false;
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
-        expect(url).toEqual('/api/v1/token_check?access_token=happy_token');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
       });
       session.check_token();
-      waitsFor(function() { return session.get('invalid_token') && persistence.get('browserToken') == 'jorb'; });
+      waitsFor(function() { return session.get('invalid_token') && persistenceTarget().get('browserToken') == 'jorb'; });
       runs(function() {
-        expect(persistence.get('browserToken')).toEqual('jorb');
+        expect(persistenceTarget().get('browserToken')).toEqual('jorb');
       });
     });
 
     it('should invalidate the session if allowed', function() {
       var invalidated = false;
-      stub(session, 'invalidate', function() {
+      stub(sessionTarget(), 'invalidate', function() {
         invalidated = true;
       });
-      stub(stashes, 'get_object', function(key, bool) {
+      stub(stashesTarget(), 'get_object', function(key, bool) {
         if(key == 'auth_settings') {
           return {access_token: 'happy_token'};
         }
       });
       var called = false;
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
-        expect(url).toEqual('/api/v1/token_check?access_token=happy_token');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
       });
       session.check_token(true);
-      waitsFor(function() { return session.get('invalid_token') && persistence.get('browserToken') == 'jorb'; });
+      waitsFor(function() { return session.get('invalid_token') && persistenceTarget().get('browserToken') == 'jorb'; });
       runs(function() {
         expect(invalidated).toEqual(true);
       });
@@ -659,24 +686,24 @@ describe('session', function() {
 
     it('should not invalidate the session if not allowed', function() {
       var invalidated = false;
-      stub(session, 'invalidate', function() {
+      stub(sessionTarget(), 'invalidate', function() {
         invalidated = true;
       });
-      stub(stashes, 'get_object', function(key, bool) {
+      stub(stashesTarget(), 'get_object', function(key, bool) {
         if(key == 'auth_settings') {
           return {access_token: 'happy_token'};
         }
       });
       var called = false;
       var opts = {};
-      stub(persistence, 'ajax', function(url, o) {
-        expect(url).toEqual('/api/v1/token_check?access_token=happy_token');
+      stub(persistenceTarget(), 'ajax', function(url, o) {
+        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
       });
       session.check_token();
-      waitsFor(function() { return session.get('invalid_token') && persistence.get('browserToken') == 'jorb'; });
+      waitsFor(function() { return session.get('invalid_token') && persistenceTarget().get('browserToken') == 'jorb'; });
       runs(function() {
         expect(invalidated).toEqual(false);
       });

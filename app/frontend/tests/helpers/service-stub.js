@@ -231,7 +231,9 @@ export var SERVICE_MIRROR_RULES = [
       persist_object: true,
       setup: true,
       clear: true,
-      remember: true
+      remember: true,
+      flush: true,
+      get_object: true
     }
   },
   {

@@ -18,6 +18,10 @@ describe('modal', function() {
   var route = null;
   beforeEach(function() {
     modal.last_promise = null;
+    modal.last_template = null;
+    modal._component_based_template = null;
+    stub(modal, '_getService', function() { return null; });
+    stub(modal, '_getAppState', function() { return null; });
     route = EmberObject.extend({
       render: function() {
         this.lastRender = arguments;
@@ -26,6 +30,7 @@ describe('modal', function() {
         this.lastDisconnect = arguments;
       }
     }).create();
+    modal.setup(route);
   });
 
   describe("setup", function() {
@@ -141,53 +146,29 @@ describe('modal', function() {
       expect(function() { modal.flash('hi'); }).toThrow();
     });
     it('should properly render flash with a default of notice', function() {
-      modal.setup(route);
       expect(function() { modal.flash('hello'); }).not.toThrow();
-      var extra = false;
-      setTimeout(function() {
-        extra = true;
-      }, 100);
-      waitsFor(function() { return route.lastRender && extra; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined});
+      expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
     });
     it('should properly render warning flash', function() {
-      modal.setup(route);
       modal.warning('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'warning', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'warning', text: 'hello', sticky: undefined});
+      expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
     });
     it('should properly render error flash', function() {
-      modal.setup(route);
       modal.error('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'error', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'error', text: 'hello', sticky: undefined});
+      expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
     });
     it('should properly render notice flash', function() {
-      modal.setup(route);
       modal.notice('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined});
+      expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
     });
     it('should properly render success flash', function() {
-      modal.setup(route);
       modal.success('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'success', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'success', text: 'hello', sticky: undefined});
+      expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
     });
   });
 

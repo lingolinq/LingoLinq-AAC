@@ -234,10 +234,17 @@ describe('app_state', function() {
   describe('speak_mode_handlers', function() {
     function stubModalWarning(callback) {
       stub(modal, 'warning', callback);
+      stub(app_state, 'show_toast', function(message) {
+        callback(message);
+      });
       if (LingoLinq.testOwner) {
         try {
           var modalSvc = LingoLinq.testOwner.lookup('service:modal');
           stub(modalSvc, 'warning', callback);
+          var appStateSvc = LingoLinq.testOwner.lookup('service:app-state');
+          stub(appStateSvc, 'show_toast', function(message) {
+            callback(message);
+          });
         } catch (e) { /* owner mid-teardown */ }
       }
     }
