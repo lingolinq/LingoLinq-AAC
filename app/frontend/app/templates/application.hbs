@@ -1441,14 +1441,14 @@
 </header>
 {{#if (or this.app_state.currentUser this.app_state.sessionUser)}}
   {{#if this.showBetaFeedbackDrawer}}
-    {{#if (or this.app_state.speak_mode this.app_state.edit_mode)}}
+    {{#if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail)}}
       <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{action "toggleBetaFeedbackDrawer"}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>{{t "Beta feedback" key="beta_feedback_nav"}}</span>
         <svg class="beta-feedback-drawer-tab__caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
     {{/if}}
-    <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}}>
+    <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}}>
       <aside class="beta-feedback-drawer__panel">
         {{beta-feedback-panel isDrawer=true onSubmitSuccess=(action "closeBetaFeedbackDrawer") onCancel=(action "closeBetaFeedbackDrawer") onClose=(action "closeBetaFeedbackDrawer")}}
       </aside>

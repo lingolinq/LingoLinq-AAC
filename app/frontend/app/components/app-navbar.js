@@ -46,6 +46,7 @@ export default Component.extend({
   showBetaFeedbackDrawerTab: computed(
     'isAuthenticated',
     'application.showBetaFeedbackDrawer',
+    'application.on_board_detail',
     'appState.speak_mode',
     'appState.edit_mode',
     'appState.currentBoardState.id',
@@ -57,6 +58,12 @@ export default Component.extend({
       // still be set — in that case the board header is suppressed (see
       // application.hbs) and the drawer tab should show, matching home-page
       // behavior.
+      // board-detail is decoupled from the global speak_mode flag (it renders
+      // through its own controller state, so appState.speak_mode stays false
+      // there); without an explicit board-detail check the navbar tab would
+      // wrongly show at the top. application.hbs renders the bottom-center
+      // --speak drawer tab on board-detail, so suppress the navbar tab here.
+      if(this.get('application.on_board_detail')) { return false; }
       return this.get('isAuthenticated') &&
         this.get('application.showBetaFeedbackDrawer') &&
         ((!this.appState.get('speak_mode') && !this.appState.get('edit_mode')) || !this.appState.get('currentBoardState.id'));

@@ -8,8 +8,9 @@
       <LinkTo @route="user.extras" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
     </nav>
     <header class="md-hero md-hero--dashboard md-hero--reports-dashboard">
-      <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Reports for %{username}" key="reports_for_username" username=this.model.user_name}}</span></h1>
-      <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's look at some" key="reports_dashboard_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "useful information..." key="reports_dashboard_hero_sub_em"}}</em></span></p>
+      <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Activity for" key="reports_activity_for_pre"}} <em class="md-hero__sub-user">{{this.model.user_name}}</em></span></h1>
+      <span class="md-hero__divider" aria-hidden="true"></span>
+      <p class="md-hero__sub md-hero__sub--meta"><span class="md-hero__sub--from-right">{{#if this.model.joined}}<span class="md-hero-meta__item"><svg class="md-hero-meta__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="16" rx="3" fill="rgba(42,157,143,0.16)" stroke="#1B365D" stroke-width="1.8"/><path d="M3.5 9.5h17" stroke="#1B365D" stroke-width="1.8"/><path d="M8 3v3.5M16 3v3.5" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round"/></svg>{{t "Joined" key="joined_cap"}} <strong>{{date_ago this.model.joined}}</strong></span>{{/if}}{{#if this.model.last_access}}<span class="md-hero-meta__item"><span class="md-hero-meta__dot" aria-hidden="true"></span>{{t "Last active" key="last_active"}} <strong>{{date_ago this.model.last_access "day"}}</strong></span>{{/if}}</span></p>
     </header>
 <div class="md-stats-page">
   <main class="md-stats-main">
@@ -26,25 +27,15 @@
   {{modeling-only-notice}}
 {{else if this.model.currently_premium}}
   {{#if this.model.preferences.logging}}
+    {{!-- Joined / Last active now live in the hero subheader (above). This
+          row remains only for the Reset control in compare mode. --}}
+    {{#if (and this.usage_stats this.usage_stats2)}}
     <div class="md-user-meta md-user-meta--before-hero" role="list">
-      {{#if this.model.joined}}
-        <div class="md-user-meta__chip md-user-meta__chip--joined" role="listitem" title={{date this.model.joined}}>
-          <span class="md-user-meta__label">{{t "Joined" key="joined_cap"}}</span>
-          <span class="md-user-meta__value">{{date_ago this.model.joined}}</span>
-        </div>
-      {{/if}}
-      {{#if this.model.last_access}}
-        <div class="md-user-meta__chip md-user-meta__chip--active" role="listitem" title={{date this.model.last_access}}>
-          <span class="md-user-meta__label">{{t "Last active" key="last_active"}}</span>
-          <span class="md-user-meta__value">{{date_ago this.model.last_access "day"}}</span>
-        </div>
-      {{/if}}
-      {{#if (and this.usage_stats this.usage_stats2)}}
-        <button type="button" class="md-user-meta__chip md-user-meta__chip--reset" {{action "reset_to_default"}} aria-label={{t "Reset to default report" key="reset_to_default_report"}}>
-          <span class="md-user-meta__label">{{t "Reset" key="reset"}}</span>
-        </button>
-      {{/if}}
+      <button type="button" class="md-user-meta__chip md-user-meta__chip--reset" {{action "reset_to_default"}} aria-label={{t "Reset to default report" key="reset_to_default_report"}}>
+        <span class="md-user-meta__label">{{t "Reset" key="reset"}}</span>
+      </button>
     </div>
+    {{/if}}
     <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
       <div class="md-stats-hero__head">
         <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "%{un}'s Reports" key="usage_reports_for" un=this.model.user_name}}</h1>
@@ -81,6 +72,12 @@
         </div>
       </div>
     {{/if}}
+    {{#unless this.usage_stats2}}{{#if this.some_data}}
+      <div class="md-stats-section-head md-stats-section-head--first">
+        <h2 class="md-stats-section-head__label">{{t "Report Summary" key="report_summary"}}</h2>
+        <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+      </div>
+    {{/if}}{{/unless}}
     <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}{{unless this.usage_stats2 " md-stats-summary-row md-stats-summary-row--1" ""}}" style='page-break-inside: avoid;'>
       {{stats/load-status status=this.status ref_status=this.status2 side_by_side=this.usage_stats2}}
       {{#if this.usage_stats2}}
@@ -90,25 +87,25 @@
         {{#unless this.usage_stats2}}
           <div class="col-sm-3 col-xs-6">
             <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
+              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{{t "Total Sessions" key="total_sessions"}}</div>
               <div class="panel-body">{{delimit this.display_total_sessions}}</div>
             </div>
           </div>
           <div class="col-sm-3 col-xs-6">
             <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Total Words" key="total_words"}}</div>
+              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5v9A1.5 1.5 0 0 0 4 16h3v3.5L11.5 16H20a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 20 4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>{{t "Total Words" key="total_words"}}</div>
               <div class="panel-body">{{delimit this.display_total_words}}</div>
             </div>
           </div>
           <div class="col-sm-3 col-xs-6">
             <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Total utterances" key="total_utterances"}}</div>
+              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.6-4.9A8.5 8.5 0 1 1 21 11.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="8.5" cy="11.5" r="1.05" fill="currentColor"/><circle cx="12" cy="11.5" r="1.05" fill="currentColor"/><circle cx="15.5" cy="11.5" r="1.05" fill="currentColor"/></svg></span>{{t "Total utterances" key="total_utterances"}}</div>
               <div class="panel-body">{{delimit this.display_total_utterances}}</div>
             </div>
           </div>
           <div class="col-sm-3 col-xs-6">
             <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Total Buttons" key="total_buttons"}}</div>
+              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/></svg></span>{{t "Total Buttons" key="total_buttons"}}</div>
               <div class="panel-body">{{delimit this.display_total_buttons}}</div>
             </div>
           </div>
@@ -269,6 +266,12 @@
           </div>
         </div>
       {{/if}}
+      {{#unless this.usage_stats2}}
+        <div class="md-stats-section-head">
+          <h2 class="md-stats-section-head__label">{{t "Communication Usage" key="communication_usage"}}</h2>
+          <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+        </div>
+      {{/unless}}
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         {{stats/word-usage usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 show_logs="show_logs"}}
         {{#if this.usage_stats2}}
@@ -285,6 +288,12 @@
           {{/if}}
         {{/if}}
       </div>
+      {{#unless this.usage_stats2}}
+        <div class="md-stats-section-head">
+          <h2 class="md-stats-section-head__label">{{t "Vocabulary Analysis" key="vocabulary_analysis"}}</h2>
+          <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+        </div>
+      {{/unless}}
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(action "word_cloud_left") word_data=(action "word_data") edit_permission=this.model.permissions.edit modify_core=(action "modify_core")}}
         {{#if this.usage_stats2}}

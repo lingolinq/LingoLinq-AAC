@@ -11,8 +11,12 @@ export default Controller.extend({
   app_state: service('app-state'),
   refresh_lists: function() {
     this.set('logs', {});
-    this.refresh_stats();
-    this.refresh_report();
+    // Stats and summary reports are 'edit'-gated endpoints; a view-only
+    // supervisor would just get 400s, so only fetch them for managers/assistants.
+    if(this.get('model.permissions.edit')) {
+      this.refresh_stats();
+      this.refresh_report();
+    }
     if(this.get('model.permissions.manage')) {
       this.refresh_logs();
     }
