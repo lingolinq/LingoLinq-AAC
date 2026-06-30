@@ -27,7 +27,7 @@ export function fastHtmlHasRenderableContent(fast) {
 var editManager = EmberObject.extend({
   _services: {},
   get appState() {
-    return (this._services && this._services.appState) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    return (this._services && (this._services.appState || this._services.app_state)) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
   },
   set appState(val) {
     this._services = this._services || {};
@@ -1613,7 +1613,7 @@ var editManager = EmberObject.extend({
     });
 
     return update_buttons.then(function(board) {
-      this.update_color_key_id();
+      _this.update_color_key_id();
       return RSVP.resolve({visible: board.button_visible(new_id), button: button});
     });
   },
@@ -2773,7 +2773,10 @@ editManager.get_stashes = function() {
 
 // Service registration method
 editManager.register_services = function(appStateService, persistenceService, stashesService) {
-  if(appStateService) { editManager._services.app_state = appStateService; }
+  if(appStateService) {
+    editManager._services.app_state = appStateService;
+    editManager._services.appState = appStateService;
+  }
   if(persistenceService) { editManager._services.persistence = persistenceService; }
   if(stashesService) { editManager._services.stashes = stashesService; }
 };

@@ -776,6 +776,11 @@ function boardModelStub(attrs) {
     variant_image_urls: function() {
       return {};
     },
+    add_classes: function() {},
+    set_fast_html: function() {},
+    render_fast_html: function() {
+      return {};
+    },
     clear_real_time_changes: function() { },
     load_word_suggestions: function() {
       return RSVP.resolve();
