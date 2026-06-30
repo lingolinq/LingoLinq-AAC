@@ -630,11 +630,13 @@ var Button = EmberObject.extend({
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no image lookups');
+      } else if(preference == 'local') {
+        return RSVP.reject('no image lookups');
       } else {
         if(!String(requestedId || '').match(/^tmp/) && preference != 'remote') {
           console.warn("had to revert to image record lookup");
         }
-        var find = LingoLinq.store.findRecord('image', requestedId).then(function(image) {
+        return LingoLinq.store.findRecord('image', requestedId).then(function(image) {
           if(!stillCurrent()) { return image; }
           _this.set('image', image);
           if(image.get('incomplete')) {
@@ -646,11 +648,6 @@ var Button = EmberObject.extend({
           }
           return check_image(image);
         });
-        if(preference == 'local') {
-          return RSVP.reject('no image lookups');
-        } else {
-          return find;
-        }
       }
     } else {
       if(!image.get('incomplete')) {
@@ -691,16 +688,13 @@ var Button = EmberObject.extend({
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no sound lookups');
+      } else if(preference == 'local') {
+        return RSVP.reject('no sound lookups');
       } else {
-        var find = LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
+        return LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
         });
-        if(preference == 'local') {
-          return RSVP.reject('no sound lookups');
-        } else {
-          return find;
-        }
       }
     } else {
       return check_sound(sound);

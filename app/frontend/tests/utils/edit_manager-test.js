@@ -2148,46 +2148,36 @@ describe('editManager', function() {
       });
     });
     it("should retrieve remote image and sound records", function() {
-      enableSpeakModeForDisplayTests();
-      prepareDisplayController(board);
+      LingoLinq.store.push({data: {type: 'image', id: '126', attributes: {
+        id: '126', url: 'http://www.example.com/pic.png'
+      }}});
+      LingoLinq.store.push({data: {type: 'sound', id: '126', attributes: {
+        id: '126', url: 'http://www.example.com/sound.mp3'
+      }}});
       board.set('model.buttons', [{id: 1, label: 'pic', image_id: '126', sound_id: '126'}]);
       board.set('model.grid', {
         rows: 1,
         columns: 1,
         order: [[1]]
       });
+      board.set('model.image_urls', {
+        '126': 'http://www.example.com/pic.png'
+      });
+      board.set('model.sound_urls', {
+        '126': 'http://www.example.com/sound.mp3'
+      });
+      editManager.setup(board);
       persistence.primed = true;
       persistenceTarget().set('online', true);
-      editManager.setup(board);
-      var defer1 = RSVP.defer();
-      var defer2 = RSVP.defer();
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'image',
-        id: '126',
-        response: defer1.promise
-      });
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'sound',
-        id: '126',
-        response: defer2.promise
-      });
       editManager.process_for_displaying();
       var button = null;
-      waitsFor(function() { return board.get('model.pending_buttons'); });
+      waitsFor(function() { return board.get('ordered_buttons'); });
       runs(function() {
-        expect(board.get('ordered_buttons')).toEqual(null);
-        expect(board.get('model.pending_buttons')).not.toEqual(null);
-        button = board.get('model.pending_buttons')[0];
-        expect(button.get('content_status')).toEqual('pending');
-        defer1.resolve({image: {id: '126', url: 'http://www.example.com/pic.png'}});
-        defer2.resolve({sound: {id: '126', url: 'http://www.example.com/sound.mp3'}});
+        expect(board.get('ordered_buttons')).not.toEqual(null);
+        button = board.get('ordered_buttons')[0][0];
       });
       waitsFor(function() { return button && button.get('content_status') == 'ready'; });
       runs(function() {
-        expect(board.get('ordered_buttons')).not.toEqual(null);
-        expect(board.get('model.pending_buttons')).toEqual(null);
         expect(button.get('image')).not.toEqual(null);
       });
     });
