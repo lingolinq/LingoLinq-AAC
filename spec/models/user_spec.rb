@@ -742,6 +742,42 @@ describe User, :type => :model do
       expect(u.valid_password?('braised-beef')).to eq(true)
     end
 
+    it "should allow a self-service password change even when valet_login is the string 'false' (regression)" do
+      # The Ember client serializes the boolean valet_login attribute as a
+      # STRING, so a normal profile save sends valet_login => 'false'. A bare
+      # truthiness check treated the non-empty string 'false' as true, enabled
+      # valet mode (assert_valet_mode! + a random valet password), and the
+      # following valid_password? check then compared the real password against
+      # the valet secret -> every self-service password change failed with
+      # "incorrect current password". The valet block only runs when the
+      # updater is the user themselves, so pass updater => u.
+      u = User.create
+      u.generate_password('horseradish')
+      u.save!
+      expect(u.valet_mode?).to eq(false)
+      res = u.process_params({
+        'password' => 'chicken',
+        'old_password' => 'horseradish',
+        'valet_login' => 'false'
+      }, {'updater' => u})
+      expect(u.processing_errors).to eq([])
+      expect(res).to_not eq(false)
+      expect(u.valid_password?('chicken')).to eq(true)
+      # valet mode must NOT have been silently enabled by the falsey string
+      expect(u.valet_mode?).to eq(false)
+      expect(u.settings['valet_password']).to eq(nil)
+    end
+
+    it "should still disable valet when valet_login is boolean false" do
+      u = User.create
+      u.generate_password('horseradish')
+      u.process_params({'valet_login' => true, 'valet_password' => 'gemini'}, {'updater' => u})
+      u.save!
+      expect(u.settings['valet_password']).to_not eq(nil)
+      u.process_params({'valet_login' => false}, {'updater' => u})
+      expect(u.settings['valet_password']).to eq(nil)
+    end
+
     describe "password-change audit trail (LL-747bb0e02d)" do
       # AuditEvent.log_command commits outside the per-example transaction, so
       # rows leak across examples and inflate counts. Scope the reset to this

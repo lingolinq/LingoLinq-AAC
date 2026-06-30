@@ -1549,7 +1549,7 @@ export default Controller.extend({
         var keys = "23456789abcdef";
         var pw = "";
         for(var idx = 0; idx < 8; idx++) {
-          var hit = Math.round(Math.random() * keys.length);
+          var hit = Math.floor(Math.random() * keys.length);
           var key = keys.substring(hit, hit + 1);
           pw = pw + key;
         }
