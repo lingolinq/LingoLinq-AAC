@@ -166,6 +166,23 @@ function primeLocalSyncStorage(imageSpecs) {
   });
 }
 
+function ensureBoardAbsentFromLocalDb(boardId) {
+  var repo = capabilities.dbman && capabilities.dbman.repo;
+  if (repo && repo.board) {
+    repo.board = repo.board.filter(function(r) {
+      return String(r.id) !== String(boardId);
+    });
+  }
+  if (LingoLinq.store && LingoLinq.store.peekRecord) {
+    var peeked = LingoLinq.store.peekRecord('board', boardId);
+    if (peeked) {
+      try {
+        LingoLinq.store.unloadRecord(peeked);
+      } catch (e) { /* already gone */ }
+    }
+  }
+}
+
 function primeBoardCacheSyncHarness() {
   cancelSyncTailWork();
   unloadSyncStoreRecords();
@@ -1893,11 +1910,17 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
         later(function() {
+          window.persistence = persistenceTarget() || persistence;
           persistence.known_missing = null;
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -1905,8 +1928,9 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return done && remote_checked_b1; });
+      waitsFor(function() { return done; });
       runs(function() {
+        expect(remote_checked_b1).toEqual(true);
         expect(remote_checked_b2).toEqual(true);
         expect(remote_checked_b3).toEqual(false);
         cancelSyncTailWork();
@@ -2041,11 +2065,18 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
 
         later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = null;
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -2053,8 +2084,9 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return done && remote_checked_b1; });
+      waitsFor(function() { return done; });
       runs(function() {
+        expect(remote_checked_b1).toEqual(true);
         expect(remote_checked_b2).toEqual(true);
         expect(remote_checked_b3).toEqual(false);
         cancelSyncTailWork();
@@ -2147,6 +2179,7 @@ describe("persistence-sync", function() {
       RSVP.all_wait(store_promises).then(function() {
         return waitForBoardsStored(['145', '168']);
       }).then(function() {
+        ensureBoardAbsentFromLocalDb('167');
         stored = true;
       }, function() {
         dbg();
@@ -2161,6 +2194,7 @@ describe("persistence-sync", function() {
       runs(function() {
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
+        ensureBoardAbsentFromLocalDb('167');
         seedBoardInStore(b3, { fresh: true });
 
 
@@ -2188,11 +2222,19 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
 
         later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = null;
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          ensureBoardAbsentFromLocalDb('167');
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -2200,9 +2242,10 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return done && remote_checked_b2; });
+      waitsFor(function() { return done; });
       runs(function() {
         expect(remote_checked_b1).toEqual(true);
+        expect(remote_checked_b2).toEqual(true);
         expect(remote_checked_b3).toEqual(false);
         cancelSyncTailWork();
         persistence.set('sync_progress', null);
