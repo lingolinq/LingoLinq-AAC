@@ -43717,9 +43717,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   width: 22px;
   height: 22px;
 }
-/* Multi-column org tiles on the directory page (the dashboard forces orgs to
-   a single column; here there can be many, so let them pack like the rooms
-   grid). */
+/* Capitalize the access-level label on the org-directory tiles
+   (e.g. "supervisor access" → "Supervisor Access"). */
 .md-shell--org-directory .md-org-card__desc {
   text-transform: capitalize;
 }
@@ -90088,8 +90087,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   outline-offset: 2px;
 }
 /* Skip is the most secondary — render it as a muted underlined link so it
-   reads as an escape hatch, not a primary path. Centered by margin:auto
-   so Back stays pinned left and Next pinned right whether or not it shows. */
+   reads as an escape hatch, not a primary path. The parent nav's
+   justify-content: space-between sits it between Back (left) and Next (right),
+   and keeps Back/Next pinned to the edges when Skip isn't shown. */
 .md-eval-intro__nav-btn--skip {
   color: rgba($la-navy, 0.55);
   text-decoration: underline;

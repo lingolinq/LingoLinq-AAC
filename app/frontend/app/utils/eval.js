@@ -258,6 +258,13 @@ var evaluation = {
       // We resync `level` too, so the level-overflow normalization below
       // (`if(!level[working.step])`) checks the destination level, not the old
       // welcome level — otherwise it would re-increment past find-4.
+      //
+      // KNOWN / DEFERRED (eval pages design is still in progress): forward Start
+      // skips intro2 + find_target, but the speak-bar Back from the first
+      // assessment step can still walk back into those legacy intro screens that
+      // the combined welcome is meant to replace. The eval flow back-traversal
+      // (hiding Back on the first post-welcome step, or collapsing intro2 /
+      // find_target on the way back) will be addressed in a future eval pass.
       var is_find_4 = function(s) { return s.id == "find-4"; };
       var start_step = level.find(is_find_4);
       if(start_step) {
