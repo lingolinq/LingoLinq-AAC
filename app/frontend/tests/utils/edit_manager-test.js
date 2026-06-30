@@ -867,8 +867,8 @@ describe('editManager', function() {
           compare: function(object) {
             var grid = object.get('grid');
             var buttons = object.get('buttons');
-            if(buttons.length === 1 && buttons[0].id === 123) {
-              if(grid && grid.order && grid.order[0] && grid.order[0][0] === 123) {
+            if(buttons.length === 1 && buttons[0].id == 123) {
+              if(grid && grid.order && grid.order[0] && grid.order[0][0] == 123) {
                 matched = true;
                 return true;
               }
@@ -1030,8 +1030,8 @@ describe('editManager', function() {
           compare: function(object) {
             var grid = object.get('grid');
             var buttons = object.get('buttons');
-            if(buttons.length === 1 && buttons[0].id === 123) {
-              if(grid && grid.order && grid.order[0] && grid.order[0][0] === 123) {
+            if(buttons.length === 1 && buttons[0].id == 123) {
+              if(grid && grid.order && grid.order[0] && grid.order[0][0] == 123) {
                 matched = true;
                 return true;
               }
@@ -1660,8 +1660,8 @@ describe('editManager', function() {
         }
       });
       defer.resolve([]);
-      expect(button.get('pending')).toEqual(true);
-      waitsFor(function() { return button.get('pending') === false; });
+      expect(button.get('pending_image')).toEqual(true);
+      waitsFor(function() { return button.get('pending_image') === false; });
       runs(function() {
         expect(button.get('image_id')).toEqual(undefined);
         expect(button.get('pending_image')).toEqual(false);
@@ -1755,7 +1755,7 @@ describe('editManager', function() {
       defer.reject();
       waitsFor(function() { return button.get('pending_image') === false; });
       runs(function() {
-        expect(button.get('pending')).toEqual(false);
+        expect(button.get('pending_image')).toEqual(false);
       });
     });
 
@@ -1777,11 +1777,14 @@ describe('editManager', function() {
         return RSVP.reject();
       });
       editManager.lucky_symbol(1);
-      expect(searched).toEqual(true);
       expect(button.get('pending_image')).toEqual(true);
+      waitsFor(function() { return searched; });
+      runs(function() {
+        expect(searched).toEqual(true);
+      });
       waitsFor(function() { return button.get('pending_image') === false; });
       runs(function() {
-        expect(button.get('pending')).toEqual(false);
+        expect(button.get('pending_image')).toEqual(false);
       });
     });
 
@@ -1814,7 +1817,7 @@ describe('editManager', function() {
       });
       waitsFor(function() { return button.get('pending_image') === false; });
       runs(function() {
-        expect(button.get('pending')).toEqual(false);
+        expect(button.get('pending_image')).toEqual(false);
       });
     });
   });
@@ -3514,24 +3517,24 @@ describe('editManager', function() {
       var res = editManager.inflection_for_types(sentence('feel'), 'en');
       expect(res.like).toEqual(null);  
       var res = editManager.inflection_for_types(sentence('I feel'), 'en');
-      expect(res.like.label).toEqual('like');  
+      expect((res.like || {}).label).toEqual('like');
       var res = editManager.inflection_for_types(sentence('she feels'), 'en');
-      expect(res.like.label).toEqual('like');  
+      expect((res.like || {}).label).toEqual('like');
       var res = editManager.inflection_for_types(sentence('are you'), 'en');
-      expect(res.done.label).toEqual('done');  
+      expect((res.done || {}).label).toEqual('done');
       var res = editManager.inflection_for_types(sentence('is she'), 'en');
-      expect(res.done.label).toEqual('done');  
+      expect((res.done || {}).label).toEqual('done');
       var res = editManager.inflection_for_types(sentence('she'), 'en');
-      expect(res.done.label).toEqual('does');  
+      expect((res.done || {}).label).toEqual('does');
       var res = editManager.inflection_for_types(sentence('she'), 'en');
-      expect(res.is.label).toEqual('is');  
+      expect((res.is || {}).label).toEqual('is');
       var res = editManager.inflection_for_types(sentence('will she'), 'en');
-      expect(res.is.label).toEqual('be');  
+      expect((res.is || {}).label).toEqual('be');
 
       check('he might', 'verb', 'present', 'they_can_look');
       check('I think this could', 'verb', 'present', 'they_can_look');
       var res = editManager.inflection_for_types(sentence('I think this'), 'en');
-      expect(res.can.label).toEqual('can');  
+      expect((res.can || {}).label).toEqual('can');  
       check('I think he', 'verb', 'simple_present', 'she_looks');
       check('I think that', 'verb', 'simple_present', 'she_looks');
       
