@@ -32,9 +32,6 @@ module Audit
     RUNNER_COMMANDS  = %w[runner r].freeze
     DB_COMMANDS      = %w[db dbconsole].freeze
 
-    # Short aliases Rails accepts for environment names.
-    ENV_ALIASES = { 'dev' => 'development', 'prod' => 'production' }.freeze
-
     module_function
 
     def console_command?(command)
@@ -58,16 +55,20 @@ module Audit
     # when the call is allowed to proceed.
     def enforce_pre_boot!(command, init_args, env = ENV)
       prod = production?(command, init_args, env)
-      args = Array(init_args).join(' ')
 
+      # The refusal message must never echo the invoked argv: a `runner`
+      # command line is arbitrary Ruby that routinely contains identifiers or
+      # secrets, and this message is printed to stderr (bin/rails `abort`),
+      # which Render/Cloud Run capture as plaintext logs. Reference only the
+      # command class.
       if db_command?(command) && prod
         raise ForbiddenCommand,
-              %(db/dbconsole is not allowed in production (HIPAA): "#{args}")
+              'db/dbconsole is not allowed in production (HIPAA)'
       end
 
       if (console_command?(command) || runner_command?(command)) && prod && !key_present?(env)
         raise UnauthorizedConsole,
-              %(ENV['USER_KEY'] is required to open an audited console/runner in production: "#{args}")
+              "ENV['USER_KEY'] is required to open an audited #{classify(command)} in production"
       end
 
       classify(command)
@@ -92,29 +93,70 @@ module Audit
       effective_environment(command, init_args, env) == 'production'
     end
 
+    # Resolve the effective environment exactly the way railties does, so no
+    # invocation can boot production while the guard believes it is not:
+    #   * a CLI -e/--environment value is prefix-expanded (Rails expands any
+    #     abbreviation of production/development/test) and wins when present;
+    #   * otherwise ENV['RAILS_ENV'] then ENV['RACK_ENV'] are used VERBATIM --
+    #     Rails does NOT abbreviation-expand the env vars -- treating a blank /
+    #     whitespace value as absent (Rails uses String#presence);
+    #   * otherwise 'development'.
     def effective_environment(command, init_args, env = ENV)
-      name = cli_environment(command, Array(init_args)) ||
-             env['RAILS_ENV'] || env['RACK_ENV'] || 'development'
-      expand_environment(name)
+      cli = cli_environment(command, Array(init_args))
+      return cli if cli
+
+      presence(env['RAILS_ENV']) || presence(env['RACK_ENV']) || 'development'
     end
+
+    def presence(value)
+      s = value.to_s.strip
+      s.empty? ? nil : s
+    end
+
+    # Expand a CLI environment token the way
+    # Rails::Command::EnvironmentArgument#expand_environment_name does: a token
+    # that is not already an on-disk environment is resolved to the first of
+    # production/development/test it is a prefix of -- so `-e p`, `-e pro`,
+    # `-e produc` etc. all resolve to production and cannot slip past the guard.
+    EXPANDABLE_ENVIRONMENTS = %w[production development test].freeze
 
     def expand_environment(name)
       n = name.to_s.strip
-      ENV_ALIASES.fetch(n, n)
+      return n if n.empty?
+      return n if available_environments.include?(n)
+
+      EXPANDABLE_ENVIRONMENTS.find { |full| full.start_with?(n) } || n
+    end
+
+    # Environment names defined on disk (config/environments/*.rb). Anchored to
+    # this file rather than the process cwd, so it resolves however bin/rails was
+    # invoked. A read failure is non-fatal: an empty list just makes every token
+    # eligible for prefix-expansion (more refusals, never fewer).
+    def available_environments(dir = nil)
+      dir ||= File.expand_path('../../config/environments', __dir__)
+      Dir[File.join(dir, '*.rb')].map { |f| File.basename(f, '.*') }
+    rescue StandardError
+      []
     end
 
     # Extract the environment named on the command line, or nil. Handles
-    # `-e VALUE`, `-e=VALUE`, `--environment VALUE`, `--environment=VALUE`, and
-    # (console only) a bare positional environment token such as
-    # `rails console production`. Runner takes its code positionally, so a
-    # positional token there is NOT treated as an environment.
+    # `-e VALUE`, `-eVALUE`, `-e=VALUE`, `--environment VALUE`,
+    # `--environment=VALUE`, and (console only) a bare positional environment
+    # token such as `rails console production`. Runner takes its code
+    # positionally, so a positional token there is NOT treated as an
+    # environment. Tokens after a `--` terminator are ignored, matching how
+    # Rails forwards them to the REPL instead of parsing them as options.
     def cli_environment(command, args)
+      args = args_before_double_dash(args)
+
       args.each_with_index do |arg, i|
         case arg
         when '-e', '--environment'
           nxt = args[i + 1]
           return expand_environment(nxt) if nxt && !nxt.start_with?('-')
         when /\A--environment=(.+)\z/, /\A-e=(.+)\z/
+          return expand_environment(Regexp.last_match(1))
+        when /\A-e(.+)\z/ # glued short form, e.g. -eprod
           return expand_environment(Regexp.last_match(1))
         end
       end
@@ -125,6 +167,11 @@ module Audit
       end
 
       nil
+    end
+
+    def args_before_double_dash(args)
+      idx = args.index('--')
+      idx ? args[0...idx] : args
     end
   end
 

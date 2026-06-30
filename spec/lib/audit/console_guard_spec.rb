@@ -95,6 +95,73 @@ describe Audit::ConsoleGuard do
       end
     end
 
+    context 'when production is abbreviated on the command line (railties expands prefixes)' do
+      # Rails::Command::EnvironmentArgument#expand_environment_name resolves any
+      # prefix of production/development/test to the full name, so an un-keyed
+      # `console -e p` boots production. The guard must expand the same way or
+      # the refusal is defeated with a two-character argument.
+      %w[p pr pro prod produ produc product producti productio].each do |abbr|
+        it "refuses an un-keyed `console -e #{abbr}`" do
+          expect { Audit::ConsoleGuard.enforce_pre_boot!('console', ['console', '-e', abbr], {}) }
+            .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+        end
+      end
+
+      it 'refuses `--environment=p`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console --environment=p], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'refuses the glued short form `-eprod`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -eprod], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'refuses an abbreviated positional `console pro`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console pro], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'forbids `dbconsole -e p` (HIPAA refusal must also see the abbreviation)' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('dbconsole', %w[dbconsole -e p], {}) }
+          .to raise_error(Audit::ConsoleGuard::ForbiddenCommand)
+      end
+
+      it 'does NOT over-refuse a non-production abbreviation (`-e d` is development)' do
+        expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e d], {})).to eq(:console)
+      end
+    end
+
+    context 'when RAILS_ENV is blank (Rails falls through to RACK_ENV via .presence)' do
+      # Rails::Command.environment is RAILS_ENV.presence || RACK_ENV.presence,
+      # so an empty RAILS_ENV must NOT mask a production RACK_ENV.
+      it 'refuses an un-keyed console with RAILS_ENV="" and RACK_ENV=production' do
+        env = { 'RAILS_ENV' => '', 'RACK_ENV' => 'production' }
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console], env) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'allows the same session when keyed' do
+        env = { 'RAILS_ENV' => '  ', 'RACK_ENV' => 'production', 'USER_KEY' => 'scot' }
+        expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console], env)).to eq(:console)
+      end
+
+      it 'does NOT expand an abbreviated RAILS_ENV (env vars are verbatim, only -e expands)' do
+        # Rails boots the literal env named in RAILS_ENV; `prod` is not production.
+        expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console], { 'RAILS_ENV' => 'prod' }))
+          .to eq(:console)
+      end
+    end
+
+    context 'when args appear after a `--` terminator (Rails forwards them to the REPL)' do
+      it 'does not treat `console -- -e production` as a production console' do
+        # Rails strips everything after `--` for IRB, so this is a development
+        # console; the guard must not over-refuse it.
+        expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -- -e production], {}))
+          .to eq(:console)
+      end
+    end
+
     context 'in development' do
       it 'allows an un-keyed console (local-dev DX preserved)' do
         expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console], dev)).to eq(:console)
