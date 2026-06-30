@@ -168,12 +168,16 @@ jobs:
           missing=""
           for pair in $(printf '%s,%s' "$BOOT_SECRETS" "$NON_BOOT_SECRETS" | tr ',' '\n'); do
             name="${pair%%=*}"
-            # Check a VERSION resolves, not just that the container exists: phase1-setup.sh creates all
+            # Verify an ENABLED version EXISTS, without reading its value. phase1-setup.sh creates all
             # secrets EMPTY, and `--set-secrets NAME:latest` crash-loops the revision if NAME has no
-            # version. `describe` would pass an empty container; `versions access latest` does not.
-            # Output is discarded (never logged) - this is a presence probe, not a value read.
-            gcloud secrets versions access latest --secret="$name" --project="$GCP_PROJECT_ID" >/dev/null 2>&1 \
-              || missing="$missing $name"
+            # enabled version. `describe` would pass an empty container; listing enabled versions does not.
+            # This deliberately uses `versions list` (needs only secretmanager.viewer) instead of
+            # `versions access` (needs secretAccessor / reads the value): the deploy SA is least-privilege
+            # and must NOT be able to read every app secret just to run this presence probe. `|| true`
+            # keeps a NOT_FOUND (missing container) from tripping `set -e`; empty output -> flagged below.
+            v="$(gcloud secrets versions list "$name" --project="$GCP_PROJECT_ID" \
+                   --filter='state:ENABLED' --format='value(name)' --limit=1 2>/dev/null || true)"
+            [ -n "$v" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
             echo "::error::Secret(s) missing or unseeded (no version) in Secret Manager (project $GCP_PROJECT_ID):$missing"
