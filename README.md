@@ -146,7 +146,7 @@ Additionally, the admin organization has a special importing tool, "Word Data Im
 
 ##### Troubleshooting
 
-Need console access? Use `bin/audit_console` from wherever you already have a shell on the app (the Render Shell tab, a Cloud Run exec shell, or a local checkout). It sets `USER_KEY` so any record changes you make during the session are attributed to you via PaperTrail. Prefer this wrapper over a bare `bundle exec rails console` for write attribution. It does not yet provide per-session `AuditEvent` logging or enforce refusal of an un-keyed console; that open control gap is tracked as LL-7f7372e3eb.
+Need console access? Use `bin/audit_console` from wherever you already have a shell on the app (the Render Shell tab, a Cloud Run exec shell, or a local checkout). It sets `USER_KEY` so any record changes you make during the session are attributed to you via PaperTrail. Prefer this wrapper over a bare `bundle exec rails console` for write attribution. Note that `USER_KEY` is self-asserted: the value you type is recorded verbatim and is not verified against the platform principal, so attribution is spoofable by anyone with shell access and is not yet a tamper-evident actor record. The wrapper is also opt-in; a bare `bundle exec rails console` bypasses it entirely with no attribution. It does not yet provide per-session `AuditEvent` logging or enforce refusal of an un-keyed console; both that bypass and the self-asserted-actor gap are tracked as LL-7f7372e3eb.
 
 ```
 b = Board.find_by_path('example/keyboard')
