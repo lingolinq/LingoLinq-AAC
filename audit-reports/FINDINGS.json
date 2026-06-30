@@ -421,8 +421,8 @@
       },
       "closureEvidence": {
         "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "verifierNote": "No code fix; multi-key param acceptance is residual code-smell behind token_valid? + expiry guards, not a live vuln.",
+        "attestation": "Scot Wahlquist 2026-06-18: accepted as a known risk; token already validated via token_valid? + expiry guards, multi-key param acceptance is residual code-smell not a live vuln. Accepted at current severity; not slated for change."
       },
       "notes": "Verified still open 2026-06-12: multi-key acceptance persists (line 86), though surrounding flow is more defensive (token_valid?, expiry). Candidate for accepted-risk pending Scot.",
       "disposition": {
@@ -728,8 +728,8 @@
       },
       "closureEvidence": {
         "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "verifierNote": "No code fix; force_ssl already emits a default HSTS header (max-age 1yr). includeSubDomains/preload deferred pending a confirmed-safe subdomain inventory.",
+        "attestation": "Scot Wahlquist 2026-06-18: accepted as a known risk; force_ssl already emits a default HSTS header (max-age 1yr). includeSubDomains/preload deferred to avoid the one-way preload commitment until the subdomain inventory is confirmed safe."
       },
       "notes": "Partially mitigated 2026-06-12: force_ssl=true already emits a default HSTS header (max-age 1yr) but without subdomains/preload (production.rb:62). Severity effectively lower than the April P1; left high pending Scot's call.",
       "disposition": {
