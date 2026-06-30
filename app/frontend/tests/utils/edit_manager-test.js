@@ -95,6 +95,73 @@ function stubBoardReload(boardId, payload) {
   });
 }
 
+function prepareMoveTargetBoard(boardId, options) {
+  options = options || {};
+  var record = LingoLinq.store.peekRecord('board', boardId);
+  if (!record) {
+    record = LingoLinq.store.createRecord('board', {
+      id: boardId,
+      key: boardId,
+      grid: { order: [[null]] },
+      buttons: [],
+      permissions: options.permissions || {}
+    });
+  } else {
+    record.setProperties({
+      key: boardId,
+      grid: { order: [[null]] },
+      buttons: [],
+      permissions: options.permissions || {}
+    });
+  }
+  var clone = null;
+  stub(record, 'reload', function() {
+    return RSVP.resolve(record);
+  });
+  if (options.cloneId) {
+    clone = LingoLinq.store.peekRecord('board', options.cloneId);
+    if (!clone) {
+      clone = LingoLinq.store.createRecord('board', {
+        id: options.cloneId,
+        key: options.cloneId,
+        grid: { order: [[null]] },
+        buttons: [],
+        permissions: options.permissions || {}
+      });
+    }
+    stub(record, 'create_copy', function() {
+      return RSVP.resolve(clone);
+    });
+    stub(clone, 'reload', function() {
+      return RSVP.resolve(clone);
+    });
+    stub(clone, 'save', function() {
+      if (options.onSave) {
+        options.onSave(clone);
+      }
+      return RSVP.resolve(clone);
+    });
+  } else {
+    stub(record, 'save', function() {
+      if (options.onSave) {
+        options.onSave(record);
+      }
+      return RSVP.resolve(record);
+    });
+  }
+  var originalFind = LingoLinq.store.findRecord.bind(LingoLinq.store);
+  stub(LingoLinq.store, 'findRecord', function(type, id) {
+    if (type === 'board' && id === boardId) {
+      return RSVP.resolve(record);
+    }
+    if (options.cloneId && type === 'board' && id === options.cloneId) {
+      return RSVP.resolve(clone);
+    }
+    return originalFind(type, id);
+  });
+  return record;
+}
+
 function syncAppStateSession(user, boardState) {
   if (boardState) {
     app_state.set('currentBoardState', boardState);
@@ -832,51 +899,11 @@ describe('editManager', function() {
 
       it("should add the button to the linked board's list if the user has edit permissions", function() {
         editManager.setup(board);
-        LingoLinq.store.push({data: {type: 'board', id: 'a/b', attributes: {
-          id: 'a/b',
-          key: 'a/b',
-          name: 'Yellow Board',
-          grid: { order: [[null]] },
-          permissions: {edit: true}
-        }}});
         var matched = false;
-        var fake_board = EmberObject.create();
-        var res = {board: {
-          id: 'a/b',
-          key: 'a/b',
-          name: 'Yellow Board',
-          grid: {
-            order: [[null]]
-          },
-          permissions: {edit: true}
-        }};
-        var message = null;
-        stub(modal, 'success', function(text) {
-          message = text;
+        prepareMoveTargetBoard('a/b', {
+          permissions: {edit: true},
+          onSave: function() { matched = true; }
         });
-        queryLog.defineFixture({
-          method: 'GET',
-          type: 'board',
-          id: 'a/b',
-          response: RSVP.resolve(res)
-        });
-        queryLog.defineFixture({
-          method: 'PUT',
-          type: 'board',
-          response: RSVP.resolve(res),
-          compare: function(object) {
-            var grid = object.get('grid');
-            var buttons = object.get('buttons');
-            if(buttons.length === 1 && buttons[0].id == 123) {
-              if(grid && grid.order && grid.order[0] && grid.order[0][0] == 123) {
-                matched = true;
-                return true;
-              }
-            }
-            return false;
-          }
-        });
-
 
         var a = Button.create({id: 123, label: 'peanut butter', for_swap: true});
         var b = Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
@@ -971,75 +998,12 @@ describe('editManager', function() {
 
       it("should add the button a cloned version of the board if the user has only view permissions", function() {
         editManager.setup(board);
-        LingoLinq.store.push({data: {type: 'board', id: 'a/b', attributes: {
-          id: 'a/b',
-          key: 'a/b',
-          name: 'Yellow Board',
-          grid: { order: [[null]] },
-          permissions: {view: true}
-        }}});
         var matched = false;
-        var fake_board = EmberObject.create();
-        var res = {board: {
-          id: 'a/b',
-          key: 'a/b',
-          name: 'Yellow Board',
-          grid: {
-            order: [[null]]
-          },
-          permissions: {view: true}
-        }};
-        var res2 = {board: {
-          id: 'c/d',
-          key: 'c/d',
-          name: 'Yellow Board (The Sequel)',
-          grid: {
-            order: [[null]]
-          },
-          permissions: {view: true}
-        }};
-        var message = null;
-        stub(modal, 'success', function(text) {
-          message = text;
+        prepareMoveTargetBoard('a/b', {
+          permissions: {view: true},
+          cloneId: 'c/d',
+          onSave: function() { matched = true; }
         });
-        queryLog.defineFixture({
-          method: 'GET',
-          type: 'board',
-          id: 'a/b',
-          response: RSVP.resolve(res)
-        });
-        queryLog.defineFixture({
-          method: 'POST',
-          type: 'board',
-          response: RSVP.resolve(res2),
-          compare: function(object) {
-            var grid = object.get('grid');
-            var buttons = object.get('buttons');
-            if(buttons === undefined && object.get('parent_board_id') === 'a/b') {
-              if(grid && grid.order && grid.order[0] && grid.order[0][0] === null) {
-                return true;
-              }
-            }
-            return false;
-          }
-        });
-        queryLog.defineFixture({
-          method: 'PUT',
-          type: 'board',
-          response: RSVP.resolve(res2),
-          compare: function(object) {
-            var grid = object.get('grid');
-            var buttons = object.get('buttons');
-            if(buttons.length === 1 && buttons[0].id == 123) {
-              if(grid && grid.order && grid.order[0] && grid.order[0][0] == 123) {
-                matched = true;
-                return true;
-              }
-            }
-            return false;
-          }
-        });
-
 
         var a = Button.create({id: 123, label: 'peanut butter', for_swap: true});
         var b = Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
