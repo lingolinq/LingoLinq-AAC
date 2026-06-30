@@ -10,6 +10,12 @@ APP_PATH = File.expand_path('../config/application', __dir__)
 INIT_ARGS    = ARGV.dup.freeze
 ARGV_COMMAND = ARGV.first
 require_relative '../lib/audit/console_guard'
+# Capture the ambient production status NOW, before railties can overwrite
+# ENV['RAILS_ENV'] from a -e/--environment flag (require_application!). The
+# runtime fail-closed audit check (Audit::SessionLogger) reads this so it still
+# knows the deployment is production when a session is *named* development but
+# DATABASE_URL/the discrete params still target the production database.
+AUDIT_AMBIENT_PRODUCTION = Audit::ConsoleGuard.ambient_production?(ENV)
 begin
   Audit::ConsoleGuard.enforce_pre_boot!(ARGV_COMMAND, INIT_ARGS, ENV)
 rescue Audit::ConsoleGuard::Error => e

@@ -358,6 +358,16 @@ describe Audit::SessionLogger do
         expect(Audit::SessionLogger).to receive(:warn)
         expect { Audit::SessionLogger.record!('console', 'scot', %w[console]) }.not_to raise_error
       end
+
+      it 'fails closed via the ambient-production capture even when Rails.env=development (-e dodge)' do
+        # On a prod box, `console -e development` makes Rails.env development while
+        # DATABASE_URL still targets prod. The pre-boot capture must keep the
+        # audit-write failure fail-closed. Exercises the real production_runtime?.
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+        stub_const('AUDIT_AMBIENT_PRODUCTION', true)
+        expect { Audit::SessionLogger.record!('console', 'scot', %w[console]) }
+          .to raise_error(StandardError, 'db down')
+      end
     end
 
     context 'end-to-end row creation' do

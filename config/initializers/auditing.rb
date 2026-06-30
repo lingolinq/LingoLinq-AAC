@@ -14,28 +14,34 @@
 # Audit::SessionLogger is loaded wherever these hooks execute.
 require_relative '../../lib/audit/console_guard'
 
-unless ENV['SKIP_VALIDATIONS']
-  if Audit::ConsoleGuard.key_present?(ENV)
-    PaperTrail.request.whodunnit = "admin:#{ENV['USER_KEY']}"
-  end
-
-  init_args = defined?(INIT_ARGS) ? INIT_ARGS : []
-
-  # Reline-safe session-open auditing. The console hook fires before the IRB
-  # REPL starts; the runner hook before the runner payload runs. Each hook first
-  # runs the authoritative, parser-free production refusal (Rails.env is fully
-  # resolved by now, so it catches any -e/--environment form the pre-boot parser
-  # might miss), then records the session-open AuditEvent. In production a
-  # fail-closed audit write also aborts the session before any work happens.
-  open_audited_session = lambda do |kind|
-    begin
-      Audit::ConsoleGuard.enforce_runtime!(kind, ENV)
-    rescue Audit::ConsoleGuard::Error => e
-      abort("refused: #{e.message}")
-    end
-    Audit::SessionLogger.record!(kind, ENV['USER_KEY'], init_args)
-  end
-
-  Rails.application.console { open_audited_session.call('console') }
-  Rails.application.runner  { open_audited_session.call('runner') }
+# Deliberately NOT wrapped in `unless ENV['SKIP_VALIDATIONS']` (unlike the other
+# initializers): the audited-console control must not be disablable by an env
+# var. Otherwise an operator could run `SKIP_VALIDATIONS=true bin/rails console`
+# -- which the pre-boot guard still allows when keyed -- and get a session with
+# no AuditEvent, no PaperTrail attribution, and no runtime refusal. These hooks
+# fire only when a console/runner actually starts, so registering them
+# unconditionally is harmless during SKIP_VALIDATIONS rake tasks (Rakefile sets
+# it), which never open a console or runner.
+if Audit::ConsoleGuard.key_present?(ENV)
+  PaperTrail.request.whodunnit = "admin:#{ENV['USER_KEY']}"
 end
+
+init_args = defined?(INIT_ARGS) ? INIT_ARGS : []
+
+# Reline-safe session-open auditing. The console hook fires before the IRB REPL
+# starts; the runner hook before the runner payload runs. Each hook first runs
+# the authoritative, parser-free production refusal (Rails.env is fully resolved
+# by now, so it catches any -e/--environment form the pre-boot parser might
+# miss), then records the session-open AuditEvent. In production a fail-closed
+# audit write also aborts the session before any work happens.
+open_audited_session = lambda do |kind|
+  begin
+    Audit::ConsoleGuard.enforce_runtime!(kind, ENV)
+  rescue Audit::ConsoleGuard::Error => e
+    abort("refused: #{e.message}")
+  end
+  Audit::SessionLogger.record!(kind, ENV['USER_KEY'], init_args)
+end
+
+Rails.application.console { open_audited_session.call('console') }
+Rails.application.runner  { open_audited_session.call('runner') }

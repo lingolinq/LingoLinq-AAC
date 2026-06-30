@@ -276,7 +276,13 @@ module Audit
       nil
     end
 
+    # Fail-closed when the deployment is production. Honors the ambient-production
+    # status captured at pre-boot (bin/rails) so a session NAMED development on a
+    # prod box -- where Rails.env is now 'development' but DATABASE_URL still
+    # targets prod -- still fails closed if the audit write cannot be recorded.
     def production_runtime?
+      return true if defined?(::AUDIT_AMBIENT_PRODUCTION) && ::AUDIT_AMBIENT_PRODUCTION
+
       defined?(Rails) && Rails.respond_to?(:env) && Rails.env.production?
     end
   end
