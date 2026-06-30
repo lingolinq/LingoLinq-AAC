@@ -222,6 +222,22 @@ var evaluation = {
       return { showStart: false, showSkip: false };
     }
   },
+  /** Current intro step's prompt text (for the modern bespoke intro screen),
+      or null when the current step isn't an intro. Mirrors the visibility
+      guard above so the screen shows exactly when on-board Start would. */
+  current_intro: function() {
+    try {
+      if(typeof levels === 'undefined' || !levels || !levels.length) { return null; }
+      if(!working || working.level === undefined || working.level === null) { return null; }
+      var level = levels[working.level];
+      if(!level) { return null; }
+      var step = level[working.step];
+      if(!step || !step.intro || step.intro === 'done') { return null; }
+      return { intro: step.intro, text: evaluation.level_prompt(step) };
+    } catch(e) {
+      return null;
+    }
+  },
   intro_header_start: function() {
     if(!evaluation.appState.get('speak_mode')) {
       evaluation.modal.notice(evaluation.i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
@@ -232,7 +248,12 @@ var evaluation = {
     if(!level) { return; }
     var step = level[working.step];
     if(!step || !step.intro || step.intro === 'done') { return; }
-    if(step.intro == 'find_target') {
+    if(step.intro == 'find_target' || step.intro == 'intro') {
+      // The welcome intro ('intro') now combines the old welcome + intro2 +
+      // find_target messages into one screen, so Starting from it jumps
+      // straight to the first find assessment step (find-4) — same target
+      // the find_target intro used. (intro2 / find_target intros are folded
+      // into the combined checklist and no longer shown as separate steps.)
       var start_step = level.find(function(s) { return s.id == "find-4"; });
       if(start_step) {
         working.step = level.indexOf(start_step);

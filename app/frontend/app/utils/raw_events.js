@@ -489,6 +489,14 @@ var buttonTracker = EmberObject.extend({
         return;
       }
 
+      // allow the bespoke eval intro screen's buttons (Start / Settings) to
+      // propagate so their Ember actions run. They sit inside the board's
+      // .advanced_selection region but are standard UI buttons, not AAC
+      // selection targets — same pattern as the sidebar / pin exceptions above.
+      if($(event.target).closest('.md-eval-intro').length > 0) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       // if no recent mouseup or touchend, then we can assume

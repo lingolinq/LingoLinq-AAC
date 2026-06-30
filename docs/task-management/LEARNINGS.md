@@ -5729,3 +5729,33 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
 `md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+
+## Gotcha: the Eval tool renders through the CLASSIC board renderer — re-skin, don't re-route
+
+The Eval pages (`/obf/eval-start`, `/obf/eval-N-N`) are boards owned by the system user `obf`.
+`routes/board.js` deliberately excludes `^obf/` from the modern board-detail redirect, so eval
+boards ALWAYS render through `templates/board/index.hbs` (classic), never board-detail. The eval
+flow handlers (`button_settings`, `assessment_settings`, `#board_bg` z-index layering, the eval
+header nav) are wired to that classic structure — so the established pattern is to RE-SKIN the
+classic markup, NOT switch renderers (see the `app.scss` "Modern Eval Header" comment ~88932 and
+the `.board.eval_mode` z-index block ~7858).
+
+Scoping hooks (both eval-only, safe to style without touching normal boards):
+- **Header:** `app_state.eval_mode` adds `.md-eval-header` on `<span id="speak">` (application.hbs).
+- **Body:** `display_class` (`controllers/board/index.js:1212`) adds `eval_mode` to the `.board`
+  container only when `app_state.eval_mode` → scope body styling under **`.board.eval_mode`**.
+- Body DOM is classic: `#board_bg` + `.button_row` > `<a class="button">` with `.symbol` + `.button-label`.
+- The button's inline `computed_style` (`utils/button.js:940`) sets position/size + `outline-color`
+  /`--btn-ring-color` ONLY — never the face bg/border/radius — so the card face is pure CSS and a
+  white-glass re-skin works with `!important` to beat base `.button`/`.colored_icons` rules.
+  (2026-06-29: added the "Modern Eval Board Body" block — soft gradient surface + white glass button
+  cards + navy labels — scoped to `.board.eval_mode`, companion to the existing Modern Eval Header.)
+
+- Org access is role-tiered (organization.rb:42-48): manager→view/edit/manage, assistant→view/edit,
+  **supervisor→view ONLY**, communicator→none. EVERY org-management endpoint (managers/users/
+  supervisors/units/stats/admin_reports/settings) gates on `allowed?(@org,'edit')`, so a supervisor
+  loading any of them gets 400 "Not authorized" — not a bug, a permission tier. A supervisor's org
+  link is sponsored-membership (add_supervisor + premium licenses), not admin; their work is the
+  Caseload. UI rule: gate org-management nav links + the home "My Organizations" card behind
+  `permissions.edit` / a manager-type org, and skip edit-gated controller fetches for view-only users
+  — never surface a link to a page whose API the user's role can't call. (2026-06-29)

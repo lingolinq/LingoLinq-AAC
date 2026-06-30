@@ -3,28 +3,21 @@
     <form class="md-stats-filter__form form-inline" style={{this.inner_elem_style}}>
       {{#unless this.side_by_side}}
         <div class="md-stats-filter__period-bar">
-          <div class="md-stats-filter__row md-stats-filter__row--period-actions md-stats-filter__row--stacked">
-            <div class="md-stats-filter__period-stack">
-              <div class="md-stats-filter__period-head">
-                <span id="report-period-filter-label" class="md-stats-filter__period-title">{{t "Report period" key="report_period"}}</span>
-                <div class="form-group md-stats-filter__period-wrap">
-                  {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side labelId="report-period-filter-label"}}
-                </div>
-              </div>
-              {{#if this.usage_stats.custom_filter}}
-                {{#unless this.customFilterPendingApply}}
-                  <hr class="md-stats-filter__period-divider" aria-hidden="true">
-                  <div class="md-stats-filter__period-below">
-                    <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
-                  </div>
-                {{/unless}}
-              {{else}}
-                <hr class="md-stats-filter__period-divider" aria-hidden="true">
-                <div class="md-stats-filter__period-below">
-                  <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
-                </div>
-              {{/if}}
+          <div class="md-stats-section-head md-stats-filter__period-head">
+            <span id="report-period-filter-label" class="md-stats-section-head__label">{{t "Report period" key="report_period"}}</span>
+            <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+          </div>
+          <div class="md-stats-filter__period-controls">
+            <div class="form-group md-stats-filter__period-wrap">
+              {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side labelId="report-period-filter-label"}}
             </div>
+            {{#if this.usage_stats.custom_filter}}
+              {{#unless this.customFilterPendingApply}}
+                <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare"><span class="md-stats-filter__compare-plus" aria-hidden="true">+</span>{{t "Compare period" key="compare_period"}}</button>
+              {{/unless}}
+            {{else}}
+              <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare"><span class="md-stats-filter__compare-plus" aria-hidden="true">+</span>{{t "Compare period" key="compare_period"}}</button>
+            {{/if}}
           </div>
         </div>
       {{else}}

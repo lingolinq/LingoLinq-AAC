@@ -8844,15 +8844,32 @@ body > .popover.bottom {
 /* Board routes: #within_ember uses overflow:hidden; padding-top + board height can exceed the visible
    viewport (e.g. DevTools docked, speak bar wrapping). Cap #content to the dynamic viewport and scroll
    so the bottom of the grid is reachable without clipping.
-   Omit the global +3rem on #content — that extra ~48px is legacy breathing room; --topbar-height plus
-   --speak-bar-extra already offset the fixed header + wrapped speak bar (see board/index ResizeObserver). */
+   Reserve EXACTLY the measured fixed-header height (`--speak-header-height`,
+   published by board/index.js `_updateFromSpeakBarResize`), not the static
+   `--topbar-height + --speak-bar-extra` baseline. The static 129px baseline
+   over-reserves whenever the real header is shorter than 129px — e.g. the eval
+   speak bar (~80px) — leaving a dead strip above the content. This mirrors the
+   board-alt rule (~l.8885) which was already switched to the measured value;
+   `computeHeight` subtracts the SAME measured value, so padding and grid height
+   stay consistent. The calc fallback keeps the prior behavior until the first
+   measurement lands. */
 #within_ember.board-view #content {
-  padding-top: calc(var(--topbar-height) + var(--speak-bar-extra, 0px));
+  padding-top: var(--speak-header-height, calc(var(--topbar-height) + var(--speak-bar-extra, 0px)));
   overflow-x: hidden;
   overflow-y: auto;
   max-height: 100vh;
   max-height: 100dvh;
   box-sizing: border-box;
+}
+/* Eval WELCOME intro only: it shows the home AppNavbar (70px, via
+   --topbar-height) instead of the taller eval speak bar, but the measured
+   --speak-header-height above still reflects the speak bar and over-reserves.
+   Reserve the navbar height here instead. Scoped to board-view + the
+   app-navbar header (header-index-with-dark-toggle) + an eval intro board, so
+   only the welcome matches — section intros keep the speak bar and the rule
+   above. Once Start swaps back to the speak bar this stops matching. */
+#within_ember.board-view:has(> header.header-index-with-dark-toggle):has(.board.eval_intro) #content {
+  padding-top: var(--topbar-height, 70px) !important;
 }
 #within_ember.board-alt-view #content {
   padding-top: calc(58px + var(--speak-bar-extra, 0px));
@@ -30774,6 +30791,77 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
+/* Reports subheader username — navy, not the blue-green gradient (which read
+   as a link). Solid brand navy so it's clearly a label, not clickable. */
+.md-hero__sub-user {
+  font-style: normal;
+  font-weight: 700;
+  color: $la-navy;
+}
+/* Small centered divider between the report title and the Joined/Last-active
+   subheader — a short brand-gradient rule for a gentle separation. */
+.md-hero--reports-dashboard .md-hero__divider {
+  display: block;
+  width: 84px;
+  height: 2px;
+  margin: 11px auto 12px;
+  border-radius: 2px;
+  /* Faded on both ends → solid brand color in the middle. */
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba($brand-verdigris, 0.55) 35%,
+    rgba($brand-dusty-denim, 0.55) 65%,
+    transparent 100%);
+}
+/* Reports subheader now carries the Joined / Last active meta (the title is
+   the "Communication activity for…" line). Inline items at the sub's own
+   size — each a calendar icon / verdigris status dot + label + bold value. */
+/* Compound `.md-hero__sub.md-hero__sub--meta` (0,4,0) beats the base
+   `.md-hero--dashboard .md-hero__sub .md-hero__sub--from-right` rule
+   (inline-block, 0,3,0) so the row actually becomes a flex row — without
+   this the items baseline-align (calendar 16px vs dot 9px) and look
+   vertically offset. align-items:center lines both items up on their
+   vertical centers. The animation/opacity from the base rule still applies
+   (only `display` is overridden here). */
+.md-hero--reports-dashboard .md-hero__sub.md-hero__sub--meta .md-hero__sub--from-right {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+.md-hero-meta__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  /* Uniform size for both items (label + value), independent of the hero
+     sub's responsive sizing, so "Joined…" and "Last active…" always match. */
+  font-size: clamp(15px, 1.4vw, 18px);
+  color: var(--md-muted, rgba($la-navy, 0.6));
+}
+/* Clear gap between the two meta items. */
+.md-hero-meta__item + .md-hero-meta__item {
+  margin-left: 30px;
+}
+.md-hero-meta__item strong {
+  font-size: inherit;
+  color: $la-navy;
+  font-weight: 700;
+}
+.md-hero-meta__icon {
+  flex-shrink: 0;
+}
+.md-hero-meta__dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  /* Extra breathing room after the status dot (on top of the item's 7px
+     gap) so it doesn't crowd "Last active". The 3px halo also eats into
+     the visual gap, so compensate. */
+  margin-right: 6px;
+  border-radius: 50%;
+  background: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.18);
+}
 
 .la-hero-highlight {
   background: $la-highlight-gradient;
@@ -41802,6 +41890,10 @@ a.la-footer-bottom-a11y-wcag {
   overflow: visible !important;
 
 }
+/* The contained dashboard surface lives on `.md-stats-page` (the report
+   content wrapper), NOT on the whole workspace — so the pillnav and
+   hero/subheader sit ABOVE the panel on the plain page background. See the
+   `.md-workspace .md-stats-page` rule (~l.42323). */
 .md-workspace--boards-full {
   min-width: 0 !important;
 
@@ -42198,11 +42290,62 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: 16px !important;
 
 }
+/* User metadata line (Joined / Last active). Deliberately NOT a pill or
+   contained card — the previous rounded-pill treatment mimicked the
+   md-pillnav above it and read as a clickable menu. Modern profile-meta
+   pattern instead: a quiet, flat inline row with leading icons + muted
+   labels, clearly informational. The chips are flattened (transparent, no
+   border/shadow, no segment dividers) so nothing reads as interactive. */
 .md-user-meta--before-hero {
-  margin-top: 0 !important;
+  margin: 0 auto 18px !important;
 
-  margin-bottom: 12px !important;
+  gap: 28px !important;
 
+}
+.md-user-meta--before-hero .md-user-meta__chip {
+  align-items: center !important;
+
+  gap: 7px !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  box-shadow: none !important;
+
+  -webkit-backdrop-filter: none !important;
+
+  backdrop-filter: none !important;
+
+}
+.md-user-meta--before-hero .md-user-meta__label {
+  color: var(--md-muted, rgba($la-navy, 0.55)) !important;
+
+  font-weight: 600 !important;
+
+}
+.md-user-meta--before-hero .md-user-meta__value {
+  color: $la-navy !important;
+
+  font-weight: 700 !important;
+
+}
+/* Calendar glyph before "Joined" — muted, sits inline with the text. */
+.md-user-meta__icon {
+  flex-shrink: 0;
+  color: rgba($la-navy, 0.45);
+}
+/* Status dot before "Last active" — a small verdigris activity indicator
+   with a soft halo (the recognized "active/recent" cue), not a button. */
+.md-user-meta__dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.18);
 }
 .md-user-meta__chip {
   display: inline-flex !important;
@@ -42303,8 +42446,39 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 /* Stats page inside md-workspace (same container as home/boards): use shell bg, no duplicate gradient */
+/* Contained dashboard surface for the report content wrapper (not the whole
+   workspace) — so the pillnav + hero/subheader stay on the plain page
+   background above it. Personality via a near-imperceptible top-down white
+   gradient (#FFFFFF → #FBFCFE) rather than flat white. NO backdrop-filter /
+   transform: an opaque gradient avoids the containing-block trap entirely
+   (keeps any fixed descendants safe) and reads crisper than the frosted
+   glass here. */
 .md-workspace .md-stats-page {
-  background: transparent !important;
+  /* Translucent frosted panel (more transparent than the earlier opaque
+     gradient) so the page background reads through — keeps the subtle
+     top-down white tint but at ~0.62 alpha + a backdrop blur for the glass
+     read. Scoped to `.md-stats-page` so it's the stats page ONLY. Safe to
+     blur here: the stats date-filter is native selects (no fixed dropdowns)
+     and this panel holds no fixed overlay. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(251, 252, 254, 0.34) 100%) !important;
+
+  -webkit-backdrop-filter: blur(22px) saturate(1.35) !important;
+
+  backdrop-filter: blur(22px) saturate(1.35) !important;
+
+  will-change: transform !important;
+
+  transform: translateZ(0) !important;
+
+  border: 1px solid rgba($la-navy, 0.10) !important;
+
+  border-radius: 32px !important;
+
+  box-shadow:
+    0 6px 40px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+
+  padding: clamp(18px, 2.4vw, 30px) !important;
 
   min-height: auto !important;
 
@@ -43407,7 +43581,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 12px;
 }
 .md-grid .md-card.md-card--rooms .md-room-card,
-.md-grid .md-card.md-card--org-management .md-room-card {
+.md-grid .md-card.md-card--org-management .md-room-card,
+.md-shell--org-directory .md-room-card {
   display: flex;
   align-items: center;
   /* Let the tile shrink within its grid track so the name/desc inside truncate
@@ -43422,7 +43597,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      + denim glow). */
   background:
     radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
-    linear-gradient(140deg, #ffffff 0%, #eef3fc 52%, #dbe7f8 100%);
+    linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
   border: 1px solid rgba(76, 134, 216, 0.20);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
@@ -43439,7 +43614,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-grid .md-card.md-card--rooms .md-room-card:hover,
 .md-grid .md-card.md-card--rooms .md-room-card:focus-visible,
 .md-grid .md-card.md-card--org-management .md-room-card:hover,
-.md-grid .md-card.md-card--org-management .md-room-card:focus-visible {
+.md-grid .md-card.md-card--org-management .md-room-card:focus-visible,
+.md-shell--org-directory .md-room-card:hover,
+.md-shell--org-directory .md-room-card:focus-visible {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -1px 0 rgba($la-navy, 0.07),
@@ -43475,10 +43652,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: url(../images/organization.png) center / contain no-repeat !important;
   filter: saturate(1.25) brightness(1.05) !important;
 }
-/* Organizations are fewer than rooms, so each org tile spans the full card width
-   (single column) rather than the Rooms grid's multi-column auto-fill. */
+/* Organizations stack as full-width tiles on smaller screens; on a full-size
+   (desktop) screen they split into two columns. (The Rooms grid uses a denser
+   auto-fill; orgs carry more text per tile so two fixed columns read cleaner.) */
 .md-card--org-management .md-rooms__grid {
   grid-template-columns: 1fr;
+}
+@media (min-width: 1025px) {
+  .md-card--org-management .md-rooms__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  /* A lone organization spans both columns instead of sitting half-width with an
+     empty column beside it. */
+  .md-card--org-management .md-rooms__grid .md-room-card:only-child {
+    grid-column: 1 / -1;
+  }
 }
 /* Org tile is two lines: the org name above an info line (role · N rooms · plan),
    stacked in a flex column beside the icon so the tile reads fuller. */
@@ -43506,6 +43694,74 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* The image IS the per-room icon now — hide the inline door SVG it wraps. */
 .md-room-card__icon > svg {
   display: none;
+}
+/* Organizations directory page: keep the inline org SVG icon (the dashboard
+   room-card variant uses a background image + hides the SVG). Show the SVG in
+   a denim medallion so the org tiles read like the room tiles but keep their
+   own building icon. */
+.md-shell--org-directory .md-room-card__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgba(255, 255, 255, 0.9), transparent 60%),
+    linear-gradient(160deg, rgba($brand-dusty-denim, 0.18), rgba($brand-dusty-denim, 0.08));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: $brand-dusty-denim;
+  filter: none;
+}
+.md-shell--org-directory .md-room-card__icon > svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+/* Multi-column org tiles on the directory page (the dashboard forces orgs to
+   a single column; here there can be many, so let them pack like the rooms
+   grid). */
+.md-shell--org-directory .md-org-card__desc {
+  text-transform: capitalize;
+}
+/* Org tiles read as actionable "open this org" rows. A stronger border than the
+   shared room-card (0.20) signals clickability; the shared surface rule provides
+   the rest of the chrome so this only overrides the border colour. */
+.md-shell--org-directory .md-room-card {
+  border-color: rgba(76, 134, 216, 0.40);
+}
+/* Right "go" arrow — the same → glyph the home-page buttons use. `margin-left:
+   auto` pins it to the right edge in every host (room/org tiles where a flex:1
+   column already fills the row, and the attention items where the text doesn't
+   grow). Shared by the home Rooms + My Organizations tiles, the org-directory
+   tiles, and the Communicators-Need-Attention items. */
+.md-room-card__arrow {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 700;
+  color: $brand-dusty-denim;
+  transition: transform 0.15s ease;
+}
+/* Arrow nudges right on hover/focus to reinforce "this opens". */
+.md-room-card:hover .md-room-card__arrow,
+.md-room-card:focus-visible .md-room-card__arrow,
+.md-attention-item:hover .md-room-card__arrow,
+.md-attention-item:focus-visible .md-room-card__arrow {
+  transform: translateX(3px);
+}
+/* Clearer focus ring — overrides the shared hover/focus rule's `outline: none`
+   (this rule is later + focus-visible-specific). */
+.md-shell--org-directory .md-room-card:focus-visible {
+  outline: 2px solid rgba(76, 134, 216, 0.55);
+  outline-offset: 2px;
+}
+/* Pressed state — the card sinks instead of lifting, reading as a real button. */
+.md-shell--org-directory .md-room-card:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 5px rgba(15, 23, 42, 0.13),
+    0 1px 2px rgba(15, 23, 42, 0.06);
 }
 .md-room-card__name {
   flex: 1 1 auto;
@@ -55977,7 +56233,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-stats-main {
   max-width: 1120px;
   margin: 5rem auto 0;
-  padding: 18px calc((16px + 2rem) * 2) 24px;
+  /* Top padding 18px → 8px and side padding tightened ~22% to compress the
+     overall vertical rhythm (the page read too airy between sections). */
+  padding: 8px calc((16px + 2rem) * 1.55) 24px;
   /* Reserve space above the fixed bottom navbar so content doesn't overflow into it */
   padding-bottom: calc((24px + var(--bottombar-height, 59px)) / 2);
 }
@@ -55988,7 +56246,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   max-width: fit-content;
   margin-left: auto;
   margin-right: auto;
-  padding: 2.5rem 2rem 0;
+  /* Top padding cut 2.5rem → 0.25rem: the hero title inside is
+     display:none on the reports view (the page title is the md-hero
+     above), so this card was an empty 40px spacer. Collapsing it removes
+     the biggest dead gap before the report content. */
+  padding: 0.25rem 2rem 0;
   text-align: center;
   background: transparent;
   border: none;
@@ -56047,10 +56309,29 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   }
 }
+/* Notice states (logging disabled / unauthorized / premium required) carry a
+   `.md-stats-text` and no data grid — center the message + action both
+   vertically and horizontally in the panel. `:has(.md-stats-text)` targets
+   only these states (the data view has no .md-stats-text). */
+.md-stats-main:has(.md-stats-text) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 48vh;
+  /* Even top/bottom padding so justify-content:center is truly centered — the
+     base bottom padding reserves ~83px for the bottom navbar (uneven vs the
+     8px top), which pushed the content up. The centered notice is short and
+     never reaches the bottom, so the reservation isn't needed here. */
+  padding-top: 32px !important;
+  padding-bottom: 32px !important;
+}
 .md-stats-text {
-  margin: 0 0 16px;
+  margin: 0 auto 16px;
   color: var(--md-muted);
   max-width: 56ch;
+  text-align: center;
 }
 .md-stats-actions {
   margin-top: 18px;
@@ -56058,12 +56339,67 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   flex-wrap: wrap;
   gap: 10px;
 }
-/* Summary panels → md-miniStat style (stats page) */
+/* Dashboard section headers — light "stopping points" that split the report
+   into Report Summary / Communication Usage / Vocabulary Analysis (single-
+   period view). A small uppercase label + a hairline rule filling the rest
+   of the row, so the page reads as distinct sections, not one long panel. */
+.md-stats-section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 32px 0 14px;
+}
+.md-stats-section-head--first {
+  margin-top: 6px;
+}
+.md-stats-section-head__label {
+  margin: 0;
+  flex-shrink: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* !important to beat the global `h2 { font-size: 25px !important }` (~l.2589)
+     — these section labels are <h2> headings. */
+  font-size: clamp(18px, 2.2vw, 22px) !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.6);
+}
+.md-stats-section-head__rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba($la-navy, 0.16), rgba($la-navy, 0.02));
+}
+/* Tiny scanability icon before a metric-card label (Sessions/Words/etc.). */
+.md-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -2px;
+  margin-right: 6px;
+  color: rgba($la-navy, 0.5);
+}
+.md-stats-summary-row--1 .panel.panel-default.summary .panel-heading .md-stat-icon {
+  color: $brand-verdigris-aa;
+}
+/* Summary panels → md-miniStat style (stats page). Stronger surface +
+   shadow than the washed-out 0.65 white so the metric cards read as
+   solid, elevated tiles (matches the home/board-detail card language). */
 .md-stats-page .panel.panel-default.summary {
   border-radius: 18px;
-  border: 1px solid var(--md-line);
-  background: rgba(255, 255, 255, 0.65);
-  box-shadow: none;
+  border: 1px solid rgba($la-navy, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba($la-navy, 0.07),
+    0 8px 20px rgba($la-navy, 0.08);
+}
+/* The metric VALUE — large, bold, navy — so it dominates the small muted
+   label above it (the hierarchy the cards were missing). */
+.md-stats-page .panel.panel-default.summary .panel-body {
+  font-size: clamp(30px, 3.4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: $la-navy;
+  padding: 14px 10px 16px;
 }
 .md-stats-page .panel.panel-default.summary .panel-heading {
   background: transparent;
@@ -56086,12 +56422,36 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 2px 4px -1px rgba($brand-blue-black, 0.06);
   background: linear-gradient(180deg, rgba($brand-blue-black, 0.06) 0%, rgba($brand-blue-black, 0.02) 100%);
 }
-/* Summary card header backgrounds: one per row type, slight tint + dimension */
+/* Summary card header backgrounds: one per row type, slight tint + dimension.
+   Visual hierarchy — the PRIMARY totals (row 1) read heavier than the rate
+   metrics (row 2): more-saturated header + deeper shadow + larger value;
+   row 2 is deliberately quieter. */
 .md-stats-summary-row--1 .panel.panel-default.summary .panel-heading {
-  background: linear-gradient(180deg, rgba(44, 183, 176, 0.18) 0%, rgba(44, 183, 176, 0.1) 100%);
+  background: linear-gradient(180deg, rgba(44, 183, 176, 0.26) 0%, rgba(44, 183, 176, 0.14) 100%);
 }
 .md-stats-summary-row--2 .panel.panel-default.summary .panel-heading {
-  background: linear-gradient(180deg, rgba(91, 141, 239, 0.18) 0%, rgba(91, 141, 239, 0.1) 100%);
+  background: linear-gradient(180deg, rgba(91, 141, 239, 0.12) 0%, rgba(91, 141, 239, 0.06) 100%);
+}
+/* Row 1 (primary): deeper shadow + slightly larger value. */
+.md-stats-summary-row--1 .panel.panel-default.summary {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 3px 8px rgba($la-navy, 0.10),
+    0 14px 30px rgba($la-navy, 0.13) !important;
+}
+.md-stats-summary-row--1 .panel.panel-default.summary .panel-body {
+  font-size: clamp(32px, 3.7vw, 46px);
+}
+/* Row 2 (rates): quieter surface, flatter shadow, smaller muted value. */
+.md-stats-summary-row--2 .panel.panel-default.summary {
+  background: rgba(255, 255, 255, 0.72) !important;
+  box-shadow:
+    0 1px 3px rgba($la-navy, 0.05),
+    0 4px 12px rgba($la-navy, 0.05) !important;
+}
+.md-stats-summary-row--2 .panel.panel-default.summary .panel-body {
+  font-size: clamp(24px, 2.7vw, 34px);
+  color: rgba($la-navy, 0.74);
 }
 /* Compare view row tints: need .md-stats-page so they override base .panel-heading { background: transparent } */
 .md-stats-page .md-stats-compare-group .md-stats-compare-group__row:nth-child(1) .panel-heading {
@@ -56307,24 +56667,136 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin-bottom: 0;
 }
 
-/* Report period + compare: grouped bar, centered, shrink-to-fit; content vertically centered in bar */
-/* Report period: compact inline toolbar */
+/* Report period: ungrouped (no toolbar card). A "Report period" section-head
+   label + short fading divider sits ABOVE the controls row (period select +
+   "+ Compare period"). */
 .md-stats-filter__period-bar {
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+/* "Report period" reuses the dashboard section-head look (uppercase label +
+   fading rule), but SHORTER than the full-width REPORT SUMMARY divider, and
+   without the section head's large vertical margin. The head hugs its content,
+   so the rule gets a FIXED short width (the section-head's `flex: 1 1 auto`
+   would otherwise collapse to 0 here — no remaining space to fill). */
+.md-stats-filter__period-head {
   width: auto;
   max-width: 100%;
-  padding: 8px 16px;
-  border-radius: 999px;
-  margin-left: auto;
-  margin-right: auto;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba($brand-charcoal-blue, 0.1);
-  box-shadow: 0 1px 3px rgba($brand-charcoal-dark, 0.04);
-  box-sizing: border-box;
+  margin: 0 !important;
+}
+.md-stats-filter__period-head .md-stats-section-head__rule {
+  flex: 0 0 auto;
+  width: 200px;
+  max-width: 46vw;
+  height: 3px;
+  border-radius: 3px;
+}
+/* The REPORT PERIOD filter label is smaller than the page section headers
+   (it's a control label, not a top-level section). !important to beat the
+   `.md-stats-section-head__label` clamp above. */
+.md-stats-filter__period-head .md-stats-section-head__label {
+  font-size: 15px !important;
+}
+/* Controls row — the period select + compare button, side by side. */
+.md-stats-filter__period-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  width: 100%;
+}
+/* Compare button — sits next to the period select in the controls row.
+   Height matched to the select so the two line up. */
+.md-stats-filter__period-bar .md-stats-filter__compare {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Match the boards-page "New Board" CTA (.ub-boards-page__new-board-btn ~l.60554):
+     subtle 135deg verdigris→denim translucent gradient, white hairline border,
+     pill, dark ink, layered shadow. */
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 999px !important;
+  color: var(--md-ink) !important;
+  font-weight: 600 !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba($la-navy, 0.12),
+    0 6px 14px rgba($la-navy, 0.22) !important;
+}
+.md-stats-filter__period-bar .md-stats-filter__compare:hover,
+.md-stats-filter__period-bar .md-stats-filter__compare:focus-visible {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15)) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: var(--md-ink) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 2px 4px rgba($la-navy, 0.14),
+    0 10px 22px rgba($la-navy, 0.28) !important;
+}
+.md-stats-filter__period-bar .md-stats-period-select__trigger {
+  height: 42px;
+  min-height: 42px;
+  /* Raised "lift" — layered soft shadow + a subtle hover rise. */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 2px 6px rgba($la-navy, 0.10),
+    0 6px 16px rgba($la-navy, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.md-stats-filter__period-bar .md-stats-period-select__trigger:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 3px 8px rgba($la-navy, 0.12),
+    0 12px 26px rgba($la-navy, 0.18);
+}
+/* The period-select component root is a <span class="md-stats-period-select">
+   (inline by default), so the inline-flex 42px trigger baseline-aligns inside
+   its line box and sits low. Make the root a flex container so the trigger is
+   vertically centered in it. */
+.md-stats-filter__period-bar .md-stats-period-select {
+  display: inline-flex;
+  align-items: center;
+}
+/* The select wrap is a `.form-group`, and `.md-stats-page .form-inline
+   .form-group { margin-bottom: 8px }` (0,3,0) beats the wrap's own margin:0 —
+   in the align-items:center toolbar that bottom margin shifts the select UP by
+   ~4px. Zero it so the select centers with the label and compare button. */
+.md-stats-filter__period-bar .md-stats-filter__period-wrap {
+  margin: 0 !important;
+}
+/* Mobile: stack the select + compare button full-width under the label. */
+@media (max-width: 600px) {
+  .md-stats-filter__period-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .md-stats-filter__period-controls .md-stats-filter__compare {
+    justify-content: center;
+  }
+}
+/* Secondary "+ Compare period" button + its leading plus. */
+.md-stats-filter__compare-plus {
+  font-weight: 800;
+  margin-right: 6px;
+  font-size: 1.05em;
+  line-height: 1;
 }
 .md-stats-filter__row--period-actions {
   display: flex;
@@ -56664,7 +57136,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  min-height: 9rem;
+  /* 9rem → 4rem: the filter was vertically centered in a 144px-tall block,
+     which was the bulk of the "lots of space" gap before the cards. */
+  min-height: 4rem;
 }
 .md-stats-page .md-stats-compare-filter-group:not(.md-stats-compare-filter-group--active) > .row:first-of-type > .md-stats-filter {
   float: none;
@@ -57168,7 +57642,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
 
   .md-hero__title {
-    margin-top: $aac-spacing-40 !important;
+    /* Tightened from 40px → 16px so the report data sits closer to the
+       nav/title and the user reaches it faster (was a large dead gap). */
+    margin-top: $aac-spacing-16 !important;
 
   }
 
@@ -68705,6 +69181,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    (verdigris pill, two-row column layout) so the two informational chips
    read as a coordinated set when both are present. */
 .md-board-detail-header__editing-badge {
+  /* Centered on the page: absolutely centered within the position:relative
+     edit title-row (.md-board-detail-header__title-row--edit) so it sits in
+     the middle of the content area instead of hugging the right edge of its
+     __title-row-right container. */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
   flex-shrink: 0;
   display: inline-flex;
   flex-direction: column;
@@ -68734,7 +69218,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   line-height: 1.1;
   width: 100%;
   text-align: center;
-  color: #fff;
+  /* Inherit the badge's own color (dark verdigris in light mode, lightened
+     verdigris in dark mode) instead of a hardcoded #fff — white was invisible
+     on the light (0.10-alpha) pill background in light mode. */
+  color: inherit;
   opacity: 1;
 }
 .md-board-detail--dark .md-board-detail-header__editing-badge {
@@ -76988,7 +77475,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   left: -2px;
   right: -2px;
   bottom: -3px;
-  background: $brand-charcoal-blue;
+  // 30% lighter than the base charcoal-blue in light mode so the
+  // folder body reads softer (default + Show-Labels-on-Tab modes;
+  // colored-corner hides the back, dark mode overrides below).
+  // Tab tracks this same value so the two stay visually paired.
+  background: color.adjust($brand-charcoal-blue, $lightness: 30%);
   border-radius: 14px 14px 20px 20px;
   z-index: 0;
   pointer-events: none;
@@ -77049,7 +77540,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   // 6px → 6.6px (+10%) — bumped across every tab size variant
   // so all modes get the taller tab proportionally.
   height: 6.6px;
-  background: $brand-charcoal-blue;
+  // Tracks .md-folder-back's light-mode value (+30% lightness) so the
+  // tab and back read as one continuous shape; dark mode overrides below.
+  background: color.adjust($brand-charcoal-blue, $lightness: 30%);
   border-radius: 5px 5px 0 0;
   pointer-events: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
@@ -85015,10 +85508,6 @@ a.md-caseload__action {
    8px 12px which shrinks the Home / My Caseload pills below the
    visual weight the caseload page expects. Higher specificity
    (.md-shell--caseload chained) overrides the breakpoint rules. */
-.md-shell--caseload .md-pillnav__pill,
-.md-shell--caseload a.md-pillnav__pill {
-  padding: 14px 18px !important;
-}
 .md-shell--caseload .md-pillnav__pill.is-active:not(:first-child),
 .md-shell--caseload a.md-pillnav__pill.active:not(:first-child) {
   padding-left: 18px !important;
@@ -85244,7 +85733,7 @@ a.md-caseload__action {
 .md-org-directory__intro {
   margin: 0;
   color: var(--md-muted, $la-navy);
-  font-size: 1rem;
+  font-size: 15px;
   line-height: 1.45;
 }
 .md-org-section-title__sub {
@@ -86444,6 +86933,34 @@ a.md-caseload__action {
 }
 .md-org-room-summary__link:hover {
   text-decoration: underline;
+}
+/* View-only (supervisor) org landing — centered icon + message + caseload CTA. */
+.md-org-viewonly {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 48px 24px;
+}
+.md-org-viewonly__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: $brand-verdigris-aa;
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgba(255, 255, 255, 0.9), transparent 60%),
+    linear-gradient(160deg, rgba($brand-verdigris, 0.16), rgba($brand-verdigris, 0.07));
+}
+.md-org-viewonly__lead {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--md-muted, $la-navy);
 }
 .md-org-rooms-empty {
   text-align: center;
@@ -89129,7 +89646,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   z-index: 2;
 }
 #speak.md-eval-header #backspace_button {
-  right: 60px !important;
+  /* 60px -> 76px so there's a clear ~22px gap between backspace and the
+     trash/clear button (was only ~6px, which read as one merged control). */
+  right: 76px !important;
 }
 #speak.md-eval-header #clear_button {
   right: 16px !important;
@@ -89179,6 +89698,400 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 #speak.md-eval-header #speak_options,
 #speak.md-eval-header #speak_mode_notification {
   display: none !important;
+}
+
+/* ============================================================
+   Modern Eval Board Body
+   ============================================================
+   Companion to the Modern Eval Header above. Re-skins the BODY
+   of an eval board (the classic board/index renderer) to the
+   home / board-detail visual language WITHOUT switching renderers
+   — `routes/board.js` keeps `^obf/` on the classic route on
+   purpose, so the eval flow handlers stay intact. Scoped to
+   `.board.eval_mode` (added by `display_class` in
+   controllers/board/index.js only when `app_state.eval_mode`),
+   so NO normal classic board is touched. The buttons' inline
+   `computed_style` (button.js) sets position/size only, never
+   the face fill/border/radius, so the visual skin is pure CSS;
+   `!important` beats the base `.button` / `.colored_icons` rules
+   (same approach as the header block).
+   ============================================================ */
+
+/* Board surface — replace the flat classic grey with the same soft
+   three-stop brand wash the home/modal surfaces use (verdigris ->
+   denim -> violet at low alpha over a near-white base), so the eval
+   canvas reads as part of the modern app rather than a legacy board. */
+.board.eval_mode,
+.board.eval_mode #board_bg {
+  background:
+    linear-gradient(150deg,
+      rgba($brand-verdigris, 0.07) 0%,
+      rgba($brand-dusty-denim, 0.06) 45%,
+      rgba(123, 107, 173, 0.05) 100%),
+    linear-gradient(180deg, #ffffff 0%, #eef1f6 100%) !important;
+}
+
+/* Button cards — crisp white tiles that clearly lift off the surface:
+   generous radius, a hairline navy border for definition, and a
+   layered soft shadow (mirrors .md-board-detail-symbol-card). The
+   harsh classic border is dropped. */
+.board.eval_mode .button {
+  background: #fff !important;
+  border: 1px solid rgba($la-navy, 0.07) !important;
+  border-radius: clamp(12px, 1.6vw, 22px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 5px rgba($la-navy, 0.08),
+    0 10px 26px rgba($la-navy, 0.13) !important;
+  overflow: hidden;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+/* Hover / touch — clear lift + deeper shadow + verdigris-tinted edge,
+   the standard board-detail tile affordance. */
+.board.eval_mode .button:hover,
+.board.eval_mode .button.touched {
+  transform: translateY(-3px);
+  border-color: rgba($brand-verdigris, 0.45) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 3px 6px rgba($la-navy, 0.10),
+    0 16px 34px rgba($la-navy, 0.18) !important;
+}
+
+/* Keyboard focus — verdigris ring (matches the header eval buttons). */
+.board.eval_mode .button:focus-visible {
+  outline: 3px solid $brand-verdigris !important;
+  outline-offset: 2px;
+  border-color: rgba($brand-verdigris, 0.45) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 3px 6px rgba($la-navy, 0.10),
+    0 16px 34px rgba($la-navy, 0.18) !important;
+}
+
+/* Label holder — transparent so the white card face reads as one clean
+   surface (kills the legacy white "highlight box" look behind text). */
+.board.eval_mode .button .button-label-holder {
+  background: transparent !important;
+}
+
+/* Button label — navy, BOLD, modern sans (drops the legacy serif),
+   so text reads as modern UI copy rather than a flat classic caption.
+   Applies to the small corner labels (settings / next) and the big
+   text-only instruction button alike. */
+.board.eval_mode .button .button-label,
+.board.eval_mode .button .button-label span {
+  color: $la-navy !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.005em;
+}
+
+/* Text-only instruction tile (the "Welcome to the Eval Tool…" intro):
+   the holder carries `.no_image`, so promote that whole card to a
+   verdigris-tinted "hero callout" — a soft brand gradient face + inset
+   verdigris keyline — so the intro copy reads as a designed panel, not
+   a plain button. The person illustration behind it is the board
+   background and is unaffected. */
+.board.eval_mode .button:has(.button-label-holder.no_image) {
+  background:
+    linear-gradient(160deg, rgba($brand-verdigris, 0.10), rgba($brand-dusty-denim, 0.06)),
+    #ffffff !important;
+  border-color: rgba($brand-verdigris, 0.30) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba($brand-verdigris, 0.18),
+    0 4px 10px rgba($la-navy, 0.10),
+    0 16px 36px rgba($la-navy, 0.16) !important;
+}
+
+/* ============================================================
+   Modern Eval Intro Screen (bespoke)
+   ============================================================
+   For eval INTRO steps, controllers/board/index.js adds `eval_intro`
+   to the board container and renders the <eval-intro> component in
+   place of the legacy OBF grid. Hide every grid artifact so only the
+   modern panel shows; the component (CTA/Settings) reuses the existing
+   eval flow actions, so the eval logic is untouched. The intro board's
+   absolute height (board_style) no longer applies — the panel sizes
+   itself and centers in the available board area. */
+.board.eval_intro #board_bg,
+.board.eval_intro .button_row,
+.board.eval_intro #board_canvas,
+.board.eval_intro .board_status,
+.board.eval_intro #stash_hover {
+  display: none !important;
+}
+.board.eval_intro {
+  height: auto !important;
+  /* Fill the full viewport below the fixed header so the eval surface
+     extends to the bottom of the page (was capped at min(72vh,620px),
+     which left dead space below). #content reserves the measured header
+     via padding-top; subtract the same header height + the 1.5rem
+     `#content .board` top margin so the board bottom lands at the page
+     bottom with no scroll. */
+  min-height: calc(100dvh - var(--speak-header-height, 129px) - 1.5rem);
+  display: flex;
+  /* Top-align (not center) so the card sits right under the speak bar —
+     centering in the tall board area was what created the big gap below
+     the header. */
+  align-items: flex-start;
+  justify-content: center;
+}
+/* Welcome intro shows the home AppNavbar, where #content reserves
+   --topbar-height (NOT the measured speak-bar height). The board must
+   subtract the SAME value so the eval surface reaches the page bottom —
+   otherwise it's short by the navbar-vs-speakbar difference (the white strip
+   below the card). Scoped to the navbar header so section intros (speak bar)
+   keep the --speak-header-height calc above. Mirrors the #content welcome
+   padding rule (~l.8864). */
+#within_ember.board-view:has(> header.header-index-with-dark-toggle) .board.eval_intro {
+  min-height: calc(100dvh - var(--topbar-height, 70px) - 1.5rem) !important;
+}
+
+/* Intro page ONLY: the bespoke center screen already provides the primary
+   Start Evaluation + Eval Settings actions, so hide the redundant header
+   Home, Start, and Settings controls. Also hide the backspace button —
+   its delete.svg glyph (a ⌫ key with an × built in) reads as a stray "x"
+   next to the trash, and there's no composed sentence to backspace on the
+   intro. The trash/clear button stays. Scoped via :has(.board.eval_intro)
+   (the class lives on the board inside #content) so later eval steps —
+   which render as real boards and may compose a response — keep them all. */
+#within_ember.board-view:has(.board.eval_intro) #speak.md-eval-header .speak-header__home-marker,
+#within_ember.board-view:has(.board.eval_intro) #speak.md-eval-header #eval_intro_start,
+#within_ember.board-view:has(.board.eval_intro) #speak.md-eval-header #eval_open_settings,
+#within_ember.board-view:has(.board.eval_intro) #speak.md-eval-header #backspace_button {
+  display: none !important;
+}
+
+/* The intro host fills the board area and centers the panel. */
+.md-eval-intro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: clamp(16px, 4vw, 48px);
+  box-sizing: border-box;
+}
+
+/* Hero panel — frosted card on the brand-washed eval surface, mirroring
+   the modern board-detail / home card language. */
+.md-eval-intro__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+  width: 100%;
+  max-width: 620px;
+  padding: clamp(28px, 4vw, 48px) clamp(24px, 4vw, 52px);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 4px 14px rgba($la-navy, 0.10),
+    0 24px 60px rgba($la-navy, 0.16);
+}
+
+/* Hero icon in a soft verdigris medallion. */
+.md-eval-intro__icon {
+  width: clamp(64px, 9vw, 92px);
+  height: clamp(64px, 9vw, 92px);
+  padding: clamp(12px, 1.6vw, 18px);
+  border-radius: 50%;
+  background: linear-gradient(160deg, rgba($brand-verdigris, 0.16), rgba($brand-dusty-denim, 0.10));
+  box-shadow: inset 0 0 0 1px rgba($brand-verdigris, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.md-eval-intro__eyebrow {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(12px, 1.1vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: $brand-verdigris-aa;
+}
+
+.md-eval-intro__lead {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(20px, 2.6vw, 30px);
+  font-weight: 700;
+  line-height: 1.28;
+  color: $la-navy;
+}
+
+/* Combined welcome screen: heading + scannable checklist (replaces the
+   three paragraph intros). */
+.md-eval-intro__heading {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(22px, 2.6vw, 30px);
+  font-weight: 700;
+  line-height: 1.25;
+  color: $la-navy;
+}
+.md-eval-intro__checklist {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+.md-eval-intro__checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(15px, 1.5vw, 18px);
+  font-weight: 500;
+  line-height: 1.35;
+  color: $la-navy;
+}
+/* Verdigris check medallion — the "done/included" cue that makes the
+   list scannable instead of a wall of text. */
+.md-eval-intro__check {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris-aa;
+}
+
+.md-eval-intro__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+/* Primary CTA — verdigris pill, matches the eval header Start button. */
+.md-eval-intro__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 16px;
+  background: $brand-verdigris;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(16px, 1.6vw, 19px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba($brand-verdigris, 0.34);
+  transition: background 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
+}
+.md-eval-intro__cta:hover {
+  background: color.adjust($brand-verdigris, $lightness: -4%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba($brand-verdigris, 0.40);
+}
+.md-eval-intro__cta:active {
+  transform: translateY(0);
+}
+.md-eval-intro__cta:focus-visible {
+  outline: 3px solid rgba($brand-verdigris, 0.4);
+  outline-offset: 3px;
+}
+.md-eval-intro__cta-arrow {
+  transition: transform 0.16s ease;
+}
+.md-eval-intro__cta:hover .md-eval-intro__cta-arrow {
+  transform: translateX(3px);
+}
+
+/* Secondary action — quiet ghost button for Settings. */
+.md-eval-intro__settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border: 1px solid rgba($la-navy, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  color: $la-navy;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(15px, 1.4vw, 17px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+.md-eval-intro__settings:hover {
+  background: #fff;
+  border-color: rgba($la-navy, 0.28);
+  transform: translateY(-1px);
+}
+.md-eval-intro__settings:focus-visible {
+  outline: 3px solid rgba($brand-verdigris, 0.4);
+  outline-offset: 3px;
+}
+
+/* Section navigation row — quiet secondary controls below the primary
+   actions, separated by a hairline divider. Back (left) and Next (right)
+   sit at the edges; Skip (when available) centers between them. */
+.md-eval-intro__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba($la-navy, 0.10);
+}
+.md-eval-intro__nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: $brand-slate-blue;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(14px, 1.3vw, 16px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.md-eval-intro__nav-btn:hover {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+}
+.md-eval-intro__nav-btn:focus-visible {
+  outline: 3px solid rgba($brand-verdigris, 0.4);
+  outline-offset: 2px;
+}
+/* Skip is the most secondary — render it as a muted underlined link so it
+   reads as an escape hatch, not a primary path. Centered by margin:auto
+   so Back stays pinned left and Next pinned right whether or not it shows. */
+.md-eval-intro__nav-btn--skip {
+  color: rgba($la-navy, 0.55);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.md-eval-intro__nav-btn--skip:hover {
+  background: transparent;
+  color: $la-navy;
 }
 
 /* ──────────────────────────────────────────────────────────────────
