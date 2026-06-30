@@ -1852,6 +1852,13 @@ var editManager = EmberObject.extend({
     if(!controller) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no controller)'); } return; }
     var appState = this.appState || (typeof window !== 'undefined' && window.appState) || (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState);
     if(!appState || (typeof appState.get !== 'function')) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no appState)'); } return; }
+    // Ember 5 throws a hard assertion when a computed (edit_mode/speak_mode below)
+    // is read on a destroyed object. A leaked post-teardown callback (e.g. the
+    // app-state on_user_change observer or a scheduled runloop task) can reach
+    // here after the app-state service is torn down; the throw then re-enters the
+    // window.onerror chain and wedges the test runner. Nothing is displayable on a
+    // destroyed app-state anyway, so bail. (3.28 returned undefined here silently.)
+    if(appState.isDestroyed || appState.isDestroying) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (destroyed appState)'); } return; }
     var stashes = this.stashes;
     if(appState.get('edit_mode') && controller.get('ordered_buttons')) {
       LingoLinq.log.track('will not redraw while in edit mode');
