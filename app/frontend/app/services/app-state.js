@@ -3387,7 +3387,7 @@ export default Service.extend({
       if(_this.get('nearby_places') && any_places) {
         // set current_place_types to the list of places for the closest-retrieved place
         (_this.get('nearby_places') || []).forEach(function(place) {
-          var d = geolocation.distance(place.latitude, place.longitude, this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'));
+          var d = geolocation.distance(place.latitude, place.longitude, _this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'));
           // anything with 500ft could be a winner
           if(d && d < 500) {
             place.types.forEach(function(type) {
@@ -3412,12 +3412,12 @@ export default Service.extend({
           matches['ssid'] = true;
         }
         var geo_set = false;
-        if(brd.geos && this.stashes.get('geo.latest.coords')) {
+        if(brd.geos && _this.stashes.get('geo.latest.coords')) {
           var geos = brd.geos || [];
           if(geos.split) { geos = geos.split(/;/).map(function(g) { return g.split(/,/).map(function(n) { return parseFloat(n); }); }); }
           brd.geo_distance = -1;
           geos.forEach(function(geo) {
-            var d = geolocation.distance(this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
+            var d = geolocation.distance(_this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
             if(d && d < loose_tolerance && (brd.geo_distance == -1 || d < brd.geo_distance)) {
               brd.geo_distance = d;
               geo_set = true;

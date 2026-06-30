@@ -517,7 +517,16 @@ beforeEach(function() {
       }
       return RSVP.reject({ error: 'offline in test' });
     });
-    stub(persistence, 'find_url', function() {
+    stub(persistence, 'find_url', function(url, type) {
+      if (LingoLinq.allow_real_find_url) {
+        var findUrlTarget = persistenceTarget();
+        if (findUrlTarget) {
+          var proto = findUrlTarget.constructor && findUrlTarget.constructor.prototype;
+          if (proto && typeof proto.find_url === 'function') {
+            return proto.find_url.call(findUrlTarget, url, type);
+          }
+        }
+      }
       return RSVP.resolve(null);
     });
     if (LingoLinq.appState && typeof LingoLinq.appState.set === 'function') {
@@ -767,7 +776,10 @@ function boardModelStub(attrs) {
     variant_image_urls: function() {
       return {};
     },
-    clear_real_time_changes: function() { }
+    clear_real_time_changes: function() { },
+    load_word_suggestions: function() {
+      return RSVP.resolve();
+    }
   }, attrs || {}));
 }
 
