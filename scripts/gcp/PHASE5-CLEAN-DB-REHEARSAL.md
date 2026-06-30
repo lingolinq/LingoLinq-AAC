@@ -19,7 +19,7 @@ state change, safe to run anytime.
 > - **Step 1 (host-bound empty proof).** `db:schema:load` uses `force: :cascade` and DROPS every
 >   table. The ONLY thing standing between this rehearsal and irreversibly destroying the still
 >   authoritative Render prod DB is proving that the DB the Job will actually connect to is (a) the
->   Cloud SQL instance and (b) empty. This proof must be bound to the live `DATABASE_URL` secret,
+>   Cloud SQL instance and (b) empty. This proof must be bound to the live DB connection (the `DB_*` secrets),
 >   not to a hand-typed proxy connection (see Step 1).
 > - **Step 2 (Redis TLS handshake, `LL-6619cc1811`).** The `rediss://` path to Memorystore has
 >   never been exercised live, and **seeding itself enqueues to Redis synchronously** (see Step 3),
@@ -75,7 +75,7 @@ register.
   Memorystore (AUTH/TLS) exist from Phase 3/4. Confirm `vars.GCP_CLOUDSQL_INSTANCE`
   (`PROJECT:REGION:INSTANCE`), `GCP_REGION`, `GCP_PROJECT_ID`, `GCP_VPC_NETWORK`, `GCP_VPC_SUBNET`
   are set on the deploy workflow, and **record the expected Cloud SQL host** (the private IP /
-  socket path the `DATABASE_URL` secret should resolve to) - Step 1 asserts against it. (Re-verify
+  socket path the `DB_HOST` secret resolves to) - Step 1 asserts against it. (Re-verify
   against live `gcloud` state; do not trust this note.)
 
 - **P4. Demo data stays OFF.** Do NOT set `SEED_DEMO_DATA=1` against prod. It seeds ~20 fabricated
@@ -92,12 +92,15 @@ This is an early sanity check so you do not provision secrets/services against a
 what you expect. It is **informational only**: the AUTHORITATIVE, irreversible guard is folded
 INTO the schema-load execution (Step 3a) so the proof and the `force: :cascade` drop run in the
 SAME Job execution and cannot drift (a separate earlier proof does NOT bind to a later destructive
-execution - if `DATABASE_URL:latest` rotates between them, or the job re-runs, an earlier "it was
-empty" is stale). Run it as a read-only rails-runner Job wired with the SAME `DATABASE_URL` secret
-the schema-load Job will use:
+execution - if the `DB_*` secrets rotate between them, or the job re-runs, an earlier "it was
+empty" is stale). Run it as a read-only rails-runner Job wired with the SAME `BOOT_SECRETS`
+(`DB_HOST`/`DB_NAME`/`DB_USERNAME`/`DB_PASSWORD`) the schema-load Job will use. **Do NOT wire
+`DATABASE_URL`**: the app now connects via discrete params (config/database.yml), and a present
+`DATABASE_URL` would route to the legacy `url:` branch and re-trigger the `uri >= 1.0` parse failure.
 
 ```bash
-# DRY. --command bundle --args "exec,rails,runner,<the ruby below>" with DATABASE_URL + EXPECTED_CLOUDSQL_HOST set.
+# DRY. --command bundle --args "exec,rails,runner,<the ruby below>" with BOOT_SECRETS (DB_*) + EXPECTED_CLOUDSQL_HOST set.
+# NOTE: easiest is the committed guard - --args "exec,rails,runner,require Rails.root.join('lib','gcp_clean_db_guard'); puts GcpCleanDbGuard.assert_clean_target!"
 bundle exec rails runner '
   cfg  = ActiveRecord::Base.connection_db_config.configuration_hash
   host = cfg[:host] || cfg[:socket] || "UNKNOWN"
@@ -110,8 +113,8 @@ bundle exec rails runner '
 ```
 
 - **Proceed only on `PREFLIGHT-OK`.** Any `WRONG DB` or `DB NOT EMPTY` abort is a HARD STOP - you
-  are not in the clean-DB case (or `DATABASE_URL` is mis-pointed); use the full-data path instead
-  and investigate where `DATABASE_URL` resolves.
+  are not in the clean-DB case (or `DB_HOST` is mis-pointed); use the full-data path instead
+  and investigate where `DB_HOST` points.
 - Do NOT substitute a `psql` query over a hand-opened proxy: that proves a DB you chose, not the one
   the Job will drop. And do not treat this early pass as sufficient on its own - the binding guard
   in Step 3a is what actually protects the drop.
@@ -159,7 +162,7 @@ re-dropping.
 
 **3a. Guarded schema load (destructive; guard runs IN THE SAME execution).** The host+empty
 assertion MUST run in the same Job execution as the `force: :cascade` load, so the proof binds to
-the exact `DATABASE_URL` the drop uses and cannot drift. Do NOT rely on the Step 1 early pass as the
+the exact DB connection the drop uses and cannot drift. Do NOT rely on the Step 1 early pass as the
 guard. **Use the committed `gcp:guarded_schema_load` rake task** (`lib/tasks/gcp_clean_db.rake` +
 `lib/gcp_clean_db_guard.rb`, unit-tested in `spec/lib/gcp_clean_db_guard_spec.rb`): it runs the
 `GcpCleanDbGuard.assert_clean_target!` check (asserts the connection host contains
@@ -183,7 +186,7 @@ gcloud run jobs deploy lingolinq-migrate-cleandb \
 gcloud run jobs execute lingolinq-migrate-cleandb --region "$REGION" --wait
 ```
 
-`EXPECTED_CLOUDSQL_HOST` is the Cloud SQL host/socket the `DATABASE_URL` secret resolves to (P3) -
+`EXPECTED_CLOUDSQL_HOST` is the Cloud SQL host/socket the `DB_HOST` secret resolves to (P3) -
 e.g. `/cloudsql/lingolinq-prod:us-central1:lingolinq-prod-pg` for the socket DSN. Alternative if
 `schema:load` ever surfaces `schema.rb` drift: `db:migrate` from zero (slower, replays full history,
 no `force: :cascade`) - but run it behind the same guard.

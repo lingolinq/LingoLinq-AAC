@@ -16,6 +16,7 @@ import { sync_current_board_state as runBoardStateSync } from '../../utils/board
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
 import Button from '../../utils/button';
+import obf from '../../utils/obf';
 import frame_listener from '../../utils/frame_listener';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/template';
@@ -1148,6 +1149,7 @@ export default Controller.extend(prefClasses, {
     'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
+    'eval_intro_active',
     'high_contrast_class',
     'symbol_background_class',
     function() {
@@ -1212,9 +1214,45 @@ export default Controller.extend(prefClasses, {
       if(this.appState.get('eval_mode')) {
         res = res + 'eval_mode ';
       }
+      if(this.appState.get('eval_mode') && this.get('eval_intro_active')) {
+        res = res + 'eval_intro ';
+      }
       return res;
     }
   ),
+  /* Bespoke modern eval intro screen: active when in eval mode and the
+     current step is an intro (the board-grid render is replaced by the
+     <eval-intro> component — see templates/board/index.hbs). Keyed on the
+     board key so it recomputes as the eval flow jumps between boards. */
+  eval_intro_active: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    return !!(ev && ev.current_intro && ev.current_intro());
+  }),
+  eval_intro_text: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return intro ? intro.text : '';
+  }),
+  /* Whether the header Skip control is available for this intro step
+     (section intros can be skipped; the welcome intro can't). Mirrors the
+     application controller's eval_intro_header_show_skip so the bespoke
+     screen shows Skip exactly when the toolbar does. */
+  eval_intro_show_skip: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    if(!ev || !ev.intro_header_visibility) { return false; }
+    return !!ev.intro_header_visibility().showSkip;
+  }),
+  /* The welcome intro ('intro') is the combined first screen — it shows the
+     succinct checklist (no section nav) and starts the actual evaluation.
+     Section intros (diff_target, symbols, …) are mid-evaluation and keep the
+     lead text + Back/Skip/Next nav. */
+  eval_intro_is_welcome: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return !!(intro && intro.intro === 'intro');
+  }),
   suggestion_class: computed(
     'button_style',
     'text_style',

@@ -37,8 +37,10 @@ name: Deploy to Cloud Run
 # NOTE: worker pools are on the `gcloud beta` surface (not GA on SDK 564), hence `beta` below.
 #
 # GCP SECRET MANAGER secrets Phase 2 step 4 must seed (referenced by name via --set-secrets,
-# NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DATABASE_URL,
-#   REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY, DEFAULT_HOST.
+# NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DB_HOST, DB_NAME,
+#   DB_USERNAME, DB_PASSWORD, REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY,
+#   DEFAULT_HOST. (DB_* replaced the single DATABASE_URL: the Cloud SQL socket URL is unparseable
+#   by uri >= 1.0, so config/database.yml builds the connection from discrete params instead.)
 #   REDIS_CA_CERT is seeded later by scripts/gcp/phase3-data-layer.sh (the Memorystore
 #   per-instance CA, fetched from the live instance) -- the app's Redis client loads it to
 #   verify the rediss:// TLS chain.
@@ -85,10 +87,31 @@ jobs:
       # production loads these (see the asset-precompile env block in the Dockerfile).
       # The worker (rake environment resque:work) and the migration Job (rake db:migrate)
       # both fully boot Rails, so they need the same boot set as the web service -- not a
-      # narrower subset, which would crash them on boot.
-      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest
-      # Web adds the mail-sending envs used by request-path mailers.
-      WEB_EXTRA_SECRETS: DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest
+      # narrower subset, which would crash them on boot. config/environment.rb hard-requires
+      # DEFAULT_EMAIL_FROM and SYSTEM_ERROR_EMAIL at boot for EVERY process, so they belong here
+      # (not in a web-only extra set) or the migrate/seed Jobs crash on boot.
+      # DB connection is configured from discrete params (config/database.yml production stanza), NOT a
+      # DATABASE_URL: the Cloud SQL socket-form URL (empty host) is rejected by uri >= 1.0 at boot.
+      # DB_HOST is the Cloud SQL unix socket dir (/cloudsql/<conn>); database.yml defaults DB_SSLMODE
+      # to 'disable' for the socket.
+      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DB_HOST=DB_HOST:latest,DB_NAME=DB_NAME:latest,DB_USERNAME=DB_USERNAME:latest,DB_PASSWORD=DB_PASSWORD:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest
+      # Non-boot APP secrets (migration 4.E1): S3/SES creds + Google/Stripe/AI/Sentry/SMS + misc
+      # integration tokens. Lazy-loaded at use time, NOT at boot -- so they go on the web service and
+      # worker pool ONLY, never the migration Job (which boots Rails for db:migrate but needs none of
+      # these). Seeded by scripts/gcp/phase4-seed-app-secrets.sh (Render-prod-first; AWS_KEY/AWS_SECRET
+      # are the NEW least-priv IAM user, scripts/gcp/iam/). Every name here is asserted to have a
+      # SEEDED VERSION in Secret Manager by the "Assert referenced secrets exist" step before deploy.
+      # MAPS_KEY is intentionally NOT here: it is a client-public key emitted at asset-precompile
+      # (globals.js.erb), not read at runtime, so it is passed as a Docker build ARG in the
+      # "Build and push image" step (alongside DEFAULT_HOST), not mounted at runtime.
+      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
+      # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. S3 bucket
+      # names + AWS/SES regions are not secret. Stripe PUBLISHABLE key, registration email, and the
+      # Redis namespace come from repo Variables (assembled below) so no env-specific value is
+      # committed. LD_PRELOAD/MALLOC_CONF are DELIBERATELY EXCLUDED until jemalloc is verified present
+      # in the image -- pointing LD_PRELOAD at a missing .so breaks boot (plan Group C). RAILS_ENV is
+      # set inline on every deploy; DEPLOY_TRIGGER/SEED_READY/LEADER_POSTGRES_URL are Render-only.
+      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
@@ -111,9 +134,58 @@ jobs:
         run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
 
       - name: Build and push image
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
         run: |
-          docker build -t "$IMAGE" .
+          set -euo pipefail
+          # globals.js.erb bakes window.maps_key + window.default_host at asset-precompile (build
+          # time), so the real client-public values must reach the build as ARGs -- a runtime secret
+          # mount is too late (the asset is already compiled, and on GCP would otherwise bake
+          # default_host=localhost + omit maps_key). Both are fetched from Secret Manager as the
+          # deploy SA (which already reads DEFAULT_HOST for the boot set; MAPS_KEY granted alongside).
+          # Values are client-public (emitted to the browser) and never echoed.
+          MAPS_KEY="$(gcloud secrets versions access latest --secret=MAPS_KEY --project="$GCP_PROJECT_ID")"
+          APP_DEFAULT_HOST="$(gcloud secrets versions access latest --secret=DEFAULT_HOST --project="$GCP_PROJECT_ID")"
+          docker build \
+            --build-arg MAPS_KEY="$MAPS_KEY" \
+            --build-arg APP_DEFAULT_HOST="$APP_DEFAULT_HOST" \
+            -t "$IMAGE" .
           docker push "$IMAGE"
+
+      - name: Assert referenced secrets exist + assemble runtime env
+        # Pre-deploy guard (env-reconciliation 4.E1 adversary ask): every Secret Manager secret the
+        # migrate Job / web / worker reference MUST already exist, or the deploy fails fast HERE with
+        # a clear list -- instead of a Cloud Run revision that crash-loops on a missing secret mount.
+        # Then assemble APP_ENV_VARS: the static Group-B/C config plus the three repo-Variable values
+        # (passed via env:, never interpolated into the shell) when set.
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          V_STRIPE_PUBLIC_KEY: ${{ vars.STRIPE_PUBLIC_KEY }}
+          V_NEW_REGISTRATION_EMAIL: ${{ vars.NEW_REGISTRATION_EMAIL }}
+          V_REDIS_NAMESPACE_SUFFIX: ${{ vars.REDIS_NAMESPACE_SUFFIX }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for pair in $(printf '%s,%s' "$BOOT_SECRETS" "$NON_BOOT_SECRETS" | tr ',' '\n'); do
+            name="${pair%%=*}"
+            # Check a VERSION resolves, not just that the container exists: phase1-setup.sh creates all
+            # secrets EMPTY, and `--set-secrets NAME:latest` crash-loops the revision if NAME has no
+            # version. `describe` would pass an empty container; `versions access latest` does not.
+            # Output is discarded (never logged) - this is a presence probe, not a value read.
+            gcloud secrets versions access latest --secret="$name" --project="$GCP_PROJECT_ID" >/dev/null 2>&1 \
+              || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Secret(s) missing or unseeded (no version) in Secret Manager (project $GCP_PROJECT_ID):$missing"
+            echo "Seed them with scripts/gcp/phase4-seed-boot-secrets.sh / phase4-seed-app-secrets.sh before deploying."
+            exit 1
+          fi
+          echo "All $(printf '%s,%s' "$BOOT_SECRETS" "$NON_BOOT_SECRETS" | tr ',' '\n' | grep -c .) referenced secrets exist."
+          ev="$APP_ENV_VARS_STATIC"
+          [ -n "${V_STRIPE_PUBLIC_KEY:-}" ]     && ev="$ev,STRIPE_PUBLIC_KEY=$V_STRIPE_PUBLIC_KEY"
+          [ -n "${V_NEW_REGISTRATION_EMAIL:-}" ] && ev="$ev,NEW_REGISTRATION_EMAIL=$V_NEW_REGISTRATION_EMAIL"
+          [ -n "${V_REDIS_NAMESPACE_SUFFIX:-}" ] && ev="$ev,REDIS_NAMESPACE_SUFFIX=$V_REDIS_NAMESPACE_SUFFIX"
+          echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
 
       - name: Run database migration (Cloud Run Job)
         # Strictly incremental: db:migrate only. NEVER db:prepare here -- db:prepare can
@@ -161,8 +233,8 @@ jobs:
             --network "${{ vars.GCP_VPC_NETWORK }}" \
             --subnet "${{ vars.GCP_VPC_SUBNET }}" \
             --vpc-egress private-ranges-only \
-            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
-            --set-secrets "$BOOT_SECRETS,$WEB_EXTRA_SECRETS" \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
+            --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
             --allow-unauthenticated
 
       - name: Deploy worker pool
@@ -177,5 +249,5 @@ jobs:
             --network "${{ vars.GCP_VPC_NETWORK }}" \
             --subnet "${{ vars.GCP_VPC_SUBNET }}" \
             --vpc-egress private-ranges-only \
-            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
-            --set-secrets "$BOOT_SECRETS"
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
+            --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS"

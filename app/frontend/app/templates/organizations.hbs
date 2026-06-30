@@ -1,28 +1,37 @@
 <div class="md-shell md-shell--org md-shell--org-directory">
   <div class="md-workspace">
-    <header class="md-hero md-hero--dashboard md-hero--org">
+    {{!-- Primary nav — same pattern as the caseload page ("Home" + current
+         page pill), adapted to show "My Organizations". --}}
+    <nav class="md-pillnav" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+      <LinkTo @route="index" class="md-pillnav__pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
+        {{t "Home" key="home"}}
+      </LinkTo>
+      <span class="md-pillnav__pill is-active">{{t "My Organizations" key="my_organizations"}}</span>
+    </nav>
+    <header class="md-hero md-hero--dashboard">
       <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Organizations" key="my_organizations"}}</span></h1>
-      <p class="md-org-directory__intro">{{t "Choose an organization to manage or view." key="choose_org_to_manage"}}</p>
+      <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Choose an organization to" key="choose_org_to_manage_pre"}} <em class="md-hero__gradient-text">{{t "manage or view..." key="choose_org_to_manage_em"}}</em></span></p>
     </header>
 
     <main class="md-main md-main--org">
       {{#if this.all_orgs.length}}
-        <section class="md-org-section" aria-label={{t "Organizations I can access" key="accessible_orgs"}}>
+        <section class="md-org-section" aria-label={{t "Available Organizations" key="accessible_orgs"}}>
           <div class="md-org-section-head">
             <div>
-              <h3 class="md-org-section-title">{{t "Organizations I can access" key="accessible_orgs"}}</h3>
+              <h3 class="md-org-section-title">{{t "Available Organizations" key="accessible_orgs"}}</h3>
               <p class="md-org-section-desc">{{t "Select an organization before opening reports, people, rooms, or settings." key="select_org_before_managing"}}</p>
             </div>
           </div>
-          <div class="md-org-directory-grid">
+          <div class="md-rooms__grid">
             {{#each this.all_orgs as |org|}}
-              <LinkTo @route="organization" @model={{org.id}} class="md-org-directory-card">
-                <span class="md-org-user-row__org-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M10 22v-4h4v4"/><line x1="9" y1="6" x2="9" y2="6.01" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke-width="2"/></svg>
+              <LinkTo @route="organization" @model={{org.id}} class="md-room-card md-org-open-card" title={{org.name}}>
+                <span class="md-room-card__icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M10 22v-4h4v4"/><line x1="9" y1="6" x2="9" y2="6.01" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke-width="2"/></svg>
                 </span>
-                <span class="md-org-directory-card__body">
-                  <span class="md-org-directory-card__name">{{org.name}}</span>
-                  <span class="md-org-directory-card__meta">
+                <span class="md-org-card__text">
+                  <span class="md-room-card__name">{{org.name}}</span>
+                  <span class="md-org-card__desc">
                     {{#if org.admin}}
                       {{t "site admin" key="site_admin_lower"}}
                     {{else if (is_equal org.type "supervisor")}}
@@ -32,7 +41,7 @@
                     {{/if}}
                   </span>
                 </span>
-                <svg class="md-org-directory-card__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                <span class="md-room-card__arrow" aria-hidden="true">&rarr;</span>
               </LinkTo>
             {{/each}}
           </div>

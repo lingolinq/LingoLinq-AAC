@@ -147,6 +147,17 @@ export default Controller.extend({
     if(!ev || !ev.intro_header_visibility) { return false; }
     return ev.intro_header_visibility().showSkip;
   }),
+  /** True on the combined welcome intro (before the evaluation actually
+      starts). Used to show the regular home AppNavbar instead of the eval
+      speak bar until the SLP hits Start — the welcome screen is informational,
+      not yet an assessment. Once Start jumps to the first find step this goes
+      false and the eval speak bar returns. */
+  eval_welcome_active: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return !!(intro && intro.intro === 'intro');
+  }),
 
   boardMenuOpen: false,
 
@@ -2148,10 +2159,13 @@ export default Controller.extend({
     return route === 'organization' || (route && route.indexOf('organization.') === 0);
   }),
   /** Use AppNavbar in #inner_header for both authenticated dashboard-like pages and unauthenticated landing/info pages. */
-  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'isOrganizationRoute', 'appState.current_route', 'appState.currentUser', 'appState.currentBoardState.id', function() {
+  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'isOrganizationRoute', 'appState.current_route', 'appState.currentUser', 'appState.currentBoardState.id', 'eval_welcome_active', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
     if (route === 'user.board-alt.index') { return false; }
+    // Eval welcome intro: show the regular home AppNavbar (not the eval speak
+    // bar) until the evaluation actually starts. See `eval_welcome_active`.
+    if (this.get('eval_welcome_active')) { return true; }
     // Authenticated pages
     if (this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) || (this.get('isOrganizationRoute') && cu) ||
       (route === 'about' && cu) ||

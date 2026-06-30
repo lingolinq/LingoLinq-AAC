@@ -6030,3 +6030,45 @@ lower `QUnit.config.testTimeout` so wedges fail in seconds. Do **not** expect fi
 
 See [`2026-06-27-ember5-ci-remaining-test-fixes.md`](./2026-06-27-ember5-ci-remaining-test-fixes.md).
 
+## Gotcha: the Eval tool renders through the CLASSIC board renderer — re-skin, don't re-route
+
+The Eval pages (`/obf/eval-start`, `/obf/eval-N-N`) are boards owned by the system user `obf`.
+`routes/board.js` deliberately excludes `^obf/` from the modern board-detail redirect, so eval
+boards ALWAYS render through `templates/board/index.hbs` (classic), never board-detail. The eval
+flow handlers (`button_settings`, `assessment_settings`, `#board_bg` z-index layering, the eval
+header nav) are wired to that classic structure — so the established pattern is to RE-SKIN the
+classic markup, NOT switch renderers (see the `app.scss` "Modern Eval Header" comment ~88932 and
+the `.board.eval_mode` z-index block ~7858).
+
+Scoping hooks (both eval-only, safe to style without touching normal boards):
+- **Header:** `app_state.eval_mode` adds `.md-eval-header` on `<span id="speak">` (application.hbs).
+- **Body:** `display_class` (`controllers/board/index.js:1212`) adds `eval_mode` to the `.board`
+  container only when `app_state.eval_mode` → scope body styling under **`.board.eval_mode`**.
+- Body DOM is classic: `#board_bg` + `.button_row` > `<a class="button">` with `.symbol` + `.button-label`.
+- The button's inline `computed_style` (`utils/button.js:940`) sets position/size + `outline-color`
+  /`--btn-ring-color` ONLY — never the face bg/border/radius — so the card face is pure CSS and a
+  white-glass re-skin works with `!important` to beat base `.button`/`.colored_icons` rules.
+  (2026-06-29: added the "Modern Eval Board Body" block — soft gradient surface + white glass button
+  cards + navy labels — scoped to `.board.eval_mode`, companion to the existing Modern Eval Header.)
+
+- Org access is role-tiered (organization.rb:42-48): manager→view/edit/manage, assistant→view/edit,
+  **supervisor→view ONLY**, communicator→none. EVERY org-management endpoint (managers/users/
+  supervisors/units/stats/admin_reports/settings) gates on `allowed?(@org,'edit')`, so a supervisor
+  loading any of them gets 400 "Not authorized" — not a bug, a permission tier. A supervisor's org
+  link is sponsored-membership (add_supervisor + premium licenses), not admin; their work is the
+  Caseload. UI rule: gate org-management nav links + the home "My Organizations" card behind
+  `permissions.edit` / a manager-type org, and skip edit-gated controller fetches for view-only users
+  — never surface a link to a page whose API the user's role can't call. (2026-06-29)
+
+- eat_events mobile gotcha: any NEW {{action}}-bound <button>/<a> that renders on the CLASSIC board
+  page while speak_mode is active (e.g. the eval intro `.md-eval-intro`) needs a carve-out in BOTH
+  raw_events handlers, not just `click`. The touchstart/mousedown `eat_events` (raw_events.js:~66)
+  preventDefaults on mobile when `eatable` (speak_mode) && capabilities.mobile && !ignored_region —
+  which SUPPRESSES click synthesis on Android/iOS, so a `.closest()` exception added only to the
+  click handler leaves the control dead on touch devices. Add the selector to the eat_events
+  carve-out (alongside `.board-detail-view, .md-board-detail-grid`) too. (2026-06-29, adversarial review)
+- eval.js `intro_header_start` gotcha: `level` is captured as `levels[working.level]` at the top; the
+  level-overflow normalization at the end (`if(!level[working.step]){ working.level++ }`) re-reads that
+  SAME captured `level`. If a branch jumps to a different level (welcome → find-4, which lives in a
+  later level), you must resync `level = levels[working.level]` after setting working.level, or the
+  normalization re-increments past the target. (2026-06-29, adversarial review)
