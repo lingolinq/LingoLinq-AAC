@@ -132,6 +132,32 @@ describe Audit::ConsoleGuard do
       end
     end
 
+    context 'when the environment flag is repeated (Thor/railties use the last occurrence)' do
+      # `-e development -e production` boots production (last wins). Returning on
+      # the first flag would let this slip past the refusal.
+      it 'refuses an un-keyed `console -e development -e production`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e development -e production], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'refuses the abbreviated repeat `console -e d -e p`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e d -e p], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+      end
+
+      it 'refuses `runner -e d -e p` and forbids `dbconsole -e development -e production`' do
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('runner', %w[runner -e d -e p Foo.bar], {}) }
+          .to raise_error(Audit::ConsoleGuard::UnauthorizedConsole)
+        expect { Audit::ConsoleGuard.enforce_pre_boot!('dbconsole', %w[dbconsole -e development -e production], {}) }
+          .to raise_error(Audit::ConsoleGuard::ForbiddenCommand)
+      end
+
+      it 'honors a production-then-development repeat as development (last wins, not refused)' do
+        expect(Audit::ConsoleGuard.enforce_pre_boot!('console', %w[console -e production -e development], {}))
+          .to eq(:console)
+      end
+    end
+
     context 'when RAILS_ENV is blank (Rails falls through to RACK_ENV via .presence)' do
       # Rails::Command.environment is RAILS_ENV.presence || RACK_ENV.presence,
       # so an empty RAILS_ENV must NOT mask a production RACK_ENV.
@@ -216,8 +242,19 @@ describe Audit::SessionLogger do
 
     it 'writes a session-open row with the right payload for a keyed session' do
       expect(AuditEvent).to receive(:create!)
-        .with(user_key: 'scot', data: { 'type' => 'rails/console', 'command' => 'console' })
+        .with(hash_including(user_key: 'scot', data: { 'type' => 'rails/console', 'command' => 'console' }))
       Audit::SessionLogger.record!('console', 'scot', %w[console])
+    end
+
+    it 'keeps the runner command line out of the plaintext (non-encrypted) summary' do
+      # AuditEvent#data is secure_serialize'd (encrypted) but #summary is a
+      # plaintext column. The full runner argv must stay in data only.
+      captured = nil
+      allow(AuditEvent).to receive(:create!) { |attrs| captured = attrs }
+      Audit::SessionLogger.record!('runner', 'scot', ['runner', 'User.find_by(email: "child@school.edu")'])
+      expect(captured[:data]['command']).to include('child@school.edu')
+      expect(captured[:summary]).not_to include('child@school.edu')
+      expect(captured[:summary]).to include('rails/runner')
     end
 
     context 'when the audit write fails' do
@@ -250,6 +287,14 @@ describe Audit::SessionLogger do
         expect(row.user_key).to eq('scot')
         expect(row.data['type']).to eq('rails/runner')
         expect(row.data['command']).to eq('runner Foo.bar')
+      end
+
+      it 'does not persist runner argv into the plaintext summary column' do
+        Audit::SessionLogger.record!('runner', 'scot', ['runner', 'User.find_by(email: "child@school.edu")'])
+        row = AuditEvent.last
+        expect(row.data['command']).to include('child@school.edu') # retained in encrypted data
+        expect(row.summary).not_to include('child@school.edu')     # but not in the plaintext column
+        expect(row.summary).to include('rails/runner')
       end
     end
   end

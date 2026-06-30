@@ -123,6 +123,14 @@ module Audit
     def expand_environment(name)
       n = name.to_s.strip
       return n if n.empty?
+      # Fail-safe: a token that is a prefix of "production" always resolves to
+      # production, even if a same-named custom env file exists on disk. This
+      # takes precedence over the on-disk short-circuit so that adding, say,
+      # config/environments/pro.rb can never silently reopen the abbreviation
+      # bypass, and so the result does not depend on the process cwd (railties
+      # reads config/environments relative to cwd; we cannot match that exactly
+      # pre-boot, so we err toward refusal for the production case).
+      return 'production' if 'production'.start_with?(n)
       return n if available_environments.include?(n)
 
       EXPANDABLE_ENVIRONMENTS.find { |full| full.start_with?(n) } || n
@@ -146,20 +154,28 @@ module Audit
     # positionally, so a positional token there is NOT treated as an
     # environment. Tokens after a `--` terminator are ignored, matching how
     # Rails forwards them to the REPL instead of parsing them as options.
+    #
+    # When the flag is repeated (`-e development -e production`) the LAST
+    # occurrence wins, matching Thor/railties option parsing. Returning on the
+    # first match would let `-e development -e production` boot production while
+    # the guard believed it was development.
     def cli_environment(command, args)
       args = args_before_double_dash(args)
+      explicit = nil
 
       args.each_with_index do |arg, i|
         case arg
         when '-e', '--environment'
           nxt = args[i + 1]
-          return expand_environment(nxt) if nxt && !nxt.start_with?('-')
+          explicit = nxt if nxt && !nxt.start_with?('-')
         when /\A--environment=(.+)\z/, /\A-e=(.+)\z/
-          return expand_environment(Regexp.last_match(1))
+          explicit = Regexp.last_match(1)
         when /\A-e(.+)\z/ # glued short form, e.g. -eprod
-          return expand_environment(Regexp.last_match(1))
+          explicit = Regexp.last_match(1)
         end
       end
+
+      return expand_environment(explicit) if explicit
 
       if console_command?(command)
         positional = args.drop(1).find { |a| !a.start_with?('-') }
@@ -194,7 +210,16 @@ module Audit
       return if user_key.to_s.strip.empty?
 
       attrs = Audit::ConsoleGuard.session_attrs(kind, init_args)
-      AuditEvent.create!(user_key: user_key, data: attrs)
+      # Pass an explicit, PII-free summary. AuditEvent#generate_summary would
+      # otherwise copy data['command'] -- which for a runner is arbitrary Ruby
+      # that can contain identifiers or secrets -- into the `summary` column,
+      # which is NOT secure_serialize'd (it is plaintext at rest). The full
+      # command line stays only in the encrypted `data`.
+      AuditEvent.create!(
+        user_key: user_key,
+        data: attrs,
+        summary: "#{user_key}: rails/#{kind} session opened"
+      )
     rescue StandardError => e
       # Fail-closed in production: refuse the session rather than allow
       # unaudited privileged access. In non-production, never block local work.
