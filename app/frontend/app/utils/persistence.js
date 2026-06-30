@@ -3181,6 +3181,10 @@ var persistence = EmberObject.extend({
           resolve();
           return;
         }
+        if(!user || user.isDestroyed || user.isDestroying || typeof user.get !== 'function') {
+          resolve();
+          return;
+        }
         var to_visit_boards = [];
         var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
         if(user.get('preferences.home_board.id')) {

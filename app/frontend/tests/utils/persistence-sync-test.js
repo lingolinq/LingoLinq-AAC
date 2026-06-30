@@ -32,7 +32,8 @@ import {
   enableRealSyncBoards,
   cacheRealSyncBoards,
   unloadSyncStoreRecords,
-  stubSoundTranscriptionCheck
+  stubSoundTranscriptionCheck,
+  clearLocalSyncDb
 } from '../helpers/sync-test-cleanup';
 
 function logById(logs, id) {
@@ -150,13 +151,43 @@ function primeLocalSyncStorage(imageSpecs) {
   });
 }
 
-function clearLocalSyncDb() {
-  var repo = capabilities.dbman && capabilities.dbman.repo;
-  if (repo) {
-    Object.keys(repo).forEach(function(store) {
-      repo[store] = [];
-    });
+function primeBoardCacheSyncHarness() {
+  cancelSyncTailWork();
+  unloadSyncStoreRecords();
+  clearLocalSyncDb();
+  resetSyncTestCaches();
+  persistence.set('sync_log', null);
+  persistence.set('sync_progress', null);
+  persistence.set('sync_status', null);
+  persistence.known_missing = {};
+  LingoLinq.sync_testing_real_boards = false;
+  var target = persistenceTarget();
+  if (target && target.set) {
+    target.set('sync_progress', null);
+    target.set('sync_status', null);
+    target.set('online', true);
   }
+  persistence.set('online', true);
+  chainPersistenceAjax(function(url, opts) {
+    if (url.match(/\/boards\?ids=/)) {
+      return RSVP.reject({});
+    }
+  });
+}
+
+function primeBoardRevisionsSyncHarness() {
+  cancelSyncTailWork();
+  unloadSyncStoreRecords();
+  clearLocalSyncDb();
+  resetSyncTestCaches();
+  persistence.set('sync_progress', null);
+  persistence.set('sync_status', null);
+  enableRealSyncBoards(stubOnPersistence);
+  chainPersistenceAjax(function(url, opts) {
+    if (url.match(/\/boards\?ids=/)) {
+      return RSVP.reject({});
+    }
+  });
 }
 
 function boardAjaxGetResponse(boardId, boardKey, boardName) {
@@ -518,6 +549,7 @@ describe("persistence-sync", function() {
   afterEach(function() {
     cancelSyncTailWork();
     unloadSyncStoreRecords();
+    clearLocalSyncDb();
     capabilities.dbman = dbman;
     persistence.set('sync_progress', null);
     persistence.set('sync_status', null);
@@ -1574,10 +1606,7 @@ describe("persistence-sync", function() {
 
   it("should skip board lookups that are already cached locally", function() {
     db_wait(function() {
-      cancelSyncTailWork();
-      unloadSyncStoreRecords();
-      persistence.set('sync_progress', null);
-      persistence.set('sync_status', null);
+      primeBoardCacheSyncHarness();
       enableRealSyncBoards(stubOnPersistence);
       var stores = [];
       stubStoreUrl( function(url, type) {
@@ -1736,10 +1765,7 @@ describe("persistence-sync", function() {
 
   it("should not assume a board is cached locally if an image's dataCache is missing", function() {
     db_wait(function() {
-      cancelSyncTailWork();
-      unloadSyncStoreRecords();
-      persistence.set('sync_progress', null);
-      persistence.set('sync_status', null);
+      primeBoardCacheSyncHarness();
       persistence.known_missing = {};
       enableRealSyncBoards(stubOnPersistence);
       var stores = [];
@@ -1888,10 +1914,7 @@ describe("persistence-sync", function() {
 
   it("should not assume a board is cached locally if an image's db entry missing", function() {
     db_wait(function() {
-      cancelSyncTailWork();
-      unloadSyncStoreRecords();
-      persistence.set('sync_progress', null);
-      persistence.set('sync_status', null);
+      primeBoardCacheSyncHarness();
       persistence.known_missing = {};
       enableRealSyncBoards(stubOnPersistence);
       var stores = [];
@@ -2039,10 +2062,7 @@ describe("persistence-sync", function() {
 
   it("should not assume a board is cached locally if a board's db entry missing", function() {
     db_wait(function() {
-      cancelSyncTailWork();
-      unloadSyncStoreRecords();
-      persistence.set('sync_progress', null);
-      persistence.set('sync_status', null);
+      primeBoardCacheSyncHarness();
       persistence.known_missing = {};
       enableRealSyncBoards(stubOnPersistence);
       var stores = [];
@@ -3909,21 +3929,12 @@ describe("persistence-sync", function() {
 
   it("should query for fresh board_revisions", function() {
     db_wait(function() {
-      cancelSyncTailWork();
-      unloadSyncStoreRecords();
-      clearLocalSyncDb();
-      resetSyncTestCaches();
-      persistence.set('sync_progress', null);
-      persistence.set('sync_status', null);
-      enableRealSyncBoards(stubOnPersistence);
+      primeBoardRevisionsSyncHarness();
       var revisions_called = false;
       chainPersistenceAjax(function(url, opts) {
         if (url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
           return RSVP.resolve({});
-        }
-        if (url.match(/\/boards\?ids=/)) {
-          return RSVP.reject({});
         }
       });
 
@@ -4082,13 +4093,7 @@ describe("persistence-sync", function() {
 
   it("should not try to download boards that match the fresh revision from board_revisions", function() {
     db_wait(function() {
-      cancelSyncTailWork();
-      unloadSyncStoreRecords();
-      clearLocalSyncDb();
-      resetSyncTestCaches();
-      persistence.set('sync_progress', null);
-      persistence.set('sync_status', null);
-      enableRealSyncBoards(stubOnPersistence);
+      primeBoardRevisionsSyncHarness();
       var revisions_called = false;
       chainPersistenceAjax(function(url, opts) {
         if (url == '/api/v1/users/1340/board_revisions') {
@@ -4099,9 +4104,6 @@ describe("persistence-sync", function() {
             '178': 'current',
             '179': 'current'
           });
-        }
-        if (url.match(/\/boards\?ids=/)) {
-          return RSVP.reject({});
         }
       });
 
@@ -4272,13 +4274,7 @@ describe("persistence-sync", function() {
 
   it("should try to download boards that don't match the fresh revision from board_revisions, even if they otherwise seem ok", function() {
     db_wait(function() {
-      cancelSyncTailWork();
-      unloadSyncStoreRecords();
-      clearLocalSyncDb();
-      resetSyncTestCaches();
-      persistence.set('sync_progress', null);
-      persistence.set('sync_status', null);
-      enableRealSyncBoards(stubOnPersistence);
+      primeBoardRevisionsSyncHarness();
       var revisions_called = false;
       chainPersistenceAjax(function(url, opts) {
         if (url == '/api/v1/users/1340/board_revisions') {
@@ -4289,9 +4285,6 @@ describe("persistence-sync", function() {
             '178': 'current',
             '179': 'current'
           });
-        }
-        if (url.match(/\/boards\?ids=/)) {
-          return RSVP.reject({});
         }
       });
 

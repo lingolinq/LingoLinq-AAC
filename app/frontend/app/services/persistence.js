@@ -3178,6 +3178,14 @@ var persistence = Service.extend({
       var _sync = _this;
       var startBoardSync = function(listData) {
       return new RSVP.Promise(function(resolve, reject) {
+        if(!_sync || _sync.isDestroyed || _sync.isDestroying || !_sync.get('sync_progress') || _sync.get('sync_progress.canceled')) {
+          resolve();
+          return;
+        }
+        if(!user || user.isDestroyed || user.isDestroying || typeof user.get !== 'function') {
+          resolve();
+          return;
+        }
         var to_visit_boards = [];
         var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
         if(user.get('preferences.home_board.id')) {

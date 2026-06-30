@@ -2,6 +2,7 @@ import { cancel as runCancel } from '@ember/runloop';
 import RSVP from 'rsvp';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
+import capabilities from '../../utils/capabilities';
 import { persistenceTarget } from './persistence-stub';
 import { stub } from './jasmine';
 
@@ -86,17 +87,37 @@ export function stubSoundTranscriptionCheck() {
         return false;
       }
       try {
-        if (!this.get('id')) {
+        if (this.isDestroyed || this.isDestroying || !this.get('id')) {
           return false;
         }
       } catch (e) {
         return false;
       }
-      if (this.get && this.set) {
-        this.set('transcription_pending', false);
+      try {
+        if (this.get && this.set) {
+          this.set('transcription_pending', false);
+        }
+      } catch (e) {
+        return false;
       }
       return true;
     });
+    if (typeof LingoLinq.Sound.prototype.reload === 'function') {
+      var origSoundReload = LingoLinq.Sound.prototype.reload;
+      stub(LingoLinq.Sound.prototype, 'reload', function() {
+        if (!this || typeof this.get !== 'function') {
+          return RSVP.resolve(this);
+        }
+        try {
+          if (!this.get('id') || this.isDestroyed || this.isDestroying) {
+            return RSVP.resolve(this);
+          }
+        } catch (e) {
+          return RSVP.resolve(this);
+        }
+        return origSoundReload.apply(this, arguments);
+      });
+    }
   }
 }
 
@@ -140,13 +161,22 @@ export function syncSettled() {
   return true;
 }
 
+export function clearLocalSyncDb() {
+  var repo = capabilities.dbman && capabilities.dbman.repo;
+  if (repo) {
+    Object.keys(repo).forEach(function(store) {
+      repo[store] = [];
+    });
+  }
+}
+
 export function cancelSyncTailWork() {
   var target = persistenceTarget();
-  if (target && typeof target.cancel_sync === 'function') {
-    target.cancel_sync();
-  }
   [target, persistence].forEach(function(inst) {
     if (!inst) { return; }
+    if (typeof inst.cancel_sync === 'function') {
+      inst.cancel_sync();
+    }
     if (inst.eventual_store_timer) {
       try { runCancel(inst.eventual_store_timer); } catch (e) { /* torn down */ }
       inst.eventual_store_timer = null;
@@ -157,17 +187,15 @@ export function cancelSyncTailWork() {
     if (inst.refresh_after_eventual_stores) {
       inst.refresh_after_eventual_stores.waiting = false;
     }
+    if (inst.sync_actions) {
+      inst.sync_actions = [];
+    }
+    inst.syncing_action_watchers = 0;
+    inst.active_board_threads = 0;
   });
   persistence.urls_to_store = [];
   persistence.storing_url_watchers = 0;
   persistence.storing_urls = null;
-  if (target && target.sync_actions) {
-    target.sync_actions = [];
-  }
-  if (target) {
-    target.syncing_action_watchers = 0;
-    target.active_board_threads = 0;
-  }
 }
 
 export function waitUntil(conditionFn) {
