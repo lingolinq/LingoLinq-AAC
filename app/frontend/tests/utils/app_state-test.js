@@ -25,7 +25,7 @@ import utterance from '../../utils/utterance';
 import geo from '../../utils/geo';
 import speecher from '../../utils/speecher';
 import LingoLinq from '../../app';
-import { run as emberRun, later } from '@ember/runloop';
+import { run as emberRun, later, cancel } from '@ember/runloop';
 
 function primeSpeakModeUser(attrs) {
   var base = {
@@ -414,7 +414,7 @@ describe('app_state', function() {
         }
       }).create());
       expect(app_state.refreshing_user).not.toEqual(undefined);
-      emberRun.cancel(app_state.refreshing_user);
+      cancel(app_state.refreshing_user);
     });
   });
 

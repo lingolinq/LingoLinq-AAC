@@ -754,7 +754,8 @@ function boardModelStub(attrs) {
     },
     variant_image_urls: function() {
       return {};
-    }
+    },
+    clear_real_time_changes: function() { }
   }, attrs || {}));
 }
 
