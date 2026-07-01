@@ -455,12 +455,23 @@ Full rationale in the decision memo
    URL map + managed cert + HTTPS/HTTP forwarding. Records the **LB IP** = the DNS A-record
    target for step 9.
 2. `... CONFIRM_ARMOR=1 ...` adds Cloud Armor with the OWASP WAF in **PREVIEW** (log-only, low
-   sensitivity). In the rehearsal (0a), drive AAC traffic and review the preview logs; only when
-   no legitimate traffic is flagged, re-run with `ARMOR_ENFORCE=1` to switch the WAF to enforce.
+   sensitivity). **The WAF stays in PREVIEW through the DNS cutover and the soak. Do NOT flip it
+   to enforce pre-DNS.** Rationale (verified live 2026-06-30): the LB receives NO traffic until
+   step 9 points DNS at it (the `run.app` smoke tests bypass the LB), so pre-DNS the Cloud Armor
+   preview logs are empty and prove nothing. The specific risk that motivated preview mode -
+   free-text AAC utterances tripping the SQLi/XSS rules - only surfaces under real user traffic,
+   which does not exist until after the cut. Preview mode blocks nothing, so leaving it in preview
+   across the cut adds zero outage risk. The rehearsal's IP+Host validation only confirms the LB
+   path is wired, NOT that the WAF is false-positive clean. The enforce flip is therefore a
+   **post-soak** step: see step 9c.
 3. After the LB path is validated, `... CONFIRM_INGRESS_LOCKDOWN=1` takes `lingolinq-web` off the
    public `run.app` URL (LB-only). Run this **after** the 0a smoke test (which uses `run.app`).
 The managed cert stays PENDING until step 9 points DNS at the LB IP, so validate the LB in the
-rehearsal via the IP + Host header. This is a **pre-cutover build**, not improvised in the window.
+rehearsal via the IP + Host header (`curl --resolve <domain>:443:<LB_IP> -k`). This is a
+**pre-cutover build**, not improvised in the window. **Expect the managed cert to read
+`PROVISIONING` / `domainStatus: FAILED_NOT_VISIBLE` until DNS is flipped** - this is normal, not a
+failure; Google can only validate the domain once it resolves to the LB IP. It transitions to
+`ACTIVE` typically within ~15-60 min after the step-9 DNS flip (see step 9's cert-window note).
 
 ### 9. DNS cut  (tracker 5.4, GATE: DNS)
 
@@ -469,6 +480,50 @@ rehearsal via the IP + Host header. This is a **pre-cutover build**, not improvi
 - Watch logs, error rate, latency, email deliverability, job processing (tracker 5.5).
 - **Do not touch Render prod** (tracker 5.6) except that it stays UP in write-reject mode; it is
   rollback insurance through the soak. Do not scale it to 0 or decommission (step 9b).
+- **Managed-cert window (decided: accept it, Scot 2026-06-30).** The managed cert only validates
+  AFTER this DNS flip points `app.lingolinq.com` at the LB IP. Expect a **~15-60 min window** where
+  DNS resolves to the LB but the cert is still `PROVISIONING`, so HTTPS returns a cert error. This
+  is acceptable because prod has **no real users at cutover** (only internal testers). Watch the
+  transition to `ACTIVE` before declaring the cut clean:
+  `gcloud compute ssl-certificates describe lingolinq-cert --global --project=lingolinq-prod --format='value(managed.status,managed.domainStatus)'`
+  If it is not `ACTIVE` after ~60 min, confirm the A-record points at the LB IP and that only ONE
+  cert claims the domain. (To eliminate the window entirely instead, pre-provision via Certificate
+  Manager DNS-authorization before the flip - deliberately NOT chosen for this cut.)
+
+### 9c. Cloud Armor WAF: preview -> enforce (POST-SOAK, GATE: enforce = outage-capable)
+
+The WAF ships and cuts over in **PREVIEW** (step 8, item 2). Flip it to enforce **only after the
+soak has run real AAC traffic through the LB and the preview logs are clean** - never pre-DNS
+(there is no LB traffic to review until the cut). Sequence:
+
+1. **Review preview denials from real soak traffic:**
+   ```bash
+   gcloud logging read \
+     'resource.type="http_load_balancer" AND jsonPayload.previewSecurityPolicy.outcome="DENY"' \
+     --project=lingolinq-prod --freshness=<soak-days>d --limit=100 \
+     --format='value(timestamp, httpRequest.remoteIp, jsonPayload.previewSecurityPolicy.priority, httpRequest.requestUrl)'
+   ```
+   Every hit is traffic the WAF WOULD block at enforce. Confirm each is genuinely malicious, not a
+   legitimate AAC utterance / board payload tripping SQLi/XSS. If a real request is flagged, add a
+   preconfigured-WAF exclusion (or lower the rule) and keep soaking - do NOT enforce over a false
+   positive.
+2. **Flip to enforce (double-gated):**
+   ```bash
+   CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 DOMAIN=app.lingolinq.com \
+     ./scripts/gcp/phase5-frontend-lb.sh
+   ```
+   **`CONFIRM_LB=1` is REQUIRED here**, not just the ARMOR flags: the script hard-exits at the LB
+   gate (`phase5-frontend-lb.sh` step 1) whenever `CONFIRM_LB != 1`, so it never reaches the Cloud
+   Armor block and the enforce flip silently no-ops (WAF stays in preview while the run reports
+   success). The LB build is idempotent (every create is describe-guarded), so re-passing
+   `CONFIRM_LB=1` against the already-built LB just skips through to the Armor block. The script
+   then converges each existing rule to `--no-preview` and prints the actual per-rule preview state
+   (step 2e). Confirm every rule reads `preview=false` afterward - do NOT trust the exit code alone.
+3. **Verify** a known-bad probe (e.g. `?q=' OR 1=1--`) now returns `403` and that normal app use is
+   unaffected. Reverse if needed by re-running without `ARMOR_ENFORCE` after setting each rule back
+   to `--preview`.
+
+This is independent of the Render decommission (9b) and can happen any time after a clean soak.
 
 ### 9b. Render decommission - POINTER ONLY (tracker Phase 6, 6.2, GATE: delete prod)
 
@@ -597,8 +652,10 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       freeze. (Selective requeue remains a possible later improvement, not a cutover blocker.)
 - [ ] 5.3 front-end choice **decided (Option B, LB + Cloud Armor, gated on the rehearsal; fallback
       A-now-B-soak)** AND built. Build script shipped (`scripts/gcp/phase5-frontend-lb.sh`, PR #476);
-      still to run (gated): provision the LB, validate it + the WAF preview in the rehearsal, flip
-      the WAF to enforce, then the ingress lockdown.
+      still to run (gated): provision the LB, validate it + the WAF **preview** in the rehearsal,
+      then the ingress lockdown, then the DNS cut. The WAF **enforce** flip is deferred to
+      **post-soak** (step 9c), reviewed against real traffic - NOT flipped during the rehearsal
+      (pre-DNS the LB has no traffic to review).
 - [x] **Render write-reject mode built + tested + dual-reviewed** (tracker 5.2, **PR #472**,
       merged to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
       Retry-After on mutating verbs AND side-effect GETs incl. the `lib/json_api` write paths;

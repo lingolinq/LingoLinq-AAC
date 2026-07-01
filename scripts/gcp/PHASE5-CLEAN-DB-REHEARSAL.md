@@ -253,15 +253,23 @@ Deploy the web service + worker pool against the seeded DB (same `gcloud run dep
 Proceed to the unchanged tail of the main runbook, in the clean-DB framing:
 
 1. Frontend LB + Cloud Armor - `scripts/gcp/phase5-frontend-lb.sh` (#476, Option B HTTPS LB +
-   Cloud Armor; honor `CONFIRM_ARMOR_ENFORCE`).
+   Cloud Armor). Build the LB + WAF **in PREVIEW only** (`CONFIRM_LB=1` then `CONFIRM_ARMOR=1`);
+   do **NOT** pass `ARMOR_ENFORCE` yet. The WAF enforce flip is a **post-soak** step, not part of
+   the cut - see the note below and main runbook step 9c. Validate the LB pre-DNS via IP + Host
+   header (`curl --resolve app.lingolinq.com:443:<LB_IP> -k`); expect the managed cert to read
+   `PROVISIONING` / `FAILED_NOT_VISIBLE` until DNS is flipped (normal, not a failure).
 2. DNS flip at 60s TTL (main runbook step 9). **Toggle `WRITE_FREEZE` on Render at flip time.** It
    is no longer load-bearing for data integrity (no real data to protect), but it is still the cheap
    guard against split-brain: the seeded accounts (`lingolinq_admin`, `lingolinq`) exist on BOTH the
    old Render DB and the new GCP DB, so an internal tester or monitor hitting a DNS-stale Render IP
    during TTL propagation would mutate the abandoned DB and create divergent state that reads as
-   "my change disappeared." Keep the freeze build; do not drop it.
-3. Soak, then Phase 6 Render decommission (`6.2`, separate gated op) only after Cloud SQL is
-   confirmed authoritative.
+   "my change disappeared." Keep the freeze build; do not drop it. Accept the ~15-60 min
+   managed-cert provisioning window after the flip (no real users; main runbook step 9 cert note).
+3. Soak with the WAF still in preview. **Flip Cloud Armor preview -> enforce only after the soak
+   proves the preview logs clean against real traffic** (main runbook step 9c): pre-DNS there is no
+   LB traffic to review, so enforce cannot be validated before the cut.
+4. Then Phase 6 Render decommission (`6.2`, separate gated op) only after Cloud SQL is confirmed
+   authoritative.
 
 ## What this runsheet intentionally does NOT do
 

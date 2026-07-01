@@ -14,13 +14,16 @@
 #              HTTP :80 -> HTTPS redirect (url-map + proxy + forwarding rule)
 #   [ARMOR]    Cloud Armor policy: preconfigured OWASP WAF rules (SQLi/XSS/LFI/RCE) in
 #              PREVIEW (log-only) at LOW sensitivity + an edge rate-limit rule, attached to
-#              the backend service. Preview + low sensitivity so the dress rehearsal can prove
-#              it does NOT false-positive on AAC traffic before it is switched to enforce.
+#              the backend service. Preview + low sensitivity so real AAC traffic can be proven
+#              NOT to false-positive before the WAF is switched to enforce.
 #   [LOCKDOWN] flip lingolinq-web ingress to internal-and-cloud-load-balancing so the public
 #              run.app URL no longer bypasses Cloud Armor. RUN LAST, after the LB is validated.
 #
 # It does NOT flip DNS (runbook step 9, a separate gated cutover action) and does NOT enforce
-# the WAF rules (they ship in preview; flip to enforce after the rehearsal proves them clean).
+# the WAF rules (they ship in preview). The enforce flip is a POST-SOAK step (runbook step 9c):
+# pre-DNS the LB receives no traffic (run.app bypasses it), so the preview logs are empty and
+# prove nothing. Keep the WAF in preview through the cut + soak, review the preview logs against
+# REAL traffic, then flip to enforce.
 #
 # Design rules (same contract as scripts/gcp/phase3-data-layer.sh):
 #   - Idempotent: every create is guarded by a describe check, so re-runs are safe.
@@ -43,11 +46,15 @@
 #   DOMAIN=... CONFIRM_LB=1 CONFIRM_ARMOR=1 ./scripts/gcp/phase5-frontend-lb.sh  # + Cloud Armor (preview)
 #   DOMAIN=... CONFIRM_LB=1 CONFIRM_ARMOR=1 SET_GH_VARS=1 ...                  # + write repo vars (LB IP/domain)
 #   DOMAIN=... CONFIRM_INGRESS_LOCKDOWN=1 ./scripts/gcp/phase5-frontend-lb.sh  # flip web to LB-only (LAST)
-#   ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 CONFIRM_ARMOR=1 DOMAIN=... ...     # WAF enforce (after rehearsal)
+#   CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 DOMAIN=... ...  # WAF enforce (POST-SOAK)
 #
-# NOTE: enforce (deny-403) needs BOTH ARMOR_ENFORCE=1 and its own CONFIRM_ARMOR_ENFORCE=1 gate,
-# and the ingress lockdown must be a SEPARATE invocation from the LB build (CONFIRM_LB=1) so the
-# LB path is validated before public run.app access is removed.
+# NOTE: enforce (deny-403) needs BOTH ARMOR_ENFORCE=1 and its own CONFIRM_ARMOR_ENFORCE=1 gate.
+# It ALSO needs CONFIRM_LB=1 (and CONFIRM_ARMOR=1): step 1 hard-exits when CONFIRM_LB != 1, so
+# without it the run never reaches the Cloud Armor block and the enforce flip silently no-ops
+# (WAF stays in preview). The LB build is idempotent, so re-passing CONFIRM_LB=1 against the
+# already-built LB just skips through to the Armor block. The ingress lockdown, by contrast, must
+# be a SEPARATE invocation from the LB build so the LB path is validated before public run.app
+# access is removed.
 #
 # Optional overrides: PROJECT_ID, REGION, WEB_SERVICE, WAF_SENSITIVITY, RATE_LIMIT_COUNT,
 #   RATE_LIMIT_INTERVAL_SEC, and the resource names below.
@@ -79,7 +86,8 @@ HTTP_FR_NAME="${HTTP_FR_NAME:-lingolinq-http-fr}"
 ARMOR_POLICY="${ARMOR_POLICY:-lingolinq-armor}"
 
 # Cloud Armor tuning. Low sensitivity + preview by default so the WAF does NOT block real AAC
-# traffic (free-text utterances can resemble SQLi/XSS signatures) until proven in the rehearsal.
+# traffic (free-text utterances can resemble SQLi/XSS signatures) until proven clean in the
+# post-soak preview-log review against real traffic (runbook step 9c), never pre-DNS.
 WAF_SENSITIVITY="${WAF_SENSITIVITY:-1}"               # 1 = fewest signatures/false positives; default GCP is 4
 RATE_LIMIT_COUNT="${RATE_LIMIT_COUNT:-600}"          # requests per interval per client IP at the edge
 RATE_LIMIT_INTERVAL_SEC="${RATE_LIMIT_INTERVAL_SEC:-60}"
@@ -304,7 +312,7 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
     [ "$CONFIRM_ARMOR_ENFORCE" = "1" ] || {
       echo "ERROR: ARMOR_ENFORCE=1 also requires CONFIRM_ARMOR_ENFORCE=1." >&2
       echo "       Enforce flips the WAF from log-only to deny-403; confirm it deliberately AFTER the" >&2
-      echo "       rehearsal preview logs show no legitimate AAC traffic is flagged." >&2
+      echo "       POST-SOAK preview-log review (real traffic) shows no legitimate AAC traffic is flagged." >&2
       exit 1
     }
     ENFORCING=1
@@ -325,7 +333,8 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
 
   # Preconfigured OWASP WAF rule sets (current rule IDs verified 2026-06-23: sqli/xss are the
   # *-v422-stable sets). Low sensitivity + preview so free-text AAC utterances are not blocked
-  # until the rehearsal proves the rules clean; flip to enforce with ARMOR_ENFORCE=1 afterward.
+  # until the POST-SOAK preview-log review (against real traffic) proves the rules clean; flip to
+  # enforce with ARMOR_ENFORCE=1 afterward (runbook step 9c), never pre-DNS.
   declare -A WAF_RULES=(
     [1001]="sqli-v422-stable"
     [1002]="xss-v422-stable"
@@ -435,12 +444,16 @@ cat <<HANDOFF
 
   Next, in order:
    1. Dress rehearsal: validate the LB path via the IP + Host header (cert is PENDING until DNS).
-      Review Cloud Armor preview logs; confirm no AAC traffic is flagged, then re-run with
-      ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 CONFIRM_ARMOR=1 to switch the WAF to enforce.
+      The WAF stays in PREVIEW; do NOT flip enforce here - pre-DNS the LB gets no traffic (run.app
+      bypasses it), so the preview logs are empty and prove nothing.
    2. After the LB is validated, run CONFIRM_INGRESS_LOCKDOWN=1 ON ITS OWN (no CONFIRM_LB/ARMOR)
       to take the web service off the public run.app URL (LB-only).
    3. At cutover (runbook step 9): point $DOMAIN DNS A record at the LB IP. The managed cert then
       provisions (up to ~60 min). Do NOT flip DNS before then.
+   4. POST-SOAK ONLY (runbook step 9c): after real traffic has soaked with the WAF in preview and
+      the preview logs show no legitimate AAC traffic flagged, flip the WAF to enforce with
+      CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 (CONFIRM_LB=1 is
+      required or step 1 exits before the Armor block and the flip no-ops).
 
   Teardown (reverse order): forwarding-rules -> proxies -> url-maps -> ssl-certificates ->
   backend-services -> network-endpoint-groups -> addresses; detach + delete the Cloud Armor
