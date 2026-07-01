@@ -1370,12 +1370,22 @@ class User < ApplicationRecord
       end
       params.delete('valet_login')
     end
-    if params['valet_login']
-      self.set_valet_password(params['valet_password'])
-      self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
-      self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
-    elsif params['valet_login'] == false
-      self.set_valet_password(false)
+    # Coerce valet_login through process_boolean. The client serializes this
+    # boolean attribute as a STRING ('true'/'false'), and a bare `if
+    # params['valet_login']` treats the non-empty string 'false' as truthy --
+    # which wrongly ENABLED valet mode (assert_valet_mode! + a random valet
+    # password) on every profile save. With valet mode on, the subsequent
+    # valid_password? check compares the user's real password against the valet
+    # secret, so self-service password changes always failed with "incorrect
+    # current password". Only an explicitly-absent (nil) value is a no-op.
+    unless params['valet_login'].nil?
+      if process_boolean(params['valet_login'])
+        self.set_valet_password(params['valet_password'])
+        self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
+        self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
+      else
+        self.set_valet_password(false)
+      end
     end
     if params['preferences']
       CONFIRMATION_PREFERENCE_PARAMS.each do |key|
