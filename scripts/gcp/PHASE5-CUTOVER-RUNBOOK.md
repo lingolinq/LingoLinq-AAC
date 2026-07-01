@@ -549,8 +549,10 @@ condition is met:
    > produce means a whole school or clinic NATs to a single public IP and shares ONE per-IP token
    > bucket (`--enforce-on-key=IP`, 600 req/60s), so a threshold that looks generous per-user can 429
    > an entire building at once. The script therefore does **not** flip rule 2000 with the WAF sig
-   > rules: `ARMOR_ENFORCE=1` enforces only 1001-1004 and actively **keeps 2000 in preview** (asserts
-   > `--preview` on every non-rate-limit run, so no WAF-enforce run can ever leave it enforcing).
+   > rules: `ARMOR_ENFORCE=1` enforces only 1001-1004 and **does not touch rule 2000 at all**, so no
+   > WAF-enforce run can ever flip it to enforcing. Conversely, a routine Armor run will **not**
+   > silently downgrade a rule 2000 you have deliberately enforced - it leaves it as-is and prints a
+   > `[GATE]` warning, so returning 2000 to preview is only ever done via the explicit revert (step 3).
    > Enforcing 2000 is a deliberate, even-later step - only after its threshold is proven generous for
    > building-scale NAT against real district traffic - done by ALSO passing its own gate:
    > ```bash
@@ -558,6 +560,8 @@ condition is met:
    >   RATE_LIMIT_ENFORCE=1 CONFIRM_RATE_LIMIT_ENFORCE=1 DOMAIN=app.lingolinq.com \
    >   ./scripts/gcp/phase5-frontend-lb.sh
    > ```
+   > After this run, confirm rule 2000 now reads `preview=false` in the step-2e readback (this is the
+   > one case where `preview=false` on rule 2000 is the intended, correct result).
 2. **Flip to enforce (double-gated):**
    ```bash
    CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 DOMAIN=app.lingolinq.com \
@@ -568,10 +572,11 @@ condition is met:
    Armor block and the enforce flip silently no-ops (WAF stays in preview while the run reports
    success). The LB build is idempotent (every create is describe-guarded), so re-passing
    `CONFIRM_LB=1` against the already-built LB just skips through to the Armor block. The script
-   then converges the **WAF sig rules 1001-1004** to `--no-preview`, leaves **rule 2000 in preview**
-   (asserting `--preview` on it), and prints the actual per-rule preview state (step 2e). Confirm
-   rules 1001-1004 read `preview=false` **and rule 2000 reads `preview=true`** afterward - do NOT
-   trust the exit code alone.
+   then converges the **WAF sig rules 1001-1004** to `--no-preview`, does **not** touch rule 2000,
+   and prints the actual per-rule preview state (step 2e). For this WAF-sig-only enforce run (no
+   `RATE_LIMIT_ENFORCE`), confirm rules 1001-1004 read `preview=false` **and rule 2000 still reads
+   `preview=true`** afterward - do NOT trust the exit code alone. (Rule 2000 reads `preview=false`
+   only after the separate rate-limit enforce run in step 1's blockquote; that is expected there.)
 3. **Verify** a known-bad probe (e.g. `?q=' OR 1=1--`) now returns `403` and that normal app use is
    unaffected. **Rollback is manual**: re-running the script WITHOUT `ARMOR_ENFORCE` does NOT
    restore preview - the script only converges rules to `--no-preview` (there is no preview-restore
@@ -583,10 +588,12 @@ condition is met:
        --security-policy=lingolinq-armor --preview --project=lingolinq-prod
    done
    ```
-   (Rule 2000 is the exception: a plain run WITHOUT `RATE_LIMIT_ENFORCE=1` already re-asserts it to
-   `--preview`, so it self-heals. The WAF sig rules 1001-1004 have no auto-revert by design - once
-   validated and enforced they should stay enforced - so the manual loop above is their emergency
-   rollback path.)
+   (This manual loop is the ONLY way any enforced rule returns to preview - the script never
+   auto-reverts. That is deliberate: once validated and enforced, both the WAF sig rules 1001-1004
+   AND rate-limit rule 2000 should stay enforced until an operator explicitly rolls them back here,
+   so no routine Armor re-run silently drops a live security control. A non-`RATE_LIMIT_ENFORCE` run
+   leaves an already-enforced rule 2000 untouched and prints a `[GATE]` warning rather than
+   downgrading it.)
 
 This is independent of the Render decommission (9b) and happens once real production traffic has
 been reviewed clean (not the no-users cutover soak).

@@ -20,10 +20,11 @@
 #              run.app URL no longer bypasses Cloud Armor. RUN LAST, after the LB is validated.
 #
 # It does NOT flip DNS (runbook step 9, a separate gated cutover action) and does NOT enforce
-# the WAF rules (they ship in preview). The enforce flip is a POST-SOAK step (runbook step 9c):
-# pre-DNS the LB receives no traffic (run.app bypasses it), so the preview logs are empty and
-# prove nothing. Keep the WAF in preview through the cut + soak, review the preview logs against
-# REAL traffic, then flip to enforce.
+# the WAF rules (they ship in preview). The enforce flip is a POST-REAL-TRAFFIC step (runbook step
+# 9c): pre-DNS the LB receives no traffic (run.app bypasses it) and the no-users cutover soak is not
+# representative either, so the preview logs prove nothing about false positives until real users
+# hit the LB. Keep the WAF in preview through the cut AND the soak; review the preview logs only
+# once REAL production traffic exists, then flip the sig rules to enforce (rate-limit 2000 separately).
 #
 # Design rules (same contract as scripts/gcp/phase3-data-layer.sh):
 #   - Idempotent: every create is guarded by a describe check, so re-runs are safe.
@@ -90,7 +91,7 @@ ARMOR_POLICY="${ARMOR_POLICY:-lingolinq-armor}"
 
 # Cloud Armor tuning. Low sensitivity + preview by default so the WAF does NOT block real AAC
 # traffic (free-text utterances can resemble SQLi/XSS signatures) until proven clean in the
-# post-soak preview-log review against real traffic (runbook step 9c), never pre-DNS.
+# post-real-traffic preview-log review (runbook step 9c) - not the no-users soak, never pre-DNS.
 WAF_SENSITIVITY="${WAF_SENSITIVITY:-1}"               # 1 = fewest signatures/false positives; default GCP is 4
 RATE_LIMIT_COUNT="${RATE_LIMIT_COUNT:-600}"          # requests per interval per client IP at the edge
 RATE_LIMIT_INTERVAL_SEC="${RATE_LIMIT_INTERVAL_SEC:-60}"
@@ -355,8 +356,8 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
 
   # Preconfigured OWASP WAF rule sets (current rule IDs verified 2026-06-23: sqli/xss are the
   # *-v422-stable sets). Low sensitivity + preview so free-text AAC utterances are not blocked
-  # until the POST-SOAK preview-log review (against real traffic) proves the rules clean; flip to
-  # enforce with ARMOR_ENFORCE=1 afterward (runbook step 9c), never pre-DNS.
+  # until the POST-REAL-TRAFFIC preview-log review proves the rules clean (the no-users soak cannot);
+  # flip to enforce with ARMOR_ENFORCE=1 afterward (runbook step 9c), never pre-DNS.
   declare -A WAF_RULES=(
     [1001]="sqli-v422-stable"
     [1002]="xss-v422-stable"
@@ -387,7 +388,7 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
 
   log "Step 2c: edge rate-limit rule 2000 (throttle ${RATE_LIMIT_COUNT}/${RATE_LIMIT_INTERVAL_SEC}s per IP, $RL_MODE)"
   # Defense-in-depth on top of the app's Rack::Attack; conservative so normal AAC use is unaffected.
-  # Rule 2000 tracks RL_ENFORCING, NOT ENFORCING: enforcing the WAF sig rules leaves it in preview.
+  # Rule 2000 tracks RL_ENFORCING, NOT ENFORCING: an ARMOR_ENFORCE (WAF sig) run never touches it.
   if gcloud compute security-policies rules describe 2000 --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" >/dev/null 2>&1; then
     skip "rate-limit rule 2000 already exists"
     if [ "$RL_ENFORCING" = "1" ]; then
@@ -395,11 +396,17 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
       gcloud compute security-policies rules update 2000 \
         --project="$PROJECT_ID" --security-policy="$ARMOR_POLICY" --no-preview
     else
-      # Idempotently keep 2000 in preview so no run (e.g. an ARMOR_ENFORCE WAF flip) ever leaves the
-      # un-soak-validatable rate limit enforcing. Reverting it needs the explicit RATE_LIMIT_ENFORCE gate.
-      log "Step 2c: assert rate-limit rule 2000 stays in PREVIEW (--preview)"
-      gcloud compute security-policies rules update 2000 \
-        --project="$PROJECT_ID" --security-policy="$ARMOR_POLICY" --preview
+      # Do NOT mutate rule 2000 on a non-rate-limit run. With the separate gate, 2000 can only become
+      # enforced via RATE_LIMIT_ENFORCE=1, so if it is already enforcing that was DELIBERATE - never
+      # silently downgrade a live security control from a routine Armor run. Only report/warn; the
+      # explicit --preview revert (runbook step 9c) is the sole way to return it to log-only.
+      CUR_2000_PREVIEW="$(gcloud compute security-policies rules describe 2000 \
+        --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(preview)' 2>/dev/null || echo unknown)"
+      if [ "$CUR_2000_PREVIEW" = "False" ] || [ "$CUR_2000_PREVIEW" = "false" ]; then
+        gate "rate-limit rule 2000 is currently ENFORCING (preview=$CUR_2000_PREVIEW) and is LEFT AS-IS (this run carries no RATE_LIMIT_ENFORCE). Not downgrading a live security control. To return it to preview, run the explicit revert in runbook step 9c."
+      else
+        skip "rate-limit rule 2000 left in preview (not enforcing this run; pass RATE_LIMIT_ENFORCE=1 CONFIRM_RATE_LIMIT_ENFORCE=1 to enforce it)"
+      fi
     fi
   else
     # shellcheck disable=SC2086
