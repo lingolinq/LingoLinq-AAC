@@ -487,8 +487,13 @@ failure; Google can only validate the domain once it resolves to the LB IP. It t
   transition to `ACTIVE` before declaring the cut clean:
   `gcloud compute ssl-certificates describe lingolinq-cert --global --project=lingolinq-prod --format='value(managed.status,managed.domainStatus)'`
   If it is not `ACTIVE` after ~60 min, confirm the A-record points at the LB IP and that only ONE
-  cert claims the domain. (To eliminate the window entirely instead, pre-provision via Certificate
-  Manager DNS-authorization before the flip - deliberately NOT chosen for this cut.)
+  cert claims the domain. Two pre-flip gotchas worth a 30-second check: (1) if `lingolinq.com` has
+  any **CAA record**, it must authorize Google's CA or issuance is silently blocked -
+  `dig CAA lingolinq.com +short` should be empty or include `pki.goog` (issuance from `pki.goog`);
+  (2) the ~15-60 min clock starts after **DNS propagation** at the 60s TTL, not the moment you edit
+  the record - so start the timer from when `dig +short app.lingolinq.com` first returns the LB IP.
+  (To eliminate the window entirely instead, pre-provision via Certificate Manager DNS-authorization
+  before the flip - deliberately NOT chosen for this cut.)
 
 ### 9c. Cloud Armor WAF: preview -> enforce (POST-SOAK, GATE: enforce = outage-capable)
 
@@ -496,17 +501,36 @@ The WAF ships and cuts over in **PREVIEW** (step 8, item 2). Flip it to enforce 
 soak has run real AAC traffic through the LB and the preview logs are clean** - never pre-DNS
 (there is no LB traffic to review until the cut). Sequence:
 
-1. **Review preview denials from real soak traffic:**
+1. **Review preview hits from real soak traffic** (this covers BOTH the WAF rules AND the
+   rate-limit rule - all of ours use a deny action, so `outcome="DENY"` catches them; the extra
+   projected fields let you tell them apart):
    ```bash
    gcloud logging read \
      'resource.type="http_load_balancer" AND jsonPayload.previewSecurityPolicy.outcome="DENY"' \
-     --project=lingolinq-prod --freshness=<soak-days>d --limit=100 \
-     --format='value(timestamp, httpRequest.remoteIp, jsonPayload.previewSecurityPolicy.priority, httpRequest.requestUrl)'
+     --project=lingolinq-prod --freshness=<soak-days>d --limit=1000 \
+     --format='value(timestamp, httpRequest.remoteIp, jsonPayload.previewSecurityPolicy.priority, jsonPayload.previewSecurityPolicy.configuredAction, jsonPayload.previewSecurityPolicy.rateLimitAction.outcome, httpRequest.requestUrl)'
    ```
-   Every hit is traffic the WAF WOULD block at enforce. Confirm each is genuinely malicious, not a
-   legitimate AAC utterance / board payload tripping SQLi/XSS. If a real request is flagged, add a
-   preconfigured-WAF exclusion (or lower the rule) and keep soaking - do NOT enforce over a false
-   positive.
+   Split the hits by `priority` (raise `--limit` / narrow `--freshness` if you hit the cap):
+   - **WAF rules 1001-1004** (`configuredAction` empty, `outcome=DENY`): each is traffic the WAF
+     would block at enforce. Confirm each is genuinely malicious, not a legitimate AAC utterance /
+     board payload tripping SQLi/XSS. If a real request is flagged, add a preconfigured-WAF
+     exclusion (or lower the rule) and keep soaking - do NOT enforce over a false positive.
+   - **Rate-limit rule 2000** (`configuredAction=THROTTLE`, `rateLimitAction.outcome=RATE_LIMIT_THRESHOLD_EXCEED`):
+     see the caveat below - this rule CANNOT be validated by the soak, so do not treat a clean soak
+     as license to enforce it.
+
+   > **Rate-limit rule 2000 cannot be soak-validated - handle it separately.** Prod has no real
+   > users at cutover, so the soak's internal-tester traffic is NOT representative of the
+   > many-users-behind-one-IP pattern real districts/hospitals produce: a whole school or clinic
+   > NATs to a single public IP and shares ONE per-IP token bucket (`--enforce-on-key=IP`, 600
+   > req/60s). Flipping rule 2000 to enforce on the strength of a no-users soak risks collective
+   > `429`s for an entire building on launch day. Step 2 below flips ALL rules (incl. 2000) to
+   > enforce together, so unless the threshold is confirmed generous for building-scale NAT, return
+   > ONLY rule 2000 to preview afterward and tune it against real district traffic post-launch:
+   > ```bash
+   > gcloud compute security-policies rules update 2000 \
+   >   --security-policy=lingolinq-armor --preview --project=lingolinq-prod
+   > ```
 2. **Flip to enforce (double-gated):**
    ```bash
    CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 DOMAIN=app.lingolinq.com \
@@ -520,8 +544,18 @@ soak has run real AAC traffic through the LB and the preview logs are clean** - 
    then converges each existing rule to `--no-preview` and prints the actual per-rule preview state
    (step 2e). Confirm every rule reads `preview=false` afterward - do NOT trust the exit code alone.
 3. **Verify** a known-bad probe (e.g. `?q=' OR 1=1--`) now returns `403` and that normal app use is
-   unaffected. Reverse if needed by re-running without `ARMOR_ENFORCE` after setting each rule back
-   to `--preview`.
+   unaffected. **Rollback is manual**: re-running the script WITHOUT `ARMOR_ENFORCE` does NOT
+   restore preview - the script only converges rules to `--no-preview` (there is no preview-restore
+   branch), so a describe-guarded re-run just skips the existing enforcing rules. To roll back, set
+   each rule back to preview explicitly:
+   ```bash
+   for P in 1001 1002 1003 1004 2000; do
+     gcloud compute security-policies rules update "$P" \
+       --security-policy=lingolinq-armor --preview --project=lingolinq-prod
+   done
+   ```
+   (A scripted, gated preview-rollback mode in `phase5-frontend-lb.sh` is a follow-up code change,
+   out of scope for this docs-only branch.)
 
 This is independent of the Render decommission (9b) and can happen any time after a clean soak.
 
