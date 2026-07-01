@@ -1,5 +1,12 @@
 # Privacy Data-Flow Map (Phase 1 artifact)
 
+> **NOT the source of truth for store declarations.** As of the 2026-06-30
+> privacy-map reconciliation, the authoritative, code-cited source is
+> [`privacy-data-flow-evidence-map.md`](./privacy-data-flow-evidence-map.md).
+> This file is retained as the **plain-English team-facing narrative** -- use it
+> for orientation, not for filling out the Apple/Google forms. If the two files
+> disagree, the evidence map (with `file:line` citations) wins.
+
 **Status:** DRAFT evidence map for Scot + compliance review. **Claude-only compliance
 content; never route this file or its analysis to Codex / external models.**
 **Owner:** compliance-auditor / compliance-officer agents (verification) + Scot (sign-off).
