@@ -145,3 +145,38 @@ The adversary returned a **Block** (2 Critical, 2 High, 2 Medium, 1 Low). All co
 3. **After VPC P3/P4:** Art50-P3, P4, P5.
 
 Marking (Art. 50(2)) has until 2026-12-02; visible disclosure (50(1)) should target 2026-08-02. Art50-P1/P2/P4 land the 08-02 surface; P3 marking can follow before 12-02.
+
+---
+
+## 8. Art. 50(2) marking: known limitations of the shipped approach (documented, accepted-with-triggers)
+
+**Implementation-status bridge (2026-07-01).** The Art. 50(2) marking that actually shipped diverged from this plan's original symbol names. The plan (Sec 3, Art50-P3) proposed a plain `settings['ai_metadata']` provenance block. The delivered design instead uses a **signed** marker module, `lib/art50_marker.rb` (`Art50Marker`), persisted under `board.settings['ai_generated']`:
+
+- **Slice 1 (PR #505, merged):** mint the marker at generation time on the `AiBoardGenerator.generate_words` path. The marker is a provenance-bound (not content-bound) server bearer attestation, signed with HMAC-SHA512 via `GoSecure.lite_hmac` keyed by `SECURE_ENCRYPTION_KEY`.
+- **Slice 2 (PR #507, merged 2026-07-01):** make the marker durable. It now survives a board save (`Board#process_params`), propagates through copies (`app/cloners/board_cloner.rb`), stays inline through content offload (`BoardContent`), and is exposed as a non-secret provenance view in the JSON API (`JsonApi::Board` via `Art50Marker.public_view`, which withholds `signature` and `content_id`). Every persistence and propagation boundary canonicalizes through `Art50Marker.normalized` (verify, then slice to `PERSIST_KEYS`), so client-padded unsigned keys cannot ride along.
+
+The **register entry for Art. 50(2) stays OPEN**: `generate_focus_words` / `AiWordPredictor.predict` / eval-narration marking, OBF/OBZ export marking, and the EU-gated Art. 50(1) disclosure modal are not yet delivered.
+
+**Fail-safe direction (applies to both limitations below).** Every read path (`public_view`, `marked?`, and the cloner via `normalized`) re-verifies the signature server-side. A marker that does not verify is treated as **unmarked**, never as "verified AI-generated." So both failure modes below degrade toward **under-marking** (the system stops claiming AI provenance it cannot prove); neither can cause **false marking** (claiming human-authored content is AI-generated). Under-marking is nonetheless the direction Art. 50(2) polices, so each item is tracked here with an explicit remediation trigger rather than silently accepted.
+
+### 8.1 OBF/OBZ export does not carry the marker (export laundering / under-marking)
+
+- **What.** The Open Board Format exporters/importers in `lib/converters/` emit and read no Art. 50(2) marker. A marked, AI-generated board exported to `.obf` / `.obz` and later re-imported (into this instance or another) arrives **unmarked**. Export then reimport launders the AI provenance.
+- **Regulatory relevance.** Art. 50(2) attaches to the AI **output**. A copy of synthetic text is still synthetic text, so an exported-and-reimported AI board that reads as human-authored is under-marked.
+- **Why deferred (risk assessment).**
+  - The shipped marker is **server-secret-keyed** (HMAC via `SECURE_ENCRYPTION_KEY`) and is only verifiable on the **issuing** server. Embedding it verbatim in an OBF file would be useless off-server: a third-party tool could not verify it, and a reimport into a different LingoLinq instance (different key) would read it as forged. Carrying the marker across the export boundary therefore requires a **different, portable** marking scheme, not a copy of the internal one.
+  - The 2026-06-10 Code of Practice expects marking that is interoperable, robust, and detectable. A portable content-credential (a C2PA-style manifest, or a non-secret provenance claim in an OBF `ext_` extension field) is the correct instrument for the export path, and is a design change, not a config toggle.
+  - **Likelihood is low today:** OBF/OBZ export of AI-generated boards is an infrequent path; the large majority of AI content stays in-app, where it is marked and verified end to end.
+- **Decision.** DEFERRED as a tracked scope gap (not accepted as permanent). Recorded here so the gap is a known, reasoned omission rather than an oversight.
+- **Remediation trigger and plan.** Address before 2026-12-02 **if** EU-bound OBF/OBZ export of AI-generated content is in scope by then, or sooner if AI-board export volume becomes material. Candidate implementation: emit a **non-secret** provenance manifest (the `public_view` fields plus a portable claim) into an OBF `ext_lingolinq_ai` extension field on export, and on import re-mint a fresh server-signed marker when a trusted provenance claim is present. Add matching RSpec (export a marked board, assert the manifest; reimport, assert re-marked).
+
+### 8.2 `SECURE_ENCRYPTION_KEY` rotation invalidates every persisted marker
+
+- **What.** Markers are signed with an HMAC keyed by the `SECURE_ENCRYPTION_KEY` environment variable. Rotating that key makes every **previously persisted** marker fail verification, so every already-marked board silently reads as **unmarked** until re-signed.
+- **Scope note (pre-existing constraint).** The same key underpins the `secure_serialize` concern **application-wide**. Rotating it already breaks decryption of all secure-serialized data across the app, so in practice the key is **effectively never rotated** without a full re-encryption migration. The marker limitation is therefore **subsumed by** an existing operational constraint rather than being a new one introduced by Art. 50 work.
+- **Regulatory relevance.** An unplanned or migration-less key rotation would un-mark all AI content at once (mass under-marking) until markers were re-signed.
+- **Risk assessment.** **Low likelihood** (rotation is already gated by the app-wide `secure_serialize` blast radius), **high blast radius** if it ever occurs (all persisted markers at once).
+- **Decision.** DEFERRED / documented. No marker-specific mitigation beyond the existing app-wide "do not rotate `SECURE_ENCRYPTION_KEY` without a re-encryption migration" operational rule.
+- **Remediation trigger and plan.** If a key rotation is ever planned, the re-encryption migration **must also re-sign persisted `ai_generated` markers** (verify under the old key, re-sign under the new key). The more robust future option is to sign markers with a **dedicated, independently rotatable key** and embed a versioned key id (`kid`) in the marker, so markers signed under a prior key remain verifiable through a rotation window. Fold this requirement into the key-rotation runbook whenever one is authored.
+
+**Cross-references.** BoardCloner marker propagation and the allowlist behavior that made these boundaries load-bearing are tracked separately; see the task log for slices 1-2 and the copy-settings allowlist gotcha. Both limitations above were surfaced by the Claude `adversary` reviews of PR #505 and PR #507 and are the two Low-severity items those reviews deferred.
