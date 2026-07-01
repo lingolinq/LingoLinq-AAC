@@ -1353,6 +1353,50 @@ describe Api::BoardsController, :type => :controller do
     end
   end
 
+  describe "create (Art.50(2) marker persistence)" do
+    it "verifies and persists a valid AI-generated marker onto the saved board" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: {board: {name: 'AI board', ai_generated: marker}}.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      # full signed marker is persisted server-side (verifiable on re-save)
+      expect(board.settings['ai_generated']).to eq(marker)
+      expect(Art50Marker.verify(board.settings['ai_generated'])).to eq(true)
+      # but the create response exposes only the non-secret provenance view
+      expect(json['board']['ai_generated']['marked']).to eq(true)
+      expect(json['board']['ai_generated']['provider']).to eq(marker['provider'])
+      expect(json['board']['ai_generated']).not_to have_key('signature')
+    end
+
+    it "verifies and persists a valid marker via the form-encoded param path (string 'true' + string values)" do
+      # The JSON-body path sends marked:true (boolean); the Rails form-param path arrives
+      # with every value stringified, so marked becomes "true". Art50Marker.verify accepts
+      # both. This exercises that path + indifferent-access key handling end to end.
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      post :create, params: {board: {name: 'AI board', ai_generated: marker}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      expect(Art50Marker.verify(board.settings['ai_generated'])).to eq(true)
+    end
+
+    it "silently drops a forged marker but still saves the board" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'm')
+      forged = marker.merge('provider' => 'evil-corp')
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: {board: {name: 'b', ai_generated: forged}}.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      expect(board.settings['ai_generated']).to be_nil
+    end
+  end
+
   describe "generate_labels" do
     it "should reject non-object JSON body" do
       token_user

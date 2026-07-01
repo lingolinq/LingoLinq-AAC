@@ -162,6 +162,9 @@ LingoLinq.Board = BaseModel.extend({
   categories: attr('raw'),
   home_board: attr('boolean'),
   has_fallbacks: attr('boolean'),
+  // EU AI Act Article 50(2) signed provenance marker, set from the AI label-generation
+  // response and round-tripped on save so the server can verify and persist it.
+  ai_generated: attr('raw'),
   /** When loaded by key, the API returns global_id as id; we normalize to key and store backend id here. */
   _actual_id: attr('string'),
   /** Backend global_id for comparisons (e.g. preferences.home_board.id). Use this when comparing with server ids. */

@@ -91,4 +91,62 @@ describe Art50Marker do
       expect(described_class.marked?(nil)).to eq(false)
     end
   end
+
+  describe '.public_view' do
+    let(:marker) { described_class.build(provider: 'claude', model: 'claude-haiku-4-5-20251001') }
+
+    it 'returns the non-secret provenance fields and withholds signature + content_id' do
+      view = described_class.public_view(marker)
+      expect(view).to eq({
+        'marked' => true,
+        'spec' => 'eu-ai-act-art50-2',
+        'provider' => 'claude',
+        'model' => 'claude-haiku-4-5-20251001',
+        'generated_at' => marker['generated_at']
+      })
+      expect(view).not_to have_key('signature')
+      expect(view).not_to have_key('content_id')
+    end
+
+    it 'returns nil for a forged, missing, or malformed marker' do
+      expect(described_class.public_view(marker.merge('provider' => 'evil'))).to be_nil
+      expect(described_class.public_view(nil)).to be_nil
+      expect(described_class.public_view({ 'marked' => true })).to be_nil
+    end
+  end
+
+  describe '.normalized' do
+    let(:marker) { described_class.build(provider: 'claude', model: 'claude-haiku-4-5-20251001') }
+
+    it 'returns a verified marker unchanged when it carries only canonical keys' do
+      normalized = described_class.normalized(marker)
+      expect(normalized).to eq(marker)
+      expect(described_class.verify(normalized)).to eq(true)
+    end
+
+    it 'strips unsigned keys a client padded onto an otherwise-valid marker' do
+      padded = marker.merge('evil' => '<script>', 'extra' => { 'nested' => true })
+      # the padded marker still verifies (sign ignores unsigned keys) ...
+      expect(described_class.verify(padded)).to eq(true)
+      # ... but normalizing drops everything the server did not sign
+      normalized = described_class.normalized(padded)
+      expect(normalized).to eq(marker)
+      expect(normalized).not_to have_key('evil')
+      expect(normalized).not_to have_key('extra')
+      expect(described_class.verify(normalized)).to eq(true)
+    end
+
+    it 'keeps every field the signature covers (dropping content_id would break verify)' do
+      normalized = described_class.normalized(marker)
+      described_class::PERSIST_KEYS.each { |k| expect(normalized).to have_key(k) }
+      expect(normalized['content_id']).to eq(marker['content_id'])
+      expect(normalized['signature']).to eq(marker['signature'])
+    end
+
+    it 'returns nil for a forged, missing, or malformed marker' do
+      expect(described_class.normalized(marker.merge('model' => 'tampered'))).to be_nil
+      expect(described_class.normalized(nil)).to be_nil
+      expect(described_class.normalized({ 'marked' => true })).to be_nil
+    end
+  end
 end
