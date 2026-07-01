@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../../lib/art50_marker'
+
 class BoardCloner < Clowne::Cloner
   adapter :active_record
 
@@ -116,7 +118,13 @@ class BoardCloner < Clowne::Cloner
     # generation, not the exact bytes) and server-signed, so it stays valid on a copy.
     # The cloner only copies allowlisted settings keys, so an unlisted key is silently
     # dropped on copy; without this line copied/shared boards would lose their marking.
-    record.settings['ai_generated'] = source.settings['ai_generated'] if source.settings['ai_generated']
+    # Re-normalize on copy: this drops any unsigned keys and, crucially, refuses to
+    # propagate a marker that no longer verifies (e.g. a stale marker after key rotation),
+    # so only genuine, canonical markers ride onto the copy.
+    if source.settings['ai_generated']
+      marker = Art50Marker.normalized(source.settings['ai_generated'])
+      record.settings['ai_generated'] = marker if marker
+    end
     record.settings['intro']['unapproved'] = true if record.settings['intro'].is_a?(Hash)
     record.settings['never_edited'] = true
 

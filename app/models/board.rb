@@ -1892,7 +1892,8 @@ class Board < ApplicationRecord
     # autoload is skipped and Art50Marker may be undefined (workers carry no client marker).
     if params['ai_generated']
       begin
-        self.settings['ai_generated'] = params['ai_generated'] if Art50Marker.verify(params['ai_generated'])
+        marker = Art50Marker.normalized(params['ai_generated'])
+        self.settings['ai_generated'] = marker if marker
       rescue StandardError => e
         Rails.logger.warn("Art50 marker verification skipped on save: #{e.class}")
       end

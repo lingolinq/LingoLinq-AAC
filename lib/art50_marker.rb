@@ -78,7 +78,15 @@ module Art50Marker
     return false unless SIGNED_KEYS.all? { |k| m[k].is_a?(String) && !m[k].empty? }
 
     ActiveSupport::SecurityUtils.secure_compare(sig, sign(m))
-  rescue StandardError
+  rescue StandardError => e
+    # A forged or malformed marker returns false WITHOUT raising (the checks above and
+    # secure_compare do not raise). Reaching this rescue means an unexpected crypto/config
+    # fault -- most likely a missing or rotated signing secret -- which would otherwise
+    # silently drop every marker with no signal. Log the exception class only (never the
+    # marker contents, which could carry provenance identifiers) so the failure is
+    # observable without leaking a secret, and still return false so a marker problem can
+    # never raise into a board save or render.
+    Rails.logger.error("Art50Marker.verify errored: #{e.class}") if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
     false
   end
 
@@ -86,6 +94,22 @@ module Art50Marker
   def marked?(settings)
     return false unless settings.is_a?(Hash)
     verify(settings['ai_generated'] || settings[:ai_generated])
+  end
+
+  # The canonical key set an at-rest marker may carry: exactly the fields #build emits
+  # (the signed payload plus the marked/sig_alg/signature control fields). Anything else a
+  # client tacks on is unsigned and must not ride along inside a "verified" marker.
+  PERSIST_KEYS = (SIGNED_KEYS + %w[marked sig_alg signature]).freeze
+
+  # Reduces a marker to its canonical, server-signed shape -- but ONLY if it verifies;
+  # otherwise nil. Because #sign ignores unsigned keys, #verify alone would accept a valid
+  # marker padded with arbitrary extra keys and #persist/#clone would store them verbatim.
+  # Normalizing at every persistence/propagation boundary guarantees a stored marker is
+  # exactly what the server signed. Dropping the extra keys never breaks verification (they
+  # were never part of the signature), so the normalized marker still verifies.
+  def normalized(marker)
+    return nil unless verify(marker)
+    stringify(marker).slice(*PERSIST_KEYS)
   end
 
   # Non-secret provenance fields safe to expose to API consumers / downstream deployers

@@ -79,6 +79,20 @@ describe 'Board Art.50(2) marker persistence' do
       b.process({'name' => 'renamed'}, {user: u, author: u})
       expect(b.reload.settings).not_to have_key('ai_generated')
     end
+
+    it 'strips unsigned client-supplied keys, persisting only the canonical signed marker' do
+      # A client can pad an otherwise-valid marker with extra keys: the signature ignores
+      # unsigned fields so it still verifies. process_params must normalize before persist so
+      # those keys never ride along inside the stored (and later cloned/exported) marker.
+      u = User.create
+      padded = valid_marker.merge('evil' => '<script>alert(1)</script>', 'admin' => true)
+      b = Board.process_new({'name' => 'b', 'ai_generated' => padded}, {user: u, author: u})
+      stored = b.reload.settings['ai_generated']
+      expect(stored).to eq(valid_marker)
+      expect(stored).not_to have_key('evil')
+      expect(stored).not_to have_key('admin')
+      expect(Art50Marker.verify(stored)).to eq(true)
+    end
   end
 
   describe 'propagation through copy_for / BoardCloner' do
@@ -95,6 +109,27 @@ describe 'Board Art.50(2) marker persistence' do
     it 'leaves a copy unmarked when the source has no marker' do
       u = User.create
       src = Board.create(user: u, public: true)
+      copy = src.copy_for(u)
+      expect(copy.settings['ai_generated']).to be_nil
+    end
+
+    it 'normalizes on copy: unsigned keys on an at-rest marker do not propagate' do
+      u = User.create
+      src = Board.create(user: u, public: true)
+      src.settings['ai_generated'] = valid_marker.merge('evil' => 'x')
+      src.save
+      copy = src.copy_for(u)
+      expect(copy.settings['ai_generated']).to eq(valid_marker)
+      expect(copy.settings['ai_generated']).not_to have_key('evil')
+    end
+
+    it 'does not propagate an at-rest marker that no longer verifies' do
+      u = User.create
+      src = Board.create(user: u, public: true)
+      # a tampered/forged marker sitting in settings (e.g. written by a legacy path) must
+      # not be carried onto the copy -- the cloner re-verifies via Art50Marker.normalized
+      src.settings['ai_generated'] = valid_marker.merge('model' => 'tampered')
+      src.save
       copy = src.copy_for(u)
       expect(copy.settings['ai_generated']).to be_nil
     end
