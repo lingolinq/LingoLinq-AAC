@@ -1,6 +1,15 @@
 # Store Identity Disposition (Phase 1 artifact)
 
-**Status:** DRAFT for Scot's decision. Part of the Phase 1 hard decision gate.
+> **DECISION LOCKED (2026-06-24, Scot): START FRESH on both Apple and Google.**
+> The legacy App Store id `1021384570` and the `com.mylingolinq.*` bundles/package are
+> **stale strings left from the CoughDrop->LingoLinq rename, not accounts we own or can
+> recover**, so there is nothing real to transfer; the installed base is negligible /
+> web-first. New store records + new app identifiers under **LingoLinq LLC** (verify whether
+> any legacy identifier can be reused before finalizing names). The transfer-vs-fresh analysis
+> in Section 2 is retained as rationale; it is settled to **fresh**. The legacy free+paid
+> two-app split collapses to **one app** (no in-app purchases in v1; see the IAP decision).
+
+**Status:** Decision LOCKED (start fresh). Analysis retained as rationale. Part of the Phase 1 hard decision gate.
 **Owner:** Scot (decision) + Claude Code (evidence). Vendor-fact citations from fresh lookups (see end).
 **Why this is a gate:** App Store and Play store records carry identifiers (Bundle ID,
 numeric App Store id, Android package name) that are effectively permanent once a record
@@ -25,7 +34,7 @@ These are real references found in the current codebase, not assumptions:
 rename from CoughDrop to LingoLinq already happened at the identifier level. The open
 question is therefore NOT "is this still branded CoughDrop" but **"which Apple/Google
 developer account currently owns these live store records, and do we transfer them into
-the new LingoLinq Inc org account or start fresh?"**
+the new LingoLinq LLC org account or start fresh?"**
 
 **Two-app structure to resolve:** there are two iOS identities in the code, a free app
 (`com.mylingolinq.lingolinq`) and a paid app (`com.mylingolinq.paidlingolinq`). Before
@@ -58,13 +67,14 @@ transfer mechanics.
 
 | Option | When it is right | Pros | Cons / risk |
 |--------|------------------|------|-------------|
-| **Transfer the existing record** into LingoLinq Inc org | There is a real installed base, and we control (or can recover) the owning account | Existing users update in place; keeps ratings, reviews, and the numeric App Store id; no "two apps in the store" confusion | Both source and destination accounts must meet transfer prerequisites; coupled to the offline-data-survival gate (an in-place update must not wipe cached boards) |
-| **Create a fresh listing** under LingoLinq Inc | No meaningful installed base, or the legacy account is unrecoverable, or we want a clean compliance baseline | Clean slate for privacy manifest / data safety / distribution method; no dependency on legacy account standing | Loses ratings/reviews and the legacy numeric id; existing users (if any) must manually migrate (find + reinstall), which for AAC users is disruptive |
+| **Transfer the existing record** into LingoLinq LLC org | There is a real installed base, and we control (or can recover) the owning account | Existing users update in place; keeps ratings, reviews, and the numeric App Store id; no "two apps in the store" confusion | Both source and destination accounts must meet transfer prerequisites; coupled to the offline-data-survival gate (an in-place update must not wipe cached boards) |
+| **Create a fresh listing** under LingoLinq LLC | No meaningful installed base, or the legacy account is unrecoverable, or we want a clean compliance baseline | Clean slate for privacy manifest / data safety / distribution method; no dependency on legacy account standing | Loses ratings/reviews and the legacy numeric id; existing users (if any) must manually migrate (find + reinstall), which for AAC users is disruptive |
 
-**Default recommendation (pending 2a):** if LingoLinq controls the owning accounts and any
-real installed base exists, **transfer** (preserves AAC users' continuity, which is the
-project's core-value constraint). If the legacy accounts are unrecoverable or the base is
-negligible, **create fresh** for a clean compliance baseline. Decide per store after 2a.
+**Resolved (2026-06-24): CREATE FRESH on both stores.** Scot confirmed the legacy accounts are
+unrecoverable (stale rename artifacts, not owned) and the installed base is negligible, so the
+"transfer" row does not apply. Fresh records give a clean compliance baseline. The 2a
+fact-finding is moot for the transfer path but item 2b's identifier-reuse check still applies:
+verify whether any legacy Bundle ID / package name can be reused before finalizing new ones.
 
 ---
 

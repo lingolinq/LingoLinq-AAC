@@ -76,12 +76,16 @@ tracking** and avoids the ATT prompt. The compliance-auditor must confirm no bun
 | **AWS S3** | user content + logs (large datasets) | `app/models/concerns/extra_data.rb` | LingoLinq-controlled bucket; sub-processor | storage processor, not a "third party" disclosure if under DPA |
 | **AWS SES** | email address (transactional email) | `config/initializers/amazon_ses.rb` | sub-processor | Contact Info processing |
 | **Google APIs (TTS / Translate, if enabled)** | text to synthesize / translate | TTS cloud path (`vendor/speech/speech.js`); translate (verify enablement) | confirm what text is sent; AAC utterances are sensitive | declare only if enabled in the native build |
-| **Stripe (web) / Apple + Google billing (native IAP)** | payment + purchase identifiers | `subscription.js:810-1011`; `lib/purchasing.rb` | processor-held card data; app does not store PAN | Purchases / Financial Info |
+| **Stripe (web only)** | payment + purchase identifiers | `subscription.js:810-1011`; `lib/purchasing.rb` | processor-held card data; app does not store PAN | Purchases / Financial Info (web app only) |
 
-**Critical native-build watch item:** the IAP path on native devices flows through
-**Apple StoreKit / Google Play Billing**, not Stripe (`subscription.js:810-1011` registers
-products via `window.store`). The Data Safety / nutrition forms must reflect the
-store-billing processor for the native apps, which differs from the web app's Stripe flow.
+**v1 native decision (2026-06-30): NO in-app purchases.** v1 native builds declare **no
+"Purchases"** data type and ship **no StoreKit / Google Play Billing / Stripe.js** surface;
+schools/hospitals pay by B2B invoice (outside store payment rules) and there is no in-app
+subscribe button. The legacy `window.store` / StoreKit / Play Billing plumbing
+(`subscription.js:810-1011`) is **not exposed** in v1. Individual in-app subscriptions are
+deferred to a **v1.1 fast-follow**; only then do the Purchases declaration and a store-billing
+processor re-enter the forms. (This resolves the earlier "native IAP via StoreKit/Play Billing"
+watch item, which assumed in-app subscriptions were in v1.)
 
 ---
 
@@ -116,8 +120,9 @@ native builds.
 ## 6. The three store declarations: build checklist
 
 - [ ] **Apple Privacy Nutrition Label:** declare Contact Info, Identifiers, User Content,
-      Usage Data, Diagnostics, Purchases; map "Used to Track You" = none (pending ATT
-      confirmation in section 2).
+      Usage Data, Diagnostics; **NOT Purchases** (v1 has no in-app purchases -- 2026-06-30
+      decision; add Purchases only in v1.1 when subscriptions ship). Map "Used to Track You" =
+      none (pending ATT confirmation in section 2).
 - [ ] **`PrivacyInfo.xcprivacy`:** required-reason API declarations for Capacitor core and
       EVERY plugin (file timestamp, user defaults, etc.); blocks upload if missing.
 - [ ] **Google Data Safety form:** email, user content (boards), usage/session logs,
@@ -140,8 +145,9 @@ native builds.
 5. Confirm the **COPPA consent gate** is present in the native account-creation flow.
 6. Confirm **in-app + web-URL account deletion** exist and the retention disclosures match
    the privacy policy.
-7. Re-confirm **native IAP processor** declarations (StoreKit / Play Billing) replace the
-   web Stripe declaration for the app builds.
+7. **v1: no IAP processor to declare** -- native builds ship no StoreKit / Play Billing /
+   Stripe.js surface and declare no Purchases (2026-06-30 decision). Revisit this only for the
+   v1.1 subscription fast-follow, when a store-billing processor declaration is added.
 
 ---
 

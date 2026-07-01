@@ -17,23 +17,27 @@ that fresh lookups corrected. Use THIS doc's numbers:
 |-----------------------|----------------------------|--------|
 | D-U-N-S "up to 30 days (Google-side)" | Apple's official page says **up to 5 business days** from D&B, + up to 2 business days for Apple to receive the data. The "30 days" figure is not in current official docs. | developer.apple.com/help/account/membership/D-U-N-S/ |
 | Google Play org accounts "exempt from the 12-tester rule" (stated as fact) | Official doc scopes the rule to **personal accounts created after 2023-11-13**. The org exemption is asserted by a Google Product Expert in the support forum, **not** in official policy text. Confirm at registration. | answer/14151465 + support thread 398243168 |
-| Google Play needs D-U-N-S | **Google does NOT require D-U-N-S.** It uses its own identity verification (government ID + business docs). | Google Play Console docs (no D-U-N-S mention) |
-| Microsoft Partner Center "free (MS dropped the fee)" | Correct, but ONLY via the **new flow at storedeveloper.microsoft.com**. Other entry points still show the legacy paid flow. | learn.microsoft.com .../open-a-developer-account |
+| Google Play org accounts do NOT need D-U-N-S (earlier claim in this doc, 2026-06-24) | **CORRECTED 2026-06-30: Google Play DOES require D-U-N-S for organization accounts.** Google's official page: "To create a developer account for an organization, you must have a D-U-N-S number... mandatory." An individual account does not, but LingoLinq LLC needs an org account. | support.google.com/googleplay/android-developer/answer/13634885 |
+| Microsoft Partner Center "free (MS dropped the fee)" | Correct for BOTH individual AND company accounts, but ONLY via the **new flow at storedeveloper.microsoft.com** (official page, updated 2026-06-19: "no registration fees for either account type"). Other entry points still show the legacy paid flow. **Must select Company from the start** -- individual->company conversion is NOT supported. | learn.microsoft.com .../open-a-developer-account |
 | Apple $99/yr, transfer keeps Bundle ID | Confirmed. | developer.apple.com/programs/enroll/ |
 
-**Net effect on sequencing:** D-U-N-S is still the long pole, but it is **Apple and
-Microsoft** that benefit from it, not Google. Google can proceed independently of D-U-N-S.
+**Net effect on sequencing (corrected 2026-06-30):** D-U-N-S is the long pole and it gates
+**Apple AND Google** (both require it for org/company accounts); Microsoft benefits from it
+(fast path) but also accepts business documents. So D-U-N-S is now on the critical path for
+two of the three stores -- get it first, then Apple and Google can proceed. Google can NOT
+start independently of D-U-N-S as this doc previously stated.
 
 ---
 
 ## 1. D-U-N-S Number (do this first)
 
-D-U-N-S is **required by Apple** (mandatory for org enrollment) and is the **fast path for
-Microsoft** (recommended, not mandatory). Google does not use it.
+D-U-N-S is **required by Apple** (mandatory for org enrollment), **required by Google** for an
+organization Play Console account, and the **fast path for Microsoft** (recommended, not
+mandatory -- MS also accepts business documents).
 
-### Step 1a. Check if LingoLinq Inc already has one (free, instant)
+### Step 1a. Check if LingoLinq LLC already has one (free, instant)
 1. Go to Apple's free lookup tool: https://developer.apple.com/enroll/duns-lookup/
-2. Enter the **exact legal entity name** and **headquarters address** of LingoLinq Inc.
+2. Enter the **exact legal entity name** and **headquarters address** of LingoLinq LLC.
    (Use the incorporation name. DBAs, trade names, and branch names are NOT accepted.)
 3. If a number is returned, record it. Done. (CoughDrop-era incorporation or a prior Apple
    enrollment may already have created one.)
@@ -77,22 +81,29 @@ and address, or verification stalls. Lock these now and reuse verbatim:
 
 ## 4. Google Play Console (organization)
 
-- **Requires D-U-N-S:** NO. Can start immediately, in parallel with the D-U-N-S wait.
+- **Requires D-U-N-S:** **YES (mandatory for organization accounts, corrected 2026-06-30).**
+  Google's official page: an organization account requires a D-U-N-S number. Cannot start
+  before D-U-N-S clears. (An individual account would not need it, but LingoLinq LLC needs an
+  org account.)
 - **Fee:** $25 USD one-time (no annual renewal).
-- **Verification:** Google's own identity check (government ID + business documents).
+- **Verification:** D-U-N-S-based business verification plus Google's identity check.
 - **12-tester rule:** confirm during registration whether it applies to this org account.
   Official policy scopes it to personal accounts; an org exemption is indicated but not
   guaranteed in policy text. Do not rely on the exemption until the console confirms it.
 - **Also needs:** public website, org phone matching public registries, a non-personal
   developer email (shown publicly).
-- **Owner:** Scot. **Start:** now (no D-U-N-S dependency).
+- **Owner:** Scot. **Start:** as soon as D-U-N-S clears (org account is D-U-N-S-gated).
 
 ## 5. Microsoft Partner Center (company)
 
+- **Account type:** select **Company** at signup. Individual->Company conversion is **not
+  supported** (official page); picking Individual by mistake means starting over.
 - **Requires D-U-N-S:** recommended (fast, automated path), not mandatory (document-upload
   path adds 2-5 business days of manual review).
-- **Fee:** FREE via the new flow. **You must start at https://storedeveloper.microsoft.com**
-  to get the fee-free path; other entry points still show the legacy paid flow.
+- **Fee:** FREE for Company accounts via the new flow (official page 2026-06-19: "no
+  registration fees for either account type"). **You must start at
+  https://storedeveloper.microsoft.com** to get the fee-free path; other entry points still
+  show the legacy paid flow.
 - **Verification:** work email on the company domain or domain-ownership documents.
 - **Owner:** Scot. **Start:** now (D-U-N-S optional but speeds it up).
 
@@ -101,7 +112,7 @@ and address, or verification stalls. Lock these now and reuse verbatim:
 - **Cost:** $9.99/month Basic (up to 5,000 signatures; $0.005 each after). Premium
   $99.99/month if volume ever needs it. Pricing unchanged from the "Trusted Signing" era.
 - **Geographic limit:** Public Trust certificates are available only to organizations in the
-  **USA, Canada, EU, and UK**. (LingoLinq Inc / US: fine.)
+  **USA, Canada, EU, and UK**. (LingoLinq LLC / US: fine.)
 - **Identity verification:** legal entity name, org-domain website + emails, business
   identifier, physical address, plus a **named individual** who completes a personal ID
   check via Microsoft's third-party verifier (AU10TIX) with a government photo ID.
@@ -113,13 +124,13 @@ and address, or verification stalls. Lock these now and reuse verbatim:
 
 ## 7. Recommended week-one order
 
-1. **Day 1:** D-U-N-S lookup (step 1a). If none, request it (step 1b). Lock legal entity
-   details (step 2).
-2. **Day 1 (parallel):** start Google Play Console org registration (no D-U-N-S needed) and
-   Microsoft Partner Center via storedeveloper.microsoft.com (document path or wait for
-   D-U-N-S for the fast path).
-3. **When D-U-N-S clears (~1 week):** start Apple Developer Program org enrollment.
-4. **Before Phase 4:** begin Azure Artifact Signing identity verification.
+1. **Day 1:** D-U-N-S lookup (step 1a). If none, request it (step 1b) -- this is the critical
+   path for BOTH Apple and Google. Lock legal entity details (step 2).
+2. **Day 1 (parallel, D-U-N-S-independent):** start **Microsoft** Partner Center Company account
+   via storedeveloper.microsoft.com (document-upload path works without D-U-N-S), and begin
+   **Azure** Artifact Signing identity verification (independent of D-U-N-S, own lead time).
+3. **When D-U-N-S clears (~1 week):** start **Apple** Developer Program AND **Google** Play
+   Console org enrollment (both are D-U-N-S-gated for organizations).
 
 All signing material, account credentials, and API keys go to **1Password**, never the repo
 or `.env`.

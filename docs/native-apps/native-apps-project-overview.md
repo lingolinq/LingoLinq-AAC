@@ -99,10 +99,10 @@ language, with why.
 | Decision | What we chose | Why it matters |
 |---|---|---|
 | **How Apple users get the app** | **Public App Store** (anyone can find and install it) | Schools still buy in bulk through Apple School Manager with education pricing, and individual parents and clinicians can also buy it directly. This keeps both the school channel and the family channel open. The other options (private or unlisted) would have cut off individual buyers. |
-| **Old store listings vs new** | **Start fresh** under the LingoLinq Inc company account, on both Apple and Google | The old store listings live in an account we cannot recover, so transferring them is not possible. Starting fresh also gives us a clean privacy and compliance baseline. |
+| **Old store listings vs new** | **Start fresh** under the LingoLinq LLC company account, on both Apple and Google | The old store listings live in an account we cannot recover, so transferring them is not possible. Starting fresh also gives us a clean privacy and compliance baseline. |
 | **App identifiers** | **New identifiers**, but verify first whether any old ones can be reused | The old identifiers are almost certainly locked to that unrecoverable account. We will confirm before committing to new names, so there are no surprises during registration. |
 | **Existing installed users** | **Treated as negligible / web-first** | Because we are starting fresh, there is no automatic "update in place" path from the old app anyway, and the active base is web-first. This means preserving old cached boards is a "nice to have," not a launch blocker. (This is a deliberate, considered change from an earlier worst-case assumption.) |
-| **How people pay** | **v1: B2B invoicing only, NO in-app purchases.** Individual self-serve subscriptions are deferred to a v1.1 fast-follow. (Updated 2026-06-30.) | Districts and hospitals pay by invoice as today, which is B2B commerce outside the stores' payment rules (zero store cut). Declaring **no in-app purchases** keeps the first store review the simplest possible and lets the 2026 billing rules settle (Apple's external-link case is at the Supreme Court; Google's fee structure changed 2026-06-30) before we commit code and a permanent privacy declaration. Individual subscriptions land in v1.1, the same way eye-gaze does. See `IAP-DECISION-BRIEF.md`. |
+| **How people pay** | **v1: B2B invoicing only, NO in-app purchases.** Individual self-serve subscriptions are deferred to a v1.1 fast-follow. (Updated 2026-06-30.) | Districts and hospitals pay by invoice as today, which is B2B commerce outside the stores' payment rules (zero store cut). Declaring **no in-app purchases** keeps the first store review the simplest possible and lets the 2026 billing rules settle (Apple's external-link case is at the Supreme Court; Google's fee structure changed 2026-06-30) before we commit code and a permanent privacy declaration. Individual subscriptions land in v1.1, the same way eye-gaze does. (Full rationale: internal GSD planning record.) |
 | **App structure** | **One app** (not the old free + paid two-app split); subscription added in v1.1 | One listing per store to maintain, one privacy form, one review. This matches how modern AAC apps are sold and how Apple now recommends. The individual subscription plugs into this single app when v1.1 ships. |
 | **Eye-gaze / head-tracking in version 1** | **Defer to a fast-follow update (v1.1)**, behind a feature flag | Camera-based eye-gaze is by far the hardest feature to migrate and carries the most technical risk. Shipping version 1 on touch and switch access lets us get to the App Store sooner without that risk on the critical path. Eye-gaze users can use the iPad's built-in accessibility in the meantime, and we add our in-app version shortly after. |
 
@@ -118,7 +118,7 @@ everything, and because proving the pipeline on iOS de-risks Android and Windows
 
 ### Phase 1: Registration and Foundations (the decision gate) <- we are here
 
-Get every vendor account started under LingoLinq Inc, create the app project repositories,
+Get every vendor account started under LingoLinq LLC, create the app project repositories,
 and lock the irreversible store decisions (done; see section 5). Most of this has no code
 dependency and can start immediately.
 
@@ -151,7 +151,7 @@ run in parallel with Android once Phase 1 is done, since it shares no mobile cod
 
 | Risk / watch item | Plain-language explanation | How we handle it |
 |---|---|---|
-| **D-U-N-S lead time** | Apple requires a business-identity number that can take ~1 week to get; it blocks Apple registration. | Start it on day one of Phase 1. Google does not need it; Microsoft is faster with it. |
+| **D-U-N-S lead time** | Apple AND Google both require a business-identity number (D-U-N-S) for organization accounts; it can take ~1 week to get and blocks both registrations. | Start it on day one of Phase 1. It gates Apple and Google; Microsoft can start without it (document path) and is faster with it. |
 | **Offline data on migration** | Switching the underlying app tech can, in the worst case, wipe a device's locally cached boards. | Downgraded to a "nice to have" because we are starting fresh (no in-place update path). Still tested during Phase 2 for the rare sideloaded user. |
 | **Hidden broken features** | Many native features (audio routing, text-to-speech, file storage, etc.) silently stop working if missed during migration. | We have an exhaustive, evidence-based inventory of every one of them (the bridge inventory doc). Each is verified before submission. |
 | **Eye-gaze complexity** | Camera-based eye-gaze has no drop-in modern equivalent and is performance-sensitive. | Deferred out of version 1 to a fast-follow update, so it does not delay the first App Store launch. |
@@ -181,12 +181,15 @@ run in parallel with Android once Phase 1 is done, since it shares no mobile cod
 ### Immediate (Phase 1, can start now)
 
 1. **D-U-N-S Number (day one):** look it up with Apple's free tool; if none exists, request it
-   (free, about 5 business days). This is the long pole for Apple.
-2. **Lock the legal entity details:** exact company name, address, work phone, work email,
-   public website. Every vendor account must use these identically.
-3. **Start Google Play Console registration** (no D-U-N-S needed, so it runs in parallel).
-4. **Start Microsoft Partner Center** via the fee-free flow (storedeveloper.microsoft.com).
-5. **Apple Developer Program:** start as soon as the D-U-N-S clears.
+   (free, about 5 business days). This is the long pole for **both Apple and Google**.
+2. **Lock the legal entity details:** exact company name (LingoLinq LLC), address, work phone,
+   work email, public website. Every vendor account must use these identically.
+3. **Start Microsoft Partner Center** via the fee-free flow (storedeveloper.microsoft.com),
+   selecting a **Company** account (no D-U-N-S needed via the document path, so it runs in
+   parallel while D-U-N-S is pending). Individual->Company conversion is not supported, so pick
+   Company from the start.
+4. **When D-U-N-S clears:** start **Apple Developer Program** and **Google Play Console** org
+   registrations (both require D-U-N-S for organization accounts).
 6. **Create the app project repositories** under the LingoLinq org and sort out the missing
    build-config file (`lib/domains.json`). Note: Capacitor generates its own iOS/Android
    projects, so this may be replaced rather than rebuilt as it was in the Cordova era.
