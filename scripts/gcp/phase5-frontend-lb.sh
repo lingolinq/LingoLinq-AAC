@@ -402,10 +402,13 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
       # explicit --preview revert (runbook step 9c) is the sole way to return it to log-only.
       CUR_2000_PREVIEW="$(gcloud compute security-policies rules describe 2000 \
         --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(preview)' 2>/dev/null || echo unknown)"
-      if [ "$CUR_2000_PREVIEW" = "False" ] || [ "$CUR_2000_PREVIEW" = "false" ]; then
-        gate "rate-limit rule 2000 is currently ENFORCING (preview=$CUR_2000_PREVIEW) and is LEFT AS-IS (this run carries no RATE_LIMIT_ENFORCE). Not downgrading a live security control. To return it to preview, run the explicit revert in runbook step 9c."
+      # Fail safe: only an explicit True counts as "in preview". Anything else (False, or an empty
+      # value from a gcloud variant) is treated as possibly-enforcing so the warning never hides a
+      # live control - this branch never mutates 2000 either way.
+      if [ "$CUR_2000_PREVIEW" = "True" ] || [ "$CUR_2000_PREVIEW" = "true" ]; then
+        skip "rate-limit rule 2000 is in preview (not enforcing this run; pass RATE_LIMIT_ENFORCE=1 CONFIRM_RATE_LIMIT_ENFORCE=1 to enforce it)"
       else
-        skip "rate-limit rule 2000 left in preview (not enforcing this run; pass RATE_LIMIT_ENFORCE=1 CONFIRM_RATE_LIMIT_ENFORCE=1 to enforce it)"
+        gate "rate-limit rule 2000 is NOT in preview (preview=$CUR_2000_PREVIEW) and is LEFT AS-IS (this run carries no RATE_LIMIT_ENFORCE). Not downgrading a live security control. To return it to preview, run the explicit revert in runbook step 9c."
       fi
     fi
   else
