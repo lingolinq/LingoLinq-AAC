@@ -100,6 +100,9 @@ is created or transferred:
 
 ## 4. Apple app transfer mechanics (confirmed 2026-06-24)
 
+> **Not applicable under the locked fresh decision (added 2026-07-01).** Retained below as
+> rationale for why "fresh" was chosen over "transfer" -- not as a to-do.
+
 - Apple's app-transfer process moves an app between developer accounts **keeping the same
   Bundle ID and App Store numeric id** (so the listing, ratings, reviews, update history,
   and id `1021384570` all carry over). Source:
@@ -114,6 +117,9 @@ is created or transferred:
   decision still applies to the transferred record.
 
 ## 5. Google app transfer mechanics (confirmed 2026-06-24)
+
+> **Not applicable under the locked fresh decision (added 2026-07-01).** Retained below as
+> rationale for why "fresh" was chosen over "transfer" -- not as a to-do.
 
 Google Play has its OWN transfer process, distinct from Apple's. Source:
 https://support.google.com/googleplay/android-developer/answer/6230247
@@ -133,14 +139,21 @@ https://support.google.com/googleplay/android-developer/answer/6230247
 
 ## 6. Open items for Scot to resolve in this gate
 
-- [ ] Sign into the accounts owning `1021384570` and `com.mylingolinq.lingolinq`; record
-      who controls them and their standing (Section 2a).
-- [ ] Decide transfer vs fresh for Apple.
-- [ ] Decide transfer vs fresh for Google.
-- [ ] Decide the free/paid two-app fate (keep split, collapse to one + IAP, or B2B-only).
-- [ ] Lock the Apple distribution method (Section 3).
+**Reconciled 2026-07-01 against the locked header (Section 6 previously listed these as open,
+contradicting "DECISION LOCKED" above -- fixed).**
+
+- [x] Decide transfer vs fresh for Apple. **LOCKED: fresh** (2026-06-24, see header).
+- [x] Decide transfer vs fresh for Google. **LOCKED: fresh** (2026-06-24, see header).
+- [x] Decide the free/paid two-app fate. **LOCKED: collapse to one app, no in-app purchases
+      in v1** (see header + the IAP decision in `privacy-data-flow-map.md`). Note the code
+      is not yet aligned with this decision -- see that file's blocking precondition.
+- [ ] Lock the Apple distribution method (Section 3) -- still open.
 - [ ] Confirm there is or is not an installed Cordova-app user base to migrate (feeds the
-      Phase 2 offline-data-survival entry gate).
+      Phase 2 offline-data-survival entry gate) -- still open; low priority since the header
+      already treats the installed base as negligible, but worth a real number before Phase 2.
+- [ ] ~~Sign into the accounts owning `1021384570` and `com.mylingolinq.lingolinq`~~ --
+      **dropped**: the locked decision treats these as unrecoverable legacy strings, not
+      accounts LingoLinq controls, so there is nothing to sign into or transfer.
 
 ---
 

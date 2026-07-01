@@ -78,14 +78,26 @@ tracking** and avoids the ATT prompt. The compliance-auditor must confirm no bun
 | **Google APIs (TTS / Translate, if enabled)** | text to synthesize / translate | TTS cloud path (`vendor/speech/speech.js`); translate (verify enablement) | confirm what text is sent; AAC utterances are sensitive | declare only if enabled in the native build |
 | **Stripe (web only)** | payment + purchase identifiers | `subscription.js:810-1011`; `lib/purchasing.rb` | processor-held card data; app does not store PAN | Purchases / Financial Info (web app only) |
 
-**v1 native decision (2026-06-30): NO in-app purchases.** v1 native builds declare **no
-"Purchases"** data type and ship **no StoreKit / Google Play Billing / Stripe.js** surface;
-schools/hospitals pay by B2B invoice (outside store payment rules) and there is no in-app
-subscribe button. The legacy `window.store` / StoreKit / Play Billing plumbing
-(`subscription.js:810-1011`) is **not exposed** in v1. Individual in-app subscriptions are
+**v1 native decision (2026-06-30): NO in-app purchases -- intent, not yet code state.** v1
+native builds are intended to declare **no "Purchases"** data type and ship **no StoreKit /
+Google Play Billing / Stripe.js** surface; schools/hospitals pay by B2B invoice (outside store
+payment rules) and there is no in-app subscribe button. Individual in-app subscriptions are
 deferred to a **v1.1 fast-follow**; only then do the Purchases declaration and a store-billing
 processor re-enter the forms. (This resolves the earlier "native IAP via StoreKit/Play Billing"
 watch item, which assumed in-app subscriptions were in v1.)
+
+**BLOCKING PRECONDITION (added 2026-07-01, adversary review of PR #509):** the legacy
+`window.store` / StoreKit / Play Billing plumbing is **not currently gated off** -- it is
+live and auto-fires. `subscription.js:989-997` runs `store.register(...)` for **any**
+`bundle_id` other than the literal string `"com.mylingolinq.lingolinq"`. Because a "start
+fresh" v1 build uses a new bundle ID by definition, the packaged app will register StoreKit
+/ Play Billing products at launch under current code -- contradicting the "no Purchases"
+declaration above. `lib/purchasing.rb:747` and `app/models/concerns/subscription.rb:353`
+show receipt verification is also still live, keyed to the legacy bundle IDs. **Do not file
+the "no Purchases" declaration on any store form until `subscription.js`'s `store.register`
+call is verified gated off (or removed) for the actual v1 bundle ID in the packaged build.**
+This is a code task, not yet done -- track it alongside the native-bridge-inventory.md
+revenue-path row before store submission.
 
 ---
 

@@ -132,11 +132,18 @@ Derived from `Gemfile`, `app/frontend/package.json`, and config.
 
 ## 4. Open questions / gaps the forms will surface
 
+> **FILING GATE (added 2026-07-01, adversary review of PR #509): do not submit any Apple
+> Nutrition Label, PrivacyInfo.xcprivacy, or Google Data Safety form from this SSOT until
+> items 1, 2, 3, and 5 below are closed.** Each currently documents a live discrepancy
+> between what a filed declaration would say and what the code actually does; filing before
+> they close creates a contemporaneous written record that LingoLinq knew the declaration was
+> inaccurate at filing time.
+
 1. **Retention/deletion path for several data types is incomplete (Flusher gaps).** `lib/flusher.rb` user deletion has historically missed models (License, UserVideo, UserExtra, AiApiLog, ContactMessage, LogSnapshot, HubSpot cleanup per audit memory). Both stores ask "can users request deletion?" -- confirm every data-bearing model above is reachable by deletion before answering "yes" unconditionally. **Action:** re-verify Flusher completeness against the current model list, especially `UserVideo`/`ButtonSound` (S3 audio/video) and `LogSession` extra_data on S3.
 
 2. **Geo-logging default for child/student orgs.** Precise location is collected by default and only stripped when `effective_data_policy['geo_logging_allowed'] == false` (`log_session.rb:65-72`). The forms (and FERPA/COPPA) favor location **off by default** for minors. **Action:** confirm the default data policy for school/under-13 orgs disables geo, or the Nutrition Label must declare precise location as collected for those users.
 
-3. ~~**Native purchase surface vs. store policy.**~~ **RESOLVED 2026-06-30.** Decision: v1 native builds declare **NO in-app purchases** -- B2B invoicing only, no StoreKit / Play Billing / Stripe.js surface in-app. Individual self-serve subscriptions are deferred to a v1.1 fast-follow. The three privacy forms declare **no "Purchases"** data type for v1. When v1.1 adds subscriptions, re-open this row and add the Purchases declaration + StoreKit/Play Billing. (Full rationale: internal GSD planning record.)
+3. **Native purchase surface vs. store policy -- decision made, code not yet aligned (re-opened 2026-07-01).** Decision (2026-06-30): v1 native builds declare **NO in-app purchases** -- B2B invoicing only, no StoreKit / Play Billing / Stripe.js surface in-app; individual self-serve subscriptions deferred to a v1.1 fast-follow. **But the shipping code does not yet match this decision.** `subscription.js:989-997` calls `store.register(...)` for any `bundle_id` other than the literal `"com.mylingolinq.lingolinq"` -- a new v1 bundle ID would trigger it. `lib/purchasing.rb:747` and `subscription.rb:353` (receipt verification) are also still live. **Action:** gate or remove `subscription.js`'s `store.register` call for the v1 bundle ID and verify the packaged build does not register StoreKit/Play products before declaring "no Purchases" on any form. When v1.1 adds subscriptions, re-open this row again and add the Purchases declaration + StoreKit/Play Billing.
 
 4. **Android installed-apps list.** `capabilities.apps.all` reads the installed-app list (`capabilities.js:676-687`). Google Play treats app inventory as sensitive and restricts `QUERY_ALL_PACKAGES`. **Action:** confirm whether the shipped Android build actually invokes this (AAC app-launch feature) and, if so, justify the permission in the Play declaration; it is not transmitted off-device per code.
 
