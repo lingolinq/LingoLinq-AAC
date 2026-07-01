@@ -91,4 +91,27 @@ describe Art50Marker do
       expect(described_class.marked?(nil)).to eq(false)
     end
   end
+
+  describe '.public_view' do
+    let(:marker) { described_class.build(provider: 'claude', model: 'claude-haiku-4-5-20251001') }
+
+    it 'returns the non-secret provenance fields and withholds signature + content_id' do
+      view = described_class.public_view(marker)
+      expect(view).to eq({
+        'marked' => true,
+        'spec' => 'eu-ai-act-art50-2',
+        'provider' => 'claude',
+        'model' => 'claude-haiku-4-5-20251001',
+        'generated_at' => marker['generated_at']
+      })
+      expect(view).not_to have_key('signature')
+      expect(view).not_to have_key('content_id')
+    end
+
+    it 'returns nil for a forged, missing, or malformed marker' do
+      expect(described_class.public_view(marker.merge('provider' => 'evil'))).to be_nil
+      expect(described_class.public_view(nil)).to be_nil
+      expect(described_class.public_view({ 'marked' => true })).to be_nil
+    end
+  end
 end

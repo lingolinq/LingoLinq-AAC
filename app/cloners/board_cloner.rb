@@ -111,6 +111,12 @@ class BoardCloner < Clowne::Cloner
     record.settings['word_suggestions'] = source.settings['word_suggestions']
     record.settings['categories'] = source.settings['categories']
     record.settings['license'] = source.settings['license']
+    # EU AI Act Article 50(2): carry the AI-generation provenance marker onto copies.
+    # The marker is provenance-bound (it attests the content originated from AI
+    # generation, not the exact bytes) and server-signed, so it stays valid on a copy.
+    # The cloner only copies allowlisted settings keys, so an unlisted key is silently
+    # dropped on copy; without this line copied/shared boards would lose their marking.
+    record.settings['ai_generated'] = source.settings['ai_generated'] if source.settings['ai_generated']
     record.settings['intro']['unapproved'] = true if record.settings['intro'].is_a?(Hash)
     record.settings['never_edited'] = true
 

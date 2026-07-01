@@ -88,6 +88,26 @@ module Art50Marker
     verify(settings['ai_generated'] || settings[:ai_generated])
   end
 
+  # Non-secret provenance fields safe to expose to API consumers / downstream deployers
+  # for Article 50(2) detection. Deliberately EXCLUDES signature and content_id.
+  PUBLIC_KEYS = %w[spec provider model generated_at].freeze
+
+  # Public, non-secret view of a stored marker for API exposure. Returns the provenance
+  # fields a downstream consumer needs to detect AI-generated content (spec/provider/
+  # model/generated_at + marked:true) and WITHHOLDS the signature and content_id: the
+  # HMAC is keyed by the server secret so a client cannot verify it anyway, and content_id
+  # links to an internal AiApiLog row -- exposing them only enables a bearer-token
+  # transplant that mislinks per-board provenance. Returns nil unless the stored marker
+  # actually verifies, so a forged or key-rotation-invalidated marker reads as unmarked
+  # (consistent with #marked?).
+  def public_view(marker)
+    return nil unless verify(marker)
+    m = stringify(marker)
+    view = { 'marked' => true }
+    PUBLIC_KEYS.each { |k| view[k] = m[k] }
+    view
+  end
+
   # Computes the signature over the canonical serialization of the signed fields.
   # Extra (unsigned) keys on the input are ignored, so #verify can pass the full
   # marker hash here without stripping marked/sig_alg/signature first.

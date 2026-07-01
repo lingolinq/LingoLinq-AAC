@@ -1883,6 +1883,20 @@ class Board < ApplicationRecord
     self.settings['text_only'] = params['text_only'] if params['text_only'] != nil
     self.settings['dim_header'] = params['dim_header'] if params['dim_header'] != nil
     self.settings['small_header'] = params['small_header'] if params['small_header'] != nil
+    # EU AI Act Article 50(2): if the client supplied an AI-generation marker, persist
+    # it onto settings ONLY if it verifies as a genuine, server-signed marker. Client
+    # input is never trusted: a missing, malformed, or forged marker is silently dropped
+    # and never overwrites an existing valid marker. Marking is unconditional (no feature
+    # flag); see lib/art50_marker.rb. verify never raises, but we still guard so a marker
+    # problem can never break a board save -- including the Resque-worker path where lib/
+    # autoload is skipped and Art50Marker may be undefined (workers carry no client marker).
+    if params['ai_generated']
+      begin
+        self.settings['ai_generated'] = params['ai_generated'] if Art50Marker.verify(params['ai_generated'])
+      rescue StandardError => e
+        Rails.logger.warn("Art50 marker verification skipped on save: #{e.class}")
+      end
+    end
     self.settings['never_edited'] = false if self.id
     button_params = params['buttons']
     button_params.instance_variable_set('@add_voc_error', non_user_params['add_voc_error']) if button_params
