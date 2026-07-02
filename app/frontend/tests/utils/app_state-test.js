@@ -9,7 +9,7 @@ import {
   stub,
   xit
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog, boardModelStub, persistenceTarget } from 'frontend/tests/helpers/ember_helper';
+import { queryLog, boardModelStub, persistenceTarget, stubModalSafe as harnessStubModalSafe } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import app_state from '../../utils/app_state';
@@ -51,15 +51,7 @@ function primeSpeakModeUser(attrs) {
 }
 
 function stubModalSafe() {
-  stub(modal, 'open', function() { return RSVP.resolve(); });
-  stub(modal, 'notice', function() { return RSVP.resolve(); });
-  if (LingoLinq.testOwner) {
-    try {
-      var modalSvc = LingoLinq.testOwner.lookup('service:modal');
-      stub(modalSvc, 'open', function() { return RSVP.resolve(); });
-      stub(modalSvc, 'notice', function() { return RSVP.resolve(); });
-    } catch (e) { /* owner mid-teardown */ }
-  }
+  harnessStubModalSafe(LingoLinq.testOwner);
 }
 
 function stubSpeakModeEntry() {
@@ -290,8 +282,8 @@ describe('app_state', function() {
       stashesForTests().persist('current_mode', 'speak');
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       expect(app_state.get('speak_mode')).toEqual(true);
+      app_state.speak_mode_handlers();
 
-      // set speak mode
       waitsFor(function() { return checks == 1 && warnings == 1; });
       runs(function() {
         expect(warning).toEqual('Volume is muted, you will not be able to hear speech');
@@ -365,8 +357,8 @@ describe('app_state', function() {
       stashesForTests().persist('current_mode', 'speak');
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       expect(app_state.get('speak_mode')).toEqual(true);
+      app_state.speak_mode_handlers();
 
-      // set speak mode
       waitsFor(function() { return checks == 1 && warnings == 1; });
       runs(function() {
         expect(warning).toEqual('The app is currently muted, so you will not hear speech. To unmute, check the mute switch, and also swipe up from the bottom of the screen to check for app-level muting');

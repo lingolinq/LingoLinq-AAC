@@ -14,7 +14,8 @@ import {
   fakeCanvas,
   queryLog,
   easyPromise,
-  queue_promise
+  queue_promise,
+  stubNavigatorGetUserMedia
 } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import contentGrabbers from '../../utils/content_grabbers';
@@ -287,49 +288,54 @@ describe('videoGrabber', function() {
   });
 
   describe('webcam', function() {
-    it('should request the camera and then set the stream', function() {
-      videoGrabber.setup(controller);
-      var called = false;
-      var mediaCallback = null;
-      stashes.set('last_stream_id', null);
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        called = callback && args.video === true;
-        mediaCallback = callback;
+    function stubVideoRecorder() {
+      stub(videoGrabber, 'setup_media_recorder', function(stream, options) {
+        return fakeMediaRecorder(stream, options);
       });
-      videoGrabber.record_video();
-      expect(called).toEqual(true);
-
-      var stream = fakeRecorder();
-      stub(videoGrabber, 'setup_media_recorder', function(stream, options) { return fakeMediaRecorder(stream, options); });
       stub(window, 'URL', {
         createObjectURL: function() { return 'stuff://cool'; }
       });
+    }
+
+    it('should request the camera and then set the stream', function() {
+      videoGrabber.setup(controller);
+      stashes.set('last_stream_id', null);
+      var stream = fakeRecorder();
+      stubVideoRecorder();
       stub(window, 'enumerateMediaDevices', function() { return RSVP.resolve([]); });
-      mediaCallback(stream);
-      expect(controller.get('video_recording.stream')).toEqual(stream);
+      stubNavigatorGetUserMedia({
+        stream: stream,
+        onLegacyCall: function(args) {
+          expect(args.video).toEqual(true);
+        }
+      });
+      videoGrabber.record_video();
+      waitsFor(function() { return controller.get('video_recording.stream'); });
+      runs(function() {
+        expect(controller.get('video_recording.stream')).toEqual(stream);
+      });
     });
 
     it("should remember the last-selected webcam if there's a list", function() {
       videoGrabber.setup(controller);
-      var called = false;
-      var mediaCallback = null;
       stashes.set('last_stream_id', 'abcdefg');
-
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        called = callback && args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId == 'abcdefg';
-        mediaCallback = callback;
+      var stream = fakeRecorder();
+      var video_id = null;
+      stubVideoRecorder();
+      stub(window, 'enumerateMediaDevices', function() { return RSVP.resolve([]); });
+      stubNavigatorGetUserMedia({
+        stream: stream,
+        onLegacyCall: function(args) {
+          if(args.video && args.video.optional && args.video.optional[0]) {
+            video_id = args.video.optional[0].sourceId;
+          }
+        }
       });
       videoGrabber.record_video();
-      expect(called).toEqual(true);
-
-      var stream = fakeRecorder();
-      stub(videoGrabber, 'setup_media_recorder', function(stream, options) { return fakeMediaRecorder(stream, options); });
-      stub(window, 'URL', {
-        createObjectURL: function() { return 'stuff://cool'; }
+      waitsFor(function() { return video_id == 'abcdefg' && controller.get('video_recording.stream'); });
+      runs(function() {
+        expect(controller.get('video_recording.stream')).toEqual(stream);
       });
-      stub(window, 'enumerateMediaDevices', function() { return RSVP.resolve([]); });
-      mediaCallback(stream);
-      expect(controller.get('video_recording.stream')).toEqual(stream);
     });
 
     it("should correctly swap between streams", function() {
@@ -342,51 +348,49 @@ describe('videoGrabber', function() {
         ]);
       });
       videoGrabber.setup(controller);
-      var called = false;
-      var mediaCallback = null;
       stashes.set('last_stream_id', null);
+      var stream = fakeRecorder();
       var video_id = null;
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        video_id = null;
-        if(args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId) {
-          video_id = args.video.optional[0].sourceId;
+      stubVideoRecorder();
+      stubNavigatorGetUserMedia({
+        stream: stream,
+        onLegacyCall: function(args) {
+          video_id = null;
+          if(args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId) {
+            video_id = args.video.optional[0].sourceId;
+          }
         }
-        mediaCallback = callback;
       });
       videoGrabber.record_video();
-      expect(video_id).toEqual(null);
-
-      var stream = fakeRecorder();
-      stub(videoGrabber, 'setup_media_recorder', function(stream, options) { return fakeMediaRecorder(stream, options); });
-      stub(window, 'URL', {
-        createObjectURL: function() { return 'stuff://cool'; }
-      });
-      mediaCallback(stream);
-      expect(controller.get('video_recording.stream')).toEqual(stream);
+      waitsFor(function() { return controller.get('video_recording.stream'); });
       waitsFor(function() { return controller.get('video_recording.video_streams'); });
       runs(function() {
         expect(controller.get('video_recording.video_streams').length).toEqual(3);
         expect(controller.get('video_recording.video_streams').mapBy('id')).toEqual(['aaa', 'ccc', 'ddd']);
 
         videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ccc');
-        expect(stashes.get('last_stream_id')).toEqual('ccc');
+        waitsFor(function() { return video_id == 'ccc'; });
+        runs(function() {
+          expect(stashes.get('last_stream_id')).toEqual('ccc');
 
-        videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ddd');
-        expect(stashes.get('last_stream_id')).toEqual('ddd');
+          videoGrabber.swap_streams();
+          waitsFor(function() { return video_id == 'ddd'; });
+          runs(function() {
+            expect(stashes.get('last_stream_id')).toEqual('ddd');
 
-        videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('aaa');
-        expect(stashes.get('last_stream_id')).toEqual('aaa');
+            videoGrabber.swap_streams();
+            waitsFor(function() { return video_id == 'aaa'; });
+            runs(function() {
+              expect(stashes.get('last_stream_id')).toEqual('aaa');
 
-        videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ccc');
-        expect(stashes.get('last_stream_id')).toEqual('ccc');
+              videoGrabber.swap_streams();
+              waitsFor(function() { return video_id == 'ccc'; });
+              runs(function() {
+                expect(stashes.get('last_stream_id')).toEqual('ccc');
+              });
+            });
+          });
+        });
       });
     });
 
@@ -400,51 +404,49 @@ describe('videoGrabber', function() {
         ]);
       });
       videoGrabber.setup(controller);
-      var called = false;
-      var mediaCallback = null;
       stashes.set('last_stream_id', 'ccc');
+      var stream = fakeRecorder();
       var video_id = null;
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        video_id = null;
-        if(args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId) {
-          video_id = args.video.optional[0].sourceId;
+      stubVideoRecorder();
+      stubNavigatorGetUserMedia({
+        stream: stream,
+        onLegacyCall: function(args) {
+          video_id = null;
+          if(args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId) {
+            video_id = args.video.optional[0].sourceId;
+          }
         }
-        mediaCallback = callback;
       });
       videoGrabber.record_video();
-      expect(video_id).toEqual('ccc');
-
-      var stream = fakeRecorder();
-      stub(videoGrabber, 'setup_media_recorder', function(stream, options) { return fakeMediaRecorder(stream, options); });
-      stub(window, 'URL', {
-        createObjectURL: function() { return 'stuff://cool'; }
-      });
-      mediaCallback(stream);
-      expect(controller.get('video_recording.stream')).toEqual(stream);
+      waitsFor(function() { return video_id == 'ccc' && controller.get('video_recording.stream'); });
       waitsFor(function() { return controller.get('video_recording.video_streams'); });
       runs(function() {
         expect(controller.get('video_recording.video_streams').length).toEqual(3);
         expect(controller.get('video_recording.video_streams').mapBy('id')).toEqual(['aaa', 'ccc', 'ddd']);
 
         videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ddd');
-        expect(stashes.get('last_stream_id')).toEqual('ddd');
+        waitsFor(function() { return video_id == 'ddd'; });
+        runs(function() {
+          expect(stashes.get('last_stream_id')).toEqual('ddd');
 
-        videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('aaa');
-        expect(stashes.get('last_stream_id')).toEqual('aaa');
+          videoGrabber.swap_streams();
+          waitsFor(function() { return video_id == 'aaa'; });
+          runs(function() {
+            expect(stashes.get('last_stream_id')).toEqual('aaa');
 
-        videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ccc');
-        expect(stashes.get('last_stream_id')).toEqual('ccc');
+            videoGrabber.swap_streams();
+            waitsFor(function() { return video_id == 'ccc'; });
+            runs(function() {
+              expect(stashes.get('last_stream_id')).toEqual('ccc');
 
-        videoGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ddd');
-        expect(stashes.get('last_stream_id')).toEqual('ddd');
+              videoGrabber.swap_streams();
+              waitsFor(function() { return video_id == 'ddd'; });
+              runs(function() {
+                expect(stashes.get('last_stream_id')).toEqual('ddd');
+              });
+            });
+          });
+        });
       });
     });
 

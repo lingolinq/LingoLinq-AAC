@@ -44,7 +44,8 @@ describe('extras', function() {
     it('should set the correct headers', function() {
       db_wait(function() {
         $.something = 'asdf';
-        stub(capabilities, 'access_token', 'asdfasdf');
+        capabilities.access_token = 'asdfasdf';
+        stub(window, 'ApplicationCache', {});
         var called = false;
         stub($, 'realAjax', function(opts) {
           expect(opts.url).toEqual('/api/v1/something/cool');
@@ -64,7 +65,8 @@ describe('extras', function() {
 
     it('should set the logging silence header if specified', function() {
       db_wait(function() {
-        stub(capabilities, 'access_token', 'asdfasdf');
+        capabilities.access_token = 'asdfasdf';
+        stub(window, 'ApplicationCache', {});
         stub(LingoLinq, 'protected_user', true);
         var called = false;
         stub($, 'realAjax', function(opts) {

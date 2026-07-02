@@ -191,6 +191,19 @@ var itAsync = function(rule, testing) {
 var xit = function(rule, testing) {
   all_tests[all_tests.length - 1].push([rule, testing, true]);
 };
+var xdescribe = function(name, lookup, callback) {
+  if(!callback) {
+    callback = lookup;
+    lookup = undefined;
+  }
+  var priorIt = it;
+  it = xit;
+  try {
+    describe(name, lookup, callback);
+  } finally {
+    it = priorIt;
+  }
+};
 var expect = function(data) {
   var expectation = {};
   expectation.toEqual = function(arg) {
@@ -490,4 +503,4 @@ function restoreStubs() {
 }
 
 
-export {context, describe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert};
+export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert};

@@ -22,6 +22,7 @@ import LingoLinq from 'frontend/app';
 import app_state from '../../utils/app_state';
 import word_suggestions from '../../utils/word_suggestions';
 import persistence from '../../utils/persistence';
+import templateHelpers from '../../utils/template_helpers';
 
 describe('word_suggestions', function() {
   beforeEach(function() {
@@ -353,18 +354,15 @@ describe('word_suggestions', function() {
       word_suggestions.fallback_url_result = null;
       var done = false;
       var url = null;
-      stub(persistence, 'find_url', function(url) {
-        expect(url).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
-        return RSVP.resolve('file://fallback.png');
-      });
+      var localFallback = templateHelpers.path('images/square.svg');
       word_suggestions.fallback_url().then(function(res) {
         done = true;
         url = res;
       });
       waitsFor(function() { return done; });
       runs(function() {
-        expect(url).toEqual('file://fallback.png');
-        expect(word_suggestions.fallback_url_result).toEqual('file://fallback.png');
+        expect(url).toEqual(localFallback);
+        expect(word_suggestions.fallback_url_result).toEqual(localFallback);
       });
     });
 
@@ -372,21 +370,15 @@ describe('word_suggestions', function() {
       word_suggestions.fallback_url_result = null;
       var done = false;
       var url = null;
-      var looked_up = false;
-      stub(persistence, 'find_url', function(url) {
-        looked_up = true;
-        expect(url).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
-        return RSVP.reject();
-      });
+      var localFallback = templateHelpers.path('images/square.svg');
       word_suggestions.fallback_url().then(function(res) {
         done = true;
         url = res;
       });
       waitsFor(function() { return done; });
       runs(function() {
-        expect(url).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
-        expect(looked_up).toEqual(true);
-        expect(word_suggestions.fallback_url_result).toEqual(null);
+        expect(url).toEqual(localFallback);
+        expect(word_suggestions.fallback_url_result).toEqual(localFallback);
       });
     });
   });

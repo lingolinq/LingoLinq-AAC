@@ -8,7 +8,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { fake_dbman } from 'frontend/tests/helpers/ember_helper';
+import { fake_dbman, asEmberArray } from 'frontend/tests/helpers/ember_helper';
 import capabilities from '../../utils/capabilities';
 
 describe('dbman', function() {
@@ -104,7 +104,7 @@ describe('dbman', function() {
 
       waitsFor(function() { return results; });
       runs(function() {
-        expect(results.mapBy('data').mapBy('name').sort()).toEqual(['top hat', 'ugly hat']);
+        expect(asEmberArray(results).mapBy('data').mapBy('name').sort()).toEqual(['top hat', 'ugly hat']);
       });
     });
 

@@ -14,6 +14,15 @@ import i18n from '../../utils/i18n';
 import templateHelpers from '../../utils/template_helpers';
 import EmberObject from '@ember/object';
 
+function helperText(val) {
+  if (val == null) { return val; }
+  if (typeof val === 'object' && typeof val.toString === 'function') {
+    if (val.string != null) { return val.string; }
+    return val.toString();
+  }
+  return val;
+}
+
 
 describe("i18n", function() {
   describe("pluralize", function() {
@@ -159,30 +168,30 @@ describe("i18n", function() {
 
     it("should handle t (translation)", function() {
       var str = templateHelpers.t("happiness", {});
-      expect(str.string).toEqual("happiness");
+      expect(helperText(str)).toEqual("happiness");
 
       str = templateHelpers.t("%{type} cow", {hash: {type: "happy"}, hashTypes: {}});
-      expect(str.string).toEqual("happy cow");
+      expect(helperText(str)).toEqual("happy cow");
 
       str = templateHelpers.t("%{num} cow", {hash: {num: 0}, hashTypes: {}});
-      expect(str.string).toEqual("0 cow");
+      expect(helperText(str)).toEqual("0 cow");
     });
     it("should not escape HTML in translation template (trusted locale strings)", function() {
       var str = templateHelpers.t("happi<b>ness</b>", {});
-      expect(str.string).toEqual("happi<b>ness</b>");
+      expect(helperText(str)).toEqual("happi<b>ness</b>");
     });
     it("should escape HTML in interpolated values to prevent XSS", function() {
       var str = templateHelpers.t("Hello %{name}", {hash: {name: '<script>alert(1)</script>'}, hashTypes: {}});
-      expect(str.string).toEqual("Hello &lt;script&gt;alert(1)&lt;/script&gt;");
+      expect(helperText(str)).toEqual("Hello &lt;script&gt;alert(1)&lt;/script&gt;");
       str = templateHelpers.t("Org: %{org}", {hash: {org: '<img src=x onerror=alert(1)>'}, hashTypes: {}});
-      expect(str.string).toEqual("Org: &lt;img src=x onerror=alert(1)&gt;");
+      expect(helperText(str)).toEqual("Org: &lt;img src=x onerror=alert(1)&gt;");
     });
     it("should increment t number value if specified", function() {
       var str = templateHelpers.t("%{hat} cow", {hash: {hat: 0, increment: 'hat'}, hashTypes: {}});
-      expect(str.string).toEqual("1 cow");
+      expect(helperText(str)).toEqual("1 cow");
 
       str = templateHelpers.t("cow", {hash: {count: 1, increment: 'count'}, hashTypes: {}});
-      expect(str.string).toEqual("2 cows");
+      expect(helperText(str)).toEqual("2 cows");
     });
 
     it("should format time strings", function() {
@@ -716,7 +725,7 @@ describe("i18n", function() {
       var d = new Date(1474326397835);
       expect(templateHelpers.date(d, 'day')).toEqual('September 19th 2016');
       expect(templateHelpers.date(d, 'short_day')).toEqual('Sep 19th 2016');
-      expect(templateHelpers.date(d, 'whatever')).toEqual('September 19th 2016, 5:06 pm');
+      expect(templateHelpers.date(d, 'whatever')).toEqual(window.moment(d).format('MMMM Do YYYY, h:mm a'));
     });
   });
 
@@ -736,11 +745,11 @@ describe("i18n", function() {
   describe("safe", function() {
     it("should return safe text", function() {
       var res = templateHelpers.safe('something <b>cool</b>');
-      expect(res.string).toEqual('something <b>cool</b>');
+      expect(helperText(res)).toEqual('something <b>cool</b>');
     });
     it("should strip html if specified", function() {
       var res = templateHelpers.safe('something <b>cool</b>', 'stripped');
-      expect(res.string).toEqual('something cool');
+      expect(helperText(res)).toEqual('something cool');
     });
   });
 

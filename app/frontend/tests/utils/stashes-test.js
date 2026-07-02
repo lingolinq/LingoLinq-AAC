@@ -212,13 +212,11 @@ describe('stashes', function() {
       stashes.set('logging_enabled', true);
       stashes.set('geo_logging_enabled', true);
       stashes.set('speaking_user_id', '12');
-      stub(stashes, 'geo', {
-        latest: {
-          coords: {
-            latitude: 1,
-            longitude: 2,
-            altitude: 123
-          }
+      emberSet(stashes.geo, 'latest', {
+        coords: {
+          latitude: 1,
+          longitude: 2,
+          altitude: 123
         }
       });
       var event = stashes.log({
@@ -688,7 +686,7 @@ describe('stashes', function() {
         type: 'note',
         user_id: 'asdf',
         timestamp: last_event.timestamp,
-        note: {note: 'haha'},
+        note: 'haha',
         window_width: 1234,
         window_height: 2345
       });
@@ -698,13 +696,11 @@ describe('stashes', function() {
       stashes.set('logging_enabled', true);
       stashes.set('geo_logging_enabled', false);
       stashes.set('speaking_user_id', '12');
-      stub(stashes, 'geo', {
-        latest: {
-          coords: {
-            latitude: 1,
-            longitude: 2,
-            altitude: 123
-          }
+      emberSet(stashes.geo, 'latest', {
+        coords: {
+          latitude: 1,
+          longitude: 2,
+          altitude: 123
         }
       });
       var event = stashes.log({

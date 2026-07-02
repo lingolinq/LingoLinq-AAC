@@ -421,7 +421,11 @@ var stashes = EmberObject.extend({
     };
     obj.sentence = obj.vocalizations.map(function(v) { return v.label; }).join(" ");
     if(!list.find(function(v) { return v.sentence == obj.sentence; })) {
-      list.pushObject(obj);
+      if(typeof list.pushObject === 'function') {
+        list.pushObject(obj);
+      } else {
+        list.push(obj);
+      }
     }
     stashes.persist('remembered_vocalizations', list);
   },

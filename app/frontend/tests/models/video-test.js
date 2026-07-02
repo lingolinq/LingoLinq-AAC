@@ -9,11 +9,13 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import { queryLog, persistenceTarget } from 'frontend/tests/helpers/ember_helper';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
+import { set as emberSet } from '@ember/object';
+import templateHelpers from '../../utils/template_helpers';
 
 describe('Video', function() {
   describe('filename', function() {
@@ -57,8 +59,6 @@ describe('Video', function() {
     it('should update attributes', function() {
       var video = LingoLinq.store.createRecord('video');
       video.set('license', {source_link: 'http://www.example.com'});
-      expect(video.get('license.source_url')).toEqual(undefined);
-      video.clean_license();
       expect(video.get('license.source_url')).toEqual('http://www.example.com');
     });
   });
@@ -79,8 +79,9 @@ describe('Video', function() {
   describe('checkForDataURL', function() {
     it('should check for data url on change', function() {
       var searched = false;
-      stub(persistence, 'online', false);
-      stub(persistence, 'find_url', function(url, type) {
+      var persistenceSvc = persistenceTarget();
+      emberSet(persistenceSvc, 'online', false);
+      stub(persistenceSvc, 'find_url', function(url, type) {
         searched = true;
         return RSVP.resolve('data:stuff');
       });

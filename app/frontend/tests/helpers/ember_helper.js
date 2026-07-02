@@ -1,6 +1,7 @@
 import * as QUnit from 'qunit';
 import Test from 'ember-testing';
 import EmberObject from '@ember/object';
+import { setOwner } from '@ember/application';
 import RSVP from 'rsvp';
 import LingoLinq from '../../app';
 import {
@@ -305,6 +306,41 @@ function fakeCanvas() {
   };
 }
 
+function stubNavigatorGetUserMedia(options) {
+  options = options || {};
+  var mediaCallback = options.callback || null;
+  var stream = options.stream || {
+    getTracks: function() { return []; },
+    getAudioTracks: function() { return []; },
+    getVideoTracks: function() { return []; }
+  };
+  var invokeLegacy = function(constraints, success, error) {
+    mediaCallback = success;
+    if (options.onLegacyCall) {
+      options.onLegacyCall(constraints, success, error);
+    }
+    if (success) {
+      success(stream);
+    }
+  };
+  stub(navigator, 'getUserMedia', function(constraints, success, error) {
+    invokeLegacy(constraints, success, error);
+  });
+  if (!navigator.mediaDevices) {
+    navigator.mediaDevices = {};
+  }
+  stub(navigator.mediaDevices, 'getUserMedia', function(constraints) {
+    return new RSVP.Promise(function(resolve, reject) {
+      invokeLegacy(constraints, resolve, reject);
+    });
+  });
+  return {
+    get mediaCallback() { return mediaCallback; },
+    set mediaCallback(fn) { mediaCallback = fn; },
+    stream: stream
+  };
+}
+
 function db_wait(callback) {
   waitsFor(function() { return capabilities.db && capabilities.dbman; });
   var _this = this;
@@ -603,11 +639,17 @@ beforeEach(function() {
     setupModalTestHarness();
   } else {
     modal.last_promise = null;
-    modal.setup(EmberObject.create({
+    var modalRoute = EmberObject.create({
       controllerFor: function() {
         return EmberObject.create({});
-      }
-    }));
+      },
+      render: function() { },
+      disconnectOutlet: function() { }
+    });
+    if (this.owner) {
+      setOwner(modalRoute, this.owner);
+    }
+    modal.setup(modalRoute);
   }
   if (utteranceTests) {
     setupUtteranceTestHarness();
@@ -938,6 +980,10 @@ function stubModalSafe(owner) {
         stub(modalSvc, 'error', function() { });
         stub(modalSvc, 'success', function() { });
       }
+      var appStateSvc = owner.lookup('service:app-state');
+      if (appStateSvc && !appStateSvc.isDestroyed) {
+        stub(appStateSvc, 'show_toast', function() { });
+      }
     } catch (e) { /* owner mid-teardown */ }
   }
 }
@@ -962,4 +1008,4 @@ function boardModelStub(attrs) {
   }, attrs || {}));
 }
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, ensureUserReload, persistenceTarget };
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, ensureUserReload, persistenceTarget, stubNavigatorGetUserMedia };
