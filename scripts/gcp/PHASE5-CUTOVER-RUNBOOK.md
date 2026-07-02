@@ -536,9 +536,11 @@ condition is met:
    gcloud logging read \
      'resource.type="http_load_balancer" AND jsonPayload.previewSecurityPolicy.outcome="DENY"' \
      --project=lingolinq-prod --freshness=<soak-days>d --limit=1000 \
-     --format='value(timestamp, jsonPayload.previewSecurityPolicy.priority, jsonPayload.previewSecurityPolicy.configuredAction, jsonPayload.previewSecurityPolicy.rateLimitAction.outcome)'
+     --format='value(timestamp, insertId, jsonPayload.previewSecurityPolicy.priority, jsonPayload.previewSecurityPolicy.configuredAction, jsonPayload.previewSecurityPolicy.rateLimitAction.outcome)'
    ```
-   Only pull `httpRequest.remoteIp` / `httpRequest.requestUrl` as an explicit follow-up, scoped to a
+   The `insertId` column above is what you paste into the follow-up command below (Codex review of
+   PR #513: the summary command must actually emit the id the follow-up references). Only pull
+   `httpRequest.remoteIp` / `httpRequest.requestUrl` as an explicit follow-up, scoped to a
    single `insertId` you are actively investigating (e.g. confirming a specific flagged hit is a real
    AAC utterance, not an attack) - never as the default bulk sweep:
    ```bash
@@ -737,13 +739,18 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 
 ## Pre-cutover checklist (all must be true before scheduling the window)
 
-- [x] **0a dress rehearsal passed** - the clean-DB variant's steps 1-4 all ran and succeeded live on
-      **2026-06-29**, confirmed via Cloud Run job execution history: `lingolinq-redischeck-zsq74`
-      (Step 2 Redis TLS handshake, 22:38 UTC), `lingolinq-migrate-cleandb-ss6m8`
-      (Step 3a `gcp:guarded_schema_load`, 22:46 UTC), `lingolinq-migrate-cleandb-kzqkk`
-      (Step 3b `db:seed`, 23:16 UTC, 29m35s incl. the full Moby word import); admin login + board
-      load confirmed working 2026-06-30. This box was stale (left unchecked after the work landed) -
-      corrected 2026-07-02, re-verify this note against live job history before trusting it further.
+- [ ] **0a dress rehearsal - PARTIALLY confirmed, do NOT check this box yet** (Codex review of
+      PR #513 correctly caught an earlier draft of this note overclaiming full completion).
+      **Confirmed live via Cloud Run job execution history (2026-06-29):** Step 2 Redis TLS
+      handshake (`lingolinq-redischeck-zsq74`, 22:38 UTC, PONG over `rediss://`); Step 3a schema
+      load (`lingolinq-migrate-cleandb-ss6m8`, `gcp:guarded_schema_load`, 22:46 UTC); Step 3b seed
+      (`lingolinq-migrate-cleandb-kzqkk`, `db:seed`, 23:16 UTC, 29m35s incl. the full Moby word
+      import); admin **login** confirmed working 2026-06-30 (per session notes). **NOT confirmed by
+      any evidence found (2026-07-02 sweep of Cloud Run logs for both `lingolinq-web` and
+      `lingolinq-worker` in the 2026-06-29/30 window turned up nothing beyond CSP-report noise):**
+      an explicit **board-open** smoke test (distinct from seeing boards listed in the dashboard),
+      **S3 read**, **SES send**, and **Resque enqueue/process**. Run these four before checking this
+      box - the five-path definition at line 62/107 is not optional partial credit.
 - [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
       above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
       the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
