@@ -30806,7 +30806,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 /* Small centered divider between the report title and the Joined/Last-active
    subheader — a short brand-gradient rule for a gentle separation. */
-.md-hero--org .md-hero__divider {
+.md-hero--org .md-hero__divider,
+.md-hero--reports-dashboard .md-hero__divider {
   display: block;
   width: 84px;
   height: 2px;

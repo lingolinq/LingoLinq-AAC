@@ -1,4 +1,5 @@
 require_relative '../method_tracer'
+require_relative '../art50_marker'
 
 module JsonApi::Board
   extend MethodTracer
@@ -21,6 +22,12 @@ module JsonApi::Board
     ['name', 'prefix', 'description', 'image_url', 'stars', 'forks', 'word_suggestions', 'locale', 'home_board', 'categories', 'dim_header', 'small_header'].each do |key|
       json[key] = board.settings[key]
     end
+    # EU AI Act Article 50(2): expose the marking as a non-secret provenance view
+    # (spec/provider/model/generated_at + marked), verified server-side. The signature and
+    # content_id are withheld -- clients cannot verify the server-secret HMAC and content_id
+    # links to an internal AiApiLog row, so exposing them would only enable a bearer-token
+    # transplant. Returns nil (unmarked) for a board with no valid marker. See Art50Marker.
+    json['ai_generated'] = Art50Marker.public_view(board.settings['ai_generated'])
     json['sort_score'] = ((board.popularity || -1) + 1) * (board.any_upstream ? 1 : 2)
 
     list = [board.settings['locale'] || 'en']

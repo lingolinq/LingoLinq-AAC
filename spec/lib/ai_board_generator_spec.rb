@@ -72,6 +72,34 @@ describe AiBoardGenerator do
       expect(logged[:response_summary]).not_to include('parent@example.com')
     end
 
+    it "marks the AI-generated output with a verifiable Article 50 marker and records it in the audit log" do
+      logged = nil
+      allow(AiApiLog).to receive(:log_ai_call) { |**kw| logged = kw }
+      complete = "WORDS: apple, banana, carrot, drink\nNAME: Snacks\nDESCRIPTION: Snack words."
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+
+      result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+
+      expect(result[:ai_generated]).to be_a(Hash)
+      expect(Art50Marker.verify(result[:ai_generated])).to eq(true)
+      expect(result[:ai_generated]['provider']).to eq('claude')
+      expect(result[:ai_generated]['model']).to eq(AiBoardGenerator::DEFAULT_MODEL)
+      expect(logged[:ai_content_marked]).to eq(true)
+      expect(logged[:ai_generated_content_id]).to eq(result[:ai_generated]['content_id'])
+    end
+
+    it "does not attach a marker to a shortfall (no AI content delivered)" do
+      short = "WORDS: apple, banana\nNAME: Snacks\nDESCRIPTION: x."
+      allow(described_class).to receive(:call_anthropic).and_return(
+        anthropic_response(short), anthropic_response(short)
+      )
+
+      result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+
+      expect(result[:words]).to eq(nil)
+      expect(result[:ai_generated]).to eq(nil)
+    end
+
     context "COPPA Final Rule hard-gate" do
       it "returns a parental-consent error when coppa_blocks_ai_for? is true" do
         u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
