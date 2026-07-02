@@ -463,33 +463,35 @@ describe Flusher do
       expect(ButtonImage.where(id: recent.id).count).to eq(1)
     end
 
-    it "should destroy an orphaned removable button_sound older than a week", :versioning => true do
+    it "should never destroy button_sounds -- board_button_sounds sync can be deferred to an async job" do
+      # Regression guard: BoardButtonSound.connect/disconnect are still called (unlike
+      # images), but Board#map_images can defer that resync via @map_later to a real
+      # Resque job (Board#swap_images, the batch public/privacy toggle). During that
+      # window a sound already referenced by a board's grid_buttons can have zero
+      # board_button_sounds rows, so a join-table-only orphan check has a live-data-
+      # deletion race (the same underlying flaw as the button_images case above).
+      # flush_leftovers must not delete button_sounds via that signal at all.
       u = User.create
+      old_in_use = ButtonSound.create(user: u, removable: true)
+      old_in_use.update_column(:created_at, 8.days.ago)
+      b = Board.create!(user: u)
+      b.process_buttons([{ 'id' => '1', 'label' => 'moo', 'sound_id' => old_in_use.global_id }], u)
+      # Reproduce the real @map_later deferral (Board#swap_images / the batch
+      # public-privacy toggle set this instance variable before saving) so
+      # map_images defers to an async job instead of syncing board_button_sounds
+      # synchronously -- the exact window the join-table check would be blind to.
+      b.instance_variable_set('@map_later', true)
+      b.save
+      expect(BoardButtonSound.where(button_sound_id: old_in_use.id).count).to eq(0)
+      Flusher.flush_leftovers
+      expect(ButtonSound.where(id: old_in_use.id).count).to eq(1)
+
       old_orphan = ButtonSound.create(user: u, removable: true)
       old_orphan.update_column(:created_at, 8.days.ago)
+      recent = ButtonSound.create(user: u, removable: true)
       Flusher.flush_leftovers
-      expect(ButtonSound.where(id: old_orphan.id).count).to eq(0)
-      expect(PaperTrail::Version.where(item_type: 'ButtonSound', item_id: old_orphan.id).count).to eq(0)
-    end
-
-    it "should not destroy an old removable button_sound with a direct board_id even without a board_button_sounds row" do
-      u = User.create
-      b = Board.create(user: u)
-      connected = ButtonSound.create(user: u, removable: true, board_id: b.id)
-      connected.update_column(:created_at, 8.days.ago)
-      expect(BoardButtonSound.where(button_sound_id: connected.id).count).to eq(0)
-      Flusher.flush_leftovers
-      expect(ButtonSound.where(id: connected.id).count).to eq(1)
-    end
-
-    it "should not destroy an old removable button_sound that still has a board connection" do
-      u = User.create
-      b = Board.create(user: u)
-      connected = ButtonSound.create(user: u, removable: true)
-      connected.update_column(:created_at, 8.days.ago)
-      BoardButtonSound.create!(board_id: b.id, button_sound_id: connected.id)
-      Flusher.flush_leftovers
-      expect(ButtonSound.where(id: connected.id).count).to eq(1)
+      expect(ButtonSound.where(id: old_orphan.id).count).to eq(1)
+      expect(ButtonSound.where(id: recent.id).count).to eq(1)
     end
 
     it "should remove a board_button_image left dangling by a hard-deleted button_image" do
@@ -625,14 +627,13 @@ describe Flusher do
     end
 
     it "should log a retention_flush AuditEvent with per-category counts" do
-      u = User.create
-      old_orphan = ButtonSound.create(user: u, removable: true)
-      old_orphan.update_column(:created_at, 8.days.ago)
+      old = Progress.create!
+      old.update_column(:created_at, 40.days.ago)
       Flusher.flush_leftovers
       ev = AuditEvent.where(event_type: 'retention_flush').order('id DESC').first
       expect(ev).to_not eq(nil)
       expect(ev.user_key).to eq('system')
-      expect(ev.data['button_sounds']).to eq(1)
+      expect(ev.data['progresses']).to eq(1)
     end
   end
 end

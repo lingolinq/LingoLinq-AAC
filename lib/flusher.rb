@@ -54,30 +54,31 @@ module Flusher
   # follow-up: decide whether developer keys should expire at all before
   # writing deletion logic for them (see LL-991d259b2a).
   def self.flush_leftovers
-    # 1. removable button_sounds at least a week old with no board connections left.
-    #    "No board connections" means BOTH no board_button_sounds join row AND no
-    #    direct board_id -- a sound can be tied to a board either way, and the join
-    #    table alone is not a complete signal (see the button_images note below for
-    #    why relying on a single join table is risky). Routed through flush_record
-    #    so the has_paper_trail(:on => [:destroy]) version gets cleaned up too.
-    #
-    #    NOTE: button_images are deliberately NOT included here. The plan's
-    #    original wording ("no board connections") assumed board_button_images
-    #    reflects live usage, the same way board_button_sounds does for sounds.
-    #    It doesn't: Board#map_images stopped calling BoardButtonImage.connect/
-    #    disconnect (see the commented-out calls around board.rb's map_images),
-    #    while BoardButtonSound.connect/disconnect are still active. Board image
-    #    usage is now derived purely from grid_buttons ('image_id' on each button,
-    #    see Board#known_button_images), not from the join table. Using
-    #    board_button_images as the orphan signal would treat every actively-used
-    #    image as orphaned and destroy it -- including its S3 file -- on the first
-    #    run. Left undone until image usage can be checked against grid_buttons (or
-    #    the join table is restored), rather than shipping a check known to delete
-    #    live data. See LL-991d259b2a.
-    button_sound_scope = ButtonSound.where(removable: true)
-      .where('button_sounds.created_at < ?', 1.week.ago)
-      .where(board_id: nil)
-      .left_joins(:board_button_sounds).where(board_button_sounds: { id: nil })
+    # 1. NOT IMPLEMENTED for either button_images or button_sounds. The plan's
+    #    wording ("no board connections") assumed the board_button_images/
+    #    board_button_sounds join tables reflect live usage. Neither can be trusted
+    #    for that on its own:
+    #    - board_button_images: Board#map_images stopped calling
+    #      BoardButtonImage.connect/disconnect entirely (see the commented-out
+    #      calls around board.rb's map_images). Board image usage is now derived
+    #      purely from grid_buttons ('image_id' on each button, see
+    #      Board#known_button_images), never from the join table. Using it as the
+    #      orphan signal would treat every actively-used image as orphaned.
+    #    - board_button_sounds: BoardButtonSound.connect/disconnect are still
+    #      called, but map_images can defer that resync to an async background
+    #      job (the @map_later flag, set by Board#swap_images and the batch
+    #      public/privacy toggle), via `self.schedule(:map_images, true)`
+    #      (BoyBand::AsyncInstanceMethods, i.e. a real Resque job, not
+    #      synchronous). During that window a sound already referenced by a
+    #      board's grid_buttons can have zero board_button_sounds rows, so a
+    #      join-table-only orphan check has a live-data-deletion race. Board#
+    #      known_button_sounds itself documents not relying on this join table
+    #      being in sync, for the same reason.
+    #    Both would need a grid_buttons-based reverse-usage check (the same
+    #    signal known_button_images/known_button_sounds use per-board) to be
+    #    implemented safely; that is real additional work, not a query tweak, so
+    #    it is left undone here rather than shipping either join-table check.
+    #    See LL-991d259b2a.
 
     # 2. board_button_images/board_button_sounds with no linked board, button_image,
     #    or button_sound. Neither join model is paper-trailed, so a batched
@@ -132,7 +133,6 @@ module Flusher
     # with no record of them. counts reflect what is ABOUT to be removed, not a
     # post-hoc tally, by design.
     counts = {
-      'button_sounds' => button_sound_scope.count,
       'board_button_images' => board_button_image_scope.count,
       'board_button_sounds' => board_button_sound_scope.count,
       'log_session_boards' => log_session_board_scope.count,
@@ -149,7 +149,6 @@ module Flusher
       data: counts
     )
 
-    button_sound_scope.find_each { |bs| flush_record(bs) }
     board_button_image_scope.in_batches.delete_all
     board_button_sound_scope.in_batches.delete_all
     log_session_board_scope.in_batches.delete_all
