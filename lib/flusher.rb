@@ -127,17 +127,28 @@ module Flusher
     stale_types = known_types.reject { |t| t.safe_constantize }
     stale_version_scope = stale_types.any? ? PaperTrail::Version.where(item_type: stale_types) : PaperTrail::Version.none
 
-    # Counts are computed BEFORE any deletion runs, and the AuditEvent is written
-    # before any deletion runs, so a failed audit write aborts the whole job (it
-    # raises out of flush_leftovers) instead of leaving deletions that happened
-    # with no record of them. counts reflect what is ABOUT to be removed, not a
-    # post-hoc tally, by design.
+    # Candidate ids are snapshotted BEFORE the AuditEvent is written, and deletion
+    # below targets exactly these snapshotted ids (not a re-evaluated scope), so
+    # the audit counts and what actually gets deleted can never drift apart: a row
+    # that becomes newly orphaned after the snapshot is simply left for the next
+    # run, rather than being deleted without ever appearing in an audit count (and
+    # a row that stops being orphaned in between still existed as orphaned at
+    # snapshot time, so counting and removing it is correct, not an overcount).
+    # The AuditEvent write itself still happens before any deletion runs, so a
+    # failed audit write aborts the whole job instead of leaving deletions that
+    # happened with no record of them.
+    board_button_image_ids = board_button_image_scope.pluck(:id)
+    board_button_sound_ids = board_button_sound_scope.pluck(:id)
+    log_session_board_ids = log_session_board_scope.pluck(:id)
+    progress_ids = progress_scope.pluck(:id)
+    user_board_connection_ids = user_board_connection_scope.pluck(:id)
+
     counts = {
-      'board_button_images' => board_button_image_scope.count,
-      'board_button_sounds' => board_button_sound_scope.count,
-      'log_session_boards' => log_session_board_scope.count,
-      'progresses' => progress_scope.count,
-      'user_board_connections' => user_board_connection_scope.count,
+      'board_button_images' => board_button_image_ids.length,
+      'board_button_sounds' => board_button_sound_ids.length,
+      'log_session_boards' => log_session_board_ids.length,
+      'progresses' => progress_ids.length,
+      'user_board_connections' => user_board_connection_ids.length,
       'versions_stale_type_detected_not_deleted' => stale_version_scope.count
     }
 
@@ -149,11 +160,11 @@ module Flusher
       data: counts
     )
 
-    board_button_image_scope.in_batches.delete_all
-    board_button_sound_scope.in_batches.delete_all
-    log_session_board_scope.in_batches.delete_all
-    progress_scope.in_batches.delete_all
-    user_board_connection_scope.in_batches.delete_all
+    BoardButtonImage.where(id: board_button_image_ids).in_batches.delete_all
+    BoardButtonSound.where(id: board_button_sound_ids).in_batches.delete_all
+    LogSessionBoard.where(id: log_session_board_ids).in_batches.delete_all
+    Progress.where(id: progress_ids).in_batches.delete_all
+    UserBoardConnection.where(id: user_board_connection_ids).in_batches.delete_all
     # versions_stale_type_detected_not_deleted: intentionally not deleted, see note above.
 
     counts
