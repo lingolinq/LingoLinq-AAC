@@ -518,4 +518,64 @@ describe AiApiLog, :type => :model do
       expect(log.ai_content_marked).to eq(false)
     end
   end
+
+  describe "log_ai_call audit-write failure (alert-but-continue)" do
+    # Fake Sentry so the guarded alert path runs whether or not Sentry is
+    # initialized in the test env. Mirrors AuditEvent's capture_message contract.
+    let(:fake_sentry) do
+      Module.new do
+        def self.initialized?
+          true
+        end
+      end
+    end
+
+    before(:each) do
+      stub_const('Sentry', fake_sentry)
+    end
+
+    it "alerts via Sentry and returns the unsaved log instead of raising" do
+      captured = nil
+      allow(fake_sentry).to receive(:capture_message) { |msg, *| captured = msg }
+
+      log = nil
+      expect {
+        # invalid ai_provider fails the inclusion validation -> save! raises RecordInvalid
+        log = AiApiLog.log_ai_call(provider: 'evilcorp', type: 'board_generation')
+      }.not_to raise_error
+
+      expect(log).to be_a(AiApiLog)
+      expect(log).not_to be_persisted
+      expect(captured).to include('failed to persist audit log')
+      expect(fake_sentry).to have_received(:capture_message)
+        .with(kind_of(String), hash_including(level: 'error', tags: { audit: 'ai_api_log_persist_failed' }))
+    end
+
+    it "does not let a Sentry failure escape (alerting can never break generation)" do
+      allow(fake_sentry).to receive(:capture_message).and_raise(StandardError, 'sentry down')
+
+      expect {
+        AiApiLog.log_ai_call(provider: 'evilcorp', type: 'board_generation')
+      }.not_to raise_error
+    end
+
+    it "also alerts (not just validation errors) on a real DB failure during save" do
+      captured = nil
+      allow(fake_sentry).to receive(:capture_message) { |msg, *| captured = msg }
+      # Simulate an operational DB hiccup -- a StatementInvalid, NOT a validation
+      # RecordInvalid -- which is the scenario the loud fix is meant to surface.
+      allow_any_instance_of(AiApiLog).to receive(:save!)
+        .and_raise(ActiveRecord::StatementInvalid.new('PG::ConnectionBad: server closed the connection'))
+
+      log = nil
+      expect {
+        log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
+      }.not_to raise_error
+
+      expect(log).to be_a(AiApiLog)
+      expect(captured).to include('failed to persist audit log')
+      expect(fake_sentry).to have_received(:capture_message)
+        .with(kind_of(String), hash_including(level: 'error', tags: { audit: 'ai_api_log_persist_failed' }))
+    end
+  end
 end

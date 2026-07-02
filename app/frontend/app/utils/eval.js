@@ -222,6 +222,22 @@ var evaluation = {
       return { showStart: false, showSkip: false };
     }
   },
+  /** Current intro step's prompt text (for the modern bespoke intro screen),
+      or null when the current step isn't an intro. Mirrors the visibility
+      guard above so the screen shows exactly when on-board Start would. */
+  current_intro: function() {
+    try {
+      if(typeof levels === 'undefined' || !levels || !levels.length) { return null; }
+      if(!working || working.level === undefined || working.level === null) { return null; }
+      var level = levels[working.level];
+      if(!level) { return null; }
+      var step = level[working.step];
+      if(!step || !step.intro || step.intro === 'done') { return null; }
+      return { intro: step.intro, text: evaluation.level_prompt(step) };
+    } catch(e) {
+      return null;
+    }
+  },
   intro_header_start: function() {
     if(!evaluation.appState.get('speak_mode')) {
       evaluation.modal.notice(evaluation.i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
@@ -232,12 +248,37 @@ var evaluation = {
     if(!level) { return; }
     var step = level[working.step];
     if(!step || !step.intro || step.intro === 'done') { return; }
-    if(step.intro == 'find_target') {
-      var start_step = level.find(function(s) { return s.id == "find-4"; });
+    if(step.intro == 'find_target' || step.intro == 'intro') {
+      // The welcome intro ('intro') now combines the old welcome + intro2 +
+      // find_target messages into one screen, so Starting from it jumps
+      // straight to the first find assessment step (find-4) — the same target
+      // the find_target intro uses. find-4 lives in a LATER level than the
+      // welcome (welcome is levels[0]; find-4 is in the find_target level), so
+      // when it isn't in the current level, search every level and jump to it.
+      // We resync `level` too, so the level-overflow normalization below
+      // (`if(!level[working.step])`) checks the destination level, not the old
+      // welcome level — otherwise it would re-increment past find-4.
+      //
+      // KNOWN / DEFERRED (eval pages design is still in progress): forward Start
+      // skips intro2 + find_target, but the speak-bar Back from the first
+      // assessment step can still walk back into those legacy intro screens that
+      // the combined welcome is meant to replace. The eval flow back-traversal
+      // (hiding Back on the first post-welcome step, or collapsing intro2 /
+      // find_target on the way back) will be addressed in a future eval pass.
+      var is_find_4 = function(s) { return s.id == "find-4"; };
+      var start_step = level.find(is_find_4);
       if(start_step) {
         working.step = level.indexOf(start_step);
       } else {
-        working.step++;
+        for(var li = 0; li < levels.length; li++) {
+          var idx = levels[li].findIndex(is_find_4);
+          if(idx != -1) {
+            working.level = li;
+            working.step = idx;
+            level = levels[li];
+            break;
+          }
+        }
       }
     } else if(step.intro == 'diff_target') {
       var step_id = 'diff-4';

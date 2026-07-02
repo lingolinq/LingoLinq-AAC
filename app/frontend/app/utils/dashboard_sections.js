@@ -44,18 +44,17 @@ var EXTRA_HOME_TOGGLES = [
 // can't see. Register them here as literals so they land in the locale files:
 //   i18n.t('home_welcome_banner', "Welcome banner")
 
-// The "My Organizations" card shows only when the user is actually connected to an
-// organization they manage or supervise — i.e. the same set the card's goOrganizations
-// action navigates to (all_orgs = non-restricted manager orgs + managing supervision
-// orgs). Being a supporter alone is NOT enough: a supporter with no org connection has
-// nothing to manage, so the card stays hidden (clicking would otherwise drop into the
-// add-organization flow).
+// The "My Organizations" card shows only when the user actually MANAGES an organization
+// (a non-restricted manager-type org). The org management tool is manager/assistant-only —
+// every backing endpoint requires 'edit'. Supervisors have view-only org access and their
+// work lives in their Caseload, so a pure supervisor should not see an org-management card
+// (it would only lead to a view-only landing). A supporter with no manager org has nothing
+// to manage here, so the card stays hidden.
 function hasOrgManagement(user) {
   if(!user) { return false; }
   var orgs = user.get('organizations') || [];
   var managesOrg = orgs.some(function(o) { return o.type == 'manager' && o.restricted != true; });
-  var supervisionOrgs = user.get('managing_supervision_orgs') || [];
-  return managesOrg || supervisionOrgs.length > 0;
+  return managesOrg;
 }
 
 // Communicator org_status IDs that signal "needs attention": 'no-home-board' (the

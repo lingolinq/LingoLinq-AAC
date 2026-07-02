@@ -72,6 +72,13 @@
   {{/if}}
   {{#let this.model as |board|}}
   <div style={{this.board_style}} class={{this.display_class}} data-id={{board.id}} lang={{this.app_state.board_lang}}>
+    {{#if this.eval_intro_active}}
+      {{!-- Modern bespoke eval intro screen — replaces the legacy OBF board
+            grid for intro steps. The board grid below is hidden via CSS
+            (.board.eval_intro). The CTA/Settings reuse the existing eval
+            flow actions, so the eval logic is unchanged. --}}
+      {{eval-intro text=this.eval_intro_text showSkip=this.eval_intro_show_skip isWelcome=this.eval_intro_is_welcome}}
+    {{/if}}
     {{#if board.has_background}}
       <div style={{this.bg_style}} id='board_bg' class={{this.bg_class}}>
         {{#if board.background.text}}
