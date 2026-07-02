@@ -32,9 +32,9 @@
     "postgres-dev": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql:///lingolinq-development?host=/var/run/postgresql"],
+      "args": ["-y", "@modelcontextprotocol/server-postgres@0.6.2", "postgresql:///lingolinq-development?host=/var/run/postgresql"],
       "metadata": {
-        "description": "Development PostgreSQL access, scoped to this repo only. Write-capable (the query tool can run writes/DDL). Before approving on first load, self-verify YOUR OWN local `lingolinq-development` DB holds no real student/patient rows -- Scot confirmed his was synthetic-only on 2026-06-14, but that confirmation is per-machine and does not carry over to any other checkout or clone. If your local DB is ever seeded from prod or real rows, treat this server as a regulated-data surface and do not approve it."
+        "description": "Development PostgreSQL access, scoped to this repo only. Read-only: every query runs inside BEGIN TRANSACTION READ ONLY and is rolled back (verified 2026-07-01 against the actual installed package, dist/index.js) -- it cannot write or run DDL. NOTE: this npm package is marked deprecated/no-longer-supported upstream; treat as a candidate for replacement, not a long-term dependency. Before approving on first load, self-verify YOUR OWN local `lingolinq-development` DB holds no real student/patient rows -- Scot confirmed his was synthetic-only on 2026-06-14, but that confirmation is per-machine and does not carry over to any other checkout or clone. Read-only access to real rows would still be a FERPA/HIPAA exposure even without write risk; if your local DB is ever seeded from prod, do not approve it."
       }
     }
   }
