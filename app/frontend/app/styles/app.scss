@@ -40685,7 +40685,12 @@ a.la-footer-bottom-a11y-wcag {
   .la-hero-title {
     /* Larger, more cinematic serif headline — landing-page scale, light weight,
        tight tracking, with a touch more line breathing room. clamp keeps it
-       graceful from phone to desktop. */
+       graceful from phone to desktop (h1 header size scaling down to ~32px on
+       narrow screens). This title is an <h1> (the page's main heading), so
+       display/height are reset here to neutralize the legacy global
+       `h1 { display:inline-block; height:60px }` nav style from leaking in. */
+    display: block;
+    height: auto;
     font-family: 'Maitree', serif;
     font-size: clamp(32px, 5.5vw, 48px);
     font-weight: normal;
@@ -41317,7 +41322,10 @@ a.la-footer-bottom-a11y-wcag {
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: rgba($brand-blue-black, 0.55);
+  /* Inactive label — must clear WCAG AA 4.5:1 (0.55 alpha was 3.91:1 at 14px
+     bold). 0.72 keeps it visibly lighter than the active $indigo label while the
+     sliding pill still signals which option is selected. */
+  color: rgba($brand-blue-black, 0.72);
   cursor: pointer;
   transition: color 0.2s ease;
 }
@@ -86505,7 +86513,9 @@ a.md-caseload__action {
   gap: 6px;
   margin-top: 2px;
   font-size: 13px;
-  color: #7b859c;
+  /* Muted secondary line, but must clear WCAG AA 4.5:1 on the ~white card
+     (#7b859c was 3.70:1). rgba(navy, 0.72) ≈ 4.9:1 keeps it quiet yet legible. */
+  color: rgba($la-navy, 0.72);
 }
 .md-org-session-row__count {
   font-weight: 600;

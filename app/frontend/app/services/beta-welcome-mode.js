@@ -18,10 +18,16 @@ export default Service.extend({
   // whichever page hosts the Get Started button — beta-welcome in Original mode,
   // beta-welcome-message in Short mode — so the behavior is identical in both.
   acceptAndFinish() {
+    // Re-entrancy guard: a rapid double-tap on "Get Started" (common for AAC
+    // users) would otherwise fire two PUTs and two return_to_index calls. Once
+    // we start, both the success and failure handlers navigate into the app, so
+    // the flag never needs resetting for this session.
+    if (this.get('finishing')) { return; }
     if (!this.session.get('isAuthenticated')) {
       this.router.transitionTo('login');
       return;
     }
+    this.set('finishing', true);
     var _this = this;
     var finish = function() {
       try {

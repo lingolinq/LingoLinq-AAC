@@ -98,12 +98,27 @@ export default Component.extend({
 
   actions: {
     close() {
-      // Sanitize + persist the PIN on close too, in case the modal is dismissed
-      // (X / Escape / backdrop) before the input's change fired. Only saves when
-      // it actually differs, to avoid a redundant write.
+      // Live-save model: the PIN persists on close too, in case the input's change
+      // didn't fire before X / Escape / backdrop. Best-practice handling when the
+      // entry is incomplete while a PIN gate is on (the disabled Done blocks it,
+      // but the dismiss paths land here and would otherwise bypass that guard):
+      //   • a valid PIN is still saved -> discard the in-progress edit, keep it;
+      //   • no usable PIN anywhere     -> clear the partial and turn the gate(s)
+      //     off, so we never persist an unenforceable "gate on, no PIN" (which
+      //     could lock the user out or give a false sense of security).
+      // The inline "Enter a 4-digit PIN." warning already surfaced the requirement
+      // while editing, so no additional prompt is needed.
       var pin = this._sanitize_pin(this.get('pin_value'));
       if(pin !== (this.get('pin_value') || '').toString()) { this.set('pin_value', pin); }
-      if(pin !== ((this.get('user.preferences.speak_mode_pin') || '').toString())) {
+      var savedPin = (this.get('user.preferences.speak_mode_pin') || '').toString();
+      if(this.get('pin_incomplete') && !/^\d{4}$/.test(savedPin)) {
+        if(savedPin !== '') { this._save_pref('speak_mode_pin', ''); }
+        this.set('pin_value', '');
+        if(this.get('require_speak_mode_pin')) { this.set('require_speak_mode_pin', false); }
+        if(this.get('require_sidebar_edit_pin')) { this.set('require_sidebar_edit_pin', false); }
+      } else if(this.get('pin_incomplete')) {
+        this.set('pin_value', savedPin);
+      } else if(pin !== savedPin) {
         this._save_pref('speak_mode_pin', pin);
       }
       this.get('modal').close();

@@ -102,9 +102,18 @@ export default Component.extend({
         this._cancel_hold();
       }
     },
-    // Release / cancel / leave before the hold completes → no menu.
-    holdEnd() {
+    // Release / cancel / leave → stop the pending hold. `event` distinguishes HOW
+    // the gesture ended, which matters for the `_hold_fired` swallow-flag below.
+    holdEnd(event) {
       this._cancel_hold();
+      // `_hold_fired` is armed by a COMPLETED hold solely to swallow the ONE
+      // synthetic `click` that a pointerUP fires right after. On the
+      // pointercancel / pointerleave paths the browser SUPPRESSES that trailing
+      // click, so nothing ever consumes the flag — it dangles true, and the next
+      // real tap meant to dismiss the open menu gets wrongly eaten (the menu then
+      // needs two taps to close). Clear it on those non-pointerup terminations;
+      // keep it for pointerup so `tap` can still swallow the genuine synthetic click.
+      if(event && event.type !== 'pointerup') { this._hold_fired = false; }
     },
 
     // Click on the chip body. A SHORT tap does NOT open the menu (that requires a
