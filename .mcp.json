@@ -28,6 +28,14 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "postgres-dev": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql:///lingolinq-development?host=/var/run/postgresql"],
+      "metadata": {
+        "description": "Development PostgreSQL access, scoped to this repo only. Write-capable (the query tool can run writes/DDL). Before approving on first load, self-verify YOUR OWN local `lingolinq-development` DB holds no real student/patient rows -- Scot confirmed his was synthetic-only on 2026-06-14, but that confirmation is per-machine and does not carry over to any other checkout or clone. If your local DB is ever seeded from prod or real rows, treat this server as a regulated-data surface and do not approve it."
+      }
     }
   }
 }
