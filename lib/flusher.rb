@@ -45,21 +45,119 @@ module Flusher
     PaperTrail::Version.where(:item_type => record_class, :item_id => record_db_id).delete_all
   end
   
+  # NOTE on item 3 ("expired developer keys"): DeveloperKey has no expiration
+  # concept anywhere in this codebase (no expires_at column, no settings blob,
+  # no expired? method). Session/device tokens expire (Device#settings['keys']),
+  # but a DeveloperKey is a permanent OAuth client registration. Implementing
+  # this item would mean inventing an unreviewed criterion for destroying live
+  # client credentials, so it is deliberately left undone here. Tracked as a
+  # follow-up: decide whether developer keys should expire at all before
+  # writing deletion logic for them (see LL-991d259b2a).
   def self.flush_leftovers
-    # 1. look for removable button_images and button_sounds and .destroy them if
-    #    they are at least a week old and there are no board connections for them
-    # 2. look for any board_button_images and board_button_sounds with no linked
-    #    board, button or sound and .destroy them (also note it somewhere, in case
-    #    there is a consistent leakage problem)
-    # 3. look for any expired developer keys and .destroy them
-    # 4. look for any log_session_boards that don't have a session or board
-    #    and .destroy them (also note in case consistent leakage)
-    # 5. look for any progress records more than a month old and destroy them
-    # 6. look for any user_board_connections with no linked board or user
-    #    and .destroy them (also note in case consistent leakage)
-    # 7. look for any paper trail versions that point to records that
-    #    don't exist anymore and .destroy them (also note in case consistent leakage)
-    # TODO: also prune old versions? The list will get huge soon...
+    # 1. removable button_sounds at least a week old with no board connections left.
+    #    "No board connections" means BOTH no board_button_sounds join row AND no
+    #    direct board_id -- a sound can be tied to a board either way, and the join
+    #    table alone is not a complete signal (see the button_images note below for
+    #    why relying on a single join table is risky). Routed through flush_record
+    #    so the has_paper_trail(:on => [:destroy]) version gets cleaned up too.
+    #
+    #    NOTE: button_images are deliberately NOT included here. The plan's
+    #    original wording ("no board connections") assumed board_button_images
+    #    reflects live usage, the same way board_button_sounds does for sounds.
+    #    It doesn't: Board#map_images stopped calling BoardButtonImage.connect/
+    #    disconnect (see the commented-out calls around board.rb's map_images),
+    #    while BoardButtonSound.connect/disconnect are still active. Board image
+    #    usage is now derived purely from grid_buttons ('image_id' on each button,
+    #    see Board#known_button_images), not from the join table. Using
+    #    board_button_images as the orphan signal would treat every actively-used
+    #    image as orphaned and destroy it -- including its S3 file -- on the first
+    #    run. Left undone until image usage can be checked against grid_buttons (or
+    #    the join table is restored), rather than shipping a check known to delete
+    #    live data. See LL-991d259b2a.
+    button_sound_scope = ButtonSound.where(removable: true)
+      .where('button_sounds.created_at < ?', 1.week.ago)
+      .where(board_id: nil)
+      .left_joins(:board_button_sounds).where(board_button_sounds: { id: nil })
+
+    # 2. board_button_images/board_button_sounds with no linked board, button_image,
+    #    or button_sound. Neither join model is paper-trailed, so a batched
+    #    delete_all (no flush_record needed) matches how flush_board_by_db_id
+    #    already cleans these same tables.
+    board_button_image_scope = BoardButtonImage.left_joins(:board, :button_image)
+      .where(boards: { id: nil }).or(
+        BoardButtonImage.left_joins(:board, :button_image).where(button_images: { id: nil })
+      )
+    board_button_sound_scope = BoardButtonSound.left_joins(:board, :button_sound)
+      .where(boards: { id: nil }).or(
+        BoardButtonSound.left_joins(:board, :button_sound).where(button_sounds: { id: nil })
+      )
+
+    # 4. log_session_boards with no linked log_session or board. Not paper-trailed.
+    log_session_board_scope = LogSessionBoard.left_joins(:log_session, :board)
+      .where(log_sessions: { id: nil }).or(
+        LogSessionBoard.left_joins(:log_session, :board).where(boards: { id: nil })
+      )
+
+    # 5. progress records more than a month old. Progress.clear_old_progresses
+    #    already prunes finished progresses after 7 days, but only opportunistically
+    #    (called from Progress.schedule) and only when finished_at is set, so a
+    #    crashed/never-finished progress record sits forever. This closes that gap
+    #    with an unconditional age check on created_at. Not paper-trailed.
+    progress_scope = Progress.where('progresses.created_at < ?', 1.month.ago)
+
+    # 6. user_board_connections with no linked board or user. Not paper-trailed.
+    user_board_connection_scope = UserBoardConnection.left_joins(:board, :user)
+      .where(boards: { id: nil }).or(
+        UserBoardConnection.left_joins(:board, :user).where(users: { id: nil })
+      )
+
+    # 7. paper trail versions whose item_type no longer maps to any model class
+    #    (e.g. a renamed/removed legacy model). REPORT-ONLY, not deleted: per
+    #    docs/legal/DATA_RETENTION.md:30, authentication/audit-trail paper_trail
+    #    versions (User/Board/LogSession) require 6-year retention with cold-storage
+    #    archival, not deletion. safe_constantize returning nil proves the CODE was
+    #    renamed/removed, not that the audit evidence those rows carry is disposable
+    #    -- a stale item_type could just as easily be a pre-rename class name (this
+    #    app is a rename of CoughDrop/SweetSuite) whose versions still matter. Log
+    #    and count for visibility; actual disposition needs a real archival decision,
+    #    not a mechanical delete. Tracked as a follow-up finding (see
+    #    audit-reports/FINDINGS.json) rather than implemented here.
+    known_types = PaperTrail::Version.distinct.pluck(:item_type).compact
+    stale_types = known_types.reject { |t| t.safe_constantize }
+    stale_version_scope = stale_types.any? ? PaperTrail::Version.where(item_type: stale_types) : PaperTrail::Version.none
+
+    # Counts are computed BEFORE any deletion runs, and the AuditEvent is written
+    # before any deletion runs, so a failed audit write aborts the whole job (it
+    # raises out of flush_leftovers) instead of leaving deletions that happened
+    # with no record of them. counts reflect what is ABOUT to be removed, not a
+    # post-hoc tally, by design.
+    counts = {
+      'button_sounds' => button_sound_scope.count,
+      'board_button_images' => board_button_image_scope.count,
+      'board_button_sounds' => board_button_sound_scope.count,
+      'log_session_boards' => log_session_board_scope.count,
+      'progresses' => progress_scope.count,
+      'user_board_connections' => user_board_connection_scope.count,
+      'versions_stale_type_detected_not_deleted' => stale_version_scope.count
+    }
+
+    Rails.logger.info("[Flusher.flush_leftovers] #{counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' ')}")
+    AuditEvent.create!(
+      user_key: 'system',
+      event_type: 'retention_flush',
+      summary: "retention_flush " + counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' '),
+      data: counts
+    )
+
+    button_sound_scope.find_each { |bs| flush_record(bs) }
+    board_button_image_scope.in_batches.delete_all
+    board_button_sound_scope.in_batches.delete_all
+    log_session_board_scope.in_batches.delete_all
+    progress_scope.in_batches.delete_all
+    user_board_connection_scope.in_batches.delete_all
+    # versions_stale_type_detected_not_deleted: intentionally not deleted, see note above.
+
+    counts
   end
   
   def self.flush_board(board_id, key, aggressive_flush=false)

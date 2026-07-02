@@ -38,6 +38,7 @@ end
 task :clean_old_deleted_boards => :environment do
   User.schedule_for(:slow, :flush_old_versions)
   Worker.schedule(Flusher, :flush_resque_errors)
+  Worker.schedule_for(:slow, Flusher, :flush_leftovers)
   puts "Cleaning old deleted boards..."
   count = DeletedBoard.flush_old_records
   JobStash.flush_old_records
@@ -126,6 +127,7 @@ task "scheduler:dispatch" => :environment do
     run_task.call("clean_old_deleted_boards") do
       User.schedule_for(:slow, :flush_old_versions)
       Worker.schedule(Flusher, :flush_resque_errors)
+      Worker.schedule_for(:slow, Flusher, :flush_leftovers)
       count = DeletedBoard.flush_old_records
       JobStash.flush_old_records
       "#{count} deleted"
