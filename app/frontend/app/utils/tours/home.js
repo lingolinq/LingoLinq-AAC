@@ -18,7 +18,7 @@
 // tour-specific COPY (title/text) per section.
 import i18n from '../i18n';
 import { HOME_SECTIONS } from '../dashboard_sections';
-import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, visibleBySelector, liveTarget, waitForElement, placementForElement, doneCelebration, nextAdvance } from './shared';
 
 // Selector overrides for the multi-markup cards. Speak/Caseload each render a
 // `-wide-only` AND a `-narrow-only` element that share the base class; the CSS
@@ -146,34 +146,38 @@ function welcomeStep() {
   return {
     id: 'home_tour_welcome',
     title: decoratedTitle('home_tour_welcome_title', "Welcome to LingoLinq"),
-    text: tourChecklist([
-      i18n.t('home_tour_welcome_b1', "Your boards & Speak Mode"),
-      i18n.t('home_tour_welcome_b2', "Reports & insights"),
-      i18n.t('home_tour_welcome_b3', "Account, settings & more")
-    ], i18n.t('home_tour_welcome_lead', "Here's a quick look at where everything lives:")) +
+    text: tourBodyButton(
+      i18n.t('home_tour_welcome_take_tour', "Take a tour of your <span class=\"md-hero__gradient-text\">home page</span>"),
+      // Same as the footer "Start the tour" button — advance to the first step.
+      'next'
+    ) +
+    '<div class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text md-hero__gradient-text">' + i18n.t('home_tour_or', "OR") + '</span></div>' +
     tourBodyButton(
       i18n.t('home_tour_skip_choose_board', "Skip tour for now<br>Let's <span class=\"md-hero__gradient-text\">choose my board</span> (page-set)"),
       'show:home_tour_skip_handoff',
       { note: i18n.t('home_tour_skip_return_note', "You can always return to the tour later.") }
+    ) +
+    '<div class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text md-hero__gradient-text">' + i18n.t('home_tour_or', "OR") + '</span></div>' +
+    tourBodyButton(
+      i18n.t('home_tour_welcome_start_speaking', "I'd like to <span class=\"md-hero__gradient-text\">start speaking</span><br>Pick a board (page-set) for me"),
+      // Not wired yet: `speak` has no dispatch handler in guided-tour.js, so this
+      // button is intentionally a no-op for now (destination TBD).
+      'speak'
     ),
     // --welcome carries an extra class so ONLY the first (welcome) page can be
     // nudged higher than the shared intro/outro offset (the outro reuses
     // --intro but stays at the default position). See app.scss.
     classes: 'md-tour__step md-tour__step--intro md-tour__step--welcome',
     buttons: [
+      // Sole footer control now — the body buttons drive the choices (Take a tour
+      // advances the tour; Skip / Start speaking hand off). This closes the tour
+      // and stays on the page; type:'cancel' ends it without navigating and
+      // without marking it completed. The footer right-aligns its buttons, so with
+      // only this one it sits where the old "Start the tour" button was.
       {
-        // Small escape hatch in the footer (where the old skip link sat): close the
-        // tour and stay on the current page. type:'cancel' ends the tour without
-        // navigating and without marking it completed (distinct from the body
-        // "Skip tour for now" button, which hands off to the board picker).
         text: i18n.t('home_tour_exit', "Exit Tour"),
         type: 'cancel',
         classes: 'md-tour__btn md-tour__btn--ghost'
-      },
-      {
-        text: i18n.t('home_tour_start', "Start the tour"),
-        type: 'next',
-        classes: 'md-tour__btn md-tour__btn--primary'
       }
     ]
   };
@@ -189,9 +193,24 @@ function welcomeStep() {
 // handoff in that flow. If the trigger isn't on screen (collapsed header), the
 // step falls back to a centered card with the same copy.
 function skipHandoffStep() {
-  var trigger = visibleEl('.md-tour__trigger');
-  var step = {
+  // Attach to the tour trigger by SELECTOR STRING (not a build-time visibleEl()
+  // element ref). The trigger's base rule is `position: fixed` and several
+  // layouts keep it fixed (app.scss .md-tour__trigger / .md-hero--dashboard);
+  // visibleEl() keys off offsetParent, which is ALWAYS null for a fixed element,
+  // so the old build-time lookup returned null and the step fell back to a
+  // centered card that never spotlighted the trigger (the reported bug). A
+  // selector lets Shepherd re-resolve the (single, home-page) trigger when the
+  // step actually shows — surviving re-render — and waitForElement() waits
+  // (bounded) for it to have layout so a late paint still lands on it. If the
+  // trigger genuinely never renders, Shepherd centers the card on its own, so
+  // the graceful fallback is preserved without a build-time branch.
+  return {
     id: 'home_tour_skip_handoff',
+    attachTo: { element: '.md-tour__trigger', on: 'bottom' },
+    beforeShowPromise: waitForElement('.md-tour__trigger'),
+    modalOverlayOpeningPadding: 7,
+    modalOverlayOpeningRadius: 14,
+    matchTargetRadius: false,
     title: decoratedTitle('home_tour_skip_return_title', "Return to the tour anytime"),
     text: '<p class="md-tour__lead">' + i18n.t('home_tour_skip_return_lead', "Let's help you choose your Board, but before we go, the Tour button highlighted above is how you can access this tour again. Now let's <span class=\"md-hero__gradient-text\">get started</span>!") + '</p>',
     classes: 'md-tour__step md-tour__step--navbar',
@@ -212,16 +231,6 @@ function skipHandoffStep() {
       }
     ]
   };
-  if (trigger) {
-    step.attachTo = { element: trigger, on: 'bottom' };
-    step.modalOverlayOpeningPadding = 7;
-    step.modalOverlayOpeningRadius = 14;
-    step.matchTargetRadius = false;
-  } else {
-    // No visible tour trigger — present the same message centered.
-    step.classes = 'md-tour__step md-tour__step--intro';
-  }
-  return step;
 }
 
 // Primary nav + one explainer per visible nav pill. Nav sits at the top of the
@@ -240,7 +249,9 @@ function pushNavSteps(steps) {
   if (navEl) {
     steps.push({
       id: 'home_tour_pillnav',
-      attachTo: { element: navEl, on: 'bottom' },
+      // Live resolve + bounded wait against the same fallback chain used at build.
+      attachTo: { element: liveTarget('.md-pillnav, .md-pillnav-dropdown__trigger, .md-pillnav-dropdown', navEl), on: 'bottom' },
+      beforeShowPromise: waitForElement('.md-pillnav, .md-pillnav-dropdown__trigger, .md-pillnav-dropdown'),
       title: i18n.t('home_tour_nav_title', "Your main navigation"),
       text: tourChecklist([
         i18n.t('home_tour_nav_b1', "Switch sections in one tap"),
@@ -370,7 +381,11 @@ function pushHeaderSteps(steps) {
   if (headerEl) {
     steps.push({
       id: 'home_tour_header',
-      attachTo: { element: headerEl, on: 'bottom' },
+      // Live resolve + bounded wait (the toolbar is #inner_header, position:fixed,
+      // so it's resolved by rendered box, not offsetParent). Falls back to the
+      // build-time headerEl.
+      attachTo: { element: liveTarget('#inner_header, .app-navbar-authenticated-inner', headerEl), on: 'bottom' },
+      beforeShowPromise: waitForElement('#inner_header, .app-navbar-authenticated-inner'),
       modalOverlayOpeningPadding: 8,
       modalOverlayOpeningRadius: 18,
       matchTargetRadius: false,
@@ -408,15 +423,22 @@ function pushHeaderSteps(steps) {
   ];
   var found = [];
   HEADER_ITEMS.forEach(function(item) {
-    var el = visibleEl(item.sel);
+    // Gate on the rendered box (visibleBySelector), NOT offsetParent (visibleEl):
+    // the tour trigger (.md-tour__trigger) is position:fixed in some layouts, and
+    // offsetParent is null for fixed elements, so visibleEl() wrongly skipped its
+    // header spotlight. Rect-based visibility includes it.
+    var el = visibleBySelector(item.sel);
     if (!el) { return; }
-    found.push({ el: el, title: item.title, text: item.text, rect: el.getBoundingClientRect() });
+    found.push({ el: el, sel: item.sel, title: item.title, text: item.text, rect: el.getBoundingClientRect() });
   });
   found.sort(function(a, b) { return (a.rect.left - b.rect.left) || (a.rect.top - b.rect.top); });
   found.forEach(function(f, i) {
     steps.push({
       id: 'home_tour_hdr_' + i,
-      attachTo: { element: f.el, on: 'bottom' },
+      // Live resolve + bounded wait (each header tool is a single, stable
+      // selector); falls back to the build-time element.
+      attachTo: { element: liveTarget(f.sel, f.el), on: 'bottom' },
+      beforeShowPromise: waitForElement(f.sel),
       modalOverlayOpeningPadding: 7,
       modalOverlayOpeningRadius: 14,
       matchTargetRadius: false,
@@ -438,7 +460,8 @@ function pushHeaderSteps(steps) {
   var openDropdown = function() { setIdentityDropdownOpen(true); return Promise.resolve(); };
   steps.push({
     id: 'home_tour_identity',
-    attachTo: { element: idBtn, on: 'left' },
+    attachTo: { element: liveTarget('#identity_button', idBtn), on: 'left' },
+    beforeShowPromise: waitForElement('#identity_button'),
     // Trigger step: just spotlight the avatar + explain — the menu stays CLOSED
     // here (guided-tour.js opens it only on the item steps below). Stylized
     // padded + rounded cutout (matchTargetRadius:false) so the highlight is a
@@ -487,11 +510,14 @@ function pushCardSteps(steps, layout) {
   found.forEach(function(f) {
     steps.push({
       id: 'home_tour_card_' + f.key,
-      // Attach to the RESOLVED visible element (not the selector string): a
-      // multi-variant selector would otherwise let Shepherd's querySelector
-      // grab a hidden sibling. The resize handler + shape-match both accept an
-      // element ref.
-      attachTo: { element: f.el, on: placementForElement(f.el) },
+      // Resolve the card LIVE at show time via liveTarget (variant-safe — it
+      // picks the on-screen markup, never a hidden sibling) and WAIT (bounded)
+      // for it before positioning. Dashboard cards load async, so on a slow
+      // (deployed) render a card can paint after the tour is built; the live
+      // resolve + wait spotlights it anyway instead of skipping/mis-placing.
+      // visibleEl() above still gates whether the step is added and orders it.
+      attachTo: { element: liveTarget(f.sel, f.el), on: placementForElement(f.el) },
+      beforeShowPromise: waitForElement(f.sel),
       title: f.copy.title,
       text: f.copy.text,
       classes: 'md-tour__step',

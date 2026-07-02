@@ -115,6 +115,15 @@ export default Component.extend({
       var pin = this._sanitize_pin(this.get('pin_value'));
       this.set('pin_value', pin);
       this._save_pref('speak_mode_pin', pin);
+    },
+    // Clear the PIN field (and the saved PIN). If a gate is on, pin_incomplete
+    // becomes true — the warning shows and Done disables until a valid PIN is
+    // re-entered. Refocus the field so a new PIN can be typed immediately.
+    clear_pin() {
+      this.set('pin_value', '');
+      this._save_pref('speak_mode_pin', '');
+      var el = document.getElementById('speak_mode_pin');
+      if(el) { el.focus(); }
     }
   }
 });

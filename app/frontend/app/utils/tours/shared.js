@@ -64,7 +64,8 @@ function tourChecklist(items, lead, foot, options) {
 // for now" off-ramp). Shepherd sets `text` as innerHTML, so this returns an HTML
 // string; the runner's per-step show hook (_onTourStepShow in guided-tour.js)
 // wires the `data-tour-action` to the Tour. Supported actions: `show:<stepId>`,
-// `complete`, `cancel`. `text` comes from i18n only, never user input.
+// `next` (advance, same as the footer Next/Start button), `complete`, `cancel`.
+// `text` comes from i18n only, never user input.
 // `opts.classes` appends modifier classes; `opts.note` (i18n string) renders a
 // smaller sub-line INSIDE the button beneath the label, so the helper text is
 // clearly tied to clicking the button. A trailing "→" arrow (the same "go"
@@ -143,6 +144,64 @@ function nextAdvance() {
         '<path class="md-tour__next-arrow" d="M15 26 H34 M27 19 L34 26 L27 33"></path>' +
       '</svg>' +
     '</div>';
+}
+
+// First VISIBLE element matching `selector`, judged by its rendered BOX
+// (getBoundingClientRect width/height), NOT offsetParent. This is the
+// build-time-fragility-proof counterpart to visibleEl(): it works for
+// position:fixed targets (offsetParent is null for those, so visibleEl() wrongly
+// reports them hidden — the bug that centered the skip-handoff step) AND still
+// skips display:none variants of a multi-markup selector (they measure 0×0). Use
+// this — not a bare querySelector — anywhere a step's target is resolved at SHOW
+// time so a hidden sibling is never grabbed. Returns null when nothing visible
+// matches. Defensive against an invalid selector.
+function visibleBySelector(selector) {
+  var els;
+  try { els = document.querySelectorAll(selector); } catch (e) { return null; }
+  for (var i = 0; i < els.length; i++) {
+    var r = els[i].getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) { return els[i]; }
+  }
+  return null;
+}
+
+// A Shepherd `attachTo.element` FUNCTION that re-resolves `selector` to the first
+// visible match EVERY time the step shows. Shepherd v14 calls parseAttachTo on
+// each _show() ("Force resolve to make sure the options are updated on subsequent
+// shows"), so returning a function makes the spotlight resolve LIVE instead of
+// binding a stale element captured when the step list was built. This is the core
+// build-time-fragility fix: the step LIST is built once, but each target is found
+// at the moment it's spotlighted — so a target that re-rendered (new node),
+// shifted, or painted a beat late (common under deployment latency) is still
+// highlighted, and the right on-screen variant is picked. Falls back to the
+// build-time element if the live lookup finds nothing, so a step that DID resolve
+// at build never regresses to a centered card.
+function liveTarget(selector, fallbackEl) {
+  return function() {
+    return visibleBySelector(selector) || fallbackEl || null;
+  };
+}
+
+// Return a Shepherd `beforeShowPromise` that WAITS (bounded) for `selector` to
+// resolve to a VISIBLE, laid-out element before the step is positioned — so a
+// target that paints a beat late (common under deployment latency, where the DOM
+// isn't as instant as on a dev machine) is spotlighted instead of Shepherd
+// falling back to a centered/mis-placed card. Pairs with liveTarget() (or a
+// selector-string attachTo). Uses visibleBySelector (rendered box, not
+// offsetParent) so it works for fixed-positioned and multi-variant targets alike.
+// Never hangs: resolves as soon as the element is visible, or after ~1.5s
+// regardless (20 × 75ms).
+function waitForElement(selector) {
+  return function() {
+    return new Promise(function(resolve) {
+      var tries = 0;
+      var tick = function() {
+        if (visibleBySelector(selector) || tries++ >= 20) { resolve(); return; }
+        window.setTimeout(tick, 75);
+      };
+      tick();
+    });
+  };
 }
 
 // Placement for a card popover. Every card — full-width OR the smaller two-up
@@ -235,4 +294,4 @@ function scrollIntoViewSettled(el, block, force) {
   });
 }
 
-export { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, placementForElement, doneCelebration, nextAdvance, scrollIntoViewSettled };
+export { standardButtons, decoratedTitle, tourChecklist, tourBodyButton, setIdentityDropdownOpen, visibleEl, visibleBySelector, liveTarget, waitForElement, placementForElement, doneCelebration, nextAdvance, scrollIntoViewSettled };

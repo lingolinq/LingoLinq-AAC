@@ -2119,6 +2119,81 @@ a hard reload is in play.
 
 **First seen in:** post-registration home-tour auto-open work, traci/styling/styling-updates branch (2026-05-27)
 
+## Pattern: carry register attestation across the Google OAuth redirect via the backend, not controller memory
+
+Same hard-reload trap as above, but for a *pre*-auth signal. `continue_with_google`
+does `location.href = '/auth/google/start?…'` — a full navigation — so any
+controller state (e.g. `age_attested`, set when the user checks "I am at least
+13…") is wiped before the user returns to the Google-signup modal. The ONLY
+durable channel across the redirect is the OAuth `state` config the backend
+stores:
+
+- Frontend passes `terms_agree` on the `google_start` URL →
+  `session_controller#google_start` stores `config['terms_agree']` (line ~748) →
+  `google_signup_candidates` echoes it back (line ~898) → `loadGoogleSignup`
+  reads `res.terms_agree` into `googleSignupTerms`.
+- **Gotcha:** `googleSignupSubmitDisabled` also requires `age_attested` when
+  `!showCoppaConsent`, and `age_attested` is a plain controller prop that the
+  redirect reset to `false`. So after the redirect you must **re-derive it**:
+  `this.set('age_attested', !!res.terms_agree)` inside `loadGoogleSignup`.
+  Otherwise Create Account stays disabled with no visible checkbox to fix it.
+- Keep a safety-net `{{#unless this.googleSignupTerms}}` attestation checkbox in
+  the modal so a stale/direct session that arrives without the carried flag
+  isn't permanently stuck.
+
+**First seen in:** register signup-method split (method chooser → Google/email),
+task `2026-07-01-register-signup-method-split.md`.
+
+## Pattern: Shepherd tours must resolve targets at SHOW time, not build time
+
+**Symptom:** A guided-tour step spotlights the wrong place — renders centered
+instead of attached, or the popover flies to a corner — intermittently, and
+"only when deployed" (works locally). Placements/auto-routing "don't translate
+to deployment."
+
+**Root cause (build-time fragility):** the tour builders (`utils/tours/*.js`)
+resolved each step's target ONCE at build time and captured the element ref:
+`var el = visibleEl(cfg.sel); if(!el) return; attachTo:{element: el}`. Two failure
+modes fall out of this:
+1. **Late paint** — under deployment latency the board grid / cards / panels
+   render AFTER the tour is built, so `visibleEl` returns null → the step is
+   dropped or the captured ref is stale (Shepherd centers / mis-places). Fast
+   local render hides it.
+2. **`visibleEl` uses `offsetParent`, which is ALWAYS null for `position:fixed`
+   elements** — so a fixed target (e.g. `.md-tour__trigger`) is reported hidden
+   and the step falls back to centered even though it's on screen.
+
+**Fix (all in `utils/tours/shared.js`, applied across every tour):**
+- `visibleBySelector(sel)` — "first visible match" by `getBoundingClientRect`
+  width/height, NOT `offsetParent`. Works for fixed elements AND skips
+  display:none variants of a multi-markup selector.
+- `liveTarget(sel, fallbackEl)` — returns a FUNCTION for `attachTo.element`.
+  Shepherd v14 re-runs `parseAttachTo` on every `_show()` ("Force resolve … on
+  subsequent shows"), and it supports a function element — so the target is
+  resolved LIVE each show (survives re-render, picks the on-screen variant),
+  falling back to the build-time element so a resolved step never regresses.
+- `waitForElement(sel)` — a bounded (`20×75ms`) `beforeShowPromise` that waits
+  for the target to be visible before positioning, so a late paint is
+  spotlighted instead of centered.
+- Where a target can be fixed, gate inclusion on `visibleBySelector` too (home
+  header items), not `visibleEl`.
+
+Keep the build-time `visibleEl`/`visibleBySelector` call for ORDERING and the
+add/skip decision; only the ATTACH resolution moves to show time.
+
+**Runner note:** `attachTo.element` can now be a function — any code that reads
+it (e.g. `guided-tour.js#_onTourResize`) must resolve function/string/element
+before measuring.
+
+**Not a deploy-pipeline bug:** verified the Render build does NO minify/
+fingerprint (dart-sass, real-file copies, cache clobber), so tour source ships
+byte-identical — the divergence was purely this runtime timing race surfacing
+under production latency.
+
+**First seen in:** home-tour skip-handoff rendering centered (fixed trigger);
+generalized to all tours. Task `2026-07-01` tour work,
+traci/styling/styling-updates.
+
 ## Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations
 
 The codebase has `app/frontend/app/helpers/and.js` and
@@ -5772,3 +5847,57 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   SAME captured `level`. If a branch jumps to a different level (welcome → find-4, which lives in a
   later level), you must resync `level = levels[working.level]` after setting working.level, or the
   normalization re-increments past the target. (2026-06-29, adversarial review)
+
+- Below-chip / below-anchor popover inside an overflow-clipped scroller (speak-bar chip edit
+  menu): the sentence-bar chips live in `.md-board-detail-sentence-bar__text--with-symbols`,
+  which is `overflow-y:auto; max-height:86px` — and per spec `overflow-y:auto` FORCES
+  `overflow-x` to auto too, so a menu positioned `top:100%` INSIDE a chip is clipped on BOTH
+  axes. Fix pattern: render the popover as a sibling OUTSIDE the scroller (a child of the
+  `position:relative` bar, which has no overflow), then JS-anchor it under the chip by
+  measuring `chip.getBoundingClientRect()` vs `bar.getBoundingClientRect()`, clamping `left`
+  into the bar, and offsetting a caret. Because the bar has `transform:translateZ(0)` (its own
+  stacking context) and sits BEFORE the board grid in DOM, lift the whole row with
+  `.md-board-detail-sentence-row:has(<the-menu>){position:relative;z-index:20}` so the dropped
+  card paints above the grid. Avoid the first-frame `left:0` flash by positioning twice —
+  provisionally with a fallback width BEFORE the `{{#if}}` renders the menu, then exact via
+  `runLater(this, this._position_chip_menu, 0)` on afterRender. (2026-06-30)
+- AAC accidental-tap guard for an edit menu = PRESS-AND-HOLD, not a post-tap dwell.
+  First attempt used "tap now, reveal menu after a 2s dwell" — but that still opens on a single
+  accidental tap (the timer fires regardless), which the user rejected. Correct pattern: require
+  a deliberate 2s press-and-hold; any shorter press does nothing. Implement the hold in the
+  presentational component with POINTER events (not click): `pointerdown` arms a
+  `runLater(HOLD_DURATION)` + a `--pressing` state; `pointerup`/`pointercancel`/`pointerleave`
+  cancel; `pointermove` past a tolerance (~12px, generous for tremor) cancels as a drag/scroll.
+  On completion fire the open action AND set a `_hold_fired` flag so the trailing synthetic
+  `click` (pointerup → click) is swallowed instead of toggling the just-opened menu shut. A
+  short tap stays useful: no-op when nothing's open, dismiss when THIS item's menu is open,
+  immediate-select in a mode that already committed (e.g. swap-target). Keyboard Enter opens
+  immediately (already deliberate). On the pressable element set `user-select:none` +
+  `-webkit-touch-callout:none` + `touch-action:manipulation` so the long-press doesn't select
+  text / fire the iOS callout / double-tap-zoom, and add a fill animation whose duration EQUALS
+  HOLD_DURATION as a "keep holding" progress cue (static tint under reduced-motion). Cancel the
+  hold timer in `dragStart` and `willDestroy`. (2026-06-30)
+
+- Decorative box-shadow vanishing "on click" = the global focus reset stripping it. app.scss
+  has `#within_ember *:focus:not(:focus-visible) { outline:none !important; box-shadow:none
+  !important; }` (line ~274) to suppress Bootstrap's focus box-shadow on MOUSE clicks. It's
+  `*`-broad, so ANY focusable element whose box-shadow is DECORATIVE (a glass/elevation shadow,
+  not a focus ring) loses that shadow the instant a click focuses it — reads as the element
+  going flat / "actively clicked". Symptom: shadow present at rest + on keyboard focus
+  (`:focus-visible` path), but gone on pointer click (`:focus:not(:focus-visible)` path). Fix:
+  carve the element out of that global rule with `:not(.the-class)` (edit the rule in place,
+  don't stack an `!important` shadow re-assert). Safe because UA browsers only draw the default
+  outline for `:focus-visible`, so excluding it adds no stray outline on click. This bit the
+  speak-bar chip (`.md-board-detail-sentence-bar__chip`, a focusable span[role=button]).
+  (2026-06-30)
+
+- Dead responsive rules = base display swapped flex↔grid, media queries not updated.
+  Symptom: a component's `@media` blocks set `grid-template-columns` / `grid-column: span N`
+  but the layout doesn't respond and the desktop layout looks off (e.g. a centered flex-wrap
+  leaving an awkward 4+2 row). Cause: the BASE rule uses `display: flex` (someone changed it
+  from grid) so every `grid-*` property in the media queries is inert. Fix: switch the base
+  back to `display: grid` with explicit `grid-template-columns` — it both fixes the desktop
+  layout AND reactivates the already-written responsive rules for free. Seen on
+  `.md-org-stats__grid` (org dashboard): base was flex, but 820px/550px media queries + the
+  `--wide` modifier all assumed grid. Check the base display before writing NEW responsive
+  rules — the ones you want may already exist. (2026-07-01)

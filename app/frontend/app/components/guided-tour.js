@@ -156,8 +156,11 @@ function _onTourStepShow() {
   try { _renderTourProgress(step); } catch (e) { /* progress is decorative */ }
   // Wire any in-BODY action buttons (rendered via shared.js tourBodyButton with a
   // `data-tour-action`) to the Tour. Generic so any step/tour can put a driving
-  // button in its body: `show:<id>` jumps, `complete`/`cancel` end the tour.
-  // Wired once per element (Shepherd reuses the step element across re-shows).
+  // button in its body: `show:<id>` jumps, `next` advances (same as the footer
+  // Next/Start button), `complete`/`cancel` end the tour. Any other `data-tour-
+  // action` (e.g. the welcome step's not-yet-wired `speak` button) simply matches
+  // no branch and is a no-op. Wired once per element (Shepherd reuses the step
+  // element across re-shows).
   try {
     if (step.el) {
       var actionEls = step.el.querySelectorAll('[data-tour-action]');
@@ -170,6 +173,7 @@ function _onTourStepShow() {
           var tour = step.tour;
           if (!tour) { return; }
           if (spec.indexOf('show:') === 0) { tour.show(spec.slice(5)); }
+          else if (spec === 'next') { tour.next(); }
           else if (spec === 'complete') { tour.complete(); }
           else if (spec === 'cancel') { tour.cancel(); }
         });
@@ -849,7 +853,12 @@ export default Component.extend({
       var id = step.id || (step.options && step.options.id);
       var opts = step.options || {};
       if (!opts.attachTo || !id || id.indexOf('home_tour_card_') !== 0) { return; }
-      var el = (typeof opts.attachTo.element === 'string') ? document.querySelector(opts.attachTo.element) : opts.attachTo.element;
+      // attachTo.element may be a live-resolver FUNCTION (utils/tours/shared
+      // liveTarget), a selector string, or a raw element — resolve all three to a
+      // real node before measuring, so this never calls getBoundingClientRect on
+      // a function.
+      var raw = opts.attachTo.element;
+      var el = (typeof raw === 'function') ? raw() : (typeof raw === 'string') ? document.querySelector(raw) : raw;
       if (!el) { return; }
       var side = placementForElement(el);
       if (opts.attachTo.on !== side) { opts.attachTo.on = side; changed = true; }

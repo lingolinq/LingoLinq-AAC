@@ -5,12 +5,25 @@
     <span class="la-bg-orb la-bg-orb--c"></span>
     <span class="la-bg-orb la-bg-orb--d"></span>
   </div>
+  <div class="beta-mode-toggle {{if this.showShort 'beta-mode-toggle--short'}}" role="group" aria-label={{t "Preview layout" key="beta_mode_toggle_aria"}}>
+    <span class="beta-mode-toggle__slider" aria-hidden="true"></span>
+    <button type="button" class="beta-mode-toggle__option {{if this.showShort '' 'beta-mode-toggle__option--active'}}" {{action "set_beta_mode" false}}>
+      {{t "Original" key="beta_mode_original"}}
+    </button>
+    <button type="button" class="beta-mode-toggle__option {{if this.showShort 'beta-mode-toggle__option--active' ''}}" {{action "set_beta_mode" true}}>
+      {{t "Short" key="beta_mode_short"}}
+    </button>
+  </div>
   <div class="register-page beta-welcome-page__frame">
     <div class="register-card beta-welcome-card">
       <div class="la-section-header">
         <span class="la-section-eyebrow-badge">{{t "Beta program" key="beta_welcome_eyebrow"}}</span>
         <div class="la-hero-title-wrap">
-          <h2 class="la-hero-title">{{t "Welcome to LingoLinq" key="beta_welcome_title"}}</h2>
+          {{#if this.showShort}}
+            <h2 class="la-hero-title">{{t "Welcome to LingoLinq Beta Program" key="beta_welcome_title_short"}}</h2>
+          {{else}}
+            <h2 class="la-hero-title">{{t "Welcome to LingoLinq" key="beta_welcome_title"}}</h2>
+          {{/if}}
         </div>
         <p class="beta-welcome-card__subtitle">
           {{#if this.displayName}}
@@ -21,6 +34,24 @@
         </p>
       </div>
 
+      {{#if this.showShort}}
+      <div class="beta-welcome-footer">
+        <div class="register-checkboxes beta-welcome-accept">
+          <div class="checkbox big_checkbox">
+            <Input @type="checkbox" @checked={{this.agreementAccepted}} id="beta_agreement_accept_check" aria-labelledby="beta_agreement_accept_text" />
+            <span id="beta_agreement_accept_text" class="big_checkbox__consent">
+              {{t "I have read and accept the " key="beta_agreement_accept_prefix"}}<LinkTo @route="beta-welcome">{{t "Beta Test Agreement" key="beta_agreement_link"}}</LinkTo>{{t "." key="beta_agreement_accept_suffix"}}
+            </span>
+          </div>
+        </div>
+
+        <div class="register-btn-wrap beta-welcome-actions">
+          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{action "acceptAgreement"}}>
+            {{t "Get Started" key="get_started"}}
+          </button>
+        </div>
+      </div>
+      {{else}}
       <div class="beta-welcome-body">
         <div class="beta-welcome-intro">
           <p>{{t "Thanks for joining the beta. We're building LingoLinq with AAC users, therapists, teachers, and families, and your feedback helps us improve what we ship." key="beta_welcome_intro"}}</p>
@@ -175,6 +206,7 @@
           {{t "Next" key="next"}}
         </button>
       </div>
+      {{/if}}
     </div>
   </div>
 </div>

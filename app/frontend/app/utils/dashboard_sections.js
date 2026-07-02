@@ -120,9 +120,13 @@ var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt'
 // inserting a card between ANY rows and moving Boards like any other block.
 
 // Canonical default order (used when the user hasn't reordered). For a
-// communicator this packs to: Account|Extras, full-width Boards, Create-a-Board|
-// Speak, full-width Reports.
-var DEFAULT_ORDER = ['caseload', 'rooms', 'attention', 'org', 'account', 'speak', 'boards', 'createboard', 'extras', 'reports', 'editdashboard'];
+// communicator this packs to: full-width Speak Mode, full-width Boards,
+// My Account|Create a Board, Reports|Edit Dashboard, full-width Extras. Speak and
+// Extras are full-width showcase rows for communicators (see dashboardLayout's
+// `extraFull`), so they pick up the md-grid--fullspan-* styling overrides. The
+// leading supervisor-only keys are inert for communicators (filtered out as
+// unavailable) — they keep their relative slot for any user who has them.
+var DEFAULT_ORDER = ['caseload', 'rooms', 'attention', 'org', 'speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
 
 // Supervisor (non-communicator) Gentle default — distinct from the communicator
 // order so moving cards here never reshuffles a communicator's home. Boards sits
@@ -186,11 +190,13 @@ function framed(body) {
 
 function dashboardLayout(vis, order) {
   // Supervisors (any supervisor-only section present) get their own default order
-  // (Boards under Organizations) and a full-width Speak Mode row; communicators
-  // keep the canonical order with Speak as a normal paired card.
+  // (Boards under Organizations) and a full-width Speak Mode row. Communicators
+  // get Speak Mode AND Extras as full-width showcase rows (their prominent, always
+  // full-width cards, like Boards), so both pick up the md-grid--fullspan-*
+  // styling.
   var supervisor = !!(vis.caseload || vis.rooms || vis.attention || vis.org);
   var def = supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER;
-  var extraFull = supervisor ? ['speak'] : null;
+  var extraFull = supervisor ? ['speak'] : ['speak', 'extras'];
   return framed(packOrder(orderedVisible(vis, order, def), extraFull));
 }
 

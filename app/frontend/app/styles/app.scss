@@ -270,8 +270,14 @@ header:has(#speak) *:focus-visible,
   button, :focus fires but :focus-visible does not — this rule catches that
   gap. Keyboard-style focus still shows the ring via the :focus-visible rule
   above, so WCAG 2.4.7 (Focus Visible) compliance is preserved.
+
+  Carve-out: the speak-bar chip is a focusable control whose box-shadow is
+  DECORATIVE (its glass elevation), not a focus ring — this reset would strip
+  that shadow the instant a click focuses it, making the chip look "pressed".
+  Exclude it so its elevation survives a click; its keyboard focus ring still
+  comes from the `--editable:focus-visible` rule.
 */
-#within_ember *:focus:not(:focus-visible) {
+#within_ember *:focus:not(:focus-visible):not(.md-board-detail-sentence-bar__chip) {
   outline: none !important;
   box-shadow: none !important;
 }
@@ -30795,12 +30801,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    as a link). Solid brand navy so it's clearly a label, not clickable. */
 .md-hero__sub-user {
   font-style: normal;
-  font-weight: 700;
+  font-weight: normal;
   color: $la-navy;
 }
 /* Small centered divider between the report title and the Joined/Last-active
    subheader — a short brand-gradient rule for a gentle separation. */
-.md-hero--reports-dashboard .md-hero__divider {
+.md-hero--org .md-hero__divider {
   display: block;
   width: 84px;
   height: 2px;
@@ -30823,7 +30829,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    vertically offset. align-items:center lines both items up on their
    vertical centers. The animation/opacity from the base rule still applies
    (only `display` is overridden here). */
-.md-hero--reports-dashboard .md-hero__sub.md-hero__sub--meta .md-hero__sub--from-right {
+.md-hero--reports-dashboard .md-hero__sub.md-hero__sub--meta .md-hero__sub--from-right,
+.md-hero--org .md-hero__sub.md-hero__sub--meta .md-hero__sub--from-right {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
@@ -41082,16 +41089,26 @@ a.la-footer-bottom-a11y-wcag {
   margin-top: $aac-spacing-24;
   padding-top: $aac-spacing-8;
 
-  /* Brand-slate-blue Next button (scoped — the shared .register-btn stays
-     charcoal everywhere else). White text keeps ~5.5:1 contrast. */
+  /* Brand-slate-blue Next / Get Started / Back button (scoped — the shared
+     .register-btn stays charcoal everywhere else). White text (inherited from
+     the base .register-btn) keeps ~5.5:1 contrast; text-decoration:none is for
+     the Back button, which is a LinkTo (<a>). */
   .register-btn {
     min-width: 12rem;
     padding-left: 2rem;
     padding-right: 2rem;
     background: $brand-slate-blue;
+    text-decoration: none;
 
     &:hover:not(:disabled):not(.register-btn--disabled) {
       background: color.adjust($brand-slate-blue, $lightness: 8%);
+    }
+
+    /* Leading "‹" on the Back button. */
+    .glyphicon {
+      margin-right: 6px;
+      font-size: 0.8em;
+      top: 1px;
     }
   }
 }
@@ -41227,11 +41244,85 @@ a.la-footer-bottom-a11y-wcag {
 .beta-welcome-accept {
   margin-bottom: $aac-spacing-12;
 
-  .big_checkbox label {
+  .big_checkbox label,
+  .big_checkbox .big_checkbox__consent {
     font-size: 15px;
     line-height: 1.45;
     color: #3d4654;
   }
+}
+
+/* Short layout only (the beta-welcome-message page — NOT the agreement page,
+   which carries the .beta-welcome-page--agreement modifier). Center the
+   checkbox + agreement text as a unit to match the centered Get Started button.
+   The inner box stays left-aligned so a wrapped line reads normally. */
+.beta-welcome-page:not(.beta-welcome-page--agreement) .beta-welcome-accept {
+  text-align: center;
+
+  .big_checkbox {
+    display: inline-block;
+    text-align: left;
+  }
+}
+
+/* Preview mode slider on beta-welcome-message (Original <-> Short). Segmented
+   sliding-pill control pinned to the top-right of the viewport; the app header
+   is force-hidden on this page, so the corner is free. */
+.beta-mode-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: $aac-z-toast;
+  display: inline-flex;
+  align-items: stretch;
+  height: 34px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.beta-mode-toggle__slider {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.22) 0%, rgba(91, 141, 239, 0.14) 100%);
+  border: 1px solid rgba(44, 183, 176, 0.32);
+  transition: transform 0.25s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.beta-mode-toggle--short .beta-mode-toggle__slider {
+  transform: translateX(100%);
+}
+
+.beta-mode-toggle__option {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba($brand-blue-black, 0.55);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.beta-mode-toggle__option--active {
+  color: $indigo;
 }
 
 @media (max-width: 550px) {
@@ -41741,6 +41832,10 @@ a.la-footer-bottom-a11y-wcag {
      extends past the edge — there's no bg/child that needs the rounded clip. */
   overflow: visible !important;
 }
+/* Organizations (directory) page: tuck the workspace up 20px (40px → 20px top). */
+.md-shell--org-directory .md-workspace {
+  margin-top: 20px !important;
+}
 
 /* Note: dashboard top-padding override for ≤1024px lives next to the base
    rule near line 41260 (placed there so source-order wins the !important tie). */
@@ -42065,7 +42160,9 @@ a.la-footer-bottom-a11y-wcag {
 
   padding-left: 18px !important;
 
-  border-left: 1px solid rgba(0, 0, 0, 0.06) !important;
+  /* Divider between pills was too faint (rgba(0,0,0,0.06)); a navy hairline at
+     higher opacity makes the separation between menu items clearly legible. */
+  border-left: 1px solid rgba($la-navy, 0.16) !important;
 
 }
 .md-pillnav__pill:first-child {
@@ -43579,6 +43676,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      overflow). */
   grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
   gap: 12px;
+}
+/* Organizations directory "Available Organizations": a lone org tile spans the
+   full grid width instead of sitting at ~360px with empty auto-fill tracks beside
+   it. (Mirrors the home My-Organizations card's single-org behavior below.) */
+.md-shell--org-directory .md-rooms__grid .md-room-card:only-child {
+  grid-column: 1 / -1;
 }
 .md-grid .md-card.md-card--rooms .md-room-card,
 .md-grid .md-card.md-card--org-management .md-room-card,
@@ -57596,21 +57699,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   visibility: hidden !important;
 
 }
-/* Reports page: smooth fade-in for shell and quick animations for hero */
+/* Reports page: smooth fade-in for the shell. The hero title/subtitle keep the
+   home page's from-left / from-right motion (inherited from `.md-hero--dashboard`
+   at 1s, subtitle delayed 0.5s) — no reports-specific speed-up, so they move at
+   the same pace as the home hero. */
 .md-shell--reports-view {
   animation: md-reports-fade-in 0.3s ease-out both;
 }
 @keyframes md-reports-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-.md-hero--reports-dashboard .md-hero__title--from-left {
-  animation-duration: 0.4s !important;
-  animation-delay: 0s !important;
-}
-.md-hero--reports-dashboard .md-hero__sub--from-right {
-  animation-duration: 0.4s !important;
-  animation-delay: 0.15s !important;
 }
 /* Dashboard greeting above stats outlet (user.hbs) — same hero as home; override reports-shell hide */
 .md-shell--reports-view .md-hero--reports-dashboard {
@@ -57622,10 +57720,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   margin: 0 auto !important;
 
-  /* Top padding removed — the hero already gets adequate vertical
-     space from the page-level layout above it. The earlier 8px
-     pushed the title down past where the design wants it. */
-  padding: 0 16px 18px !important;
+  /* 24px top padding for breathing room above the title. Must live HERE (on the
+     un-hide rule) rather than as a title margin-top — the hero's own padding was
+     `0` (from `.md-shell--reports-view .md-hero`), so a title margin just collapses
+     through the hero's top edge instead of insetting the title. */
+  padding: 24px 16px 18px !important;
 
   overflow: visible !important;
 
@@ -67586,18 +67685,51 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 /* ----- Speak-bar chip ACTIVE EDIT (feature: sentence_bar_editing) ----- */
 .md-board-detail-sentence-bar__chip--editable {
   cursor: pointer;
+  /* The chip is a press-and-hold control: block the long-press text selection /
+     iOS callout and double-tap zoom so holding reliably arms the menu instead of
+     selecting the label or firing the OS menu. `manipulation` still lets the bar
+     scroll when there are many chips. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  /* No native tap flash on press — a short click must leave the chip visually
+     unchanged; only a deliberate hold shows the progress fill below. */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .md-board-detail-sentence-bar__chip--editable:focus-visible {
   outline: 3px solid $brand-verdigris-aa;
   outline-offset: 2px;
+}
+/* Press-and-hold in progress. Applied only AFTER PRESS_FEEDBACK_DELAY (300ms) so
+   a normal click/tap never shows it. No scale/press styling (that read as
+   "actively clicked") — just a bottom-up fill running for the remaining hold
+   window (HOLD_DURATION - delay = 1.7s) so it reaches the top as the menu opens:
+   a pure "keep holding" progress cue. Releasing early removes the class. */
+.md-board-detail-sentence-bar__chip--pressing::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  border-radius: inherit;
+  background: rgba($brand-verdigris-aa, 0.22);
+  animation: bd-chip-hold-fill 1.7s linear forwards;
+  pointer-events: none;
+  z-index: 4;
+}
+@keyframes bd-chip-hold-fill {
+  from { height: 0; }
+  to   { height: 100%; }
 }
 .md-board-detail-sentence-bar__chip--selected {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     0 0 0 2px $brand-verdigris-aa,
     0 6px 18px rgba(27, 54, 93, 0.28);
-  /* Guarantee room for the two top + two bottom corner controls so they never
-     overlap on a narrow (text-only) chip. */
+  /* Highlight ring only — the edit controls now render as a labeled menu BELOW
+     the chip (see __chip-menu), not as corner overlays on top of it. */
   min-width: 58px;
 }
 .md-board-detail-sentence-bar__chip--swapping {
@@ -67629,78 +67761,105 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     -4px 0 0 -1px $brand-verdigris-aa,
     0 4px 14px rgba(27, 54, 93, 0.18);
 }
-/* Controls overlay — dim scrim + buttons that wrap to fit the chip width
-   (the ‹ › arrows hide at the ends, so 2-4 buttons total). */
-.md-board-detail-sentence-bar__chip-tools {
+/* ----- Below-chip labeled edit menu (feature: sentence_bar_editing) -----
+   Replaces the old on-top corner-icon overlay. The tapped chip highlights
+   (--selected ring) and this labeled card drops BELOW it after a 2s dwell.
+   Rendered as a child of the bar (position:relative anchor) so it escapes the
+   chip scroller's overflow clip; JS sets `left` (card) + caret `left` inline. */
+.md-board-detail-sentence-bar__chip-menu {
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: rgba(16, 24, 33, 0.62);
-  backdrop-filter: blur(3px) saturate(120%);
-  -webkit-backdrop-filter: blur(3px) saturate(120%);
-  z-index: 6;
-}
-.md-board-detail-sentence-bar__chip-tool {
-  position: absolute;
+  top: calc(100% + 10px);
+  left: 0; /* set inline by _position_chip_menu */
+  z-index: 30;
   display: inline-flex;
+  padding: 8px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  box-shadow:
+    0 14px 34px rgba($la-navy, 0.24),
+    0 3px 8px rgba($la-navy, 0.12);
+  animation: bd-chip-menu-in 0.15s ease-out;
+}
+/* Caret pointing up at the highlighted chip; horizontal position set inline. */
+.md-board-detail-sentence-bar__chip-menu-caret {
+  position: absolute;
+  top: -7px;
+  left: 20px; /* set inline by _position_chip_menu */
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-left: 1px solid rgba($la-navy, 0.10);
+  border-top: 1px solid rgba($la-navy, 0.10);
+  border-radius: 3px 0 0 0;
+  transform: translateX(-50%) rotate(45deg);
+}
+.md-board-detail-sentence-bar__chip-menu-actions {
+  display: flex;
+  gap: 4px;
+}
+/* Each action = icon over a text label (labels are the whole point of the ask). */
+.md-board-detail-sentence-bar__chip-menu-btn {
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
+  gap: 5px;
+  min-width: 70px;
+  padding: 9px 10px;
   border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  border-radius: 10px;
+  background: rgba($la-navy, 0.04);
+  color: $indigo;
   cursor: pointer;
-  transition: background 0.14s ease, transform 0.14s ease;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.1s ease;
 }
-/* Fixed 2x2 corner layout: ✕ delete top-right, ⇄ swap bottom-right,
-   ‹ move-left top-left, › move-right bottom-left. */
-.md-board-detail-sentence-bar__chip-tool--left   { top: 4px;    left: 4px; }
-.md-board-detail-sentence-bar__chip-tool--remove { top: 4px;    right: 4px; }
-.md-board-detail-sentence-bar__chip-tool--right  { bottom: 4px; left: 4px; }
-.md-board-detail-sentence-bar__chip-tool--swap   { bottom: 4px; right: 4px; }
-.md-board-detail-sentence-bar__chip-tool:hover {
-  background: rgba(255, 255, 255, 0.34);
+.md-board-detail-sentence-bar__chip-menu-btn:hover {
+  background: rgba($brand-verdigris-aa, 0.16);
 }
-.md-board-detail-sentence-bar__chip-tool:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 1px;
+.md-board-detail-sentence-bar__chip-menu-btn:focus-visible {
+  outline: 3px solid $brand-verdigris-aa;
+  outline-offset: 2px;
 }
-.md-board-detail-sentence-bar__chip-tool:active {
-  transform: scale(0.9);
+.md-board-detail-sentence-bar__chip-menu-btn:active {
+  transform: scale(0.95);
 }
-.md-board-detail-sentence-bar__chip-tool svg {
-  width: 15px;
-  height: 15px;
+.md-board-detail-sentence-bar__chip-menu-btn svg {
+  width: 20px;
+  height: 20px;
 }
-.md-board-detail-sentence-bar__chip-tool--remove:hover {
-  background: rgba(225, 82, 65, 0.92);
+/* AAC accessibility: labels ~30% larger than a typical web control label. */
+.md-board-detail-sentence-bar__chip-menu-btn-label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
 }
-.md-board-detail-sentence-bar__chip-tool--swap.is-active {
+.md-board-detail-sentence-bar__chip-menu-btn--remove:hover {
+  background: rgba(225, 82, 65, 0.16);
+  color: #c0392b;
+}
+.md-board-detail-sentence-bar__chip-menu-btn--switch.is-active,
+.md-board-detail-sentence-bar__chip-menu-btn--switch.is-active:hover {
   background: #f0a830;
   color: #1b2330;
 }
-.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar__chip-tool,
-.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar__chip-tool {
-  width: 30px;
-  height: 30px;
+/* Lift the whole sentence row (and thus the menu) above the board grid while a
+   menu is open, so the dropped card is never painted under the grid below. */
+.md-board-detail-sentence-row:has(.md-board-detail-sentence-bar__chip-menu) {
+  position: relative;
+  z-index: 20;
 }
-.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar__chip-tool svg,
-.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar__chip-tool svg {
-  width: 18px;
-  height: 18px;
-}
-/* The 30px corner buttons need ~68px of width; a text-only (image-less) chip can
-   collapse below that, so widen the selected floor at these sizes to keep the
-   top-left/top-right (and bottom) pairs from overlapping. */
-.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar__chip--selected,
-.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar__chip--selected {
-  min-width: 72px;
+@keyframes bd-chip-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .md-board-detail-sentence-bar__chip--swapping { animation: none; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 3px #f0a830, 0 6px 18px rgba(27,54,93,0.28); }
+  .md-board-detail-sentence-bar__chip-menu { animation: none; }
+  /* No growing-fill animation — show a static "holding" tint instead so the
+     press still has feedback without motion. */
+  .md-board-detail-sentence-bar__chip--pressing::after { animation: none; height: 100%; opacity: 0.5; }
 }
 /* Dark-mode icon visibility lift — sentence-bar chip thumbs are mostly
    ARASAAC / OpenSymbols PNGs with dark line art on transparent. The
@@ -79711,11 +79870,60 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-pin-settings__input {
   width: 120px;
   max-width: 120px;
-  margin: 6px auto 0;
+  /* Centering + top gap now handled by __input-wrap (which also holds the clear
+     button); the input just fills its 120px slot. */
+  margin: 0;
   text-align: center;
   letter-spacing: 0.3em;
   text-indent: 0.3em;
   font-weight: 600;
+}
+/* Holds the centered PIN input; the clear (✕) button floats to its right via
+   absolute positioning so the input stays put whether or not the button shows
+   (it only shows when there's a value), avoiding a left-shift as you type. */
+.md-pin-settings__input-wrap {
+  position: relative;
+  width: fit-content;
+  margin: 6px auto 0;
+}
+.md-pin-settings__clear {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 12px;
+  white-space: nowrap;
+  border: 1px solid rgba($la-navy, 0.15);
+  border-radius: 8px;
+  background: rgba($la-navy, 0.04);
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.md-pin-settings__clear-label {
+  /* AAC: keep the control label comfortably readable. */
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+/* Sits below the PIN input row — give it breathing room from the field/button. */
+.md-pin-settings__warning {
+  margin-top: 14px;
+}
+.md-pin-settings__clear:hover {
+  background: rgba(225, 82, 65, 0.14);
+  border-color: rgba(225, 82, 65, 0.4);
+  color: #c0392b;
+}
+.md-pin-settings__clear:focus-visible {
+  outline: 2px solid $brand-verdigris-aa;
+  outline-offset: 2px;
 }
 /* Modern checkbox cards (la-edit-board-checkbox) sit in a centered modal body —
    constrain + center each card, and keep its label text left-aligned. */
@@ -80265,6 +80473,17 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: #3a4350 !important;
   color: #fff !important;
   box-shadow: 0 4px 12px rgba($brand-charcoal-blue, 0.30);
+}
+/* Disabled (e.g. the PIN-settings Done button while a gate is on but the PIN
+   isn't yet a valid 4-digit value) — dim the pill and block the pointer. */
+.md-modal-btn--primary:disabled,
+.md-modal-btn--primary[disabled],
+.md-modal-btn--primary:disabled:hover,
+.md-modal-btn--primary[disabled]:hover {
+  background: rgba($brand-charcoal-blue, 0.45) !important;
+  color: #fff !important;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 .md-modal-btn--cancel {
   background: rgba($la-navy, 0.06);
@@ -82846,13 +83065,63 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
+/* Contained dashboard surface for an INDIVIDUAL org page — mirrors the Reports
+   page's `.md-workspace .md-stats-page` frosted-glass panel so the org content
+   sits in the same translucent rounded card (the pillnav + hero stay ABOVE it on
+   the plain workspace background, exactly like reports). Scoped away from the org
+   DIRECTORY (`--org-directory`, the org LIST page), which keeps its plain layout.
+   The org `<main>` is a direct child of `.md-workspace`, so this must also beat
+   `.md-workspace > .md-main { max-width:100% }` — same (0,2,0) specificity, later
+   source order wins. */
+.md-shell--org:not(.md-shell--org-directory) .md-main--org {
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(251, 252, 254, 0.34) 100%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.35) !important;
+  backdrop-filter: blur(22px) saturate(1.35) !important;
+  will-change: transform !important;
+  transform: translateZ(0) !important;
+  border: 1px solid rgba($la-navy, 0.10) !important;
+  border-radius: 32px !important;
+  box-shadow:
+    0 6px 40px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  padding: clamp(18px, 2.4vw, 30px) !important;
+}
+
 .md-hero--org {
   text-align: center !important;
   padding: 20px 2px 10px !important;
 }
+/* Match the Reports hero title exactly (32px Maitree via `.md-hero--dashboard
+   .md-hero__title`) — drop the 28px override so both heroes read as one family. */
 .md-hero--org .md-hero__title {
-  font-size: 28px !important;
   font-family: 'Maitree', serif !important;
+}
+/* Dot separators between the org hero meta items (users · managers · created).
+   Scoped to the org hero — the shared `.md-hero-meta__item + …{margin-left:30px}`
+   is for the reports hero, which carries its own inline dot element. The `::before`
+   is a flex child at the start of the second+ item (the item is inline-flex with a
+   7px gap), so its margins + that gap frame the middot evenly on both sides. */
+.md-hero--org .md-hero-meta__item + .md-hero-meta__item {
+  margin-left: 0;
+}
+.md-hero--org .md-hero-meta__item + .md-hero-meta__item::before {
+  content: "\00B7";
+  margin-left: 13px;
+  margin-right: 6px;
+  color: rgba($la-navy, 0.4);
+  font-weight: 700;
+  line-height: 1;
+}
+/* #1 header hierarchy: capitalize the meta labels (Users / Managers / Created)
+   but keep the "created" date value lowercase (via .md-hero-meta__nocap), so it
+   reads "Created 5 months ago", not "Created 5 Months Ago". Org-scoped. */
+.md-hero--org .md-hero-meta__item {
+  text-transform: capitalize;
+}
+.md-hero-meta__nocap {
+  text-transform: none;
 }
 /* Org meta chips row below hero title */
 .md-org-meta {
@@ -82977,38 +83246,128 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-org-stats {
   margin-bottom: 28px;
 }
+/* Metric cards mirror the Reports (/{user}/stats) summary panels: an even grid
+   (was a centered flex-wrap that left an awkward 4+2 layout), elevated tiles with
+   a tinted header band over a prominent value. The responsive rules below already
+   assume a grid (grid-template-columns / --wide span) — they were inert against
+   the old flex base. */
 .md-org-stats__grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* #8 — a touch more room between cards so the grid breathes. */
+  gap: 16px;
+  margin-bottom: 22px;
+}
+/* System Health row: a compact Cache Memory tile + a wider Background Queues
+   status panel. */
+.md-org-stats__grid--system {
+  grid-template-columns: minmax(200px, 1fr) minmax(300px, 1.7fr);
 }
 .md-org-stat-card {
-  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba($la-navy, 0.08);
-  border-radius: 14px;
-  padding: 14px 16px;
-  min-width: 200px;
-  flex: 0 1 auto;
+  border-radius: 18px;
+  /* Layered elevation from the reports metric cards: inset top highlight + two
+     soft navy drops, so the tiles read as solid + raised (not flat-bordered). */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba($la-navy, 0.07),
+    0 8px 20px rgba($la-navy, 0.08);
 }
 .md-org-stat-card--wide {
   grid-column: span 2;
 }
+/* Tinted header band (verdigris teal, matching the reports primary-row heading)
+   over a hairline rule — carries the label. */
+.md-org-stat-card__head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba($brand-blue-black, 0.1);
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(180deg, rgba(44, 183, 176, 0.26) 0%, rgba(44, 183, 176, 0.14) 100%);
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 2px 4px -1px rgba($brand-blue-black, 0.06);
+}
 .md-org-stat-card__label {
+  margin: 0;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--md-muted, $la-navy);
-  opacity: 0.7;
-  margin-bottom: 4px;
+  color: var(--md-muted, rgba($la-navy, 0.7));
+}
+.md-org-stat-card__body {
+  padding: 12px 14px 14px;
 }
 .md-org-stat-card__value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--md-ink, $brand-blue-black);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: $la-navy;
 }
+/* Card variant by PURPOSE (per design ask): activity cards keep the teal header;
+   SYSTEM cards get a neutral gray-blue header so the two categories are legible at
+   a glance without loud color. */
+.md-org-stat-card--system .md-org-stat-card__head {
+  background: linear-gradient(180deg, rgba($la-navy, 0.11) 0%, rgba($la-navy, 0.05) 100%);
+}
+/* Subtle amber "stale" dot on the Last Session value when the org hasn't logged a
+   session in > 2 weeks — communicates staleness at a glance (#10). */
+.md-org-stat-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+.md-org-stat-dot--stale {
+  background: #d9a400;
+  box-shadow: 0 0 0 3px rgba(217, 164, 0, 0.16);
+}
+/* Background Queues STATUS PANEL (#4) — rows of dot + label + count instead of a
+   run-on metric string, so infra load is scannable. */
+.md-org-status-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.md-org-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.md-org-status-row__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.72);
+}
+.md-org-status-row__count {
+  margin-left: auto;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: $la-navy;
+  font-variant-numeric: tabular-nums;
+}
+/* Status dot color = queue health (#10). Green healthy → amber building →
+   orange/red issue. The state class comes from the controller's queue_state. */
+.md-org-status-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9aa4b2;
+}
+.md-org-status-dot.site-normal { background: #2e9e6a; }
+.md-org-status-dot.site-warning { background: #d9a400; }
+.md-org-status-dot.site-danger { background: #cc6600; }
+.md-org-status-dot.site-emergency { background: #c0392b; }
+/* The Default queue reads blue when healthy (a neutral baseline rather than a
+   green "good" signal); it still escalates to amber/orange/red if it spikes. */
+.md-org-status-dot--default.site-normal { background: #4c86d8; }
 
 /* Home board info row */
 /* ══════════════════════════════════════════════════════
@@ -85673,8 +86032,18 @@ a.md-caseload__action {
 .md-org-charts {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
+  /* #8 — more space between chart cards. */
+  gap: 20px;
+  margin-bottom: 28px;
+}
+/* #5 — Communication Activity: the weekly chart gets 2/3, the recent-sessions
+   ratio 1/3, so the chart is clearly the emphasis. */
+.md-org-charts--comm {
+  grid-template-columns: 2fr 1fr;
+}
+/* Goals & Progress: goal ratio + (optional) two profile ratios, equal thirds. */
+.md-org-charts--goals {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .md-org-charts--words-row {
   grid-template-columns: 1fr 1fr;
@@ -85683,11 +86052,16 @@ a.md-caseload__action {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 .md-org-charts__item {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba($la-navy, 0.08);
-  border-radius: 14px;
+  border-radius: 18px;
   padding: 16px;
   min-width: 0;
+  /* Same elevated tile language as the metric cards / reports panels. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba($la-navy, 0.07),
+    0 8px 20px rgba($la-navy, 0.08);
 }
 .md-org-charts__item--wide {
   grid-column: span 1;
@@ -85698,14 +86072,50 @@ a.md-caseload__action {
   color: var(--md-ink, $brand-blue-black);
   margin: 0 0 8px;
 }
+/* Empty state for a data-less chart card (recent sessions / goals / profiles when
+   the org has no users/data). #6 — an icon + a title + a soft one-line hint so the
+   card reads as intentional ("nothing yet, here's what will appear"), not broken. */
+.md-org-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 180px;
+  padding: 12px;
+  margin: 0;
+  text-align: center;
+}
+.md-org-chart-empty__icon {
+  color: rgba($la-navy, 0.32);
+  margin-bottom: 2px;
+}
+.md-org-chart-empty__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba($la-navy, 0.72);
+}
+.md-org-chart-empty__sub {
+  margin: 0;
+  max-width: 260px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba($la-navy, 0.5);
+}
 
 /* Section containers */
 .md-org-section {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba($la-navy, 0.08);
   border-radius: 18px;
   padding: 24px;
   margin-bottom: 20px;
+  /* Same elevated tile language as the metric cards / reports panels. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba($la-navy, 0.07),
+    0 8px 20px rgba($la-navy, 0.08);
 }
 .md-org-section-title {
   font-size: 18px;
@@ -85994,41 +86404,126 @@ a.md-caseload__action {
   transition: transform 0.2s ease;
   margin-left: auto;
 }
-.md-org-session-row {
+/* Recent Sessions — a scan-friendly activity feed: each session is a contained
+   card with a metadata row (user · time · count-pill) over a muted 2-line
+   message preview, rather than a run-on paragraph list. */
+.md-org-session-list {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  transition: background 0.15s ease;
+  flex-direction: column;
+  gap: 10px;
 }
-.md-org-session-row:hover {
-  background: rgba($brand-dusty-denim, 0.04);
+.md-org-session-row {
+  position: relative;
+  /* Clip the left accent stripe to the card's rounded corners. */
+  overflow: hidden;
+  padding: 11px 16px 12px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  /* Subtle resting elevation so each card reads as a distinct tile. */
+  box-shadow: 0 1px 2px rgba($la-navy, 0.05), 0 2px 6px rgba($la-navy, 0.06);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
 }
-.md-org-session-row__user {
-  font-weight: 600;
-  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
-  text-decoration: none;
-}
-.md-org-session-row__time {
-  font-size: 14px;
-  color: var(--md-muted, $la-navy);
+/* Left accent stripe (verdigris→denim) — subtle, so rows read as designed. */
+.md-org-session-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, $brand-verdigris, $brand-dusty-denim);
   opacity: 0.7;
 }
-.md-org-session-row__count {
-  font-size: 14px;
-  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
-  text-decoration: none;
+/* Restrained interactive hover — near-white lift, verdigris-tinted border, 1px rise. */
+.md-org-session-row:hover {
+  background: #fbfcfe;
+  border-color: rgba(42, 157, 143, 0.22);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba($la-navy, 0.06), 0 8px 16px rgba($la-navy, 0.10);
 }
-.md-org-session-row__summary {
-  font-size: 14px;
-  color: var(--md-muted, $la-navy);
-  opacity: 0.6;
-  white-space: nowrap;
+/* Top line: identity (avatar + username) leads on the left; the View action sits
+   apart on the right. */
+.md-org-session-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.md-org-session-row__id {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.md-org-session-row__avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: rgba($la-navy, 0.45);
+}
+/* Navy + heavy (not the shouty bright-blue link); still clickable, underlines on hover. */
+.md-org-session-row__user {
+  font-size: 15px;
+  font-weight: 800;
+  color: $la-navy;
+  text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-basis: 100%;
+  white-space: nowrap;
+}
+.md-org-session-row__user:hover {
+  text-decoration: underline;
+}
+/* The action, separated from the descriptive metadata. */
+.md-org-session-row__view {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $brand-dusty-denim-aa;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.md-org-session-row__view:hover {
+  text-decoration: underline;
+}
+.md-org-session-row__view:hover .md-org-session-row__view-arrow {
+  transform: translateX(2px);
+}
+.md-org-session-row__view-arrow {
+  transition: transform 0.14s ease;
+}
+/* Descriptive metadata grouped on one quiet line (when · how much) — almost
+   disappears so the username leads. */
+.md-org-session-row__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 13px;
+  color: #7b859c;
+}
+.md-org-session-row__count {
+  font-weight: 600;
+}
+.md-org-session-row__sep {
+  opacity: 0.55;
+}
+/* Warmer, secondary preview clamped to EXACTLY 2 lines — the min-height reserves
+   both lines even for short messages, so every card is the same height. */
+.md-org-session-row__summary {
+  margin-top: 9px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #68748e;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.9em;
 }
 
 /* ═══════════════ Organization Reports ═══════════════ */
@@ -95469,17 +95964,21 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
 .shepherd-text .md-tour__or {
   display: flex;
   align-items: center;
+  /* Center the whole rule+OR+rule row explicitly. Works both as a board-picker
+     list item AND as a standalone welcome-step divider (block-level div), where
+     the growing pseudo-rules alone weren't visibly anchoring the label. */
+  justify-content: center;
+  width: 100%;
   gap: 10px;
-  /* Symmetric inset pulls the flanking rules in from both edges so they span
-     only the middle ~half of the row (lines are half as long), OR stays
-     centered. */
-  padding: 0 25%;
+  /* Symmetric inset pulls the flanking rules in from both edges so they span the
+     middle of the row (shorter lines), with OR centered between them. */
+  padding: 0 20%;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   /* 0.7 (not 0.45) so the "OR" divider label clears WCAG AA 4.5:1 on the light
-     popover; the flanking hairline rules below stay faint (non-text, exempt). */
+     popover; the flanking rules below are non-text (exempt). */
   color: rgba($brand-blue-black, 0.7);
 }
 .shepherd-text .md-tour__or::before,
@@ -95487,7 +95986,16 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
   content: '';
   flex: 1 1 auto;
   height: 1px;
-  background: rgba($brand-blue-black, 0.16);
+  /* Darker so the divider rules are clearly visible on the light popover
+     (was 0.16 — nearly invisible). Non-text, so no WCAG contrast requirement. */
+  background: rgba($brand-blue-black, 0.42);
+}
+/* Welcome step: the OR divides two stacked action buttons (not checklist items),
+   so give it room above — a proper bottom margin below the first button —
+   matching the space below it (the second button's margin-top). Scoped to the
+   welcome step so the board-picker checklist OR keeps its tight list spacing. */
+.shepherd-element.md-tour__step--welcome .shepherd-text .md-tour__or {
+  margin-top: 20px;
 }
 /* Focused View — check disc in the Focused accent (matches the rest of the
    Focused skin). */
@@ -95664,6 +96172,10 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
 .shepherd-text .md-tour__body-action {
   margin-top: 20px;
   text-align: center;
+  /* Fill the content width (like the OR divider) so the full-width button is
+     centered in the area beside the welcome map, not shrunk + left-aligned by the
+     welcome step's align-items:flex-start. */
+  width: 100%;
 }
 .shepherd-element .md-tour__body-btn {
   display: flex;
