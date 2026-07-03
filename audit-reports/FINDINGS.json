@@ -3034,9 +3034,9 @@
       "notes": "Filed per Codex PR review of the LL-991d259b2a flush_leftovers implementation (PR branch scot/compliance/flush-leftovers-retention): the original approach would have deleted these rows outright; changed to report-only pending this decision."
     },
     {
-      "id": "LL-728183408f",
-      "ruleKey": "cloudrun-workerpool-scaledown-sigkill-jobloss",
-      "title": "Scaling the lingolinq-worker Cloud Run worker pool down while jobs are in flight kills forked child job processes with SIGKILL instead of requeuing them",
+      "id": "LL-a95e9c5f7c",
+      "ruleKey": "cloudrun-workerpool-oom-sigkill-jobloss",
+      "title": "lingolinq-worker's 512Mi memory limit is too small for ButtonImage/BoardDownstreamButtonSet jobs, causing continuous OOM kills that land as Resque::Failure instead of being requeued",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -3045,18 +3045,18 @@
       "status": "open",
       "evidence": {
         "type": "runtime",
-        "source": "Resque::Failure diagnostics via a throwaway lingolinq-diagcheck2 Cloud Run Job (rails runner, cloned from lingolinq-web's image/SA/VPC/Cloud SQL/secrets), cross-referenced against gcloud beta run worker-pools describe/update history, 2026-07-03",
-        "snippet": "Resque::Failure.count rose from 174 (2026-07-03 baseline) to 914 after the queue:default/queue:slow backlog (603+130 jobs) finished draining. 833 of the 740 new failures (830 SIGKILL + 2 SIGSEGV + a handful of matching User#track_boards SIGKILLs) share the exact error 'Child process received unhandled signal pid N SIGKILL (signal 9)', overwhelmingly on ButtonImage#perform_action (830 of 833). Failure timestamps cluster in the window the lingolinq-worker worker-pool was manually scaled from 8 instances back down to manualInstanceCount: 1 to finish draining the backlog (per this session's own scale-up/scale-down operation). The existing W1 fix (PR #473: RESQUE_PRE_SHUTDOWN_TIMEOUT=4/RESQUE_TERM_TIMEOUT=3 + BoyBand auto-requeue) covers the parent Resque worker process catching Resque::TermException on SIGTERM; it does not appear to cover a forked child job process being killed directly, which lands the job in Resque::Failure instead of being requeued.",
+        "source": "Resque::Failure crosstab (klass x error category) via a throwaway lingolinq-diagcheck3 Cloud Run Job, cross-referenced against gcloud logging read on resource.type=cloud_run_worker_pool for lingolinq-worker, 2026-07-03. Superseded an earlier draft of this finding that incorrectly attributed the failures to the worker-pool scale-down transition (Codex review of PR #516 caught the arithmetic - 833 could not be a subset of 740 new failures - and the unverified crosstab claim).",
+        "snippet": "Verified crosstab of all 914 Resque::Failure entries by job-class|error-category: 713 ButtonImage|SIGKILL, 113 BoardDownstreamButtonSet|SIGKILL, 58 BoardDownstreamButtonSet|s3_xml_error (tracked separately as LL-705b10bcd7), 16 ButtonImage|identify_missing (tracked separately as LL-5954bcbbe6), 4 User|SIGKILL, 3 Board|stash_not_found, 2 WordData|still_processing, 2 ButtonImage|SIGSEGV, 2 ButtonImage|still_processing, 1 Board|method_not_found (sum=914, matches Resque::Failure.count exactly). The SIGKILL/SIGSEGV total is 830+2=832. A histogram of SIGKILL/SIGSEGV failed_at timestamps by hour shows they are NOT clustered around the ~00:38-01:30 UTC worker-pool scale-8-to-1 transition: they span 2026-07-03 01h through 15h UTC continuously (e.g. 85 in the 03h bucket, 130 in the 06h bucket, 169 in the 14h bucket - hours after the pool had already returned to manualInstanceCount: 1). Root cause confirmed directly: gcloud logging read on resource.type=cloud_run_worker_pool/lingolinq-worker returns 833 'Out-of-memory event detected in container' log lines in the trailing 24h (2026-07-03T02:46:03Z to 2026-07-03T15:44:14Z), matching the SIGKILL/SIGSEGV count almost exactly. The worker pool's container resource limit is memory: 512Mi (gcloud beta run worker-pools describe lingolinq-worker). This is a standing capacity/sizing problem, not a one-time scale-transition artifact.",
         "sha": ""
       },
       "firstSeen": "2026-07-03",
       "lastSeen": "2026-07-03",
       "owner": "unassigned",
       "remediation": {
-        "options": "Root-cause whether the forked-child SIGKILL is Cloud Run's container teardown reaching child processes that the 7s (4+3) shutdown budget doesn't drain in time, or a separate mechanism (e.g. OOM kill under the scaled-back memory footprint). Until understood, avoid manually scaling the lingolinq-worker pool up/down while queue depth is nonzero and jobs are in flight; if a temporary scale-up is needed to drain a backlog, scale back down only after confirming queue depth AND active-job count are both zero, not just queue depth. Consider whether these child-SIGKILL failures should also trigger BoyBand's auto-requeue path.",
-        "timeframe": "30d"
+        "options": "Increase the lingolinq-worker worker-pool's memory limit (gcloud beta run worker-pools update lingolinq-worker --memory=1Gi or 2Gi, or the equivalent in the deploy-cloudrun.yml workflow) so forked ButtonImage/BoardDownstreamButtonSet job processes (which shell out to ImageMagick) have enough headroom, then re-verify Resque::Failure.count stops accumulating this error under normal load. Also confirm whether OOM-killed forked children should trigger BoyBand's auto-requeue path (they currently land in Resque::Failure, not requeue) since they are not the Resque::TermException case PR #473 already covers.",
+        "timeframe": "15-30d"
       },
-      "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from the pre-existing LL-5954bcbbe6 background-job failures (those predate this session's scale event and have different root causes). Directly relevant to the Phase 5 cutover runbook (scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md) since manual worker-pool scaling was used as an operational technique during the rehearsal and reproduced this failure mode live."
+      "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from LL-705b10bcd7 (S3 SigV4/KMS, a separate root cause on a subset of the same BoardDownstreamButtonSet failures) and LL-5954bcbbe6 (pre-existing ImageMagick/job_stash/stale-method failures, different root causes). Directly relevant to the Phase 5 cutover runbook (scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md): this is independent of the worker-pool scale-up/scale-down operation performed earlier in the same rehearsal, and would recur under normal single-instance steady-state load even without any manual scaling."
     },
     {
       "id": "LL-705b10bcd7",
@@ -3071,7 +3071,7 @@
       "evidence": {
         "type": "runtime",
         "source": "Resque::Failure diagnostics via a throwaway lingolinq-diagcheck2 Cloud Run Job (rails runner, cloned from lingolinq-web's image/SA/VPC/Cloud SQL/secrets), 2026-07-03",
-        "snippet": "58 of 914 Resque::Failure entries are BoardDownstreamButtonSet#perform_action failing with the raw S3 API error body: '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?><Error><Code>InvalidArgument</Code><Message>Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4.</Message><ArgumentName>Authorization</ArgumentName>...</Error>'. This indicates the S3 client path used for BoardDownstreamButtonSet's extra_data offload is signing requests with an older signature version (v2/pre-v4 default) against a bucket whose bucket policy or default encryption enforces SSE-KMS, which AWS requires SigV4 for. This is a genuine request-signing misconfiguration, independent of the recent worker-pool scale event (LL-728183408f) and independent of the pre-existing ImageMagick/job_stash failures (LL-5954bcbbe6).",
+        "snippet": "58 of 914 Resque::Failure entries are BoardDownstreamButtonSet#perform_action failing with the raw S3 API error body: '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?><Error><Code>InvalidArgument</Code><Message>Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4.</Message><ArgumentName>Authorization</ArgumentName>...</Error>'. This indicates the S3 client path used for BoardDownstreamButtonSet's extra_data offload is signing requests with an older signature version (v2/pre-v4 default) against a bucket whose bucket policy or default encryption enforces SSE-KMS, which AWS requires SigV4 for. This is a genuine request-signing misconfiguration, independent of the OOM-driven SIGKILL failures (LL-a95e9c5f7c) and independent of the pre-existing ImageMagick/job_stash failures (LL-5954bcbbe6).",
         "sha": ""
       },
       "firstSeen": "2026-07-03",
@@ -3106,7 +3106,7 @@
         "options": "(a) Confirm ImageMagick's identify binary is installed and on PATH in the Cloud Run web/worker container image (Dockerfile/base image audit) - this affects any ButtonImage upload_to_remote job. (b) Investigate the job_stash lookup failures in Board#update_setting - confirm whether the stash keys (1_1/1_2/1_3) were ever written or expired before the job ran. (c) Board:update_privacy - confirm whether this method was intentionally removed/renamed and whether any current code path can still enqueue a job calling it; if so, that enqueue site needs fixing, not just the failed job.",
         "timeframe": "30d"
       },
-      "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from LL-728183408f (SIGKILL from the worker-pool scale event) and LL-705b10bcd7 (S3 SigV4/KMS)."
+      "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from LL-a95e9c5f7c (OOM-driven SIGKILL failures) and LL-705b10bcd7 (S3 SigV4/KMS)."
     }
   ]
 }

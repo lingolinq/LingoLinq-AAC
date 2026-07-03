@@ -14,7 +14,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
 | LL-7f7372e3eb |  | high | SOC2, HIPAA | **accepted** | audit-review | Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited | `bin/audit_console`:7 |
-| LL-728183408f |  | high | SOC2 | untriaged | audit-run | Scaling the lingolinq-worker Cloud Run worker pool down while jobs are in flight kills forked child job processes with SIGKILL instead of requeuing them | (attestation) |
+| LL-a95e9c5f7c |  | high | SOC2 | untriaged | audit-run | lingolinq-worker's 512Mi memory limit is too small for ButtonImage/BoardDownstreamButtonSet jobs, causing continuous OOM kills that land as Resque::Failure instead of being requeued | (attestation) |
 | LL-705b10bcd7 |  | high | SOC2 | untriaged | audit-run | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | **fixed** | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |

@@ -759,24 +759,33 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       lingolinq-worker --instances=8`, ~6.6 jobs/sec); the pool has since correctly scaled back
       down to `manualInstanceCount: 1` (verified live, 2026-07-03), and as of the next check
       **all three queues are empty** (`queue:priority`/`queue:default`/`queue:slow` all size 0).
-      But `Resque::Failure.count` jumped from `174` to **`914`** across that same window: 833 of
-      the 740 new failures share the error `"Child process received unhandled signal pid N SIGKILL
-      (signal 9)"`, 830 of them on `ButtonImage#perform_action`, clustered in the exact time window
-      the worker pool was scaled from 8 instances back down to 1 - i.e. **the scale-down operation
-      itself appears to have killed in-flight forked job processes rather than cleanly draining
-      them**, and they landed in `Resque::Failure` instead of being requeued (register:
-      `LL-728183408f`; the existing W1 SIGTERM-requeue fix from PR #473 covers the parent worker
-      process, not child processes killed this way). A separate 58 new failures are
-      `BoardDownstreamButtonSet#perform_action` hitting a genuine S3 misconfiguration - "Server
-      Side Encryption with AWS KMS managed keys require AWS Signature Version 4" - unrelated to the
-      scale event (register: `LL-705b10bcd7`). Our own test job
+      But `Resque::Failure.count` jumped from `174` to **`914`** across that same window. A first
+      pass at this attributed the jump to the scale-8-back-to-1 transition; that was wrong (caught
+      by Codex review of PR #516 - the arithmetic didn't even add up) and has been corrected. The
+      verified crosstab (job class x error, sums to exactly 914): 830 `SIGKILL` + 2 `SIGSEGV`
+      across `ButtonImage`/`BoardDownstreamButtonSet`/`User`; 58 `BoardDownstreamButtonSet` S3
+      SigV4/KMS errors (register: `LL-705b10bcd7`); 16 `ButtonImage` ImageMagick-`identify`-missing
+      + 3 `Board` `job_stash` + 1 `Board:update_privacy`-method-not-found, all pre-existing (register:
+      `LL-5954bcbbe6`). **The SIGKILL/SIGSEGV failures are NOT clustered around the scale-down
+      transition** - an hourly histogram of their `failed_at` timestamps spans 2026-07-03 01h
+      through 15h UTC continuously, hours after the pool had already returned to
+      `manualInstanceCount: 1`. Root cause confirmed directly via `gcloud logging read` on
+      `resource.type=cloud_run_worker_pool`: **833 "Out-of-memory event detected in container" log
+      lines** in the trailing 24h, matching the SIGKILL/SIGSEGV count almost exactly. The pool's
+      container memory limit is `512Mi` - too small for the forked `ButtonImage`/
+      `BoardDownstreamButtonSet` job processes that shell out to ImageMagick. This is a standing
+      capacity problem, not a one-time scale-transition artifact (register: `LL-a95e9c5f7c`; the
+      existing W1 SIGTERM-requeue fix from PR #473 doesn't cover OOM-killed forked children, so
+      these land in `Resque::Failure` instead of being requeued). Our own test job
       (`Board#check_for_parts_of_speech_and_inflections` on board id 7) is not among any sampled
       failure and the queue is now fully empty, which is stronger circumstantial evidence it ran
       successfully than the prior check had, but `board.updated_at` is still unchanged from
       `2026-06-30 21:49:48 UTC` (the method only saves when something actually changes, so this
-      remains inconclusive rather than a confirmed pass). **Do not use manual worker-pool scaling
-      as an operational technique during the real cutover until `LL-728183408f` is root-caused** -
-      this rehearsal just reproduced the failure mode live.
+      remains inconclusive rather than a confirmed pass). **Fix `LL-a95e9c5f7c` before relying on
+      this environment for real image-processing load** (register remediation: bump the
+      worker-pool's memory limit to 1-2Gi and re-verify `Resque::Failure` stops accumulating this
+      error) - this OOM condition will recur continuously under normal single-instance load,
+      independent of any worker-pool scaling operation.
       **SES send - functionally confirmed, but verify final delivery before checking this box.**
       The original UI-only "Email sent!" check was correctly flagged as weak (a `gcloud logging
       read` sweep found zero mail-related log lines despite confirmed-working log capture for the
@@ -791,18 +800,22 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 - [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
       gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
       checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status
-      `open`: `LL-728183408f` (worker-pool scale-down SIGKILLs in-flight jobs instead of requeuing
-      them - 833 failures, see above), `LL-705b10bcd7` (S3 SigV4/KMS-SSE misconfiguration on
-      `BoardDownstreamButtonSet` - 58 failures, see above), and `LL-5954bcbbe6` (pre-existing,
-      dated 2026-06-29, unrelated to this session's scale event: 16 `ButtonImage` failures from a
+      `open`: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
+      forked `ButtonImage`/`BoardDownstreamButtonSet` job processes - 832 SIGKILL/SIGSEGV failures,
+      see above), `LL-705b10bcd7` (S3 SigV4/KMS-SSE misconfiguration on `BoardDownstreamButtonSet`
+      - 58 failures, see above), and `LL-5954bcbbe6` (pre-existing: 16 `ButtonImage` failures from a
       missing/misconfigured ImageMagick `identify` binary in the Cloud Run image, 3 `Board`
       `job_stash` lookup failures, and 1 job calling a `Board` method - `update_privacy` - that no
       longer exists, suggesting deploy/version skew). Needs root-cause fixes and re-verification
       (`Resque::Failure.count == 0` or an explained/accepted residual) before this environment is
       customer-facing.
-- [ ] **`lingolinq_admin` test password rotated to a real secret - separate gate from 0a, do NOT
-      treat as satisfied just because the 0a login box above is checked.** Currently the plaintext
-      test value (`password1`) set during the manual reset performed for the 0a login smoke test.
+- [ ] **`lingolinq_admin` test credential rotated or the account deleted - separate gate from 0a, do
+      NOT treat as satisfied just because the 0a login box above is checked.** The account currently
+      has a deliberately simple, memorable password (Scot's call, 2026-07-03: needed for hands-on
+      testing - board creation, org-feature testing - across multiple devices before cutover; not
+      a real secret risk today since this rehearsal DB has no real user data). Do not write the
+      literal value in this or any other repo file going forward. Once testing is done, either
+      rotate to a real secret or delete the account before this environment is customer-facing.
       Rotate via 1Password and confirm the new credential works before this environment is
       customer-facing.
 - [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
