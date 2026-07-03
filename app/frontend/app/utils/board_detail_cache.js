@@ -321,7 +321,12 @@ function _ingest_tree_response(cache, data, warm_opts, options) {
   if (!data || !data.root || !data.root.board) { return false; }
   var root_raw = normalize_board_payload(data.root);
   if (!root_raw) { return false; }
-  cache.set(root_raw);
+  // options.force lets a caller that fetched a fresh /tree (e.g. the speak
+  // handoff waiting on a just-copied board) make its root authoritative even
+  // when a staler entry is still within TTL — so the route's cache-first read
+  // and the store record agree on the newest server response. Prefetch callers
+  // pass no options, so their non-forcing behavior is unchanged.
+  cache.set(root_raw, { force: !!options.force });
   if (options.warm_root_images !== false) {
     cache.warm_images(root_raw, warm_opts);
   }

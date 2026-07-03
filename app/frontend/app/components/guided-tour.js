@@ -622,7 +622,7 @@ export default Component.extend({
     } catch (e) { /* best-effort */ }
     appState.show_loading_overlay(i18n.t('loading_your_board', "Loading your board..."));
     var attempts = 0;
-    var MAX_ATTEMPTS = 30; // ~30s at 1s intervals — long enough for a fresh copy
+    var MAX_ATTEMPTS = 15; // ~15s at 1s intervals, then fall back to the board-picker
     var go = function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
       // Flag the board-detail SPEAK tour to auto-open once we land on THIS board
@@ -636,8 +636,16 @@ export default Component.extend({
     var retry = function() {
       attempts++;
       if (attempts >= MAX_ATTEMPTS) {
-        appState.hide_loading_overlay();
-        try { modal.error(i18n.t('board_still_preparing', "Your board is still being set up. Please try again in a moment.")); } catch (e) { /* noop */ }
+        // The owned VF84 copy never materialized within the window — most likely
+        // the backend copy gate (signup_default_library_boards) is off on this
+        // deployment, or the copy is unusually slow. Don't dead-end the user on an
+        // error modal: fall back to the standalone board-picker (the same "pick a
+        // board" destination the rest of the tour uses), where the copy will show
+        // up once it lands. The board-picker route hides the overlay on load.
+        var t = _this.get('router').transitionTo('board-picker');
+        if (t && typeof t.catch === 'function') {
+          t.catch(function() { appState.hide_loading_overlay(); });
+        }
         return;
       }
       runLater(_this, check, 1000);
@@ -649,7 +657,7 @@ export default Component.extend({
       // is a cache hit; if the copy hasn't materialized, ingest_tree returns
       // false (no usable root) and we keep polling.
       _this.get('persistence').ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
-        if (boardDetailCache.ingest_tree(data, warm_opts)) {
+        if (boardDetailCache.ingest_tree(data, warm_opts, { force: true })) {
           go();
         } else {
           retry();
@@ -722,6 +730,14 @@ export default Component.extend({
     if (!tour) { return; }
     var builder = this.get('tourBuilder');
     if (!builder) { return; }
+
+    // Reset the speak-handoff takeover flag at the start of EVERY tour run. The
+    // navbar guided-tour instance is persistent (no remount across in-app
+    // transitions), so without this a prior "start speaking" handoff (which sets
+    // _speakHandoffActive true and never otherwise clears it) would keep the
+    // board-picker complete/first-time handoffs permanently suppressed on every
+    // later tour run in the same page session.
+    _this.set('_speakHandoffActive', false);
 
     // Defaults applied to every step. Per ember-shepherd docs these MUST be set
     // before addSteps() so Shepherd picks them up when instantiating each step.
