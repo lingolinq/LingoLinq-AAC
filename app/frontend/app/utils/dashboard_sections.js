@@ -126,20 +126,43 @@ var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt'
 // `extraFull`), so they pick up the md-grid--fullspan-* styling overrides. The
 // leading supervisor-only keys are inert for communicators (filtered out as
 // unavailable) — they keep their relative slot for any user who has them.
-var DEFAULT_ORDER = ['caseload', 'rooms', 'attention', 'org', 'speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
+var DEFAULT_ORDER = ['caseload', 'attention', 'rooms', 'org', 'speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
 
 // Supervisor (non-communicator) Gentle default — distinct from the communicator
 // order so moving cards here never reshuffles a communicator's home. Boards sits
 // directly under My Organizations, and Speak Mode sits next as a FULL-WIDTH row
 // (see dashboardLayout's speak full-width handling for supervisors).
-var SUPERVISOR_DEFAULT_ORDER = ['caseload', 'rooms', 'attention', 'org', 'boards', 'speak', 'account', 'createboard', 'editdashboard', 'reports', 'extras'];
+var SUPERVISOR_DEFAULT_ORDER = ['caseload', 'attention', 'rooms', 'org', 'boards', 'speak', 'account', 'createboard', 'editdashboard', 'reports', 'extras'];
 
 // Focused View (focused) has its OWN default order. Speak becomes the full-width
 // hero and Extras is hidden, so those positions don't matter here; the rest packs
 // to (communicator): full-width Boards, My Account|Create a Board, Reports|Edit
 // Dashboard — with Caseload/Org slotted in for supervisors. Kept separate from
 // DEFAULT_ORDER so changing the Focused View default never affects Gentle View.
-var FOCUSED_DEFAULT_ORDER = ['speak', 'boards', 'caseload', 'rooms', 'attention', 'org', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
+var FOCUSED_DEFAULT_ORDER = ['speak', 'boards', 'caseload', 'attention', 'rooms', 'org', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
+
+// Role-aware default order — the SINGLE source both the live grid (dashboardLayout,
+// via its `vis`-based supervisor check) and the edit surface (display-style.js)
+// resolve their default from, so they can never disagree on a supervisor's order.
+// Focused View shares ONE order across roles (it lists every key; unavailable ones
+// are filtered by vis). Gentle View differs by role: a supervisor (any of
+// caseload/rooms/attention/org available) gets SUPERVISOR_DEFAULT_ORDER, everyone
+// else DEFAULT_ORDER.
+function defaultOrderFor(user, layout) {
+  if (layout === 'focused') { return FOCUSED_DEFAULT_ORDER; }
+  if (!user) { return DEFAULT_ORDER; } // no user → communicator default (matches prior behavior)
+  // Match the live grid's supervisor test EXACTLY: dashboardLayout keys off `vis`,
+  // where vis[key] = available AND NOT sectionHidden (authenticated-view.js). Using
+  // availability alone here would drift for a supervisor who has HIDDEN their
+  // caseload/rooms/attention/org cards (grid → DEFAULT_ORDER, but availability →
+  // SUPERVISOR_DEFAULT_ORDER), so filter out hidden sections before classifying.
+  var keys = availableHomeSections(user)
+    .filter(function(s) { return !sectionHidden(user, s.key); })
+    .map(function(s) { return s.key; });
+  var supervisor = keys.indexOf('caseload') !== -1 || keys.indexOf('rooms') !== -1 ||
+                   keys.indexOf('attention') !== -1 || keys.indexOf('org') !== -1;
+  return supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER;
+}
 
 // The visible section keys in display order: start from the saved order (or the
 // default), append any visible key the saved order is missing (robustness when a
@@ -337,5 +360,5 @@ function reorderForFocused(order, srcKey, dstKey, after, defaultOrder) {
   return reorderInsert(order, srcKey, dstKey, after, defaultOrder);
 }
 
-export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };
-export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };
+export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };
+export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };

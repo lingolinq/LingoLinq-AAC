@@ -29938,7 +29938,8 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   gap: 24px;
   width: 100%;
 }
-/* Non-actionable label card — just names a step; sits under its number. */
+/* Non-actionable step label — just names a step; sits under its number. No card
+   chrome (background/border/shadow/radius) so it doesn't read as a clickable card. */
 .md-ds-welcome-card {
   flex: 1 1 0;
   min-width: 0;
@@ -29947,14 +29948,11 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 18px 16px;
+  /* Pull each label up snug under its number: cancel most of the parent's 28px
+     column gap and drop the vertical padding (kept only side padding). */
+  margin-top: -18px;
+  padding: 0 16px;
   text-align: center;
-  border-radius: 20px;
-  border: 1px solid rgba($la-navy, 0.08);
-  background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
-  box-shadow:
-    0 1px 2px rgba($la-navy, 0.04),
-    0 10px 28px rgba($la-navy, 0.08);
 }
 .md-ds-welcome-card__title {
   font-size: 18px;
@@ -44081,6 +44079,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-attention-item__status {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 15px;
@@ -44088,6 +44087,47 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   letter-spacing: 0.01em;
   background: rgba($brand-slate-blue, 0.14);
   color: $brand-slate-blue;
+}
+/* Modern representative status icon — a small line-icon before each pill label,
+   masked so it inherits the pill's per-status colour (currentColor). Decorative
+   (the label text already names the status), so no ARIA is needed. */
+@mixin md-attn-status-icon($svg) { mask-image: $svg; -webkit-mask-image: $svg; }
+.md-attention-item__status::before {
+  content: "";
+  flex: none;
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  mask-repeat: no-repeat; mask-position: center; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
+}
+/* home — "No home board set" */
+.md-attention-item__status[data-status="no-home-board"]::before {
+  @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3Cpath d='M9 22V12h6v10'/%3E%3C/svg%3E"));
+}
+/* help-circle — "Unknown/Nothing" */
+.md-attention-item__status[data-status="unchecked"]::before {
+  @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E"));
+}
+/* clipboard-check — "Waiting for Evaluation" */
+.md-attention-item__status[data-status="hourglass"]::before {
+  @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 2h6a1 1 0 0 1 1 1v1H8V3a1 1 0 0 1 1-1z'/%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3Cpath d='M9 14l2 2 4-4'/%3E%3C/svg%3E"));
+}
+/* file-text — "Waiting for Recommendation from Eval" */
+.md-attention-item__status[data-status="equalizer"]::before {
+  @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6'/%3E%3Cpath d='M16 13H8'/%3E%3Cpath d='M16 17H8'/%3E%3Cpath d='M10 9H8'/%3E%3C/svg%3E"));
+}
+/* dollar-sign — "Temporary Solution, Waiting for Funding" */
+.md-attention-item__status[data-status="piggy-bank"]::before {
+  @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 1v22'/%3E%3Cpath d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/%3E%3C/svg%3E"));
+}
+/* tablet — "Waiting for Device" */
+.md-attention-item__status[data-status="phone"]::before {
+  @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='2' width='16' height='20' rx='2'/%3E%3Cpath d='M12 18h.01'/%3E%3C/svg%3E"));
+}
+/* life-buoy — "Needing Additional Support" */
+.md-attention-item__status[data-status="exclamation-sign"]::before {
+  @include md-attn-status-icon(url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M4.93 4.93l4.24 4.24'/%3E%3Cpath d='M14.83 14.83l4.24 4.24'/%3E%3Cpath d='M14.83 9.17l4.24-4.24'/%3E%3Cpath d='M9.17 14.83l-4.24 4.24'/%3E%3C/svg%3E"));
 }
 /* Amber — evaluation-related waits (Waiting for Evaluation / for Recommendation). */
 .md-attention-item__status[data-status="hourglass"],
@@ -49352,6 +49392,13 @@ a.md-goal-nav-action:hover,
   border-radius: 50% !important;
   width: 80px !important;   /* 64 × 1.25 */
   height: 80px !important;
+  /* The extras-circle image is a full circular illustration on its own, so hide the
+     icon TILE chrome behind it (coral gradient background, border, glow/drop shadow)
+     — otherwise it reads as a second circle around the image. This 0,6,0 rule beats
+     the shared `.md-card--extras.md-card--as-button .md-card__icon` tile (0,5,0). */
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 .md-card__icon-img {
   width: 100% !important;
@@ -55296,12 +55343,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   overflow: hidden !important;
 
-  /* Vertical padding only — horizontal padding is intentionally 0
-     at every viewport so the supervisee grid spans the full card
-     width and the caseload tray sits flush with the workspace
-     edges. (Previously 4rem 8rem with a ≤1200px override; the
-     override is no longer needed.) */
-  padding: 4rem 0 4rem 0 !important;
+  /* Top padding halved (2rem) vs bottom (4rem). Horizontal padding is
+     intentionally 0 at every viewport so the supervisee grid spans the full
+     card width and the caseload tray sits flush with the workspace edges.
+     (Previously 4rem 8rem with a ≤1200px override; no longer needed.) */
+  padding: 2rem 0 4rem 0 !important;
 
 }
 /* On narrow viewports the 8rem horizontal padding squeezes the
@@ -83618,10 +83664,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
        are still accessible from the full card below. */
     gap: 3px;
   }
-  .md-caseload__quick-action {
+  /* Compact icon-only on phones — no room for captions alongside the name.
+     Parent-scoped (0,2,0) so it beats the base `a.md-caseload__quick-action`
+     (0,1,1) tile size, which sits LATER in source (the base 52×46 rule). */
+  .md-caseload__list-quick .md-caseload__quick-action {
     width: 32px;
     height: 32px;
     border-radius: 8px;
+  }
+  .md-caseload__quick-label {
+    display: none;
   }
   .md-caseload__quick-action--model,
   .md-caseload__quick-action--reports {
@@ -83974,7 +84026,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-caseload__list-row {
   display: flex;
   align-items: center;
-  text-align: center;
+  text-align: left;
   white-space: normal;
   gap: 5px;
   border-radius: 10px;
@@ -84033,12 +84085,17 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-caseload__quick-action,
 a.md-caseload__quick-action {
+  /* Icon-over-label tile: the SVG sits above a small caption so each action is
+     self-describing without relying on the hover title. Sized to fit the widest
+     label ("Reports"/"History") at 10px. */
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
+  gap: 3px;
+  width: 52px;
+  height: 46px;
+  padding: 4px 2px;
   border: 1px solid rgba($la-navy, 0.08);
   border-radius: 9px;
   background: rgba($la-navy, 0.02);
@@ -84047,12 +84104,161 @@ a.md-caseload__quick-action {
   text-decoration: none;
   transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
+.md-caseload__quick-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: rgba($la-navy, 0.6);
+  white-space: nowrap;
+}
+/* Caseload hero mirrors the home SLP hero: STACKED title + subheader on separate
+   rows (the base .md-slp-hero__text column layout) — same classes → same style +
+   from-left/from-right motion, including the shared 32px title size. Keeps the
+   base `.md-hero` top padding. */
+/* Info button next to the "People you support" subheader → opens the caseload
+   guide modal. Small, muted, inline after the subheader text. */
+.md-caseload__guide-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba($brand-slate-blue, 0.7);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-caseload__guide-btn:hover,
+.md-caseload__guide-btn:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  color: $brand-slate-blue;
+}
+/* Caseload guide modal — colour-coded icon map + a highlighted "open a row"
+   callout. Succinct, professional, engaging (soft brand-hue tiles per action). */
+.md-caseload-guide__lead {
+  margin: 0 0 18px;
+  font-size: 15px;
+  color: rgba($la-navy, 0.7);
+  line-height: 1.5;
+  text-align: center;
+}
+.md-caseload-guide__heading {
+  max-width: 400px;
+  margin: 0 auto 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $brand-slate-blue;
+  text-align: left;
+}
+.md-caseload-guide__list {
+  list-style: none;
+  max-width: 400px;
+  margin: 0 auto 20px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+.md-caseload-guide__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.015);
+  border: 1px solid rgba($la-navy, 0.05);
+}
+.md-caseload-guide__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+}
+.md-caseload-guide__name {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  line-height: 1.2;
+}
+.md-caseload-guide__desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 13.5px;
+  color: rgba($la-navy, 0.6);
+  line-height: 1.35;
+}
+/* Per-action icon tile colours (soft brand tints; navy-dominant icons read cleanly). */
+.md-caseload-guide__item--model .md-caseload-guide__icon   { background: rgba($brand-verdigris, 0.12);   border-color: rgba($brand-verdigris, 0.25); }
+.md-caseload-guide__item--note .md-caseload-guide__icon    { background: rgba($brand-dusty-denim, 0.12);  border-color: rgba($brand-dusty-denim, 0.25); }
+.md-caseload-guide__item--assess .md-caseload-guide__icon  { background: rgba($brand-verdigris, 0.12);   border-color: rgba($brand-verdigris, 0.25); }
+.md-caseload-guide__item--reports .md-caseload-guide__icon { background: rgba(#e87a6f, 0.14);             border-color: rgba(#e87a6f, 0.28); }
+.md-caseload-guide__item--eval .md-caseload-guide__icon    { background: rgba($brand-honey-bronze, 0.16); border-color: rgba($brand-honey-bronze, 0.30); }
+.md-caseload-guide__item--history .md-caseload-guide__icon { background: rgba($brand-slate-blue, 0.12);   border-color: rgba($brand-slate-blue, 0.25); }
+/* Highlighted "open a communicator" callout. */
+.md-caseload-guide__callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.10) 0%, rgba($brand-dusty-denim, 0.10) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.20);
+}
+.md-caseload-guide__callout-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #ffffff;
+  color: $brand-verdigris-aa;
+  box-shadow: 0 1px 3px rgba($la-navy, 0.08);
+}
+.md-caseload-guide__callout-title {
+  margin-bottom: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.md-caseload-guide__callout-desc {
+  margin: 0;
+  font-size: 13.5px;
+  color: rgba($la-navy, 0.68);
+  line-height: 1.45;
+}
+/* Per-action colour scheme — same brand hues as the caseload guide modal so the
+   row icons read as a colour-coded palette (soft tints; navy-dominant icons stay
+   crisp). Model/Assess verdigris, Note denim, Reports coral, Eval honey, History
+   slate. */
+.md-caseload__quick-action.md-caseload__quick-action--model,
+.md-caseload__quick-action.md-caseload__quick-action--assess   { background: rgba($brand-verdigris, 0.10);   border-color: rgba($brand-verdigris, 0.22); }
+.md-caseload__quick-action.md-caseload__quick-action--note     { background: rgba($brand-dusty-denim, 0.10);  border-color: rgba($brand-dusty-denim, 0.22); }
+.md-caseload__quick-action.md-caseload__quick-action--reports  { background: rgba(#e87a6f, 0.12);            border-color: rgba(#e87a6f, 0.24); }
+.md-caseload__quick-action.md-caseload__quick-action--eval-quick   { background: rgba($brand-honey-bronze, 0.14); border-color: rgba($brand-honey-bronze, 0.26); }
+.md-caseload__quick-action.md-caseload__quick-action--eval-history { background: rgba($brand-slate-blue, 0.10);   border-color: rgba($brand-slate-blue, 0.22); }
+/* Neutral lift on hover so each button keeps its own colour (no verdigris wash). */
 .md-caseload__quick-action:hover,
 a.md-caseload__quick-action:hover,
 .md-caseload__quick-action:focus-visible {
-  background: rgba($brand-verdigris, 0.08);
-  border-color: rgba($brand-verdigris, 0.30);
-  box-shadow: 0 1px 3px rgba($la-navy, 0.06);
+  border-color: rgba($la-navy, 0.28);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.10);
   text-decoration: none;
 }
 .md-caseload__card {
@@ -85851,24 +86057,6 @@ a.md-caseload__action {
 .md-shell--caseload .md-card.md-card--sup {
   background: transparent !important;
   border: 0 !important;
-}
-@media (max-width: 1200px) {
-  /* Keep the caseload workspace at its desktop 40px left/right
-     padding on every viewport ≤1200px. The global .md-workspace
-     rules at ≤950px (16px) and ≤820px (12px) hug the cards too
-     tightly to the viewport edge on this page — the supervisee
-     tiles need room to breathe inside the sunken tray. Two-class
-     specificity (0,2,0) beats the global single-class breakpoint
-     overrides (0,1,0). */
-  .md-shell--caseload .md-workspace {
-    padding-left: 40px !important;
-    padding-right: 40px !important;
-    /* Restore the 40px top margin that the global ≤1024px /
-       ≤950px / ≤820px rules zero out — the caseload page reads
-       better with a breathing gap between the topbar and the
-       workspace card, matching the desktop layout. */
-    margin-top: 40px !important;
-  }
 }
 /* Extra left padding on the active caseload pill (when it isn't the first
    pill) so the dark active pill doesn't crowd the pill to its left. */

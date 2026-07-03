@@ -10,6 +10,11 @@
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
       {{t "Home" key="home"}}
     </button>
+    {{!-- Supervisors get a Caseload pill (→ the caseload page), just right of Home.
+         Gated on the same availability as the home Caseload card (supporter_role). --}}
+    {{#if this.sectionAvailable.caseload}}
+    <LinkTo @route="caseload" class="md-pillnav__pill">{{t "Caseload" key="caseload_pill"}}</LinkTo>
+    {{/if}}
     {{!-- Org managers/supervisors get a My Organizations pill (→ the org list),
          just right of Home. Gated on the same availability as the home Org card. --}}
     {{#if this.sectionAvailable.org}}
@@ -45,6 +50,9 @@
     </button>
     <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
       <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
+      {{#if this.sectionAvailable.caseload}}
+      <li><LinkTo @route="caseload" role="option" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
+      {{/if}}
       {{#if this.sectionAvailable.org}}
       <li><LinkTo @route="organizations" role="option" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>{{t "Organizations" key="organizations"}}</LinkTo></li>
       {{/if}}
@@ -344,7 +352,7 @@
       <button type="button" class="md-card md-card--extras md-card--as-button" style={{this.cardHideStyle.extras}} aria-label={{t "Extras" key="extras"}} {{action "goTab" "extras"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--extras" aria-hidden="true">
-            <img src={{path "images/extras-icon.png"}} class="md-card__icon-img" alt="" decoding="async">
+            <img src={{path "images/extras-circle.png"}} class="md-card__icon-img" alt="" decoding="async">
           </div>
           <div class="md-card__titles">
             <h3 class="md-card__title">{{t "Extras" key="extras"}} <span aria-hidden="true">→</span></h3>

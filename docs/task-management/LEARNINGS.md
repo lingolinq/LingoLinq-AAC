@@ -5826,6 +5826,30 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   (2026-06-29: added the "Modern Eval Board Body" block — soft gradient surface + white glass button
   cards + navy labels — scoped to `.board.eval_mode`, companion to the existing Modern Eval Header.)
 
+## Pattern: the dashboard is role-agnostic by DATA — never fork the edit per role
+
+The home dashboard + its edit (`display-style.js`) are ONE surface driven by the section
+registry in `utils/dashboard_sections.js`. Roles are expressed as data, not code branches:
+- `HOME_SECTIONS[].available(user)` gates each card per role (`availableHomeSections(user)`).
+- Default card order is single-sourced through **`defaultOrderFor(user, layout)`** (2026-07-03):
+  Focused shares one `FOCUSED_DEFAULT_ORDER`; Gentle is role-aware — a supervisor (any of
+  caseload/rooms/attention/org available) gets `SUPERVISOR_DEFAULT_ORDER`, else `DEFAULT_ORDER`.
+  Both the live grid (`dashboardLayout`) and the edit resolve their default from the SAME arrays,
+  so they can't drift. **Never hardcode `(layout==='focused')?FOCUSED_DEFAULT_ORDER:DEFAULT_ORDER`
+  in the edit** — that was the supervisor bug (edit used the communicator order, mismatching the grid).
+- Adding a future role = add sections with `available` predicates (+ maybe a default-order array).
+  The single edit picks it up; do NOT create a per-role edit page (breaks the "grid + preview read
+  the same `dashboard_order` so they never drift" guarantee, and duplicates drag/persist logic).
+
+**The dashboard user is `referenced_user || currentUser`** (the app's idiom, app-state 907/1256).
+Resolve it ONCE per method and use it for BOTH `availableHomeSections()` AND preference read/write —
+never read one identity and write another. Today `referenced_user` is only ever set to `null`
+(app-state.js:1994, never assigned), so it == `currentUser` — which is already masquerade-correct
+(act-as re-resolves `currentUser` to the acted-as user, app-state.js:468-475). Modeling
+(`referenced_speak_mode_user`) is speak-mode-only and never reaches dashboard-edit. So the seam is
+behavior-neutral today and the single wire-in point for a future "supervisor edits a supervisee's
+dashboard" flow: set `referenced_user` and the whole edit routes to that user, no other changes.
+
 - Org access is role-tiered (organization.rb:42-48): manager→view/edit/manage, assistant→view/edit,
   **supervisor→view ONLY**, communicator→none. EVERY org-management endpoint (managers/users/
   supervisors/units/stats/admin_reports/settings) gates on `allowed?(@org,'edit')`, so a supervisor
