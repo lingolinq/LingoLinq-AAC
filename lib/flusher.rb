@@ -209,18 +209,25 @@ module Flusher
     ids.each_slice(slice_size).sum { |slice| klass.where(id: slice).delete_all }
   end
 
-  # Deletes one flush_leftovers category and immediately records its own
-  # AuditEvent, so a category's deletion and its audit record land together --
-  # a later category raising can never leave an EARLIER category's real
-  # deletions with no audit trail at all.
+  # Deletes one flush_leftovers category and records its own AuditEvent, both
+  # inside a single transaction. delete_by_id_in_slices still issues one
+  # DELETE per 1000-id slice (so this never locks more than one category's
+  # worth of rows at a time, unlike wrapping the whole job in one transaction),
+  # but all of THIS category's slices plus its audit insert either all commit
+  # together or all roll back -- a slice or the audit write raising can never
+  # leave partially-deleted rows with no audit record, and can never leave an
+  # audit record claiming a deletion that got rolled back.
   def self.delete_and_record_category(category, klass, ids)
-    deleted = delete_by_id_in_slices(klass, ids)
-    AuditEvent.create!(
-      user_key: 'system',
-      event_type: 'retention_flush',
-      summary: "retention_flush category completed #{category}=#{deleted}",
-      data: { 'status' => 'category_completed', 'category' => category, 'count' => deleted }
-    )
+    deleted = nil
+    ActiveRecord::Base.transaction do
+      deleted = delete_by_id_in_slices(klass, ids)
+      AuditEvent.create!(
+        user_key: 'system',
+        event_type: 'retention_flush',
+        summary: "retention_flush category completed #{category}=#{deleted}",
+        data: { 'status' => 'category_completed', 'category' => category, 'count' => deleted }
+      )
+    end
     deleted
   end
   
