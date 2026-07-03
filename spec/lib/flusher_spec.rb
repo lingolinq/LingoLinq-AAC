@@ -613,6 +613,17 @@ describe Flusher do
       expect(ev.data['versions_stale_type_detected_not_deleted']).to eq(1)
     end
 
+    it "should treat an item_type that resolves to a non-model Ruby constant as stale, not as a live model" do
+      # safe_constantize succeeds for ANY resolvable constant, not just ActiveRecord
+      # models -- 'File' resolves to the built-in File class. A truthy-only check
+      # would wrongly treat that as "still a real model" and skip counting it.
+      PaperTrail::Version.insert!({ item_type: 'File', item_id: 12345, event: 'destroy', created_at: Time.now })
+      Flusher.flush_leftovers
+      expect(PaperTrail::Version.where(item_type: 'File').count).to eq(1)
+      ev = AuditEvent.where(event_type: 'retention_flush').order('id DESC').first
+      expect(ev.data['versions_stale_type_detected_not_deleted']).to eq(1)
+    end
+
     it "should not remove paper trail versions for a real model class, even for a destroyed record (audit trail preservation)", :versioning => true do
       PaperTrail.request.whodunnit = 'user:jane'
       u = User.create

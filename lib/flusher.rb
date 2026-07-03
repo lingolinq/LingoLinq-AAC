@@ -124,50 +124,73 @@ module Flusher
     #    not a mechanical delete. Tracked as a follow-up finding (see
     #    audit-reports/FINDINGS.json) rather than implemented here.
     known_types = PaperTrail::Version.distinct.pluck(:item_type).compact
-    stale_types = known_types.reject { |t| t.safe_constantize }
-    stale_version_scope = stale_types.any? ? PaperTrail::Version.where(item_type: stale_types) : PaperTrail::Version.none
+    stale_types = known_types.reject do |t|
+      klass = t.safe_constantize
+      # safe_constantize succeeds for ANY resolvable Ruby constant (e.g. a stale
+      # item_type of 'File' would resolve to the built-in File class), not just
+      # live model classes, so a truthy check alone would wrongly treat those as
+      # "still a real model" and skip them.
+      klass.is_a?(Class) && klass < ActiveRecord::Base
+    end
+    stale_version_count = stale_types.any? ? PaperTrail::Version.where(item_type: stale_types).count : 0
 
-    # Candidate ids are snapshotted BEFORE the AuditEvent is written, and deletion
-    # below targets exactly these snapshotted ids (not a re-evaluated scope), so
-    # the audit counts and what actually gets deleted can never drift apart: a row
-    # that becomes newly orphaned after the snapshot is simply left for the next
-    # run, rather than being deleted without ever appearing in an audit count (and
-    # a row that stops being orphaned in between still existed as orphaned at
-    # snapshot time, so counting and removing it is correct, not an overcount).
-    # The AuditEvent write itself still happens before any deletion runs, so a
-    # failed audit write aborts the whole job instead of leaving deletions that
-    # happened with no record of them.
+    # Candidate ids are snapshotted before the "planned" AuditEvent is written, so
+    # a failed audit write aborts the whole job instead of leaving deletions with
+    # no record of them at all. A second "completed" AuditEvent below records the
+    # ACTUAL per-category delete_all counts once deletion finishes, so a partial
+    # failure part-way through (one category succeeds, a later one raises) is
+    # reflected accurately rather than the permanent audit trail claiming the
+    # full planned set was removed.
     board_button_image_ids = board_button_image_scope.pluck(:id)
     board_button_sound_ids = board_button_sound_scope.pluck(:id)
     log_session_board_ids = log_session_board_scope.pluck(:id)
     progress_ids = progress_scope.pluck(:id)
     user_board_connection_ids = user_board_connection_scope.pluck(:id)
 
-    counts = {
+    planned_counts = {
       'board_button_images' => board_button_image_ids.length,
       'board_button_sounds' => board_button_sound_ids.length,
       'log_session_boards' => log_session_board_ids.length,
       'progresses' => progress_ids.length,
       'user_board_connections' => user_board_connection_ids.length,
-      'versions_stale_type_detected_not_deleted' => stale_version_scope.count
+      'versions_stale_type_detected_not_deleted' => stale_version_count
     }
 
-    Rails.logger.info("[Flusher.flush_leftovers] #{counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' ')}")
+    Rails.logger.info("[Flusher.flush_leftovers] planned #{planned_counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' ')}")
     AuditEvent.create!(
       user_key: 'system',
       event_type: 'retention_flush',
-      summary: "retention_flush " + counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' '),
-      data: counts
+      summary: "retention_flush planned " + planned_counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' '),
+      data: planned_counts.merge('status' => 'planned')
     )
 
-    BoardButtonImage.where(id: board_button_image_ids).in_batches.delete_all
-    BoardButtonSound.where(id: board_button_sound_ids).in_batches.delete_all
-    LogSessionBoard.where(id: log_session_board_ids).in_batches.delete_all
-    Progress.where(id: progress_ids).in_batches.delete_all
-    UserBoardConnection.where(id: user_board_connection_ids).in_batches.delete_all
-    # versions_stale_type_detected_not_deleted: intentionally not deleted, see note above.
+    actual_counts = {
+      'board_button_images' => delete_by_id_in_slices(BoardButtonImage, board_button_image_ids),
+      'board_button_sounds' => delete_by_id_in_slices(BoardButtonSound, board_button_sound_ids),
+      'log_session_boards' => delete_by_id_in_slices(LogSessionBoard, log_session_board_ids),
+      'progresses' => delete_by_id_in_slices(Progress, progress_ids),
+      'user_board_connections' => delete_by_id_in_slices(UserBoardConnection, user_board_connection_ids),
+      # not deleted, see note above -- carried through for visibility only.
+      'versions_stale_type_detected_not_deleted' => stale_version_count
+    }
 
-    counts
+    Rails.logger.info("[Flusher.flush_leftovers] completed #{actual_counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' ')}")
+    AuditEvent.create!(
+      user_key: 'system',
+      event_type: 'retention_flush',
+      summary: "retention_flush completed " + actual_counts.to_a.map { |k, v| "#{k}=#{v}" }.join(' '),
+      data: actual_counts.merge('status' => 'completed')
+    )
+
+    actual_counts
+  end
+
+  # Deletes exactly the given ids, in bounded slices so a large candidate set
+  # (this table has never been cleaned up before, so one could exist) never
+  # builds a single WHERE id IN (...) predicate past Postgres's ~65535
+  # bind-parameter limit. Returns the actual number of rows deleted.
+  def self.delete_by_id_in_slices(klass, ids, slice_size: 1000)
+    ids.each_slice(slice_size).sum { |slice| klass.where(id: slice).delete_all }
   end
   
   def self.flush_board(board_id, key, aggressive_flush=false)
