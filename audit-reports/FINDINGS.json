@@ -3042,7 +3042,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "runtime",
         "source": "Resque::Failure crosstab (klass x error category) via a throwaway lingolinq-diagcheck3 Cloud Run Job, cross-referenced against gcloud logging read on resource.type=cloud_run_worker_pool for lingolinq-worker, 2026-07-03. Superseded an earlier draft of this finding that incorrectly attributed the failures to the worker-pool scale-down transition (Codex review of PR #516 caught the arithmetic - 833 could not be a subset of 740 new failures - and the unverified crosstab claim).",
@@ -3056,6 +3056,11 @@
         "options": "Increase the lingolinq-worker worker-pool's memory limit (gcloud beta run worker-pools update lingolinq-worker --memory=1Gi or 2Gi, or the equivalent in the deploy-cloudrun.yml workflow) so forked ButtonImage/BoardDownstreamButtonSet job processes (which shell out to ImageMagick) have enough headroom, then re-verify Resque::Failure.count stops accumulating this error under normal load. Also confirm whether OOM-killed forked children should trigger BoyBand's auto-requeue path (they currently land in Resque::Failure, not requeue) since they are not the Resque::TermException case PR #473 already covers.",
         "timeframe": "15-30d"
       },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "Code-remediated on scot/fix/worker-pool-oom-sigv4: added `--memory 2Gi` to the `gcloud beta run worker-pools deploy lingolinq-worker` step in .github/workflows/deploy-cloudrun.yml (matching the web service's existing --memory 2Gi), matching the OOM-kill-count evidence exactly. Not yet live-verified: requires a redeploy of lingolinq-worker and a follow-up gcloud logging read / Resque::Failure crosstab confirming OOM events and SIGKILL/SIGSEGV failures stop accumulating. The separate open question (whether OOM-killed forked children should trigger BoyBand auto-requeue) is unaddressed and remains for a future finding if OOM still recurs at 2Gi under peak load.",
+        "attestation": ""
+      },
       "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from LL-705b10bcd7 (S3 SigV4/KMS, a separate root cause on a subset of the same BoardDownstreamButtonSet failures) and LL-5954bcbbe6 (pre-existing ImageMagick/job_stash/stale-method failures, different root causes). Directly relevant to the Phase 5 cutover runbook (scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md): this is independent of the worker-pool scale-up/scale-down operation performed earlier in the same rehearsal, and would recur under normal single-instance steady-state load even without any manual scaling."
     },
     {
@@ -3067,7 +3072,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "runtime",
         "source": "Resque::Failure diagnostics via a throwaway lingolinq-diagcheck2 Cloud Run Job (rails runner, cloned from lingolinq-web's image/SA/VPC/Cloud SQL/secrets), 2026-07-03",
@@ -3081,6 +3086,11 @@
         "options": "Codex review of PR #516 correctly caught two rounds of an inaccurate fix here: first, that the original remediation (bump signature_version on an Aws::S3::Client) targets a client this code path never uses; second, that the corrected suggestion (Aws::S3::Presigner#presigned_post) names a method that doesn't exist on the installed aws-sdk-s3 1.219.0 - Presigner only exposes presigned_url/presigned_request. POST-policy signing lives on the separate Aws::S3::PresignedPost class (lib/aws-sdk-s3/presigned_post.rb), normally reached via the Aws::S3::Bucket resource's presigned_post(options) method (lib/aws-sdk-s3/customizations/bucket.rb:126-133), which builds one from the client's credentials/region/bucket name. Replace the handcrafted SigV2 POST policy in Uploader.remote_upload_params (lib/uploader.rb:293-336) with a PresignedPost built this way (either via Aws::S3::Resource.new(...).bucket(name).presigned_post(...) or Aws::S3::PresignedPost.new(credentials, region, bucket_name, options) directly) - it produces the same browser-postable form-field shape (key/policy/x-amz-* fields) but signed AWS4-HMAC-SHA256, satisfying the KMS-SSE bucket's SigV4 requirement. Verify against the bucket's policy that SSE-KMS enforcement is intended, then re-run the affected board's button-set update and confirm Resque::Failure stops accumulating this error.",
         "timeframe": "15-30d"
       },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "Code-remediated on scot/fix/worker-pool-oom-sigv4: Uploader.remote_upload_params (lib/uploader.rb:293-336, formerly hand-signed SigV2) rewritten to build an Aws::S3::PresignedPost(credentials, region, bucket_name, key:, content_type:, content_length_range:, success_action_status:, acl:) directly, producing an AWS4-HMAC-SHA256-signed POST policy (x-amz-credential/x-amz-algorithm/x-amz-date/x-amz-signature fields) that satisfies SSE-KMS buckets' SigV4 requirement, exactly matching the remediation option's guidance (Aws::S3::PresignedPost, not the nonexistent Presigner#presigned_post). upload_url now returns the PresignedPost's own regional bucket endpoint (with trailing slash preserved for callers that concatenate upload_url + key) instead of the static global s3.amazonaws.com host, since SigV4's credential scope is region-bound. spec/lib/uploader_spec.rb and spec/models/concerns/uploadable_spec.rb updated to assert the new SigV4 field/URL shape; full uploader/uploadable/button_sound/beta_feedback_recording/extra_data spec suites green except two pre-existing unrelated test-DB-pollution failures (ButtonImage.count inflated by orphaned committed rows; an unrelated GoSecure OpenSSL 'bad decrypt' on cached_copy, reproduces in isolation on main). Not yet live-verified: requires redeploying the rehearsal image and confirming Resque::Failure stops accumulating the KMS-SSE SigV4 error on the next BoardDownstreamButtonSet run, plus a bucket-policy check that SSE-KMS enforcement on this bucket is actually intended.",
+        "attestation": ""
+      },
       "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. A production data path (board downstream button-set caching, the 'find a button' feature's backing data) is silently failing to persist to S3 on this rehearsal stack."
     },
     {
@@ -3092,7 +3102,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "runtime",
         "source": "Resque::Failure diagnostics via a throwaway lingolinq-diagcheck2 Cloud Run Job (rails runner, cloned from lingolinq-web's image/SA/VPC/Cloud SQL/secrets), 2026-07-03",
@@ -3105,6 +3115,11 @@
       "remediation": {
         "options": "(a) Confirm ImageMagick's identify binary is installed and on PATH in the Cloud Run web/worker container image (Dockerfile/base image audit) - this affects any ButtonImage upload_to_remote job. (b) Investigate the job_stash lookup failures in Board#update_setting - confirm whether the stash keys (1_1/1_2/1_3) were ever written or expired before the job ran. (c) Board:update_privacy - confirm whether this method was intentionally removed/renamed and whether any current code path can still enqueue a job calling it; if so, that enqueue site needs fixing, not just the failed job.",
         "timeframe": "30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "Partially code-remediated on scot/fix/worker-pool-oom-sigv4, root-cause (a) confirmed and fixed: the Cloud Run image's Dockerfile apt-get list (final `ruby:3.4.4-slim` stage) never installed imagemagick or ghostscript, confirming the 16 'No such file or directory - identify' failures - `identify` is shelled out directly in app/models/concerns/uploadable.rb:275 (`identify -verbose #{file.path}`) and `convert` in lib/sentence_pic.rb:43/45. Added `imagemagick` and `ghostscript` (ImageMagick's PDF/PS delegate) to the Dockerfile's apt-get install list; web and worker share this one Dockerfile so both are fixed by the same change. (b) and (c) investigated, not code bugs: Board:update_privacy IS present in current code (app/models/board.rb:2700), so the 1 'method not found' failure was version skew during that day's deploy, not a live gap - no enqueue site needs fixing. The 3 job_stash 'stash not found: 1_1/1_2/1_3' failures reference suspiciously low sequential JobStash global_ids consistent with a freshly reset/seeded Postgres (this is a clean-DB rehearsal stack, scripts/gcp/PHASE5-CLEAN-DB-REHEARSAL.md) while Resque's Redis-backed queue was NOT cleared across that reset - i.e. stale retry jobs (Processable#update_setting's ActiveRecord::StaleObjectError retry path, app/models/concerns/processable.rb:86-92) referencing JobStash rows from a prior DB generation. This is a rehearsal-process gap (flush stale Resque queues alongside any DB reset), not an application code bug; JobStash.flush_old_records only expires rows after 2 weeks so ordinary TTL expiry doesn't explain it. Not yet live-verified: requires a redeploy and confirming no new 'identify' failures accumulate under normal ButtonImage upload load.",
+        "attestation": ""
       },
       "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from LL-a95e9c5f7c (OOM-driven SIGKILL failures) and LL-705b10bcd7 (S3 SigV4/KMS)."
     }

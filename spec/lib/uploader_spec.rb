@@ -250,16 +250,29 @@ describe Uploader do
       allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
     end
 
-    it "should generate signed upload parameters" do
+    it "should generate a SigV4-signed upload policy (Aws::S3::PresignedPost)" do
       res = Uploader.remote_upload_params("downloads/file.png", "image/png")
-      expect(res[:upload_url]).to eq(Uploader.remote_upload_config[:upload_url])
+      # bucket-region endpoint, trailing slash preserved for callers that
+      # concatenate upload_url + key to build the final object URL
+      expect(res[:upload_url]).to match(%r{\Ahttps://test-bucket\.s3[.\-][\w-]*\.amazonaws\.com/\z})
       expect(res[:upload_params]).not_to eq(nil)
-      expect(res[:upload_params]['AWSAccessKeyId']).not_to eq(nil)
+      expect(res[:upload_params]['AWSAccessKeyId']).to eq(nil)
+      expect(res[:upload_params]['signature']).to eq(nil)
       expect(res[:upload_params]['Content-Type']).to eq('image/png')
       expect(res[:upload_params]['key']).to eq('downloads/file.png')
       expect(res[:upload_params]['policy']).not_to eq(nil)
-      expect(res[:upload_params]['signature']).not_to eq(nil)
+      expect(res[:upload_params]['x-amz-algorithm']).to eq('AWS4-HMAC-SHA256')
+      expect(res[:upload_params]['x-amz-credential']).to start_with('test_key/')
+      expect(res[:upload_params]['x-amz-signature']).not_to eq(nil)
       expect(res[:upload_params]['success_action_status']).to eq('200')
+    end
+
+    it "should include acl unless private_upload or UPLOADS_S3_NO_ACL is set" do
+      res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+      expect(res[:upload_params]['acl']).to eq('public-read')
+
+      res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
+      expect(res[:upload_params]['acl']).to eq(nil)
     end
   end
 
