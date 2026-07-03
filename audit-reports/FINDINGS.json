@@ -910,8 +910,8 @@
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "27d331e2707787a6147cdbe60203d877a190301d",
+        "verifierNote": "Fix landed on scot/security/license-external-reference-leak (commit 27d331e27, not yet merged to staging): lib/json_api/license.rb no longer serializes external_reference at all (removed rather than gated, since a grep confirmed zero frontend consumers of the field and JsonApi::License has no permissions-hash pattern to gate against). Covered by new spec/lib/json_api/license_spec.rb (unclaimed and claimed license cases) plus two updated examples in spec/models/license_spec.rb that previously asserted the leaky behavior. 13 examples, 0 failures. Codex senior-dev review (review-pr) additionally checked for a stale cached_json_response path on License (none exists) and found no other consumers; no findings raised.",
         "attestation": ""
       },
       "notes": "Verified still open 2026-06-12: external_reference (PO number / Stripe id) always serialized (json_api/license.rb:16).",
