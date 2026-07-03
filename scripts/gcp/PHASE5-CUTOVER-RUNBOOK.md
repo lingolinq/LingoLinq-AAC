@@ -745,12 +745,49 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       handshake (`lingolinq-redischeck-zsq74`, 22:38 UTC, PONG over `rediss://`); Step 3a schema
       load (`lingolinq-migrate-cleandb-ss6m8`, `gcp:guarded_schema_load`, 22:46 UTC); Step 3b seed
       (`lingolinq-migrate-cleandb-kzqkk`, `db:seed`, 23:16 UTC, 29m35s incl. the full Moby word
-      import); admin **login** confirmed working 2026-06-30 (per session notes). **NOT confirmed by
-      any evidence found (2026-07-02 sweep of Cloud Run logs for both `lingolinq-web` and
-      `lingolinq-worker` in the 2026-06-29/30 window turned up nothing beyond CSP-report noise):**
-      an explicit **board-open** smoke test (distinct from seeing boards listed in the dashboard),
-      **S3 read**, **SES send**, and **Resque enqueue/process**. Run these four before checking this
+      import); admin **login** confirmed working 2026-06-30 (per session notes).
+      **Confirmed live 2026-07-02/03 (five-path re-run against the rehearsal stack):** admin
+      **login** (after a one-off password reset via a throwaway Cloud Run Job - self-service
+      password change is still broken by the known `valet_login` boolean-coercion bug, fixed in
+      PR #506 but not yet deployed to this rehearsal's image
+      `web:ccbdb5e21f764754662a42471206fb745854028c`); **board load** rendered fully with 50+
+      buttons; **S3 read** returned real 200s from `lingolinq-prod-static` and `opensymbols`.
+      **Resque enqueue/process - still open, do not check this box for it.** The
+      `lingolinq-worker` pool's ~24,842-job `queue:default` backlog (leftover
+      `WordData#assert_priority` from the 2026-06-29 Moby seed import, not a bug) was drained by a
+      temporary scale to 8 instances (`gcloud beta run worker-pools update lingolinq-worker
+      --instances=8`, ~6.6 jobs/sec); the pool has since correctly scaled back down to
+      `manualInstanceCount: 1` (verified live via `gcloud beta run worker-pools describe
+      lingolinq-worker`, 2026-07-03). But the queue was **not yet empty** at last check: `603`
+      jobs remained in `queue:default` + `130` in `queue:slow`, and the head of `queue:default`
+      is now legitimate fresh `ButtonImage#upload_to_remote` work rather than the old WordData
+      backlog - so the diagnosed backlog issue is resolved, but queue depth is nonzero and end-to-
+      end completion of our own test job (`Board#check_for_parts_of_speech_and_inflections` on
+      board id 7) could not be confirmed: `board.updated_at` for board 7 is still
+      `2026-06-30 21:49:48 UTC` (predates this session), and that method only saves (touching
+      `updated_at`) when it actually changes something, so a quiet timestamp is inconclusive, not
+      a fail. **New finding, distinct from the backlog, not yet in the findings register:**
+      `Resque::Failure.count == 174` as of 2026-07-03; every sampled entry is dated 2026-06-29
+      (pre-existing, not caused by the recent scale-to-8 event), in two failure modes: (a)
+      `ButtonImage#perform_action(upload_to_remote)` failing `"No such file or directory -
+      identify"` - ImageMagick's `identify` binary appears missing or misconfigured in the Cloud
+      Run `web`/`worker` image; (b) `Board#perform_action(update_setting, "job_stash", ...)`
+      failing `"stash not found: 1_1"` / `1_2` / `1_3`. Needs root-cause investigation before this
+      environment is customer-facing.
+      **SES send - still open, do not check this box for it, and now more concerning than
+      "UI-confirmed only."** A `gcloud logging read` sweep of both `lingolinq-web` and
+      `lingolinq-worker` for any `mail`/`SES`/`ActionMailer`-matching log line in the trailing 12h
+      (2026-07-03) returned zero results. This is not a logging blind spot: the identical sweep
+      pattern against ordinary request logs on `lingolinq-web` in the same window returned normal
+      `rack-timeout` / `Completed 200 OK` lines, confirming Cloud Logging captures this service's
+      STDOUT correctly. So the "Email sent!" 200 OK the UI showed has zero corroborating
+      server-side delivery evidence. Needs a targeted resend plus an explicit ActionMailer
+      delivery-log check (or SES send-receipt check) before this path can be marked green.
+      Run these two (Resque job completion + SES server-side confirmation) before checking this
       box - the five-path definition at line 62/107 is not optional partial credit.
+      **Known housekeeping (not a 0a blocker, but a cutover blocker):** `lingolinq_admin`'s
+      password is currently the plaintext test value set during the manual reset above - must be
+      rotated to a real secret (1Password) before this environment is customer-facing.
 - [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
       above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
       the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
