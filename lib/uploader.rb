@@ -325,8 +325,16 @@ module Uploader
       # remote_remove) -- expects this exact global form, not a regional one.
       # post_url is the actual SigV4 POST target: it MUST be the bucket's real
       # regional endpoint, since the presigned policy's credential scope is
-      # bound to that region and posting cross-region would depend on 307
-      # redirect-following (which Typhoeus/browsers don't reliably do for POST).
+      # bound to that region. Deliberately NOT relying on the global endpoint's
+      # cross-region 307 redirect for this (AWS's own guidance: many HTTP
+      # clients handle non-GET redirects incorrectly, and regions launched
+      # after 2019-03-20 get a hard 400 instead of a redirect at all).
+      # Known limitation: a browser tab with the frontend already loaded before
+      # this field was introduced will still POST to upload_url (global) with a
+      # region-bound signature, which can fail during the deploy window. Not
+      # fixed here: zero real users on any environment as of this writing
+      # (staging-only pre-MVP), and the failure is self-healing on next page
+      # load. Revisit before real users land on a rolling-deploy environment.
       :upload_url => config[:upload_url],
       :post_url => "#{post.url}/",
       :upload_params => post.fields
