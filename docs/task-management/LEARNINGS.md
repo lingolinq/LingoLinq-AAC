@@ -5901,3 +5901,17 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   `.md-org-stats__grid` (org dashboard): base was flex, but 820px/550px media queries + the
   `--wide` modifier all assumed grid. Check the base display before writing NEW responsive
   rules — the ones you want may already exist. (2026-07-01)
+
+- The `/setup` route is DUAL-PURPOSE — don't delete it wholesale. It serves (1) first-run
+  ONBOARDING (Getting Started wizard, `mode:'critical'` / `page:'board_category'`) AND (2)
+  BOARD/COMMUNICATOR setup (`board-actions.js:112` symbol-layout editor `page:'symbols'`; and
+  supervisors/org-admins "set up a communicator's board" from caseload/org-people/user-index/
+  switch-communicators). Only #1 is being replaced by the Shepherd home tour + the standalone
+  `board-picker` route (`router.js:140`, decoupled from setup). Full map:
+  docs/task-management/2026-07-02-setup-pages-deprecation-map.md. Two gotchas found: (a) there are
+  TWO terms-agree files — the live modal `components/terms-agree.js:31` ALWAYS routes to setup and
+  ignores the `home_tour` flag, while the stale `controllers/terms-agree.js:25-46` has the correct
+  flag branch (ON → home+tour, OFF → setup); that mismatch is why a terms-needing login lands in the
+  old wizard even with `home_tour` enabled. (b) `progress.setup_done` is written ONLY by the wizard
+  (`getting-started.js:75`) and read only by setup/dashboard/`routes/index.js:104` — so repurposing
+  it for "tour done" means wiring the tour's completion to set it. (2026-07-02)

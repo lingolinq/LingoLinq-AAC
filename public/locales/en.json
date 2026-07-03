@@ -958,6 +958,8 @@
   "change_home_board": "Change Home Board",
   "set_home_board": "Set Home Board",
   "loading_board": "Loading board...",
+  "loading_your_board": "Loading your board...",
+  "board_still_preparing": "Your board is still being set up. Please try again in a moment.",
   "confirmation_resent": "Confirmation email sent, please check your spam box if you can't find it!",
   "confirmation_resend_failed": "There was an unexpected error requesting a confirmation email.",
   "subscription_error": "There was an error checking status on the users's subscription",

@@ -6,6 +6,8 @@ import { scheduleOnce, later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
+import modal from '../utils/modal';
+import boardDetailCache from '../utils/board_detail_cache';
 
 // Tracks which in-body tour-action buttons already have their click handler, so
 // re-shows of the SAME element don't double-bind. A WeakSet (keyed on the element,
@@ -176,6 +178,13 @@ function _onTourStepShow() {
           else if (spec === 'next') { tour.next(); }
           else if (spec === 'complete') { tour.complete(); }
           else if (spec === 'cancel') { tour.cancel(); }
+          else if (spec === 'speak') {
+            // Home-tour "I'd like to start speaking" — route to the user's own
+            // board copy in speak mode (see _startSpeakingHandoff on the component,
+            // reached via the tourObject bridge set in _startTour).
+            var comp = tour && tour._llGuidedTour;
+            if (comp && typeof comp._startSpeakingHandoff === 'function') { comp._startSpeakingHandoff(); }
+          }
         });
       });
     }
@@ -255,6 +264,7 @@ export default Component.extend({
   app_state: alias('appState'),
   tour: service('tour'),
   router: service('router'),
+  persistence: service('persistence'),
 
   // The dashboard layout actually in effect — mirrors
   // dashboard/authenticated-view's effectiveLayout (default 'gentle'; any
@@ -554,21 +564,101 @@ export default Component.extend({
   _scheduleAutoOpen: function() {
     var _this = this;
     scheduleOnce('afterRender', this, function() {
-      // Hand the user off to the critical-mode wizard so the remaining
-      // must-have step (home board pick) still happens, regardless of how the
-      // tour ended. Starting page is `board_category` — first entry in setup.js
-      // `critical_order`.
+      // After the home tour ends (any way it ends), hand the user off to the
+      // standalone board-picker so the remaining must-have step (home board pick)
+      // still happens. board-picker is the dedicated communicator board-setup
+      // page — intentionally decoupled from the legacy setup wizard, and the same
+      // target the tour's "choose my board" skip path uses (see below).
       var handoff = function() {
-        _this.router.transitionTo('setup', {
-          queryParams: { mode: 'critical', page: 'board_category' }
-        });
+        _this.router.transitionTo('board-picker');
       };
       // If the current page/layout has no tour (e.g. a newly-registered user on
       // the default Focused View, whose tour isn't built yet), skip the tour but
-      // STILL run the handoff so registration's wizard step is never lost.
+      // STILL run the handoff so the home-board pick is never lost.
       if (!_this.get('tourBuilder')) { handoff(); return; }
       _this._startTour({ afterComplete: handoff });
     });
+  },
+
+  // Set true when the home-tour "I'd like to start speaking" button takes over the
+  // tour end, so the guarded board-picker hand-offs (afterComplete/firstTimeNav in
+  // _startTour) skip and we route to the board instead.
+  _speakHandoffActive: false,
+
+  // Home-tour "I'd like to start speaking / Pick a board (page-set) for me" hand-off.
+  // Routes the user to THEIR OWN copy of Vocal Flair 84 — copied into their library
+  // at registration, at the predictable key `<user_name>/vocal-flair-84` — opened on
+  // board-detail in SPEAK mode, with the speak tour auto-opening there.
+  //
+  // Option B — CHECK + WAIT, never initiate: the copy is scheduled asynchronously at
+  // registration, so it may not exist yet. We poll the board's /tree by key (a plain
+  // read — no copy is triggered here) until it resolves, then route. All runtime (no
+  // build-time state), so it behaves identically on deployment.
+  //
+  // The poll uses the SAME /tree endpoint the board-detail route uses, and ingests
+  // the response (root + descendants) into boardDetailCache + the Ember Data store.
+  // So the poll IS the board load: when we then route, the model hook is a pure cache
+  // HIT — no redundant second network fetch — and every folder tap is already warm.
+  // /tree doubles as the existence check: until the copy materializes it 404s (→
+  // ingest_tree returns false / the request rejects) and we keep polling.
+  _startSpeakingHandoff: function() {
+    var _this = this;
+    var appState = _this.get('appState');
+    var user = appState.get('currentUser');
+    var userName = user && user.get('user_name');
+    if (!userName) { return; }
+    var boardname = 'vocal-flair-84';
+    var key = userName + '/' + boardname;
+    var warm_opts = {
+      skin: user.get('preferences.skin'),
+      preferred_symbols: user.get('preferences.preferred_symbols')
+    };
+    // Take over the tour end (suppress the default board-picker hand-off), then
+    // close the tour.
+    _this.set('_speakHandoffActive', true);
+    try {
+      var to = _this.get('tour.tourObject');
+      if (to && typeof to.cancel === 'function') { to.cancel(); }
+    } catch (e) { /* best-effort */ }
+    appState.show_loading_overlay(i18n.t('loading_your_board', "Loading your board..."));
+    var attempts = 0;
+    var MAX_ATTEMPTS = 30; // ~30s at 1s intervals — long enough for a fresh copy
+    var go = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      // Flag the board-detail SPEAK tour to auto-open once we land on THIS board
+      // (runtime hand-off flag; the board-detail route hides the overlay on load).
+      appState.set('board_detail_tour_pending_speak', key);
+      var t = _this.get('router').transitionTo('user.board-detail', userName, boardname);
+      if (t && typeof t.catch === 'function') {
+        t.catch(function() { appState.hide_loading_overlay(); });
+      }
+    };
+    var retry = function() {
+      attempts++;
+      if (attempts >= MAX_ATTEMPTS) {
+        appState.hide_loading_overlay();
+        try { modal.error(i18n.t('board_still_preparing', "Your board is still being set up. Please try again in a moment.")); } catch (e) { /* noop */ }
+        return;
+      }
+      runLater(_this, check, 1000);
+    };
+    var check = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      // CHECK + PRIME — a plain GET of the owned copy's /tree by key. Does NOT
+      // initiate a copy. On success, prime the board-detail cache so the route
+      // is a cache hit; if the copy hasn't materialized, ingest_tree returns
+      // false (no usable root) and we keep polling.
+      _this.get('persistence').ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
+        if (boardDetailCache.ingest_tree(data, warm_opts)) {
+          go();
+        } else {
+          retry();
+        }
+      }, function() {
+        retry();
+      });
+    };
+    check();
   },
 
   // Board-detail edit auto-open. Unlike the home auto-open there's NO handoff —
@@ -723,6 +813,10 @@ export default Component.extend({
       // method-triggered events (back, next) but NOT shepherd-native lifecycle
       // events (complete, cancel) — wire those on the underlying Tour directly.
       if (tour.tourObject) {
+        // Bridge: expose this component to the module-level _onTourStepShow
+        // dispatch (which only sees the Shepherd step/tour, not the component) so a
+        // tour body button can drive component-level actions — the 'speak' hand-off.
+        tour.tourObject._llGuidedTour = _this;
         // Fade the OUTGOING card out on hide. Shepherd snaps a step away via the
         // `hidden` attribute; CSS keeps it rendered (app.scss `[hidden]` rule) and
         // this fades its opacity inline (inline beats the cascade reliably). With
@@ -783,13 +877,24 @@ export default Component.extend({
         tour.tourObject.on('cancel', function() { _this._unlockTourScroll(); });
       }
       if (options.afterComplete && tour.tourObject) {
-        // Auto-open handoff (critical-mode setup) — fire however the tour ends.
-        tour.tourObject.on('complete', options.afterComplete);
-        tour.tourObject.on('cancel', options.afterComplete);
+        // Auto-open handoff (critical-mode setup) — fire however the tour ends,
+        // UNLESS the "start speaking" body button took over (it routes to the
+        // user's board in speak mode instead of the board picker; _startSpeakingHandoff
+        // sets _speakHandoffActive before cancelling the tour).
+        var afterCompleteGuarded = function() {
+          if (_this.get('_speakHandoffActive')) { return; }
+          options.afterComplete();
+        };
+        tour.tourObject.on('complete', afterCompleteGuarded);
+        tour.tourObject.on('cancel', afterCompleteGuarded);
       } else if (firstTimeNav && tour.tourObject) {
         // Manual first-time finish — hand off to the board picker on FINISH only
-        // (not on skip/close).
-        tour.tourObject.on('complete', firstTimeNav);
+        // (not on skip/close), and not when "start speaking" took over.
+        var firstTimeNavGuarded = function() {
+          if (_this.get('_speakHandoffActive')) { return; }
+          firstTimeNav();
+        };
+        tour.tourObject.on('complete', firstTimeNavGuarded);
       }
       _this._lockTourScroll();
       tour.start();

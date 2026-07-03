@@ -350,6 +350,19 @@ function _collect_linked_lookups(raw) {
 
 export default {
   normalize_board_payload: normalize_board_payload,
+
+  // Ingest a /api/v1/boards/:id/tree response (root + descendants) into the
+  // cache AND the Ember Data store, exactly as the route's own model hook and
+  // the prefetch pipeline do. Callers that fetch a tree ahead of navigation
+  // (e.g. the guided-tour speak handoff waiting for a freshly-copied board)
+  // use this to prime the cache so the subsequent board-detail transition is
+  // a pure cache HIT — no second network load, descendants already warm.
+  // Returns true when the root was ingested, false when the payload has no
+  // usable root (board not materialized yet), so the caller can keep polling.
+  ingest_tree: function(data, warm_opts, options) {
+    return _ingest_tree_response(this, data, warm_opts, options);
+  },
+
   // Returns the cached raw board JSON, or null if missing/stale.
   get: function(key_or_id) {
     var entry = _lookup(key_or_id);

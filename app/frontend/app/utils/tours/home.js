@@ -160,8 +160,9 @@ function welcomeStep() {
     '<div class="md-tour__or" aria-hidden="true"><span class="md-tour__or-text md-hero__gradient-text">' + i18n.t('home_tour_or', "OR") + '</span></div>' +
     tourBodyButton(
       i18n.t('home_tour_welcome_start_speaking', "I'd like to <span class=\"md-hero__gradient-text\">start speaking</span><br>Pick a board (page-set) for me"),
-      // Not wired yet: `speak` has no dispatch handler in guided-tour.js, so this
-      // button is intentionally a no-op for now (destination TBD).
+      // `speak` dispatch: guided-tour.js routes to the user's OWN Vocal Flair 84
+      // copy (`<user_name>/vocal-flair-84`, copied at registration) in board-detail
+      // SPEAK mode, polling until the copy is ready first (see _startSpeakingHandoff).
       'speak'
     ),
     // --welcome carries an extra class so ONLY the first (welcome) page can be

@@ -2801,7 +2801,12 @@ export default Service.extend({
         this.set('full_screen_capable', capabilities.fullscreen_capable());
         if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro')) {
           var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
-          if(!intro && !this.get('speak-mode-intro')) {
+          // Stand down when a board-detail SPEAK tour is pending/handing off (home
+          // tour "start speaking" button, board picker, board-preview overlay): the
+          // guided tour IS the speak-mode intro, so the legacy modal would otherwise
+          // race it and render dimmed behind the tour card. The tour clears the flag
+          // once it opens, after which normal (no-tour) entry shows the modal again.
+          if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
             if(modal.route && !modal.is_open('speak-mode-intro')) {
               modal.open('speak-mode-intro');
             }
