@@ -65,7 +65,7 @@ module Uploader
     post_params[:file] = File.open(local_path, 'rb')
 
     # upload to s3 from tempfile
-    res = Typhoeus.post(params[:upload_url], body: post_params)
+    res = Typhoeus.post(params[:post_url], body: post_params)
     if res.success?
       return {url: params[:upload_url] + remote_path, path: remote_path, uploaded: true}
     else
@@ -290,49 +290,55 @@ module Uploader
     nil
   end
   
+  # SigV4-signed browser POST policy (via Aws::S3::PresignedPost). A hand-signed
+  # SigV2 policy (AWSAccessKeyId + HMAC-SHA1) can't satisfy buckets that require
+  # SSE-KMS ("Requests specifying Server Side Encryption with AWS KMS managed
+  # keys require AWS Signature Version 4") -- see LL-705b10bcd7.
   def self.remote_upload_params(remote_path, content_type, max_bytes: CONTENT_LENGTH_RANGE, private_upload: false)
     config = remote_upload_config
-    
-    res = {
-      :upload_url => config[:upload_url],
-      :upload_params => {
-        'AWSAccessKeyId' => config[:access_key]
-      }
-    }
-    
-    conditions = [
-      {'key' => remote_path},
-      ['content-length-range', 1, max_bytes],
-      {'bucket' => config[:bucket_name]},
-      {'success_action_status' => '200'},
-      {'content-type' => content_type}
-    ]
     use_acl = !private_upload && !ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
-    conditions.insert(1, {'acl' => 'public-read'}) if use_acl
 
-    policy = {
-      'expiration' => (S3_EXPIRATION_TIME).seconds.from_now.utc.iso8601,
-      'conditions' => conditions
+    post_options = {
+      key: remote_path,
+      content_type: content_type,
+      content_length_range: 1..max_bytes,
+      success_action_status: '200',
+      signature_expiration: S3_EXPIRATION_TIME.seconds.from_now
     }
-    # TODO: for pdfs, policy['conditions'] << {'content-disposition' => 'inline'}
+    post_options[:acl] = 'public-read' if use_acl
+    # TODO: for pdfs, post_options[:content_disposition] = 'inline'
 
-    policy_encoded = Base64.encode64(policy.to_json).gsub(/\n/, '')
-    signature = Base64.encode64(
-      OpenSSL::HMAC.digest(
-        OpenSSL::Digest.new('sha1'), config[:secret], policy_encoded
-      )
-    ).gsub(/\n/, '')
+    post = Aws::S3::PresignedPost.new(
+      Aws::Credentials.new(config[:access_key], config[:secret]),
+      s3_region,
+      config[:bucket_name],
+      post_options
+    )
 
-    upload_params = {
-       'key' => remote_path,
-       'policy' => policy_encoded,
-       'signature' => signature,
-       'Content-Type' => content_type,
-       'success_action_status' => '200'
+    {
+      # upload_url stays the static global-style endpoint (unchanged from the old
+      # SigV2 shape): every consumer that builds/matches a final object URL by
+      # concatenating upload_url + key (Uploader.remote_upload, uploadable.rb,
+      # media_object.rb, button_sound.rb, the *_controller.rb upload_success
+      # actions) -- and every helper that pattern-matches a stored self.url
+      # against it (valid_import_bundle_url?, removable_remote_url?, fronted_url,
+      # remote_remove) -- expects this exact global form, not a regional one.
+      # post_url is the actual SigV4 POST target: it MUST be the bucket's real
+      # regional endpoint, since the presigned policy's credential scope is
+      # bound to that region. Deliberately NOT relying on the global endpoint's
+      # cross-region 307 redirect for this (AWS's own guidance: many HTTP
+      # clients handle non-GET redirects incorrectly, and regions launched
+      # after 2019-03-20 get a hard 400 instead of a redirect at all).
+      # Known limitation: a browser tab with the frontend already loaded before
+      # this field was introduced will still POST to upload_url (global) with a
+      # region-bound signature, which can fail during the deploy window. Not
+      # fixed here: zero real users on any environment as of this writing
+      # (staging-only pre-MVP), and the failure is self-healing on next page
+      # load. Revisit before real users land on a rolling-deploy environment.
+      :upload_url => config[:upload_url],
+      :post_url => "#{post.url}/",
+      :upload_params => post.fields
     }
-    upload_params['acl'] = 'public-read' if use_acl
-    res[:upload_params].merge!(upload_params)
-    res
   end
   
   def self.remote_upload_config

@@ -248,6 +248,7 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --instances 1 \
+            --memory 2Gi \
             --command bin/docker-worker-entrypoint \
             --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
             --network "${{ vars.GCP_VPC_NETWORK }}" \
