@@ -766,14 +766,7 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       board id 7) could not be confirmed: `board.updated_at` for board 7 is still
       `2026-06-30 21:49:48 UTC` (predates this session), and that method only saves (touching
       `updated_at`) when it actually changes something, so a quiet timestamp is inconclusive, not
-      a fail. **New finding, distinct from the backlog, not yet in the findings register:**
-      `Resque::Failure.count == 174` as of 2026-07-03; every sampled entry is dated 2026-06-29
-      (pre-existing, not caused by the recent scale-to-8 event), in two failure modes: (a)
-      `ButtonImage#perform_action(upload_to_remote)` failing `"No such file or directory -
-      identify"` - ImageMagick's `identify` binary appears missing or misconfigured in the Cloud
-      Run `web`/`worker` image; (b) `Board#perform_action(update_setting, "job_stash", ...)`
-      failing `"stash not found: 1_1"` / `1_2` / `1_3`. Needs root-cause investigation before this
-      environment is customer-facing.
+      a fail.
       **SES send - still open, do not check this box for it, and now more concerning than
       "UI-confirmed only."** A `gcloud logging read` sweep of both `lingolinq-web` and
       `lingolinq-worker` for any `mail`/`SES`/`ActionMailer`-matching log line in the trailing 12h
@@ -785,9 +778,22 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       delivery-log check (or SES send-receipt check) before this path can be marked green.
       Run these two (Resque job completion + SES server-side confirmation) before checking this
       box - the five-path definition at line 62/107 is not optional partial credit.
-      **Known housekeeping (not a 0a blocker, but a cutover blocker):** `lingolinq_admin`'s
-      password is currently the plaintext test value set during the manual reset above - must be
-      rotated to a real secret (1Password) before this environment is customer-facing.
+- [ ] **Pre-existing Resque failure backlog root-caused and cleared - separate gate from 0a, do
+      NOT treat as satisfied just because the 0a Resque smoke-test box above gets checked.**
+      New finding, not yet in the findings register: `Resque::Failure.count == 174` as of
+      2026-07-03; every sampled entry is dated 2026-06-29 (pre-existing, not caused by the recent
+      scale-to-8 event), in two failure modes: (a) `ButtonImage#perform_action(upload_to_remote)`
+      failing `"No such file or directory - identify"` - ImageMagick's `identify` binary appears
+      missing or misconfigured in the Cloud Run `web`/`worker` image; (b)
+      `Board#perform_action(update_setting, "job_stash", ...)` failing `"stash not found: 1_1"` /
+      `1_2` / `1_3`. Needs root-cause investigation and re-verification
+      (`Resque::Failure.count == 0` or an explained/accepted residual) before this environment is
+      customer-facing.
+- [ ] **`lingolinq_admin` test password rotated to a real secret - separate gate from 0a, do NOT
+      treat as satisfied just because the 0a login box above is checked.** Currently the plaintext
+      test value (`password1`) set during the manual reset performed for the 0a login smoke test.
+      Rotate via 1Password and confirm the new credential works before this environment is
+      customer-facing.
 - [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
       above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
       the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
