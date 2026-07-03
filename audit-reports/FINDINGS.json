@@ -3005,6 +3005,33 @@
         "promotedDate": "2026-06-23"
       },
       "notes": "Promoted from claude-compliance-officer review on 2026-06-23. bin/audit_console is the documented audited-console wrapper (CLAUDE.md Security section: console access audited via AuditEvent). It still shells to the Heroku CLI (heroku auth:whoami; heroku run -a lingolinq). LingoLinq runs on Render and the legacy Heroku app is gone, so the wrapper cannot attach a console in the live environment and the per-session AuditEvent it is meant to record is not produced on Render. Net effect: the audited-console control is not operative on the current platform; privileged console access to a system holding regulated student/patient data is not captured by this path. Code/path evidence only."
+    },
+    {
+      "id": "LL-5d7197fa7d",
+      "ruleKey": "papertrail-stale-item-type-retention-undecided",
+      "title": "PaperTrail versions with unconstantizable item_type are detected but retention disposition is undecided",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/flusher.rb",
+        "line": 116,
+        "snippet": "docs/legal/DATA_RETENTION.md:30, authentication/audit-trail paper_trail",
+        "sha": "84f573b34cba5c4212f4e0948abf92a20335609c"
+      },
+      "firstSeen": "2026-07-02",
+      "lastSeen": "2026-07-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Flusher.flush_leftovers now detects and counts PaperTrail::Version rows whose item_type no longer constantizes to a live model class, but deliberately does not delete them: DATA_RETENTION.md:30 requires 6-year retention with cold-storage archival for authentication/audit-trail paper_trail versions (User/Board/LogSession), and an unconstantizable item_type only proves the class was renamed/removed (this app is itself a rename of CoughDrop/SweetSuite), not that the audit evidence is disposable. Needs a real decision: (a) confirm which stale item_types are true dead weight vs. pre-rename aliases of a live model that should be treated as that model, (b) build actual cold-storage archival before any of these rows are ever deleted, per the existing retention schedule.",
+        "timeframe": "60d"
+      },
+      "notes": "Filed per Codex PR review of the LL-991d259b2a flush_leftovers implementation (PR branch scot/compliance/flush-leftovers-retention): the original approach would have deleted these rows outright; changed to report-only pending this decision."
     }
   ]
 }

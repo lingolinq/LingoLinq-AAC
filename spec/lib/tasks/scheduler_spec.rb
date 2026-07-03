@@ -28,6 +28,7 @@ describe 'scheduler:dispatch rake task' do
     allow(Flusher).to receive(:flush_deleted_users).and_return(0)
     allow(Utterance).to receive(:clear_old_nonces)
     allow(Worker).to receive(:schedule)
+    allow(Worker).to receive(:schedule_for)
     allow(DeletedBoard).to receive(:flush_old_records).and_return(0)
     allow(JobStash).to receive(:flush_old_records)
     allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_return(0)
