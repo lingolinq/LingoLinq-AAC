@@ -231,7 +231,9 @@ describe Uploadable, :type => :model do
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:post) { |url, args|
-        expect(url).to eq(Uploader.remote_upload_config[:upload_url])
+        # SigV4 presigned POSTs target the bucket's regional endpoint, not the
+        # static global "bucket.s3.amazonaws.com" host used by remote_upload_config.
+        expect(url).to match(%r{\Ahttps://#{Regexp.escape(Uploader.remote_upload_config[:bucket_name])}\.s3[.\-][\w-]*\.amazonaws\.com/\z})
       }.and_return(res)
       s.upload_to_remote("http://pic.com/cow.png")
       expect(s.url).not_to eq(nil)
@@ -245,7 +247,9 @@ describe Uploadable, :type => :model do
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:post) { |url, args|
-        expect(url).to eq(Uploader.remote_upload_config[:upload_url])
+        # SigV4 presigned POSTs target the bucket's regional endpoint, not the
+        # static global "bucket.s3.amazonaws.com" host used by remote_upload_config.
+        expect(url).to match(%r{\Ahttps://#{Regexp.escape(Uploader.remote_upload_config[:bucket_name])}\.s3[.\-][\w-]*\.amazonaws\.com/\z})
       }.and_return(res)
 
 

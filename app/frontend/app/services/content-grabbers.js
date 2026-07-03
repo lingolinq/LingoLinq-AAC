@@ -256,7 +256,10 @@ var contentGrabbers = Service.extend({
       }
 
       persistenceService.ajax({
-        url: params.upload_url,
+        // post_url is the SigV4-signed regional S3 endpoint; upload_url is the
+        // canonical global-style object URL other code matches self.url against,
+        // so it can't also be the POST target. Fall back for older cached data.
+        url: params.post_url || params.upload_url,
         type: 'POST',
         data: fd,
         processData: false,  // tell jQuery not to process the data
