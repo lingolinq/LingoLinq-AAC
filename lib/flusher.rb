@@ -141,6 +141,15 @@ module Flusher
     # failure part-way through (one category succeeds, a later one raises) is
     # reflected accurately rather than the permanent audit trail claiming the
     # full planned set was removed.
+    #
+    # NOTE: pluck(:id) materializes each category's full candidate set in memory
+    # before any deletion starts (only the DELETE itself is chunked, by
+    # delete_by_id_in_slices). Accepted tradeoff, not fixed here: this app's real
+    # scale (a single AAC vendor's data, not a hyperscale table) makes an orphan
+    # backlog large enough to threaten worker memory (tens of millions of rows in
+    # one category) implausible even after this job has never run before. A
+    # cursor/find_in_batches rewrite would remove the assumption entirely if that
+    # ever stops being true.
     board_button_image_ids = board_button_image_scope.pluck(:id)
     board_button_sound_ids = board_button_sound_scope.pluck(:id)
     log_session_board_ids = log_session_board_scope.pluck(:id)
@@ -164,12 +173,19 @@ module Flusher
       data: planned_counts.merge('status' => 'planned')
     )
 
+    # Each category is deleted AND recorded immediately, one at a time, rather
+    # than accumulated into a single hash and written in one final AuditEvent.
+    # That way, if a later category (or the very next one) raises, every
+    # category that already finished still has its own durable audit record of
+    # what actually got deleted -- a partial failure can never leave deletions
+    # with zero audit trail, only the not-yet-reached categories are unrecorded
+    # (and undeleted, since they never ran).
     actual_counts = {
-      'board_button_images' => delete_by_id_in_slices(BoardButtonImage, board_button_image_ids),
-      'board_button_sounds' => delete_by_id_in_slices(BoardButtonSound, board_button_sound_ids),
-      'log_session_boards' => delete_by_id_in_slices(LogSessionBoard, log_session_board_ids),
-      'progresses' => delete_by_id_in_slices(Progress, progress_ids),
-      'user_board_connections' => delete_by_id_in_slices(UserBoardConnection, user_board_connection_ids),
+      'board_button_images' => delete_and_record_category('board_button_images', BoardButtonImage, board_button_image_ids),
+      'board_button_sounds' => delete_and_record_category('board_button_sounds', BoardButtonSound, board_button_sound_ids),
+      'log_session_boards' => delete_and_record_category('log_session_boards', LogSessionBoard, log_session_board_ids),
+      'progresses' => delete_and_record_category('progresses', Progress, progress_ids),
+      'user_board_connections' => delete_and_record_category('user_board_connections', UserBoardConnection, user_board_connection_ids),
       # not deleted, see note above -- carried through for visibility only.
       'versions_stale_type_detected_not_deleted' => stale_version_count
     }
@@ -191,6 +207,21 @@ module Flusher
   # bind-parameter limit. Returns the actual number of rows deleted.
   def self.delete_by_id_in_slices(klass, ids, slice_size: 1000)
     ids.each_slice(slice_size).sum { |slice| klass.where(id: slice).delete_all }
+  end
+
+  # Deletes one flush_leftovers category and immediately records its own
+  # AuditEvent, so a category's deletion and its audit record land together --
+  # a later category raising can never leave an EARLIER category's real
+  # deletions with no audit trail at all.
+  def self.delete_and_record_category(category, klass, ids)
+    deleted = delete_by_id_in_slices(klass, ids)
+    AuditEvent.create!(
+      user_key: 'system',
+      event_type: 'retention_flush',
+      summary: "retention_flush category completed #{category}=#{deleted}",
+      data: { 'status' => 'category_completed', 'category' => category, 'count' => deleted }
+    )
+    deleted
   end
   
   def self.flush_board(board_id, key, aggressive_flush=false)
