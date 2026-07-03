@@ -910,7 +910,7 @@
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "27d331e2707787a6147cdbe60203d877a190301d",
+        "sha": "3ee9b3d1f8a5dd5782a24b430f1e82bf20707223",
         "verifierNote": "Fix landed via #517 (merged to staging as e023bd10c): lib/json_api/license.rb no longer serializes external_reference at all (removed rather than gated, since a grep confirmed zero frontend consumers of the field and JsonApi::License has no permissions-hash pattern to gate against). Covered by new spec/lib/json_api/license_spec.rb (unclaimed and claimed license cases) plus two updated examples in spec/models/license_spec.rb that previously asserted the leaky behavior. Follow-up #519 (merged as 3ee9b3d1f) added request specs pinning the actual GET .../licenses and POST .../claim_user HTTP responses, and swept all 12 registered n8n workflows confirming none consume this field. Codex senior-dev review and a Claude adversary pass (verdict: Ship) both ran clean.",
         "attestation": "Scot Wahlquist 2026-07-03: attested verified-closed; external_reference removed from JsonApi::License via #517, hardened with request specs + n8n consumer sweep via #519."
       },
