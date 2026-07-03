@@ -65,7 +65,7 @@ module Uploader
     post_params[:file] = File.open(local_path, 'rb')
 
     # upload to s3 from tempfile
-    res = Typhoeus.post(params[:upload_url], body: post_params)
+    res = Typhoeus.post(params[:post_url], body: post_params)
     if res.success?
       return {url: params[:upload_url] + remote_path, path: remote_path, uploaded: true}
     else
@@ -316,9 +316,19 @@ module Uploader
     )
 
     {
-      # trailing slash preserved: callers concatenate upload_url + key to
-      # build the final object URL (e.g. Uploader.remote_upload, media_object.rb)
-      :upload_url => "#{post.url}/",
+      # upload_url stays the static global-style endpoint (unchanged from the old
+      # SigV2 shape): every consumer that builds/matches a final object URL by
+      # concatenating upload_url + key (Uploader.remote_upload, uploadable.rb,
+      # media_object.rb, button_sound.rb, the *_controller.rb upload_success
+      # actions) -- and every helper that pattern-matches a stored self.url
+      # against it (valid_import_bundle_url?, removable_remote_url?, fronted_url,
+      # remote_remove) -- expects this exact global form, not a regional one.
+      # post_url is the actual SigV4 POST target: it MUST be the bucket's real
+      # regional endpoint, since the presigned policy's credential scope is
+      # bound to that region and posting cross-region would depend on 307
+      # redirect-following (which Typhoeus/browsers don't reliably do for POST).
+      :upload_url => config[:upload_url],
+      :post_url => "#{post.url}/",
       :upload_params => post.fields
     }
   end
