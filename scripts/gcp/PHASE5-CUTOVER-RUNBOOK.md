@@ -764,7 +764,13 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       by Codex review of PR #516 - the arithmetic didn't even add up) and has been corrected. The
       verified crosstab (job class x error, sums to exactly 914): 830 `SIGKILL` + 2 `SIGSEGV`
       across `ButtonImage`/`BoardDownstreamButtonSet`/`User`; 58 `BoardDownstreamButtonSet` S3
-      SigV4/KMS errors (register: `LL-705b10bcd7`); 16 `ButtonImage` ImageMagick-`identify`-missing
+      SigV4/KMS errors, traced to `lib/uploader.rb`'s handcrafted SigV2 POST-policy upload path
+      (`Uploader.remote_upload_params`, lines 293-336 - AWSAccessKeyId + HMAC-SHA1, posted via
+      `Typhoeus.post`, never touching `Aws::S3::Client`) rather than an SDK client config knob
+      (register: `LL-705b10bcd7`, remediation corrected after Codex review of PR #516 caught the
+      original "bump signature_version" fix targeting a client this path doesn't use - the real
+      fix is replacing the handcrafted policy with a SigV4 presigned POST); 16 `ButtonImage`
+      ImageMagick-`identify`-missing
       + 3 `Board` `job_stash` + 1 `Board:update_privacy`-method-not-found, all pre-existing (register:
       `LL-5954bcbbe6`). **The SIGKILL/SIGSEGV failures are NOT clustered around the scale-down
       transition** - an hourly histogram of their `failed_at` timestamps spans 2026-07-03 01h
@@ -816,8 +822,6 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       a real secret risk today since this rehearsal DB has no real user data). Do not write the
       literal value in this or any other repo file going forward. Once testing is done, either
       rotate to a real secret or delete the account before this environment is customer-facing.
-      Rotate via 1Password and confirm the new credential works before this environment is
-      customer-facing.
 - [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
       above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
       the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
