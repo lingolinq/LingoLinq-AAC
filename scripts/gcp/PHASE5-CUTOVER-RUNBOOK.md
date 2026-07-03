@@ -752,41 +752,52 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       PR #506 but not yet deployed to this rehearsal's image
       `web:ccbdb5e21f764754662a42471206fb745854028c`); **board load** rendered fully with 50+
       buttons; **S3 read** returned real 200s from `lingolinq-prod-static` and `opensymbols`.
-      **Resque enqueue/process - still open, do not check this box for it.** The
-      `lingolinq-worker` pool's ~24,842-job `queue:default` backlog (leftover
-      `WordData#assert_priority` from the 2026-06-29 Moby seed import, not a bug) was drained by a
-      temporary scale to 8 instances (`gcloud beta run worker-pools update lingolinq-worker
-      --instances=8`, ~6.6 jobs/sec); the pool has since correctly scaled back down to
-      `manualInstanceCount: 1` (verified live via `gcloud beta run worker-pools describe
-      lingolinq-worker`, 2026-07-03). But the queue was **not yet empty** at last check: `603`
-      jobs remained in `queue:default` + `130` in `queue:slow`, and the head of `queue:default`
-      is now legitimate fresh `ButtonImage#upload_to_remote` work rather than the old WordData
-      backlog - so the diagnosed backlog issue is resolved, but queue depth is nonzero and end-to-
-      end completion of our own test job (`Board#check_for_parts_of_speech_and_inflections` on
-      board id 7) could not be confirmed: `board.updated_at` for board 7 is still
-      `2026-06-30 21:49:48 UTC` (predates this session), and that method only saves (touching
-      `updated_at`) when it actually changes something, so a quiet timestamp is inconclusive, not
-      a fail.
-      **SES send - still open, do not check this box for it, and now more concerning than
-      "UI-confirmed only."** A `gcloud logging read` sweep of both `lingolinq-web` and
-      `lingolinq-worker` for any `mail`/`SES`/`ActionMailer`-matching log line in the trailing 12h
-      (2026-07-03) returned zero results. This is not a logging blind spot: the identical sweep
-      pattern against ordinary request logs on `lingolinq-web` in the same window returned normal
-      `rack-timeout` / `Completed 200 OK` lines, confirming Cloud Logging captures this service's
-      STDOUT correctly. So the "Email sent!" 200 OK the UI showed has zero corroborating
-      server-side delivery evidence. Needs a targeted resend plus an explicit ActionMailer
-      delivery-log check (or SES send-receipt check) before this path can be marked green.
-      Run these two (Resque job completion + SES server-side confirmation) before checking this
-      box - the five-path definition at line 62/107 is not optional partial credit.
-- [ ] **Pre-existing Resque failure backlog root-caused and cleared - separate gate from 0a, do
-      NOT treat as satisfied just because the 0a Resque smoke-test box above gets checked.**
-      New finding, not yet in the findings register: `Resque::Failure.count == 174` as of
-      2026-07-03; every sampled entry is dated 2026-06-29 (pre-existing, not caused by the recent
-      scale-to-8 event), in two failure modes: (a) `ButtonImage#perform_action(upload_to_remote)`
-      failing `"No such file or directory - identify"` - ImageMagick's `identify` binary appears
-      missing or misconfigured in the Cloud Run `web`/`worker` image; (b)
-      `Board#perform_action(update_setting, "job_stash", ...)` failing `"stash not found: 1_1"` /
-      `1_2` / `1_3`. Needs root-cause investigation and re-verification
+      **Resque enqueue/process - still open, do not check this box for it, and the picture got
+      worse, not better.** The `lingolinq-worker` pool's ~24,842-job `queue:default` backlog
+      (leftover `WordData#assert_priority` from the 2026-06-29 Moby seed import, not a bug) was
+      drained by a temporary scale to 8 instances (`gcloud beta run worker-pools update
+      lingolinq-worker --instances=8`, ~6.6 jobs/sec); the pool has since correctly scaled back
+      down to `manualInstanceCount: 1` (verified live, 2026-07-03), and as of the next check
+      **all three queues are empty** (`queue:priority`/`queue:default`/`queue:slow` all size 0).
+      But `Resque::Failure.count` jumped from `174` to **`914`** across that same window: 833 of
+      the 740 new failures share the error `"Child process received unhandled signal pid N SIGKILL
+      (signal 9)"`, 830 of them on `ButtonImage#perform_action`, clustered in the exact time window
+      the worker pool was scaled from 8 instances back down to 1 - i.e. **the scale-down operation
+      itself appears to have killed in-flight forked job processes rather than cleanly draining
+      them**, and they landed in `Resque::Failure` instead of being requeued (register:
+      `LL-728183408f`; the existing W1 SIGTERM-requeue fix from PR #473 covers the parent worker
+      process, not child processes killed this way). A separate 58 new failures are
+      `BoardDownstreamButtonSet#perform_action` hitting a genuine S3 misconfiguration - "Server
+      Side Encryption with AWS KMS managed keys require AWS Signature Version 4" - unrelated to the
+      scale event (register: `LL-705b10bcd7`). Our own test job
+      (`Board#check_for_parts_of_speech_and_inflections` on board id 7) is not among any sampled
+      failure and the queue is now fully empty, which is stronger circumstantial evidence it ran
+      successfully than the prior check had, but `board.updated_at` is still unchanged from
+      `2026-06-30 21:49:48 UTC` (the method only saves when something actually changes, so this
+      remains inconclusive rather than a confirmed pass). **Do not use manual worker-pool scaling
+      as an operational technique during the real cutover until `LL-728183408f` is root-caused** -
+      this rehearsal just reproduced the failure mode live.
+      **SES send - functionally confirmed, but verify final delivery before checking this box.**
+      The original UI-only "Email sent!" check was correctly flagged as weak (a `gcloud logging
+      read` sweep found zero mail-related log lines despite confirmed-working log capture for the
+      same service). Re-tested by bypassing ActionMailer's `Aws::Rails::Mailer` delivery method
+      (whose `deliver!` return value is the local `Mail::Message`, not the SES API response - the
+      first re-test's `message_id` of `...@localhost.mail` was a locally-generated header, not
+      proof of anything) and calling `Aws::SES::Client#send_email` directly. It returned a real AWS
+      SES message ID (`0101019f28e79404-...-000000` format), meaning SES genuinely accepted the
+      send with no exception. This is real server-side confirmation of successful handoff to SES -
+      check the box once the test message is confirmed received at the destination inbox (final
+      proof of end-to-end delivery, not just acceptance).
+- [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
+      gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
+      checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status
+      `open`: `LL-728183408f` (worker-pool scale-down SIGKILLs in-flight jobs instead of requeuing
+      them - 833 failures, see above), `LL-705b10bcd7` (S3 SigV4/KMS-SSE misconfiguration on
+      `BoardDownstreamButtonSet` - 58 failures, see above), and `LL-5954bcbbe6` (pre-existing,
+      dated 2026-06-29, unrelated to this session's scale event: 16 `ButtonImage` failures from a
+      missing/misconfigured ImageMagick `identify` binary in the Cloud Run image, 3 `Board`
+      `job_stash` lookup failures, and 1 job calling a `Board` method - `update_privacy` - that no
+      longer exists, suggesting deploy/version skew). Needs root-cause fixes and re-verification
       (`Resque::Failure.count == 0` or an explained/accepted residual) before this environment is
       customer-facing.
 - [ ] **`lingolinq_admin` test password rotated to a real secret - separate gate from 0a, do NOT
