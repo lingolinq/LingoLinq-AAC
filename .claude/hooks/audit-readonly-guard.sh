@@ -119,12 +119,20 @@ exec ruby -rjson -e '
     [ /\b(gcloud|aws|render|kubectl|terraform|docker|psql)\b.*\b(create|delete|update|deploy|apply|destroy|put|set-|add-|remove|patch|drop|insert|restart|scale|rollout|publish|terminate|enable|disable|grant|revoke)\b/, "cloud/infra mutation" ],
     # SQL writes: only when a DB client is present, so `grep INSERT app/` is NOT a false positive.
     [ /\b(psql|sqlite3|mysql|mariadb|cockroach|pg_dump|pg_restore|mongo|redis-cli)\b[^|]*\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE)\b/i, "SQL write via DB client" ],
-    # Outbound network requests (ANY method, not just non-GET/download variants). Read-only
+    # Outbound network requests (ANY method, not just non-GET/download variants, and not just
+    # HTTP tools -- ssh/scp/sftp/ftp/rsync are equally viable exfiltration channels). Read-only
     # finders read attacker-influenced diffs/PRs; a prompt-injected comment could otherwise
-    # exfiltrate secrets/env vars via a crafted GET URL (query-string data), which a
-    # non-GET-only or download-only denylist does not catch. Finders have no legitimate need
-    # for raw network calls -- Read/Grep/Glob and the deepwiki MCP tool cover their job.
-    [ /\b(curl|wget|nc|ncat|netcat|telnet)\b/, "outbound network request (exfiltration risk from prompt-injected content; use Read/Grep/Glob or an MCP tool instead)" ]
+    # exfiltrate secrets/env vars via a crafted GET URL (query-string data) or a peer transfer
+    # tool, which a non-GET-only or download-only denylist does not catch. Finders have no
+    # legitimate need for raw network calls -- Read/Grep/Glob and the deepwiki MCP tool cover
+    # their job. Anchored to command position (start of string/pipeline/subshell, optionally
+    # after `sudo`) rather than a bare word match: an unanchored match denied routine greps for
+    # these words themselves (`grep -rn curl app/`, `find . -path "*nc*"`) -- exactly the kind
+    # of search a security/infra finder legitimately runs. Known residual gap (regex, not a
+    # real shell parser, same tradeoff as the rest of this file): a literal `|` sitting inside a
+    # quoted argument right before one of these words (e.g. `grep "ssh\|scp" docs/`) still
+    # reads as a pipe boundary and gets denied -- rare, and errs toward over-blocking, not under.
+    [ /(?:\A|[|;]|&&|\|\||`|\$\()\s*(?:sudo\s+)?(curl|wget|nc|ncat|netcat|telnet|ssh|scp|sftp|ftp|rsync)\b/, "outbound network request (exfiltration risk from prompt-injected content; use Read/Grep/Glob or an MCP tool instead)" ]
   ]
 
   patterns.each do |re, why|
