@@ -53,7 +53,7 @@ describe License, :type => :model do
       l = License.create!(organization: org, seat_type: 'student', status: 'active')
       expect(License.find(l.id).external_reference).to eq(nil)
       json = JsonApi::License.build_json(l.reload)
-      expect(json['external_reference']).to eq(nil)
+      expect(json).to_not have_key('external_reference')
     end
 
     it "still reads LEGACY plaintext external_reference (reads do not break)" do
@@ -62,11 +62,11 @@ describe License, :type => :model do
       expect(License.find(l.id).external_reference).to eq('cus_legacyPlain')
     end
 
-    it "is serialized correctly through JsonApi::License" do
+    it "is never included in JsonApi::License output (LL-55baae6d40)" do
       l = License.create!(organization: org, seat_type: 'student', status: 'active',
                           external_reference: 'PO-777')
       json = JsonApi::License.build_json(l.reload)
-      expect(json['external_reference']).to eq('PO-777')
+      expect(json).to_not have_key('external_reference')
     end
   end
 

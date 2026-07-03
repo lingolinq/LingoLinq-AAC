@@ -13,7 +13,6 @@ module JsonApi::License
     json['status'] = license.status
     json['granted_at'] = license.granted_at&.iso8601
     json['expires_at'] = license.expires_at&.iso8601
-    json['external_reference'] = license.external_reference
     if license.user_id
       json['user_id'] = license.related_global_id(license.user_id)
       json['user_name'] = license.user&.user_name
