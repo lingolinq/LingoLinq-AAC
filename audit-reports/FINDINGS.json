@@ -3057,7 +3057,7 @@
         "timeframe": "15-30d"
       },
       "closureEvidence": {
-        "sha": "",
+        "sha": "77233fb19a3db05229b0c10cca4f403f74f3ef70",
         "verifierNote": "Code-remediated on scot/fix/worker-pool-oom-sigv4: added `--memory 2Gi` to the `gcloud beta run worker-pools deploy lingolinq-worker` step in .github/workflows/deploy-cloudrun.yml (matching the web service's existing --memory 2Gi), matching the OOM-kill-count evidence exactly. Not yet live-verified: requires a redeploy of lingolinq-worker and a follow-up gcloud logging read / Resque::Failure crosstab confirming OOM events and SIGKILL/SIGSEGV failures stop accumulating. The separate open question (whether OOM-killed forked children should trigger BoyBand auto-requeue) is unaddressed and remains for a future finding if OOM still recurs at 2Gi under peak load.",
         "attestation": ""
       },
@@ -3087,7 +3087,7 @@
         "timeframe": "15-30d"
       },
       "closureEvidence": {
-        "sha": "",
+        "sha": "77233fb19a3db05229b0c10cca4f403f74f3ef70",
         "verifierNote": "Code-remediated on scot/fix/worker-pool-oom-sigv4: Uploader.remote_upload_params (lib/uploader.rb:293-336, formerly hand-signed SigV2) rewritten to build an Aws::S3::PresignedPost(credentials, region, bucket_name, key:, content_type:, content_length_range:, success_action_status:, acl:) directly, producing an AWS4-HMAC-SHA256-signed POST policy (x-amz-credential/x-amz-algorithm/x-amz-date/x-amz-signature fields) that satisfies SSE-KMS buckets' SigV4 requirement, exactly matching the remediation option's guidance (Aws::S3::PresignedPost, not the nonexistent Presigner#presigned_post). upload_url now returns the PresignedPost's own regional bucket endpoint (with trailing slash preserved for callers that concatenate upload_url + key) instead of the static global s3.amazonaws.com host, since SigV4's credential scope is region-bound. spec/lib/uploader_spec.rb and spec/models/concerns/uploadable_spec.rb updated to assert the new SigV4 field/URL shape; full uploader/uploadable/button_sound/beta_feedback_recording/extra_data spec suites green except two pre-existing unrelated test-DB-pollution failures (ButtonImage.count inflated by orphaned committed rows; an unrelated GoSecure OpenSSL 'bad decrypt' on cached_copy, reproduces in isolation on main). Not yet live-verified: requires redeploying the rehearsal image and confirming Resque::Failure stops accumulating the KMS-SSE SigV4 error on the next BoardDownstreamButtonSet run, plus a bucket-policy check that SSE-KMS enforcement on this bucket is actually intended.",
         "attestation": ""
       },
@@ -3117,7 +3117,7 @@
         "timeframe": "30d"
       },
       "closureEvidence": {
-        "sha": "",
+        "sha": "77233fb19a3db05229b0c10cca4f403f74f3ef70",
         "verifierNote": "Partially code-remediated on scot/fix/worker-pool-oom-sigv4, root-cause (a) confirmed and fixed: the Cloud Run image's Dockerfile apt-get list (final `ruby:3.4.4-slim` stage) never installed imagemagick or ghostscript, confirming the 16 'No such file or directory - identify' failures - `identify` is shelled out directly in app/models/concerns/uploadable.rb:275 (`identify -verbose #{file.path}`) and `convert` in lib/sentence_pic.rb:43/45. Added `imagemagick` and `ghostscript` (ImageMagick's PDF/PS delegate) to the Dockerfile's apt-get install list; web and worker share this one Dockerfile so both are fixed by the same change. (b) and (c) investigated, not code bugs: Board:update_privacy IS present in current code (app/models/board.rb:2700), so the 1 'method not found' failure was version skew during that day's deploy, not a live gap - no enqueue site needs fixing. The 3 job_stash 'stash not found: 1_1/1_2/1_3' failures reference suspiciously low sequential JobStash global_ids consistent with a freshly reset/seeded Postgres (this is a clean-DB rehearsal stack, scripts/gcp/PHASE5-CLEAN-DB-REHEARSAL.md) while Resque's Redis-backed queue was NOT cleared across that reset - i.e. stale retry jobs (Processable#update_setting's ActiveRecord::StaleObjectError retry path, app/models/concerns/processable.rb:86-92) referencing JobStash rows from a prior DB generation. This is a rehearsal-process gap (flush stale Resque queues alongside any DB reset), not an application code bug; JobStash.flush_old_records only expires rows after 2 weeks so ordinary TTL expiry doesn't explain it. Not yet live-verified: requires a redeploy and confirming no new 'identify' failures accumulate under normal ButtonImage upload load.",
         "attestation": ""
       },
