@@ -392,9 +392,18 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
   if gcloud compute security-policies rules describe 2000 --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" >/dev/null 2>&1; then
     skip "rate-limit rule 2000 already exists"
     if [ "$RL_ENFORCING" = "1" ]; then
-      log "Step 2c: flip existing rate-limit rule 2000 -> ENFORCE (--no-preview)"
+      # Re-apply the full rate-limit config, not just --no-preview: an update call that omits
+      # --rate-limit-threshold-count/--interval-sec/--conform-action/--exceed-action/--enforce-on-key
+      # leaves an EXISTING rule at whatever values it was created/last-updated with, so an operator who
+      # tunes RATE_LIMIT_COUNT/RATE_LIMIT_INTERVAL_SEC and re-runs would see this banner claim the new
+      # number while GCP silently keeps enforcing the stale one. (Codex senior-dev review of PR #513)
+      log "Step 2c: flip existing rate-limit rule 2000 -> ENFORCE at ${RATE_LIMIT_COUNT}/${RATE_LIMIT_INTERVAL_SEC}s (--no-preview)"
       gcloud compute security-policies rules update 2000 \
-        --project="$PROJECT_ID" --security-policy="$ARMOR_POLICY" --no-preview
+        --project="$PROJECT_ID" --security-policy="$ARMOR_POLICY" \
+        --rate-limit-threshold-count="$RATE_LIMIT_COUNT" \
+        --rate-limit-threshold-interval-sec="$RATE_LIMIT_INTERVAL_SEC" \
+        --conform-action=allow --exceed-action=deny-429 \
+        --enforce-on-key=IP --no-preview
     else
       # Do NOT mutate rule 2000 on a non-rate-limit run. With the separate gate, 2000 can only become
       # enforced via RATE_LIMIT_ENFORCE=1, so if it is already enforcing that was DELIBERATE - never
@@ -434,7 +443,16 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
   for PRIO in "${!WAF_RULES[@]}" 2000; do
     ACTUAL_PREVIEW="$(gcloud compute security-policies rules describe "$PRIO" \
       --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(preview)' 2>/dev/null || echo '?')"
-    echo "    rule $PRIO: preview=$ACTUAL_PREVIEW"
+    if [ "$PRIO" = "2000" ]; then
+      # Print the ACTUAL enforced threshold alongside preview state, not just preview: a correct
+      # preview=false tells you 2000 is enforcing, not what it is enforcing. (Codex review of PR #513)
+      ACTUAL_RL="$(gcloud compute security-policies rules describe 2000 \
+        --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" \
+        --format='value(rateLimitOptions.rateLimitThreshold.count, rateLimitOptions.rateLimitThreshold.intervalSec)' 2>/dev/null || echo '?')"
+      echo "    rule $PRIO: preview=$ACTUAL_PREVIEW threshold(count,intervalSec)=$ACTUAL_RL"
+    else
+      echo "    rule $PRIO: preview=$ACTUAL_PREVIEW"
+    fi
   done
 else
   gate "Step 2 (Cloud Armor) SKIPPED. Re-run with CONFIRM_ARMOR=1 once approved."

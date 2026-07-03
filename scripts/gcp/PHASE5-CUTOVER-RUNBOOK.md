@@ -528,12 +528,25 @@ condition is met:
 
 1. **Review preview hits from real production traffic** (this covers BOTH the WAF rules AND the
    rate-limit rule - all of ours resolve to a deny outcome, so `outcome="DENY"` catches them, and
-   `configuredAction` tells them apart: `DENY` for the WAF sig rules, `THROTTLE` for the rate limit):
+   `configuredAction` tells them apart: `DENY` for the WAF sig rules, `THROTTLE` for the rate limit).
+   **Default output omits `remoteIp`/`requestUrl`** - those land in Cloud Logging under the GCP BAA,
+   but printing them to the operator's own terminal is a distinct exposure surface (shell scrollback,
+   history, screen share) that the BAA does not cover (Codex review of PR #513):
    ```bash
    gcloud logging read \
      'resource.type="http_load_balancer" AND jsonPayload.previewSecurityPolicy.outcome="DENY"' \
      --project=lingolinq-prod --freshness=<soak-days>d --limit=1000 \
-     --format='value(timestamp, httpRequest.remoteIp, jsonPayload.previewSecurityPolicy.priority, jsonPayload.previewSecurityPolicy.configuredAction, jsonPayload.previewSecurityPolicy.rateLimitAction.outcome, httpRequest.requestUrl)'
+     --format='value(timestamp, insertId, jsonPayload.previewSecurityPolicy.priority, jsonPayload.previewSecurityPolicy.configuredAction, jsonPayload.previewSecurityPolicy.rateLimitAction.outcome)'
+   ```
+   The `insertId` column above is what you paste into the follow-up command below (Codex review of
+   PR #513: the summary command must actually emit the id the follow-up references). Only pull
+   `httpRequest.remoteIp` / `httpRequest.requestUrl` as an explicit follow-up, scoped to a
+   single `insertId` you are actively investigating (e.g. confirming a specific flagged hit is a real
+   AAC utterance, not an attack) - never as the default bulk sweep:
+   ```bash
+   gcloud logging read \
+     'resource.type="http_load_balancer" AND insertId="<id-from-the-summary-above>"' \
+     --project=lingolinq-prod --format='value(httpRequest.remoteIp, httpRequest.requestUrl)'
    ```
    Split the hits by `priority` (raise `--limit` / narrow `--freshness` if you hit the cap):
    - **WAF rules 1001-1004** (`configuredAction=DENY`, `outcome=DENY`): each is traffic the WAF
@@ -573,10 +586,13 @@ condition is met:
    success). The LB build is idempotent (every create is describe-guarded), so re-passing
    `CONFIRM_LB=1` against the already-built LB just skips through to the Armor block. The script
    then converges the **WAF sig rules 1001-1004** to `--no-preview`, does **not** touch rule 2000,
-   and prints the actual per-rule preview state (step 2e). For this WAF-sig-only enforce run (no
-   `RATE_LIMIT_ENFORCE`), confirm rules 1001-1004 read `preview=false` **and rule 2000 still reads
-   `preview=true`** afterward - do NOT trust the exit code alone. (Rule 2000 reads `preview=false`
-   only after the separate rate-limit enforce run in step 1's blockquote; that is expected there.)
+   and prints the actual per-rule preview state PLUS rule 2000's actual threshold (step 2e). For this
+   WAF-sig-only enforce run (no `RATE_LIMIT_ENFORCE`), confirm rules 1001-1004 read `preview=false`
+   **and rule 2000's preview state is unchanged from whatever it was before this run** - do NOT trust
+   the exit code alone, and do NOT assume 2000 reads `preview=true` here: this run never mutates 2000
+   either way (correction, Codex review of PR #513), so if 2000 was already deliberately enforced from
+   an earlier rate-limit-enforce run, it correctly stays `preview=false` here too. (Rule 2000 first
+   reads `preview=false` after the separate rate-limit enforce run in step 1's blockquote.)
 3. **Verify** a known-bad probe (e.g. `?q=' OR 1=1--`) now returns `403` and that normal app use is
    unaffected. **Rollback is manual**: re-running the script WITHOUT `ARMOR_ENFORCE` does NOT
    restore preview - the script only converges rules to `--no-preview` (there is no preview-restore
@@ -702,20 +718,45 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 
 ## Window scheduling
 
-- **Lowest AAC usage** is overnight with US schools closed. Target a **Sunday 02:00-05:00
+- **This section describes the full-data-cutover fallback** (dump -> restore -> S1 -> S2), where a
+  low-usage window matters because real data is moving and a live-user freeze has a blast radius.
+  **The clean-DB path in effect now (see the banner above) does not need a low-usage window for the
+  same reason**: `lingolinq-prod` carries no real client data or users
+  ([[project_prod_no_real_users]] equivalent - see PHASE5-CLEAN-DB-REHEARSAL.md), so the "lowest AAC
+  usage" rationale below does not apply. **Corrected 2026-07-02 (Scot's call):** do not wait for a
+  Sunday; schedule the DNS flip once the still-open checklist items below are closed, regardless of
+  day/time.
+- Full-data fallback guidance (retained in case real users are onboarded before any future
+  cutover): lowest AAC usage is overnight with US schools closed; target a **Sunday 02:00-05:00
   America/New_York** slot (~2-3h end to end: announce -> freeze -> fresh dump -> restore -> S1 ->
   S2 -> deploy -> 0b/0c verify -> DNS).
-- **Not schedulable to a firm date** until the dress rehearsal (0a), W1, and the 5.3 front-end
-  build are done. Earliest realistic date if the rehearsal passes cleanly: **Sunday 2026-07-12**.
+- ~~Earliest realistic date if the rehearsal passes cleanly: Sunday 2026-07-12.~~ **Stale as of
+  2026-07-02: the clean-DB rehearsal (0a/0c below) already ran and passed on 2026-06-29** (see
+  checklist), so this date no longer gates anything. Schedule per checklist readiness, not calendar.
 - Lower the DNS TTL to **60s** ahead of the window (the decided mechanism; see step 1).
 
 ---
 
 ## Pre-cutover checklist (all must be true before scheduling the window)
 
-- [ ] 0a dress rehearsal passed (all five smoke paths, row reconcile, sequences verified).
-- [ ] 0c Redis TLS handshake green against live Memorystore, CA-completeness asserted
-      (LL-6619cc1811 verified-closed).
+- [ ] **0a dress rehearsal - PARTIALLY confirmed, do NOT check this box yet** (Codex review of
+      PR #513 correctly caught an earlier draft of this note overclaiming full completion).
+      **Confirmed live via Cloud Run job execution history (2026-06-29):** Step 2 Redis TLS
+      handshake (`lingolinq-redischeck-zsq74`, 22:38 UTC, PONG over `rediss://`); Step 3a schema
+      load (`lingolinq-migrate-cleandb-ss6m8`, `gcp:guarded_schema_load`, 22:46 UTC); Step 3b seed
+      (`lingolinq-migrate-cleandb-kzqkk`, `db:seed`, 23:16 UTC, 29m35s incl. the full Moby word
+      import); admin **login** confirmed working 2026-06-30 (per session notes). **NOT confirmed by
+      any evidence found (2026-07-02 sweep of Cloud Run logs for both `lingolinq-web` and
+      `lingolinq-worker` in the 2026-06-29/30 window turned up nothing beyond CSP-report noise):**
+      an explicit **board-open** smoke test (distinct from seeing boards listed in the dashboard),
+      **S3 read**, **SES send**, and **Resque enqueue/process**. Run these four before checking this
+      box - the five-path definition at line 62/107 is not optional partial credit.
+- [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
+      above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
+      the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
+      `status: open` as of 2026-07-02) - only Scot can close/downgrade a register finding per repo
+      policy, so this still needs his explicit sign-off + a register edit before it is formally
+      closed, even though the technical gate has passed.
 - [x] W1 worker SIGTERM grace + requeue fix built + dual-reviewed (tracker 4.W1, **PR #473**,
       merged to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
       existing BoyBand requeue).
@@ -723,14 +764,14 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       (operational mitigation, step 1) rather than building a per-class selective requeue. The
       blanket requeue's double-run risk is handled by ensuring no long notifier is in flight at the
       freeze. (Selective requeue remains a possible later improvement, not a cutover blocker.)
-- [ ] 5.3 front-end choice **decided (Option B, LB + Cloud Armor, gated on the rehearsal; fallback
-      A-now-B-soak)** AND built. Build script shipped (`scripts/gcp/phase5-frontend-lb.sh`, PR #476);
-      still to run (gated): provision the LB, validate it + the WAF **preview** in the rehearsal,
-      then the ingress lockdown, then the DNS cut. The WAF **enforce** flip is deferred to
-      **post-real-traffic** (step 9c), reviewed against genuine multi-user traffic - NOT flipped
-      during the rehearsal or the no-users cutover soak (neither produces representative LB traffic).
-      Rate-limit rule 2000 is gated separately again and stays in preview even after the sig rules
-      enforce.
+- [x] 5.3 front-end choice **decided (Option B, LB + Cloud Armor) AND built + provisioned** as of
+      2026-06-30: LB IP `136.68.41.122`, Cloud Armor policy attached, WAF rules 1001-1004 + rate-limit
+      2000 all in preview (log-only). **Still open, NOT part of this box:** the ingress lockdown (run
+      only after the LB path is validated against real DNS traffic) and the DNS cut itself. The WAF
+      **enforce** flip is deferred to **post-real-traffic** (step 9c), reviewed against genuine
+      multi-user traffic - NOT flipped during the rehearsal or the no-users cutover soak (neither
+      produces representative LB traffic). Rate-limit rule 2000 is gated separately again and stays
+      in preview even after the sig rules enforce.
 - [x] **Render write-reject mode built + tested + dual-reviewed** (tracker 5.2, **PR #472**,
       merged to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
       Retry-After on mutating verbs AND side-effect GETs incl. the `lib/json_api` write paths;
