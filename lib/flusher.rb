@@ -1,4 +1,5 @@
 module Flusher
+  # retention policy: see lib/flusher.rb#flush_leftovers for the scheduled cleanup entry point
   def self.find_user(user_id, user_name)
     user = User.find_by_global_id(user_id)
     raise "user not found" unless user
