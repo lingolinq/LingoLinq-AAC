@@ -3032,6 +3032,81 @@
         "timeframe": "60d"
       },
       "notes": "Filed per Codex PR review of the LL-991d259b2a flush_leftovers implementation (PR branch scot/compliance/flush-leftovers-retention): the original approach would have deleted these rows outright; changed to report-only pending this decision."
+    },
+    {
+      "id": "LL-a95e9c5f7c",
+      "ruleKey": "cloudrun-workerpool-oom-sigkill-jobloss",
+      "title": "lingolinq-worker's 512Mi memory limit is too small for ButtonImage/BoardDownstreamButtonSet jobs, causing continuous OOM kills that land as Resque::Failure instead of being requeued",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "Resque::Failure crosstab (klass x error category) via a throwaway lingolinq-diagcheck3 Cloud Run Job, cross-referenced against gcloud logging read on resource.type=cloud_run_worker_pool for lingolinq-worker, 2026-07-03. Superseded an earlier draft of this finding that incorrectly attributed the failures to the worker-pool scale-down transition (Codex review of PR #516 caught the arithmetic - 833 could not be a subset of 740 new failures - and the unverified crosstab claim).",
+        "snippet": "Verified crosstab of all 914 Resque::Failure entries by job-class|error-category: 713 ButtonImage|SIGKILL, 113 BoardDownstreamButtonSet|SIGKILL, 58 BoardDownstreamButtonSet|s3_xml_error (tracked separately as LL-705b10bcd7), 16 ButtonImage|identify_missing (tracked separately as LL-5954bcbbe6), 4 User|SIGKILL, 3 Board|stash_not_found, 2 WordData|still_processing, 2 ButtonImage|SIGSEGV, 2 ButtonImage|still_processing, 1 Board|method_not_found (sum=914, matches Resque::Failure.count exactly). The SIGKILL/SIGSEGV total is 830+2=832. A histogram of SIGKILL/SIGSEGV failed_at timestamps by hour shows they are NOT clustered around the ~00:38-01:30 UTC worker-pool scale-8-to-1 transition: they span 2026-07-03 01h through 15h UTC continuously (e.g. 85 in the 03h bucket, 130 in the 06h bucket, 169 in the 14h bucket - hours after the pool had already returned to manualInstanceCount: 1). Root cause confirmed directly: gcloud logging read on resource.type=cloud_run_worker_pool/lingolinq-worker returns 833 'Out-of-memory event detected in container' log lines in the trailing 24h (2026-07-03T02:46:03Z to 2026-07-03T15:44:14Z), matching the SIGKILL/SIGSEGV count almost exactly. The worker pool's container resource limit is memory: 512Mi (gcloud beta run worker-pools describe lingolinq-worker). This is a standing capacity/sizing problem, not a one-time scale-transition artifact.",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-03",
+      "lastSeen": "2026-07-03",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Increase the lingolinq-worker worker-pool's memory limit (gcloud beta run worker-pools update lingolinq-worker --memory=1Gi or 2Gi, or the equivalent in the deploy-cloudrun.yml workflow) so forked ButtonImage/BoardDownstreamButtonSet job processes (which shell out to ImageMagick) have enough headroom, then re-verify Resque::Failure.count stops accumulating this error under normal load. Also confirm whether OOM-killed forked children should trigger BoyBand's auto-requeue path (they currently land in Resque::Failure, not requeue) since they are not the Resque::TermException case PR #473 already covers.",
+        "timeframe": "15-30d"
+      },
+      "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from LL-705b10bcd7 (S3 SigV4/KMS, a separate root cause on a subset of the same BoardDownstreamButtonSet failures) and LL-5954bcbbe6 (pre-existing ImageMagick/job_stash/stale-method failures, different root causes). Directly relevant to the Phase 5 cutover runbook (scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md): this is independent of the worker-pool scale-up/scale-down operation performed earlier in the same rehearsal, and would recur under normal single-instance steady-state load even without any manual scaling."
+    },
+    {
+      "id": "LL-705b10bcd7",
+      "ruleKey": "s3-sigv4-required-kms-sse-boarddownstream",
+      "title": "BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4'",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "Resque::Failure diagnostics via a throwaway lingolinq-diagcheck2 Cloud Run Job (rails runner, cloned from lingolinq-web's image/SA/VPC/Cloud SQL/secrets), 2026-07-03",
+        "snippet": "58 of 914 Resque::Failure entries are BoardDownstreamButtonSet#perform_action failing with the raw S3 API error body: '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?><Error><Code>InvalidArgument</Code><Message>Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4.</Message><ArgumentName>Authorization</ArgumentName>...</Error>'. Traced to the actual upload path: lib/uploader.rb Uploader.remote_upload (line 46) calls remote_upload_params (line 293), which hand-builds a browser-style S3 POST policy signed with SigV2 (AWSAccessKeyId + base64 policy + HMAC-SHA1 signature via OpenSSL::HMAC.digest('sha1', ...), lines 296-334) and posts it directly with Typhoeus.post (line 68) - this path does not go through Aws::S3::Client at all, so an aws-sdk-s3 signature_version config has no effect on it. This is a genuine request-signing misconfiguration, independent of the OOM-driven SIGKILL failures (LL-a95e9c5f7c) and independent of the pre-existing ImageMagick/job_stash failures (LL-5954bcbbe6).",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-03",
+      "lastSeen": "2026-07-03",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Codex review of PR #516 correctly caught two rounds of an inaccurate fix here: first, that the original remediation (bump signature_version on an Aws::S3::Client) targets a client this code path never uses; second, that the corrected suggestion (Aws::S3::Presigner#presigned_post) names a method that doesn't exist on the installed aws-sdk-s3 1.219.0 - Presigner only exposes presigned_url/presigned_request. POST-policy signing lives on the separate Aws::S3::PresignedPost class (lib/aws-sdk-s3/presigned_post.rb), normally reached via the Aws::S3::Bucket resource's presigned_post(options) method (lib/aws-sdk-s3/customizations/bucket.rb:126-133), which builds one from the client's credentials/region/bucket name. Replace the handcrafted SigV2 POST policy in Uploader.remote_upload_params (lib/uploader.rb:293-336) with a PresignedPost built this way (either via Aws::S3::Resource.new(...).bucket(name).presigned_post(...) or Aws::S3::PresignedPost.new(credentials, region, bucket_name, options) directly) - it produces the same browser-postable form-field shape (key/policy/x-amz-* fields) but signed AWS4-HMAC-SHA256, satisfying the KMS-SSE bucket's SigV4 requirement. Verify against the bucket's policy that SSE-KMS enforcement is intended, then re-run the affected board's button-set update and confirm Resque::Failure stops accumulating this error.",
+        "timeframe": "15-30d"
+      },
+      "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. A production data path (board downstream button-set caching, the 'find a button' feature's backing data) is silently failing to persist to S3 on this rehearsal stack."
+    },
+    {
+      "id": "LL-5954bcbbe6",
+      "ruleKey": "resque-imagemagick-identify-missing-jobstash-stale",
+      "title": "Pre-existing Resque background-job failures: ImageMagick identify missing in Cloud Run image, stale job_stash lookups, and a call to a removed Board method",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "Resque::Failure diagnostics via a throwaway lingolinq-diagcheck2 Cloud Run Job (rails runner, cloned from lingolinq-web's image/SA/VPC/Cloud SQL/secrets), 2026-07-03",
+        "snippet": "Of the 174 Resque::Failure entries present as of 2026-07-03 before the queue:default/queue:slow backlog finished draining (all dated 2026-06-29, unrelated to the later scale-to-8 event): 16 are ButtonImage#perform_action(upload_to_remote) failing 'No such file or directory - identify', indicating the ImageMagick identify binary is missing or misconfigured in the Cloud Run web/worker image; 3 are Board#perform_action(update_setting, \\\"job_stash\\\", \\\"1_1\\\"/\\\"1_2\\\"/\\\"1_3\\\") failing 'stash not found: 1_1' etc; and 1 is Board#perform_action(update_privacy) failing 'method not found: Board:update_privacy', i.e. a queued job referencing a method that no longer exists on the Board model (likely deploy/version skew between when the job was enqueued and the running image).",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-03",
+      "lastSeen": "2026-07-03",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "(a) Confirm ImageMagick's identify binary is installed and on PATH in the Cloud Run web/worker container image (Dockerfile/base image audit) - this affects any ButtonImage upload_to_remote job. (b) Investigate the job_stash lookup failures in Board#update_setting - confirm whether the stash keys (1_1/1_2/1_3) were ever written or expired before the job ran. (c) Board:update_privacy - confirm whether this method was intentionally removed/renamed and whether any current code path can still enqueue a job calling it; if so, that enqueue site needs fixing, not just the failed job.",
+        "timeframe": "30d"
+      },
+      "notes": "Surfaced while verifying PR #516's 0a rehearsal status update. Distinct from LL-a95e9c5f7c (OOM-driven SIGKILL failures) and LL-705b10bcd7 (S3 SigV4/KMS)."
     }
   ]
 }
