@@ -718,10 +718,69 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json['user'][1]['id']).to eq(u2.global_id)
       expect(json['user'][1]['org_manager']).to eq(nil)
       expect(json['user'][1]['org_assistant']).to eq(nil)
-      expect(json['user'][1]['org_supervision_pending']).to eq(true)      
+      expect(json['user'][1]['org_supervision_pending']).to eq(true)
     end
   end
-  
+
+  describe "licenses" do
+    it "should require api token" do
+      get :licenses, params: {:organization_id => 1}
+      assert_missing_token
+    end
+
+    it "should return unauthorized unless edit permissions allowed" do
+      o = Organization.create
+      token_user
+      get :licenses, params: {:organization_id => o.global_id}
+      assert_unauthorized
+    end
+
+    it "should not expose external_reference to an org assistant with only edit permission (LL-55baae6d40)" do
+      o = Organization.create
+      token_user
+      o.add_manager(@user.user_name, false) # assistant: view+edit, not manage
+      License.create!(organization: o, seat_type: 'student', status: 'active', external_reference: 'cus_stripe_hidden')
+
+      get :licenses, params: {:organization_id => o.global_id}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['license'].length).to eq(1)
+      expect(json['license'][0]).to_not have_key('external_reference')
+      expect(json['license'][0]['seat_type']).to eq('student')
+      expect(json['license'][0]['status']).to eq('active')
+    end
+  end
+
+  describe "claim_user" do
+    it "should require api token" do
+      post :claim_user, params: {:organization_id => 1}
+      assert_missing_token
+    end
+
+    it "should return unauthorized unless manage permissions allowed" do
+      o = Organization.create
+      token_user
+      post :claim_user, params: {:organization_id => o.global_id}
+      assert_unauthorized
+    end
+
+    it "should not expose external_reference when a license is claimed for a user (LL-55baae6d40)" do
+      o = Organization.create
+      token_user
+      o.add_manager(@user.user_name, true) # full manager: has manage permission
+      u = User.create
+      License.create!(organization: o, seat_type: 'student', status: 'active', external_reference: 'PO-hidden-99')
+
+      post :claim_user, params: {:organization_id => o.global_id, :user_id => u.global_id}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['success']).to eq(true)
+      expect(json['license']).to_not have_key('external_reference')
+      expect(json['license']['user_id']).to eq(u.global_id)
+      expect(json['license']['user_name']).to eq(u.user_name)
+    end
+  end
+
   describe "logs" do
     it "should require api token" do
       get :logs, params: {:organization_id => 1}
