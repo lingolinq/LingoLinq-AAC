@@ -782,7 +782,7 @@
         "GDPR",
         "FERPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
@@ -798,16 +798,16 @@
         "timeframe": "90d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "a877872d263fba43768a568f71c3791a4f22bf54",
+        "verifierNote": "Fix landed via #514 (merged to staging as a877872d2, regular merge, ancestor-verified): Flusher.flush_leftovers implements scoped, ID-batched deletes for orphaned board_button_images/board_button_sounds join rows, orphaned log_session_boards/user_board_connections join rows, and stale (>1mo) Progress records, each category deleted and audited (event_type retention_flush) inside its own transaction, preceded by a 'planned' AuditEvent and followed by a 'completed' aggregate. Stale-item_type PaperTrail::Version rows are detected and counted but deliberately not deleted (DATA_RETENTION.md requires 6yr retention + cold-storage archival; filed as follow-up LL-5d7197fa7d rather than guessed at). Developer-key expiry left undone and documented inline (DeveloperKey has no expiration concept in this codebase; inventing one risked destroying live OAuth credentials). Covered by spec/lib/flusher_spec.rb + spec/lib/tasks/scheduler_spec.rb (53 examples green, 3 unrelated pre-existing failures tracked under PR #367's shared-test-DB pollution issue). Went through 5 rounds of Codex /review-pr passes (button_sound race, count-drift, batch bind-param limits, per-category audit atomicity), all fixed and re-tested before merge.",
+        "attestation": "Scot Wahlquist 2026-07-04: attested verified-closed; flush_leftovers implemented via #514, closing the orphan-record retention gap. Register was not updated at merge time (2026-07-03); attested the day after during the Fable 5 Blitz compliance review."
       },
-      "notes": "Verified still open 2026-06-12: method body is TODO comments only (flusher.rb:48-62).",
+      "notes": "Verified still open 2026-06-12: method body is TODO comments only (flusher.rb:48-62). Fixed and verified-closed 2026-07-04 via #514 (merged 2026-07-03); see closureEvidence.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-23",
-        "rationale": "Valid privacy / data-handling gap; accepted for remediation on the compliance backlog (token-in-URL and the user-creation audit-event gap prioritized first)."
+        "decidedDate": "2026-07-04",
+        "rationale": "Originally deferred 2026-06-23 behind higher-priority backlog items (token-in-URL, user-creation audit-event gap); implemented and merged 2026-07-03 via #514 ahead of those two, then attested the following day once the gap between merge and register closure was caught."
       }
     },
     {
