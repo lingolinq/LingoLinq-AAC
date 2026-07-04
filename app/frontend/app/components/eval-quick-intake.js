@@ -21,6 +21,14 @@ export default Component.extend({
   currentComm: null,
   suspectedAccess: null,
 
+  // Two-step intake: 'choose' shows the tailor-vs-general gate; 'form' shows the
+  // four demographic questions. Supervisors can skip the questions and run a
+  // general (un-narrowed) screen — see chooseSkip / eval_session.beginScreening.
+  step: 'choose',
+  isChoosing: computed('step', function() {
+    return this.get('step') === 'choose';
+  }),
+
   ageBands: computed(function() {
     return [
       { value: '<3',    label: i18n.t('age_under_3', "Under 3") },
@@ -115,6 +123,18 @@ export default Component.extend({
   }),
 
   actions: {
+    chooseTailor() {
+      this.set('step', 'form');
+    },
+    chooseSkip() {
+      // Skip the demographic questions → run a general screen with no demographic
+      // narrowing (eval_session.beginScreening reads intake.generalized).
+      const onComplete = this.get('onComplete');
+      if (onComplete) { onComplete({ generalized: true }); }
+    },
+    backToChoice() {
+      this.set('step', 'choose');
+    },
     pick(field, value) {
       this.set(field, value);
     },
