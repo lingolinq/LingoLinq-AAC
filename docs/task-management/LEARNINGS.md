@@ -5791,15 +5791,17 @@ nil. At run time, `perform_action` sees no id, leaves `obj = self` (the class), 
 `Class.respond_to?(instance_method)` is false → `raise "method not found: Class:method"`.
 The job can never succeed, so it just piles up in the failed queue.
 
-**Fix:** guard the enqueue on `self.id` (`... && self.id`), matching the sibling
-`schedule_update_available_boards('all') if self.id` guards that already exist in the same
-block. A brand-new record has nothing downstream to act on yet, so skipping the async work
-on create loses nothing. Also skip enqueuing a payload that would no-op (e.g. blank
-privacy). Detection: the failed job shows `"id": null` + `method not found`.
+**Fix:** never enqueue the instance job until `self.id` exists. If create-time work is a
+true no-op, guard the enqueue on `self.id`. If the create payload can already identify
+downstream targets, preserve the request on the model instance and enqueue it from an
+`after_commit` callback on create. `Board#update_privacy` uses the latter approach because a
+new board can contain links to existing boards that still need the requested privacy
+cascade. Also skip payloads that would no-op (e.g. blank privacy). Detection: the failed job
+shows `"id": null` + `method not found`.
 
-**Evidence:** `app/models/board.rb` `schedule_for(:priority, :update_privacy, ...)` was
-missing the `self.id` guard its siblings had; ~26 dead `Board:update_privacy` jobs
-accumulated Mar–Jun 2026. Fixed 2026-07-03 (branch
+**Evidence:** `app/models/board.rb` `schedule_for(:priority, :update_privacy, ...)` ran
+before a new board had an id; ~26 dead `Board:update_privacy` jobs accumulated Mar–Jun
+2026. Fixed by deferring the create-time enqueue until after commit (branch
 `fix/traci-update-privacy-unsaved-board-guard`).
 
 ## Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes
