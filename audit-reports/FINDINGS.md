@@ -37,7 +37,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:871 |
-| LL-abc1170c2d |  | low | GDPR, FERPA | untriaged | audit-run | Flusher.flush_leftovers has no usage-based orphan check for board_button_images/board_button_sounds (item 1) | `lib/flusher.rb`:57 |
+| LL-57e9beb87f |  | low | GDPR, FERPA | untriaged | audit-run | Flusher.flush_leftovers has no usage-based orphan check for orphaned ButtonImage/ButtonSound media records (item 1) | `lib/flusher.rb`:57 |
 | LL-45bdcc73c9 |  | low | SOC2 | untriaged | audit-run | Developer key expiration policy is undecided; DeveloperKey records never age out (item 3) | `lib/flusher.rb`:48 |
 | LL-97f9001bb4 |  | low | SOC2 | **wontfix** | audit-run | Audit finder Bash guard is a denylist with residual fetch-and-exec bypass | `.claude/hooks/audit-readonly-guard.sh`:59 |
 | LL-3483c28f3c |  | low | SOC2 | **wontfix** | audit-run | Parallel finders read live infra without synchronization (possible inconsistent snapshot) | `.claude/skills/audit-run/SKILL.md`:33 |

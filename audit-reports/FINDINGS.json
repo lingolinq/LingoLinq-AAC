@@ -811,9 +811,9 @@
       }
     },
     {
-      "id": "LL-abc1170c2d",
-      "ruleKey": "button-image-sound-usage-orphan-check-unimplemented",
-      "title": "Flusher.flush_leftovers has no usage-based orphan check for board_button_images/board_button_sounds (item 1)",
+      "id": "LL-57e9beb87f",
+      "ruleKey": "button-image-sound-orphaned-media-usage-check-unimplemented",
+      "title": "Flusher.flush_leftovers has no usage-based orphan check for orphaned ButtonImage/ButtonSound media records (item 1)",
       "severity": "low",
       "confidence": "medium",
       "frameworks": [
@@ -832,10 +832,10 @@
       "lastSeen": "2026-07-04",
       "owner": "unassigned",
       "remediation": {
-        "options": "The join-table-only orphan check (implemented, item 2) cannot double as a usage check: board_button_images stopped being kept in sync by Board#map_images (image usage now lives only in grid_buttons/known_button_images), and board_button_sounds can lag behind grid_buttons during an async resync window (BoyBand's deferred :map_images job), so a join-table check risks deleting rows a board is still actively using. Needs a grid_buttons-based reverse-usage check (the same signal known_button_images/known_button_sounds already use per-board) built and proven safe before either table is included in flush_leftovers on a usage basis.",
+        "options": "Item 1's deferred target is orphaned ButtonImage/ButtonSound media records themselves (images/sounds no board actually uses), NOT the BoardButtonImage/BoardButtonSound join rows -- those are already cleaned on a referential basis by item 2 (implemented). A join-table-only usage signal can't be trusted for ButtonImage/ButtonSound either: Board#map_images stopped syncing board_button_images (image usage now lives only in grid_buttons/known_button_images), and board_button_sounds can lag behind grid_buttons during an async resync window (BoyBand's deferred :map_images job), so checking \"zero join rows\" as a proxy for \"unused\" risks deleting media a board is still actively using. Needs a grid_buttons-based reverse-usage check (the same signal known_button_images/known_button_sounds already use per-board) built and proven safe before ButtonImage/ButtonSound records are deleted on a usage basis.",
         "timeframe": "90d"
       },
-      "notes": "Filed as a follow-up when LL-991d259b2a (flush_leftovers unimplemented) was attested verified-closed 2026-07-04: PR #514 deliberately left this item undone (documented inline at lib/flusher.rb:57) because implementing it unsafely risked live-data deletion, not because it was overlooked. Open here so the gap stays tracked now that the parent finding is closed."
+      "notes": "Filed as a follow-up when LL-991d259b2a (flush_leftovers unimplemented) was attested verified-closed 2026-07-04: PR #514 deliberately left this item undone (documented inline at lib/flusher.rb:57) because implementing it unsafely risked live-data deletion, not because it was overlooked. Open here so the gap stays tracked now that the parent finding is closed. Corrected 2026-07-04 per Codex review of #530: the original title/ruleKey named board_button_images/board_button_sounds (the join tables, item 2's target, already implemented) instead of the actual deferred target, ButtonImage/ButtonSound media records."
     },
     {
       "id": "LL-45bdcc73c9",
