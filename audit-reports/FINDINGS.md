@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (43)
+## Open (42)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -34,7 +34,6 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-e08bd45a9f |  | medium | WCAG | **accepted** | audit-run | Sentence box / utterance bar vocalize control is an anchor with no button role or accessible name | `app/frontend/app/templates/application.hbs`:86 |
 | LL-b06f063f85 |  | medium | WCAG | **accepted** | audit-run | Shared modal-dialog wrapper sets role=dialog/aria-modal but no accessible name | `app/frontend/app/templates/components/modal-dialog.hbs`:6 |
 | LL-8fab55372e |  | medium | WCAG | **accepted** | audit-run | Speak-bar remote-modeling (#reply_icon) button has no accessible name | `app/frontend/app/templates/application.hbs`:148 |
-| LL-991d259b2a | P2-1 | medium | GDPR, FERPA | **accepted** | audit-run | flush_leftovers is unimplemented (orphan records accumulate) | `lib/flusher.rb`:48 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:871 |
@@ -65,7 +64,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-705b10bcd7 |  | high | SOC2 | untriaged | audit-run | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
 | LL-5954bcbbe6 |  | medium | SOC2 | untriaged | audit-run | Pre-existing Resque background-job failures: ImageMagick identify missing in Cloud Run image, stale job_stash lookups, and a call to a removed Board method | (attestation) |
 
-## Verified closed (36)
+## Verified closed (37)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -98,6 +97,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-4e243f3e16 | P1-9 | high | SOC2 | **fixed** | audit-run | start_code_lookup uses a brute-forceable 5-char verification hash | `app/controllers/api/organizations_controller.rb`:128 |
 | LL-c5bd616242 | Prior-BAA-AWS | high | HIPAA | untriaged | audit-run | BAA with AWS (S3/SES/Transcoder/SNS) for HIPAA | `docs/legal/AWS_BAA_ACCEPTED.md` |
 | LL-2ea0b804e7 | Infra-P2-1 | medium | HIPAA | untriaged | audit-run | S3 buckets public-read on * (legacy ACL) | `docs/INFRASTRUCTURE.md`:101 |
+| LL-991d259b2a | P2-1 | medium | GDPR, FERPA | **fixed** | audit-run | flush_leftovers is unimplemented (orphan records accumulate) | `lib/flusher.rb`:48 |
 | LL-55baae6d40 | P2-4 | medium | GDPR | **fixed** | audit-run | external_reference exposed in license JSON without permission check | `lib/json_api/license.rb`:16 |
 | LL-56f0f19fca | P2-6 | medium | SOC2 | untriaged | audit-run | Registration/2fa/SAML endpoints under general throttle only | `config/initializers/throttling.rb`:18 |
 | LL-7a8effae8a | P2-9 | medium | FERPA | untriaged | audit-run | user_name exposed for expired licenses during expiration window | `lib/json_api/license.rb`:17 |
