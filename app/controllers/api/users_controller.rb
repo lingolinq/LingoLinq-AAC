@@ -252,6 +252,7 @@ class Api::UsersController < ApplicationController
     end
     user = User.process_new(user_data, {:pending => true, :author => @api_user})
     start_progress = nil
+    start_code_org = nil
     if !user || user.errored?
       return api_error(400, {error: "user creation failed", errors: user && user.processing_errors})
     end
@@ -259,6 +260,7 @@ class Api::UsersController < ApplicationController
       # Process start code actions once the user is fully created (can't add supervisors beforehand)
       res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
+      start_code_org = res[:target] if res.is_a?(Hash) && res[:target].is_a?(Organization)
     end
     UserBoardProvisioner.provision_for(user)
     # Org-authored (school-official) creation: emit the immutable authorization audit
@@ -293,6 +295,35 @@ class Api::UsersController < ApplicationController
         end
         Rails.logger.error("school_authorization audit failed to persist for #{user.global_id}: #{e.class} #{detail}")
       end
+    end
+    # General account-creation audit trail (LL-d35cbdb313): fires for EVERY new account,
+    # regardless of how it was created (self-registration, admin-created, or via an org
+    # start code). This is additive to, not a replacement for, the school_authorization
+    # event above -- that one separately records the specific COPPA authorization basis
+    # for org-authored under-13 accounts. Together: "was any account created" (this event,
+    # always) vs. "was it specifically authorized under the school exception" (that event,
+    # only when applicable).
+    begin
+      AuditEvent.create!(
+        user_key: user.global_id,
+        data: {
+          'type' => 'user_creation',
+          'author' => @api_user && @api_user.global_id,
+          'via_start_code' => !!(user_data && user_data['start_code'].present?),
+          'organization_id' => start_code_org && start_code_org.global_id
+        },
+        event_type: 'user_creation',
+        record_id: start_code_org && start_code_org.global_id
+      )
+    rescue => e
+      # Fail-open, same rationale as school_authorization above: the account is already
+      # persisted, so a failed audit insert must not 500 the request or orphan the account.
+      detail = begin
+        PiiScrubber.scrub_log_line(e.message.to_s).truncate(300)
+      rescue ScriptError, StandardError => scrub_err
+        "[unscrubbable:#{scrub_err.class}]"
+      end
+      Rails.logger.error("user_creation audit failed to persist for #{user.global_id}: #{e.class} #{detail}")
     end
     coppa_pending = user.coppa_parental_consent_pending?
     unless coppa_pending
