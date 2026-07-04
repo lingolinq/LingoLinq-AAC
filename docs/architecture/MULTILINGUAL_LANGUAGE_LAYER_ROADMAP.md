@@ -8,6 +8,11 @@ team-facing Notion page (linked from Engineering Home) is kept in sync from this
 **Companion Notion page:** see Engineering Home -> Technical Stack & Roadmap section for the
 plain-language team view of this roadmap.
 
+**Companion tooling doc:** `MULTILINGUAL_LANGUAGE_LAYER_TOOLING_ROADMAP.md` covers the AI
+generation pipeline, the human-review/contribution platform, and the open-source linguistic
+resources feeding dataset authoring. Relevant starting around Phase 3, once real hand-authored
+non-English data needs review.
+
 ---
 
 ## Decisions locked (Section 8 resolved)
