@@ -1767,6 +1767,31 @@ describe Board, :type => :model do
       expect { b.process_params({}, {}) }.to_not raise_error
     end
     
+    it "does not schedule update_privacy on an unsaved board (id:null -> class dispatch would fail)" do
+      u = User.create
+      b = Board.new(:user => u)
+      expect(b.id).to eq(nil)
+      allow(b).to receive(:schedule_for)
+      b.process_params({'visibility' => 'public', 'update_visibility_downstream' => true}, {:user => u})
+      expect(b).not_to have_received(:schedule_for).with(:priority, :update_privacy, any_args)
+    end
+
+    it "does not schedule update_privacy when visibility is blank" do
+      u = User.create
+      b = Board.create(:user => u)
+      allow(b).to receive(:schedule_for)
+      b.process_params({'visibility' => '', 'update_visibility_downstream' => true}, {:user => u})
+      expect(b).not_to have_received(:schedule_for).with(:priority, :update_privacy, any_args)
+    end
+
+    it "schedules update_privacy on a saved board with real visibility + downstream flag" do
+      u = User.create
+      b = Board.create(:user => u)
+      allow(b).to receive(:schedule_for)
+      b.process_params({'visibility' => 'public', 'update_visibility_downstream' => true}, {:user => u})
+      expect(b).to have_received(:schedule_for).with(:priority, :update_privacy, 'public', anything, [])
+    end
+
     it "should ignore non-sent parameters" do
       u = User.create
       b = Board.new(:user => u)

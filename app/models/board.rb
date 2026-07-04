@@ -1937,7 +1937,14 @@ class Board < ApplicationRecord
       self.settings['grid'] = grid_val if grid_val.is_a?(Hash)
     end
     if params['visibility'] != nil && !self.unshareable?
-      if params['update_visibility_downstream']
+      # Guard on self.id (matches the sibling schedule_update_available_boards lines below):
+      # process_params runs on the before_save path, so on CREATE self.id is still nil.
+      # schedule_for captures self.id at enqueue time, so an unsaved board would enqueue
+      # update_privacy with id:null -> boy_band dispatches it as a CLASS method (Board.update_privacy),
+      # which doesn't exist (it's an instance method) -> "method not found" failure. A brand-new
+      # board also has no downstream boards yet, so the downstream propagation is a no-op on create.
+      # Also skip blank visibility ("") — update_privacy no-ops on it, so don't enqueue dead work.
+      if params['update_visibility_downstream'] && self.id && !params['visibility'].blank?
         self.schedule_for(:priority, :update_privacy, params['visibility'], (non_user_params[:updater] || ref_user).global_id, [])
       end
       if params['visibility'] == 'public'

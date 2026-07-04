@@ -95,6 +95,7 @@ file (see [README.md](README.md)).
 - [Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state](#gotcha-dashboard-preview-tiles--selection-gates-leak-hidden-but-present-state)
 - [Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`](#gotcha-a-saved-frontend-preference-silently-vanishes-if-its-not-in-userpreference_params)
 - [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
+- [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
 
 ---
 
@@ -5772,3 +5773,30 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   SAME captured `level`. If a branch jumps to a different level (welcome → find-4, which lives in a
   later level), you must resync `level = levels[working.level]` after setting working.level, or the
   normalization re-increments past the target. (2026-06-29, adversarial review)
+
+## Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method
+
+**Surface:** any `self.schedule_for(queue, :some_instance_method, ...)` (boy_band async)
+called from a `before_save` / `process_params`-style path where `self` may not be
+persisted yet.
+
+**Symptom:** Resque failures `method not found: <Class>:<method>` that accumulate slowly
+over months, one per record created through that path. The failed payload has
+`"id": null` and targets `<Class>` (the class, not an instance).
+
+**Root cause:** boy_band's `schedule_for` captures `id = self.id` at ENQUEUE time
+(`boy_band.rb:408`). On CREATE, `process_params` runs before the INSERT, so `self.id` is
+nil. At run time, `perform_action` sees no id, leaves `obj = self` (the class), and
+`Class.respond_to?(instance_method)` is false → `raise "method not found: Class:method"`.
+The job can never succeed, so it just piles up in the failed queue.
+
+**Fix:** guard the enqueue on `self.id` (`... && self.id`), matching the sibling
+`schedule_update_available_boards('all') if self.id` guards that already exist in the same
+block. A brand-new record has nothing downstream to act on yet, so skipping the async work
+on create loses nothing. Also skip enqueuing a payload that would no-op (e.g. blank
+privacy). Detection: the failed job shows `"id": null` + `method not found`.
+
+**Evidence:** `app/models/board.rb` `schedule_for(:priority, :update_privacy, ...)` was
+missing the `self.id` guard its siblings had; ~26 dead `Board:update_privacy` jobs
+accumulated Mar–Jun 2026. Fixed 2026-07-03 (branch
+`fix/traci-update-privacy-unsaved-board-guard`).
