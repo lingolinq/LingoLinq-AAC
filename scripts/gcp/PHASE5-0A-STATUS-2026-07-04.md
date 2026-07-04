@@ -79,11 +79,11 @@ as the documented `bin/audit_console` pattern. Worth a look at whether `LL-7f737
 audited-console finding) should be re-assessed now that this guard is confirmed active in
 production - not investigated further as part of this task.
 
-## IAM changes made (confirmed with Scot before each)
+## IAM changes made and reverted (confirmed with Scot before each)
 
 Cloud Build's default compute service account had zero project-level roles (deliberately hardened,
-no broad Editor grant), which blocked local `gcloud builds submit`. Three narrow grants were added,
-each confirmed before applying:
+no broad Editor grant, per `scripts/gcp/phase1-setup.sh:176`), which blocked local
+`gcloud builds submit`. Three narrow grants were added, each confirmed before applying:
 
 - `roles/storage.objectViewer` on `gs://lingolinq-prod_cloudbuild` only (read its own source
   uploads).
@@ -92,8 +92,11 @@ each confirmed before applying:
 - `roles/artifactregistry.writer` scoped to the `lingolinq` repository only (matches the existing
   grant already held by `cloud-run-deployer@`).
 
-All three are standard, documented minimum requirements for Cloud Build's default service account
-to build and push images - no other permissions were touched.
+These were temporary, scoped to today's rebuild/redeploy. Once the ImageMagick redeploy (section 2)
+completed, all three were revoked (2026-07-04, same session) to restore the zero-role hardened
+posture `phase1-setup.sh` documents -- confirmed clean via `gcloud projects get-iam-policy`,
+`gsutil iam get`, and `gcloud artifacts repositories get-iam-policy` immediately after. No
+permanent IAM drift resulted from this investigation.
 
 ## Bottom line
 
