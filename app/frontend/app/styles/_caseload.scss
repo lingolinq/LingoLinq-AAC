@@ -1,0 +1,2610 @@
+// =============================================================================
+// Caseload page (SLP "My Caseload" / supervisee management)
+// =============================================================================
+// Pilot partial for the eventual all-pages SCSS extraction. Caseload styles are
+// being migrated here from app.scss ONE component group at a time, each verified
+// in the browser before the next group moves.
+//
+// SAFETY MODEL (see docs/task-management/2026-07-03-caseload-css-dedup.md):
+//   * @use hoists this file's CSS to the TOP of the compiled output, so a rule
+//     that currently wins by SOURCE ORDER (not specificity) can flip when moved
+//     here. Only rules anchored on `.md-caseload*` classes are migrated — no
+//     other selector matches those classes, so they can't collide with
+//     non-caseload rules. Generic-class overrides that merely live near the
+//     caseload block (`.md-card--sup`, Bootstrap `.dropdown-menu`,
+//     `.md-card__head--between`) STAY in app.scss.
+//   * Internal source-order among migrated rules is preserved on move.
+//   * Conflicting/duplicated rules (the merge-era divergences) are consolidated
+//     into a single authoritative rule as each group is migrated.
+//
+// $brand-*, $la-*, $surface-* tokens come from _variables.scss.
+@use "variables" as *;
+@use "sass:color";
+
+// (component groups land below as they are migrated)
+
+/* Home board info row */
+/* ══════════════════════════════════════════════════════
+   Caseload page
+   ══════════════════════════════════════════════════════ */
+/* Sunken container holding all supervisee cards — slightly darker
+   tinted surface inset into the page surface via a top-edge inset
+   shadow. The cards inside still float (their own resting drop
+   shadow), reading as raised tiles sitting in a recessed tray. */
+.md-caseload {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.06);
+  border-radius: var(--md-r-lg, 18px);
+  box-shadow:
+    inset 0 2px 4px rgba($la-navy, 0.10),
+    inset 0 1px 1px rgba($la-navy, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
+}
+/* At <= 950px the caseload wrap was touching the right edge of the
+   page. Pull it in 2px so the rounded corner doesn't sit flush
+   against the viewport without overshooting the inset look. */
+@media (max-width: 950px) {
+  .md-caseload {
+    margin-right: 2px !important;
+  }
+}
+.md-caseload__extras-dropdown:not(.md-caseload__extras-dropdown--mobile) {
+  display: none !important;
+}
+.md-caseload__extras-dropdown--mobile {
+  display: block !important;
+}
+/* With the corner chevron hidden, the bottom-row only contains
+   the goal area. The base rule uses justify-content:
+   space-between (designed for goal-left + chevron-right), which
+   can produce visually-skewed alignment when only one child
+   remains. Force the goal chip flush to the left edge and let
+   the goal area span the card width. */
+.md-caseload__bottom-row {
+  justify-content: flex-start !important;
+}
+.md-caseload__bottom-row__goal {
+  width: 100%;
+}
+.md-caseload__goal-row {
+  max-width: 100%;
+}
+.md-caseload__actions--tiles {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  grid-auto-rows: 1fr !important;
+  gap: 6px;
+}
+/* Override the base tile's 8rem max-width / 5rem basis so tiles
+   stretch to fill their grid cell evenly. */
+.md-caseload__actions--tiles > .md-caseload__action--tile {
+  flex: initial !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100% !important;
+}
+/* The More Actions wrapper sits as a grid item; stretch it to
+   fill the cell and force its inner button to fill the wrapper
+   so it visually matches the other tiles in both width and
+   height. */
+.md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile {
+  width: 100%;
+  height: 100%;
+}
+.md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile .md-caseload__action--more {
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+.md-caseload__filter-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba($la-navy, 0.55);
+  pointer-events: none;
+}
+.md-caseload__filter-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.md-caseload__filter-clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.06);
+  color: $brand-charcoal-blue;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-caseload__filter-clear:hover,
+.md-caseload__filter-clear:focus-visible {
+  background: rgba($la-navy, 0.12);
+  color: $la-navy;
+  outline: none;
+}
+/* No-matches empty-state CTA sits centered under the description.
+   Reuses .md-modal-btn--cancel for the same muted button look as
+   the modal footers without redefining the styling. */
+.md-caseload__empty--no-matches .md-modal-btn {
+  margin-top: 14px;
+}
+.md-caseload__back-to-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 999px;
+  background: #fff;
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba($la-navy, 0.04);
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__back-to-list:hover,
+.md-caseload__back-to-list:focus-visible {
+  background: $surface-100;
+  border-color: rgba($brand-verdigris, 0.35);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.08);
+}
+.md-caseload__back-to-list svg {
+  color: rgba($la-navy, 0.70);
+}
+.md-caseload__list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.md-caseload__list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.02) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 1px 2px rgba($la-navy, 0.04);
+  /* The entire row is clickable — selectSupervisee is bound to
+     <li> via {{action}}. Inner quick-action buttons are still
+     clickable independently because the controller checks the
+     event.target and skips toggling when the click originated
+     inside .md-caseload__list-quick. */
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__list-row:hover {
+  border-color: rgba($brand-verdigris, 0.30);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 6px rgba($la-navy, 0.08);
+}
+.md-caseload__list-row--active {
+  border-color: rgba($brand-verdigris, 0.50);
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.04) 0%, rgba($brand-verdigris, 0.08) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($brand-verdigris, 0.12);
+}
+.md-caseload__list-trigger {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  color: inherit;
+}
+.md-caseload__list-identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.md-caseload__list-quick {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.md-caseload__list-chevron {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  color: rgba($la-navy, 0.45);
+  margin-left: 2px;
+  transition: transform 0.18s ease, color 0.12s ease;
+}
+.md-caseload__list-row--active .md-caseload__list-chevron {
+  transform: rotate(180deg);
+  color: $brand-verdigris-aa;
+}
+@media (max-width: 640px) {
+  .md-caseload__list-quick {
+    /* On narrow screens, reduce to the two most-used quick actions
+       (Note + Assessment) to keep the row readable. Model + Reports
+       are still accessible from the full card below. */
+    gap: 3px;
+  }
+  /* Compact icon-only on phones — no room for captions alongside the name.
+     Parent-scoped (0,2,0) so it beats the base `a.md-caseload__quick-action`
+     (0,1,1) tile size, which sits LATER in source (the base 52×46 rule). */
+  .md-caseload__list-quick .md-caseload__quick-action {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .md-caseload__quick-label {
+    display: none;
+  }
+  .md-caseload__quick-action--model,
+  .md-caseload__quick-action--reports {
+    display: none;
+  }
+}
+
+.md-caseload__grid {
+  display: grid;
+  /* Single-card layout: the grid now only ever renders the
+     selected supervisee's card (the rest collapse into the compact
+     list above). Center the column on the page and cap its width
+     at 800px so the card reads as a focused detail panel rather
+     than a roster cell. min(800px, 100%) keeps it edge-to-edge on
+     narrow viewports. */
+  grid-template-columns: minmax(0, min(800px, 100%));
+  justify-content: center;
+  gap: 16px;
+}
+.md-caseload__card {
+  /* min-width: 0 lets the card honor its 1fr grid track instead of
+     growing to fit min-content of long goal summaries — without
+     this, a wide goal text in one card pushes the grid column
+     wider and the chip can't ellipsis-truncate. */
+  min-width: 0;
+  /* Scope the card's stacking to itself. The card's inner layers (sections z:1,
+     card-top z:5, OPTIONS row z:10, open-dropdown tier z:20-40) order WITHIN the
+     card only — isolate keeps them contained so they can never paint above
+     app-level overlays (modals live at z:1050). Only ONE supervisee card renders
+     at a time, so there's no inter-card layering to preserve. */
+  isolation: isolate;
+  /* LEVEL 0 — premium AAC surface. Composed of:
+     1. Layered glass background — a vertical white→cool-tint
+        gradient on top of two soft radial light blobs (top-left
+        verdigris hint + top-right blue hint) so the card carries
+        an organic, ambient glow rather than a flat fill. Subtle
+        backdrop-filter lets a hint of the page surface peek
+        through, reading as glass rather than paper.
+     2. Directional shadow stack with top-left bias (light source
+        coming from the upper-left, casting longer shadow to the
+        bottom-right). Ambient contact + mid lift + wide diffuse.
+     3. Strong inset rim-light on the top edge + faint bottom
+        shadow for a sculpted, almost 3D quality.
+     The chromatic AAC ring (::before) and glass rim highlight
+     (::after) layer on top of this for the brand identity. */
+  background:
+    radial-gradient(ellipse 60% 50% at 18% 0%, rgba($brand-verdigris, 0.07), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba($brand-dusty-denim, 0.05), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(251, 252, 253, 0.97) 100%);
+  /* Lighter blur — keeps the glass quality but sharpens the surface
+     so the card edges and content read with more crispness. */
+  backdrop-filter: blur(6px) saturate(1.05);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
+  border: 1px solid rgba($la-navy, 0.11);
+  border-radius: var(--md-r-lg, 18px);
+  padding: 20px 22px 18px;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+  box-shadow:
+    /* Tight ambient contact — slight LEFT bias so the light reads as
+       coming from the upper-left */
+    -1px 1px 2px rgba($la-navy, 0.04),
+    /* Mid lift — primary drop, biased right + down */
+    2px 6px 14px -2px rgba($la-navy, 0.08),
+    /* Wide diffuse — soft halo, vertical bias */
+    0 22px 40px -10px rgba($la-navy, 0.12),
+    /* Rim light — strong inset top highlight */
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    /* Subtle bottom inset shadow for sculpted depth */
+    inset 0 -1px 0 rgba($la-navy, 0.04);
+}
+/* Chromatic AAC-palette ring around the WHOLE card. Same conic
+   gradient + mask trick as before, now on the outer container so
+   the entire card surface carries the brand chromatic identity —
+   header and body share one halo, no visual seam. */
+.md-caseload__card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--md-r-lg, 18px) + 2px);
+  padding: 2px;
+  background: conic-gradient(
+    from 140deg,
+    rgba($brand-verdigris, 0.45),
+    rgba($brand-dusty-denim, 0.35),
+    rgba($brand-honey-bronze, 0.30),
+    rgba(139, 92, 246, 0.30),
+    rgba($brand-verdigris, 0.45)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  /* Reduced opacity (0.75 → 0.55) + a hair of blur so the ring
+     reads as a soft chromatic glow around the card rather than a
+     visible stroke that competes with the inner content. */
+  opacity: 0.55;
+  filter: blur(0.6px);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+  z-index: 0;
+}
+.md-caseload__card:hover::before {
+  opacity: 0.85;
+  filter: blur(0.4px);
+}
+/* Glass rim highlight on the card — same top-edge white glow +
+   faint bottom-edge shadow vocabulary that used to live on the
+   identity-row pill, promoted to the card surface. */
+.md-caseload__card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--md-r-lg, 18px);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba($la-navy, 0.06);
+  pointer-events: none;
+  z-index: 0;
+}
+.md-caseload__card > * {
+  position: relative;
+  z-index: 1;
+}
+/* Identity-row is now JUST a layout container — the chromatic ring,
+   glass rim, and lift now live on the .md-caseload__card itself so
+   the header and body share one unified surface. No background, no
+   pill shape, no shadow here. The row groups avatar + info + access
+   horizontally and stays part of the card visually. */
+.md-caseload__identity-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+/* The OPTIONS dropdown ships as the 6th action tile ("More
+   Actions") at every width — the standalone OPTIONS row above
+   the goals section is suppressed, and the mobile-tile variant is
+   always visible. The 5 role tiles (Model / Speak / Setup / Usage
+   Reports / Modeling Ideas) plus More Actions = 6 tiles → 2 rows
+   of 3. Grid columns: repeat(3, 1fr) for uniform width; grid rows:
+   1fr so both rows share the same height. Tile-base flex/min/max
+   constraints are explicitly cleared since grid sizing now drives
+   layout. */
+.md-caseload__options-row {
+  display: none !important;
+}
+/* With the corner chevron hidden, the bottom-row only contains
+   the goal area. The base rule uses justify-content:
+   space-between (designed for goal-left + chevron-right), which
+   can produce visually-skewed alignment when only one child
+   remains. Force the goal chip flush to the left edge and let
+   the goal area span the card width. */
+.md-caseload__bottom-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-basis: 100%;
+  width: 100%;
+  min-width: 0;
+  /* Clip content to the goals section so long goal text can't push
+     the card (or the grid track) wider. The chromatic ring on the
+     card sits on .md-caseload__card::before, not on this section,
+     so clipping here doesn't affect the ring. */
+  overflow: hidden;
+  /* LEVEL 2 — Goals is the clinical-priority section. Layered
+     surface: soft verdigris radial blob at top-left + vertical
+     white→tinted gradient, controlled blur on the surface for
+     glass quality, directional shadow biased to match the card's
+     upper-left light source. */
+  margin: 14px 0 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse 60% 70% at 0% 0%, rgba($brand-verdigris, 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba($brand-verdigris, 0.06) 100%);
+  /* Reduced blur — still glassy but the surface feels more
+     defined against the card behind it. */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
+  border: 1px solid rgba($brand-verdigris, 0.28);
+  box-shadow:
+    -1px 1px 2px rgba($la-navy, 0.03),
+    1px 4px 10px -2px rgba($brand-verdigris, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($brand-verdigris, 0.05);
+  position: relative;
+}
+/* Eyebrow row sits inline: GOALS label on the left, count badge to
+   its right. flex layout so the badge sits flush after the label
+   without committing to the full goal-column width. */
+.md-caseload__goal-eyebrow-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.md-caseload__goal-eyebrow {
+  margin-right: 0;
+  flex: 0 0 auto;
+}
+/* The More Actions wrapper sits as a grid item; stretch it to
+   fill the cell and force its inner button to fill the wrapper
+   so it visually matches the other tiles in both width and
+   height. */
+.md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile {
+  width: 100%;
+  height: 100%;
+  /* Match the rounded-rectangle tile shape (10px) — was 50%, which on a
+     wider-than-tall cell rendered the More Actions tile as an ellipse. */
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  object-fit: cover;
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+.md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile .md-caseload__action--more {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+/* Caseload search filter — sits above the grid, mirrors the SaaS
+   "rounded input with leading icon" pattern used elsewhere in the
+   app. Sunken inset shadow ties it visually to the caseload tray
+   surface; the clear-× appears only when text is present. */
+.md-caseload__filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 10px 14px 10px 42px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.7);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__filter:focus-within {
+  border-color: rgba($brand-verdigris, 0.55);
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.06),
+    0 0 0 3px rgba($brand-verdigris, 0.15);
+}
+.md-caseload__eyebrow {
+  display: block;
+  margin-left: 2px;
+  margin-bottom: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.55);
+  pointer-events: none;
+}
+.md-caseload__filter-input,
+.md-caseload__filter-input.form-control {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  color: $la-navy;
+  box-shadow: none;
+  outline: none;
+}
+.md-caseload__filter-input::placeholder {
+  color: rgba($la-navy, 0.45);
+  font-weight: 500;
+}
+.md-caseload__filter-input:focus,
+.md-caseload__filter-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* ── Google Classroom-style compact student list ────────────────
+   Rows of supervisees, each with an avatar, name + current goal,
+   and a strip of quick-action icons (Model / Note / Assessment /
+   Reports). Clicking a row sets selectedSupervisee in the
+   controller, which collapses the list to that one row and expands
+   the full caseload card below. The "Full List" button (rendered
+   above the list when a selection is active) restores the full
+   roster. */
+.md-caseload__list-controls {
+  display: flex;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.md-caseload__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 999px;
+  background: #fff;
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba($la-navy, 0.04);
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__action--tile {
+  box-sizing: border-box;
+  /* Glass tile — pure flat white surface (no gradient cloudiness),
+     near-invisible border, and a sharp inner top highlight that
+     does the lift instead of any outer shadow blur. Reads as a
+     piece of clear glass laid on the tray rather than a boxed
+     button. Role-tint variants below layer subtle gradient/border
+     color on top. */
+  flex: 1 1 0;
+  min-width: 5rem;
+  min-height: 5rem;
+  height: auto;
+  padding: 8px 5px;
+  flex-direction: column;
+  gap: 8px;
+}
+.md-caseload__list-row {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  white-space: normal;
+  gap: 5px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.03);
+  background: #ffffff;
+  line-height: 1.2;
+  box-shadow:
+    /* Crisp white rim — sharp light catch on the top edge. */
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    /* Thin inner glass outline. */
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    /* Hairline 1px contact shadow — the only outer lift. */
+    0 1px 1px rgba($la-navy, 0.04);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.md-caseload__action-tile__icon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  color: inherit;
+}
+.md-caseload__list-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: $surface-100;
+  border: 1px solid rgba($la-navy, 0.08);
+}
+.md-caseload__list-avatar--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.08) 100%);
+  color: $la-navy;
+}
+.md-caseload__list-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-caseload__list-goal {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.65);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-caseload__quick-action,
+a.md-caseload__quick-action {
+  /* Icon-over-label tile: the SVG sits above a small caption so each action is
+     self-describing without relying on the hover title. Sized to fit the widest
+     label ("Reports"/"History") at 10px. */
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 52px;
+  height: 46px;
+  padding: 4px 2px;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 9px;
+  background: rgba($la-navy, 0.02);
+  color: $la-navy;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__quick-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: rgba($la-navy, 0.6);
+  white-space: nowrap;
+}
+/* Caseload hero mirrors the home SLP hero: STACKED title + subheader on separate
+   rows (the base .md-slp-hero__text column layout) — same classes → same style +
+   from-left/from-right motion, including the shared 32px title size. Keeps the
+   base `.md-hero` top padding. */
+/* Info button next to the "People you support" subheader → opens the caseload
+   guide modal. Small, muted, inline after the subheader text. */
+.md-caseload__guide-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba($brand-slate-blue, 0.7);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-caseload__guide-btn:hover,
+.md-caseload__guide-btn:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  color: $brand-slate-blue;
+}
+/* Caseload guide modal — colour-coded icon map + a highlighted "open a row"
+   callout. Succinct, professional, engaging (soft brand-hue tiles per action). */
+.md-caseload-guide__lead {
+  margin: 0 0 18px;
+  font-size: 15px;
+  color: rgba($la-navy, 0.7);
+  line-height: 1.5;
+  text-align: center;
+}
+.md-caseload-guide__heading {
+  max-width: 400px;
+  margin: 0 auto 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $brand-slate-blue;
+  text-align: left;
+}
+.md-caseload-guide__list {
+  list-style: none;
+  max-width: 400px;
+  margin: 0 auto 20px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+.md-caseload-guide__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.015);
+  border: 1px solid rgba($la-navy, 0.05);
+}
+.md-caseload-guide__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+}
+.md-caseload-guide__name {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  line-height: 1.2;
+}
+.md-caseload-guide__desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 13.5px;
+  color: rgba($la-navy, 0.6);
+  line-height: 1.35;
+}
+/* Per-action icon tile colours (soft brand tints; navy-dominant icons read cleanly). */
+.md-caseload-guide__item--model .md-caseload-guide__icon   { background: rgba($brand-verdigris, 0.12);   border-color: rgba($brand-verdigris, 0.25); }
+.md-caseload-guide__item--note .md-caseload-guide__icon    { background: rgba($brand-dusty-denim, 0.12);  border-color: rgba($brand-dusty-denim, 0.25); }
+.md-caseload-guide__item--assess .md-caseload-guide__icon  { background: rgba($brand-verdigris, 0.12);   border-color: rgba($brand-verdigris, 0.25); }
+.md-caseload-guide__item--reports .md-caseload-guide__icon { background: rgba(#e87a6f, 0.14);             border-color: rgba(#e87a6f, 0.28); }
+.md-caseload-guide__item--eval .md-caseload-guide__icon    { background: rgba($brand-honey-bronze, 0.16); border-color: rgba($brand-honey-bronze, 0.30); }
+.md-caseload-guide__item--history .md-caseload-guide__icon { background: rgba($brand-slate-blue, 0.12);   border-color: rgba($brand-slate-blue, 0.25); }
+/* Highlighted "open a communicator" callout. */
+.md-caseload-guide__callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.10) 0%, rgba($brand-dusty-denim, 0.10) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.20);
+}
+.md-caseload-guide__callout-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #ffffff;
+  color: $brand-verdigris-aa;
+  box-shadow: 0 1px 3px rgba($la-navy, 0.08);
+}
+.md-caseload-guide__callout-title {
+  margin-bottom: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.md-caseload-guide__callout-desc {
+  margin: 0;
+  font-size: 13.5px;
+  color: rgba($la-navy, 0.68);
+  line-height: 1.45;
+}
+/* Per-action colour scheme — same brand hues as the caseload guide modal so the
+   row icons read as a colour-coded palette (soft tints; navy-dominant icons stay
+   crisp). Model/Assess verdigris, Note denim, Reports coral, Eval honey, History
+   slate. */
+.md-caseload__quick-action.md-caseload__quick-action--model,
+.md-caseload__quick-action.md-caseload__quick-action--assess   { background: rgba($brand-verdigris, 0.10);   border-color: rgba($brand-verdigris, 0.22); }
+.md-caseload__quick-action.md-caseload__quick-action--note     { background: rgba($brand-dusty-denim, 0.10);  border-color: rgba($brand-dusty-denim, 0.22); }
+.md-caseload__quick-action.md-caseload__quick-action--reports  { background: rgba(#e87a6f, 0.12);            border-color: rgba(#e87a6f, 0.24); }
+.md-caseload__quick-action.md-caseload__quick-action--eval-quick   { background: rgba($brand-honey-bronze, 0.14); border-color: rgba($brand-honey-bronze, 0.26); }
+.md-caseload__quick-action.md-caseload__quick-action--eval-history { background: rgba($brand-slate-blue, 0.10);   border-color: rgba($brand-slate-blue, 0.22); }
+/* Neutral lift on hover so each button keeps its own colour (no verdigris wash). */
+.md-caseload__quick-action:hover,
+a.md-caseload__quick-action:hover,
+.md-caseload__quick-action:focus-visible {
+  border-color: rgba($la-navy, 0.28);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.10);
+  text-decoration: none;
+}
+.md-caseload__card {
+  /* min-width: 0 lets the card honor its 1fr grid track instead of
+     growing to fit min-content of long goal summaries — without
+     this, a wide goal text in one card pushes the grid column
+     wider and the chip can't ellipsis-truncate. */
+  min-width: 0;
+  /* Scope the card's stacking to itself. The card's inner layers (sections z:1,
+     card-top z:5, OPTIONS row z:10, open-dropdown tier z:20-40) order WITHIN the
+     card only — isolate keeps them contained so they can never paint above
+     app-level overlays (modals live at z:1050). Only ONE supervisee card renders
+     at a time, so there's no inter-card layering to preserve. */
+  isolation: isolate;
+  /* LEVEL 0 — premium AAC surface. Composed of:
+     1. Layered glass background — a vertical white→cool-tint
+        gradient on top of two soft radial light blobs (top-left
+        verdigris hint + top-right blue hint) so the card carries
+        an organic, ambient glow rather than a flat fill. Subtle
+        backdrop-filter lets a hint of the page surface peek
+        through, reading as glass rather than paper.
+     2. Directional shadow stack with top-left bias (light source
+        coming from the upper-left, casting longer shadow to the
+        bottom-right). Ambient contact + mid lift + wide diffuse.
+     3. Strong inset rim-light on the top edge + faint bottom
+        shadow for a sculpted, almost 3D quality.
+     The chromatic AAC ring (::before) and glass rim highlight
+     (::after) layer on top of this for the brand identity. */
+  background:
+    radial-gradient(ellipse 60% 50% at 18% 0%, rgba($brand-verdigris, 0.07), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba($brand-dusty-denim, 0.05), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(251, 252, 253, 0.97) 100%);
+  /* Lighter blur — keeps the glass quality but sharpens the surface
+     so the card edges and content read with more crispness. */
+  backdrop-filter: blur(6px) saturate(1.05);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
+  border: 1px solid rgba($la-navy, 0.11);
+  border-radius: var(--md-r-lg, 18px);
+  padding: 20px 22px 18px;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+}
+.md-caseload__card:hover {
+  border-color: rgba($la-navy, 0.10);
+  /* Hover deepens the shadow but does NOT use `transform` to lift
+     the card — transform creates a new containing block for any
+     absolutely-positioned descendant, which clips the Bootstrap
+     dropdown-menu under "OPTIONS" against the card edge. The
+     shadow-only treatment still reads as elevated. */
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.06),
+    0 8px 16px rgba($la-navy, 0.08),
+    0 28px 48px -10px rgba($la-navy, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+.md-caseload__card-top {
+  display: flex;
+  flex-wrap: wrap;
+  /* Align children to the top of the row so the chevron lines up
+     with the View & edit badge (the first line of info), not with
+     the vertical center of the avatar+info stack. */
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  /* Border-bottom divider removed — the identity-row pill +
+     half-divider above the goals section already carry enough
+     separation between the header and the body. */
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+  /* Raise card-top's stacking context above the action-tiles
+     sibling so the OPTIONS dropdown menu (nested inside card-top
+     → options-row) paints on top of the tiles. The card's
+     `> * { z-index: 1 }` rule put card-top and action-tiles at
+     the same z:1; the later-painted action-tiles row would
+     otherwise win and clip the open dropdown. */
+  position: relative;
+  z-index: 5;
+  /* Required for the truncation chain so long goal text doesn't
+     push card-top wider than its grid track. */
+  min-width: 0;
+  width: 100%;
+}
+.md-caseload__card-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+.md-caseload__card-corner {
+  margin-top: 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  /* Vertically center the ACCESS label + badge column relative to
+     the avatar/name block on the left. The parent card-top uses
+     align-items: flex-start (so the wrapped bottom-row stays at
+     the bottom of its own flex line); align-self overrides that
+     on this column only so the access group reads as a right-
+     center pairing with the avatar+info instead of pinning to
+     the top corner. Applies at every viewport. */
+  align-self: center;
+}
+/* ACCESS group — small uppercase label above the access badge,
+   pinned to the top-right corner of the card. Mirrors the eyebrow
+   pattern over the username on the left side so both columns share
+   one hierarchy language. */
+.md-caseload__access {
+  display: flex;
+  flex-direction: column;
+  /* Center the ACCESS eyebrow over the badge below it — reads as
+     a labeled status pill (eyebrow → pill in vertical alignment)
+     rather than two right-edge-pinned siblings. */
+  align-items: center;
+  gap: 5px;
+  padding-right: 2px;
+}
+/* Full-width bottom row inside .md-caseload__card-top —
+   `flex-basis: 100%` makes it wrap to its own line within the
+   flex-wrapping card-top so the goal chip sits at the LEFT edge of
+   the card and the chevron at the RIGHT edge, ABOVE the card-top
+   border-bottom divider. */
+.md-caseload__bottom-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-basis: 100%;
+  width: 100%;
+  min-width: 0;
+  /* Clip content to the goals section so long goal text can't push
+     the card (or the grid track) wider. The chromatic ring on the
+     card sits on .md-caseload__card::before, not on this section,
+     so clipping here doesn't affect the ring. */
+  overflow: hidden;
+  /* LEVEL 2 — Goals is the clinical-priority section. Layered
+     surface: soft verdigris radial blob at top-left + vertical
+     white→tinted gradient, controlled blur on the surface for
+     glass quality, directional shadow biased to match the card's
+     upper-left light source. */
+  margin: 14px 0 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse 60% 70% at 0% 0%, rgba($brand-verdigris, 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba($brand-verdigris, 0.06) 100%);
+  /* Reduced blur — still glassy but the surface feels more
+     defined against the card behind it. */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
+  will-change: transform;
+  transform: translateZ(0);
+  border: 1px solid rgba($brand-verdigris, 0.28);
+  box-shadow:
+    -1px 1px 2px rgba($la-navy, 0.03),
+    1px 4px 10px -2px rgba($brand-verdigris, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($brand-verdigris, 0.05);
+  position: relative;
+}
+/* Divider above the goals section removed — the identity-row pill
+   above already provides enough visual separation from the goals
+   row below; an extra line was reading as noise. */
+/* Options row — full-width flex container that horizontally
+   centers the OPTIONS ▾ dropdown trigger on the card. Sits between
+   the identity header and the goals section so the controls have a
+   clear visual anchor regardless of card width. */
+.md-caseload__options-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  flex-basis: 100%;
+  /* Raise the OPTIONS row above the action tiles below it. The
+     card's `> * { z-index: 1 }` rule put every section at z:1,
+     so the later-painted action-tiles row rendered ON TOP of the
+     OPTIONS dropdown menu. z:10 here keeps the dropdown menu
+     visually on top whenever it's open. */
+  position: relative;
+  z-index: 10;
+}
+/* Top row of the goals section: GOALS eyebrow + count on the LEFT,
+   "+ Add goal" CTA pinned to the RIGHT. justify-content:
+   space-between drives the split; align-items: center keeps the
+   eyebrow text vertically aligned with the CTA pill. */
+.md-caseload__goal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+/* Pill-style count chip — small, low-contrast circle of digits next
+   to the GOALS eyebrow. Mirrors patterns like Stripe / Linear count
+   pills: tight padding, semantic navy tint, monospace numeric weight
+   so the digit reads as a count rather than free text. */
+.md-caseload__goal-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.08);
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.md-caseload__bottom-row__goal {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  /* Now that the OPTIONS dropdown lives in the ACCESS column above,
+     the goals row is exclusively clinical content and can span
+     the full width of its parent section. */
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  /* Wider gap between the GOALS eyebrow and the chip below it —
+     premium pages give labels space to breathe rather than
+     stacking them tight against their content. */
+  gap: 12px;
+}
+/* Chip stretches to fill the 75% goal column so the bottom edge of
+   the chip lines up with the divider above it. */
+.md-caseload__bottom-row__goal .md-caseload__goal-row {
+  width: 100%;
+  max-width: 100%;
+}
+.md-caseload__access-eyebrow,
+.md-caseload__goal-eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.68);
+  text-transform: uppercase;
+  letter-spacing: 0.108em;
+  line-height: 1;
+  margin-right: 2px;
+}
+/* OPTIONS column: holds the fused OPTIONS ▾ dropdown trigger.
+   align-self: stretch + justify-content: flex-end keeps the
+   trigger bottom-aligned with the goal chip on the opposite side
+   of the row. */
+.md-caseload__extras-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  align-self: stretch;
+  flex: 0 0 auto;
+}
+/* Multi-goal expandable list — native <details>/<summary> so no JS
+   state is needed. Strips the default disclosure marker and uses
+   the same sunken chip surface as the single-goal row. Clicking
+   the summary expands a stacked list of all active goals. */
+/* Higher specificity (details + class) so this rule wins over the
+   later .md-caseload__goal-row base rule that defines the chip
+   padding/border/background. display: contents removes the
+   <details> element's own box from the layout entirely — only its
+   children (<summary> + <ul>) render as visible boxes, so there is
+   no "outer container" wrapping the chip. open/close behavior
+   still works because <details>[open] is a state, not a box
+   requirement. */
+details.md-caseload__goal-row--list {
+  display: contents;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-height: 0;
+}
+.md-caseload__goal-row--list > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Match the unified .md-caseload__goal-row chip dimensions so the
+     <details>/<summary> chip is visually identical to the single-goal
+     chip — same padding, height, border radius. The hard width
+     constraints + overflow on the parent details element force the
+     inner goal text to ellipsis-truncate rather than push the chip
+     wider than its column. */
+  padding: 10px 14px;
+  min-height: 52px;
+  /* Glass surface — mirrors the landing-alt "Why LingoLinq"
+     eyebrow pill (.la-section-eyebrow-badge): teal tint with
+     backdrop-filter blur, teal border, soft teal lift shadow.
+     Layered on a subtle gradient + inset top highlight to give the
+     surface a true glass-rim quality (the parent's own
+     backdrop-filter blocks the chip's blur from rendering, so we
+     simulate the glass quality with explicit layering). */
+  background:
+    linear-gradient(180deg, rgba($brand-teal, 0.05) 0%, rgba($brand-teal, 0.11) 100%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba($brand-teal, 0.28);
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 2px 10px rgba($brand-teal, 0.10);
+}
+.md-caseload__goal-row--list > summary::-webkit-details-marker {
+  display: none;
+}
+.md-caseload__goal-row--list > summary::marker {
+  content: '';
+}
+.md-caseload__goal-summary {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+/* Goal text inside the summary should consume available width so
+   the Primary pill + chevron stay flush against the right edge. */
+.md-caseload__goal-summary .md-caseload__goal {
+  flex: 1;
+  min-width: 0;
+}
+.md-caseload__goal-row__chevron {
+  flex-shrink: 0;
+  /* Pinned to the right edge of the chip — margin-left: auto pushes
+     it past any Primary pill that sits between the goal text and
+     the chevron, so the chevron always reads as the affordance for
+     the whole chip. */
+  margin-left: auto;
+  display: inline-flex;
+  color: rgba($la-navy, 0.55);
+  transition: transform 0.15s ease;
+}
+/* Goal metadata cluster — groups the Status pill and the Primary
+   pill on the right of the goal text so they read as a single,
+   intentional metadata block rather than floating siblings. */
+.md-caseload__goal-tags {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+/* In the goal-set single-goal chip, the tags cluster takes the
+   margin-left: auto from .md-caseload__goal-tags above; we don't
+   need the legacy margin-left: auto on .md-caseload__goal-primary-tag
+   anymore inside this cluster. */
+.md-caseload__goal-tags .md-caseload__goal-primary-tag,
+.md-caseload__goal-tags .md-caseload__goal-status-tag {
+  margin-left: 0;
+}
+/* Status pill — small uppercase pill that mirrors the bullet
+   color so the row reads as "this is its current state". Same
+   typographic system as the Primary pill (10px / 0.08em / 700
+   weight / 999px radius) so the two badges read as a matched
+   set. Color variants below carry the semantic state. */
+.md-caseload__goal-status-tag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  line-height: 1.2;
+  user-select: none;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+/* Status tag colors — all four variants pass WCAG AA (4.5:1) for
+   small text against the chip background. The honey-bronze tint
+   was too light against the previous -28% darkened amber text
+   (~3.9:1, fails small-text AA) so the in_progress text is now
+   pulled down to a deeper roasted-amber; the other variants are
+   nudged in step for visual consistency. AAC accessibility is a
+   first-class concern, so these run AA at minimum. */
+.md-caseload__goal-status-tag--active {
+  /* deep teal text on light verdigris tint — ~7:1 (AAA small) */
+  color: #0F5957;
+  background: rgba($brand-verdigris, 0.14);
+  border-color: rgba($brand-verdigris, 0.30);
+}
+.md-caseload__goal-status-tag--in_progress {
+  /* deep roasted amber on light honey tint — ~7.5:1 (AAA small).
+     Was color.adjust(-28%) ≈ #B07A1A which only hit ~3.9:1. */
+  color: #6B4200;
+  background: rgba($brand-honey-bronze, 0.22);
+  border-color: rgba($brand-honey-bronze, 0.40);
+}
+.md-caseload__goal-status-tag--achieved {
+  /* Slightly deeper / "celebratory" verdigris so achieved reads
+     distinct from active. Saturated emerald text passes AAA. */
+  color: #0B4A48;
+  background: rgba($brand-verdigris, 0.22);
+  border-color: rgba($brand-verdigris, 0.42);
+}
+.md-caseload__goal-status-tag--paused {
+  /* deep slate on light slate tint — ~7.5:1 (AAA small). Was
+     $brand-slate-gray (#6B7280) on a 10% slate bg, ~4.4:1. */
+  color: #374151;
+  background: rgba($brand-slate-gray, 0.12);
+  border-color: rgba($brand-slate-gray, 0.28);
+}
+/* Multi-goal list bullet variants — match the .md-caseload__goal
+   bullet vocabulary: fill carries the status color, outline is a
+   neutral gray hairline for uniform edge definition. */
+.md-caseload__goal-list__dot {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+.md-caseload__goal-list__dot--in_progress {
+  background: $brand-honey-bronze;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+.md-caseload__goal-list__dot--achieved {
+  background: color.adjust($brand-verdigris, $lightness: 6%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+.md-caseload__goal-list__dot--paused {
+  background: transparent;
+  box-shadow:
+    inset 0 0 0 2px rgba($brand-slate-gray, 0.6),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+/* "Primary" tag — small uppercase pill marking which active goal
+   is the user's designated primary. Soft verdigris fill so it
+   reads as part of the goals-section color family (matches the
+   chip's verdigris border + gradient). Used in both the
+   collapsed summary chip and the expanded list rows. */
+.md-caseload__goal-primary-tag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color.adjust($brand-verdigris, $lightness: -18%);
+  background: rgba($brand-verdigris, 0.16);
+  border: 1px solid rgba($brand-verdigris, 0.30);
+  border-radius: 999px;
+  line-height: 1.2;
+  user-select: none;
+}
+/* In the goal-set single-goal chip, push the Primary pill flush
+   right of the goal text the same way the chevron does inside the
+   summary chip. */
+.md-caseload__goal-row .md-caseload__goal-primary-tag {
+  margin-left: auto;
+}
+/* Expanded-list rows can show a Primary tag too — flush right of
+   the goal text, vertically centered. */
+.md-caseload__goal-list__item .md-caseload__goal-primary-tag {
+  margin-left: auto;
+  align-self: center;
+}
+.md-caseload__goal-row--list[open] > summary .md-caseload__goal-row__chevron {
+  transform: rotate(180deg);
+}
+.md-caseload__goal-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  background: rgba($la-navy, 0.03);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.md-caseload__goal-list__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: $brand-slate-gray;
+  line-height: 1.4;
+}
+.md-caseload__goal-list__dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 50%;
+  /* Default = active = soft blue (matches the .md-caseload__goal
+     status-bullet system above). */
+  background: $brand-dusty-denim;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+/* Status variants — compound selectors so the variant backgrounds
+   always win over the base rule regardless of source-order tie.
+   Color taxonomy mirrors the summary chip's status bullet system:
+     active       → blue
+     in_progress  → amber
+     achieved     → emerald green
+     paused       → gray hollow ring */
+.md-caseload__goal-list__dot.md-caseload__goal-list__dot--active {
+  background: $brand-dusty-denim;
+}
+.md-caseload__goal-list__dot.md-caseload__goal-list__dot--in_progress {
+  background: $brand-honey-bronze;
+}
+.md-caseload__goal-list__dot.md-caseload__goal-list__dot--achieved {
+  background: #16a34a;
+}
+.md-caseload__goal-list__dot.md-caseload__goal-list__dot--paused {
+  background: transparent;
+  box-shadow:
+    inset 0 0 0 2px rgba($brand-slate-gray, 0.55),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+.md-caseload__goal-list__text {
+  flex: 1;
+  min-width: 0;
+}
+/* Link variant of the goal-list text — rendered when the supporter
+   has edit permission. Keeps the slate body color at rest and uses
+   a quiet underline + deeper navy on hover/focus so the affordance
+   reads as "open this goal to edit" without competing with the
+   clinical Primary/Status pills next to it. */
+.md-caseload__goal-list__link,
+a.md-caseload__goal-list__link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.12s ease, text-decoration-color 0.12s ease;
+}
+.md-caseload__goal-list__link:hover,
+.md-caseload__goal-list__link:focus-visible {
+  color: rgba($la-navy, 0.92);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba($brand-verdigris-aa, 0.55);
+}
+.md-caseload__goal-list__link:focus-visible {
+  outline: 2px solid rgba($brand-verdigris-aa, 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Refined avatar treatment — flatter ring, soft surface fallback,
+   subtle shadow so the photo (or default placeholder) reads as a
+   modern profile chip rather than a raw <img>. */
+/* Modern avatar treatment — soft gradient surface inside a clean
+   circular frame with a thin inner ring + outer lift shadow. The
+   internal padding (via box-shadow inset on .md-caseload__avatar)
+   keeps the supervisee image from touching the edge of the circle,
+   which removes the clip-art-y look of the default placeholder. */
+/* Glassmorphism avatar — same visual language as the eyebrow/glass
+   badges (white→teal gradient + backdrop blur + inset highlight +
+   teal glow). Reads as a refined product-grade profile chip rather
+   than a generic ring around an icon. */
+/* Polished glass avatar — multi-layer treatment that mirrors how
+   Apple Account / Stripe / Linear render profile chips:
+   1. Layered conic-then-radial gradient surface so the chip has
+      depth (highlight at top-left, deeper tint at bottom-right)
+   2. Backdrop blur for true glass look
+   3. Two-color border (white inner ring + soft navy outer hint)
+   4. Layered shadows: ambient + tight contact + soft glow */
+/* Premium identity-node avatar — composed of three subtle layers:
+   1. Soft teal→blue gradient ring drawn via ::before (matches the
+      AAC chromatic identity established by the card border without
+      duplicating its full conic palette).
+   2. Inset top-light highlight + soft inner shadow on ::after for
+      sculpted depth, so the avatar circle reads as a domed surface
+      rather than a flat disc.
+   3. Outer ambient halo via box-shadow stack — light teal glow +
+      tight contact shadow so the avatar lifts off the identity
+      row.
+   The SVG fallback inside still carries its own baked-in shadow
+   and composition; these layers sit OUTSIDE the SVG to enrich the
+   avatar regardless of whether a real photo or the SVG glyph is
+   rendered. */
+.md-caseload__avatar-link {
+  position: relative;
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8fc 100%);
+  border: none;
+  overflow: visible;
+  box-shadow:
+    /* Soft teal-blue ambient glow — color-system tie-in. Dialed
+       back ~15% from prior pass so the glow reads as ambient
+       presence, not an attention magnet. */
+    0 0 0 3px rgba($brand-verdigris, 0.05),
+    0 0 0 4px rgba($brand-dusty-denim, 0.035),
+    /* Tight contact + lift */
+    0 1px 2px rgba($la-navy, 0.07),
+    0 6px 14px -4px rgba($la-navy, 0.12),
+    /* Inner sculpted depth */
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -2px 4px rgba($brand-verdigris, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+/* Subtle teal→blue gradient ring at the avatar's edge, rendered as
+   a thin halo via mask trick. Sits between the SVG and the outer
+   glow so the avatar reads as anchored to the AAC color system
+   without being a hard-stroke border. */
+.md-caseload__avatar-link::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 50%;
+  padding: 1.5px;
+  background: linear-gradient(
+    135deg,
+    rgba($brand-verdigris, 0.45) 0%,
+    rgba($brand-dusty-denim, 0.32) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+  z-index: 0;
+}
+/* Inner glass rim highlight — thin top-edge white catch + faint
+   bottom-edge navy shadow gives the disc a domed, lit-from-above
+   quality. */
+.md-caseload__avatar-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1.5px 1.5px rgba(255, 255, 255, 0.9),
+    inset 0 -1.5px 2px rgba($la-navy, 0.06);
+  pointer-events: none;
+  z-index: 2;
+}
+/* Hover state — when the parent card is hovered, the avatar's
+   gradient ring brightens and the ambient glow deepens. Scoped
+   to the card hover so the whole identity node responds in
+   sync, not just the avatar on hover. */
+.md-caseload__card:hover .md-caseload__avatar-link {
+  box-shadow:
+    0 0 0 3px rgba($brand-verdigris, 0.08),
+    0 0 0 4px rgba($brand-dusty-denim, 0.05),
+    0 2px 4px rgba($la-navy, 0.09),
+    0 8px 18px -4px rgba($la-navy, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 4px rgba($brand-verdigris, 0.06);
+}
+.md-caseload__card:hover .md-caseload__avatar-link::before {
+  opacity: 0.78;
+}
+.md-caseload__avatar-link svg {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+.md-caseload__avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  object-fit: cover;
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+/* SVG variant — modern two-tone person glyph rendered when the
+   supervisee has no real uploaded avatar (legacy default PNGs are
+   detected via {{is-default-avatar}}). Sizes slightly smaller than
+   the photo variant so the figure has comfortable breathing room
+   inside the gradient circle. */
+.md-caseload__avatar--svg {
+  /* Apple "person.crop.circle.fill" style — full-bleed inside the
+     avatar frame so the silhouette dominates the card hierarchy.
+     Default state: hidden. CSS :has() rule below shows it when the
+     <img> sibling points at a legacy /avatars/avatar-N.png default. */
+  display: none;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+/* Caseload card avatar — KEEPS the inline SVG fallback. Every
+   other avatar surface in the app now uses the redesigned colored
+   PNGs in public/avatars/, but the big card on the caseload page
+   intentionally renders the teal LingoLinq SVG composition so the
+   primary supervisee identity stays visually consistent across all
+   communicators. The :has() rule below hides the <img> and shows
+   the .md-caseload__avatar--svg element from the template whenever
+   the src is a placeholder `/avatars/avatar-N.png`. */
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) img.md-caseload__avatar {
+  display: none !important;
+}
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) {
+  /* LingoLinq communicator avatar — concentric clean composition:
+     soft mint-blue outer gradient, white inner ring, soft inner
+     panel circle, brand teal head, brand teal→navy torso. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='16' y1='10' x2='80' y2='88' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23F8FCFF'/%3E%3Cstop offset='0.55' stop-color='%23EAF5F4'/%3E%3Cstop offset='1' stop-color='%23EEF1FF'/%3E%3C/linearGradient%3E%3ClinearGradient id='i' x1='28' y1='24' x2='70' y2='74' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23F7FBFF'/%3E%3Cstop offset='1' stop-color='%23E5ECF4'/%3E%3C/linearGradient%3E%3ClinearGradient id='m' x1='35' y1='30' x2='64' y2='69' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%235BAEA4'/%3E%3Cstop offset='1' stop-color='%23222A4F'/%3E%3C/linearGradient%3E%3Cfilter id='s' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeDropShadow dx='0' dy='6' stdDeviation='6' flood-color='%231F2A4D' flood-opacity='0.14'/%3E%3C/filter%3E%3C/defs%3E%3Ccircle cx='48' cy='48' r='42' fill='url(%23b)' filter='url(%23s)'/%3E%3Ccircle cx='48' cy='48' r='40.75' fill='none' stroke='%23FFFFFF' stroke-opacity='0.85' stroke-width='2'/%3E%3Ccircle cx='48' cy='48' r='25' fill='url(%23i)' stroke='%23E8EEF4' stroke-width='1' stroke-opacity='0.7'/%3E%3Ccircle cx='48' cy='38.5' r='8.5' fill='%235BAEA4'/%3E%3Cpath d='M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z' fill='url(%23m)'/%3E%3C/svg%3E") !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) img.md-caseload__avatar {
+  display: none !important;
+}
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) svg.md-caseload__avatar--svg {
+  display: block !important;
+}
+.md-caseload__online {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  background: $brand-verdigris;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  z-index: 1;
+}
+/* Tight identity block: name, badge, and goal row read as a single
+   compact stack rather than three separated rows. */
+.md-caseload__info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* Tight rhythm: name is the visual anchor at the top, role
+     caption sits right beneath it as a quiet sub-label — Apple
+     Account / Linear profile-row hierarchy. */
+  gap: 2px;
+}
+/* Quiet role caption beneath the username. Mixed-case, normal
+   tracking, muted slate — the OPPOSITE of an eyebrow. Reads as
+   "person's role" without competing for attention. The legacy
+   .md-caseload__eyebrow (uppercase) is kept around for any other
+   page that still uses it. */
+.md-caseload__role {
+  display: block;
+  margin-left: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.70);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+.md-caseload__eyebrow {
+  display: block;
+  margin-left: 2px;
+  margin-bottom: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.108em;
+  line-height: 1;
+}
+.md-caseload__name-line {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.md-caseload__name-line .md-caseload__name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.md-caseload__name-line .md-caseload__access-badge {
+  flex: 0 0 auto;
+}
+/* Informational status tag — explicitly NOT a button. Mirrors how
+   Apple Account ("Verified", "Trusted") and AWS Console ("Active",
+   "MFA enabled") render purely-informational chips:
+   - Small rounded rectangle (not a full pill — pills imply
+     pressable; rectangles read as labels)
+   - Tight uppercase tracking + a small leading dot indicator
+   - Solid muted tint, no shadow, no border-glow, no backdrop blur
+   - 14px text floor (project a11y minimum) with reduced visual
+     weight via letter-spacing rather than smaller size */
+/* Read-only status badge — Editor / Viewer / Modeling. Explicitly
+   NOT a button: smaller font, lighter weight, no hover state, no
+   shadow, no border, soft tinted pill background. Reads as
+   informational metadata about the relationship, the way Notion /
+   Linear / Figma render "Owner" / "Editor" / "Commenter" labels
+   next to collaborator names. */
+.md-caseload__access-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: none;
+  letter-spacing: 0.01em;
+  cursor: default;
+  user-select: none;
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  text-transform: none;
+}
+/* Variant tints — soft, low-saturation backgrounds with muted text.
+   Color carries the semantic meaning quietly:
+   - Editor   → blue/teal (active permissions)
+   - Viewer   → gray (read-only)
+   - Modeling → amber (limited / specialized) */
+.md-caseload__access-badge--edit {
+  color: #1f5b8a;
+  background: rgba($brand-dusty-denim, 0.10);
+}
+.md-caseload__access-badge--view {
+  color: #5a6678;
+  background: rgba($la-navy, 0.06);
+}
+.md-caseload__access-badge--modeling {
+  color: #8a6a14;
+  background: rgba(240, 196, 25, 0.12);
+}
+.md-caseload__name {
+  display: block;
+  margin-left: 2px;
+  /* Premium SaaS hierarchy (Apple Account / AWS Console): pair a
+     small uppercase eyebrow above with a larger, bolder name below.
+     Tight tracking + heavier weight gives the username gravitas
+     without resorting to gradients or decorative accents. */
+  font-size: 22px;
+  font-weight: 800;
+  color: $la-navy;
+  text-decoration: none;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.md-caseload__name:hover {
+  color: $brand-verdigris;
+  text-decoration: none;
+}
+/* Caseload card squeezes at ≤1200px once the layout collapses to a
+   single column. Drop the communicator name to 18px at the
+   breakpoint and let it scale down linearly with viewport width to
+   a 14px floor — anchored so 1200px → 18 and 320px → 14. The
+   clamp + calc wrapper keeps SassC happy with the mixed px/vw
+   middle expression (per docs/CSS_SCSS_GUIDELINES.md). */
+@media (max-width: 1200px) {
+  .md-caseload__name {
+    font-size: clamp(14px, calc(12.55px + 0.4545vw), 18px) !important;
+  }
+}
+.md-caseload__goal {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  /* Final pass: bumped to navy at 92% opacity (was charcoal-dark)
+     for AAC-grade readability on the verdigris chip. Weight 700
+     so the text holds at a glance for clinical scanning. */
+  font-weight: 700;
+  color: rgba($la-navy, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  /* The status-bullet `::before` dot has a 1px outset box-shadow as
+     its dark outline. Without left padding, the span's overflow:
+     hidden (needed for text-overflow ellipsis) clips that 1px
+     outline on the dot's left edge. 1px of left padding gives the
+     outline room to render fully. */
+  padding-left: 1px;
+}
+/* Status bullet before each goal — DEFAULT (active) is verdigris.
+   Status modifiers below let the bullet flex into a true status
+   indicator once the backend exposes goal state. The inline-block
+   placement keeps it flowing with the text and respecting ellipsis
+   truncation on the parent.
+   Status taxonomy — modifier class names match the backend's
+   status values verbatim (snake_case), so `g.status === 'in_progress'`
+   renders class `md-caseload__goal--status-in_progress`:
+     default               → active     (verdigris, solid)
+     --status-in_progress  → in progress (amber, solid)
+     --status-achieved     → achieved   (verdigris, ringed/checked look)
+     --status-paused       → paused     (slate, hollow ring) */
+/* Status-bullet color system — each color carries its own
+   semantic meaning so the dot reads at a glance independent of
+   the status pill text:
+     active       → blue   ("currently being worked on, no
+                            milestone marked yet")
+     in_progress  → amber  ("active progress logged recently")
+     achieved     → green  ("✓ done — milestone reached")
+     paused       → gray   ("not currently active")
+   Active and in_progress are intentionally DIFFERENT colors so
+   the dot communicates more than the pill (which can also lag
+   behind reality). Green is reserved exclusively for achieved
+   so it always reads as the "done" state. */
+.md-caseload__goal::before {
+  content: '';
+  display: inline-block;
+  vertical-align: middle;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  /* Default = active = soft blue. */
+  background: $brand-dusty-denim;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+.md-caseload__goal--empty::before {
+  display: none;
+}
+.md-caseload__goal--status-active::before {
+  background: $brand-dusty-denim;
+}
+.md-caseload__goal--status-in_progress::before {
+  background: $brand-honey-bronze;
+}
+.md-caseload__goal--status-achieved::before {
+  /* Saturated emerald — reads unmistakably as "done". */
+  background: #16a34a;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+.md-caseload__goal--status-paused::before {
+  background: transparent;
+  box-shadow:
+    inset 0 0 0 2px rgba($brand-slate-gray, 0.55),
+    0 0 0 1px rgba($la-navy, 0.55);
+}
+.md-caseload__goal--empty {
+  color: #8a93a3;
+  font-style: normal;
+  font-weight: 500;
+}
+/* Goal row: empty-state label + Add-goal action, wrapped in a soft
+   chip container so the pair reads as a single grouped status
+   element rather than two free-floating items. Subtle navy tint
+   surface + thin border keeps it quiet relative to View & edit
+   and the action tiles. */
+/* Unified goal-row container — both populated and empty states
+   share ONE base surface vocabulary so they read as two states of
+   the same component, not two different components. The only
+   structural differences are:
+     - border style: solid (populated) vs dashed (empty)
+     - subtle emphasis tint via a slightly stronger verdigris fade
+       in the empty state to signal "needs attention"
+   Padding, radius, layered shadow, and inset top highlight are
+   identical so the two states sit on the same surface family. */
+.md-caseload__goal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  /* Chip stretches to fill its column so every card has the same
+     goal-row width regardless of goal text length. Long goal
+     summaries truncate via the .md-caseload__goal text-overflow
+     rule below — they no longer push the chip wider. */
+  width: 100%;
+  max-width: 100%;
+  /* Padding + min-height combined keep BOTH states the same
+     overall height. Empty-state contains the taller Add Goal CTA
+     pill; populated state contains just text. min-height locks
+     them to a matching footprint so two cards side-by-side don't
+     have different goal-row heights. */
+  padding: 10px 14px;
+  min-height: 52px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: linear-gradient(
+    180deg,
+    rgba($brand-verdigris, 0.05) 0%,
+    rgba($brand-verdigris, 0.12) 100%
+  );
+  /* Final pass — border opacity 0.42 → 0.55 for sharper edge
+     definition; the chip now reads as a deliberately framed
+     surface rather than softly fading into the card. */
+  border: 1.5px solid rgba($brand-verdigris, 0.55);
+  box-shadow:
+    0 1px 2px rgba($brand-verdigris, 0.08),
+    0 2px 6px -2px rgba($brand-verdigris, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+/* Empty-state variant — same surface, just a dashed border + a
+   slightly more saturated tint to read as "action needed". The
+   inner Add-Goal pill carries the actual CTA weight. */
+.md-caseload__goal-row:has(.md-caseload__goal--empty) {
+  background: linear-gradient(
+    180deg,
+    rgba($brand-verdigris, 0.06) 0%,
+    rgba($brand-verdigris, 0.16) 100%
+  );
+  border-style: dashed;
+  border-color: rgba($brand-verdigris, 0.50);
+}
+.md-caseload__goal-row:has(.md-caseload__goal--empty):hover {
+  background: linear-gradient(
+    180deg,
+    rgba($brand-verdigris, 0.10) 0%,
+    rgba($brand-verdigris, 0.24) 100%
+  );
+  border-color: rgba($brand-verdigris, 0.70);
+  box-shadow:
+    0 2px 4px rgba($brand-verdigris, 0.12),
+    0 8px 20px -4px rgba($brand-verdigris, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.md-caseload__goal-row .md-caseload__goal {
+  flex: 0 1 auto;
+  margin: 0;
+}
+/* Add-Goal is the primary CTA for the empty goal state — solid
+   verdigris pill with white text so it reads as deliberate
+   clinical work the supporter is invited to do, not an optional
+   afterthought. Replaces the previous "subtle text link"
+   treatment; the chip-level dashed border + gradient already
+   announce the empty-state, so the inner button needs to be the
+   action surface. */
+.md-caseload__goal-row .md-caseload__goal-add {
+  /* Vertical separator removed — the Add Goal button is now its
+     own elevated CTA pill with a clear outline and gradient, so a
+     left-edge divider was reading as visual noise between the
+     "No goal set" label and the button. */
+  position: relative;
+}
+/* Add Goal button — same blue treatment as the Speak action tile
+   (.md-caseload__action--speak / --tile base): white→dusty-denim
+   gradient, blue border, layered drop shadow + inset top
+   highlight, blue-tinted hover. Same visual weight and tone as
+   the Speak tile so the empty-state CTA reads as a paired action
+   from the same family. */
+.md-caseload__goal-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  margin: 0;
+  border: 1px solid rgba($brand-dusty-denim, 0.22);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.14) 100%);
+  color: $brand-charcoal-dark;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+  letter-spacing: 0;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 8px -2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.md-caseload__goal-add:hover,
+.md-caseload__goal-add:focus-visible {
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.26) 100%);
+  border-color: rgba($brand-dusty-denim, 0.48);
+  color: $brand-charcoal-dark;
+  outline: none;
+  box-shadow:
+    0 2px 4px rgba($brand-dusty-denim, 0.10),
+    0 8px 16px -4px rgba($brand-dusty-denim, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+.md-caseload__goal-add:active {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.06),
+    inset 0 1px 2px rgba($brand-dusty-denim, 0.14);
+}
+.md-caseload__goal-add svg {
+  flex-shrink: 0;
+  stroke: $brand-dusty-denim;
+}
+.md-caseload__goal-hint {
+  display: block;
+  margin-top: 4px;
+  font-style: normal;
+  color: $brand-slate-gray;
+  font-size: 14px;
+  white-space: normal;
+  line-height: 1.4;
+}
+.md-caseload__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.md-caseload__actions--tiles {
+  gap: 8px;
+  align-items: stretch;
+  /* LEVEL 3 — supporting tools tray. Layered sunken surface +
+     hairline edge so the recess has crisp definition where it
+     meets the card. The 1px border at low opacity gives the eye
+     a clean edge without competing with the inset shadows. */
+  margin-top: 0;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba($la-navy, 0.07);
+  background:
+    radial-gradient(ellipse 60% 80% at 0% 0%, rgba($la-navy, 0.025), transparent 60%),
+    linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.02) 100%);
+  box-shadow:
+    inset 0 1px 3px rgba($la-navy, 0.08),
+    inset 1px 1px 2px rgba($la-navy, 0.05),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.60);
+}
+.md-caseload__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  min-height: 42px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 8px;
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__action--tile {
+  box-sizing: border-box;
+  /* Glass tile — pure flat white surface (no gradient cloudiness),
+     near-invisible border, and a sharp inner top highlight that
+     does the lift instead of any outer shadow blur. Reads as a
+     piece of clear glass laid on the tray rather than a boxed
+     button. Role-tint variants below layer subtle gradient/border
+     color on top. */
+  flex: 1 1 0;
+  min-width: 5rem;
+  min-height: 5rem;
+  height: auto;
+  padding: 8px 5px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  white-space: normal;
+  gap: 5px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.03);
+  background: #ffffff;
+  line-height: 1.2;
+  box-shadow:
+    /* Crisp white rim — sharp light catch on the top edge. */
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    /* Thin inner glass outline. */
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    /* Hairline 1px contact shadow — the only outer lift. */
+    0 1px 1px rgba($la-navy, 0.04);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.md-caseload__action--tile:hover {
+  background: #ffffff;
+  border-color: rgba($la-navy, 0.06);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    /* Lift contact + small directional drop. NO diffuse blur
+       stack — keeps the glass quality. */
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 6px -2px rgba($la-navy, 0.06);
+  transform: translateY(-1px);
+}
+.md-caseload__action--tile:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.08),
+    0 1px 1px rgba($la-navy, 0.03);
+}
+/* Role-based color identity — each action carries its own accent
+   so the row reads as a deliberate, semantic toolbar rather than
+   five identical buttons. Subtle by default (faint gradient + role-
+   tinted bottom edge), stronger on hover (gradient deepens + border
+   picks up the role color). Icon accent colors are set inline on
+   the SVGs in the template.
+   - Model    → teal      ($brand-verdigris)
+   - Speak    → blue      ($brand-dusty-denim)
+   - Setup    → violet    (#8B5CF6)
+   - Reports  → slate     ($brand-slate-blue)
+   - Ideas    → amber     ($brand-honey-bronze)
+   The active --primary tile keeps its full glass-teal treatment;
+   the --model class below adds nothing on top so it doesn't fight
+   with --primary. */
+/* Role color system — controlled hierarchy, not muddy tints.
+   Strategy:
+     - Tints use deliberate "hue-anchored" hex colors (not pure
+       brand colors mixed into white) so each tile carries clean
+       chroma instead of washed-out pastel.
+     - Gradient TOP is barely tinted (1% of role hue) instead of
+       pure #fff so the gradient direction reads as
+       "color-on-color" not "white-fading-to-color" — eliminates
+       the muddy mid-grey transition zone.
+     - Border opacity bumped (22→35 rest, 48→62 hover) so each
+       tile feels confidently colored at rest, not whispered.
+     - Hover values stay punchy (~2× the resting tint) so the
+       interaction reads as deliberate.
+   Hierarchy:
+     Model    → teal      (PRIMARY — full glass tile, separate rule)
+     Speak    → blue      (communication)
+     Setup    → violet    (user/admin)
+     Reports  → terracotta (data — warm coral from $la-cta-gradient)
+     Ideas    → amber     (guidance) */
+/* Role color tints — kept the gradient floor so the chroma still
+   reads, but borders dropped (35→18, 45→24) and outer drop
+   shadows replaced with crisp inset highlights so the tiles feel
+   lighter and more "floating". Hover restores a punchier border
+   + a single crisp colored contact shadow. */
+.md-caseload__action--speak {
+  background: linear-gradient(180deg, rgba($brand-dusty-denim, 0.04) 0%, rgba($brand-dusty-denim, 0.18) 100%);
+  border-color: rgba($brand-dusty-denim, 0.18);
+}
+.md-caseload__action--speak:hover {
+  background: linear-gradient(180deg, rgba($brand-dusty-denim, 0.06) 0%, rgba($brand-dusty-denim, 0.30) 100%);
+  border-color: rgba($brand-dusty-denim, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 2px 4px rgba($brand-dusty-denim, 0.10),
+    0 6px 12px -3px rgba($brand-dusty-denim, 0.18);
+}
+.md-caseload__action--setup {
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.04) 0%, rgba(139, 92, 246, 0.18) 100%);
+  border-color: rgba(139, 92, 246, 0.18);
+}
+.md-caseload__action--setup:hover {
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.06) 0%, rgba(139, 92, 246, 0.30) 100%);
+  border-color: rgba(139, 92, 246, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 2px 4px rgba(139, 92, 246, 0.10),
+    0 6px 12px -3px rgba(139, 92, 246, 0.18);
+}
+.md-caseload__action--reports {
+  background: linear-gradient(180deg, rgba(232, 122, 111, 0.05) 0%, rgba(232, 122, 111, 0.20) 100%);
+  border-color: rgba(232, 122, 111, 0.22);
+}
+.md-caseload__action--reports:hover {
+  background: linear-gradient(180deg, rgba(232, 122, 111, 0.08) 0%, rgba(232, 122, 111, 0.32) 100%);
+  border-color: rgba(232, 122, 111, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 2px 4px rgba(232, 122, 111, 0.12),
+    0 6px 12px -3px rgba(232, 122, 111, 0.20);
+}
+.md-caseload__action--ideas {
+  background: linear-gradient(180deg, rgba($brand-honey-bronze, 0.05) 0%, rgba($brand-honey-bronze, 0.22) 100%);
+  border-color: rgba($brand-honey-bronze, 0.24);
+}
+.md-caseload__action--ideas:hover {
+  background: linear-gradient(180deg, rgba($brand-honey-bronze, 0.08) 0%, rgba($brand-honey-bronze, 0.36) 100%);
+  border-color: rgba($brand-honey-bronze, 0.52);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 2px 4px rgba($brand-honey-bronze, 0.12),
+    0 6px 12px -3px rgba($brand-honey-bronze, 0.22);
+}
+/* More Actions tile (mobile-only kebab menu trigger) — uses a
+   neutral navy tint instead of a role color since "More" is meta,
+   not a semantic action. Same gradient + border + glass shadow
+   vocabulary as the role-tinted tiles so it reads as part of the
+   same deliberate toolbar family. */
+.md-caseload__action--more {
+  background: linear-gradient(180deg, rgba($la-navy, 0.03) 0%, rgba($la-navy, 0.10) 100%);
+  border-color: rgba($la-navy, 0.14);
+}
+.md-caseload__action--more:hover {
+  background: linear-gradient(180deg, rgba($la-navy, 0.05) 0%, rgba($la-navy, 0.18) 100%);
+  border-color: rgba($la-navy, 0.32);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 2px 4px rgba($la-navy, 0.08),
+    0 6px 12px -3px rgba($la-navy, 0.14);
+}
+.md-caseload__action-tile__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 100%;
+}
+.md-caseload__action--tile .md-caseload__action-tile__icon svg {
+  stroke: currentColor;
+}
+/* Boost icon contrast — bumped from #2D3748 to deep navy so the
+   icon outlines read crisply against the now-pure-white glass
+   tile. Stroke width also slightly thickened via stroke-width
+   override since the inline svg stroke-width is 1.5 (a touch
+   thin against bright surfaces). Targets only the slate outline
+   strokes, not the role accent strokes, so per-tile chroma
+   (teal/blue/violet/slate/amber) is preserved. */
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#46505F"] {
+  stroke: #1F2A44;
+  stroke-width: 1.7;
+}
+/* Slightly thicker strokes on role-accent paths too so they don't
+   feel thinner than the now-bolder outline. */
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#2A9D8F"],
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#4C86D8"],
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#8B5CF6"],
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#E87A6F"],
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#F2B95A"] {
+  stroke-width: 1.7;
+}
+/* Darker label color too — bump from $la-navy to a deeper navy
+   for AAC-readable contrast against the glass tile. */
+.md-caseload__action--tile .md-caseload__action-tile__label {
+  color: rgba($la-navy, 0.95);
+}
+.md-caseload__action-tile__label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: $la-navy;
+  width: 100%;
+  text-align: center;
+  /* Don't break mid-word — short labels (Model, Speak, Setup User,
+     Usage Reports, Modeling Ideas) stay readable. break-word/hyphens
+     produced ugly fragments like "nyc_te / st" / "Modeli / ng" at
+     narrow widths. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+a.md-caseload__action {
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+}
+.md-caseload__action:hover {
+  background: $surface-200;
+  box-shadow: 0 1px 4px rgba($la-navy, 0.10);
+}
+/* Selected/primary state — same glass aesthetic as the
+   "ABOUT LINGOLINQ" eyebrow badge (#about-hero .la-section-eyebrow-badge):
+   layered white→teal gradient, backdrop blur+saturate, thin white
+   inset highlight on top, teal glow shadow. Adapted from a pill to
+   a tile but every visual ingredient is preserved. */
+.md-caseload__action--primary {
+  /* LEVEL 3 — active/selected tile, the topmost surface in the
+     hierarchy. Same glass aesthetic as the "ABOUT LINGOLINQ"
+     eyebrow badge (white→teal gradient + backdrop blur + thin
+     teal ring), now with a deeper, more directional shadow stack
+     so it visibly lifts above sibling resting tiles. The teal
+     glow + outer focus-ring effect signals "this is the active
+     one" without changing the tile's footprint. */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba($brand-teal, 0.14) 35%,
+    rgba($brand-teal, 0.28) 100%
+  );
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  color: #0d5c5f;
+  border: 1px solid rgba($brand-teal, 0.45);
+  box-shadow:
+    /* Inner highlights for glass surface */
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba($brand-teal, 0.10),
+    /* Outer ring — wider than resting tiles to read as the active
+       state */
+    0 0 0 1px rgba($brand-teal, 0.18),
+    /* Layered drop shadow — deeper than other tiles so it lifts
+       toward the viewer */
+    0 2px 4px rgba($brand-teal, 0.18),
+    0 8px 20px -4px rgba($brand-teal, 0.32);
+  transform: translateY(-1px);
+}
+.md-caseload__action--primary .md-caseload__action-tile__label {
+  color: #0d5c5f;
+}
+.md-caseload__action--primary:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba($brand-teal, 0.18) 35%,
+    rgba($brand-teal, 0.34) 100%
+  );
+  border-color: rgba($brand-teal, 0.50);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 0 0 1px rgba($brand-teal, 0.15),
+    0 5px 18px rgba($brand-teal, 0.30);
+}
+/* Modern OPTIONS dropdown trigger — single fused pill containing
+   the label + chevron (Linear / Stripe / GitHub pattern). Reads as
+   one deliberate control rather than a separate label + icon pair.
+   Layered shadow + thin inset highlight lifts it off the card
+   surface; brand-verdigris hover state matches the verdigris
+   accent used elsewhere on the page. */
+.md-caseload__action--corner-extras {
+  box-sizing: border-box;
+  /* Match the GOALS chip height (.md-caseload__goal-row has 5px
+     vertical padding + 14px text line-height ≈ 26-28px). Using
+     explicit 28px height + 0 min-height override so the trigger
+     reads as a thin pill matching the goal chip on the opposite
+     side of the row. */
+  height: 28px;
+  min-height: 28px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: linear-gradient(180deg, #fff, rgba($surface-100, 0.95));
+  color: $brand-charcoal-blue;
+  flex-direction: row;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.05),
+    0 2px 6px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-caseload__action--corner-extras__label {
+  color: rgba($la-navy, 0.70);
+  transition: color 0.15s ease;
+}
+.md-caseload__action--corner-extras__chevron {
+  flex-shrink: 0;
+  stroke: currentColor;
+  color: rgba($la-navy, 0.55);
+  transition: transform 0.18s ease, color 0.15s ease;
+}
+.md-caseload__action--corner-extras:hover {
+  background: linear-gradient(180deg, #fff, rgba($brand-verdigris, 0.06));
+  border-color: rgba($brand-verdigris, 0.35);
+  color: $la-navy;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.06),
+    0 4px 12px rgba($brand-verdigris, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+.md-caseload__action--corner-extras:hover .md-caseload__action--corner-extras__label,
+.md-caseload__action--corner-extras:hover .md-caseload__action--corner-extras__chevron {
+  color: $la-navy;
+}
+.md-caseload__action--corner-extras:active {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.05),
+    inset 0 1px 2px rgba($la-navy, 0.08);
+}
+/* When the dropdown is open (Bootstrap's .open class on the
+   parent), switch to a "pressed" filled surface so the trigger
+   reads as the active anchor of the open menu, and flip the
+   chevron 180° to point up. */
+.md-caseload__extras-dropdown.open .md-caseload__action--corner-extras {
+  background: $brand-charcoal-blue;
+  border-color: $brand-charcoal-blue;
+  color: #fff;
+  box-shadow:
+    0 2px 6px rgba($brand-charcoal-blue, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.md-caseload__extras-dropdown.open .md-caseload__action--corner-extras .md-caseload__action--corner-extras__label,
+.md-caseload__extras-dropdown.open .md-caseload__action--corner-extras .md-caseload__action--corner-extras__chevron {
+  color: #fff;
+}
+.md-caseload__extras-dropdown.open .md-caseload__action--corner-extras__chevron {
+  transform: rotate(180deg);
+}
+.md-caseload__extras-dropdown {
+  position: relative;
+  /* Centered inside the ACCESS column (.md-caseload__access already
+     uses align-items: center); align-self ensures the dropdown sits
+     centered horizontally even when other siblings have different
+     widths. inline-flex keeps the dropdown trigger flush with its
+     contents instead of stretching across the column. */
+  display: inline-flex;
+  align-self: center;
+  /* Lift the wrapper's stacking context above every other element on the caseload
+     card (content tops out at z:10) so the open dropdown menu (the z:20-40 tier)
+     paints above tiles, pills, ring, goals row. Small, contained values — the card
+     is `isolation: isolate`, so nothing here can escape above app modals (z:1050). */
+  z-index: 20;
+}
+.md-caseload__extras-dropdown.open {
+  z-index: 30;
+}
+/* Modern action menu — matches the .md-settings-dropdown-menu look:
+   pill container with soft shadow, rounded corners, hover-tinted rows,
+   and consistent spacing for the two-tone leading icons. Wins over the
+   global Bootstrap .dropdown-menu defaults via the .md-caseload__
+   dropdown-menu modifier. */
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu {
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
+  background-color: #fff !important;
+  background-image: none !important;
+  /* Force the menu to size to ALL its content. Some inherited
+     rule was capping the menu's visible bg at ~4 items, with the
+     remaining items rendering below the box without a backdrop.
+     Forcing height: auto / max-height: none / overflow: visible
+     guarantees the menu grows to fit every item. */
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  /* Highest z-index on the caseload card — guarantees the open
+     menu sits ABOVE every other element (action tiles, pills, goal
+     row, identity ring, etc.). Combined with the wrapper's z-index: 20
+     stacking context, nothing on the card paints above the menu — and the
+     card's `isolation: isolate` keeps all of this below app modals (z:1050). */
+  z-index: 40;
+  /* Isolate creates a fresh stacking context so the menu's items
+     can't get caught in a transformed parent's layering. */
+  isolation: isolate;
+  box-shadow:
+    0 8px 24px rgba($la-navy, 0.18),
+    0 2px 6px rgba($la-navy, 0.08);
+}
+/* Force every element inside the dropdown menu to carry an
+   opaque background. The container's bg alone wasn't enough —
+   items, links, and buttons all defaulted to transparent, letting
+   the action tiles below bleed through. Universal `*` selector
+   inside the menu paints every descendant so the menu reads as
+   one solid opaque surface. */
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > a,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > button {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+/* Belt-and-suspenders: paint a solid backdrop layer behind the
+   entire menu via a ::before pseudo so even if Bootstrap or
+   Ember LinkTo wraps items in unexpected elements, the bg is
+   guaranteed. The pseudo sits at z-index: -1 inside the menu's
+   isolate context so it stays behind menu items but in front of
+   anything outside the menu. */
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu {
+  position: absolute;
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  border-radius: 12px;
+  z-index: -1;
+  pointer-events: none;
+}
+/* Mobile More Actions tile sits at the BOTTOM of the action tiles
+   row, near the card edge. Flip the menu to open UPWARD so the
+   full list renders above the trigger rather than getting cut off
+   below the card. Bootstrap's `top: 100%` default puts the menu
+   below; overriding `top: auto; bottom: 100%` flips it. */
+.md-caseload__extras-dropdown--mobile .md-caseload__dropdown-menu {
+  top: auto !important;
+  bottom: 100% !important;
+  margin-bottom: 6px;
+  /* Right-anchor since the More Actions tile is the rightmost in
+     the bottom row — keeps the menu inside the card horizontally. */
+  left: auto !important;
+  right: 0 !important;
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li {
+  list-style: none;
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > a,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > a:hover,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > a:focus-visible,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > button:hover,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > button:focus-visible {
+  /* !important needed to win against the opaque-bg force-rule
+     above, which also uses !important to seal the menu surface. */
+  background-color: rgba(27, 54, 93, 0.06) !important;
+  color: $la-navy;
+  text-decoration: none;
+  outline: none;
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu .md-caseload__dropdown-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+/* When the mobile More Actions menu is open, lift the WHOLE action-tiles
+   row above everything else on the card. The menu lives inside this row,
+   which the card's `> * { z-index: 1 }` rule pins at z:1 — below card-top
+   (z:5) and the OPTIONS row (z:10) — so the upward-opening menu was being
+   painted over by the goals / Add-goal content above it. The row is the
+   menu's stacking-context ancestor, so raising the row is the only way the
+   menu can clear them. 9999 matches the open-dropdown tier used elsewhere
+   in this component and sits above every other caseload-card layer. */
+.md-caseload__card > .md-caseload__actions--tiles:has(.md-caseload__extras-dropdown--mobile.open) {
+  z-index: 30;
+}
+.md-caseload__badge-progress {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba($la-navy, 0.06);
+}
+.md-caseload__empty {
+  text-align: center;
+  padding: 60px 20px;
+}
+.md-caseload__empty-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: $la-navy;
+  margin: 16px 0 8px;
+}
+.md-caseload__empty-desc {
+  font-size: 15px;
+  color: $brand-slate-gray;
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+@media (max-width: 480px) {
+  .md-caseload__grid {
+    grid-template-columns: 1fr;
+  }
+  /* On narrow screens, stack the card header so the avatar/info
+     and the access/chevron columns don't overlap. card-corner moves
+     below card-main, both spanning full width. */
+  .md-caseload__card-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .md-caseload__card-main {
+    width: 100%;
+  }
+  .md-caseload__card-corner {
+    width: 100%;
+    align-items: flex-start;
+  }
+  .md-caseload__access {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+  /* Hide the goal/extras bottom row at this width — the empty-state
+     "No goal set | + Add goal" chip has nowrap content that overflows
+     the narrowed card, and the chevron is already swapped for the
+     "More Actions" tile at ≤950px. The goal area can be reached via
+     the per-supervisee Account / dropdown actions. */
+  .md-caseload__bottom-row {
+    display: none !important;
+  }
+}
+/* Mid-narrow screens (480px–640px) — keep the two columns but
+   ensure the access group stays compact. */
+@media (max-width: 640px) and (min-width: 481px) {
+  .md-caseload__card-top {
+    gap: 8px 12px;
+  }
+  .md-caseload__card-main {
+    min-width: 0;
+    flex: 1 1 60%;
+  }
+  .md-caseload__card-corner {
+    flex-shrink: 0;
+  }
+}
+/* Very narrow page width — the wider sunken caseload tray padding
+   needs to shrink so cards don't get squeezed. */
+@media (max-width: 600px) {
+  .md-caseload {
+    padding: 16px;
+  }
+}
+/* Caseload “…” menus use position:absolute; default workspace + sup card use overflow:hidden and clip them */
+.md-shell--caseload > .md-workspace {
+  overflow: visible !important;
+}
+.md-shell--caseload .md-card.md-card--sup {
+  overflow: visible !important;
+}
+/* Caseload My Caseload card sits directly on the workspace surface
+   with no fill or outline — the visual hierarchy comes from the
+   sunken .md-caseload tray and the cards inside it, not from the
+   container article. Applied at every viewport. */
+.md-shell--caseload .md-card.md-card--sup {
+  background: transparent !important;
+  border: 0 !important;
+}
+/* Extra left padding on the active caseload pill (when it isn't the first
+   pill) so the dark active pill doesn't crowd the pill to its left. */
+.md-shell--caseload .md-pillnav__pill.is-active:not(:first-child),
+.md-shell--caseload a.md-pillnav__pill.active:not(:first-child) {
+  padding-left: 18px !important;
+}
