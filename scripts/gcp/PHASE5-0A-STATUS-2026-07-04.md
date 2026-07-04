@@ -44,7 +44,7 @@ not only `scot@lingolinq.com`'s Workspace inbox as the original finding assumed.
 there is still no per-message delivery-event evidence to explain *why* Gmail drops the direct
 send. `LL-42a24ee911` stays `open`; register updated with this evidence, not closed.
 
-## 2. ImageMagick `identify` - fixed, redeployed, and live-verified
+## 2. ImageMagick `identify` - fix redeployed, binary confirmed present, load-verification pending
 
 `LL-5954bcbbe6`'s code fix (add `imagemagick`/`ghostscript` to the Dockerfile, PR #521, commit
 `77233fb19`) was already merged to `origin/staging`, but the running production image
@@ -81,9 +81,9 @@ production - not investigated further as part of this task.
 
 ## IAM changes made (confirmed with Scot before each)
 
-Cloud Build's default service account (`549902645644-compute@developer.gserviceaccount.com`) had
-zero project-level roles (deliberately hardened, no broad Editor grant), which blocked local
-`gcloud builds submit`. Three narrow grants were added, each confirmed before applying:
+Cloud Build's default compute service account had zero project-level roles (deliberately hardened,
+no broad Editor grant), which blocked local `gcloud builds submit`. Three narrow grants were added,
+each confirmed before applying:
 
 - `roles/storage.objectViewer` on `gs://lingolinq-prod_cloudbuild` only (read its own source
   uploads).
