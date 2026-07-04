@@ -804,12 +804,15 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       check the box once the test message is confirmed received at the destination inbox (final
       proof of end-to-end delivery, not just acceptance).
       **Update 2026-07-04 (see `PHASE5-0A-STATUS-2026-07-04.md`):** re-tested through the real
-      ActionMailer `:ses` path (not the raw SDK) directly in Cloud Run - real SES MessageIds
+      ActionMailer `:ses` adapter (not the raw SDK) directly in Cloud Run - real SES MessageIds
       returned for both recipients, `beta@lingolinq.com` confirmed delivered, direct
       `scotwahlquist@gmail.com` confirmed still non-delivered (checked inbox/spam/trash). This
-      closes the "was the raw-SDK test representative of the real app" question but the box stays
-      unchecked: per-message delivery-event evidence explaining the Gmail gap still doesn't exist
-      (`LL-42a24ee911` stays `open`).
+      partially closes the "was the raw-SDK test representative of the real app" question at the
+      adapter level (credentials/region/delivery-method wiring); it used a generic
+      `ActionMailer::Base.mail(...)` call rather than a concrete mailer class (`UserMailer` etc.),
+      so full mailer-class representativeness is still untested, and per-message delivery-event
+      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked;
+      `LL-42a24ee911` stays `open`.
 - [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
       gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
       checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status

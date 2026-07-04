@@ -1,14 +1,18 @@
 # Phase 5 step 0a status - 2026-07-04
 
-Follow-up to the 0a dress-rehearsal checklist in `PHASE5-CUTOVER-RUNBOOK.md`. Resolves the two
-blockers Scot flagged for advancing past step 0a: SES delivery evidence via the real application
-code path, and the ImageMagick `identify` gap. Both were investigated read-only first; fixes were
-only applied after explicit confirmation (see IAM notes below).
+Follow-up to the 0a dress-rehearsal checklist in `PHASE5-CUTOVER-RUNBOOK.md`. Answers the two
+blockers Scot flagged for advancing past step 0a with live, server-side evidence: SES delivery via
+the real application code path, and the ImageMagick `identify` gap. One is fixed and live-verified
+(ImageMagick); the other remains open with new evidence, not resolved (SES -- see section 1). Both
+were investigated read-only first; fixes were only applied after explicit confirmation (see IAM
+notes below).
 
-## 1. SES delivery - reproduced via ActionMailer (not just raw SDK)
+## 1. SES delivery - reproduced via ActionMailer (not just raw SDK), still not resolved
 
 All prior SES evidence (`LL-42a24ee911`) used a raw `Aws::SES::Client#send_email` call, not Rails
-ActionMailer. This closes that gap.
+ActionMailer. This test partially closes that gap: it verifies the `:ses` delivery-method adapter,
+not a concrete transactional mailer (see caveat below). The underlying non-delivery finding stays
+`open` either way.
 
 A throwaway Cloud Run Job (`lingolinq-mailtest`) ran `ActionMailer::Base.mail(...).deliver_now`
 (`delivery_method: :ses`, `config/environments/production.rb:116`) against the then-current
@@ -21,9 +25,16 @@ lingolinq-web/worker image (`web:ccbdb5e21f...`), sending to both `beta@lingolin
 | `scotwahlquist@gmail.com` | `0101019f2b9c73e6-8043c295-9839-4b6d-8622-d4c340a72b9c-000000` | No - not found in inbox, spam, or trash |
 
 Both calls returned real SES MessageIds via `Aws::Rails::SesMailer#deliver!`, confirming
-ActionMailer's `:ses` path is correctly wired end-to-end in Cloud Run (region, credentials,
+ActionMailer's `:ses` adapter is correctly wired end-to-end in Cloud Run (region, credentials,
 `DEFAULT_EMAIL_FROM` all resolve). The non-delivery to the personal Gmail address reproduces
-exactly, now through the real application code path instead of the raw SDK.
+exactly, now through ActionMailer instead of the raw SDK.
+
+**Caveat (raised by Codex review of this PR, accepted):** this called the generic
+`ActionMailer::Base.mail(...)` directly, not a concrete application mailer class (`UserMailer`,
+`AdminMailer`, `SubscriptionMailer`, `SupervisorMailer` -- `app/mailers/*.rb`). It verifies the SES
+adapter, credentials, and region wiring, not a real mailer's view template or the exact code path
+an actual transactional email (e.g. a password reset) takes. A follow-up test through a concrete
+mailer class is still needed for full representativeness.
 
 **Side note on `beta@lingolinq.com` routing:** it lands in `scotwahlquist@gmail.com`'s own inbox,
 not only `scot@lingolinq.com`'s Workspace inbox as the original finding assumed. Exact routing
@@ -88,8 +99,9 @@ to build and push images - no other permissions were touched.
 
 Both step-0a blockers are answered with live, server-side evidence:
 
-- SES: delivery via ActionMailer confirmed working end-to-end; the Gmail non-delivery gap is real
-  and reproduced, root cause still open (needs an SES configuration set / event destination -
+- SES: the ActionMailer `:ses` adapter confirmed correctly wired end-to-end (not yet tested via a
+  concrete mailer class -- see caveat in section 1); the Gmail non-delivery gap is real and
+  reproduced, root cause still open (needs an SES configuration set / event destination -
   see `LL-42a24ee911` remediation options).
 - ImageMagick: fix confirmed live in production (`identify` present, zero new failures since
   redeploy); full verification under real upload load still pending.
