@@ -219,6 +219,12 @@ class Progress < ApplicationRecord
   
   def self.perform_action(progress_id)
     progress = Progress.find_by(:id => progress_id)
+    # The Progress row can be deleted (clear_old_progresses, or normal churn)
+    # between when this job was enqueued and when it runs. Without this guard,
+    # `progress.start!` below raises "undefined method 'start!' for nil" and the
+    # job fails permanently (the deleted record can never be found on retry).
+    # Nothing to do if it's gone — no-op, mirroring boy_band's record-not-found path.
+    return unless progress
     @@running_progresses ||= {}
     @@running_progresses[Worker.thread_id] = progress
     progress.start!

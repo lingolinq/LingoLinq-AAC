@@ -96,6 +96,7 @@ file (see [README.md](README.md)).
 - [Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`](#gotcha-a-saved-frontend-preference-silently-vanishes-if-its-not-in-userpreference_params)
 - [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 - [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
+- [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
 
 ---
 
@@ -5800,3 +5801,29 @@ privacy). Detection: the failed job shows `"id": null` + `method not found`.
 missing the `self.id` guard its siblings had; ~26 dead `Board:update_privacy` jobs
 accumulated Mar–Jun 2026. Fixed 2026-07-03 (branch
 `fix/traci-update-privacy-unsaved-board-guard`).
+
+## Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes
+
+Two lessons from a 2026-07-03 over-deletion (a "clear last-two-days failures"
+cleanup deleted 2,674 jobs when ~10 were in scope; full account in
+`docs/task-management/2026-07-03-failed-queue-deletion-incident.md`).
+
+**1. A job's origination is the `chain::` timestamp — not `scheduled`, `run_at`, or `failed_at`.**
+A Resque/boy_band failed-job payload carries a `chain::j<ISO-timestamp>_...` arg
+(the immutable time the chain first started); to slice the failed queue by
+age/origination, parse THAT. The over-delete happened because the cleanup's
+origination helper tried the inner `settings['scheduled']` epoch and then fell
+through to `run_at`/`failed_at` — but never checked `chain::`. Two traps combined:
+(a) not every job has a `scheduled` hash — Progress jobs pass a bare integer id
+(`["Progress","perform_action",3355]`), so there was nothing to read; and
+(b) `run_at`/`failed_at` reflect the LAST attempt, which today's reprocessing had
+set to the current date. So ~2,664 months-old Progress failures resolved to
+`failed_at` = "today" and got swept into a "last two days" delete.
+
+**2. Count-check before any destructive bulk Resque/Redis op.** Before
+`Resque::Failure.remove` / `redis del` on a filtered set, assert the selected
+count against what the prior analysis predicted and abort on a large gap
+(`abort if selected > expected * N`). Analysis said ~10; the delete selected
+2,674 (267×) — an assertion would have caught it. Note there is effectively no
+undo: `Resque::Failure.remove` is irreversible, and the dev Redis has no AOF and
+auto-BGSAVEs on churn, so the pre-delete RDB is overwritten within minutes.
