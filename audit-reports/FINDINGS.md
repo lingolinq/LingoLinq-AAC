@@ -52,7 +52,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-b0bc6880e6 |  | low | SOC2 | **accepted** | audit-run | sync-render-secrets.yml (holds RENDER_API_KEY + 1Password token) declares no permissions: block, inheriting default write GITHUB_TOKEN | `.github/workflows/sync-render-secrets.yml`:14 |
 | LL-e76d6378b5 |  | low |  | **accepted** | audit-run | Webhook model declares notifications and content_type attrs that Rails never serializes | `app/frontend/app/models/webhook.js`:12 |
 | LL-5d7197fa7d |  | low | HIPAA, FERPA | untriaged | audit-run | PaperTrail versions with unconstantizable item_type are detected but retention disposition is undecided | `lib/flusher.rb`:116 |
-| LL-42a24ee911 |  | low | SOC2 | untriaged | audit-run | SES delivers reliably to Workspace-internal recipients but a diagnostic send to a personal Gmail address never arrived (inbox or spam) | (attestation) |
+| LL-42a24ee911 |  | low | SOC2 | untriaged | audit-run | A diagnostic SES send to a personal Gmail address never arrived (inbox or spam); a same-account send to a Workspace-internal address arrived immediately | (attestation) |
 | LL-941001ca58 | Dep-eslint-8-eol | low | SOC2 | **accepted** | audit-run | eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter | `app/frontend/package.json`:64 |
 | LL-a97357136e | P2-2 | low | SOC2 | **wontfix** | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | **wontfix** | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
