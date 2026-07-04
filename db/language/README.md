@@ -35,9 +35,10 @@ Do not "fix" this by reading `substitutions`/`tests` off the Setting -- they are
 ## Upstream file provenance + integrity pin
 
 - **URL:** `https://tools.openaac.org/inflections/rules-en.json`
-- **Retrieved:** see `01-01-SUMMARY.md` for the exact retrieval date and environment.
-- **SHA-256:** see `01-01-SUMMARY.md` (recorded there and asserted by
-  `spec/tasks/language_snapshot_spec.rb`) -- pending until Task 2 pins the file.
+- **Retrieved:** 2026-07-04 (UTC), fetched via `SafeHttp.get` (SSRF-safe wrapper) from a local
+  development shell. See `01-01-SUMMARY.md` for full detail.
+- **SHA-256:** `df71e0c893fac417bf7aea12742642d7a1b5cddd924532cdd2bb2c1803bfcf0b`
+  (asserted by `spec/tasks/language_snapshot_spec.rb`).
 - **License:** `_license` field in the committed file reads `"CC By, OpenAAC"`, preserved verbatim
   from upstream. Attribution: OpenAAC (tools.openaac.org).
 - **Re-verifying the pin:** `shasum -a 256 db/language/en/rules-en.upstream.json` and compare
