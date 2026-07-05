@@ -3200,6 +3200,38 @@
         "timeframe": "90d"
       },
       "notes": "Surfaced continuing the Phase 5 rehearsal 0a follow-up (PR #521) after Scot confirmed the original personal-Gmail diagnostic email never arrived. Confidence downgraded medium->low and evidence corrected 2026-07-04 after Codex's review of this PR (running against this finding's initial commit) correctly caught that GetSendStatistics.DeliveryAttempts was being misread as delivery confirmation; verified against AWS's own SendDataPoint API docs before accepting the correction. The confirmed, undisputed fact remains: the original send to scotwahlquist@gmail.com never arrived (inbox or spam checked), while a same-account retest to a Workspace-internal address arrived immediately -- the open question is root cause, not whether a real gap exists. Low severity and no user impact today because prod/staging currently carry no real external users (project note: prod has no real users at cutover) -- all current transactional mail recipients are internal/test accounts. Note this finding's evidence base is a single send to each recipient type (n=1 each way), not a reliability claim about Workspace delivery in general; treat the Workspace-internal send as one clean data point, not a proof that SES-to-Workspace mail is broadly reliable. Revisit before onboarding real school-district/hospital/parent users on personal email providers, since password resets, registration confirmations, and consent notifications going silently missing would be a real support burden and, for consent-related mail specifically, a compliance concern (FERPA/COPPA parental notification). REPRODUCED 2026-07-04 via the actual application code path (Phase 5 step 0a follow-up, scot/docs/phase5-0a-status-v2): all prior evidence used a raw Aws::SES::Client#send_email call, not Rails ActionMailer -- this test partially closes that gap. A throwaway Cloud Run Job ran `ActionMailer::Base.mail(...).deliver_now` (delivery_method: :ses, config/environments/production.rb:116) against the currently-deployed lingolinq-web/worker image, sending to both beta@lingolinq.com and scotwahlquist@gmail.com in the same run. Both calls returned real SES MessageIds via Aws::Rails::SesMailer#deliver! (0101019f2b9c732c-... and 0101019f2b9c73e6-... respectively), confirming ActionMailer's :ses delivery-method adapter is correctly wired end-to-end in this Cloud Run environment (SES_REGION/AWS_REGION resolve, AWS_KEY/AWS_SECRET credentials work, DEFAULT_EMAIL_FROM resolves). CAVEAT (raised by Codex review of this PR, accepted): the test called the generic `ActionMailer::Base.mail(...)` directly rather than a concrete application mailer class (UserMailer/AdminMailer/SubscriptionMailer/SupervisorMailer, app/mailers/*.rb, all ActionMailer::Base subclasses) -- it verifies the SES adapter, credentials, and region wiring, not a real transactional mailer's view template or the exact code path a password-reset or notification email takes. A follow-up test through a concrete mailer class is still needed for full representativeness. Checked actual delivery via the connected Gmail account (scotwahlquist@gmail.com): the beta@lingolinq.com-addressed message arrived (INBOX, not spam) -- note this refines the earlier assumption that beta@ resolves to scot@lingolinq.com's Workspace inbox specifically; it also reaches this personal Gmail account, exact routing (group membership vs. a broader alias) not investigated further here. The message addressed directly to scotwahlquist@gmail.com was searched for across inbox/spam/trash (`in:anywhere`, `includeTrash:true`) and found nowhere -- reproducing the non-delivery exactly, now through ActionMailer rather than the raw SDK. This partially closes the 'was this just a raw-SDK artifact' question (adapter-level, not yet mailer-class-level) but does not change the underlying open root-cause question (still no per-message delivery event tracking exists to say why Gmail specifically drops it); remediation options (a)-(d) above remain the path forward."
+    },
+    {
+      "id": "LL-caf2528468",
+      "ruleKey": "user-extra-profile-cache-not-invalidated-on-log-purge",
+      "title": "UserExtra/UserLink profile-history caches are not invalidated when the source profile LogSession is deleted",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/user_extra.rb",
+        "line": 58,
+        "snippet": "self.settings['recent_profiles'][profile_id] = recents",
+        "sha": "97481d093915bc2b8da448c5640b3873c10beb00"
+      },
+      "firstSeen": "2026-07-05",
+      "lastSeen": "2026-07-05",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Before extending any retention/purge job to LogSession log_type 'profile', add cache invalidation: when a 'profile' LogSession is destroyed, either recompute UserExtra#process_profile for the affected user_id/profile_id (dropping the deleted session from the recents list) or scrub matching entries by log_id from UserExtra.settings['recent_profiles'] and UserLink.data['state']['profile_history'] directly. Add a spec asserting the cache no longer contains the deleted log's summary/log_id after purge.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by Codex's senior-dev review (/review-pr) of PR #535 (LL-1890f6a922, DataPolicyEnforcer retention scope): extending the retention purge to LogSession log_type 'profile' would delete the source record while UserExtra#process_profile's cached identifiable summary (template_id, summary, summary_color, log_id) and the mirrored UserLink.data['state']['profile_history'] entry are never refreshed on destroy, so identifiable content would persist in those caches after the source log is gone -- worse than the pre-existing status quo of not purging 'profile' at all. PR #535 responded by dropping 'profile' from DataPolicyEnforcer::RETAINABLE_LOG_TYPES (lib/data_policy_enforcer.rb) rather than shipping a half-fixed purge; this finding tracks the cache-invalidation work needed before 'profile' can safely be added back. Checked note/assessment/eval/journal for the same pattern: none found (user_badge.rb's assessment usage re-queries live LogSession rows on demand rather than caching a summary; weekly_stats_summary.rb caches only session_ids, not identifiable content, and per DATA_RETENTION.md's Analytics events row this is documented/accepted since aggregates 'do not re-identify individuals')."
     }
   ]
 }
