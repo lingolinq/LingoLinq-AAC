@@ -46,22 +46,24 @@ describe DataPolicyEnforcer do
       expect(LogSession.where(id: fresh.id).count).to eq(1)
     end
 
-    it "purges stale note, assessment, eval, profile, and journal logs" do
+    it "purges stale note, assessment, eval, and journal logs" do
       o, u = sponsored_org(3)
-      stale_logs = %w[note assessment eval profile journal].map { |type| log(u, type, 4.months.ago) }
-      expect(DataPolicyEnforcer.enforce_retention!).to eq(5)
+      stale_logs = %w[note assessment eval journal].map { |type| log(u, type, 4.months.ago) }
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(4)
       stale_logs.each do |s|
         expect(LogSession.where(id: s.id).count).to eq(0)
       end
     end
 
-    it "never purges daily_use or modeling_activities logs regardless of age" do
+    it "never purges daily_use, modeling_activities, or profile logs regardless of age" do
       o, u = sponsored_org(3)
       daily = log(u, 'daily_use', 5.years.ago)
       modeling = log(u, 'modeling_activities', 5.years.ago)
+      profile = log(u, 'profile', 5.years.ago)
       expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
       expect(LogSession.where(id: daily.id).count).to eq(1)
       expect(LogSession.where(id: modeling.id).count).to eq(1)
+      expect(LogSession.where(id: profile.id).count).to eq(1)
     end
 
     it "leaves logs for users outside the org's sponsorship untouched" do

@@ -7,7 +7,15 @@ module DataPolicyEnforcer
   # user_id:)) whose started_at freezes at first creation and never advances
   # on later updates, so an age-based purge would delete a still-in-use
   # record for any long-tenured active user instead of a stale one.
-  RETAINABLE_LOG_TYPES = %w[session note assessment eval profile journal].freeze
+  # Deliberately excludes 'profile': UserExtra#process_profile caches each
+  # profile session's identifiable summary + global_id into
+  # UserExtra.settings['recent_profiles'] and matching
+  # UserLink.data['state']['profile_history'] (app/models/user_extra.rb:40-97),
+  # and nothing refreshes those caches when the source LogSession is later
+  # destroyed. Purging 'profile' logs here today would delete the source
+  # record while leaving its identifiable summary behind in those caches --
+  # tracked as a follow-up (LL-caf2528468) rather than shipped half-fixed.
+  RETAINABLE_LOG_TYPES = %w[session note assessment eval journal].freeze
 
   def self.enforce_retention!
     count = 0
