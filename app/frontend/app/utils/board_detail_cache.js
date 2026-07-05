@@ -300,7 +300,24 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
         }, gapMs);
       });
     }
-    return persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
+    // Dedup concurrent warm passes for the same board: a caseload warm and a
+    // board-route warm can request the same /tree at once, and (unlike the
+    // sibling SHOW fetch above) this GET otherwise skips the _inflight map, so
+    // both fire. Share the in-flight request so identical concurrent fetches
+    // collapse to one network call; each pass still ingests the shared response
+    // into its own cache with its own warm_opts. Namespaced key ('tree:') so it
+    // can't collide with the bare-lookup SHOW entries in _inflight.
+    var tree_lookup = 'tree:' + key;
+    var tree_req = _inflight[tree_lookup];
+    if (!tree_req) {
+      tree_req = persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' });
+      _inflight[tree_lookup] = tree_req;
+      var _clear_tree_inflight = function() {
+        if (_inflight[tree_lookup] === tree_req) { delete _inflight[tree_lookup]; }
+      };
+      tree_req.then(_clear_tree_inflight, _clear_tree_inflight);
+    }
+    return tree_req.then(function(data) {
       _ingest_tree_response(cache, data, warm_opts);
     }, function() {
       /* swallow per-board errors */

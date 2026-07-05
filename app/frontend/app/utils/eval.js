@@ -11,6 +11,13 @@ import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import { set as emberSet, observer } from '@ember/object';
 import app_state from './app_state';
+import persistence_singleton from './persistence';
+import stashes_singleton from './_stashes';
+import i18n_singleton from './i18n';
+import speecher_singleton from './speecher';
+import utterance_singleton from './utterance';
+import modal_singleton from './modal';
+import capabilities_singleton from './capabilities';
 
 // select language when starting assessment
 
@@ -31,14 +38,14 @@ var evaluation = {
   },
   // Fall back when setup() has not run yet or eval.js was re-evaluated (e.g. dev reload) while the app kept running.
   get appState() { return this._services.appState || app_state; },
-  get persistence() { return this._services.persistence; },
-  get stashes() { return this._services.stashes; },
-  get speecher() { return this._services.speecher; },
-  get utterance() { return this._services.utterance; },
+  get persistence() { return this._services.persistence || persistence_singleton; },
+  get stashes() { return this._services.stashes || stashes_singleton; },
+  get speecher() { return this._services.speecher || speecher_singleton; },
+  get utterance() { return this._services.utterance || utterance_singleton; },
   get obf() { return this._services.obf || (typeof window !== 'undefined' && window.obf); },
-  get modal() { return this._services.modal; },
-  get i18n() { return this._services.i18n; },
-  get capabilities() { return this._services.capabilities; },
+  get modal() { return this._services.modal || modal_singleton; },
+  get i18n() { return this._services.i18n || i18n_singleton; },
+  get capabilities() { return this._services.capabilities || capabilities_singleton; },
   register: function(obf) {
     obf.register("eval", evaluation.callback);
     obf.eval = evaluation;
@@ -67,9 +74,76 @@ var evaluation = {
     evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
     evaluation.appState.set_history([]);
   },
+  // In-place pause (SLP taps Pause during a running assessment): freeze the
+  // screen with an overlay, silence prompts, and record the paused span as a
+  // gap so the results duration subtracts it (see the gap math in results()).
+  // board/index shifts the current board's `rendered` forward on unpause so the
+  // per-item response clock (time_to_select) also excludes the pause. This is
+  // distinct from resume() above, which reopens a persisted/ended assessment.
+  is_paused: function() {
+    return !!evaluation.appState.get('eval_paused');
+  },
+  toggle_pause: function() {
+    if(evaluation.is_paused()) { evaluation.unpause(); }
+    else { evaluation.pause(); }
+  },
+  // Active elapsed time (assessment.started → now) with prior paused gaps
+  // subtracted, formatted M:SS (or H:MM:SS past an hour). Mirrors results()'s
+  // duration math so the paused figure matches the final report.
+  _format_elapsed: function(total_seconds) {
+    var s = Math.max(0, Math.round(total_seconds || 0));
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    return (h > 0 ? (h + ':' + pad(m)) : ('' + m)) + ':' + pad(sec);
+  },
+  elapsed_active_seconds: function(at_ms) {
+    if(!assessment || !assessment.started) { return 0; }
+    var elapsed = ((at_ms || (new Date()).getTime()) / 1000) - assessment.started;
+    (assessment.gaps || []).forEach(function(g) { elapsed -= (g[1] - g[0]); });
+    return Math.max(0, elapsed);
+  },
+  pause: function() {
+    // only meaningful once an assessment is actually running
+    if(!assessment || !assessment.started || evaluation.is_paused()) { return; }
+    evaluation._paused_at_ms = (new Date()).getTime();
+    try { if(evaluation.speecher && evaluation.speecher.stop) { evaluation.speecher.stop('all'); } }
+    catch(e) { /* best-effort — silence is nice-to-have */ }
+    // Measure the REAL inner_header bottom and pin --eval-pause-top so the dim
+    // overlay starts exactly at it. The --speak-header-height / --topbar-height
+    // vars don't equal the actual header bottom here (the header over-reserves
+    // past #content's padding), so a var-based top mis-aligns — measure instead.
+    try {
+      var ih = (typeof document !== 'undefined') && document.getElementById('inner_header');
+      if(ih && document.documentElement) {
+        document.documentElement.style.setProperty('--eval-pause-top', Math.round(ih.getBoundingClientRect().bottom) + 'px');
+      }
+    } catch(e) { /* fall back to the CSS calc default */ }
+    // Freeze the elapsed-time readout at the pause instant for the overlay.
+    evaluation.appState.set('eval_paused_elapsed', evaluation._format_elapsed(evaluation.elapsed_active_seconds(evaluation._paused_at_ms)));
+    evaluation.appState.set('eval_last_pause_ms', 0);
+    evaluation.appState.set('eval_paused', true);
+  },
+  unpause: function() {
+    if(!evaluation.is_paused()) { return; }
+    var now = (new Date()).getTime();
+    var started = evaluation._paused_at_ms || now;
+    var paused_ms = Math.max(0, now - started);
+    // record the paused span as a gap (seconds, matching results() duration math)
+    if(assessment) {
+      assessment.gaps = assessment.gaps || [];
+      assessment.gaps.push([started / 1000, now / 1000]);
+    }
+    evaluation._paused_at_ms = null;
+    // board/index reads this on the eval_paused flip to shift `rendered`.
+    evaluation.appState.set('eval_last_pause_ms', paused_ms);
+    evaluation.appState.set('eval_paused', false);
+  },
   clear: function() {
     assessment = {};
     working = {};
+    evaluation.appState.set('eval_paused', false);
   },
   conclude: function() {
     evaluation.modal.open('modals/assessment-settings', {assessment: assessment, action: 'results'});
@@ -198,6 +272,24 @@ var evaluation = {
     working.ref.session_events = [];
     evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
     evaluation.appState.set_history([]);
+  },
+  // Whether the header Previous button should be available. move('back') steps a
+  // WHOLE level back. Start jumps into the find_target section (the first
+  // assessment section — its level index isn't fixed, ~levels[2], since Start
+  // searches every level for find-4); stepping back from there walks into the
+  // legacy welcome/intro levels the combined welcome replaced (the deferred note
+  // in intro_header_start). So hide Back on the intro/welcome levels and on the
+  // find_target section; later sections step back to a real prior section. The
+  // section id lives on the level's first step (level[0].intro); working.level_id
+  // is unreliable (stays 'intro' after Start), so read the level directly.
+  can_go_back: function() {
+    try {
+      if(!working || working.level == null) { return true; }
+      var level = levels[working.level];
+      var section = level && level[0] && level[0].intro;
+      if(section && (/^intro/.test(section) || section === 'find_target')) { return false; }
+    } catch(e) { return true; }
+    return true;
   },
   /** Header shortcuts for intro boards when on-board Start/Skip are obscured (same logic as intro_board handler). */
   intro_header_visibility: function() {

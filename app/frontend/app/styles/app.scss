@@ -307,6 +307,17 @@ header:has(#speak) *:focus-visible,
 #within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):has(#inner_header .app-navbar):not(:has(#inner_header #speak)):not(:has(#inner_header #nav_header))) {
   --topbar-height: 70px;
 }
+/* Eval WELCOME exception: it renders the full app-navbar (70px), but the
+   line-above app-navbar detection doesn't match the eval intro's DOM, so
+   #within_ember falls through to the 16px authenticated default and the eval
+   view tucks under the fixed 70px header. Pin 70px for the eval welcome
+   (board-view + app-navbar header + the .md-eval-intro__panel the eval-intro
+   component renders) so #content and every other var(--topbar-height) consumer
+   clears the navbar. Section intros keep the speak bar and match the taller
+   129px rule below (higher id-count specificity), so they are unaffected. */
+#within_ember.board-view:has(> header.header-index-with-dark-toggle):has(.md-eval-intro__panel) {
+  --topbar-height: 70px;
+}
 /* Board page: navbar + board bar (speak or nav_header) need a taller header so both rows fit */
 #within_ember:has(header.header-index-with-dark-toggle #speak),
 #within_ember:has(header.header-index-with-dark-toggle #nav_header) {
@@ -2894,6 +2905,12 @@ header.speaking, .board.speak {
 /* board-alt (classic) speak mode fills the viewport like the modern
    grid; the 32px top margin above leaves a dead strip there. */
 #within_ember.board-alt-view .board.speak {
+  margin-top: 0px !important;
+}
+/* Eval intro: the bespoke intro panel replaces the board grid, so the 32px
+   speak-mode top margin just opens a dead strip between the word bar and the
+   intro. Remove it so the intro sits flush (matches the overrides above). */
+.board.speak.eval_intro {
   margin-top: 0px !important;
 }
 /* Edit-mode entry fade wrapper. During the route transition into edit
@@ -7998,8 +8015,14 @@ body > .popover.bottom {
   text-align: center;
   white-space: nowrap;
   height: 55px;
+  /* Image-chip variant (eval word bar): the chips otherwise sit flush against
+     the header. Add top breathing room. border-box, so grow the height by the
+     same 16px to keep the 105px content row un-clipped. Scoped to .with_images
+     so the plain 55px row (which board sizing reserves via a hardcoded +55 in
+     controllers/board/index.js) is untouched. */
   &.with_images {
-    height: 105px;
+    height: 121px;
+    padding-top: 16px;
   }
 }
 #word_suggestions .suggestion {
@@ -8875,7 +8898,12 @@ body > .popover.bottom {
    app-navbar header (header-index-with-dark-toggle) + an eval intro board, so
    only the welcome matches — section intros keep the speak bar and the rule
    above. Once Start swaps back to the speak bar this stops matching. */
-#within_ember.board-view:has(> header.header-index-with-dark-toggle):has(.board.eval_intro) #content {
+/* Hook updated 2026-07: the intro now renders `.md-eval-intro__panel` (the
+   eval-intro component) rather than adding an `eval_intro` class to the board,
+   so the old `:has(.board.eval_intro)` never matched and the welcome fell
+   through to the speak-bar rule above (over-reserving via a stale
+   --speak-header-height). Match the panel the component actually renders. */
+#within_ember.board-view:has(> header.header-index-with-dark-toggle):has(.md-eval-intro__panel) #content {
   padding-top: var(--topbar-height, 70px) !important;
 }
 #within_ember.board-alt-view #content {
@@ -87515,8 +87543,8 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   align-items: stretch;
   gap: 13px;
   padding: 6px 12px;
-  margin: 1px 4px 3px 4px;
-  width: calc(100% - 8px);
+  margin: 1px 0 3px 4px; /* right margin removed */
+  width: calc(100% - 4px);
   box-sizing: border-box;
   /* Anchor for the absolutely-positioned backspace + clear buttons,
      which we visually nest INSIDE the sentence bar (mirrors the
@@ -87527,6 +87555,107 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
+}
+/* Column wrapper: stacks the Pause control UNDER the home pill while keeping it
+   OUT of .speak-header__home-marker (so it isn't grouped with the home icon and
+   doesn't inherit the home-button box). Transparent everywhere except a running
+   eval, so non-eval speak-mode layout is untouched. */
+.speak-header__home-col { display: contents; }
+#speak.md-eval-header .speak-header__home-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+/* In-place eval Pause/Resume button — its own control under the home pill,
+   matched to the sentence-bar backspace button's exact computed style: solid
+   slate-blue fill, 12px radius, soft blue shadow, white icon. Solid fill, so it
+   reads on the white header (unlike the translucent md-eval-header tool style). */
+#speak.md-eval-header .speak-header__eval-pause {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 12px !important;
+  border: none !important;
+  background: rgb(118, 147, 185) !important;
+  box-shadow: 0 2px 6px 0 rgba(118, 147, 185, 0.3) !important;
+  color: #fff !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s ease;
+  cursor: pointer;
+}
+#speak.md-eval-header .speak-header__eval-pause:hover {
+  background: rgb(104, 132, 170) !important;
+}
+/* Home button sized to match Pause (44x44) — ONLY on the modern board-view eval
+   header. Scoped to #within_ember.board-view + #speak.md-eval-header so it does
+   NOT touch board-alt (shared home button) or non-eval speak. The extra
+   #within_ember.board-view + .btn make it decisively out-rank the responsive
+   `#home_button.btn { width:52px }` rule in the max-1500px media block. */
+#within_ember.board-view #inner_header:has(#speak) #speak.md-eval-header #home_button.btn {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+}
+/* In-place eval pause overlay — covers the board below the fixed header and
+   captures all input so no button activates while paused. */
+.eval-pause-overlay {
+  position: fixed;
+  /* Start exactly at the inner_header's bottom. utils/eval.js pause() MEASURES
+     the real header bottom and pins --eval-pause-top (the header vars don't
+     equal it, so they mis-align); the calc is only a first-paint fallback. */
+  top: var(--eval-pause-top, calc(var(--topbar-height) + var(--speak-bar-extra, 0px)));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start; /* anchor the card near the top of the dim, not centered */
+  justify-content: center;
+  overflow-y: auto;
+  background: rgba(27, 54, 93, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.eval-pause-overlay__card {
+  margin-top: 5rem; /* 5rem below the top of the dimmed area */
+  background: #fff;
+  border-radius: 20px;
+  padding: 34px 44px;
+  text-align: center;
+  max-width: 92%;
+  box-shadow: 0 14px 44px rgba(27, 54, 93, 0.28);
+}
+.eval-pause-overlay__icon { color: $la-navy; margin-bottom: 10px; }
+.eval-pause-overlay__title {
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: $la-navy;
+}
+.eval-pause-overlay__desc {
+  font-size: 1.3rem;
+  color: #555;
+  margin: 0 0 14px;
+}
+.eval-pause-overlay__elapsed {
+  font-size: 1.2rem;
+  color: $la-navy;
+  margin: 0 0 24px;
+}
+.eval-pause-overlay__resume {
+  font-size: 1.4rem;
+  padding: 12px 32px;
+  border-radius: 14px;
 }
 #speak.md-eval-header #home_button {
   width: 56px !important;
@@ -87621,25 +87750,35 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   background: color.adjust($brand-verdigris, $lightness: -4%) !important;
   border-color: color.adjust($brand-verdigris, $lightness: -4%) !important;
 }
-#speak.md-eval-header #eval_next_section.speak-bar__eval-btn {
-  background: rgba($brand-verdigris, 0.10) !important;
-  border-color: rgba($brand-verdigris, 0.30) !important;
-  color: $brand-verdigris !important;
+/* Previous + Next sections: soft blue tint rgba(44,99,157,0.09) with navy text. */
+/* .speak-bar__eval-actions prefix so these out-rank the shared
+   `.speak-bar__eval-actions .btn.speak-bar__eval-btn { background:#fff; color:#333 }`
+   default rule (2-3-0) which was keeping them white. */
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_prev_section.speak-bar__eval-btn,
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_next_section.speak-bar__eval-btn {
+  background: rgba(44, 99, 157, 0.09) !important;
+  border-color: rgba(44, 99, 157, 0.20) !important;
+  color: $la-navy !important;
   font-weight: 700;
 }
-#speak.md-eval-header #eval_next_section.speak-bar__eval-btn:hover {
-  background: rgba($brand-verdigris, 0.18) !important;
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_prev_section.speak-bar__eval-btn:hover,
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_next_section.speak-bar__eval-btn:hover,
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_open_settings.speak-bar__eval-btn:hover {
+  background: rgba(44, 99, 157, 0.16) !important;
 }
-#speak.md-eval-header #eval_next_section.speak-bar__eval-btn .glyphicon {
-  color: $brand-verdigris;
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_prev_section.speak-bar__eval-btn .glyphicon,
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_next_section.speak-bar__eval-btn .glyphicon,
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_open_settings.speak-bar__eval-btn .glyphicon {
+  color: $la-navy !important;
 }
 #speak.md-eval-header .speak-bar__eval-actions__label {
   margin-left: 4px;
 }
-#speak.md-eval-header #eval_open_settings.speak-bar__eval-btn {
+#inner_header:has(#speak) #speak.md-eval-header .speak-bar__eval-actions #eval_open_settings.speak-bar__eval-btn {
   width: 44px;
   padding: 0 !important;
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(44, 99, 157, 0.09) !important; /* match Previous/Next */
+  border-color: rgba(44, 99, 157, 0.20) !important;
 }
 #speak.md-eval-header #eval_open_settings.speak-bar__eval-btn .glyphicon {
   font-size: 16px;
@@ -87917,6 +88056,72 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    padding rule (~l.8864). */
 #within_ember.board-view:has(> header.header-index-with-dark-toggle) .board.eval_intro {
   min-height: calc(100dvh - var(--topbar-height, 70px) - 1.5rem) !important;
+}
+/* Eval SECTION boards (the actual test steps): same fill, but these show the
+   speak-bar header, so reserve the measured --speak-header-height (matching
+   #content's padding-top rule ~l.8887) plus the 32px `.board.speak` top margin,
+   so the board's background reaches the viewport bottom instead of collapsing
+   to the JS-computed grid height (the white strip below the grid). Scoped to the
+   eval speak header + non-intro board so only eval steps are affected. */
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) {
+  min-height: calc(100dvh - var(--speak-header-height, calc(var(--topbar-height) + var(--speak-bar-extra, 0px))) - 32px) !important;
+}
+/* Eval board buttons: give them the board-detail speak-card chrome (rounded
+   corners + seated-tile drop shadow) but drive the sheen from VARIANTS of each
+   button's OWN inline color — a lighter tint at the top fading to a darker shade
+   at the base — instead of the board-detail white pearl. background-image layers
+   OVER the inline background-color, so the button's categorical color still
+   reads through the gradient; box-shadow mirrors .md-board-detail-symbol-card. */
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button:not(.empty):not(.hidden_button) {
+  border-radius: clamp(6px, 1.2vw, 16px) !important;
+  overflow: hidden;
+  padding: 6px !important;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.42) 0%,
+      rgba(255, 255, 255, 0.12) 38%,
+      rgba(0, 0, 0, 0.05) 72%,
+      rgba(0, 0, 0, 0.13) 100%
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba($la-navy, 0.10),
+    0 8px 24px rgba(27, 42, 65, 0.08),
+    0 20px 50px rgba($la-navy, 0.06) !important;
+}
+/* Keyboard focus: the global focus indicator is a box-shadow ring (l.232), which
+   our seated-tile box-shadow above overrides. Re-layer the 3px navy ring on top
+   of the tile shadow so focused eval buttons stay clearly highlighted (WCAG
+   2.4.7). Higher specificity than the tile rule (adds :focus-visible). */
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button:not(.empty):not(.hidden_button):focus-visible {
+  box-shadow:
+    0 0 0 3px $la-navy,
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 4px 12px rgba($la-navy, 0.10),
+    0 8px 24px rgba(27, 42, 65, 0.08) !important;
+}
+/* Eval header keyboard focus: the shared box-shadow focus ring loses here — the
+   header buttons each carry an id-based :focus-visible ELEVATION box-shadow
+   (e.g. #home_button) that out-specifies any *-based ring rule, so the ring
+   never shows and the white ring from l.239 is invisible on this white header
+   anyway. Use `outline` instead: a different property no per-button rule
+   contests, so it wins over the global `outline:none` trivially and reads as a
+   clear navy ring on the white header (WCAG 2.4.7). */
+#inner_header:has(#speak) #speak.md-eval-header *:focus-visible,
+#inner_header:has(#speak.md-eval-header) #identity *:focus-visible {
+  outline: 3px solid $la-navy !important;
+  outline-offset: 2px !important;
+}
+/* Hide the general user-Preferences gear during an eval — Eval Settings is
+   already in the speak bar, and opening Preferences would exit the assessment.
+   display:none removes it visually AND from the layout AND from the tab order. */
+#inner_header:has(#speak.md-eval-header) .ll-header-settings-btn {
+  display: none !important;
+}
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button:not(.empty):not(.hidden_button) .button-label {
+  padding: 6px !important;
 }
 
 /* Intro page ONLY: the bespoke center screen already provides the primary
