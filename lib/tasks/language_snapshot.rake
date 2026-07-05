@@ -81,17 +81,38 @@ namespace :language do
     end
     upstream = JSON.parse(File.read(upstream_path))
 
-    # Setting.get (NOT the upstream file) is the ONLY source for these two fields -- they reflect
-    # whatever is actually live for the running app today.
-    setting = Setting.get("rules/#{base_locale}") || {}
+    # Setting.get (NOT the upstream file) is the authoritative source for these two fields when a
+    # rules/<locale> Setting actually exists -- it reflects whatever is actually live for the
+    # running app today. Some environments (e.g. staging, as of 2026-07) have NO rules/<locale>
+    # Setting at all, in which case the app falls through to its hardcoded per-locale grammar
+    # branch (see WordData.inflection_locations_for) rather than reading rules/inflection_locations
+    # from anywhere. In that case we do NOT silently emit nulls: we seed 'rules'/'inflection_locations'
+    # from the pinned upstream file instead (so Plan 02's generator has real content to work from)
+    # and label the source explicitly via '_rules_source', so nothing downstream mistakes this for
+    # live Setting data.
+    setting = Setting.get("rules/#{base_locale}")
+    live_rules_present = setting.present? && (setting['rules'].present? || setting['inflection_locations'].present?)
+    if live_rules_present
+      rules_source = 'live_setting'
+      rules_value = setting['rules']
+      inflection_locations_value = setting['inflection_locations']
+    else
+      rules_source = 'upstream_synthetic_no_live_setting'
+      rules_value = upstream['rules']
+      inflection_locations_value = upstream['inflection_locations']
+      warn "language:snapshot(#{base_locale}): WARNING -- no rules/#{base_locale} Setting found; " \
+           "'rules'/'inflection_locations' seeded from the pinned upstream file and labeled " \
+           "'_rules_source' => 'upstream_synthetic_no_live_setting' (NOT live Setting data)."
+    end
     language_snapshot_write_json(
       dir.join("rules-#{base_locale}.snapshot.json"),
       {
         '_locale' => base_locale,
         '_type' => 'rules',
         '_schema' => 1,
-        'rules' => setting['rules'],
-        'inflection_locations' => setting['inflection_locations'],
+        '_rules_source' => rules_source,
+        'rules' => rules_value,
+        'inflection_locations' => inflection_locations_value,
         # substitutions/tests/_license: verbatim from the pinned upstream file ONLY -- never from
         # the Setting (it never carries them; see header note above).
         'substitutions' => upstream['substitutions'],
