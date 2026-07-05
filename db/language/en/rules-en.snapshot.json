@@ -1,0 +1,3905 @@
+{
+  "_license": "CC By, OpenAAC",
+  "_locale": "en",
+  "_rules_source": "upstream_synthetic_no_live_setting",
+  "_schema": 1,
+  "_type": "rules",
+  "inflection_locations": {
+    "adjective": [
+      {
+        "required": "superlative"
+      },
+      {
+        "inflection": "comparative",
+        "location": "ne"
+      },
+      {
+        "inflection": "superlative",
+        "location": "e"
+      },
+      {
+        "inflection": "negative_comparative",
+        "location": "w"
+      },
+      {
+        "inflection": "negation",
+        "location": "nw"
+      },
+      {
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "if_empty": true,
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "inflection": "plural",
+        "location": "n",
+        "type": "noun"
+      },
+      {
+        "inflection": "possessive",
+        "location": "s",
+        "type": "noun"
+      },
+      {
+        "inflection": "simple_past",
+        "location": "nw",
+        "type": "verb"
+      },
+      {
+        "inflection": "past",
+        "location": "w",
+        "type": "verb"
+      },
+      {
+        "inflection": "present_participle",
+        "location": "s",
+        "type": "verb"
+      },
+      {
+        "inflection": "past_participle",
+        "location": "sw",
+        "type": "verb"
+      },
+      {
+        "inflection": "plural_present",
+        "location": "ne",
+        "type": "verb"
+      },
+      {
+        "inflection": "simple_present",
+        "location": "n",
+        "type": "verb"
+      },
+      {
+        "inflection": "infinitive",
+        "location": "e",
+        "type": "verb"
+      },
+      {
+        "inflection": "antonym",
+        "location": "se"
+      }
+    ],
+    "adverb": [
+      {
+        "required": "superlative"
+      },
+      {
+        "inflection": "comparative",
+        "location": "ne"
+      },
+      {
+        "inflection": "superlative",
+        "location": "e"
+      },
+      {
+        "inflection": "negative_comparative",
+        "location": "w"
+      },
+      {
+        "inflection": "negation",
+        "location": "nw"
+      },
+      {
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "if_empty": true,
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "inflection": "simple_past",
+        "location": "nw",
+        "type": "verb"
+      },
+      {
+        "inflection": "past",
+        "location": "w",
+        "type": "verb"
+      },
+      {
+        "inflection": "present_participle",
+        "location": "s",
+        "type": "verb"
+      },
+      {
+        "inflection": "past_participle",
+        "location": "sw",
+        "type": "verb"
+      },
+      {
+        "inflection": "plural_present",
+        "location": "ne",
+        "type": "verb"
+      },
+      {
+        "inflection": "simple_present",
+        "location": "n",
+        "type": "verb"
+      },
+      {
+        "inflection": "infinitive",
+        "location": "e",
+        "type": "verb"
+      },
+      {
+        "inflection": "antonym",
+        "location": "se"
+      }
+    ],
+    "noun": [
+      {
+        "required": "plural"
+      },
+      {
+        "inflection": "plural",
+        "location": "n"
+      },
+      {
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "inflection": "possessive",
+        "location": "s"
+      },
+      {
+        "if_empty": true,
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "inflection": "simple_past",
+        "location": "nw",
+        "type": "verb"
+      },
+      {
+        "inflection": "past",
+        "location": "w",
+        "type": "verb"
+      },
+      {
+        "inflection": "present_participle",
+        "location": "s",
+        "type": "verb"
+      },
+      {
+        "inflection": "past_participle",
+        "location": "sw",
+        "type": "verb"
+      },
+      {
+        "inflection": "plural_present",
+        "location": "ne",
+        "type": "verb"
+      },
+      {
+        "inflection": "simple_present",
+        "location": "n",
+        "type": "verb"
+      },
+      {
+        "inflection": "infinitive",
+        "location": "e",
+        "type": "verb"
+      },
+      {
+        "inflection": "comparative",
+        "location": "ne",
+        "type": "adjective"
+      },
+      {
+        "inflection": "superlative",
+        "location": "e",
+        "type": "adjective"
+      },
+      {
+        "inflection": "negative_comparative",
+        "location": "w",
+        "type": "adjective"
+      },
+      {
+        "inflection": "comparative",
+        "location": "ne",
+        "type": "adverb"
+      },
+      {
+        "inflection": "superlative",
+        "location": "e",
+        "type": "adverb"
+      },
+      {
+        "inflection": "negative_comparative",
+        "location": "w",
+        "type": "adverb"
+      },
+      {
+        "inflection": "negation",
+        "location": "nw"
+      },
+      {
+        "inflection": "antonym",
+        "location": "se"
+      }
+    ],
+    "pronoun": [
+      {
+        "required": "objective"
+      },
+      {
+        "inflection": "subjective",
+        "location": "c"
+      },
+      {
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "inflection": "possessive",
+        "location": "s"
+      },
+      {
+        "inflection": "objective",
+        "location": "n"
+      },
+      {
+        "inflection": "possessive_adjective",
+        "location": "w"
+      },
+      {
+        "inflection": "reflexive",
+        "location": "e"
+      },
+      {
+        "if_empty": true,
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "inflection": "antonym",
+        "location": "se"
+      }
+    ],
+    "verb": [
+      {
+        "required": "infinitive"
+      },
+      {
+        "inflection": "past",
+        "location": "w"
+      },
+      {
+        "inflection": "present_participle",
+        "location": "s"
+      },
+      {
+        "inflection": "past_participle",
+        "location": "sw"
+      },
+      {
+        "inflection": "simple_present",
+        "location": "n"
+      },
+      {
+        "inflection": "infinitive",
+        "location": "e"
+      },
+      {
+        "inflection": "present",
+        "location": "c"
+      },
+      {
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "if_empty": true,
+        "inflection": "present",
+        "location": "c"
+      },
+      {
+        "if_empty": true,
+        "inflection": "base",
+        "location": "c"
+      },
+      {
+        "inflection": "personal_present",
+        "location": "n",
+        "override_if_same": "c"
+      },
+      {
+        "inflection": "plural",
+        "location": "n",
+        "type": "noun"
+      },
+      {
+        "inflection": "possessive",
+        "location": "s",
+        "type": "noun"
+      },
+      {
+        "inflection": "comparative",
+        "location": "ne",
+        "type": "adjective"
+      },
+      {
+        "inflection": "superlative",
+        "location": "e",
+        "type": "adjective"
+      },
+      {
+        "inflection": "negative_comparative",
+        "location": "w",
+        "type": "adjective"
+      },
+      {
+        "inflection": "simple_past",
+        "location": "nw"
+      },
+      {
+        "inflection": "plural_present",
+        "location": "ne"
+      },
+      {
+        "inflection": "antonym",
+        "location": "se"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "id": "i_am",
+      "lookback": [
+        {
+          "words": [
+            "i"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "are": "am",
+        "does": "do",
+        "has": "have",
+        "is": "am",
+        "no": "don't",
+        "not": "am not",
+        "were": "was"
+      },
+      "type": "override"
+    },
+    {
+      "id": "feels_like",
+      "lookback": [
+        {
+          "words": [
+            "feel",
+            "feels",
+            "felt",
+            "feeling",
+            "look",
+            "looks",
+            "looking",
+            "looked"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "like": "like"
+      },
+      "type": "override"
+    },
+    {
+      "id": "can_be",
+      "lookback": [
+        {
+          "words": [
+            "can",
+            "will",
+            "could",
+            "should",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall"
+          ]
+        },
+        {
+          "words": [
+            "it",
+            "that",
+            "this",
+            "he",
+            "she",
+            "they",
+            "i",
+            "we"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "am": "be",
+        "is": "be"
+      },
+      "type": "override"
+    },
+    {
+      "id": "you_are",
+      "lookback": [
+        {
+          "words": [
+            "you",
+            "we",
+            "they"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "am": "are",
+        "does": "do",
+        "has": "have",
+        "is": "are",
+        "no": "don't",
+        "not": "aren't",
+        "was": "were"
+      },
+      "type": "override"
+    },
+    {
+      "id": "these_are",
+      "lookback": [
+        {
+          "words": [
+            "those",
+            "these"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "am": "are",
+        "does": "do",
+        "has": "have",
+        "is": "are",
+        "no": "don't",
+        "not": "aren't",
+        "was": "were"
+      },
+      "type": "override"
+    },
+    {
+      "id": "she_is",
+      "lookback": [
+        {
+          "words": [
+            "he",
+            "she"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "am": "is",
+        "is": "is",
+        "no": "doesn't",
+        "not": "isn't",
+        "were": "was"
+      },
+      "type": "override"
+    },
+    {
+      "id": "she_will",
+      "lookback": [
+        {
+          "words": [
+            "he",
+            "she"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "will": "will"
+      },
+      "type": "override"
+    },
+    {
+      "id": "it_is",
+      "lookback": [
+        {
+          "words": [
+            "it",
+            "that",
+            "this"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "overrides": {
+        "am": "is",
+        "is": "is",
+        "no": "doesn't",
+        "not": "isn't",
+        "were": "was"
+      },
+      "type": "override"
+    },
+    {
+      "id": "what_happened",
+      "lookback": [
+        {
+          "words": [
+            "what"
+          ]
+        }
+      ],
+      "overrides": {
+        "happen": "happened"
+      },
+      "type": "override"
+    },
+    {
+      "id": "wont_be",
+      "lookback": [
+        {
+          "words": [
+            "will",
+            "won't",
+            "can",
+            "can't",
+            "do",
+            "don't"
+          ]
+        }
+      ],
+      "overrides": {
+        "am": "be",
+        "is": "be"
+      },
+      "type": "override"
+    },
+    {
+      "id": "is_my_is_done",
+      "lookback": [
+        {
+          "words": [
+            "is",
+            "are",
+            "am",
+            "be"
+          ]
+        },
+        {
+          "optional": true,
+          "words": [
+            "she",
+            "he",
+            "i",
+            "they",
+            "we",
+            "you"
+          ]
+        }
+      ],
+      "overrides": {
+        "I": "my",
+        "done": "done"
+      },
+      "type": "override"
+    },
+    {
+      "id": "to_be",
+      "lookback": [
+        {
+          "words": [
+            "to"
+          ]
+        }
+      ],
+      "overrides": {
+        "am": "be",
+        "is": "be"
+      },
+      "type": "override"
+    },
+    {
+      "id": "dogs_are",
+      "lookback": [
+        {
+          "match": "s$",
+          "type": "noun"
+        }
+      ],
+      "overrides": {
+        "am": "are",
+        "is": "are"
+      },
+      "type": "override"
+    },
+    {
+      "id": "has_she_looked",
+      "inflection": "past_participle",
+      "location": "sw",
+      "lookback": [
+        {
+          "words": [
+            "has",
+            "have",
+            "had",
+            "hasn't",
+            "haven't",
+            "hadn't"
+          ]
+        },
+        {
+          "words": [
+            "you",
+            "I",
+            "he",
+            "she",
+            "it",
+            "that",
+            "this",
+            "they"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "is_she_looking",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "words": [
+            "is",
+            "am",
+            "was",
+            "were",
+            "be",
+            "to be",
+            "are",
+            "isn't",
+            "aren't",
+            "wasn't",
+            "weren't",
+            "aren't"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "you_look",
+      "inflection": "present",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "i",
+            "you",
+            "they",
+            "we",
+            "these",
+            "those"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "does_she_look",
+      "inflection": "present",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "do",
+            "does",
+            "did",
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "don't",
+            "doesn't",
+            "didn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "words": [
+            "he",
+            "she",
+            "it",
+            "that",
+            "this",
+            "they"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "they_can_look",
+      "inflection": "present",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "he",
+            "she",
+            "it",
+            "that",
+            "this",
+            "they"
+          ]
+        },
+        {
+          "words": [
+            "do",
+            "does",
+            "did",
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "don't",
+            "doesn't",
+            "didn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "she_looks",
+      "inflection": "simple_present",
+      "location": "n",
+      "lookback": [
+        {
+          "words": [
+            "he",
+            "she",
+            "it",
+            "that",
+            "this",
+            "somebody",
+            "someone",
+            "nobody",
+            "everybody",
+            "everyone"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "he_is_looking_to_go",
+      "inflection": "infinitive",
+      "location": "e",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "words": [
+            "be",
+            "is",
+            "am",
+            "are",
+            "was",
+            "were",
+            "isn't",
+            "aren't",
+            "wasn't",
+            "weren't"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        },
+        {
+          "match": "ing$",
+          "type": "verb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "would_she_want_to_look",
+      "inflection": "infinitive",
+      "location": "e",
+      "lookback": [
+        {
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "do",
+            "does",
+            "don't",
+            "doesn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "type": "pronoun"
+        },
+        {
+          "type": "verb",
+          "words": [
+            "like",
+            "want"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "she_wants_to_look",
+      "inflection": "infinitive",
+      "location": "e",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "type": "verb",
+          "words": [
+            "wanted",
+            "want",
+            "wants"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "she_likes_looking",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "type": "verb",
+          "words": [
+            "like",
+            "likes",
+            "liked"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "she_can_want_to_look",
+      "inflection": "infinitive",
+      "location": "e",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "do",
+            "does",
+            "did",
+            "don't",
+            "doesn't",
+            "didn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "type": "verb",
+          "words": [
+            "want"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "they_can_like_to_look",
+      "inflection": "infinitive",
+      "location": "e",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "type": "verb",
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "do",
+            "does",
+            "did",
+            "didn't",
+            "don't",
+            "doesn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        },
+        {
+          "type": "verb",
+          "words": [
+            "like",
+            "likes",
+            "want",
+            "wants"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "have_looked",
+      "inflection": "past_participle",
+      "location": "sw",
+      "lookback": [
+        {
+          "optional": true,
+          "type": "pronoun"
+        },
+        {
+          "words": [
+            "being",
+            "doing",
+            "has",
+            "have",
+            "had",
+            "hasn't",
+            "haven't",
+            "hadn't"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "should_not_look",
+      "inflection": "base",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "do",
+            "does",
+            "don't",
+            "doesn't",
+            "didn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "she_is_looking",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "do",
+            "does",
+            "don't",
+            "doesn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "type": "verb"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "she_likes_not_looking",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "do",
+            "does",
+            "don't",
+            "doesn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "type": "verb"
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "would_she_think_looking",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "type": "pronoun"
+        },
+        {
+          "type": "verb"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "hope_for_eating",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "type": "verb"
+        },
+        {
+          "words": [
+            "for",
+            "from"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "have_you_looked",
+      "inflection": "past_participle",
+      "location": "sw",
+      "lookback": [
+        {
+          "words": [
+            "have",
+            "has",
+            "had",
+            "haven't",
+            "hasn't",
+            "hadn't"
+          ]
+        },
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "have_been_looking",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "words": [
+            "have",
+            "has",
+            "had",
+            "haven't",
+            "hasn't",
+            "hadn't"
+          ]
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        },
+        {
+          "words": [
+            "been"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "can_be_looking",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "words": [
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        },
+        {
+          "words": [
+            "be"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "still_laughing",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "words": [
+            "before",
+            "am",
+            "are",
+            "aren't",
+            "is",
+            "isn't",
+            "there",
+            "was",
+            "wasn't",
+            "were",
+            "weren't",
+            "are",
+            "aren't",
+            "am",
+            "stop",
+            "the",
+            "because",
+            "done",
+            "no",
+            "not",
+            "together",
+            "than",
+            "own",
+            "usual",
+            "despite",
+            "maybe",
+            "however",
+            "although",
+            "usually",
+            "still"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "over_laughing",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "type": "preposition",
+          "words": [
+            "on",
+            "off",
+            "here",
+            "there",
+            "over",
+            "under"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "his_laughing",
+      "inflection": "present_participle",
+      "location": "s",
+      "lookback": [
+        {
+          "type": "pronoun",
+          "words": [
+            "my",
+            "his",
+            "her",
+            "our",
+            "their",
+            "mine",
+            "hers",
+            "ours",
+            "theirs",
+            "myself",
+            "himself",
+            "herself",
+            "themselves",
+            "ourselves"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "did_the_dog_look",
+      "inflection": "present",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "do",
+            "does",
+            "did",
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "don't",
+            "doesn't",
+            "didn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "type": "determiner"
+        },
+        {
+          "type": "noun"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "did_my_dog_look",
+      "inflection": "present",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "do",
+            "does",
+            "did",
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "don't",
+            "doesn't",
+            "didn't",
+            "can't",
+            "couldn't",
+            "won't",
+            "wouldn't",
+            "mayn't",
+            "mightn't",
+            "mustn't",
+            "shan't",
+            "shouldn't"
+          ]
+        },
+        {
+          "type": "pronoun"
+        },
+        {
+          "type": "noun"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "has_the_dog_eaten",
+      "inflection": "past_participle",
+      "location": "sw",
+      "lookback": [
+        {
+          "words": [
+            "have",
+            "has",
+            "had",
+            "haven't",
+            "hasn't",
+            "hadn't"
+          ]
+        },
+        {
+          "type": "determiner"
+        },
+        {
+          "type": "noun"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "has_my_dog_eaten",
+      "inflection": "past_participle",
+      "location": "sw",
+      "lookback": [
+        {
+          "words": [
+            "have",
+            "has",
+            "had",
+            "haven't",
+            "hasn't",
+            "hadn't"
+          ]
+        },
+        {
+          "type": "pronoun"
+        },
+        {
+          "type": "noun"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "dog_looks",
+      "inflection": "simple_present",
+      "location": "n",
+      "lookback": [
+        {
+          "type": "determiner"
+        },
+        {
+          "non_match": "[^s]s$",
+          "type": "noun"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "who_looks",
+      "inflection": "simple_present",
+      "location": "n",
+      "lookback": [
+        {
+          "type": "question"
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "these_dogs",
+      "inflection": "plural",
+      "location": "n",
+      "lookback": [
+        {
+          "words": [
+            "those",
+            "these",
+            "some",
+            "many"
+          ]
+        }
+      ],
+      "type": "noun"
+    },
+    {
+      "id": "with_her",
+      "inflection": "objective",
+      "location": "n",
+      "lookback": [
+        {
+          "words": [
+            "at",
+            "for",
+            "with"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "it_is_his",
+      "inflection": "possessive_adjective",
+      "location": "w",
+      "lookback": [
+        {
+          "words": [
+            "this",
+            "that",
+            "it"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "words": [
+            "is",
+            "was",
+            "be"
+          ]
+        },
+        {
+          "optional": true,
+          "words": [
+            "not"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "about_him",
+      "inflection": "objective",
+      "location": "n",
+      "lookback": [
+        {
+          "words": [
+            "about",
+            "to",
+            "tell",
+            "for",
+            "give",
+            "get",
+            "make",
+            "not",
+            "from",
+            "among"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "these_are_his",
+      "inflection": "possessive_adjective",
+      "location": "w",
+      "lookback": [
+        {
+          "words": [
+            "these",
+            "those",
+            "they",
+            "we"
+          ]
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "words": [
+            "are",
+            "were",
+            "be"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "i_am_him",
+      "inflection": "objective",
+      "location": "n",
+      "lookback": [
+        {
+          "type": "verb",
+          "words": [
+            "am",
+            "was",
+            "were",
+            "are",
+            "be",
+            "been",
+            "being"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "i_think_he",
+      "inflection": "base",
+      "location": "c",
+      "lookback": [
+        {
+          "type": "verb",
+          "words": [
+            "think",
+            "thinks",
+            "hope",
+            "hopes",
+            "wish",
+            "wishes",
+            "am",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "do",
+            "does",
+            "did",
+            "have",
+            "has",
+            "had",
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "are"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "eat_my",
+      "inflection": "possessive_adjective",
+      "location": "w",
+      "lookback": [
+        {
+          "words": [
+            "eat",
+            "on",
+            "up",
+            "off",
+            "in",
+            "out",
+            "down",
+            "drink",
+            "is",
+            "are",
+            "read",
+            "use",
+            "wear",
+            "all",
+            "of",
+            "eat",
+            "drink",
+            "taste",
+            "lick",
+            "left",
+            "across",
+            "into",
+            "where's",
+            "lost",
+            "lose",
+            "lower",
+            "raise",
+            "hide",
+            "start",
+            "exit",
+            "run",
+            "turn",
+            "return",
+            "check",
+            "finish",
+            "continue",
+            "begin",
+            "improve",
+            "honor",
+            "change",
+            "reduce",
+            "grow",
+            "expand",
+            "shrink",
+            "it's",
+            "refill",
+            "drink",
+            "swallow",
+            "feel",
+            "communicate",
+            "resolve",
+            "describe",
+            "explain",
+            "represent",
+            "spray",
+            "scrub",
+            "wipe",
+            "wash",
+            "clean",
+            "learn",
+            "study",
+            "cheat",
+            "type",
+            "become",
+            "exercise",
+            "play",
+            "ponder"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "all_by_myself",
+      "inflection": "reflexive",
+      "location": "e",
+      "lookback": [
+        {
+          "words": [
+            "all",
+            "not"
+          ]
+        },
+        {
+          "words": [
+            "by",
+            "with"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "view_yourself",
+      "inflection": "reflexive",
+      "location": "e",
+      "lookback": [
+        {
+          "words": [
+            "view",
+            "prepare",
+            "settle",
+            "repeat",
+            "defend"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "near_me",
+      "inflection": "objective",
+      "location": "n",
+      "lookback": [
+        {
+          "type": "preposition"
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "to_have_my",
+      "inflection": "possessive_adjective",
+      "location": "w",
+      "lookback": [
+        {
+          "words": [
+            "get",
+            "have",
+            "hold",
+            "keep"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "i_am_thinking_he",
+      "inflection": "base",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "is",
+            "am",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "do",
+            "does",
+            "did",
+            "have",
+            "has",
+            "had",
+            "can",
+            "could",
+            "will",
+            "would",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "are"
+          ]
+        },
+        {
+          "type": "verb"
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "i_like_him",
+      "inflection": "objective",
+      "location": "n",
+      "lookback": [
+        {
+          "type": "verb"
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "with_him",
+      "inflection": "objective",
+      "location": "n",
+      "lookback": [
+        {
+          "words": [
+            "than",
+            "with",
+            "as",
+            "before",
+            "after"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "hug_me",
+      "inflection": "objective",
+      "location": "n",
+      "lookback": [
+        {
+          "type": "verb"
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "i_am_his",
+      "inflection": "possessive_adjective",
+      "location": "w",
+      "lookback": [
+        {
+          "type": "pronoun"
+        },
+        {
+          "optional": true,
+          "type": "adverb"
+        },
+        {
+          "type": "verb",
+          "words": [
+            "is",
+            "am",
+            "are",
+            "be"
+          ]
+        }
+      ],
+      "type": "pronoun"
+    },
+    {
+      "id": "to_look",
+      "inflection": "present",
+      "location": "c",
+      "lookback": [
+        {
+          "words": [
+            "to"
+          ]
+        }
+      ],
+      "type": "verb"
+    },
+    {
+      "id": "at_the_present_time",
+      "lookback": [
+        {
+          "condense": true,
+          "words": [
+            "at"
+          ]
+        },
+        {
+          "condense": true,
+          "words": [
+            "the"
+          ]
+        },
+        {
+          "condense": true,
+          "words": [
+            "present"
+          ]
+        }
+      ],
+      "overrides": {
+        "time": "now"
+      },
+      "type": "override"
+    }
+  ],
+  "substitutions": {
+    "contractions": {
+      "I am": "I'm",
+      "I had": "I'd",
+      "I have": "I've",
+      "I will": "I'll",
+      "I would": "I'd",
+      "all right": "a'ight",
+      "anybody is": "anybody's",
+      "are not": "aren't",
+      "can not": "can't",
+      "could not": "couldn't",
+      "did not": "didn't",
+      "do not": "don't",
+      "does not": "doesn't",
+      "everybody is": "everybody's",
+      "had not": "hadn't",
+      "has not": "hasn't",
+      "have not": "haven't",
+      "he had": "he'd",
+      "he has": "he's",
+      "he is": "he's",
+      "he will": "he'll",
+      "he would": "he'd",
+      "here is": "here's",
+      "here will": "here'll",
+      "how are": "how're",
+      "how did": "how'd",
+      "how have": "how've",
+      "how is": "how's",
+      "how will": "how'll",
+      "is not": "isn't",
+      "it had": "it'd",
+      "it has": "it's",
+      "it is": "it's",
+      "it will": "it'll",
+      "it would": "it'd",
+      "kind of": "kinda",
+      "she had": "she'd",
+      "she has": "she's",
+      "she is": "she's",
+      "she will": "she'll",
+      "she would": "she'd",
+      "should not": "shouldn't",
+      "somebody is": "somebody's",
+      "that is": "that's",
+      "that will": "that'll",
+      "there is": "there's",
+      "there will": "there'll",
+      "these will": "these'll",
+      "they are": "they're",
+      "they had": "they'd",
+      "they have": "they've",
+      "they will": "they'll",
+      "they would": "they'd",
+      "this is": "this's",
+      "this will": "this'll",
+      "those will": "those'll",
+      "want to": "wanna",
+      "was not": "wasn't",
+      "we are": "we're",
+      "we had": "we'd",
+      "we have": "we've",
+      "we will": "we'll",
+      "we would": "we'd",
+      "were not": "weren't",
+      "what are": "what're",
+      "what did": "what'd",
+      "what have": "what've",
+      "what is": "what's",
+      "what will": "what'll",
+      "when are": "when're",
+      "when did": "when'd",
+      "when have": "when've",
+      "when is": "when's",
+      "when will": "when'll",
+      "where are": "where're",
+      "where did": "where'd",
+      "where have": "where've",
+      "where is": "where's",
+      "where will": "where'll",
+      "which are": "which're",
+      "which did": "which'd",
+      "which have": "which've",
+      "which is": "which's",
+      "which will": "which'll",
+      "who are": "who're",
+      "who did": "who'd",
+      "who have": "who've",
+      "who is": "who's",
+      "who will": "who'll",
+      "why are": "why're",
+      "why did": "why'd",
+      "why have": "why've",
+      "why is": "why's",
+      "why will": "why'll",
+      "will not": "won't",
+      "would not": "wouldn't",
+      "you all": "y'all",
+      "you are": "you're",
+      "you had": "you'd",
+      "you have": "you've",
+      "you people": "y'uns",
+      "you will": "you'll",
+      "you would": "you'd"
+    },
+    "default_contractions": {
+      "I am": "I'm",
+      "I had": "I'd",
+      "I have": "I've",
+      "I will": "I'll",
+      "I would": "I'd",
+      "are not": "aren't",
+      "can not": "can't",
+      "could not": "couldn't",
+      "did not": "didn't",
+      "do not": "don't",
+      "does not": "doesn't",
+      "has not": "hasn't",
+      "have not": "haven't",
+      "he had": "he'd",
+      "he has": "he's",
+      "he is": "he's",
+      "he will": "he'll",
+      "he would": "he'd",
+      "here is": "here's",
+      "how is": "how's",
+      "is not": "isn't",
+      "it had": "it'd",
+      "it has": "it's",
+      "it is": "it's",
+      "it will": "it'll",
+      "it would": "it'd",
+      "she had": "she'd",
+      "she has": "she's",
+      "she is": "she's",
+      "she will": "she'll",
+      "she would": "she'd",
+      "should not": "shouldn't",
+      "that is": "that's",
+      "there is": "there's",
+      "they are": "they're",
+      "they had": "they'd",
+      "they have": "they've",
+      "they will": "they'll",
+      "they would": "they'd",
+      "this is": "this's",
+      "was not": "wasn't",
+      "we are": "we're",
+      "we had": "we'd",
+      "we have": "we've",
+      "we will": "we'll",
+      "we would": "we'd",
+      "were not": "weren't",
+      "what is": "what's",
+      "where is": "where's",
+      "who is": "who's",
+      "will not": "won't",
+      "would not": "wouldn't",
+      "you are": "you're",
+      "you had": "you'd",
+      "you have": "you've",
+      "you will": "you'll",
+      "you would": "you'd"
+    }
+  },
+  "tests": [
+    [
+      "you",
+      "is",
+      "you are",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "you",
+      "does",
+      "you do",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "you",
+      "has",
+      "you have",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "you",
+      "is",
+      "you are",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "you",
+      "was",
+      "you were",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "you",
+      "look",
+      "you look",
+      {
+        "inflection": "present",
+        "rule_id": "you_look"
+      }
+    ],
+    [
+      "you sometimes",
+      "am",
+      "you sometimes are",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "you sometimes",
+      "does",
+      "you sometimes do"
+    ],
+    [
+      "you sometimes",
+      "has",
+      "you sometimes have"
+    ],
+    [
+      "you sometimes",
+      "is",
+      "you sometimes are"
+    ],
+    [
+      "you sometimes",
+      "was",
+      "you sometimes were"
+    ],
+    [
+      "you sometimes",
+      "like",
+      "you sometimes like",
+      {
+        "inflection": "present",
+        "rule_id": "you_look"
+      }
+    ],
+    [
+      "did she",
+      "want",
+      "did she want",
+      {
+        "inflection": "present",
+        "rule_id": "does_she_look"
+      }
+    ],
+    [
+      "they might",
+      "thought",
+      "they might think",
+      {
+        "inflection": "present",
+        "rule_id": "they_can_look"
+      }
+    ],
+    [
+      "she",
+      "look",
+      "she looks",
+      {
+        "inflection": "simple_present",
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "she usually",
+      "look",
+      "she usually looks",
+      {
+        "inflection": "simple_present",
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "she was wanting",
+      "go",
+      "she was wanting to go",
+      {
+        "inflection": "infinitive",
+        "rule_id": "he_is_looking_to_go"
+      }
+    ],
+    [
+      "she is want",
+      "eat",
+      "she is want eat",
+      {
+        "rule_id": "no_rule"
+      }
+    ],
+    [
+      "she is like",
+      "eat",
+      "she is like eat",
+      {
+        "rule_id": "no_rule"
+      }
+    ],
+    [
+      "she is write",
+      "eat",
+      "she is write eat",
+      {
+        "rule_id": "no_rule"
+      }
+    ],
+    [
+      "they are not wanting",
+      "look",
+      "they are not wanting to look",
+      {
+        "inflection": "infinitive",
+        "rule_id": "he_is_looking_to_go"
+      }
+    ],
+    [
+      "tell me why she is wanting",
+      "wait",
+      "tell me why she is wanting to wait",
+      {
+        "inflection": "infinitive",
+        "rule_id": "he_is_looking_to_go"
+      }
+    ],
+    [
+      "she is",
+      "think",
+      "she is thinking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "he will always be",
+      "think",
+      "he will always be thinking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "he likes usually",
+      "dance",
+      "he likes usually dancing",
+      {
+        "rule_id": "still_laughing"
+      }
+    ],
+    [
+      "he usually wants",
+      "think",
+      "he usually wants to think",
+      {
+        "rule_id": "she_wants_to_look"
+      }
+    ],
+    [
+      "they can like",
+      "talk",
+      "they can like to talk",
+      {
+        "rule_id": "they_can_like_to_look"
+      }
+    ],
+    [
+      "she hates",
+      "look",
+      "she hates looking",
+      {
+        "rule_id": "she_is_looking"
+      }
+    ],
+    [
+      "why would she want",
+      "talk",
+      "why would she want to talk",
+      {
+        "rule_id": "would_she_want_to_look"
+      }
+    ],
+    [
+      "why would she hate",
+      "talk",
+      "why would she hate talking",
+      {
+        "rule_id": "she_is_looking"
+      }
+    ],
+    [
+      "what do you want for",
+      "dance",
+      "what do you want for dancing",
+      {
+        "rule_id": "hope_for_eating"
+      }
+    ],
+    [
+      "have",
+      "look",
+      "have looked",
+      {
+        "rule_id": "have_looked"
+      }
+    ],
+    [
+      "I have always not",
+      "think",
+      "I have always not thought",
+      {
+        "rule_id": "have_looked"
+      }
+    ],
+    [
+      "have you",
+      "wish",
+      "have you wished",
+      {
+        "rule_id": "has_she_looked"
+      }
+    ],
+    [
+      "tell me why has she",
+      "want",
+      "tell me why has she wanted",
+      {
+        "rule_id": "has_she_looked"
+      }
+    ],
+    [
+      "I have always not",
+      "like",
+      "I have always not liked",
+      {
+        "rule_id": "have_looked"
+      }
+    ],
+    [
+      "I have to",
+      "think",
+      "I have to think",
+      {
+        "rule_id": "to_look"
+      }
+    ],
+    [
+      "she had",
+      "want",
+      "she had wanted",
+      {
+        "rule_id": "have_looked"
+      }
+    ],
+    [
+      "have you",
+      "look",
+      "have you looked",
+      {
+        "rule_id": "has_she_looked"
+      }
+    ],
+    [
+      "tell me why has she",
+      "think",
+      "tell me why has she thought",
+      {
+        "rule_id": "has_she_looked"
+      }
+    ],
+    [
+      "I have been",
+      "think",
+      "I have been thinking",
+      {
+        "rule_id": "have_been_looking"
+      }
+    ],
+    [
+      "I have not been",
+      "wish",
+      "I have not been wishing",
+      {
+        "rule_id": "have_been_looking"
+      }
+    ],
+    [
+      "she has been",
+      "look",
+      "she has been looking",
+      {
+        "rule_id": "have_been_looking"
+      }
+    ],
+    [
+      "can be",
+      "want",
+      "can be wanting",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "he could be",
+      "think",
+      "he could be thinking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "is she",
+      "have",
+      "is she having",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "were they",
+      "wish",
+      "were they wishing",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "the cat is not",
+      "like",
+      "the cat is not liking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "the frog was usually",
+      "think",
+      "the frog was usually thinking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "the dog",
+      "look",
+      "the dog looks",
+      {
+        "rule_id": "dog_looks"
+      }
+    ],
+    [
+      "the dog will",
+      "look",
+      "the dog will look",
+      {
+        "rule_id": "should_not_look"
+      }
+    ],
+    [
+      "these",
+      "dog",
+      "these dogs",
+      {
+        "rule_id": "these_dogs"
+      }
+    ],
+    [
+      "with",
+      "he",
+      "with him",
+      {
+        "rule_id": "with_her"
+      }
+    ],
+    [
+      "with with",
+      "he",
+      "with with him",
+      {
+        "rule_id": "with_her"
+      }
+    ],
+    [
+      "with with",
+      "they",
+      "with with them",
+      {
+        "rule_id": "with_her"
+      }
+    ],
+    [
+      "did you get that for",
+      "I",
+      "did you get that for me",
+      {
+        "rule_id": "with_her"
+      }
+    ],
+    [
+      "tell me about",
+      "hers",
+      "tell me about her",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "I like",
+      "your",
+      "I like you",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "do you love",
+      "she",
+      "do you love her",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "I think",
+      "him",
+      "I think he",
+      {
+        "rule_id": "i_think_he"
+      }
+    ],
+    [
+      "that is",
+      "he",
+      "that is his",
+      {
+        "rule_id": "it_is_his"
+      }
+    ],
+    [
+      "these are",
+      "he",
+      "these are his",
+      {
+        "rule_id": "these_are_his"
+      }
+    ],
+    [
+      "hope that he",
+      "look",
+      "hope that he looks",
+      {
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "I wish for",
+      "eat",
+      "I wish for eating",
+      {
+        "rule_id": "hope_for_eating"
+      }
+    ],
+    [
+      "I am",
+      "think",
+      "I am thinking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "he is",
+      "look",
+      "he is looking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "he is not",
+      "look",
+      "he is not looking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "is she",
+      "have",
+      "is she having",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "I have",
+      "think",
+      "I have thought",
+      {
+        "rule_id": "have_looked"
+      }
+    ],
+    [
+      "have you",
+      "like",
+      "have you liked",
+      {
+        "rule_id": "has_she_looked"
+      }
+    ],
+    [
+      "I want",
+      "have",
+      "I want to have",
+      {
+        "rule_id": "she_wants_to_look"
+      }
+    ],
+    [
+      "I wanted",
+      "eat",
+      "I wanted to eat",
+      {
+        "rule_id": "she_wants_to_look"
+      }
+    ],
+    [
+      "he wants",
+      "think",
+      "he wants to think",
+      {
+        "rule_id": "she_wants_to_look"
+      }
+    ],
+    [
+      "he doesn't want",
+      "have",
+      "he doesn't want to have",
+      {
+        "rule_id": "she_can_want_to_look"
+      }
+    ],
+    [
+      "I want to",
+      "wish",
+      "I want to wish",
+      {
+        "rule_id": "to_look"
+      }
+    ],
+    [
+      "want",
+      "look",
+      "want look",
+      {
+        "rule_id": "no_rule"
+      }
+    ],
+    [
+      "I want want",
+      "eat",
+      "I want want eat",
+      {
+        "rule_id": "no_rule"
+      }
+    ],
+    [
+      "I like",
+      "look",
+      "I like looking",
+      {
+        "rule_id": "she_likes_looking"
+      }
+    ],
+    [
+      "he likes",
+      "eat",
+      "he likes eating",
+      {
+        "rule_id": "she_likes_looking"
+      }
+    ],
+    [
+      "we liked",
+      "think",
+      "we liked thinking",
+      {
+        "rule_id": "she_likes_looking"
+      }
+    ],
+    [
+      "I don't like",
+      "think",
+      "I don't like to think",
+      {
+        "rule_id": "they_can_like_to_look"
+      }
+    ],
+    [
+      "we didn't like",
+      "eat",
+      "we didn't like to eat",
+      {
+        "rule_id": "they_can_like_to_look"
+      }
+    ],
+    [
+      "he doesn't like",
+      "look",
+      "he doesn't like to look",
+      {
+        "rule_id": "they_can_like_to_look"
+      }
+    ],
+    [
+      "he wants",
+      "eat",
+      "he wants to eat",
+      {
+        "rule_id": "she_wants_to_look"
+      }
+    ],
+    [
+      "she thinks",
+      "think",
+      "she thinks thinking",
+      {
+        "rule_id": "she_is_looking"
+      }
+    ],
+    [
+      "he hates",
+      "talk",
+      "he hates talking",
+      {
+        "rule_id": "she_is_looking"
+      }
+    ],
+    [
+      "I think",
+      "him",
+      "I think he",
+      {
+        "rule_id": "i_think_he"
+      }
+    ],
+    [
+      "you wish",
+      "her",
+      "you wish she",
+      {
+        "rule_id": "i_think_he"
+      }
+    ],
+    [
+      "I like",
+      "she",
+      "I like her",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "give it to",
+      "they",
+      "give it to them",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "tell",
+      "I",
+      "tell me",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "put it over",
+      "she",
+      "put it over her",
+      {
+        "rule_id": "near_me"
+      }
+    ],
+    [
+      "jump",
+      "he",
+      "jump him",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "I want to eat",
+      "I",
+      "I want to eat my",
+      {
+        "rule_id": "eat_my"
+      }
+    ],
+    [
+      "put it on",
+      "he",
+      "put it on his",
+      {
+        "rule_id": "eat_my"
+      }
+    ],
+    [
+      "those are",
+      "he",
+      "those are his",
+      {
+        "rule_id": "these_are_his"
+      }
+    ],
+    [
+      "those are",
+      "them",
+      "those are their",
+      {
+        "rule_id": "these_are_his"
+      }
+    ],
+    [
+      "all of",
+      "she",
+      "all of her",
+      {
+        "rule_id": "eat_my"
+      }
+    ],
+    [
+      "by",
+      "I",
+      "by me",
+      {
+        "rule_id": "near_me"
+      }
+    ],
+    [
+      "all by",
+      "me",
+      "all by myself",
+      {
+        "rule_id": "all_by_myself"
+      }
+    ],
+    [
+      "he will view",
+      "he",
+      "he will view himself",
+      {
+        "rule_id": "view_yourself"
+      }
+    ],
+    [
+      "I am going",
+      "walk",
+      "I am going to walk",
+      {
+        "rule_id": "he_is_looking_to_go"
+      }
+    ],
+    [
+      "I am",
+      "look",
+      "I am looking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "we are on",
+      "think",
+      "we are on thinking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "before",
+      "jump",
+      "before jumping",
+      {
+        "rule_id": "still_laughing"
+      }
+    ],
+    [
+      "mine",
+      "look",
+      "mine looking",
+      {
+        "rule_id": "his_laughing"
+      }
+    ],
+    [
+      "who",
+      "think",
+      "who thinks",
+      {
+        "rule_id": "who_looks"
+      }
+    ],
+    [
+      "what",
+      "jump",
+      "what jumps",
+      {
+        "rule_id": "who_looks"
+      }
+    ],
+    [
+      "he is usually",
+      "think",
+      "he is usually thinking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "he usually",
+      "think",
+      "he usually thinks",
+      {
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "is it still",
+      "look",
+      "is it still looking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "I am going to",
+      "wash",
+      "I am going to wash",
+      {
+        "rule_id": "to_look"
+      }
+    ],
+    [
+      "he",
+      "want",
+      "he wants",
+      {
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "somebody",
+      "want",
+      "somebody wants",
+      {
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "is somebody",
+      "look",
+      "is somebody looking",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "the dog",
+      "look",
+      "the dog looks",
+      {
+        "rule_id": "dog_looks"
+      }
+    ],
+    [
+      "my cat",
+      "like",
+      "my cat likes",
+      {
+        "rule_id": "dog_looks"
+      }
+    ],
+    [
+      "did the dog",
+      "jump",
+      "did the dog jump",
+      {
+        "rule_id": "did_the_dog_look"
+      }
+    ],
+    [
+      "when will my cat",
+      "talk",
+      "when will my cat talk",
+      {
+        "rule_id": "did_the_dog_look"
+      }
+    ],
+    [
+      "I am going",
+      "jump",
+      "I am going to jump",
+      {
+        "rule_id": "he_is_looking_to_go"
+      }
+    ],
+    [
+      "we have",
+      "look",
+      "we have looked",
+      {
+        "rule_id": "have_looked"
+      }
+    ],
+    [
+      "the dog barely",
+      "jump",
+      "the dog barely jumps",
+      {
+        "rule_id": "dog_looks"
+      }
+    ],
+    [
+      "she does",
+      "look",
+      "she does look",
+      {
+        "rule_id": "they_can_look"
+      }
+    ],
+    [
+      "what",
+      "happen",
+      "what happened",
+      {
+        "rule_id": "what_happened"
+      }
+    ],
+    [
+      "feel",
+      "like",
+      "feel like",
+      {
+        "rule_id": "feels_like"
+      }
+    ],
+    [
+      "feels",
+      "like",
+      "feels like",
+      {
+        "rule_id": "feels_like"
+      }
+    ],
+    [
+      "look",
+      "like",
+      "look like",
+      {
+        "rule_id": "feels_like"
+      }
+    ],
+    [
+      "looks",
+      "like",
+      "looks like",
+      {
+        "rule_id": "feels_like"
+      }
+    ],
+    [
+      "I feel",
+      "like",
+      "I feel like",
+      {
+        "rule_id": "feels_like"
+      }
+    ],
+    [
+      "she feels",
+      "like",
+      "she feels like",
+      {
+        "rule_id": "feels_like"
+      }
+    ],
+    [
+      "are you",
+      "do",
+      "are you doing",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "are you",
+      "done",
+      "are you done",
+      {
+        "rule_id": "is_my_is_done"
+      }
+    ],
+    [
+      "is she",
+      "do",
+      "is she doing",
+      {
+        "rule_id": "is_she_looking"
+      }
+    ],
+    [
+      "is",
+      "I",
+      "is my",
+      {
+        "rule_id": "is_my_is_done"
+      }
+    ],
+    [
+      "she",
+      "is",
+      "she is",
+      {
+        "rule_id": "she_is"
+      }
+    ],
+    [
+      "she",
+      "am",
+      "she is",
+      {
+        "rule_id": "she_is"
+      }
+    ],
+    [
+      "will she",
+      "is",
+      "will she be",
+      {
+        "rule_id": "can_be"
+      }
+    ],
+    [
+      "will they always",
+      "is",
+      "will they always be",
+      {
+        "rule_id": "can_be"
+      }
+    ],
+    [
+      "he might",
+      "want",
+      "he might want",
+      {
+        "rule_id": "they_can_look"
+      }
+    ],
+    [
+      "I think this could",
+      "look",
+      "I think this could look",
+      {
+        "rule_id": "they_can_look"
+      }
+    ],
+    [
+      "I think this",
+      "can",
+      "I think this can",
+      {
+        "inflection": "simple_present",
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "I think he",
+      "smell",
+      "I think he smells",
+      {
+        "rule_id": "she_looks"
+      }
+    ],
+    [
+      "that is",
+      "he",
+      "that is his",
+      {
+        "rule_id": "it_is_his"
+      }
+    ],
+    [
+      "he is",
+      "I",
+      "he is my",
+      {
+        "rule_id": "is_my_is_done"
+      }
+    ],
+    [
+      "I do not",
+      "look",
+      "I do not look",
+      {
+        "rule_id": "should_not_look"
+      }
+    ],
+    [
+      "I don't",
+      "look",
+      "I don't look",
+      {
+        "rule_id": "should_not_look"
+      }
+    ],
+    [
+      "I can not",
+      "look",
+      "I can not look",
+      {
+        "rule_id": "should_not_look"
+      }
+    ],
+    [
+      "I will",
+      "look",
+      "I will look",
+      {
+        "rule_id": "should_not_look"
+      }
+    ],
+    [
+      "I will not",
+      "look",
+      "I will not look",
+      {
+        "rule_id": "should_not_look"
+      }
+    ],
+    [
+      "I won't",
+      "look",
+      "I won't look",
+      {
+        "rule_id": "should_not_look"
+      }
+    ],
+    [
+      "she",
+      "will",
+      "she will",
+      {
+        "rule_id": "she_will"
+      }
+    ],
+    [
+      "I will",
+      "is",
+      "I will be",
+      {
+        "rule_id": "wont_be"
+      }
+    ],
+    [
+      "I am",
+      "done",
+      "I am done",
+      {
+        "rule_id": "is_my_is_done"
+      }
+    ],
+    [
+      "they",
+      "is",
+      "they are",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "to",
+      "is",
+      "to be",
+      {
+        "rule_id": "to_be"
+      }
+    ],
+    [
+      "going to",
+      "is",
+      "going to be",
+      {
+        "rule_id": "to_be"
+      }
+    ],
+    [
+      "are going to",
+      "is",
+      "are going to be",
+      {
+        "rule_id": "to_be"
+      }
+    ],
+    [
+      "I",
+      "not",
+      "I am not",
+      {
+        "rule_id": "i_am"
+      }
+    ],
+    [
+      "I",
+      "no",
+      "I don't",
+      {
+        "rule_id": "i_am"
+      }
+    ],
+    [
+      "he",
+      "not",
+      "he isn't",
+      {
+        "rule_id": "she_is"
+      }
+    ],
+    [
+      "he",
+      "no",
+      "he doesn't",
+      {
+        "rule_id": "she_is"
+      }
+    ],
+    [
+      "we",
+      "not",
+      "we aren't",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "we",
+      "no",
+      "we don't",
+      {
+        "rule_id": "you_are"
+      }
+    ],
+    [
+      "those",
+      "is",
+      "those are",
+      {
+        "rule_id": "these_are"
+      }
+    ],
+    [
+      "I want",
+      "he",
+      "I want him",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "I don't want",
+      "she",
+      "I don't want her",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "I want",
+      "I",
+      "I want me",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "do you think",
+      "he",
+      "do you think he",
+      {
+        "rule_id": "i_think_he"
+      }
+    ],
+    [
+      "I am",
+      "he",
+      "I am him",
+      {
+        "rule_id": "i_am_him"
+      }
+    ],
+    [
+      "they are",
+      "she",
+      "they are her",
+      {
+        "rule_id": "these_are_his"
+      }
+    ],
+    [
+      "that was",
+      "him",
+      "that was his",
+      {
+        "rule_id": "it_is_his"
+      }
+    ],
+    [
+      "that is not",
+      "we",
+      "that is not our",
+      {
+        "rule_id": "it_is_his"
+      }
+    ],
+    [
+      "I want to keep",
+      "I",
+      "I want to keep my",
+      {
+        "rule_id": "to_have_my"
+      }
+    ],
+    [
+      "they saw",
+      "I",
+      "they saw me",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "I see",
+      "he",
+      "I see him",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "give",
+      "I",
+      "give me",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "tell",
+      "hers",
+      "tell her",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "ask",
+      "we",
+      "ask us",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "are you talking to",
+      "I",
+      "are you talking to me",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "I am thinking",
+      "he",
+      "I am thinking he",
+      {
+        "rule_id": "i_am_thinking_he"
+      }
+    ],
+    [
+      "I am thinking about",
+      "she",
+      "I am thinking about her",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "I am not thinking about",
+      "she",
+      "I am not thinking about her",
+      {
+        "rule_id": "about_him"
+      }
+    ],
+    [
+      "what is with",
+      "he",
+      "what is with him",
+      {
+        "rule_id": "with_her"
+      }
+    ],
+    [
+      "better than",
+      "I",
+      "better than me",
+      {
+        "rule_id": "near_me"
+      }
+    ],
+    [
+      "she helped",
+      "we",
+      "she helped us",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "I have",
+      "think",
+      "I have thought",
+      {
+        "rule_id": "have_looked"
+      }
+    ],
+    [
+      "the dogs",
+      "is",
+      "the dogs are",
+      {
+        "rule_id": "dogs_are"
+      }
+    ],
+    [
+      "the dog",
+      "look",
+      "the dog looks",
+      {
+        "rule_id": "dog_looks"
+      }
+    ],
+    [
+      "the dogs",
+      "look",
+      "the dogs look",
+      {
+        "rule_id": "no_rule"
+      }
+    ],
+    [
+      "I wish",
+      "he",
+      "I wish he",
+      {
+        "rule_id": "i_think_he"
+      }
+    ],
+    [
+      "I like",
+      "he",
+      "I like him",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "she wants",
+      "he",
+      "she wants him",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "she tells",
+      "he",
+      "she tells him",
+      {
+        "rule_id": "i_like_him"
+      }
+    ],
+    [
+      "she thinks",
+      "he",
+      "she thinks he",
+      {
+        "rule_id": "i_think_he"
+      }
+    ],
+    [
+      "at the present",
+      "time",
+      "now",
+      {
+        "rule_id": "at_the_present_time"
+      }
+    ]
+  ]
+}
