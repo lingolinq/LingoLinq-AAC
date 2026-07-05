@@ -85,31 +85,29 @@ describe JsonApi::Integration do
       expect(hash['user_settings'][1]['protected']).to eq(true)
     end
     
-    it "should round-trip board_render_url for a user with edit permission" do
-      u = User.create
-      i = UserIntegration.create(user: u)
+    it "should round-trip board_render_url" do
+      i = UserIntegration.create
       i.settings['board_render_url'] = 'https://example.com/render'
-      hash = JsonApi::Integration.build_json(i, permissions: u)
+      hash = JsonApi::Integration.build_json(i)
       expect(hash['render']).to eq(true)
       expect(hash['board_render_url']).to eq('https://example.com/render')
     end
 
     it "should not include board_render_url when not set" do
-      u = User.create
-      i = UserIntegration.create(user: u)
-      hash = JsonApi::Integration.build_json(i, permissions: u)
+      i = UserIntegration.create
+      hash = JsonApi::Integration.build_json(i)
       expect(hash['render']).to eq(false)
       expect(hash['board_render_url']).to eq(nil)
     end
 
-    it "should not include board_render_url without edit permission" do
+    it "should round-trip board_render_url regardless of permission, since extra_includes already exposes the same value as render_url to any viewer" do
       u = User.create
       viewer = User.create
       i = UserIntegration.create(user: u, settings: {'global' => true})
       i.settings['board_render_url'] = 'https://example.com/render'
       hash = JsonApi::Integration.build_json(i, permissions: viewer)
       expect(hash['render']).to eq(true)
-      expect(hash['board_render_url']).to eq(nil)
+      expect(hash['board_render_url']).to eq('https://example.com/render')
     end
 
     it "should serialize button_webhook_url for remote webhooks to a user with edit permission" do

@@ -25,9 +25,9 @@ module JsonApi::Integration
       end
     end
     json['render'] = !!obj.settings['board_render_url']
-    if json['render'] && permissions && permissions['edit']
-      json['board_render_url'] = obj.settings['board_render_url']
-    end
+    # not permission-gated: extra_includes already emits this same value
+    # unconditionally as render_url for any board viewer to embed (routes/board.js)
+    json['board_render_url'] = obj.settings['board_render_url'] if json['render']
 
     if args[:permissions]
       json['permissions'] = permissions
