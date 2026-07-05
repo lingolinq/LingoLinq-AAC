@@ -1587,7 +1587,7 @@
       "severity": "low",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/json_api/integration.rb",
@@ -1603,16 +1603,16 @@
         "timeframe": "advisory"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "c12eb6cbee306f038dcfe10fac49b8f0078d0dc7",
+        "verifierNote": "Verified 2026-07-05: stray json['asdf'] = 'asdf' line removed from JsonApi::Integration#build_json. Remediated in #533, dual-reviewed (Codex + adversary).",
+        "attestation": "Scot Wahlquist 2026-07-05: attested verified-closed; remediated in #533, code-verified 2026-07-05."
       },
       "notes": "Surfaced by api finder on 2026-06-14. Orphaned builder field: integration.js declares no 'asdf' attr; emitted whenever settings['custom_integration'] is set. | adversary verifier: CONFIRMED (high) - json['asdf']='asdf' at integration.rb:67 inside the custom_integration block; no Ember Integration attr consumes it; dead debug junk.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass. Fixed in #533."
       }
     },
     {
@@ -1622,7 +1622,7 @@
       "severity": "medium",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/models/integration.js",
@@ -1638,16 +1638,16 @@
         "timeframe": "advisory"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "c12eb6cbee306f038dcfe10fac49b8f0078d0dc7",
+        "verifierNote": "Verified 2026-07-05: JsonApi::Integration now serializes board_render_url back under its own key (in addition to the pre-existing render_url alias), closing the contract-tidiness gap the accepted disposition called for. The original 'empty field on reopen' scenario remains unreachable (add-integration.hbs is create-only), as the adversary verifier found on 2026-06-18; this fix addresses the read/write field-name asymmetry itself, not a live bug. Remediated in #533, dual-reviewed (Codex + adversary).",
+        "attestation": "Scot Wahlquist 2026-07-05: attested verified-closed; remediated in #533, code-verified 2026-07-05."
       },
       "notes": "Surfaced by api finder on 2026-06-14. Write path stores params['board_render_url'] into settings (user_integration.rb:164); read path emits only render/render_url, never board_render_url, so the edit field (add-integration.hbs:67) is empty on reopen. | adversary verifier: REFUTED (high) - the written value DOES round-trip: serializer emits json['integration']['render_url']=settings['board_render_url'] (integration.rb:88, confirmed at audited SHA), read by integration.js:12 and used at routes/board.js:54-62; add-integration.hbs is a create-only modal and the reopen flow (integration-details.hbs) has no render-url input, so the cited empty-field/overwrite condition does not occur. RECOMMEND Scot drop or accept-as-not-a-defect. Left open pending Scot's decision (only Scot closes/downgrades).",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass. Fixed in #533."
       }
     },
     {
@@ -2448,7 +2448,7 @@
       "severity": "medium",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/json_api/integration.rb",
@@ -2464,16 +2464,16 @@
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "c12eb6cbee306f038dcfe10fac49b8f0078d0dc7",
+        "verifierNote": "Verified 2026-07-05: JsonApi::Integration now serializes button_webhook_url for remote webhooks too, closing the round-trip gap. Gated behind edit permission per Codex review pass #1 (2026-07-05): remote webhook URLs can embed a secret (e.g. IFTTT key-in-URL), and view-only users get read access to global/template integrations, so unconditional exposure would leak secrets to viewers; local webhooks keep their existing unconditional exposure. Remediated in #533, dual-reviewed (Codex + adversary).",
+        "attestation": "Scot Wahlquist 2026-07-05: attested verified-closed; remediated in #533, code-verified 2026-07-05."
       },
       "notes": "Surfaced by api finder on 2026-06-18. Ember counterpart: app/frontend/app/models/integration.js:22-27 declares button_webhook_url and derives insecure_button_webhook_url as truthy when URL starts with http:// AND button_webhook_local is false. Because Rails only emits button_webhook_url when button_webhook_local is set (integration.rb:16-18), remote webhook URLs are never returned, so the insecure indicator never fires and the add-integration.hbs:31 warning is silenced for the exact case it was designed to catch. Relates to LL-1085e59d29 (model accepts plaintext http:// callback URLs); this is the distinct API-contract gap that silences the client-side indicator.\n\nadversary (2026-06-18): REFUTED. add-integration.hbs is create-only (add-integration.js:6 createRecord); the insecure_button_webhook_url warning evaluates the live in-memory record's button_webhook_url/button_webhook_local as the user types, NOT server JSON, so it DOES fire for remote http:// webhooks. Serializer (integration.rb:16-18) is never consulted in this path. RECOMMEND Scot drop/close as not-a-defect.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass."
+        "rationale": "Valid Ember<->Rails contract / code-quality issue; accepted for remediation in a cleanup pass. Fixed in #533."
       }
     },
     {
