@@ -41,7 +41,7 @@ LingoLinq will provide customers with at least 30 days advance notice before any
 
 ### 5.1 AI API calls (OpenAI, Anthropic, Google)
 
-All AI API calls pass through `lib/pii_scrubber.rb` before transmission. The scrubber applies a pattern, key, and blocklist strategy to redact names, emails, phone numbers, and tenant-identifying tokens. Redacted payloads are logged to `AiApiLog` for audit. Feature flags in `lib/feature_flags.rb` gate which tenants have AI features enabled.
+All runtime AI API calls that involve user content pass through `lib/pii_scrubber.rb` before transmission. The scrubber applies a pattern, key, and blocklist strategy to redact names, emails, phone numbers, and tenant-identifying tokens. Redacted payloads are logged to `AiApiLog` for audit. Feature flags in `lib/feature_flags.rb` gate which tenants have AI features enabled. (The offline `AiPredictionGenerator` dictionary builder also calls AI APIs, but sends only generic starter words from built-in word lists — no user or tenant content — so it is neither scrubbed nor logged to `AiApiLog`.)
 
 Scrubbed prompts are classified as **pseudonymized personal data, not anonymous or de-identified data**: the scrubber removes direct identifiers, but the payloads remain personal data under GDPR/UK-GDPR and are treated as such in this register. Pseudonymization here is a safeguard (Article 32), not an exemption from data protection obligations.
 

@@ -193,10 +193,11 @@ is **planned**, not yet built; it appears here so the consent architecture is on
   the 2025 COPPA Rule is satisfied by this document being embedded in (not merely linked from) the
   privacy notice; embedding is an open task.
 - **Subprocessors.** The Article 28 / 45 CFR 164.502(e) register is `docs/legal/SUBPROCESSORS.md`,
-  with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. AI vendors (OpenAI,
-  Anthropic, Google) receive only pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and
-  are classified as receiving pseudonymized personal data, not anonymous or de-identified data
-  (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). Render BAA
+  with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. The active AI vendors (Anthropic,
+  Google) receive only pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and are
+  classified as receiving pseudonymized personal data, not anonymous or de-identified data
+  (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). OpenAI is
+  contracted but has no active data flow as of 2026-07-05 (see the register, row 3). Render BAA
   is pending; no new hospital tenants requiring a hosting-provider BAA are onboarded until it
   executes.
 - **AI egress.** No directly identifying student or patient data is sent to external models by
