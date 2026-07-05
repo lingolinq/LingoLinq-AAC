@@ -729,6 +729,19 @@ class WordData < ApplicationRecord
     hash = {}
     return hash if words.blank? || !locale || locale.blank?
 
+    # Schema-2 (Universal Dependencies) seam, gated behind
+    # FeatureFlags.multilingual_grammar_enabled_for?. Evaluated ONCE per call (never per word),
+    # so no uncached Setting/SystemFeatureSettings query is added to the
+    # board_downstream_button_set.rb:554 hot path. PURELY ADDITIVE early return: with the flag
+    # OFF (default), control falls straight through to the unchanged legacy body below -- nothing
+    # from here on is removed, edited, or re-indented. MINIMAL STUB: the ON branch is a
+    # placeholder, not the real parity-tested resolver -- lib/language/schema2_resolver.rb (built
+    # standalone in Plan 01-05) is NOT wired in here; see db/language/en/PARITY.md's known-gap
+    # note once 01-05 lands.
+    if FeatureFlags.multilingual_grammar_enabled_for?(nil)
+      return words.each_with_object({}) { |w, h| h[w] = {'schema2_stub' => true} }
+    end
+
     # Request/job-scoped cache to avoid redundant DB queries when the same words
     # are looked up repeatedly within a single request or background job.
     Thread.current[:word_inflection_cache] ||= {}
