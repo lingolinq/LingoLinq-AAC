@@ -811,6 +811,59 @@
       }
     },
     {
+      "id": "LL-57e9beb87f",
+      "ruleKey": "button-image-sound-orphaned-media-usage-check-unimplemented",
+      "title": "Flusher.flush_leftovers has no usage-based orphan check for orphaned ButtonImage/ButtonSound media records (item 1)",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/flusher.rb",
+        "line": 57,
+        "snippet": "1. NOT IMPLEMENTED for either button_images or button_sounds. The plan's",
+        "sha": "a877872d263fba43768a568f71c3791a4f22bf54"
+      },
+      "firstSeen": "2026-07-04",
+      "lastSeen": "2026-07-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Item 1's deferred target is orphaned ButtonImage/ButtonSound media records themselves (images/sounds no board actually uses), NOT the BoardButtonImage/BoardButtonSound join rows -- those are already cleaned on a referential basis by item 2 (implemented). A join-table-only usage signal can't be trusted for ButtonImage/ButtonSound either: Board#map_images stopped syncing board_button_images (image usage now lives only in grid_buttons/known_button_images), and board_button_sounds can lag behind grid_buttons during an async resync window (BoyBand's deferred :map_images job), so checking \"zero join rows\" as a proxy for \"unused\" risks deleting media a board is still actively using. Needs a grid_buttons-based reverse-usage check (the same signal known_button_images/known_button_sounds already use per-board) built and proven safe before ButtonImage/ButtonSound records are deleted on a usage basis.",
+        "timeframe": "90d"
+      },
+      "notes": "Filed as a follow-up when LL-991d259b2a (flush_leftovers unimplemented) was attested verified-closed 2026-07-04: PR #514 deliberately left this item undone (documented inline at lib/flusher.rb:57) because implementing it unsafely risked live-data deletion, not because it was overlooked. Open here so the gap stays tracked now that the parent finding is closed. Corrected 2026-07-04 per Codex review of #530: the original title/ruleKey named board_button_images/board_button_sounds (the join tables, item 2's target, already implemented) instead of the actual deferred target, ButtonImage/ButtonSound media records."
+    },
+    {
+      "id": "LL-45bdcc73c9",
+      "ruleKey": "developer-key-expiry-policy-undecided",
+      "title": "Developer key expiration policy is undecided; DeveloperKey records never age out (item 3)",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/flusher.rb",
+        "line": 48,
+        "snippet": "NOTE on item 3 (\"expired developer keys\"): DeveloperKey has no expiration",
+        "sha": "a877872d263fba43768a568f71c3791a4f22bf54"
+      },
+      "firstSeen": "2026-07-04",
+      "lastSeen": "2026-07-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "DeveloperKey has no expires_at column, settings-based expiry, or expired? method anywhere in the codebase today; it is a permanent OAuth client registration. Before writing any deletion/expiry logic, decide as a product/security question whether developer keys should expire at all (and on what basis - inactivity, fixed TTL, manual revocation only), since inventing an unreviewed criterion risked destroying live client credentials and was deliberately avoided in PR #514.",
+        "timeframe": "90d"
+      },
+      "notes": "Filed as a follow-up when LL-991d259b2a (flush_leftovers unimplemented) was attested verified-closed 2026-07-04: PR #514 deliberately left this item undone (documented inline at lib/flusher.rb:48) pending a policy decision, not because it was overlooked. Open here so the gap stays tracked now that the parent finding is closed."
+    },
+    {
       "id": "LL-a97357136e",
       "ruleKey": "widespread-permit-bang",
       "legacyId": "P2-2",
