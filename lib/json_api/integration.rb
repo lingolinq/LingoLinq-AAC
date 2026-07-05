@@ -13,11 +13,12 @@ module JsonApi::Integration
     json['name'] = obj.settings['name']
     json['custom_integration'] = !!obj.settings['custom_integration']
     json['webhook'] = !!obj.settings['button_webhook_url']
-    if json['webhook'] && obj.settings['button_webhook_local']
-      json['button_webhook_local'] = true
+    if json['webhook']
       json['button_webhook_url'] = obj.settings['button_webhook_url']
+      json['button_webhook_local'] = true if obj.settings['button_webhook_local']
     end
     json['render'] = !!obj.settings['board_render_url']
+    json['board_render_url'] = obj.settings['board_render_url'] if json['render']
     
 
     if args[:permissions]
@@ -64,7 +65,6 @@ module JsonApi::Integration
       end
     end
     if obj.settings['custom_integration']
-      json['asdf'] = 'asdf'
       device_token, refresh_token = obj.device.tokens
       if obj.device && json['permissions'] && json['permissions']['edit']
         if obj.created_at > 24.hours.ago 

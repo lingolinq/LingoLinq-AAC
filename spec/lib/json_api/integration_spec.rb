@@ -85,6 +85,48 @@ describe JsonApi::Integration do
       expect(hash['user_settings'][1]['protected']).to eq(true)
     end
     
+    it "should round-trip board_render_url" do
+      i = UserIntegration.create
+      i.settings['board_render_url'] = 'https://example.com/render'
+      hash = JsonApi::Integration.build_json(i)
+      expect(hash['render']).to eq(true)
+      expect(hash['board_render_url']).to eq('https://example.com/render')
+    end
+
+    it "should not include board_render_url when not set" do
+      i = UserIntegration.create
+      hash = JsonApi::Integration.build_json(i)
+      expect(hash['render']).to eq(false)
+      expect(hash['board_render_url']).to eq(nil)
+    end
+
+    it "should serialize button_webhook_url for remote webhooks" do
+      i = UserIntegration.create
+      i.settings['button_webhook_url'] = 'http://example.com/hook'
+      hash = JsonApi::Integration.build_json(i)
+      expect(hash['webhook']).to eq(true)
+      expect(hash['button_webhook_url']).to eq('http://example.com/hook')
+      expect(hash['button_webhook_local']).to eq(nil)
+    end
+
+    it "should include button_webhook_local when set for local webhooks" do
+      i = UserIntegration.create
+      i.settings['button_webhook_url'] = 'http://localhost:1234/hook'
+      i.settings['button_webhook_local'] = true
+      hash = JsonApi::Integration.build_json(i)
+      expect(hash['webhook']).to eq(true)
+      expect(hash['button_webhook_url']).to eq('http://localhost:1234/hook')
+      expect(hash['button_webhook_local']).to eq(true)
+    end
+
+    it "should not include a debug asdf key" do
+      u = User.create
+      i = UserIntegration.create(user: u)
+      i.settings['custom_integration'] = true
+      hash = JsonApi::Integration.build_json(i, permissions: u)
+      expect(hash.keys).to_not be_include('asdf')
+    end
+
     it "should include user parameters for templates" do
       u = User.create
       ui = UserIntegration.create(user: u, template: true, integration_key: 'keyed')
