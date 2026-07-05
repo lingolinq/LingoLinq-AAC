@@ -135,4 +135,55 @@ describe FeatureFlags do
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
     end
   end
+
+  describe "multilingual_grammar" do
+    it "is registered in AVAILABLE_FRONTEND_FEATURES" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('multilingual_grammar')
+    end
+
+    it "is NOT registered in ENABLED_FRONTEND_FEATURES (off by default)" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('multilingual_grammar')
+    end
+  end
+
+  describe "multilingual_grammar_enabled_for?" do
+    around(:each) do |example|
+      old = ENV['MULTILINGUAL_GRAMMAR']
+      ENV.delete('MULTILINGUAL_GRAMMAR')
+      example.run
+    ensure
+      ENV['MULTILINGUAL_GRAMMAR'] = old
+    end
+
+    it "returns false for a nil user by default (system default = false)" do
+      expect(FeatureFlags.multilingual_grammar_enabled_for?(nil)).to eq(false)
+    end
+
+    it "returns false for an ordinary user with no opt-in" do
+      u = User.new(settings: {})
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).with(u).and_return([])
+      expect(FeatureFlags.multilingual_grammar_enabled_for?(u)).to eq(false)
+    end
+
+    it "honors an explicit system/beta enablement for a nil user" do
+      allow(SystemFeatureSettings).to receive(:default_enabled_features).and_return(['multilingual_grammar'])
+      expect(FeatureFlags.multilingual_grammar_enabled_for?(nil)).to eq(true)
+    end
+
+    it "honors an explicit per-scope enablement for a user" do
+      u = User.new(settings: {})
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).with(u).and_return(['multilingual_grammar'])
+      expect(FeatureFlags.multilingual_grammar_enabled_for?(u)).to eq(true)
+    end
+
+    it "honors the ENV override regardless of SystemFeatureSettings" do
+      allow(SystemFeatureSettings).to receive(:default_enabled_features).and_return([])
+      ENV['MULTILINGUAL_GRAMMAR'] = 'true'
+      expect(FeatureFlags.multilingual_grammar_enabled_for?(nil)).to eq(true)
+      ENV['MULTILINGUAL_GRAMMAR'] = '1'
+      expect(FeatureFlags.multilingual_grammar_enabled_for?(nil)).to eq(true)
+      ENV['MULTILINGUAL_GRAMMAR'] = 'false'
+      expect(FeatureFlags.multilingual_grammar_enabled_for?(nil)).to eq(false)
+    end
+  end
 end

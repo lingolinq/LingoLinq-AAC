@@ -29,7 +29,7 @@ module FeatureFlags
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
-              'sentence_bar_editing']
+              'sentence_bar_editing', 'multilingual_grammar']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -114,6 +114,18 @@ module FeatureFlags
     return true if ENV['SIGNUP_DEFAULT_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
     list = _user ? SystemFeatureSettings.effective_enabled_for(_user) : SystemFeatureSettings.default_enabled_features
     list.include?('signup_default_library_boards')
+  end
+
+  # Server-side gate for schema-2 (Universal Dependencies) inflection resolution.
+  # This is the ONLY switch every backend schema-2 codepath consults (word_data.rb,
+  # board.rb) -- activation is a server decision (SystemFeatureSettings/ENV), never a
+  # request parameter, so a crafted client request cannot turn it on for itself.
+  # NOTE: ENV['MULTILINGUAL_GRAMMAR'] gates the BACKEND only. The frontend reads this
+  # flag via the server-provided feature_flags map (frontend_flags_for), not the ENV var.
+  def self.multilingual_grammar_enabled_for?(_user = nil)
+    return true if ENV['MULTILINGUAL_GRAMMAR'].to_s =~ /^(1|true|yes)$/i
+    list = _user ? SystemFeatureSettings.effective_enabled_for(_user) : SystemFeatureSettings.default_enabled_features
+    list.include?('multilingual_grammar')
   end
 
   def self.signup_spanish_library_boards_enabled?(user = nil)
