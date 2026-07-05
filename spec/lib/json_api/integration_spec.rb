@@ -85,31 +85,54 @@ describe JsonApi::Integration do
       expect(hash['user_settings'][1]['protected']).to eq(true)
     end
     
-    it "should round-trip board_render_url" do
-      i = UserIntegration.create
+    it "should round-trip board_render_url for a user with edit permission" do
+      u = User.create
+      i = UserIntegration.create(user: u)
       i.settings['board_render_url'] = 'https://example.com/render'
-      hash = JsonApi::Integration.build_json(i)
+      hash = JsonApi::Integration.build_json(i, permissions: u)
       expect(hash['render']).to eq(true)
       expect(hash['board_render_url']).to eq('https://example.com/render')
     end
 
     it "should not include board_render_url when not set" do
-      i = UserIntegration.create
-      hash = JsonApi::Integration.build_json(i)
+      u = User.create
+      i = UserIntegration.create(user: u)
+      hash = JsonApi::Integration.build_json(i, permissions: u)
       expect(hash['render']).to eq(false)
       expect(hash['board_render_url']).to eq(nil)
     end
 
-    it "should serialize button_webhook_url for remote webhooks" do
-      i = UserIntegration.create
+    it "should not include board_render_url without edit permission" do
+      u = User.create
+      viewer = User.create
+      i = UserIntegration.create(user: u, settings: {'global' => true})
+      i.settings['board_render_url'] = 'https://example.com/render'
+      hash = JsonApi::Integration.build_json(i, permissions: viewer)
+      expect(hash['render']).to eq(true)
+      expect(hash['board_render_url']).to eq(nil)
+    end
+
+    it "should serialize button_webhook_url for remote webhooks to a user with edit permission" do
+      u = User.create
+      i = UserIntegration.create(user: u)
       i.settings['button_webhook_url'] = 'http://example.com/hook'
-      hash = JsonApi::Integration.build_json(i)
+      hash = JsonApi::Integration.build_json(i, permissions: u)
       expect(hash['webhook']).to eq(true)
       expect(hash['button_webhook_url']).to eq('http://example.com/hook')
       expect(hash['button_webhook_local']).to eq(nil)
     end
 
-    it "should include button_webhook_local when set for local webhooks" do
+    it "should not leak a remote button_webhook_url (which may embed a secret key) without edit permission" do
+      u = User.create
+      viewer = User.create
+      i = UserIntegration.create(user: u, settings: {'global' => true})
+      i.settings['button_webhook_url'] = 'https://maker.ifttt.com/trigger/code/with/key/super-secret'
+      hash = JsonApi::Integration.build_json(i, permissions: viewer)
+      expect(hash['webhook']).to eq(true)
+      expect(hash['button_webhook_url']).to eq(nil)
+    end
+
+    it "should include button_webhook_local and button_webhook_url when set for local webhooks, regardless of permission" do
       i = UserIntegration.create
       i.settings['button_webhook_url'] = 'http://localhost:1234/hook'
       i.settings['button_webhook_local'] = true
