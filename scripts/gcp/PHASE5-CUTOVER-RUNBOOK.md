@@ -130,6 +130,21 @@ is not schedulable to a firm date until this passes.
   measured number, tracker 4.2). Also confirm DirtyExit jobs (TERM outside job execution / SIGKILL)
   are visible in the Resque failed queue.
 
+**Private-bucket read/write path checks (added 2026-07-05, findings LL-705b10bcd7 / LL-9a09771121):**
+
+- **S3 write path.** Create a real ButtonImage from an external PNG URL and let the worker pool
+  process it: the record's `url` must become a `lingolinq-prod-uploads` bucket URL (no
+  `data_uri` fallback, no `errored_pending_url`), and `head-object` must show the object with
+  `ServerSideEncryption: aws:kms` under the expected CMK. Verified green on the rehearsal stack
+  2026-07-05 (synthetic ButtonImage id 840). Prerequisites: IAM policy `lingolinq-cloudrun-s3-ses`
+  v2 (KMS statement) attached to `lingolinq-cloudrun-prod`; `UPLOADS_S3_NO_ACL=1` in the deploy env.
+- **S3 read path via CDN.** The bucket blocks all public access; client reads go through CloudFront
+  distribution `E2X2HAS6Y1L2MI` (`https://d34sa6lc5jfe66.cloudfront.net`, OAC + KMS grant). Confirm
+  `UPLOADS_S3_CDN` is set on web + worker, an uploaded image renders in a browser via its CDN URL
+  (and the raw `s3.amazonaws.com` URL still 403s), and the response carries
+  `access-control-allow-origin` (the Ember offline-sync XHR needs CORS). Then sync a board offline
+  in the app and confirm images cache.
+
 ### 0b. Worker health verification  (was Copilot "6b warmup", reframed)
 
 The worker is a Cloud Run **worker-pool** (`gcloud beta run worker-pools`, see
