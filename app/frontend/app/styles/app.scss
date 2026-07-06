@@ -87931,13 +87931,91 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    denim -> violet at low alpha over a near-white base), so the eval
    canvas reads as part of the modern app rather than a legacy board. */
 .board.eval_mode,
-.board.eval_mode #board_bg {
+/* Scoped via BOTH the .board.eval_mode class AND the app-shell eval header
+   (:has(#speak.md-eval-header)). The eval_mode class is applied inconsistently
+   across eval steps (present on some boards, absent on others), which left the
+   background/image/text styling off on later pages; the header scope is always
+   present in an eval, so it reliably carries the styling to every page. */
+.board.eval_mode #board_bg,
+#within_ember.board-view:has(#speak.md-eval-header) .board:not(.eval_intro) #board_bg {
   background:
     linear-gradient(150deg,
       rgba($brand-verdigris, 0.07) 0%,
       rgba($brand-dusty-denim, 0.06) 45%,
       rgba(123, 107, 173, 0.05) 100%),
     linear-gradient(180deg, #ffffff 0%, #eef1f6 100%) !important;
+  /* Do NOT override the region height. The board sets it inline per layout —
+     66.6667% when there's one button row (3 options), 33.3333% when there are two
+     (6 options) — so it already shrinks to make room as rows are added. A fixed
+     height here forced every board to ~2/3 and made 6-option boards overlap the
+     second button row. Gradient fills the correctly-sized div (border-box); the
+     image is inset via its own max-height so it never reaches the button row. */
+  box-sizing: border-box;
+  padding: 4px;
+  align-items: center;
+}
+
+/* Background image → rounded, lifted photo card that sits ABOVE the button row
+   rather than a full-bleed block clipped at the row edge. width/height:auto +
+   max:100% sizes the <img> box to the contain-scaled photo itself, so the
+   border-radius rounds the actual photo edges (not a transparent letterbox
+   block); flex-shrink + min-height:0 lets it fit the space the .text header
+   leaves, and align-self centers it. */
+.board.eval_mode #board_bg img,
+#within_ember.board-view:has(#speak.md-eval-header) .board:not(.eval_intro) #board_bg img {
+  flex: 0 1 auto;
+  width: auto !important;
+  height: auto !important;
+  /* 85% of the available region → ~15% smaller than full-bleed. */
+  max-width: 85% !important;
+  max-height: 85% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  align-self: center;
+  border-radius: clamp(10px, 1.4vw, 18px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 6px 18px rgba($la-navy, 0.14);
+}
+
+/* Text header ("Find X") → the modern board-detail surface: translucent white
+   glass card, navy hairline, rounded, layered lift shadow (mirrors
+   .md-eval-intro__panel). Replaces the legacy flat white highlight span. */
+.board.eval_mode #board_bg .text,
+#within_ember.board-view:has(#speak.md-eval-header) .board:not(.eval_intro) #board_bg .text {
+  padding: clamp(6px, 1.5vh, 14px) clamp(12px, 2vw, 24px);
+}
+.board.eval_mode #board_bg .text span,
+#within_ember.board-view:has(#speak.md-eval-header) .board:not(.eval_intro) #board_bg .text span {
+  display: inline-block;
+  /* Scale the whole card (text + padding + surface) uniformly, 15% smaller then
+     another 15% → 0.85 * 0.85 ≈ 0.72. */
+  transform: scale(0.72);
+  transform-origin: center;
+  padding: clamp(6px, 1.2vh, 12px) clamp(16px, 2.4vw, 28px);
+  color: $la-navy;
+  background: rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 4px 14px rgba($la-navy, 0.10),
+    0 12px 30px rgba($la-navy, 0.14) !important;
+}
+
+/* Review helper: the open-ended scene's target concept (core_word), rendered as
+   a small muted caption below the prompt image so reviewers can see what each
+   page is testing. */
+.board.eval_mode #board_bg .eval-helper,
+#within_ember.board-view:has(#speak.md-eval-header) .board:not(.eval_intro) #board_bg .eval-helper {
+  margin-top: 8px;
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 600;
+  color: rgba($la-navy, 0.62);
+  text-align: center;
 }
 
 /* Button cards — crisp white tiles that clearly lift off the surface:
@@ -87979,6 +88057,104 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
     0 16px 34px rgba($la-navy, 0.18) !important;
 }
 
+/* Open-ended NAV buttons (previous / next / done) — a modern polish distinct
+   from the answer tiles. Prev/Next read as secondary navigation: cool white→
+   slate glass cards with a hairline navy edge. Done reads as the primary
+   "finish" action: a verdigris-tinted CTA that echoes its green check. Targeted
+   by their eval button ids (rendered as data-id). */
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_prev"]:not(.empty),
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_next"]:not(.empty) {
+  background: linear-gradient(180deg, #ffffff 0%, #e9edf3 100%) !important;
+  border: 1px solid rgba($la-navy, 0.12) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 2px 6px rgba($la-navy, 0.07),
+    0 12px 28px rgba($la-navy, 0.11) !important;
+}
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty) {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.18) 0%, rgba($brand-verdigris, 0.07) 100%) !important;
+  border: 1px solid rgba($brand-verdigris, 0.42) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba($brand-verdigris, 0.16),
+    0 14px 30px rgba($brand-verdigris, 0.22) !important;
+}
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty):hover,
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty).touched {
+  border-color: rgba($brand-verdigris, 0.62) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 3px 8px rgba($brand-verdigris, 0.22),
+    0 18px 40px rgba($brand-verdigris, 0.32) !important;
+}
+
+/* Nav button LAYOUT: compact content-sized pills with the label + icon as one
+   tight centered group (was a full-cell-wide tile with the label pinned to the
+   top and the icon floating far below). fit-content + auto height shrink them so
+   they read as controls, not answer tiles; the normally-absolute label and the
+   JS-positioned symbol are flowed into a centered flex column; prev pins left,
+   next/done pin right. */
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_prev"]:not(.empty),
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_next"]:not(.empty),
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  width: fit-content !important;
+  min-width: 88px;
+  height: auto !important;
+  padding: 10px 18px !important;
+}
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_prev"]:not(.empty) {
+  left: 1.5% !important;
+  right: auto !important;
+}
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_next"]:not(.empty),
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty) {
+  left: auto !important;
+  right: 1.5% !important;
+}
+/* Flow the label (normally absolute at the top) directly above the icon. */
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_prev"]:not(.empty) .button-label-holder,
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_next"]:not(.empty) .button-label-holder,
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty) .button-label-holder {
+  position: static !important;
+  inset: auto !important;
+  width: auto !important;
+  height: auto !important;
+  order: 1;
+}
+/* Flow the symbol holder (normally inline-block with a JS top-margin). */
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_prev"]:not(.empty) span:has(> img.symbol),
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_next"]:not(.empty) span:has(> img.symbol),
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty) span:has(> img.symbol) {
+  position: static !important;
+  margin: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  line-height: 0 !important;
+  order: 2;
+}
+/* Modern icon size; strip the photo-symbol radius/shadow (these are line icons). */
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_prev"]:not(.empty) img.symbol,
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_next"]:not(.empty) img.symbol,
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty) img.symbol {
+  width: clamp(30px, 3.2vw, 44px) !important;
+  height: auto !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+/* No action glyph on these controls. */
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_prev"]:not(.empty) .action_container,
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_next"]:not(.empty) .action_container,
+#within_ember.board-view:has(#speak.md-eval-header) .board .button[data-id="button_done"]:not(.empty) .action_container {
+  display: none !important;
+}
+
 /* Label holder — transparent so the white card face reads as one clean
    surface (kills the legacy white "highlight box" look behind text). */
 .board.eval_mode .button .button-label-holder {
@@ -88014,6 +88190,30 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
     0 16px 36px rgba($la-navy, 0.16) !important;
 }
 
+/* Eval text-only keys (e.g. the open-keyboard letters): the .no_image label was
+   landing in the key's lower half and clipping at the bottom edge — its centering
+   uses `bottom: 50%` + translateY, which only centers while `position` is
+   relative, but an existing rule makes it `absolute`, so it drops low. Fill the
+   key and flex-center the label instead. Font is left to the inline fast_html
+   sizing (already fine); only vertical placement is corrected. Text-only only,
+   so the symbol answer tiles are untouched. */
+#within_ember.board-view:has(#speak.md-eval-header) .board .button:has(.button-label-holder.no_image) .button-label-holder.no_image {
+  position: absolute !important;
+  inset: 0 !important;
+  bottom: 0 !important;
+  transform: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+#within_ember.board-view:has(#speak.md-eval-header) .board .button:has(.button-label-holder.no_image) .button-label-holder.no_image .button-label {
+  height: auto !important;
+  line-height: 1 !important;
+  overflow: visible !important;
+}
+
 /* ============================================================
    Modern Eval Intro Screen (bespoke)
    ============================================================
@@ -88031,7 +88231,8 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .board.eval_intro #stash_hover {
   display: none !important;
 }
-.board.eval_intro {
+.board.eval_intro,
+.board:has(.md-eval-intro__panel) {
   height: auto !important;
   /* Fill the full viewport below the fixed header so the eval surface
      extends to the bottom of the page (was capped at min(72vh,620px),
@@ -88039,7 +88240,13 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
      via padding-top; subtract the same header height + the 1.5rem
      `#content .board` top margin so the board bottom lands at the page
      bottom with no scroll. */
-  min-height: calc(100dvh - var(--speak-header-height, 129px) - 1.5rem);
+  /* Fill to the page bottom by coupling to the SAME header variable #content
+     uses for its padding-top (--speak-header-height, ~l.8887), with NO extra
+     offset. The board starts exactly at #content's padding edge (measured
+     board_top === content padding-top; there is no 1.5rem margin), so
+     board_top (= --speak-header-height) + this min-height = 100dvh, always.
+     The old `- 1.5rem` subtracted a non-existent margin and left that gap. */
+  min-height: calc(100dvh - var(--speak-header-height, 70px));
   display: flex;
   /* Top-align (not center) so the card sits right under the speak bar —
      centering in the tall board area was what created the big gap below
@@ -88047,16 +88254,11 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   align-items: flex-start;
   justify-content: center;
 }
-/* Welcome intro shows the home AppNavbar, where #content reserves
-   --topbar-height (NOT the measured speak-bar height). The board must
-   subtract the SAME value so the eval surface reaches the page bottom —
-   otherwise it's short by the navbar-vs-speakbar difference (the white strip
-   below the card). Scoped to the navbar header so section intros (speak bar)
-   keep the --speak-header-height calc above. Mirrors the #content welcome
-   padding rule (~l.8864). */
-#within_ember.board-view:has(> header.header-index-with-dark-toggle) .board.eval_intro {
-  min-height: calc(100dvh - var(--topbar-height, 70px) - 1.5rem) !important;
-}
+/* (Removed the old --topbar-height welcome override: its `:has(> header…)`
+   selector never matched this DOM — the header isn't a direct child of
+   board-view — so #content always reserves --speak-header-height and the rule
+   above (coupled to that same variable) fills correctly for the welcome too.
+   Measured: content padding-top === board_top === --speak-header-height.) */
 /* Eval SECTION boards (the actual test steps): same fill, but these show the
    speak-bar header, so reserve the measured --speak-header-height (matching
    #content's padding-top rule ~l.8887) plus the 32px `.board.speak` top margin,
@@ -88120,8 +88322,44 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 #inner_header:has(#speak.md-eval-header) .ll-header-settings-btn {
   display: none !important;
 }
+/* Horizontal inset only. The label sits in a fixed ~23px slot with the symbol
+   positioned directly below it, so vertical padding or a taller line-height
+   grows the label DOWN over the symbol — which covers it entirely on small
+   buttons. Keep only the left/right inset, which is vertically safe. */
 #within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button:not(.empty):not(.hidden_button) .button-label {
-  padding: 6px !important;
+  padding: 0 6px !important;
+}
+
+/* Small-button symbol fit. On the `small_text` / `really_small_text` sizes the
+   layout math sizes the symbol band to just overrun the short button, and the
+   stock overflow clip (plus the card's 6px inset) then crops the symbol at the
+   bottom. Give the small buttons more room and cap the symbol to the button so
+   the whole image fits INSIDE — without touching the shared grid sizing:
+     • trim the card inset back toward stock (6px → 2px) to reclaim vertical space
+     • make the small button a size container so the symbol can measure against it
+     • cap the symbol height to a fraction of the button height (cqh) so the image
+       fits below the label instead of overflowing and being clipped.
+   Scoped to the small text sizes only — normal-size buttons keep the 6px inset
+   and are not size containers, so their layout is untouched. */
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button.small_text:not(.empty):not(.hidden_button),
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button.really_small_text:not(.empty):not(.hidden_button) {
+  padding: 2px !important;
+  container-type: size;
+}
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button.small_text:not(.empty):not(.hidden_button) .symbol,
+#within_ember.board-view:has(#speak.md-eval-header) .board.speak:not(.eval_intro) .button.really_small_text:not(.empty):not(.hidden_button) .symbol {
+  max-height: 70cqh !important;
+}
+
+/* Eval answer PHOTOS → rounded corners + a bit of depth. Scoped to photo symbols
+   only (rel points at the /photos/ library) so line-drawing icon symbols on other
+   eval boards aren't given odd shadows. filter: drop-shadow (not box-shadow) so
+   the depth hugs the actual photo even where object-fit letterboxes it. */
+#within_ember.board-view:has(#speak.md-eval-header) .board:not(.eval_intro) .button:not(.empty):not(.hidden_button) img.symbol[rel*="/photos/"] {
+  border-radius: clamp(8px, 1vw, 14px);
+  filter:
+    drop-shadow(0 3px 5px rgba($la-navy, 0.18))
+    drop-shadow(0 9px 16px rgba($la-navy, 0.10));
 }
 
 /* Intro page ONLY: the bespoke center screen already provides the primary

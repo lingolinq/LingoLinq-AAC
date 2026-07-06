@@ -23,6 +23,17 @@ import capabilities_singleton from './capabilities';
 
 var pixels_per_inch = 96;
 window.ppi = window.ppi || 96;
+
+// Modern, self-contained SVG icons for the open-ended nav buttons (previous /
+// next / done). Inline data-URIs so there's no external dependency; encoded via
+// encodeURIComponent so the raw SVG stays readable/editable above.
+var svg_data_uri = function(svg) { return 'data:image/svg+xml,' + encodeURIComponent(svg); };
+var EVAL_NAV_ICON = {
+  prev: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#1B365D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 12H5'/><path d='M12 19l-7-7 7-7'/></svg>"),
+  next: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#1B365D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h15'/><path d='M12 5l7 7-7 7'/></svg>"),
+  done: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='#2A9D8F'/><path d='M7 12.6l3.2 3.2L17 9' fill='none' stroke='#ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+};
+
 var evaluation = {
   _services: {},
   setup: function(appState, persistence, stashes, speecher, utterance, obf, modal, i18n, capabilities) {
@@ -973,18 +984,24 @@ var levels = [
     {id: 'open-core', core: true, difficulty: 1, distractors: true, prompts: [
       //    ['happy', 'sad', 'dog', 'eat', 'play', 'read', 'ball']
       {id: 'kidc1', core_word: 'eat', url: 'https://images.pexels.com/photos/6413448/pexels-photo-6413448.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc2', core_word: 'play', url: 'https://images.pexels.com/photos/4004418/pexels-photo-4004418.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
+      // (Removed kidc2 'play': the scene shows food/pizza prominently and was
+      // routinely misread as 'eat'. Other scenes still cover 'play'. Prompt
+      // cycling is index-relative, so dropping it doesn't affect scoring/flow.)
       {id: 'kidc3', core_word: 'read', url: 'https://images.pexels.com/photos/261895/pexels-photo-261895.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc4', core_word: 'read', url: 'https://images.pexels.com/photos/1741230/pexels-photo-1741230.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc5', core_word: 'eat', url: 'https://images.pexels.com/photos/5693056/pexels-photo-5693056.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc6', core_word: 'dog', url: 'https://images.pexels.com/photos/332974/pexels-photo-332974.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc7', core_word: 'play', url: 'https://images.pexels.com/photos/3618499/pexels-photo-3618499.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
+      // (Removed kidc6 'dog': 'dog' isn't a word button on the open-ended board
+      // these scenes render with, so there was no matching answer to select.
+      // Prompt cycling is index-relative, so dropping it doesn't affect scoring.)
+      {id: 'kidc7', core_word: 'ball', url: 'https://images.pexels.com/photos/3618499/pexels-photo-3618499.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc8', core_word: 'play', url: 'https://images.pexels.com/photos/974498/pexels-photo-974498.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc9', core_word: 'happy', url: 'https://images.pexels.com/photos/294173/pexels-photo-294173.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc10', core_word: 'play', url: 'https://images.pexels.com/photos/4691579/pexels-photo-4691579.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc11', core_word: 'sad', url: 'https://images.pexels.com/photos/208087/pexels-photo-208087.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
+      // (Removed kidc11 'sad': the scene had no matching word button to select
+      // and the image read as unsettling. Prompt cycling is index-relative with
+      // length-based wrapping, so dropping an entry doesn't affect scoring/flow.)
       {id: 'kidc12', core_word: 'read', url: 'https://images.pexels.com/photos/5634667/pexels-photo-5634667.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc13', core_word: 'they', url: 'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'}
+      {id: 'kidc13', core_word: 'play', url: 'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'}
     ]}, // allow cycling through while staying on the same step
     {id: 'open-keyboard', core: true, keyboard: true, prompts: [
       {id: 'kidk1', ref: 'bike', url: 'https://images.pexels.com/photos/5792901/pexels-photo-5792901.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
@@ -1061,9 +1078,18 @@ evaluation.callback = function(key) {
               evaluation.obf.offline_urls.push(w.urls[key]);
               evaluation.persistence.find_url(w.urls[key], 'image').then(function(data_uri) {
                 w.urls[key] = data_uri;
+                // Decode ahead of time. The browser keeps the previously-decoded
+                // frame in the <img> until the NEW source is decoded, which is
+                // what makes the background image "linger then flash" when
+                // advancing between eval boards. Pre-decoding the cached bitmap
+                // removes that lag so the swap is instant.
+                var pre = new Image();
+                pre.src = data_uri;
+                if(pre.decode) { pre.decode().then(null, function() {}); }
               }, function(err) {
                 var img = new Image();
                 img.src = w.urls[key];
+                if(img.decode) { img.decode().then(null, function() {}); }
               });
             }
           })(key);
@@ -1647,27 +1673,36 @@ evaluation.callback = function(key) {
       var prompt = step.prompts[working.ref.prompt_index];
       
       board.background.image = prompt.url;
+      // Review helper: surface the target concept this scene is meant to elicit
+      // so it's clear what each open-ended page is testing. Uses the ext_lingolinq_
+      // prefix (like ext_lingolinq_image_exclusion) so it survives the OBF
+      // serialize/parse round-trip the eval board goes through; obf.js maps it back
+      // to background.eval_helper. Prompts carry the concept as core_word or ref.
+      board.background.ext_lingolinq_eval_helper = prompt.core_word || prompt.ref;
       $("#board_bg img").attr('src', prompt.url);
+      // Mirror the image's direct-DOM update so the caption tracks prev/next
+      // paging too (which updates in place rather than re-parsing the board).
+      $("#board_bg .eval-helper").text('(' + (prompt.core_word || prompt.ref || '') + ')');
       
       board.add_button({
         id: 'button_prev',
         label: "previous",
         background_color: "rgba(255, 255, 255, 0.7)",
-        image: {url: words.find(function(w) { return w.label == 'left'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.prev},
         skip_vocalization: true
       }, 0, 0);
       board.add_button({
         id: 'button_next',
         label: "next",
         background_color: "rgba(255, 255, 255, 0.7)",
-        image: {url: words.find(function(w) { return w.label == 'right'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.next},
         skip_vocalization: true
       }, 0, step_cols - 1);
       board.add_button({
         id: 'button_done',
         label: "done",
         background_color: "rgba(255, 255, 255, 0.7)",
-        image: {url: words.find(function(w) { return w.label == 'done'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.done},
         skip_vocalization: true
       }, 1, step_cols - 1);
     } else {
@@ -1885,7 +1920,14 @@ evaluation.callback = function(key) {
                 used_words[word.label] = true;  
               }
             } else {
-              var unused = distractor_words.filter(function(w) { return w != prompt && !used_words[w.label]; });
+              // A distractor must be a WRONG answer to the prompt. "earth" is
+              // itself a planet, so it can't stand in as a distractor for
+              // "planet" (both read as correct on "Find planet"). Exclude such
+              // superset/subset overlaps so the slot fills with a genuinely
+              // different space word (moon / satellite / sun) instead.
+              var distractor_conflicts = { 'planet': ['earth'], 'earth': ['planet'] };
+              var conflicts = distractor_conflicts[prompt.label] || [];
+              var unused = distractor_words.filter(function(w) { return w != prompt && !used_words[w.label] && conflicts.indexOf(w.label) == -1; });
               var fails = 0;
               var tries = 0;
               while(tries < 20 && (!word || used_words[word.label] || !(word && (word.urls[library] || word.urls['default'])))) {
@@ -1955,6 +1997,9 @@ evaluation.callback = function(key) {
       if(working.ref.prompt_index != null) {
         var prompt = step.prompts[working.ref.prompt_index];
         $("#board_bg img").attr('src', prompt.url);
+        // Keep the review caption in sync as prev/next pages the prompt (this
+        // handler pokes the image directly rather than re-parsing the board).
+        $("#board_bg .eval-helper").text('(' + (prompt.core_word || prompt.ref || '') + ')');
       }
       var grid = button.board.get('grid');
       for(var idx = 0; idx < grid.rows; idx++) {
