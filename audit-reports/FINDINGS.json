@@ -3232,6 +3232,101 @@
         "attestation": ""
       },
       "notes": "Surfaced by Codex's senior-dev review (/review-pr) of PR #535 (LL-1890f6a922, DataPolicyEnforcer retention scope): extending the retention purge to LogSession log_type 'profile' would delete the source record while UserExtra#process_profile's cached identifiable summary (template_id, summary, summary_color, log_id) and the mirrored UserLink.data['state']['profile_history'] entry are never refreshed on destroy, so identifiable content would persist in those caches after the source log is gone -- worse than the pre-existing status quo of not purging 'profile' at all. PR #535 responded by dropping 'profile' from DataPolicyEnforcer::RETAINABLE_LOG_TYPES (lib/data_policy_enforcer.rb) rather than shipping a half-fixed purge; this finding tracks the cache-invalidation work needed before 'profile' can safely be added back. Checked note/assessment/eval/journal for the same pattern: none found (user_badge.rb's assessment usage re-queries live LogSession rows on demand rather than caching a summary; weekly_stats_summary.rb caches only session_ids, not identifiable content, and per DATA_RETENTION.md's Analytics events row this is documented/accepted since aggregates 'do not re-identify individuals')."
+    },
+    {
+      "id": "LL-14edf1a801",
+      "ruleKey": "data-policy-enforcer-child-org-inheritance-skipped",
+      "title": "DataPolicyEnforcer retention job skips child orgs that inherit (rather than set) a retention_months policy",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/data_policy_enforcer.rb",
+        "line": 22,
+        "snippet": "Organization.where(\"data_policy_version > 0\").find_each do |org|",
+        "sha": "66ac5bd2eea2508df0c81250d195b97ae7ed5592"
+      },
+      "firstSeen": "2026-07-05",
+      "lastSeen": "2026-07-05",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Organization#effective_data_policy (app/models/organization.rb:81-101) is explicitly designed to inherit retention_months from a parent org, but enforce_retention!'s candidate-org WHERE clause only matches orgs whose OWN data_policy_version is > 0, and then only sweeps that org's own sponsored_users. A child org that never set its own policy (data_policy_version stays 0) is skipped by the WHERE clause entirely, even though its users are governed by an inherited window via a parent's policy -- so their communication logs never expire. Widen the candidate set to include any org whose effective (not just own) retention_months resolves to a positive value -- e.g. iterate every org with a policy-bearing ancestor, or drive the sweep off each org's own effective_data_policy rather than gating the WHERE clause on data_policy_version. Add a parent(policy)+child(data_policy_version 0) spec asserting the child's stale logs are purged.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by adversary review of PR #535 (LL-1890f6a922, DataPolicyEnforcer log_type scope). Pre-existing since before that PR -- it changed only the log_type filter inside the loop, not the org-selection WHERE clause or the sponsored_users scoping -- but it directly undermines LL-1890f6a922's storage-limitation objective: an org hierarchy where only the parent sets retention_months leaves every child org's logs permanently unenforced. Confirmed against Organization#effective_data_policy's inheritance logic (organization.rb:84-96), which resolves retention_months from a parent for exactly this configuration, and against Organization#sponsored_users (organization.rb:677-685), which is scoped to one org's own attached users, not any descendant org's users."
+    },
+    {
+      "id": "LL-3bb2e2eaad",
+      "ruleKey": "data-policy-enforcer-purge-no-audit-event-deletes-papertrail",
+      "title": "Retention purge deletes the LogSession's PaperTrail destroy-version and writes no disposal AuditEvent",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/flusher.rb",
+        "line": 45,
+        "snippet": "PaperTrail::Version.where(:item_type => record_class, :item_id => record_db_id).delete_all",
+        "sha": "66ac5bd2eea2508df0c81250d195b97ae7ed5592"
+      },
+      "firstSeen": "2026-07-05",
+      "lastSeen": "2026-07-05",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Flusher.flush_record (lib/flusher.rb) destroys the record (creating a has_paper_trail :on => [:destroy] version, log_session.rb:24) and then immediately delete_alls that same version via flush_versions, and DataPolicyEnforcer.enforce_retention! writes no AuditEvent for its purges at all -- unlike Flusher.flush_leftovers, which records a per-category AuditEvent for its deletions (lib/flusher.rb ~line 224). This contradicts docs/legal/DATA_RETENTION.md row 30 (Authentication and audit trails / PaperTrail versions on User, Board, LogSession retained 6 years, HIPAA 45 CFR Sec 164.316(b)(2)(i)) and leaves no record proving what data was destroyed, when, or by which policy. Either stop deleting the destroy-version for LogSession specifically in this retention path (retain per row 30), or have enforce_retention! emit a per-run AuditEvent (actor 'system', org id, purged log ids/counts) the way flush_leftovers already does, so a HIPAA access-log review can reconstruct the disposal.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by adversary review of PR #535 (LL-1890f6a922, DataPolicyEnforcer log_type scope). Pre-existing since before that PR -- Flusher.flush_record's destroy-then-delete-versions behavior and enforce_retention!'s lack of an AuditEvent call are both unchanged by it -- but PR #535 widens the set of log_types this same behavior applies to from 1 (session) to 4 (session/note/assessment/eval/journal), modestly increasing real-world exposure. No user impact today (prod/staging carry no real users, per project note), but this needs resolving before onboarding real school-district/hospital users, since the retention job is precisely the mechanism DATA_RETENTION.md documents as satisfying GDPR 5(1)(e) storage limitation, and doing so by destroying the very audit trail row 30 requires keeping for 6 years is an internal contradiction in the documented schedule, not just a code gap."
+    },
+    {
+      "id": "LL-de9c94bf36",
+      "ruleKey": "data-policy-enforcer-user-wide-scope-cross-org-logs",
+      "title": "Org retention policy purges a sponsored user's entire log history, including logs outside that org's context",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/data_policy_enforcer.rb",
+        "line": 31,
+        "snippet": "stale = LogSession.where(user_id: user_ids)",
+        "sha": "66ac5bd2eea2508df0c81250d195b97ae7ed5592"
+      },
+      "firstSeen": "2026-07-05",
+      "lastSeen": "2026-07-05",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Confirm with Scot whether an org's retention_months is meant to reach a sponsored user's entire log history (including logs predating enrollment, or generated under a personal/other-org context), or only logs created within that org's context. Today the query is user_id-scoped only, with no org/context filter, so any sponsoring org that sets retention_months deletes all of that user's aged logs regardless of origin -- for a user sponsored by more than one org, the most-aggressive policy effectively wins for their whole history. If the current behavior is intentional, document it explicitly in DATA_RETENTION.md's LogSession row rather than leaving it implicit; if not, scope the purge query by log ownership/context (e.g. author's org at the time, or a recorded originating-org field).",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by adversary review of PR #535 (LL-1890f6a922, DataPolicyEnforcer log_type scope). Pre-existing since before that PR -- the user_id-only scoping is unchanged, and PR #535 only widened the log_type filter -- but broadening the purge to 4 additional log_types (note/assessment/eval/journal) means more of a cross-context user's history is now reachable by this same scoping gap than before. This is data over-deletion risk, not a data leak, and is plausibly by design (retention as a property of the user's relationship to a sponsoring org); flagged as a design question for Scot rather than asserted as a defect."
     }
   ]
 }
