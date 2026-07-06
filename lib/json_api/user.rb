@@ -39,6 +39,7 @@ module JsonApi::User
       json['unread_messages'] = user.settings['unread_messages'] || 0
       json['unread_alerts'] = user.settings['unread_alerts'] || 0
       json['user_token'] = user.user_token
+      json['protected_image_token'] = user.protected_image_token
       json['access_methods'] = user.access_methods
       if user.settings['external_device']
         json['external_device'] = user.settings['external_device']

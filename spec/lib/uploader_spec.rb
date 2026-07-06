@@ -14,7 +14,8 @@ describe Uploader do
     it "should post the upload, including a file handle" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -31,7 +32,8 @@ describe Uploader do
     it "should return the url to the uploaded object if successful" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -43,7 +45,8 @@ describe Uploader do
     it "should return nil if upload unsuccessful" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => false, body: 'nothing')
       f = Tempfile.new("stash")
@@ -65,7 +68,8 @@ describe Uploader do
 
       expect(Uploader).to receive(:remote_upload_params).with("a/b/chksmchksu/c", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -85,7 +89,8 @@ describe Uploader do
 
       expect(Uploader).to receive(:remote_upload_params).with("a/chksmchksu/b", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -102,7 +107,8 @@ describe Uploader do
     it "should remove any pending delete remote actions" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -136,7 +142,8 @@ describe Uploader do
 
       expect(Uploader).to receive(:remote_upload_params).with("a/b/chksmchksu/c", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -250,16 +257,33 @@ describe Uploader do
       allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
     end
 
-    it "should generate signed upload parameters" do
+    it "should generate a SigV4-signed upload policy (Aws::S3::PresignedPost)" do
       res = Uploader.remote_upload_params("downloads/file.png", "image/png")
-      expect(res[:upload_url]).to eq(Uploader.remote_upload_config[:upload_url])
+      # upload_url stays the canonical global-style endpoint -- every consumer that
+      # builds/matches a final object URL (valid_import_bundle_url?, removable_remote_url?,
+      # fronted_url, remote_remove, etc) depends on this exact form.
+      expect(res[:upload_url]).to eq(upload_config[:upload_url])
+      # post_url is the actual SigV4 POST target: the bucket's real regional endpoint,
+      # since the presigned policy's credential scope is bound to that region.
+      expect(res[:post_url]).to match(%r{\Ahttps://test-bucket\.s3[.\-][\w-]*\.amazonaws\.com/\z})
       expect(res[:upload_params]).not_to eq(nil)
-      expect(res[:upload_params]['AWSAccessKeyId']).not_to eq(nil)
+      expect(res[:upload_params]['AWSAccessKeyId']).to eq(nil)
+      expect(res[:upload_params]['signature']).to eq(nil)
       expect(res[:upload_params]['Content-Type']).to eq('image/png')
       expect(res[:upload_params]['key']).to eq('downloads/file.png')
       expect(res[:upload_params]['policy']).not_to eq(nil)
-      expect(res[:upload_params]['signature']).not_to eq(nil)
+      expect(res[:upload_params]['x-amz-algorithm']).to eq('AWS4-HMAC-SHA256')
+      expect(res[:upload_params]['x-amz-credential']).to start_with('test_key/')
+      expect(res[:upload_params]['x-amz-signature']).not_to eq(nil)
       expect(res[:upload_params]['success_action_status']).to eq('200')
+    end
+
+    it "should include acl unless private_upload or UPLOADS_S3_NO_ACL is set" do
+      res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+      expect(res[:upload_params]['acl']).to eq('public-read')
+
+      res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
+      expect(res[:upload_params]['acl']).to eq(nil)
     end
   end
 
@@ -332,6 +356,81 @@ describe Uploader do
       expect(Uploader.signed_download_url("asdf")).to eq("asdfjkl")
       expect(Uploader.signed_download_url("https://#{static_bucket}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
       expect(Uploader.signed_download_url("https://s3.amazonaws.com/#{static_bucket}/asdf")).to eq("asdfjkl")
+    end
+  end
+
+  describe "signed_internal_url" do
+    let(:uploads_bucket) { 'spec-uploads' }
+    let(:remote_config) do
+      {
+        upload_url: 'https://spec-uploads.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: uploads_bucket
+      }
+    end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
+    let(:presigner) { instance_double(Aws::S3::Presigner) }
+
+    before do
+      @orig_uploads_s3_bucket = ENV['UPLOADS_S3_BUCKET']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(Aws::S3::Presigner).to receive(:new).with(client: s3_client).and_return(presigner)
+    end
+
+    after do
+      if @orig_uploads_s3_bucket.nil?
+        ENV.delete('UPLOADS_S3_BUCKET')
+      else
+        ENV['UPLOADS_S3_BUCKET'] = @orig_uploads_s3_bucket
+      end
+    end
+
+    it "should presign virtual-hosted and path-style uploads-bucket urls without a head_object check" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).exactly(2).times.with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: 'extras/foo.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json")).to eq('signed-url')
+      expect(Uploader.signed_internal_url("https://s3.amazonaws.com/#{uploads_bucket}/extras/foo.json")).to eq('signed-url')
+    end
+
+    it "should keep the leading slash for legacy version-0 extra_data double-slash urls" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: '/extras0/LogSession/1_1/nonce/data-x.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com//extras0/LogSession/1_1/nonce/data-x.json")).to eq('signed-url')
+    end
+
+    it "should pass through a bare bucket url with no key" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+
+    it "should pass through non-bucket urls untouched" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      expect(Uploader.signed_internal_url("https://example.com/pic.png")).to eq("https://example.com/pic.png")
+      expect(Uploader.signed_internal_url("https://cdn.example.com/extras/foo.json")).to eq("https://cdn.example.com/extras/foo.json")
+      expect(Uploader.signed_internal_url(nil)).to eq(nil)
+    end
+
+    it "should return the original url when credentials are missing or signing fails" do
+      allow(Uploader).to receive(:remote_upload_config).and_return({})
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+
+    it "should return the original url when presigning raises unexpectedly" do
+      allow(presigner).to receive(:presigned_url).and_raise(Aws::Errors::MissingRegionError.new(nil, 'missing region'))
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect { Uploader.signed_internal_url(url) }.to_not raise_error
+      expect(Uploader.signed_internal_url(url)).to eq(url)
     end
   end
 

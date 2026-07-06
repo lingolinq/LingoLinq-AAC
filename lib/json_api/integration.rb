@@ -12,16 +12,25 @@ module JsonApi::Integration
     json['id'] = obj.global_id
     json['name'] = obj.settings['name']
     json['custom_integration'] = !!obj.settings['custom_integration']
+    permissions = obj.permissions_for(args[:permissions]) if args[:permissions]
     json['webhook'] = !!obj.settings['button_webhook_url']
-    if json['webhook'] && obj.settings['button_webhook_local']
-      json['button_webhook_local'] = true
-      json['button_webhook_url'] = obj.settings['button_webhook_url']
+    if json['webhook']
+      if obj.settings['button_webhook_local']
+        json['button_webhook_local'] = true
+        json['button_webhook_url'] = obj.settings['button_webhook_url']
+      elsif permissions && permissions['edit']
+        # remote webhook URLs can embed a secret key (e.g. IFTTT), so only
+        # round-trip them to viewers who could have set them in the first place
+        json['button_webhook_url'] = obj.settings['button_webhook_url']
+      end
     end
     json['render'] = !!obj.settings['board_render_url']
-    
+    # not permission-gated: extra_includes already emits this same value
+    # unconditionally as render_url for any board viewer to embed (routes/board.js)
+    json['board_render_url'] = obj.settings['board_render_url'] if json['render']
 
     if args[:permissions]
-      json['permissions'] = obj.permissions_for(args[:permissions])
+      json['permissions'] = permissions
     end
 
     if obj.integration_key
@@ -64,7 +73,6 @@ module JsonApi::Integration
       end
     end
     if obj.settings['custom_integration']
-      json['asdf'] = 'asdf'
       device_token, refresh_token = obj.device.tokens
       if obj.device && json['permissions'] && json['permissions']['edit']
         if obj.created_at > 24.hours.ago 

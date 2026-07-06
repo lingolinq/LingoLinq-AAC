@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_06_21_120003) do
+ActiveRecord::Schema[7.2].define(version: 2026_07_02_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -170,6 +170,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_21_120003) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["board_id"], name: "index_board_button_sounds_on_board_id"
+    t.index ["button_sound_id"], name: "index_board_button_sounds_on_button_sound_id"
   end
 
   create_table "board_contents", id: :serial, force: :cascade do |t|
@@ -423,6 +424,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_21_120003) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["board_id", "log_session_id"], name: "index_log_session_boards_on_board_id_and_log_session_id"
+    t.index ["log_session_id"], name: "index_log_session_boards_on_log_session_id"
   end
 
   create_table "log_sessions", id: :serial, force: :cascade do |t|
@@ -545,6 +547,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_21_120003) do
     t.datetime "finished_at", precision: nil
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.index ["created_at"], name: "index_progresses_on_created_at"
     t.index ["nonce"], name: "index_progresses_on_nonce"
   end
 
@@ -617,7 +620,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_21_120003) do
     t.index ["communicator_user_id"], name: "index_supervisor_relationships_on_communicator_user_id"
     t.index ["consent_response_token"], name: "index_supervisor_rel_consent_token", unique: true, where: "(consent_response_token IS NOT NULL)"
     t.index ["consent_token_expires_at"], name: "index_supervisor_rel_pending_expiry", where: "((status)::text = 'pending'::text)"
-    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying])::text[]))"
+    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text]))"
     t.index ["supervisor_user_id"], name: "index_supervisor_relationships_on_supervisor_user_id"
   end
 

@@ -16,6 +16,30 @@ describe 'OBFSaveImageHardening' do
       expect(res).to be_nil
     end
 
+    it 'signs uploads-bucket urls through Uploader.signed_internal_url before fetching' do
+      orig = ENV['UPLOADS_S3_BUCKET']
+      ENV['UPLOADS_S3_BUCKET'] = 'spec-uploads'
+      begin
+        raw = "https://spec-uploads.s3.amazonaws.com/images/1/pic.png"
+        expect(Uploader).to receive(:signed_internal_url).with(raw).and_return('https://signed.example.com/pic.png')
+        expect(OBF::Utils).to receive(:get_url).with('https://signed.example.com/pic.png').and_return({'data' => '', 'content_type' => 'image/png'})
+        res = OBF::Utils.save_image({'url' => raw}, nil, 'white')
+        expect(res).to be_nil
+      ensure
+        if orig.nil?
+          ENV.delete('UPLOADS_S3_BUCKET')
+        else
+          ENV['UPLOADS_S3_BUCKET'] = orig
+        end
+      end
+    end
+
+    it 'fetches external urls unsigned (signed_internal_url passes them through)' do
+      expect(OBF::Utils).to receive(:get_url).with('https://external.example.com/pic.png').and_return({'data' => '', 'content_type' => 'image/png'})
+      res = OBF::Utils.save_image({'url' => 'https://external.example.com/pic.png'}, nil, 'white')
+      expect(res).to be_nil
+    end
+
     it 'returns nil when raw_data is too small to be a valid image' do
       expect(Process).not_to receive(:spawn)
       res = OBF::Utils.save_image({'raw_data' => 'x' * 10, 'content_type' => 'image/png'}, nil, 'white')

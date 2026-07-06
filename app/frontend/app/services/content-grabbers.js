@@ -256,7 +256,10 @@ var contentGrabbers = Service.extend({
       }
 
       persistenceService.ajax({
-        url: params.upload_url,
+        // post_url is the SigV4-signed regional S3 endpoint; upload_url is the
+        // canonical global-style object URL other code matches self.url against,
+        // so it can't also be the POST target. Fall back for older cached data.
+        url: params.post_url || params.upload_url,
         type: 'POST',
         data: fd,
         processData: false,  // tell jQuery not to process the data
@@ -973,7 +976,7 @@ var pictureGrabber = EmberObject.extend({
     return persistenceService.ajax('/api/v1/search/protected_symbols?library=' + encodeURIComponent(library) + '&q=' + encodeURIComponent(text) + '&user_name=' + encodeURIComponent(user_name), { type: 'GET'
     }).then(function(data) {
       data.forEach(function(img) {
-        img.image_url = LingoLinq.Image.personalize_url(img.image_url, appStateService.get('currentUser.user_token'), appStateService.get('referenced_user.preferences.skin'));
+        img.image_url = LingoLinq.Image.personalize_url(img.image_url, appStateService.get('currentUser.protected_image_token'), appStateService.get('referenced_user.preferences.skin'));
       });
       return data;
     }, function(xhr, message) {
