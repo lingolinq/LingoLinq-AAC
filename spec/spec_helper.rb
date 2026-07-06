@@ -63,6 +63,7 @@ RSpec.configure do |config|
     if ENV['AWS_SECRET'].to_s.blank?
       allow(Uploader).to receive(:remote_upload_params).and_return(
         upload_url: 'https://example.com/',
+        post_url: 'https://example.com/',
         upload_params: {}
       )
     end
