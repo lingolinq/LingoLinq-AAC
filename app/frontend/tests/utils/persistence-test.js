@@ -2093,6 +2093,7 @@ describe("persistence", function() {
       });
 
       it("should reject if offline", function() {
+        queryLog.real_lookup = true;
         setPersistenceOnline(false);
 
         var ajaxed = false;

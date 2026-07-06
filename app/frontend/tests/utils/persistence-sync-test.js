@@ -131,6 +131,18 @@ function seedBoardsInStore(boards, opts) {
   boards.forEach(function(b) { seedBoardInStore(b, opts); });
 }
 
+function refreshBoardsInStore(boards, opts) {
+  boards.forEach(function(board) {
+    var existing = LingoLinq.store.peekRecord('board', board.id);
+    if (existing) {
+      try {
+        LingoLinq.store.unloadRecord(existing);
+      } catch (e) { /* already gone */ }
+    }
+    seedBoardInStore(board, opts);
+  });
+}
+
 function localStorageImageEntry(img) {
   return {
     data: {
@@ -4205,17 +4217,10 @@ describe("persistence-sync", function() {
       primeBoardRevisionsSyncHarness();
       persistence.known_missing = {};
       var revisions_called = false;
-      chainPersistenceAjax(function(url, opts) {
-        if (url == '/api/v1/users/1340/board_revisions') {
-          revisions_called = true;
-          return RSVP.resolve({
-            '145': 'current',
-            '167': 'current',
-            '178': 'current',
-            '179': 'current'
-          });
-        }
-      });
+      var reloads = {};
+      var trackBoardReload = function(boardId) {
+        reloads[String(boardId)] = true;
+      };
 
       var stores = [];
       stubStoreUrl( function(url, type) {
@@ -4287,6 +4292,31 @@ describe("persistence-sync", function() {
         }
       };
 
+      chainPersistenceAjax(function(url, opts) {
+        if (url == '/api/v1/users/1340/board_revisions') {
+          revisions_called = true;
+          return RSVP.resolve({
+            '145': 'current',
+            '167': 'current',
+            '178': 'current',
+            '179': 'current'
+          });
+        }
+        if (url && url.match(/\/boards\?ids=/)) {
+          var idsMatch = url.match(/ids=([^&]+)/);
+          var ids = idsMatch ? idsMatch[1].split(',') : [];
+          var boards = [];
+          ids.forEach(function(id) {
+            trackBoardReload(id);
+            if (id === '145') { boards.push(b1); }
+            else if (id === '167') { boards.push(b2); }
+            else if (id === '178') { boards.push(b3); }
+            else if (id === '179') { boards.push(b4); }
+          });
+          return RSVP.resolve(boards);
+        }
+      });
+
       var revisions = {};
       revisions[b1.id] = b1.full_set_revision;
       revisions[b2.id] = b2.full_set_revision;
@@ -4321,7 +4351,6 @@ describe("persistence-sync", function() {
       });
 
       var done = false;
-      var reloads = {};
       waitsFor(function() { return stored; });
       runs(function() {
         LingoLinq.all_wait = true;
@@ -4331,7 +4360,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        seedBoardsInStore([b1, b2, b3, b4], { fresh: true });
+        refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
@@ -4342,22 +4371,22 @@ describe("persistence-sync", function() {
               preferences: {home_board: {id: '145'}}
             }});
           } else if(options.url == '/api/v1/boards/145') {
-            reloads['145'] = true;
+            trackBoardReload('145');
             return RSVP.resolve({
               board: b1
             });
           } else if(options.url == '/api/v1/boards/167') {
-            reloads['167'] = true;
+            trackBoardReload('167');
             return RSVP.resolve({
               board: b2
             });
           } else if(options.url == '/api/v1/boards/178') {
-            reloads['178'] = true;
+            trackBoardReload('178');
             return RSVP.resolve({
               board: b3
             });
           } else if(options.url == '/api/v1/boards/179') {
-            reloads['179'] = true;
+            trackBoardReload('179');
             return RSVP.resolve({
               board: b4
             });
@@ -4380,9 +4409,10 @@ describe("persistence-sync", function() {
       waitsFor(function() { return done; });
       runs(function() {
         expect(revisions_called).toEqual(true);
-        expect(reloads).toEqual({
-          '178': true
-        });
+        expect(reloads['178']).toEqual(true);
+        expect(reloads['145']).toEqual(undefined);
+        expect(reloads['167']).toEqual(undefined);
+        expect(reloads['179']).toEqual(undefined);
         cancelSyncTailWork();
         persistence.set('sync_progress', null);
         LingoLinq.sync_testing_real_boards = false;
