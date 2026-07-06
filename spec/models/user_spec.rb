@@ -3365,6 +3365,18 @@ describe User, :type => :model do
       expect(User.find_by_protected_image_token(u.user_token)).to eq(u)
     end
 
+    it 'should log when the legacy permanent-token fallback is used' do
+      u = User.create
+      expect(Rails.logger).to receive(:info).with(/\[protected_image_legacy_token\] accepted permanent-format token for #{Regexp.escape(u.global_id)}/)
+      User.find_by_protected_image_token(u.user_token)
+    end
+
+    it 'should not log for the newer expiring token format' do
+      u = User.create
+      expect(Rails.logger).to_not receive(:info).with(/protected_image_legacy_token/)
+      User.find_by_protected_image_token(u.protected_image_token)
+    end
+
     it 'should return nil for an expired token' do
       now = Time.utc(2026, 7, 5, 12, 0, 0)
       allow(Time).to receive(:now).and_return(now)

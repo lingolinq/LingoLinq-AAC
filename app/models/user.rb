@@ -2660,10 +2660,17 @@ class User < ApplicationRecord
   # Accepts the newer expiring protected_image_token format (3 hyphen-separated parts)
   # or falls back to the legacy permanent user_token format (2 parts), so image URLs
   # embedded in boards cached client-side before this format existed keep resolving.
+  # The legacy branch is logged (not just silently accepted) because it's the residual
+  # of LL-310b464be4 this PR intentionally leaves open: sunsetting it needs evidence of
+  # how often it's still hit, not a guess.
   def self.find_by_protected_image_token(token)
     return nil unless token
     parts = token.to_s.split(/-/)
-    return find_by_token(token) unless parts.length == 3
+    unless parts.length == 3
+      user = find_by_token(token)
+      Rails.logger.info("[protected_image_legacy_token] accepted permanent-format token for #{user.global_id}") if user
+      return user
+    end
     user_id, expires_at, sig = parts
     return nil unless expires_at.match?(/\A\d+\z/)
     verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
