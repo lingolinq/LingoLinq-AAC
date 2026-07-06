@@ -8,7 +8,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { fakeRecorder, queryLog, stubNavigatorGetUserMedia } from 'frontend/tests/helpers/ember_helper';
+import { fakeRecorder, queryLog, stubNavigatorGetUserMedia, fakeMediaRecorder } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import contentGrabbers from '../../utils/content_grabbers';
 import editManager from '../../utils/edit_manager';
@@ -118,6 +118,12 @@ describe('soundGrabber', function() {
   });
 
   describe('recording sound', function() {
+    beforeEach(function() {
+      stub(window, 'MediaRecorder', function(stream) {
+        return fakeMediaRecorder(stream);
+      });
+    });
+
     it('should initialize recording process', function() {
       soundGrabber.setup(button, controller);
       var called = false;
@@ -162,6 +168,13 @@ describe('soundGrabber', function() {
       stub(soundGrabber, 'native_record_sound', function() {
         called = true;
       });
+      stub(contentGrabbers, 'capture_types', function() {
+        return {audio: true};
+      });
+      navigator.getUserMedia = undefined;
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.getUserMedia = undefined;
+      }
       stub(navigator, 'device', {
         capture: {
           captureAudio: function() { }

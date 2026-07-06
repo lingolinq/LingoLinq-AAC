@@ -112,7 +112,7 @@ describe("contentGrabbers", function() {
         url: "data:image/png;..."
       });
       var res = contentGrabbers.save_record(obj);
-      expect(obj.get('url')).toEqual(null);
+      expect(obj.get('url')).toEqual("data:image/png;...");
       expect(obj.get('data_url')).toEqual("data:image/png;...");
     });
 
@@ -126,7 +126,7 @@ describe("contentGrabbers", function() {
       });
       var res = contentGrabbers.save_record(obj);
       expect(save_called).toEqual(true);
-      expect(obj.get('url')).toEqual(null);
+      expect(obj.get('url')).toEqual("data:image/png;...");
       expect(obj.get('data_url')).toEqual("data:image/png;...");
       defer.resolve(obj);
       res.then(function(result) {
@@ -445,15 +445,20 @@ describe("contentGrabbers", function() {
   });
 
   describe("file_dropped", function() {
+    beforeEach(function() {
+      stub(contentGrabbers, 'check_for_dropped_file', function() {});
+    });
+
     it("should set droppedFile", function() {
       var file = {a: 1};
-
+      contentGrabbers.board_controller = controller.get('board');
       contentGrabbers.file_dropped('abc', 'image', file);
       expect(contentGrabbers.droppedFile.type).toEqual('image');
       expect(contentGrabbers.droppedFile.file).toEqual(file);
     });
     it("should trigger the button dialog, which will then check for a dropped file", function() {
       var file = {a: 1};
+      contentGrabbers.board_controller = controller.get('board');
       contentGrabbers.file_dropped('abc', 'image', file);
       expect(controller.get('board').sentMessages['buttonSelect']).not.toEqual(null);
     });
