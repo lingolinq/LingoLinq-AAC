@@ -631,6 +631,9 @@ export default Service.extend({
       // Give the session time to clear completely before navigating, otherwise the
       // user might not actually get logged out.
       later(function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
         // STEP (a): Clear auth tokens FIRST. The index route's afterModel
         // checks session.access_token and replaceWith('user.home', user_name)
         // if it sees one. Clearing here ensures the SPA transitionTo('index')

@@ -4302,19 +4302,6 @@ describe("persistence-sync", function() {
             '179': 'current'
           });
         }
-        if (url && url.match(/\/boards\?ids=/)) {
-          var idsMatch = url.match(/ids=([^&]+)/);
-          var ids = idsMatch ? idsMatch[1].split(',') : [];
-          var boards = [];
-          ids.forEach(function(id) {
-            trackBoardReload(id);
-            if (id === '145') { boards.push(b1); }
-            else if (id === '167') { boards.push(b2); }
-            else if (id === '178') { boards.push(b3); }
-            else if (id === '179') { boards.push(b4); }
-          });
-          return RSVP.resolve(boards);
-        }
       });
 
       var revisions = {};

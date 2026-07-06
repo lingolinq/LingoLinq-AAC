@@ -668,6 +668,14 @@ describe('speecher', function() {
       waitsFor(function() { return audio_elem.played; });
       runs(function() {
         audio_elem.currentTime = 1;
+        var pumps = 0;
+        var pump = function() {
+          pumps++;
+          if (pumps < 15 && !ended) {
+            later(pump, 100);
+          }
+        };
+        later(pump, 100);
       });
       waitsFor(function() { return ended; });
       runs();

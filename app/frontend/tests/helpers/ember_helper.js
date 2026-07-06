@@ -23,7 +23,7 @@ import persistence from '../../utils/persistence';
 import lingoLinqExtras from '../../utils/extras';
 import stashes from '../../utils/_stashes';
 import geo from '../../utils/geo';
-import { primeAllServices, stashesTarget, appStateTarget, persistenceTarget } from './service-stub';
+import { primeAllServices, primeSessionService, stashesTarget, appStateTarget, persistenceTarget, serviceAlive } from './service-stub';
 import { cancelHarnessAsyncWork } from './sync-test-cleanup';
 import modal from '../../utils/modal';
 import utterance from '../../utils/utterance';
@@ -964,9 +964,25 @@ function isUtteranceTestModule(moduleName) {
 }
 
 function setupUtteranceTestHarness() {
+  if (LingoLinq.testOwner) {
+    primeAllServices(LingoLinq.testOwner);
+    primeSessionService(LingoLinq.testOwner);
+    try {
+      LingoLinq.store = LingoLinq.testOwner.lookup('service:store');
+    } catch (e) { /* owner mid-teardown */ }
+  }
   var stashesSvc = stashesTarget();
   var appStateSvc = appStateTarget();
   var persistenceSvc = persistenceTarget();
+  if (!serviceAlive(stashesSvc) || !serviceAlive(appStateSvc)) {
+    if (LingoLinq.testOwner) {
+      primeAllServices(LingoLinq.testOwner);
+      primeSessionService(LingoLinq.testOwner);
+      stashesSvc = stashesTarget();
+      appStateSvc = appStateTarget();
+      persistenceSvc = persistenceTarget();
+    }
+  }
   if (!LingoLinq._utteranceTestController) {
     LingoLinq._utteranceTestController = EmberObject.extend({
       vocalize: function() {
@@ -998,8 +1014,14 @@ function setupUtteranceTestHarness() {
   utterance.set('hint_button', null);
   utterance.set('list_vocalized', false);
   utterance.set('clear_on_vocalize', true);
+  word_suggestions.ngrams = word_suggestions.ngrams || { '': [] };
+  word_suggestions.loading = false;
+  word_suggestions.watchers = [];
   stub(word_suggestions, 'lookup', function() {
     return RSVP.resolve([]);
+  });
+  stub(word_suggestions, 'load', function() {
+    return RSVP.resolve();
   });
 }
 

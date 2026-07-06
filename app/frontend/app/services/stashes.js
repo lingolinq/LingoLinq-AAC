@@ -30,6 +30,9 @@ export default Service.extend({
   },
 
   setup: function() {
+    if (this.isDestroyed || this.isDestroying) {
+      return;
+    }
     this.memory_stash = memory_stash;
     this.prefix = 'lingolinqStash-';
     var legacyPrefix = 'cdStash-';
@@ -60,7 +63,9 @@ export default Service.extend({
       localStorage[this.prefix + 'test'] = Math.random();
       this.set('enabled', true);
     } catch(e) {
-      this.set('enabled', false);
+      if (!this.isDestroyed && !this.isDestroying) {
+        this.set('enabled', false);
+      }
       if(console.debug) {
         console.debug('LINGOLINQ: localStorage not working');
         console.debug(e);

@@ -13,11 +13,34 @@ import modalUtil from '../../utils/modal';
 function sessionServiceField(field) {
   try {
     var session = (typeof LingoLinq !== 'undefined' && LingoLinq.session) || null;
-    if (session && !session.isDestroyed) {
+    if (session && !session.isDestroyed && !session.isDestroying) {
       var svc = session[field];
-      if (svc && !svc.isDestroyed) {
+      if (svc && !svc.isDestroyed && !svc.isDestroying) {
         return svc;
       }
+    }
+  } catch (e) { /* owner mid-teardown */ }
+  return null;
+}
+
+function serviceAlive(svc) {
+  if (!svc) {
+    return false;
+  }
+  if (svc.isDestroyed || svc.isDestroying) {
+    return false;
+  }
+  return true;
+}
+
+function ownerService(name) {
+  if (typeof LingoLinq === 'undefined' || !LingoLinq.testOwner) {
+    return null;
+  }
+  try {
+    var svc = LingoLinq.testOwner.lookup('service:' + name);
+    if (serviceAlive(svc)) {
+      return svc;
     }
   } catch (e) { /* owner mid-teardown */ }
   return null;
@@ -28,7 +51,14 @@ export function persistenceTarget() {
   if (fromSession) {
     return fromSession;
   }
-  if (typeof window !== 'undefined' && window.persistence) {
+  var fromOwner = ownerService('persistence');
+  if (fromOwner) {
+    if (typeof window !== 'undefined') {
+      window.persistence = fromOwner;
+    }
+    return fromOwner;
+  }
+  if (typeof window !== 'undefined' && window.persistence && serviceAlive(window.persistence)) {
     return window.persistence;
   }
   return persistence;
@@ -42,10 +72,14 @@ export function sessionTarget() {
 }
 
 export function appStateTarget() {
-  if (typeof LingoLinq !== 'undefined' && LingoLinq.appState) {
+  var fromOwner = ownerService('app-state');
+  if (fromOwner) {
+    return fromOwner;
+  }
+  if (typeof LingoLinq !== 'undefined' && serviceAlive(LingoLinq.appState)) {
     return LingoLinq.appState;
   }
-  if (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState) {
+  if (typeof window !== 'undefined' && window.LingoLinq && serviceAlive(window.LingoLinq.appState)) {
     return window.LingoLinq.appState;
   }
   return appStateUtil;
@@ -56,7 +90,14 @@ export function stashesTarget() {
   if (fromSession) {
     return fromSession;
   }
-  if (typeof window !== 'undefined' && window.stashes) {
+  var fromOwner = ownerService('stashes');
+  if (fromOwner) {
+    if (typeof window !== 'undefined') {
+      window.stashes = fromOwner;
+    }
+    return fromOwner;
+  }
+  if (typeof window !== 'undefined' && window.stashes && serviceAlive(window.stashes)) {
     return window.stashes;
   }
   return stashesUtil;
@@ -186,6 +227,8 @@ export function primeAllServices(owner) {
   primeContentGrabbersService(owner);
   primeUtilSingletons(owner);
 }
+
+export { serviceAlive };
 
 /** Service mirror rules used by tests/helpers/jasmine.js stub(). */
 export var SERVICE_MIRROR_RULES = [
