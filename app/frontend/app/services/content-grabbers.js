@@ -976,7 +976,7 @@ var pictureGrabber = EmberObject.extend({
     return persistenceService.ajax('/api/v1/search/protected_symbols?library=' + encodeURIComponent(library) + '&q=' + encodeURIComponent(text) + '&user_name=' + encodeURIComponent(user_name), { type: 'GET'
     }).then(function(data) {
       data.forEach(function(img) {
-        img.image_url = LingoLinq.Image.personalize_url(img.image_url, appStateService.get('currentUser.user_token'), appStateService.get('referenced_user.preferences.skin'));
+        img.image_url = LingoLinq.Image.personalize_url(img.image_url, appStateService.get('currentUser.protected_image_token'), appStateService.get('referenced_user.preferences.skin'));
       });
       return data;
     }, function(xhr, message) {

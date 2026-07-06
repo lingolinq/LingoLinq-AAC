@@ -484,9 +484,14 @@ describe Uploadable, :type => :model do
       u = User.create
       i = ButtonImage.new(url: 'http://www.example.com/api/v1/users/1234/protected_images/bacon')
       expect(i.url_for(nil)).to eq('http://www.example.com/api/v1/users/1234/protected_images/bacon')
-      expect(i.url_for(u)).to eq("http://www.example.com/api/v1/users/1234/protected_images/bacon?user_token=#{u.user_token}")
+      result = i.url_for(u)
+      expect(result).to match(/\Ahttp:\/\/www\.example\.com\/api\/v1\/users\/1234\/protected_images\/bacon\?user_token=.+\z/)
+      expect(User.find_by_protected_image_token(result.split('user_token=').last)).to eq(u)
+
       i.url = "http://www.example.com/api/v1/users/1234/protected_images/bacon?a=1"
-      expect(i.url_for(u)).to eq("http://www.example.com/api/v1/users/1234/protected_images/bacon?a=1&user_token=#{u.user_token}")
+      result = i.url_for(u)
+      expect(result).to match(/\Ahttp:\/\/www\.example\.com\/api\/v1\/users\/1234\/protected_images\/bacon\?a=1&user_token=.+\z/)
+      expect(User.find_by_protected_image_token(result.split('user_token=').last)).to eq(u)
     end
   end
   

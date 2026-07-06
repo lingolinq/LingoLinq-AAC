@@ -2643,7 +2643,35 @@ class User < ApplicationRecord
     return nil unless hash == verifier
     User.find_by_global_id(user_id)
   end
-    
+
+  # Unlike user_token above, this is a purpose-scoped, time-limited credential for
+  # protected_image only: bounds how long a leaked URL (query-string tokens land in
+  # access logs, browser history, and Referer headers) stays valid. The default outlasts
+  # the 12-day CDN cache-control window protected_image already sets on successful
+  # redirects, so it won't expire while a synced board is still relying on the cached copy.
+  PROTECTED_IMAGE_TOKEN_LIFESPAN = 30.days
+
+  def protected_image_token(lifespan=PROTECTED_IMAGE_TOKEN_LIFESPAN)
+    expires_at = (Time.now + lifespan).to_i
+    sig = GoSecure.sha512("#{self.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+    "#{self.global_id}-#{expires_at}-#{sig}"
+  end
+
+  # Accepts the newer expiring protected_image_token format (3 hyphen-separated parts)
+  # or falls back to the legacy permanent user_token format (2 parts), so image URLs
+  # embedded in boards cached client-side before this format existed keep resolving.
+  def self.find_by_protected_image_token(token)
+    return nil unless token
+    parts = token.to_s.split(/-/)
+    return find_by_token(token) unless parts.length == 3
+    user_id, expires_at, sig = parts
+    return nil unless expires_at.match?(/\A\d+\z/)
+    verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+    return nil unless sig == verifier
+    return nil if expires_at.to_i < Time.now.to_i
+    User.find_by_global_id(user_id)
+  end
+
   def notify_on(attributes, notification_type)
     # TODO: ...
   end

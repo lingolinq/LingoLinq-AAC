@@ -3333,7 +3333,72 @@ describe User, :type => :model do
       expect(User.find_by_token(nil)).to eq(nil)
     end
   end
-  
+
+  describe "protected_image_token" do
+    it 'should return a signed token that expires after the default lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + User::PROTECTED_IMAGE_TOKEN_LIFESPAN).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+      expect(u.protected_image_token).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+
+    it 'should respect a custom lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + 7.days).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+      expect(u.protected_image_token(7.days)).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+  end
+
+  describe "find_by_protected_image_token" do
+    it 'should find the correct user for a valid, unexpired token' do
+      u = User.create
+      expect(User.find_by_protected_image_token(u.protected_image_token)).to eq(u)
+    end
+
+    it 'should fall back to the legacy permanent user_token format' do
+      u = User.create
+      expect(User.find_by_protected_image_token(u.user_token)).to eq(u)
+    end
+
+    it 'should return nil for an expired token' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.protected_image_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      expect(User.find_by_protected_image_token(token)).to eq(nil)
+    end
+
+    it 'should return nil for a tampered signature' do
+      u = User.create
+      parts = u.protected_image_token.split('-')
+      parts[-1] = 'a' * 30
+      expect(User.find_by_protected_image_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil for a tampered expiry' do
+      u = User.create
+      parts = u.protected_image_token.split('-')
+      parts[-2] = (parts[-2].to_i + 100).to_s
+      expect(User.find_by_protected_image_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil when the expiry segment is not numeric' do
+      u = User.create
+      expect(User.find_by_protected_image_token("#{u.global_id}-notanumber-#{'a' * 30}")).to eq(nil)
+    end
+
+    it 'should return nil for garbage or missing input' do
+      expect(User.find_by_protected_image_token('asdf')).to eq(nil)
+      expect(User.find_by_protected_image_token(nil)).to eq(nil)
+    end
+  end
+
   describe "versions" do
     it "should track versions correctly" do
       PaperTrail.request.whodunnit = 'user:bob'

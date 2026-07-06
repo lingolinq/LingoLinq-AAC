@@ -942,7 +942,7 @@ class Api::UsersController < ApplicationController
 
   def protected_image
     user = User.find_by_path(params['user_id'])
-    api_user = User.find_by_token(params['user_token'])
+    api_user = User.find_by_protected_image_token(params['user_token'])
     valid_result = nil
     if !api_user
       expires_in 30.minutes, :public => true

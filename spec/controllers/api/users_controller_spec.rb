@@ -3185,8 +3185,28 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_redirect
       expect(response.location).to eq('http://www.example.com/pic.png')
     end
+
+    it 'should accept the newer expiring protected_image_token format' do
+      u = User.create
+      bi = ButtonImage.create(user: u, url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
+      get 'protected_image', params: {'user_id' => u.global_id, 'user_token' => u.protected_image_token, 'library' => 'lessonpix', 'image_id' => '12345'}
+      expect(response).to be_redirect
+      expect(response.location).to eq('http://www.example.com/pic.png')
+    end
+
+    it 'should reject an expired protected_image_token and fall back to the anonymous path' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.protected_image_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      get 'protected_image', params: {'user_id' => u.global_id, 'user_token' => token, 'library' => 'whatever', 'image_id' => '123'}
+      expect(response).to be_redirect
+      expect(response.location).to eq('http://test.host/images/square.svg')
+    end
   end
-  
+
   describe "word_map" do
     it "should require an api token" do
       get 'word_map', params: {'user_id' => 'asdf'}
