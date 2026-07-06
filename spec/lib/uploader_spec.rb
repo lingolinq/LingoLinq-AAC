@@ -425,6 +425,13 @@ describe Uploader do
       url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
       expect(Uploader.signed_internal_url(url)).to eq(url)
     end
+
+    it "should return the original url when presigning raises unexpectedly" do
+      allow(presigner).to receive(:presigned_url).and_raise(Aws::Errors::MissingRegionError.new(nil, 'missing region'))
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect { Uploader.signed_internal_url(url) }.to_not raise_error
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
   end
 
   describe "valid_remote_url?" do
