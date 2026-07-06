@@ -1216,9 +1216,12 @@ var editManager = EmberObject.extend({
         // Ensure pending_image and pending_sound are false so the pending computed property works correctly
         raw.pending_image = false;
         raw.pending_sound = false;
+        // board-detail speak grid adds this plain bool; Button defines it as a
+        // computed — passing it into create clobbers the computed (Ember 3.28+).
+        delete raw.display_as_hidden;
         var b = editManager.Button.create(raw, {board: board});
         if(b.get('board') != board || (b.get('pending_image') || b.get('pending_sound'))) { alert('blech!'); }
-        b.set('id', oldState[idx][jdx].get('id'));
+        b.set('id', (btn.get && typeof btn.get === 'function') ? btn.get('id') : btn.id);
         // Explicitly preserve empty/image_url — Button.create may not retain them from raw
         if(raw.empty) { b.set('empty', true); }
         if(raw.image_url) { b.set('image_url', raw.image_url); }

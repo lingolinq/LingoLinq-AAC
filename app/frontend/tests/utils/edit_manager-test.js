@@ -20,7 +20,7 @@ import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import LingoLinq from '../../app';
-import EmberObject, { observer } from '@ember/object';
+import EmberObject, { observer, set as emberSet } from '@ember/object';
 import { later } from '@ember/runloop';
 import $ from 'jquery';
 
@@ -401,6 +401,18 @@ describe('editManager', function() {
       expect(clone_button.get('pending')).toEqual(false);
       expect(clone_button.get('id')).toEqual(1482);
       expect(clone_button.get('label')).toEqual('ham and cheese');
+    });
+    it("should strip board-detail display_as_hidden from plain speak grid cells", function() {
+      board.set('ordered_buttons', [[
+        { id: 1482, label: 'know', display_as_hidden: true, hidden: true }
+      ]]);
+      editManager.setup(board);
+      var clone = editManager.clone_state();
+      var clone_button = clone[0][0];
+      expect(typeof clone_button.get).toEqual('function');
+      expect(clone_button.get('id')).toEqual(1482);
+      emberSet(clone_button, 'hidden', false);
+      expect(clone_button.get('display_as_hidden')).toEqual(false);
     });
     it("should not include image and sound in deep copy, but they should be retrieved anyway", function() {
       var old = editManager.Button;

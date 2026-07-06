@@ -37,11 +37,10 @@ export default Component.extend({
     if(fn) { fn(...args); }
   },
 
-  actions: {
-    // Tap on the chip body. In swap mode this is a swap target (or cancel on the
-    // held chip); otherwise it toggles selection. stop propagation so it doesn't
-    // trigger the bar's whole-sentence speak.
-    tap(event) {
+  // Tap on the chip body. In swap mode this is a swap target (or cancel on the
+  // held chip); otherwise it toggles selection. stop propagation so it doesn't
+  // trigger the bar's whole-sentence speak.
+  tap(event) {
       if(!this.get('editingEnabled')) { return; } // let the click bubble → speak
       if(event) { event.stopPropagation(); event.preventDefault(); }
       if(this.get('swapActive')) {
@@ -49,21 +48,24 @@ export default Component.extend({
       } else {
         this._fire('onSelect', this.get('index'));
       }
-    },
-    remove(event) {
+  },
+
+  remove(event) {
       if(event) { event.stopPropagation(); event.preventDefault(); }
       this._fire('onRemove', this.get('index'));
-    },
-    move(direction, event) {
+  },
+
+  move(direction, event) {
       if(event) { event.stopPropagation(); event.preventDefault(); }
       this._fire('onMove', this.get('index'), direction);
-    },
-    toggleSwap(event) {
+  },
+
+  toggleSwap(event) {
       if(event) { event.stopPropagation(); event.preventDefault(); }
       this._fire('onToggleSwap', this.get('index'));
-    },
+  },
 
-    keydown(event) {
+  handleKeydown(event) {
       if(!this.get('editingEnabled')) { return; }
       // Keydown on a tool button (✕ / ‹ / › / ⇄) bubbles up to this chip-level
       // handler; let the button's own click handle it and don't double-fire the
@@ -91,10 +93,11 @@ export default Component.extend({
         event.stopPropagation(); event.preventDefault();
         this._fire('onToggleSwap', this.get('index'));
       }
-    },
+  },
 
-    // ----- Native HTML5 drag-and-drop (pointer-only reorder) -----
-    dragStart(event) {
+  // ----- Native HTML5 drag-and-drop (pointer-only reorder) -----
+  // Method names must not match DOM event names on tagless components (tagName: '').
+  handleDragStart(event) {
       if(!this.get('editingEnabled') || this.get('swapActive')) {
         if(event) { event.preventDefault(); }
         return;
@@ -104,27 +107,30 @@ export default Component.extend({
         event.dataTransfer.setData('text/plain', String(this.get('index')));
       } catch(e) { /* some browsers restrict dataTransfer */ }
       this.set('dragging', true);
-    },
-    dragOver(event) {
+  },
+
+  handleDragOver(event) {
       if(!this.get('editingEnabled') || this.get('swapActive')) { return; }
       event.preventDefault();              // required to allow a drop
       try { event.dataTransfer.dropEffect = 'move'; } catch(e) { /* noop */ }
       this.set('drag_over', true);
-    },
-    dragLeave() {
+  },
+
+  handleDragLeave() {
       this.set('drag_over', false);
-    },
-    drop(event) {
+  },
+
+  handleDrop(event) {
       this.set('drag_over', false);
       if(!this.get('editingEnabled') || this.get('swapActive')) { return; }
       event.preventDefault(); event.stopPropagation();
       var from = parseInt(event.dataTransfer.getData('text/plain'), 10);
       var to = this.get('index');
       if(isFinite(from) && from !== to) { this._fire('onDragMove', from, to); }
-    },
-    dragEnd() {
-      this.set('dragging', false);
-      this.set('drag_over', false);
-    }
+  },
+
+  handleDragEnd() {
+    this.set('dragging', false);
+    this.set('drag_over', false);
   }
 });
