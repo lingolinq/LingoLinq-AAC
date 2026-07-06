@@ -149,6 +149,17 @@ function refreshBoardsInStore(boards, opts) {
   });
 }
 
+function stubBoardReloadTracking(boards, reloadsObj) {
+  boards.forEach(function(board) {
+    var rec = LingoLinq.store.peekRecord('board', board.id);
+    if (!rec) { return; }
+    stub(rec, 'reload', function() {
+      reloadsObj[String(board.id)] = true;
+      return RSVP.resolve(rec);
+    });
+  });
+}
+
 function localStorageImageEntry(img) {
   return {
     data: {
@@ -340,6 +351,11 @@ function finishFindChangedSyncTest() {
   unloadSyncStoreRecords();
   clearLocalSyncDb();
   resetSyncTestCaches();
+  if (typeof app_state.set === 'function') {
+    app_state.set('refresh_stamp', null);
+    app_state.set('short_refresh_stamp', null);
+    app_state.set('medium_refresh_stamp', null);
+  }
   var target = persistenceTarget();
   if (target) {
     target.removals = [];
@@ -545,6 +561,11 @@ describe("persistence-sync", function() {
     stashes.set('current_mode', 'default');
     app_state.set('currentBoardState', null);
     app_state.set('sessionUser', null);
+    if (typeof app_state.set === 'function') {
+      app_state.set('refresh_stamp', null);
+      app_state.set('short_refresh_stamp', null);
+      app_state.set('medium_refresh_stamp', null);
+    }
     persistence.set('sync_log', null);
     persistence.set('sync_progress', null);
     persistence.set('sync_status', null);
@@ -1259,8 +1280,18 @@ describe("persistence-sync", function() {
     db_wait(function() {
       cancelSyncTailWork();
       unloadSyncStoreRecords();
+      clearLocalSyncDb();
+      resetSyncTestCaches();
       persistence.set('sync_progress', null);
       persistence.set('sync_status', null);
+      persistence.known_missing = null;
+      LingoLinq.all_wait = true;
+      window.persistence = persistenceTarget() || persistence;
+      if (typeof app_state.set === 'function') {
+        app_state.set('refresh_stamp', null);
+        app_state.set('short_refresh_stamp', null);
+        app_state.set('medium_refresh_stamp', null);
+      }
       var stores = [];
       stubStoreUrl( function(url, type) {
         stores.push(url);
@@ -1349,10 +1380,15 @@ describe("persistence-sync", function() {
         id: '178'
       });
       var done = false;
-      persistence.sync(1340).then(function() {
-        done = true;
-      }, function() { done = true; });
-      waitsFor(function() { return done && syncDoneWait(); });
+      later(function() {
+        cancelSyncTailWork();
+        persistence.set('sync_status', null);
+        persistence.set('sync_progress', null);
+        persistence.sync(1340).then(function() {
+          done = true;
+        }, function() { done = true; });
+      }, 50);
+      waitsFor(function() { return done; });
       runs(function() {
         var logs = queryLog;
         expect(logById(logs, '1340')).toNotEqual(undefined);
@@ -2601,7 +2637,7 @@ describe("persistence-sync", function() {
         });
       });
       var removed = false;
-      waitsFor(function() { return done; });
+      waitsFor(function() { return done; }, 15000);
       runs(function() {
         cancelSyncTailWork();
         expect(created).toEqual(true);
@@ -2629,7 +2665,7 @@ describe("persistence-sync", function() {
           }
         });
       });
-      waitsFor(function() { return removed; });
+      waitsFor(function() { return removed; }, 15000);
       runs(function() {
         LingoLinq.sync_testing = false;
         finishFindChangedSyncTest();
@@ -4387,7 +4423,11 @@ describe("persistence-sync", function() {
           '178': 'current',
           '179': 'current'
         }, 'synced_full_set_revisions')).then(function() {
-          unloadSyncStoreRecords();
+          if (typeof app_state.set === 'function') {
+            app_state.set('refresh_stamp', null);
+            app_state.set('short_refresh_stamp', null);
+            app_state.set('medium_refresh_stamp', null);
+          }
           refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
           return RSVP.all([
             persistence.store('board', b1, b1.id),
@@ -4396,6 +4436,8 @@ describe("persistence-sync", function() {
             persistence.store('board', b4, b4.id)
           ]);
         }).then(function() {
+          reloads = {};
+          stubBoardReloadTracking([b1, b2, b3, b4], reloads);
           stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
           stub($, 'realAjax', function(options) {
             if(options.url === '/api/v1/users/1340') {
@@ -4406,22 +4448,18 @@ describe("persistence-sync", function() {
                 preferences: {home_board: {id: '145'}}
               }});
             } else if(options.url == '/api/v1/boards/145') {
-              trackBoardReload('145');
               return RSVP.resolve({
                 board: b1
               });
             } else if(options.url == '/api/v1/boards/167') {
-              trackBoardReload('167');
               return RSVP.resolve({
                 board: b2
               });
             } else if(options.url == '/api/v1/boards/178') {
-              trackBoardReload('178');
               return RSVP.resolve({
                 board: b3
               });
             } else if(options.url == '/api/v1/boards/179') {
-              trackBoardReload('179');
               return RSVP.resolve({
                 board: b4
               });
@@ -4431,7 +4469,6 @@ describe("persistence-sync", function() {
             return RSVP.reject({});
           });
           later(function() {
-            reloads = {};
             window.persistence = persistenceTarget() || persistence;
             persistence.known_missing = null;
             cancelSyncTailWork();

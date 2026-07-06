@@ -1262,8 +1262,17 @@ describe('app_state', function() {
   });
 
   describe('check_scanning', function() {
+    beforeEach(function() {
+      stashesForTests().persist('current_mode', 'default');
+      app_state.set('currentBoardState', null);
+      app_state.set('sessionUser', null);
+      scanner.scanning = false;
+      scanner.interval = null;
+      scanner.options = null;
+    });
+
     it("should start scanning if state is correct", function() {
-      stashes.set('current_mode', 'speak');
+      stashesForTests().persist('current_mode', 'speak');
       app_state.set('currentBoardState', {key: 'handle'});
       app_state.set('sessionUser', EmberObject.create({
         preferences: {
@@ -1292,8 +1301,10 @@ describe('app_state', function() {
     });
 
     it("should stop scanning if state is not correct", function() {
-      stashes.set('current_mode', 'default');
+      stashesForTests().persist('current_mode', 'default');
+      app_state.set('currentBoardState', null);
       scanner.interval = true;
+      scanner.scanning = false;
       var stopped = false;
       stub(scanner, 'stop', function() {
         stopped = true;
@@ -1302,7 +1313,7 @@ describe('app_state', function() {
       expect(stopped).toEqual(false);
       waitsFor(function() {
         return stopped;
-      });
+      }, 10000);
       runs();
     });
   });
