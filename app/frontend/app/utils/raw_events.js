@@ -159,6 +159,18 @@ function resolveBoardDetailChromeAction(dom) {
     }
   }
 
+  // Edit-mode right settings panel: section toggles use {{on}} + ctrlAction but
+  // lack data-bd-action on the <button> (only data-section on the icon).
+  // Touch/dwell must route through boardDetailChromeRelease — see LEARNINGS.md.
+  var rightSectionToggle = dom.closest('.md-board-edit-right-panel__section-toggle');
+  if (rightSectionToggle && !rightSectionToggle.disabled) {
+    var sectionIcon = rightSectionToggle.querySelector('[data-section]');
+    var sectionId = sectionIcon && sectionIcon.getAttribute('data-section');
+    if (sectionId) {
+      return { controller: 'board', action: 'toggle_right_panel_section', args: [sectionId] };
+    }
+  }
+
   return null;
 }
 
@@ -1649,9 +1661,15 @@ var buttonTracker = EmberObject.extend({
         !elem_wrap.dom.closest('.modal-dialog, .modal-content, .modal') &&
         !buttonTracker.board_detail_grid_target(elem_wrap);
       if(isChromeRelease) {
-        event.preventDefault();
-        if(!boardDetailChromeRelease(elem_wrap)) {
-          dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+        var deferEditChromeClick = buttonTracker.defer_board_detail_chrome_click_to_ember(elem_wrap, event_source);
+        if(deferEditChromeClick) {
+          // Mouse in edit mode: Ember {{on}} (this.ctrlAction) is authoritative
+          // after the Ember 5 codemod — same as speak-mode chrome defer.
+        } else {
+          event.preventDefault();
+          if(!boardDetailChromeRelease(elem_wrap)) {
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+          }
         }
       } else {
       var isButton = (elem_wrap && elem_wrap.dom) && (
@@ -2675,7 +2693,8 @@ var buttonTracker = EmberObject.extend({
   },
   defer_board_detail_chrome_click_to_ember: function(elem, source) {
     if(source !== 'click') { return false; }
-    if(!buttonTracker.appState || !buttonTracker.appState.get('speak_mode')) { return false; }
+    if(!buttonTracker.appState) { return false; }
+    if(!buttonTracker.appState.get('speak_mode') && !buttonTracker.appState.get('edit_mode')) { return false; }
     if(!elem || !elem.dom) { return false; }
     if(buttonTracker.board_detail_grid_target(elem)) { return false; }
     if(!elem.dom.closest || !elem.dom.closest('.board-detail-view')) { return false; }

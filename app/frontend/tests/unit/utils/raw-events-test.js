@@ -298,6 +298,51 @@ module('Unit | Utility | raw-events', function(hooks) {
     if(wrap.parentNode) { wrap.parentNode.removeChild(wrap); }
   });
 
+  test('resolve_board_detail_chrome_action maps edit right panel section toggles', function(assert) {
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'md-board-edit-right-panel__section-toggle';
+    var icon = document.createElement('span');
+    icon.className = 'md-board-edit-right-panel__section-icon';
+    icon.setAttribute('data-section', 'paint-tool');
+    toggle.appendChild(icon);
+    document.body.appendChild(toggle);
+
+    var resolved = buttonTracker.resolve_board_detail_chrome_action(icon);
+    assert.ok(resolved);
+    assert.equal(resolved.action, 'toggle_right_panel_section');
+    assert.deepEqual(resolved.args, ['paint-tool']);
+    assert.equal(resolved.controller, 'board');
+
+    if(toggle.parentNode) { toggle.parentNode.removeChild(toggle); }
+  });
+
+  test('defer_board_detail_chrome_click_to_ember defers edit-mode panel mouse clicks', function(assert) {
+    var view = document.createElement('div');
+    view.className = 'board-detail-view';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'md-board-edit-right-panel__collapse-btn';
+    btn.setAttribute('data-bd-action', 'toggle_right_panel');
+    view.appendChild(btn);
+    document.body.appendChild(view);
+
+    buttonTracker.appState = {
+      get: function(key) { return key === 'edit_mode'; }
+    };
+    buttonTracker.lastReleaseEvent = { type: 'mouseup' };
+
+    assert.ok(buttonTracker.defer_board_detail_chrome_click_to_ember({ dom: btn }, 'click'));
+
+    buttonTracker.lastReleaseEvent = { type: 'touchend' };
+    assert.notOk(buttonTracker.defer_board_detail_chrome_click_to_ember({ dom: btn }, 'click'),
+      'touch release must still use boardDetailChromeRelease');
+
+    if(view.parentNode) { view.parentNode.removeChild(view); }
+    delete buttonTracker.appState;
+    delete buttonTracker.lastReleaseEvent;
+  });
+
   test('resolve_board_detail_grid_edit_action maps inline edit toolbar clicks', function(assert) {
     var grid = document.createElement('div');
     grid.className = 'md-board-detail-grid';
