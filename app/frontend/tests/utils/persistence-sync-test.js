@@ -1654,6 +1654,7 @@ describe("persistence-sync", function() {
         image_url: 'http://example.com/board.png',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -1667,6 +1668,7 @@ describe("persistence-sync", function() {
         id: '167',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -4070,6 +4072,7 @@ describe("persistence-sync", function() {
         image_url: 'http://example.com/board.png',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -4083,6 +4086,7 @@ describe("persistence-sync", function() {
         id: '167',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -4098,6 +4102,7 @@ describe("persistence-sync", function() {
         id: '178',
         full_set_revision: 'current',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -4114,6 +4119,7 @@ describe("persistence-sync", function() {
         id: '179',
         full_set_revision: 'whatever',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2'}
@@ -4168,6 +4174,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
+        refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
@@ -4193,14 +4200,23 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b4
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-        persistence.sync(1340).then(function() {
-          done = true;
-        }, function() { done = true; });
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = null;
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() { done = true; });
+        }, 50);
       });
-      waitsFor(function() { return done && syncDoneWait(); });
+      waitsFor(function() { return done; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         cancelSyncTailWork();
@@ -4234,6 +4250,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'not_current',
         permissions: {},
         current_revision: 'current',
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -4248,6 +4265,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'not_current',
         permissions: {},
         current_revision: 'current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -4264,6 +4282,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'current',
         permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -4281,6 +4300,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'whatever',
         permissions: {},
         current_revision: 'current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2'}
@@ -4412,7 +4432,12 @@ describe("persistence-sync", function() {
   it("should try to download boards that don't match the fresh revision from board_revisions, even if they otherwise seem ok", function() {
     db_wait(function() {
       primeBoardRevisionsSyncHarness();
+      persistence.known_missing = {};
       var revisions_called = false;
+      var reloads = {};
+      var trackBoardReload = function(boardId) {
+        reloads[String(boardId)] = true;
+      };
       chainPersistenceAjax(function(url, opts) {
         if (url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
@@ -4437,6 +4462,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'not_current',
         permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -4451,6 +4477,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'not_current',
         permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -4467,6 +4494,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'current',
         permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -4484,6 +4512,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'whatever',
         permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2'}
@@ -4529,7 +4558,6 @@ describe("persistence-sync", function() {
       });
 
       var done = false;
-      var reloads = {};
       waitsFor(function() { return stored; });
       runs(function() {
         LingoLinq.all_wait = true;
@@ -4539,6 +4567,7 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
+        refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
@@ -4549,33 +4578,42 @@ describe("persistence-sync", function() {
               preferences: {home_board: {id: '145'}}
             }});
           } else if(options.url == '/api/v1/boards/145') {
-            reloads['145'] = true;
+            trackBoardReload('145');
             return RSVP.resolve({
               board: b1
             });
           } else if(options.url == '/api/v1/boards/167') {
-            reloads['167'] = true;
+            trackBoardReload('167');
             return RSVP.resolve({
               board: b2
             });
           } else if(options.url == '/api/v1/boards/178') {
-            reloads['178'] = true;
+            trackBoardReload('178');
             return RSVP.resolve({
               board: b3
             });
           } else if(options.url == '/api/v1/boards/179') {
-            reloads['179'] = true;
+            trackBoardReload('179');
             return RSVP.resolve({
               board: b4
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-        persistence.sync(1340).then(function() {
-          done = true;
-        }, function() { done = true; });
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = null;
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() { done = true; });
+        }, 50);
       });
-      waitsFor(function() { return done && syncDoneWait(); });
+      waitsFor(function() { return done; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads).toEqual({

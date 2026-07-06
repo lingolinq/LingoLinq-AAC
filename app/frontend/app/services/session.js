@@ -493,6 +493,9 @@ export default Service.extend({
       var any_proof_of_existing_login = Object.keys(store_data).length > 0;
       any_proof_of_existing_login = any_proof_of_existing_login || this.stashes.fs_user_name || (window.kvstash && window.kvstash.values && window.kvstash.user_name);
       var do_it = function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
         if(any_proof_of_existing_login) {
           _this.force_logout(i18n.t('session_lost', "Session data has been lost, please log back in"));
         } else {
@@ -503,6 +506,9 @@ export default Service.extend({
          do_it();
       } else {
         this.stashes.get_db_id(capabilities).then(function(obj) {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           any_proof_of_existing_login = any_proof_of_existing_login || obj.db_id;
           do_it();
         });
@@ -594,6 +600,9 @@ export default Service.extend({
 
   invalidate: function(force) {
     var _this = this;
+    if (this.isDestroyed || this.isDestroying) {
+      return;
+    }
     var full_invalidate = force || !!(this.appState.get('currentUser') || this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback());
     if(full_invalidate) {
       if(window.navigator.splashscreen) {

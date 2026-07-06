@@ -1002,7 +1002,7 @@ describe('pictureGrabber', function() {
 
   describe("protected_search", function() {
     it('should make the correct query', function() {
-      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      var u = LingoLinq.store.createRecord('user', { protected_image_token: 'token'});
       LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
@@ -1040,7 +1040,7 @@ describe('pictureGrabber', function() {
     });
 
     it('should include user_name if defined', function() {
-      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      var u = LingoLinq.store.createRecord('user', { protected_image_token: 'token'});
       LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
