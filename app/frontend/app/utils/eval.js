@@ -31,7 +31,11 @@ var svg_data_uri = function(svg) { return 'data:image/svg+xml,' + encodeURICompo
 var EVAL_NAV_ICON = {
   prev: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#1B365D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 12H5'/><path d='M12 19l-7-7 7-7'/></svg>"),
   next: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#1B365D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h15'/><path d='M12 5l7 7-7 7'/></svg>"),
-  done: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='#2A9D8F'/><path d='M7 12.6l3.2 3.2L17 9' fill='none' stroke='#ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+  done: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='#2A9D8F'/><path d='M7 12.6l3.2 3.2L17 9' fill='none' stroke='#ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/></svg>"),
+  // Elegant "achievement complete" mark for the eval "Done!" screen: a laurel
+  // wreath framing a verdigris medallion with a gold star (award motif, brand
+  // palette) — professional rather than playful.
+  celebration: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' fill='none'><path d='M35 92 C22 78 22 52 34 36' stroke='#3c5a86' stroke-width='2.5' stroke-linecap='round'/><path d='M85 92 C98 78 98 52 86 36' stroke='#3c5a86' stroke-width='2.5' stroke-linecap='round'/><g fill='#3c5a86'><ellipse cx='29' cy='82' rx='7' ry='3.2' transform='rotate(-52 29 82)'/><ellipse cx='24' cy='70' rx='7.5' ry='3.4' transform='rotate(-28 24 70)'/><ellipse cx='24' cy='57' rx='7.5' ry='3.4' transform='rotate(-6 24 57)'/><ellipse cx='28' cy='45' rx='7' ry='3.2' transform='rotate(20 28 45)'/><ellipse cx='91' cy='82' rx='7' ry='3.2' transform='rotate(52 91 82)'/><ellipse cx='96' cy='70' rx='7.5' ry='3.4' transform='rotate(28 96 70)'/><ellipse cx='96' cy='57' rx='7.5' ry='3.4' transform='rotate(6 96 57)'/><ellipse cx='92' cy='45' rx='7' ry='3.2' transform='rotate(-20 92 45)'/></g><circle cx='60' cy='56' r='23' fill='#2A9D8F'/><path d='M60 41 L64.1 50.3 74.3 51.4 66.7 58.2 68.8 68.1 60 63 51.2 68.1 53.3 58.2 45.7 51.4 55.9 50.3 Z' fill='#f2c230'/></svg>")
 };
 
 var evaluation = {
@@ -420,9 +424,17 @@ var evaluation = {
     evaluation.appState.set_history([]);
   },
   analyze: function(assessment) {
-    if(!assessment || !assessment.mastery_cutoff) {
+    if(!assessment) {
       return {};
     }
+    // Don't bail on a missing cutoff — an assessment saved without the adaptive
+    // cutoffs (resume/deep-link path that never hit the 'start' init) would
+    // otherwise produce a completely blank results page (0 hits, N/A mastery,
+    // empty grid). Default them from the module constants so the report renders.
+    assessment.mastery_cutoff = assessment.mastery_cutoff || mastery_cutoff;
+    assessment.non_mastery_cutoff = assessment.non_mastery_cutoff || non_mastery_cutoff;
+    assessment.attempt_minimum = assessment.attempt_minimum || attempt_minimum;
+    assessment.attempt_maximum = assessment.attempt_maximum || attempt_maximum;
     var res = Object.assign({}, assessment);
     res.label = assessment.name || "Unnamed Eval";
     res.total_time = 0;
@@ -823,14 +835,10 @@ var evaluation = {
         label: "save",
         id: 'button_save',
         skip_vocalization: true,
-        image: {url: words.find(function(w) { return w.label == 'done'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.done},
       }, 0, 5);
-      board.add_button({
-        label: 'settings',
-        id: 'button_settings',
-        skip_vocalization: true,
-        image: {url: words.find(function(w) { return w.label == 'think'; }).urls['default']},
-      }, 0, 0);
+      // (Removed the board settings button here: it duplicated the inner-header
+      // gear #eval_open_settings, which fires the same evaluation.settings().)
     } else {
       board.add_button({
         label: step.intro.match(/intro/) ? 'next' : 'start',
@@ -1191,6 +1199,18 @@ evaluation.callback = function(key) {
     res.json = board.to_json();
     return res;
   }
+  // Advancement (see ~l.2077) gates entirely on these assessment.* cutoffs, but
+  // they're only assigned in the `opts[1] == 'start'` branch above. A resume /
+  // deep-link (eval-<level>-<step>) or a re-entry after a page refresh (module
+  // reload resets `assessment` to {}) leaves them undefined, so every advancement
+  // comparison is `>= undefined` (false) and the eval can NEVER advance — it just
+  // repeats the current step. Default them from the module constants on every
+  // board build (no-op on 'start', which already set them) so any entry path can
+  // advance.
+  assessment.mastery_cutoff = assessment.mastery_cutoff || mastery_cutoff;
+  assessment.non_mastery_cutoff = assessment.non_mastery_cutoff || non_mastery_cutoff;
+  assessment.attempt_minimum = assessment.attempt_minimum || attempt_minimum;
+  assessment.attempt_maximum = assessment.attempt_maximum || attempt_maximum;
   if(!assessment.populated) {
     evaluation.populate_assessment(assessment);
   }
@@ -2639,7 +2659,11 @@ var functional_associations = {
   shovel: {prompt: "a shovel", answer: "dig"},
   eye: {prompt: "your eyes", answer: "see"},
   nose: {prompt: "your nose", answer: "smell"},
-  hands: {prompt: "your hands", answer: "clap"},
+  // Nearly every action in this pool is done WITH your hands, so exclude the
+  // hand-actions as distractors — otherwise "What do you do with your hands?"
+  // has several defensible answers (pop/wash/write/...). Leaves clearly non-hand
+  // distractors (sleep, eat, race, fly, see, smell) so "clap" is unambiguous.
+  hands: {prompt: "your hands", answer: "clap", exclude: {write: true, drink: true, drive: true, push: true, pop: true, wash: true, dig: true, cut: true, fold: true}},
   scissors: {prompt: "scissors", answer: "cut"},
   laundry: {prompt: "laundry", answer: "fold", exclude: {clothing: true, sleep: true}},
 };
@@ -2892,8 +2916,22 @@ var words = [
   {label: 'dinner', group: 'food', urls: {photos: "", lessonpix: "", pcs_hc: "", pcs: "", twemoji: "", default: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/food.png"}},
   {label: 'sleep', group: 'sleep', urls: {photos: "", lessonpix: "", pcs_hc: "", pcs: "", twemoji: "", default: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20sleep_2.png"}},
   {label: 'done', type: 'filler', urls: {photos: "", lessonpix: "", pcs_hc: "", pcs: "", twemoji: "", default: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/2705.svg"}},
-  {label: 'backgrounds', type: 'filler', urls: {intro: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20enter_1.png", intro2: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/service_235_g.svg", find_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Magnifying-Glass_918_708000.svg", diff_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/choose.png", symbols: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f5bc.svg", find_shown: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/point.png", open_ended: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/tell.png", categories: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/living%20thing.png", inclusion_exclusion_association: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/groups.png", literacy: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20read_2.png", done: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f389.svg"}},
+  {label: 'backgrounds', type: 'filler', urls: {intro: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20enter_1.png", intro2: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/service_235_g.svg", find_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Magnifying-Glass_918_708000.svg", diff_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/choose.png", symbols: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f5bc.svg", find_shown: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/point.png", open_ended: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/tell.png", categories: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/living%20thing.png", inclusion_exclusion_association: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/groups.png", literacy: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20read_2.png", done: EVAL_NAV_ICON.celebration}},
 ];
+// Color words shipped a /photos/<color>.jpg that is a SCENE which happens to be
+// that color (e.g. a gray landscape), so the picture reads as the scene, not the
+// color — confusing for "which group does <color> belong to" and "find the gray
+// one". Replace each color word's image with a solid color swatch so the color
+// concept itself is shown, everywhere the word appears as a prompt or option.
+var COLOR_SWATCH_HEX = {
+  red: '#e23b3b', yellow: '#f2c230', blue: '#2f74d0', gray: '#8d9094',
+  green: '#3fae52', purple: '#8a4fbf', pink: '#ef78ad', brown: '#8a5a34'
+};
+words.forEach(function(w) {
+  if(w && w.category == 'color' && COLOR_SWATCH_HEX[w.label] && w.urls) {
+    w.urls.photos = svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='" + COLOR_SWATCH_HEX[w.label] + "' stroke='#1B365D' stroke-width='4'/></svg>");
+  }
+});
 evaluation.words = words;
 
 evaluation.level_prompt = function(step) {

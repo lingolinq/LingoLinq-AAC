@@ -5939,3 +5939,14 @@ dashboard" flow: set `referenced_user` and the whole edit routes to that user, n
   old wizard even with `home_tour` enabled. (b) `progress.setup_done` is written ONLY by the wizard
   (`getting-started.js:75`) and read only by setup/dashboard/`routes/index.js:104` — so repurposing
   it for "tour done" means wiring the tour's completion to set it. (2026-07-02)
+
+- Eval stuck repeating a step (no advancement): the adaptive advance decision
+  (`utils/eval.js` ~l.2077) gates entirely on `assessment.mastery_cutoff /
+  non_mastery_cutoff / attempt_minimum / attempt_maximum`. Those are assigned
+  ONLY in the `opts[1] == 'start'` branch (~l.1159); `populate_assessment`
+  (~l.2318) sets device prefs + `populated=true` but NOT the cutoffs. So a
+  resume/deep-link (`eval-<level>-<step>`) or a re-entry after a page refresh
+  (module reload resets `assessment = {}`) leaves them undefined, every
+  comparison is `>= undefined` (false), and `next_step` never fires. Fix:
+  default the four cutoffs from the module constants on every board build
+  (no-op on 'start'). Not dev-only — any real resume hits it. (2026-07-06)
