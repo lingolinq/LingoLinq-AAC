@@ -5,15 +5,16 @@
 
 **Audited:** `scot/security/audit-erasure-admin-reads` @ `445336592ddaf838689df7e578829e94e140890d` on 2026-06-19  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 4 High
+**Headline (open + remediated-unverified):** 0 Critical / 5 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (45)
+## Open (46)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
 | LL-7f7372e3eb |  | high | SOC2, HIPAA | **accepted** | audit-review | Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited | `bin/audit_console`:7 |
+| LL-9a09771121 |  | high | SOC2 | untriaged | audit-run | Render production (branch main) still hand-signs S3 POST policies with SigV2; every upload to the SSE-KMS uploads bucket fails and silently degrades to DB-stored data URIs | `lib/uploader.rb`:291 |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | **fixed** | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
 | LL-52ff2a9a79 |  | medium | SOC2 | **accepted** | audit-run | CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking | `.github/workflows/ci.yml`:107 |
@@ -129,4 +130,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_93 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_94 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

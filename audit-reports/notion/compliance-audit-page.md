@@ -11,13 +11,13 @@
 **Audited commit:** `445336592ddaf838689df7e578829e94e140890d`  
 **Audited ref:** `scot/security/audit-erasure-admin-reads`  
 **Run date:** 2026-06-19  
-**Page generated:** 2026-07-06T00:10:24Z
+**Page generated:** 2026-07-06T03:54:31Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **4** | 24 | 20 |
+| **0** | **5** | 24 | 20 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -27,6 +27,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 |---|---|---|---|---|---|
 | LL-705b10bcd7 |  | high | SOC2 | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
 | LL-7f7372e3eb |  | high | SOC2, HIPAA | Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited | `bin/audit_console`:7 |
+| LL-9a09771121 |  | high | SOC2 | Render production (branch main) still hand-signs S3 POST policies with SigV2; every upload to the SSE-KMS uploads bucket fails and silently degrades to DB-stored data URIs | `lib/uploader.rb`:291 |
 | LL-a95e9c5f7c |  | high | SOC2 | lingolinq-worker's 512Mi memory limit is too small for ButtonImage/BoardDownstreamButtonSet jobs, causing continuous OOM kills that land as Resque::Failure instead of being requeued | (attestation) |
 | LL-6619cc1811 | Infra-P1-1 | high | HIPAA | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-0c6e931f47 |  | medium | WCAG | Sentence box (utterance bar) symbol chip images have no alt attribute | `app/frontend/app/templates/components/button-list.hbs`:21 |
