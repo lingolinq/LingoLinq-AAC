@@ -359,6 +359,59 @@ describe Uploader do
     end
   end
 
+  describe "signed_internal_url" do
+    let(:uploads_bucket) { 'spec-uploads' }
+    let(:remote_config) do
+      {
+        upload_url: 'https://spec-uploads.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: uploads_bucket
+      }
+    end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
+    let(:presigner) { instance_double(Aws::S3::Presigner) }
+
+    before do
+      @orig_uploads_s3_bucket = ENV['UPLOADS_S3_BUCKET']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(Aws::S3::Presigner).to receive(:new).with(client: s3_client).and_return(presigner)
+    end
+
+    after do
+      if @orig_uploads_s3_bucket.nil?
+        ENV.delete('UPLOADS_S3_BUCKET')
+      else
+        ENV['UPLOADS_S3_BUCKET'] = @orig_uploads_s3_bucket
+      end
+    end
+
+    it "should presign virtual-hosted and path-style uploads-bucket urls without a head_object check" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).exactly(2).times.with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: 'extras/foo.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json")).to eq('signed-url')
+      expect(Uploader.signed_internal_url("https://s3.amazonaws.com/#{uploads_bucket}/extras/foo.json")).to eq('signed-url')
+    end
+
+    it "should pass through non-bucket urls untouched" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      expect(Uploader.signed_internal_url("https://example.com/pic.png")).to eq("https://example.com/pic.png")
+      expect(Uploader.signed_internal_url("https://cdn.example.com/extras/foo.json")).to eq("https://cdn.example.com/extras/foo.json")
+      expect(Uploader.signed_internal_url(nil)).to eq(nil)
+    end
+
+    it "should return the original url when credentials are missing or signing fails" do
+      allow(Uploader).to receive(:remote_upload_config).and_return({})
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+  end
+
   describe "valid_remote_url?" do
     it "should return true only for known URLs" do
       uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'

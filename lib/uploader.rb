@@ -289,7 +289,32 @@ module Uploader
   rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
     nil
   end
-  
+
+  # Rewrites an uploads-bucket URL to a presigned GET for server-internal HTTP
+  # fetches (extra_data reassembly, OBF export image embedding). The bucket
+  # blocks all public access, so an unsigned GET on the raw URL 403s. Unlike
+  # presigned_url_for_uploads there is no head_object existence check (the
+  # caller already tolerates fetch failure), and any non-bucket URL (CDN,
+  # external, data:) passes through untouched.
+  def self.signed_internal_url(url)
+    remote_path = nil
+    bucket = ENV['UPLOADS_S3_BUCKET']
+    if bucket.present? && url.present?
+      if url.match(/^https:\/\/#{bucket}\.s3\.amazonaws\.com\//)
+        remote_path = url.sub(/^https:\/\/#{bucket}\.s3\.amazonaws\.com\//, '')
+      elsif url.match(/^https:\/\/s3\.amazonaws\.com\/#{bucket}\//)
+        remote_path = url.sub(/^https:\/\/s3\.amazonaws\.com\/#{bucket}\//, '')
+      end
+    end
+    return url unless remote_path
+
+    config = remote_upload_config
+    return url unless config[:access_key] && config[:secret]
+    presigned_get_url(s3_client(config), bucket, remote_path)
+  rescue Aws::S3::Errors::ServiceError
+    url
+  end
+
   # SigV4-signed browser POST policy (via Aws::S3::PresignedPost). A hand-signed
   # SigV2 policy (AWSAccessKeyId + HMAC-SHA1) can't satisfy buckets that require
   # SSE-KMS ("Requests specifying Server Side Encryption with AWS KMS managed
