@@ -684,6 +684,9 @@ afterEach(function() {
   if (isStashesTestModule(moduleName) || isGeoTestModule(moduleName)) {
     teardownStashesGeoTestHarness();
   }
+  if (isGrabberTestModule(moduleName)) {
+    teardownGrabberTestHarness();
+  }
   capabilities.setup_database.already_tried = false;
   capabilities.setup_database.already_tried_deleting = false;
   capabilities.setup_database.already_tried_deleting_all = false;
@@ -1082,6 +1085,17 @@ function setupGrabberTestHarness() {
   if (LingoLinq.testOwner) {
     primeAllServices(LingoLinq.testOwner);
   }
+  LingoLinq.sync_testing = true;
+  if (!LingoLinq._grabberHarnessPermissions) {
+    stub(capabilities.permissions, 'assert', function() {
+      return RSVP.resolve();
+    });
+    LingoLinq._grabberHarnessPermissions = true;
+  }
+}
+
+function teardownGrabberTestHarness() {
+  LingoLinq.sync_testing = false;
 }
 
 function stubModalSafe(owner) {
@@ -1130,4 +1144,4 @@ function boardModelStub(attrs) {
   }, attrs || {}));
 }
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, fakeBlob, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, setupStashesGeoTestHarness, teardownStashesGeoTestHarness, setupGeoTestHarness, setupGrabberTestHarness, ensureUserReload, persistenceTarget, stashesTarget, appStateTarget, stubNavigatorGetUserMedia };
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, fakeBlob, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, setupStashesGeoTestHarness, teardownStashesGeoTestHarness, setupGeoTestHarness, setupGrabberTestHarness, teardownGrabberTestHarness, ensureUserReload, persistenceTarget, stashesTarget, appStateTarget, stubNavigatorGetUserMedia };
