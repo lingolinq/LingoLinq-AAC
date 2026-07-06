@@ -164,9 +164,9 @@ This table covers every MCP (Model Context Protocol) server used in the developm
 ### Architecture Overview
 
 ```
-User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  Anthropic Claude API (Haiku 4.5)
+User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  Anthropic Claude / Google Gemini API
                       |                                         |
-                      |                                    De-identified
+                      |                                    Pseudonymized
                       |                                    data only
                       v
               PostgreSQL (user data)
@@ -182,7 +182,7 @@ All data leaving the Rails application passes through a centralized de-identific
 This module is responsible for:
 
 1. **Stripping direct identifiers**: Removes names, emails, SSO subject IDs, and any other directly identifying fields before data is sent to any AI API.
-2. **Replacing with opaque tokens**: Where context requires a notion of "this user" vs. "that user" (e.g., for usage-pattern analysis), the scrubber replaces real IDs with opaque, non-reversible tokens (SHA-256 hash with a rotating salt).
+2. **Replacing with fixed placeholders**: Where context requires a notion of "this user" vs. "that user" (e.g., for usage-pattern analysis), the scrubber replaces identity references with fixed non-identifying placeholders (e.g., `[REDACTED_ID]`, and `[PERSON_1]`/`[PERSON_2]` where two people must be distinguished) — not reversible tokens or hashes.
 3. **Scrubbing board content**: Family names that appear in board labels or custom vocabulary are detected and replaced with generic placeholders (e.g., "[FAMILY_NAME]") before any content-based prediction request.
 4. **Audit logging**: Every scrub operation is logged (what was removed, which AI API call it was for, timestamp) without recording the original PII values.
 
@@ -220,7 +220,7 @@ These rules are **non-negotiable**. Any violation is treated as a security incid
 
 | #  | Rule                                                              | Rationale                                                        |
 |----|-------------------------------------------------------------------|------------------------------------------------------------------|
-| N1 | **NEVER** send user-identifiable data to any AI API.              | Core privacy guarantee. PII scrubber must intercept all AI calls. |
+| N1 | **NEVER** send user-identifiable data to any AI API.              | Core privacy control (best-effort). PII scrubber must intercept all AI calls. |
 | N2 | **NEVER** route user data through non-BAA'd services.             | HIPAA/FERPA require subprocessor agreements for PHI/education records. |
 | N3 | **NEVER** store user data in Notion, HubSpot, or Slack.           | These are business tools without BAAs; user data must stay in the protected stack. |
 | N4 | **NEVER** point any MCP at a production database.                 | MCPs are developer tools; production data access is through Rails only. |
