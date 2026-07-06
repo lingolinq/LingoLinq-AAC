@@ -1,6 +1,6 @@
 # LingoLinq AAC: Compliance & Data Governance
 
-**Last updated:** 2026-07-05
+**Last updated:** 2026-07-06
 **Owner:** Scott W.
 **Review cycle:** Annual (next review: 2027-02-21)
 
@@ -33,7 +33,7 @@ LingoLinq is an Augmentative and Alternative Communication (AAC) application. It
 - Opt-in content-based word prediction (de-identified before any ML processing)
 - SSO identity data (managed by the identity provider; LingoLinq stores only opaque tokens and display names)
 
-**Core principle: AI models never receive direct user identifiers.** Before any AI API call, the Rails backend strips direct identifiers (names, emails, SSO subject IDs) and replaces user references with opaque tokens, so AI features operate on de-identified data rather than user identities. The `lib/pii_scrubber.rb` layer is the single enforcement point. De-identified user-authored content (for example board labels and sentences) is still sent to the model; free-text is scrubbed of known direct identifiers and name patterns on a best-effort basis, so this is a strong de-identification safeguard, not a guarantee and not a claim that no user-authored text ever reaches a model.
+**Core principle: AI requests are scrubbed of known direct user identifiers before egress.** Before any AI API call, the Rails backend strips known direct identifiers (names, emails, SSO subject IDs) and replaces user references with opaque tokens, so AI features operate on scrubbed data rather than user identities. The `lib/pii_scrubber.rb` layer is the single enforcement point. De-identified user-authored content (for example board labels and sentences) is still sent to the model; free-text is scrubbed of known direct identifiers and name patterns on a best-effort basis, so this is a strong de-identification safeguard, not a guarantee and not a claim that no user-authored text ever reaches a model.
 
 > **GDPR classification (aligns with `docs/legal/SUBPROCESSORS.md`).** "De-identification" here names the *technique* — stripping known direct identifiers before egress. The *output* is classified as **pseudonymized personal data** under GDPR Art. 4(5), not anonymous or out-of-scope data: because the scrubber removes only *known* direct identifiers (a best-effort safeguard, not a guarantee) and user-authored content still reaches the model, all processor obligations continue to apply. The Subprocessor Register is the authoritative statement of this classification; where this document says "de-identified content," read it as this pseudonymized-personal-data standard.
 
@@ -542,7 +542,7 @@ Full scan report: `audit-reports/security-hotfix-2026-02-22.md`
 
 | Date       | Author   | Change                                              |
 |------------|----------|-----------------------------------------------------|
-| 2026-07-05 | Scott W. | Add GDPR classification note to §6: AI-egress "de-identification" output is pseudonymized personal data (Art. 4(5)), still in scope — aligns with the corrected Subprocessor Register (PR #532). Technique framing unchanged. |
+| 2026-07-06 | Scott W. | Add GDPR classification note to §6: AI-egress "de-identification" output is pseudonymized personal data (Art. 4(5)), still in scope — aligns with the corrected Subprocessor Register (PR #532). Technique framing unchanged. |
 | 2026-04-18 | Scott W. | Record AWS BAA signed 2026-02-07; correct CSP status to "planned, not deployed"; add Render BAA pre-MVP gate framing; link `docs/legal/` BAA artifacts |
 | 2026-02-23 | Scott W. | Add accepted risk for Ember 3.28, security hotfix summary, remediation backlog |
 | 2026-02-21 | Scott W. | Initial version: full compliance framework created   |
