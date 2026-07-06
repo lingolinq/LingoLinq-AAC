@@ -1106,20 +1106,58 @@
       "lastSeen": "2026-07-06",
       "owner": "unassigned",
       "remediation": {
-        "options": "Sunset the legacy permanent-token fallback in User.find_by_protected_image_token once the new [protected_image_legacy_token] log line (app/models/user.rb) shows it's no longer hit; separately, User#user_token itself is still serialized on login and embedded in lesson-share links/iframe embeds with no expiry, which is unaddressed and may warrant its own finding.",
-        "timeframe": "90d"
+        "options": "Sunset the legacy permanent-token fallback in User.find_by_protected_image_token once the new [protected_image_legacy_token] log line (app/models/user.rb) shows it's no longer hit. The broader User#user_token exposure is tracked separately as LL-90045bb29c.",
+        "timeframe": "90d from 2026-07-06"
       },
       "closureEvidence": {
         "sha": "",
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: protected_image (users_controller.rb:869) reads params['user_token'] (:871). | NARROWED 2026-07-06 (PR #540): New protected-image URLs use 30-day signed tokens, but the endpoint still accepts legacy permanent user_token credentials for compatibility. protected_image now calls User.find_by_protected_image_token (users_controller.rb:945), which verifies a purpose-scoped, 30-day expiring signed token (User#protected_image_token, constant-time compare) and falls back, with logging, to the legacy permanent User#find_by_token format so boards/images already cached client-side (offline/IndexedDB) before the change keep resolving. Newly-generated image URLs no longer carry a permanent, non-expiring credential, but User#user_token itself is unchanged and still valid forever via login serialization, lesson-share links, and iframe embeds, and the legacy fallback still accepts it indefinitely for protected_image; remains open, narrowed rather than closed.",
+      "notes": "Verified still open 2026-06-12: protected_image (users_controller.rb:869) reads params['user_token'] (:871). | NARROWED 2026-07-06 (PR #540): New protected-image URLs use 30-day signed tokens, but the endpoint still accepts legacy permanent user_token credentials for compatibility. protected_image now calls User.find_by_protected_image_token (users_controller.rb:945), which verifies a purpose-scoped, 30-day expiring signed token (User#protected_image_token, constant-time compare) and falls back, with logging, to the legacy permanent User#find_by_token format so boards/images already cached client-side (offline/IndexedDB) before the change keep resolving. Newly-generated image URLs no longer carry a permanent, non-expiring credential, but User#user_token itself is unchanged and still valid forever via login serialization, lesson-share links, and iframe embeds, and the legacy fallback still accepts it indefinitely for protected_image; remains open, narrowed rather than closed. The broader User#user_token exposure (login serialization, lesson/board access, share URLs) is filed separately as LL-90045bb29c per adversary review of this PR.",
       "disposition": {
         "state": "accepted",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
         "rationale": "Valid privacy / data-handling gap; accepted for remediation on the compliance backlog (token-in-URL and the user-creation audit-event gap prioritized first)."
+      }
+    },
+    {
+      "id": "LL-90045bb29c",
+      "ruleKey": "permanent-user-token-broad-exposure",
+      "legacyId": "",
+      "title": "User#user_token is a permanent, non-expiring credential serialized on login and embedded in navigable lesson/board share URLs",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/json_api/user.rb",
+        "line": 41,
+        "snippet": "json['user_token'] = user.user_token",
+        "sha": "fe4fa43541772d39c26145b5ff6103aee4218c80"
+      },
+      "firstSeen": "2026-07-06",
+      "lastSeen": "2026-07-06",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "User#user_token (app/models/user.rb:2632) is a deterministic HMAC over the user's global_id with no expiry, verified in User.find_by_token (user.rb:2638) via plain string equality (not constant-time). It is serialized to every client on login (lib/json_api/user.rb:41) and accepted as a standalone auth credential at app/controllers/api/lessons_controller.rb:78,99 and app/controllers/boards_controller.rb:101, then embedded verbatim into navigable lesson-share URLs opened via window.open (app/frontend/app/controllers/organization/lessons.js:156, organization/room.js:119, user/lessons.js:48, dashboard/authenticated-view.js:1738), where it lands in browser history, Referer headers, and server access logs and grants lesson/board access forever. Options: (a) switch find_by_token's comparison to ActiveSupport::SecurityUtils.secure_compare; (b) mint a purpose-scoped, expiring token for lesson/board share links the same way PR #540 did for protected_image, retiring the permanent user_token from that role; (c) at minimum, add expiry/rotation to user_token itself. This is a distinct vector from LL-310b464be4 (protected_image), not a duplicate: it covers login serialization plus lesson/board endpoints.",
+        "timeframe": "unscheduled"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by adversary review of PR #542 (narrowing LL-310b464be4): closing that finding once the legacy protected_image fallback is sunset would otherwise orphan this broader, still-live risk from the register. Filed as its own finding per the adversary's recommendation, since Copilot's 'do not create a duplicate finding' guidance on PR #540/#542 referred to protected_image specifically, not this separate login/lesson/board vector. Untriaged; awaiting Scot's severity/disposition call.",
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
       }
     },
     {
