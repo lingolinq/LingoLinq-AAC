@@ -197,7 +197,7 @@ is **planned**, not yet built; it appears here so the consent architecture is on
   Google) receive only pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and are
   classified as receiving pseudonymized personal data, not anonymous or de-identified data
   (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). OpenAI is
-  contracted but has no active data flow as of 2026-07-05 (see the register, row 3). Render BAA
+  contracted but has no active data flow as of 2026-07-06 (see the register, row 3). Render BAA
   is pending; no new hospital tenants requiring a hosting-provider BAA are onboarded until it
   executes.
 - **AI egress.** No directly identifying student or patient data is sent to external models by
