@@ -24,10 +24,12 @@ import lingoLinqExtras from '../../utils/extras';
 import stashes from '../../utils/_stashes';
 import geo from '../../utils/geo';
 import { primeAllServices, stashesTarget, appStateTarget, persistenceTarget } from './service-stub';
+import { cancelHarnessAsyncWork } from './sync-test-cleanup';
 import modal from '../../utils/modal';
 import utterance from '../../utils/utterance';
 import Button from '../../utils/button';
 import speecher from '../../utils/speecher';
+import word_suggestions from '../../utils/word_suggestions';
 import boundClasses from '../../utils/bound_classes';
 import buttonTracker from '../../utils/raw_events';
 import ApplicationAdapter from 'frontend/adapters/application';
@@ -591,7 +593,7 @@ beforeEach(function() {
       } catch (e) { /* service mid-teardown */ }
     }
     var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
-    if (!isModalTestModule(moduleName) && this.owner) {
+    if (!isModalTestModule(moduleName) && moduleName !== 'app_state' && this.owner) {
       stubModalSafe(this.owner);
     }
     var owner = this.owner;
@@ -642,6 +644,7 @@ beforeEach(function() {
   var stashesTests = isStashesTestModule(moduleName);
   var geoTests = isGeoTestModule(moduleName);
   var grabberTests = isGrabberTestModule(moduleName);
+  var syncHeavyTests = isSyncHeavyTestModule(moduleName);
   if (modalTests) {
     setupModalTestHarness();
   } else {
@@ -670,6 +673,9 @@ beforeEach(function() {
   if (grabberTests) {
     setupGrabberTestHarness();
   }
+  if (syncHeavyTests) {
+    setupSyncHeavyTestHarness();
+  }
   boundClasses.setup(true);
 });
 
@@ -686,6 +692,9 @@ afterEach(function() {
   }
   if (isGrabberTestModule(moduleName)) {
     teardownGrabberTestHarness();
+  }
+  if (isSyncHeavyTestModule(moduleName)) {
+    teardownSyncHeavyTestHarness();
   }
   capabilities.setup_database.already_tried = false;
   capabilities.setup_database.already_tried_deleting = false;
@@ -984,10 +993,14 @@ function setupUtteranceTestHarness() {
   Button.load_actions();
   utterance.scope = window;
   utterance.setup(LingoLinq._utteranceTestController, appStateSvc, persistenceSvc, stashesSvc);
+  speecher.set('ready', true);
   utterance.set('rawButtonList', []);
   utterance.set('hint_button', null);
   utterance.set('list_vocalized', false);
   utterance.set('clear_on_vocalize', true);
+  stub(word_suggestions, 'lookup', function() {
+    return RSVP.resolve([]);
+  });
 }
 
 function teardownUtteranceTestHarness() {
@@ -997,6 +1010,7 @@ function teardownUtteranceTestHarness() {
       speecher.stop('all');
     }
   } catch (e) { /* mid-teardown */ }
+  cancelHarnessAsyncWork();
 }
 
 function isStashesTestModule(moduleName) {
@@ -1045,6 +1059,30 @@ function isGrabberTestModule(moduleName) {
   }
   var testName = current && current.testName;
   return !!(testName && /^(pictureGrabber|soundGrabber|videoGrabber|contentGrabbers)(\s|-)/.test(testName));
+}
+
+function isSyncHeavyTestModule(moduleName) {
+  var syncModules = ['app_state', 'capabilities', 'persistence-sync', 'persistence', 'word_suggestions', 'Board', 'frame_listener'];
+  if (moduleName && syncModules.indexOf(moduleName) >= 0) {
+    return true;
+  }
+  if (typeof QUnit === 'undefined' || !QUnit.config) {
+    return false;
+  }
+  var current = QUnit.config.current;
+  if (current && current.module && current.module.name && syncModules.indexOf(current.module.name) >= 0) {
+    return true;
+  }
+  var testName = current && current.testName;
+  return !!(testName && /^(app_state|capabilities|persistence-sync|persistence|word_suggestions|Board|frame_listener)(\s|-)/.test(testName));
+}
+
+function setupSyncHeavyTestHarness() {
+  LingoLinq.sync_testing = true;
+}
+
+function teardownSyncHeavyTestHarness() {
+  LingoLinq.sync_testing = false;
 }
 
 function setupStashesGeoTestHarness() {

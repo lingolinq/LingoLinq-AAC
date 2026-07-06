@@ -224,7 +224,7 @@ describe('Board', function() {
     it("should not vomit on API call failure", function() {
       var called = false;
       var text = null;
-      stub(modal, 'flash', function(message) {
+      stub(modal, 'warning', function(message) {
         called = true;
         text = message;
       });

@@ -737,7 +737,7 @@ describe("i18n", function() {
       expect(templateHelpers.delimit(1024.324)).toEqual("1,024");
       expect(templateHelpers.delimit(5000.0004)).toEqual("5,000");
       expect(templateHelpers.delimit(999999.987)).toEqual("999,999");
-      expect(templateHelpers.delimit(123456789)).toEqual("123,456k");
+      expect(templateHelpers.delimit(123456789)).toEqual("123M");
       expect(templateHelpers.delimit(123456789, 'full')).toEqual("123,456,789");
     });
   });

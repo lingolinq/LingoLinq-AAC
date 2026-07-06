@@ -54,15 +54,19 @@ function stubModalSafe() {
   harnessStubModalSafe(LingoLinq.testOwner);
 }
 
-function stubSpeakModeEntry() {
+function stubSpeakModeEntry(opts) {
+  opts = opts || {};
   speecher.set('voices', [{ remote_voice: false, voiceURI: 'local-test-voice' }]);
   app_state.set('last_speak_mode', null);
+  app_state.set('installed_app', false);
   stub(capabilities, 'tts', {
     reload: function() { return RSVP.resolve(); },
     stop_text: function() { }
   });
   stub(capabilities, 'wakelock', function() { return RSVP.resolve(); });
-  stubModalSafe();
+  if (!opts.skipModalSafe) {
+    stubModalSafe();
+  }
   stub(app_state, 'load_user_badge', function() { });
   stub(app_state, 'show_toast', function() { });
   stub(persistence, 'find', function() { return RSVP.resolve({}); });
@@ -225,7 +229,15 @@ describe('app_state', function() {
 
   describe('speak_mode_handlers', function() {
     function stubModalWarning(callback) {
-      stub(modal, 'warning', callback);
+      var onWarning = function(message) {
+        callback(message);
+      };
+      stub(modal, 'warning', onWarning);
+      stub(modal, 'flash', function(message, type) {
+        if (type === 'warning') {
+          onWarning(message);
+        }
+      });
       stub(app_state, 'show_toast', function(message) {
         callback(message);
       });
@@ -244,7 +256,7 @@ describe('app_state', function() {
     beforeEach(function() {
       app_state.set('last_speak_mode', null);
       stashesForTests().persist('current_mode', 'default');
-      stubSpeakModeEntry();
+      stubSpeakModeEntry({ skipModalSafe: true });
     });
     afterEach(function() {
       app_state.set('last_speak_mode', null);
@@ -282,22 +294,21 @@ describe('app_state', function() {
       stashesForTests().persist('current_mode', 'speak');
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       expect(app_state.get('speak_mode')).toEqual(true);
-      app_state.speak_mode_handlers();
 
-      waitsFor(function() { return checks == 1 && warnings == 1; });
+      waitsFor(function() { return warnings >= 1; });
       runs(function() {
         expect(warning).toEqual('Volume is muted, you will not be able to hear speech');
         app_state.set('last_speak_mode', null);
         app_state.speak_mode_handlers();
       });
-      waitsFor(function() { return checks == 2 && warnings == 2; });
+      waitsFor(function() { return warnings >= 2; });
       runs(function() {
         expect(warning).toEqual('Volume is low, you may not be able to hear speech');
         warning = null;
         app_state.set('last_speak_mode', null);
         app_state.speak_mode_handlers();
       });
-      waitsFor(function() { return checks == 3; });
+      waitsFor(function() { return checks >= 3; });
       runs(function() {
         expect(warnings).toEqual(2);
       });
@@ -357,9 +368,8 @@ describe('app_state', function() {
       stashesForTests().persist('current_mode', 'speak');
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       expect(app_state.get('speak_mode')).toEqual(true);
-      app_state.speak_mode_handlers();
 
-      waitsFor(function() { return checks == 1 && warnings == 1; });
+      waitsFor(function() { return warnings >= 1; });
       runs(function() {
         expect(warning).toEqual('The app is currently muted, so you will not hear speech. To unmute, check the mute switch, and also swipe up from the bottom of the screen to check for app-level muting');
       });

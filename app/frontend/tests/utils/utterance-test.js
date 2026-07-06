@@ -10,6 +10,7 @@ import { fakeAudio } from 'frontend/tests/helpers/ember_helper';
 import { stashesTarget, appStateTarget } from '../helpers/service-stub';
 import utterance from '../../utils/utterance';
 import speecher from '../../utils/speecher';
+import stashes from '../../utils/_stashes';
 import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 
@@ -452,7 +453,7 @@ describe('utterance', function() {
     it("should log the utterance", function() {
       stub(speecher, 'speak_collection', function() { });
       var log = null;
-      stub(stashesForTest(), 'log', function(obj) {
+      stub(stashes, 'log', function(obj) {
         log = obj;
       });
       var buttons = [
