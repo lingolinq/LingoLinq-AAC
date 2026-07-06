@@ -73,5 +73,23 @@ describe DataPolicyEnforcer do
       expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
       expect(LogSession.where(id: other_stale.id).count).to eq(1)
     end
+
+    it "does not purge a log just inside the retention window" do
+      # A precise tie against `months.months.ago` would race the two separate
+      # "now" calls (the fixture's and enforce_retention!'s); this codebase has
+      # no Timecop/travel_to helper to freeze time for that, so assert the
+      # boundary direction with a safe day-wide margin instead.
+      o, u = sponsored_org(3)
+      just_inside = log(u, 'session', 3.months.ago + 1.day)
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
+      expect(LogSession.where(id: just_inside.id).count).to eq(1)
+    end
+
+    it "never purges an eval log with no started_at, since NULL < cutoff never matches in SQL" do
+      o, u = sponsored_org(3)
+      undated_eval = log(u, 'eval', nil)
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(0)
+      expect(LogSession.where(id: undated_eval.id).count).to eq(1)
+    end
   end
 end
