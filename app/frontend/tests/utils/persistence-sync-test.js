@@ -133,13 +133,19 @@ function seedBoardsInStore(boards, opts) {
 
 function refreshBoardsInStore(boards, opts) {
   boards.forEach(function(board) {
+    var attrs = Object.assign({}, board, {
+      current_revision: board.current_revision || board.full_set_revision
+    });
+    if (opts && opts.fresh) {
+      attrs.retrieved = (new Date()).getTime();
+    }
     var existing = LingoLinq.store.peekRecord('board', board.id);
     if (existing) {
       try {
         LingoLinq.store.unloadRecord(existing);
       } catch (e) { /* already gone */ }
     }
-    seedBoardInStore(board, opts);
+    LingoLinq.store.push({ data: { type: 'board', id: attrs.id, attributes: attrs } });
   });
 }
 
@@ -1919,6 +1925,14 @@ describe("persistence-sync", function() {
       runs(function() {
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
+        ['145', '167', '168'].forEach(function(boardId) {
+          var existing = LingoLinq.store.peekRecord('board', boardId);
+          if (existing) {
+            try {
+              LingoLinq.store.unloadRecord(existing);
+            } catch (e) { /* already gone */ }
+          }
+        });
         seedBoardInStore(b3, { fresh: true });
 
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
@@ -4367,51 +4381,67 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
-        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
-        stub($, 'realAjax', function(options) {
-          if(options.url === '/api/v1/users/1340') {
-            return RSVP.resolve({user: {
-              id: '1340',
-              user_name: 'fred',
-              avatar_url: 'http://example.com/pic.png',
-              preferences: {home_board: {id: '145'}}
-            }});
-          } else if(options.url == '/api/v1/boards/145') {
-            trackBoardReload('145');
-            return RSVP.resolve({
-              board: b1
-            });
-          } else if(options.url == '/api/v1/boards/167') {
-            trackBoardReload('167');
-            return RSVP.resolve({
-              board: b2
-            });
-          } else if(options.url == '/api/v1/boards/178') {
-            trackBoardReload('178');
-            return RSVP.resolve({
-              board: b3
-            });
-          } else if(options.url == '/api/v1/boards/179') {
-            trackBoardReload('179');
-            return RSVP.resolve({
-              board: b4
-            });
-          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
-            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
-          }
-          return RSVP.reject({});
+        RSVP.resolve(persistence.store('settings', {
+          '145': 'current',
+          '167': 'current',
+          '178': 'current',
+          '179': 'current'
+        }, 'synced_full_set_revisions')).then(function() {
+          unloadSyncStoreRecords();
+          refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
+          return RSVP.all([
+            persistence.store('board', b1, b1.id),
+            persistence.store('board', b2, b2.id),
+            persistence.store('board', b3, b3.id),
+            persistence.store('board', b4, b4.id)
+          ]);
+        }).then(function() {
+          stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+          stub($, 'realAjax', function(options) {
+            if(options.url === '/api/v1/users/1340') {
+              return RSVP.resolve({user: {
+                id: '1340',
+                user_name: 'fred',
+                avatar_url: 'http://example.com/pic.png',
+                preferences: {home_board: {id: '145'}}
+              }});
+            } else if(options.url == '/api/v1/boards/145') {
+              trackBoardReload('145');
+              return RSVP.resolve({
+                board: b1
+              });
+            } else if(options.url == '/api/v1/boards/167') {
+              trackBoardReload('167');
+              return RSVP.resolve({
+                board: b2
+              });
+            } else if(options.url == '/api/v1/boards/178') {
+              trackBoardReload('178');
+              return RSVP.resolve({
+                board: b3
+              });
+            } else if(options.url == '/api/v1/boards/179') {
+              trackBoardReload('179');
+              return RSVP.resolve({
+                board: b4
+              });
+            } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+              return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
+            }
+            return RSVP.reject({});
+          });
+          later(function() {
+            reloads = {};
+            window.persistence = persistenceTarget() || persistence;
+            persistence.known_missing = null;
+            cancelSyncTailWork();
+            persistence.set('sync_status', null);
+            persistence.set('sync_progress', null);
+            persistence.sync(1340).then(function() {
+              done = true;
+            }, function() { done = true; });
+          }, 50);
         });
-        later(function() {
-          window.persistence = persistenceTarget() || persistence;
-          persistence.known_missing = null;
-          cancelSyncTailWork();
-          persistence.set('sync_status', null);
-          persistence.set('sync_progress', null);
-          persistence.sync(1340).then(function() {
-            done = true;
-          }, function() { done = true; });
-        }, 50);
       });
       waitsFor(function() { return done; });
       runs(function() {

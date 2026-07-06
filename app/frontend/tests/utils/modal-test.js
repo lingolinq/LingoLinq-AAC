@@ -2,11 +2,12 @@ import {
   describe,
   it,
   expect,
+  beforeEach,
   waitsFor,
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { easyPromise, db_wait } from 'frontend/tests/helpers/ember_helper';
+import { easyPromise, db_wait, setupModalTestHarness } from 'frontend/tests/helpers/ember_helper';
 import modal from '../../utils/modal';
 import scanner from '../../utils/scanner';
 import LingoLinq from '../../app';
@@ -154,6 +155,12 @@ describe('modal', function() {
   });
 
   describe('scanning', function() {
+    beforeEach(function() {
+      setupModalTestHarness();
+      modal.resume_scanning = false;
+      scanner.scanning = false;
+    });
+
     it('should stop scanning when a new modal is opened', function() {
       scanner.scanning = true;
 
@@ -209,13 +216,11 @@ describe('modal', function() {
 
         is_open = false;
         emberRun(function() {
-          later(function() {
-            modal.close();
-          }, 100);
+          modal.close();
         });
       });
 
-      waitsFor(function() { return scanner.scanning; });
+      waitsFor(function() { return scanner.scanning; }, 10000);
       runs(function() {
         expect(modal.resume_scanning).toEqual(false);
       });

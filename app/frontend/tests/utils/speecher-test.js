@@ -63,6 +63,13 @@ describe('speecher', function() {
     beforeEach(function() {
       speecher.appState = app_state;
       speecher.register_services(app_state, null, stashes, null);
+      speecher.speaking = false;
+      speecher.speaking_from_collection = null;
+      speecher.last_spoken_text = null;
+      speecher.last_spoken_text_time = 0;
+      speecher.speak_pending_text = null;
+      speecher.speak_pending_time = 0;
+      speecher.current_target = null;
       stub(speecher.scope, 'SpeechSynthesisUtterance', function() {
         this.text = '';
         this.rate = 1;
@@ -237,6 +244,23 @@ describe('speecher', function() {
   });
 
   describe("set_voice", function() {
+    beforeEach(function() {
+      speecher.appState = app_state;
+      speecher.register_services(app_state, null, stashes, null);
+      stub(speecher.scope, 'SpeechSynthesisUtterance', function() {
+        this.text = '';
+        this.rate = 1;
+        this.volume = 1;
+        this.pitch = 1;
+        this.lang = '';
+        this.addEventListener = function() { };
+        this.removeEventListener = function() { };
+      });
+      stub(window.speechSynthesis, 'getVoices', function() {
+        return speecher.get('voices') || [];
+      });
+    });
+
     it("should not error if set_voice has not been called", function() {
       stub(window.speechSynthesis, 'speak', function() { });
       expect(function() { speecher.speak_text("hippo"); }).not.toThrow();

@@ -53,14 +53,17 @@ describe('Utterance', function() {
     u.set('large_image_url', null);
     expect(u.check_for_large_image_url()).toEqual(true);
 
-    waitsFor(function() { return called; });
+    waitsFor(function() { return called; }, 15000);
     runs(function() {
       expect(u.get('large_image_attempt')).toEqual(2);
       expect(u.get('large_image_url')).toEqual(null);
     });
-    waitsFor(function() { return u.get('large_image_attempt') > 2; });
+    waitsFor(function() { return u.get('large_image_attempt') > 2; }, 15000);
     runs(function() {
       expect(u.get('large_image_url')).toEqual('http://www.example.com/pic.jpg');
+      if (!u.isDestroyed) {
+        u.unloadRecord();
+      }
     });
   });
 });

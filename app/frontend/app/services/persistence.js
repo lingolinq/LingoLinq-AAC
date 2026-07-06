@@ -4189,16 +4189,20 @@ var persistence = Service.extend({
     // Sync/token restore on reconnect is handled by the on_connect observer
     // when online flips to true; only update state here to avoid duplicate work.
     window.addEventListener('online', function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('online', true);
     });
     window.addEventListener('offline', function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('online', false);
     });
     // Cordova notifies on the document object
     document.addEventListener('online', function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('online', true);
     });
     document.addEventListener('offline', function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('online', false);
     });
     setInterval(function() {
