@@ -231,7 +231,9 @@ describe Uploadable, :type => :model do
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:post) { |url, args|
-        expect(url).to eq(Uploader.remote_upload_config[:upload_url])
+        # SigV4 presigned POSTs target the bucket's regional endpoint, not the
+        # static global "bucket.s3.amazonaws.com" host used by remote_upload_config.
+        expect(url).to match(%r{\Ahttps://#{Regexp.escape(Uploader.remote_upload_config[:bucket_name])}\.s3[.\-][\w-]*\.amazonaws\.com/\z})
       }.and_return(res)
       s.upload_to_remote("http://pic.com/cow.png")
       expect(s.url).not_to eq(nil)
@@ -245,7 +247,9 @@ describe Uploadable, :type => :model do
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:post) { |url, args|
-        expect(url).to eq(Uploader.remote_upload_config[:upload_url])
+        # SigV4 presigned POSTs target the bucket's regional endpoint, not the
+        # static global "bucket.s3.amazonaws.com" host used by remote_upload_config.
+        expect(url).to match(%r{\Ahttps://#{Regexp.escape(Uploader.remote_upload_config[:bucket_name])}\.s3[.\-][\w-]*\.amazonaws\.com/\z})
       }.and_return(res)
 
 
@@ -480,9 +484,14 @@ describe Uploadable, :type => :model do
       u = User.create
       i = ButtonImage.new(url: 'http://www.example.com/api/v1/users/1234/protected_images/bacon')
       expect(i.url_for(nil)).to eq('http://www.example.com/api/v1/users/1234/protected_images/bacon')
-      expect(i.url_for(u)).to eq("http://www.example.com/api/v1/users/1234/protected_images/bacon?user_token=#{u.user_token}")
+      result = i.url_for(u)
+      expect(result).to match(/\Ahttp:\/\/www\.example\.com\/api\/v1\/users\/1234\/protected_images\/bacon\?user_token=.+\z/)
+      expect(User.find_by_protected_image_token(result.split('user_token=').last)).to eq(u)
+
       i.url = "http://www.example.com/api/v1/users/1234/protected_images/bacon?a=1"
-      expect(i.url_for(u)).to eq("http://www.example.com/api/v1/users/1234/protected_images/bacon?a=1&user_token=#{u.user_token}")
+      result = i.url_for(u)
+      expect(result).to match(/\Ahttp:\/\/www\.example\.com\/api\/v1\/users\/1234\/protected_images\/bacon\?a=1&user_token=.+\z/)
+      expect(User.find_by_protected_image_token(result.split('user_token=').last)).to eq(u)
     end
   end
   

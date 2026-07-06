@@ -3219,7 +3219,7 @@ var persistence = EmberObject.extend({
                   // TODO: should this be app_state.currentUser instead of the currently-syncing user?
                   var personalized = image.url;
                   if(LingoLinq.Image && LingoLinq.Image.personalize_url) {
-                    personalized = LingoLinq.Image.personalize_url(image.url, user.get('user_token'), user.get('preferences.skin'));
+                    personalized = LingoLinq.Image.personalize_url(image.url, user.get('protected_image_token'), user.get('preferences.skin'));
                   }
 
                   if(!persistence.store_url_quick_check(personalized, 'image')) {

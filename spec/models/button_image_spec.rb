@@ -731,12 +731,14 @@ describe ButtonImage, :type => :model do
       bi.settings = {'a' => 1, 'library_alternates' => {'pcs' => {'url' => '/api/v1/users/asdf/protected_image'}}}
       bi.url = "http://www.example.com/pic.png"
       hash = bi.settings_for(u, nil, nil)
-      expect(hash).to eq({
-        'url' => "/api/v1/users/asdf/protected_image?user_token=#{u.user_token}", 
+      expect(hash['url']).to match(/\A\/api\/v1\/users\/asdf\/protected_image\?user_token=.+\z/)
+      token = hash['url'].split('user_token=').last
+      expect(User.find_by_protected_image_token(token)).to eq(u)
+      expect(hash.except('url')).to eq({
         'used_library' => 'pcs',
         'protected' => true,
         'protected_source' => 'pcs',
-      })      
+      })
     end
 
     it "should fall back to the user preference if none specified" do

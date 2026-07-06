@@ -118,12 +118,12 @@ LingoLinq.Image = BaseModel.extend({
       var alternate = (this.get('alternates') || []).find(function(a) { return a.library == preferred_symbols; });
       if(alternate) { url = rewriteBrokenSymbolUrl(alternate.url); }
     }
-    return LingoLinq.Image.personalize_url(url, this.get('appState.currentUser.user_token'), this.get('appState.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
+    return LingoLinq.Image.personalize_url(url, this.get('appState.currentUser.protected_image_token'), this.get('appState.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
   },
-  personalized_url: computed('url', 'appState.currentUser.user_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
+  personalized_url: computed('url', 'appState.currentUser.protected_image_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
     return this.personalizing_url();
   }),
-  personalized_url_without_preferred_symbols: computed('url', 'appState.currentUser.user_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
+  personalized_url_without_preferred_symbols: computed('url', 'appState.currentUser.protected_image_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
     return this.personalizing_url(true);
   }),
   best_url: computed('personalized_url', 'appState.referenced_user.preferences.preferred_symbols', 'data_url', function() {

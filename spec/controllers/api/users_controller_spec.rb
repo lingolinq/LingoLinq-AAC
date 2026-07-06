@@ -661,6 +661,61 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
     end
 
+    describe "user_creation audit trail" do
+      it "records a user_creation AuditEvent for plain self-registration" do
+        post :create, params: {:user => {'name' => 'fred'}}
+        json = assert_success_json
+        u = User.find_by_path(json['user']['id'])
+        ev = AuditEvent.where(:event_type => 'user_creation').where("user_key = ?", u.global_id).first
+        expect(ev).to be_present
+        expect(ev.data['author']).to eq(nil)
+        expect(ev.data['via_start_code']).to eq(false)
+        expect(ev.data['organization_id']).to eq(nil)
+      end
+
+      it "records the authoring organization when created via a valid start code" do
+        o = Organization.create
+        code = Organization.activation_code(o, {'user_type' => 'communicator'})
+        post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+        json = assert_success_json
+        u = User.find_by_path(json['user']['id'])
+        ev = AuditEvent.where(:event_type => 'user_creation', :record_id => o.global_id).first
+        expect(ev).to be_present
+        expect(ev.user_key).to eq(u.global_id)
+        expect(ev.data['via_start_code']).to eq(true)
+        expect(ev.data['organization_id']).to eq(o.global_id)
+      end
+
+      it "records both school_authorization and user_creation for an org-authored minor" do
+        allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        post :create, params: {:user => {
+          'name' => 'school_kid_both_events',
+          'email' => 'school_kid_both_events@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        json = assert_success_json
+        u = User.find_by_path(json['user']['id'])
+        expect(AuditEvent.where(:event_type => 'school_authorization').where("user_key = ?", u.global_id).count).to eq(1)
+        expect(AuditEvent.where(:event_type => 'user_creation').where("user_key = ?", u.global_id).count).to eq(1)
+      end
+
+      it "does not orphan or 500 the account when the user_creation audit fails (fail-open)" do
+        allow(AuditEvent).to receive(:create!).and_call_original
+        expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'user_creation')).and_raise(StandardError.new('boom'))
+        post :create, params: {:user => {'name' => 'audit_fail_plain'}}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        u = User.find_by_path(json['user']['id'])
+        expect(u).to be_present
+      end
+    end
+
     describe "COPPA parental consent" do
       before do
         allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
@@ -3130,8 +3185,28 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_redirect
       expect(response.location).to eq('http://www.example.com/pic.png')
     end
+
+    it 'should accept the newer expiring protected_image_token format' do
+      u = User.create
+      bi = ButtonImage.create(user: u, url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
+      get 'protected_image', params: {'user_id' => u.global_id, 'user_token' => u.protected_image_token, 'library' => 'lessonpix', 'image_id' => '12345'}
+      expect(response).to be_redirect
+      expect(response.location).to eq('http://www.example.com/pic.png')
+    end
+
+    it 'should reject an expired protected_image_token and fall back to the anonymous path' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.protected_image_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      get 'protected_image', params: {'user_id' => u.global_id, 'user_token' => token, 'library' => 'whatever', 'image_id' => '123'}
+      expect(response).to be_redirect
+      expect(response.location).to eq('http://test.host/images/square.svg')
+    end
   end
-  
+
   describe "word_map" do
     it "should require an api token" do
       get 'word_map', params: {'user_id' => 'asdf'}

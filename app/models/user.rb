@@ -1370,12 +1370,22 @@ class User < ApplicationRecord
       end
       params.delete('valet_login')
     end
-    if params['valet_login']
-      self.set_valet_password(params['valet_password'])
-      self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
-      self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
-    elsif params['valet_login'] == false
-      self.set_valet_password(false)
+    # Coerce valet_login through process_boolean. The client serializes this
+    # boolean attribute as a STRING ('true'/'false'), and a bare `if
+    # params['valet_login']` treats the non-empty string 'false' as truthy --
+    # which wrongly ENABLED valet mode (assert_valet_mode! + a random valet
+    # password) on every profile save. With valet mode on, the subsequent
+    # valid_password? check compares the user's real password against the valet
+    # secret, so self-service password changes always failed with "incorrect
+    # current password". Only an explicitly-absent (nil) value is a no-op.
+    unless params['valet_login'].nil?
+      if process_boolean(params['valet_login'])
+        self.set_valet_password(params['valet_password'])
+        self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
+        self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
+      else
+        self.set_valet_password(false)
+      end
     end
     if params['preferences']
       CONFIRMATION_PREFERENCE_PARAMS.each do |key|
@@ -2633,7 +2643,42 @@ class User < ApplicationRecord
     return nil unless hash == verifier
     User.find_by_global_id(user_id)
   end
-    
+
+  # Unlike user_token above, this is a purpose-scoped, time-limited credential for
+  # protected_image only: bounds how long a leaked URL (query-string tokens land in
+  # access logs, browser history, and Referer headers) stays valid. The default outlasts
+  # the 12-day CDN cache-control window protected_image already sets on successful
+  # redirects, so it won't expire while a synced board is still relying on the cached copy.
+  PROTECTED_IMAGE_TOKEN_LIFESPAN = 30.days
+
+  def protected_image_token(lifespan=PROTECTED_IMAGE_TOKEN_LIFESPAN)
+    expires_at = (Time.now + lifespan).to_i
+    sig = GoSecure.sha512("#{self.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+    "#{self.global_id}-#{expires_at}-#{sig}"
+  end
+
+  # Accepts the newer expiring protected_image_token format (3 hyphen-separated parts)
+  # or falls back to the legacy permanent user_token format (2 parts), so image URLs
+  # embedded in boards cached client-side before this format existed keep resolving.
+  # The legacy branch is logged (not just silently accepted) because it's the residual
+  # of LL-310b464be4 this PR intentionally leaves open: sunsetting it needs evidence of
+  # how often it's still hit, not a guess.
+  def self.find_by_protected_image_token(token)
+    return nil unless token
+    parts = token.to_s.split(/-/)
+    unless parts.length == 3
+      user = find_by_token(token)
+      Rails.logger.info("[protected_image_legacy_token] accepted permanent-format token for #{user.global_id}") if user
+      return user
+    end
+    user_id, expires_at, sig = parts
+    return nil unless expires_at.match?(/\A\d+\z/)
+    verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(sig, verifier)
+    return nil if expires_at.to_i < Time.now.to_i
+    User.find_by_global_id(user_id)
+  end
+
   def notify_on(attributes, notification_type)
     # TODO: ...
   end

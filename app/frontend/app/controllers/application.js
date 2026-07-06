@@ -1734,7 +1734,7 @@ export default Controller.extend({
     if(image && image.get('personalized_url') && !button.no_skin) {
       image_url = image.get('personalized_url');
     } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
-      image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
+      image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.protected_image_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
     }
     var obj = {
       label: button.label,

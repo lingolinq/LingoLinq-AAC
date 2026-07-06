@@ -111,7 +111,16 @@ jobs:
       # committed. LD_PRELOAD/MALLOC_CONF are DELIBERATELY EXCLUDED until jemalloc is verified present
       # in the image -- pointing LD_PRELOAD at a missing .so breaks boot (plan Group C). RAILS_ENV is
       # set inline on every deploy; DEPLOY_TRIGGER/SEED_READY/LEADER_POSTGRES_URL are Render-only.
-      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
+      # UPLOADS_S3_NO_ACL=1: lingolinq-prod-uploads is BucketOwnerEnforced (ACLs disabled) +
+      # Block Public Access, per the private-bucket model (Scot, 2026-07-05). A presigned POST
+      # carrying acl=public-read is rejected by such a bucket, so lib/uploader.rb must omit the
+      # ACL field. Client-facing reads go through presigned GETs / CDN, not public object URLs.
+      # UPLOADS_S3_CDN: CloudFront distribution E2X2HAS6Y1L2MI fronts the private bucket via
+      # Origin Access Control (bucket policy + KMS key policy grant scoped to the distribution
+      # ARN). Uploader.fronted_url rewrites stored bucket URLs to this domain at serialization
+      # time; stable (non-presigned) URLs are required by the Ember offline cache, which is
+      # URL-keyed and does not strip X-Amz-* params.
+      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
@@ -168,12 +177,16 @@ jobs:
           missing=""
           for pair in $(printf '%s,%s' "$BOOT_SECRETS" "$NON_BOOT_SECRETS" | tr ',' '\n'); do
             name="${pair%%=*}"
-            # Check a VERSION resolves, not just that the container exists: phase1-setup.sh creates all
+            # Verify an ENABLED version EXISTS, without reading its value. phase1-setup.sh creates all
             # secrets EMPTY, and `--set-secrets NAME:latest` crash-loops the revision if NAME has no
-            # version. `describe` would pass an empty container; `versions access latest` does not.
-            # Output is discarded (never logged) - this is a presence probe, not a value read.
-            gcloud secrets versions access latest --secret="$name" --project="$GCP_PROJECT_ID" >/dev/null 2>&1 \
-              || missing="$missing $name"
+            # enabled version. `describe` would pass an empty container; listing enabled versions does not.
+            # This deliberately uses `versions list` (needs only secretmanager.viewer) instead of
+            # `versions access` (needs secretAccessor / reads the value): the deploy SA is least-privilege
+            # and must NOT be able to read every app secret just to run this presence probe. `|| true`
+            # keeps a NOT_FOUND (missing container) from tripping `set -e`; empty output -> flagged below.
+            v="$(gcloud secrets versions list "$name" --project="$GCP_PROJECT_ID" \
+                   --filter='state:ENABLED' --format='value(name)' --limit=1 2>/dev/null || true)"
+            [ -n "$v" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
             echo "::error::Secret(s) missing or unseeded (no version) in Secret Manager (project $GCP_PROJECT_ID):$missing"
@@ -244,6 +257,7 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --instances 1 \
+            --memory 2Gi \
             --command bin/docker-worker-entrypoint \
             --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
             --network "${{ vars.GCP_VPC_NETWORK }}" \

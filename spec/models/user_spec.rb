@@ -742,6 +742,42 @@ describe User, :type => :model do
       expect(u.valid_password?('braised-beef')).to eq(true)
     end
 
+    it "should allow a self-service password change even when valet_login is the string 'false' (regression)" do
+      # The Ember client serializes the boolean valet_login attribute as a
+      # STRING, so a normal profile save sends valet_login => 'false'. A bare
+      # truthiness check treated the non-empty string 'false' as true, enabled
+      # valet mode (assert_valet_mode! + a random valet password), and the
+      # following valid_password? check then compared the real password against
+      # the valet secret -> every self-service password change failed with
+      # "incorrect current password". The valet block only runs when the
+      # updater is the user themselves, so pass updater => u.
+      u = User.create
+      u.generate_password('horseradish')
+      u.save!
+      expect(u.valet_mode?).to eq(false)
+      res = u.process_params({
+        'password' => 'chicken',
+        'old_password' => 'horseradish',
+        'valet_login' => 'false'
+      }, {'updater' => u})
+      expect(u.processing_errors).to eq([])
+      expect(res).to_not eq(false)
+      expect(u.valid_password?('chicken')).to eq(true)
+      # valet mode must NOT have been silently enabled by the falsey string
+      expect(u.valet_mode?).to eq(false)
+      expect(u.settings['valet_password']).to eq(nil)
+    end
+
+    it "should still disable valet when valet_login is boolean false" do
+      u = User.create
+      u.generate_password('horseradish')
+      u.process_params({'valet_login' => true, 'valet_password' => 'gemini'}, {'updater' => u})
+      u.save!
+      expect(u.settings['valet_password']).to_not eq(nil)
+      u.process_params({'valet_login' => false}, {'updater' => u})
+      expect(u.settings['valet_password']).to eq(nil)
+    end
+
     describe "password-change audit trail (LL-747bb0e02d)" do
       # AuditEvent.log_command commits outside the per-example transaction, so
       # rows leak across examples and inflate counts. Scope the reset to this
@@ -3297,7 +3333,84 @@ describe User, :type => :model do
       expect(User.find_by_token(nil)).to eq(nil)
     end
   end
-  
+
+  describe "protected_image_token" do
+    it 'should return a signed token that expires after the default lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + User::PROTECTED_IMAGE_TOKEN_LIFESPAN).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+      expect(u.protected_image_token).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+
+    it 'should respect a custom lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + 7.days).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+      expect(u.protected_image_token(7.days)).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+  end
+
+  describe "find_by_protected_image_token" do
+    it 'should find the correct user for a valid, unexpired token' do
+      u = User.create
+      expect(User.find_by_protected_image_token(u.protected_image_token)).to eq(u)
+    end
+
+    it 'should fall back to the legacy permanent user_token format' do
+      u = User.create
+      expect(User.find_by_protected_image_token(u.user_token)).to eq(u)
+    end
+
+    it 'should log when the legacy permanent-token fallback is used' do
+      u = User.create
+      expect(Rails.logger).to receive(:info).with(/\[protected_image_legacy_token\] accepted permanent-format token for #{Regexp.escape(u.global_id)}/)
+      User.find_by_protected_image_token(u.user_token)
+    end
+
+    it 'should not log for the newer expiring token format' do
+      u = User.create
+      expect(Rails.logger).to_not receive(:info).with(/protected_image_legacy_token/)
+      User.find_by_protected_image_token(u.protected_image_token)
+    end
+
+    it 'should return nil for an expired token' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.protected_image_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      expect(User.find_by_protected_image_token(token)).to eq(nil)
+    end
+
+    it 'should return nil for a tampered signature' do
+      u = User.create
+      parts = u.protected_image_token.split('-')
+      parts[-1] = 'a' * 30
+      expect(User.find_by_protected_image_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil for a tampered expiry' do
+      u = User.create
+      parts = u.protected_image_token.split('-')
+      parts[-2] = (parts[-2].to_i + 100).to_s
+      expect(User.find_by_protected_image_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil when the expiry segment is not numeric' do
+      u = User.create
+      expect(User.find_by_protected_image_token("#{u.global_id}-notanumber-#{'a' * 30}")).to eq(nil)
+    end
+
+    it 'should return nil for garbage or missing input' do
+      expect(User.find_by_protected_image_token('asdf')).to eq(nil)
+      expect(User.find_by_protected_image_token(nil)).to eq(nil)
+    end
+  end
+
   describe "versions" do
     it "should track versions correctly" do
       PaperTrail.request.whodunnit = 'user:bob'

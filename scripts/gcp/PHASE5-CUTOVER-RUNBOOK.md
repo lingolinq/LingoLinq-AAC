@@ -130,6 +130,21 @@ is not schedulable to a firm date until this passes.
   measured number, tracker 4.2). Also confirm DirtyExit jobs (TERM outside job execution / SIGKILL)
   are visible in the Resque failed queue.
 
+**Private-bucket read/write path checks (added 2026-07-05, findings LL-705b10bcd7 / LL-9a09771121):**
+
+- **S3 write path.** Create a real ButtonImage from an external PNG URL and let the worker pool
+  process it: the record's `url` must become a `lingolinq-prod-uploads` bucket URL (no
+  `data_uri` fallback, no `errored_pending_url`), and `head-object` must show the object with
+  `ServerSideEncryption: aws:kms` under the expected CMK. Verified green on the rehearsal stack
+  2026-07-05 (synthetic ButtonImage id 840). Prerequisites: IAM policy `lingolinq-cloudrun-s3-ses`
+  v2 (KMS statement) attached to `lingolinq-cloudrun-prod`; `UPLOADS_S3_NO_ACL=1` in the deploy env.
+- **S3 read path via CDN.** The bucket blocks all public access; client reads go through CloudFront
+  distribution `E2X2HAS6Y1L2MI` (`https://d34sa6lc5jfe66.cloudfront.net`, OAC + KMS grant). Confirm
+  `UPLOADS_S3_CDN` is set on web + worker, an uploaded image renders in a browser via its CDN URL
+  (and the raw `s3.amazonaws.com` URL still 403s), and the response carries
+  `access-control-allow-origin` (the Ember offline-sync XHR needs CORS). Then sync a board offline
+  in the app and confirm images cache.
+
 ### 0b. Worker health verification  (was Copilot "6b warmup", reframed)
 
 The worker is a Cloud Run **worker-pool** (`gcloud beta run worker-pools`, see
@@ -455,12 +470,25 @@ Full rationale in the decision memo
    URL map + managed cert + HTTPS/HTTP forwarding. Records the **LB IP** = the DNS A-record
    target for step 9.
 2. `... CONFIRM_ARMOR=1 ...` adds Cloud Armor with the OWASP WAF in **PREVIEW** (log-only, low
-   sensitivity). In the rehearsal (0a), drive AAC traffic and review the preview logs; only when
-   no legitimate traffic is flagged, re-run with `ARMOR_ENFORCE=1` to switch the WAF to enforce.
+   sensitivity). **The WAF stays in PREVIEW through the DNS cutover and the soak. Do NOT flip it
+   to enforce pre-DNS.** Rationale (verified live 2026-06-30): the LB receives NO traffic until
+   step 9 points DNS at it (the `run.app` smoke tests bypass the LB), so pre-DNS the Cloud Armor
+   preview logs are empty and prove nothing. The specific risk that motivated preview mode -
+   free-text AAC utterances tripping the SQLi/XSS rules - only surfaces under real user traffic,
+   which does not exist until after the cut. Preview mode blocks nothing, so leaving it in preview
+   across the cut adds zero outage risk. The rehearsal's IP+Host validation only confirms the LB
+   path is wired, NOT that the WAF is false-positive clean. The enforce flip is therefore a
+   **post-real-traffic** step (the no-users cutover soak cannot validate it either): see step 9c.
 3. After the LB path is validated, `... CONFIRM_INGRESS_LOCKDOWN=1` takes `lingolinq-web` off the
    public `run.app` URL (LB-only). Run this **after** the 0a smoke test (which uses `run.app`).
 The managed cert stays PENDING until step 9 points DNS at the LB IP, so validate the LB in the
-rehearsal via the IP + Host header. This is a **pre-cutover build**, not improvised in the window.
+rehearsal via the IP + Host header (`curl --resolve <domain>:443:<LB_IP> -k`). This is a
+**pre-cutover build**, not improvised in the window. **Expect the managed cert to read
+`PROVISIONING` / `domainStatus: FAILED_NOT_VISIBLE` until DNS is flipped** - this is normal, not a
+failure; Google can only validate the domain once it resolves to the LB IP. It transitions to
+`ACTIVE` after DNS propagates and provisioning completes - budget up to ~60 min past propagation
+(+~30 min to be LB-usable), and propagation itself can take hours; see step 9's cert-window note for
+the realistic timing and the AAAA/CAA pre-checks.
 
 ### 9. DNS cut  (tracker 5.4, GATE: DNS)
 
@@ -469,6 +497,137 @@ rehearsal via the IP + Host header. This is a **pre-cutover build**, not improvi
 - Watch logs, error rate, latency, email deliverability, job processing (tracker 5.5).
 - **Do not touch Render prod** (tracker 5.6) except that it stays UP in write-reject mode; it is
   rollback insurance through the soak. Do not scale it to 0 or decommission (step 9b).
+- **Managed-cert window (decided: accept it, Scot 2026-06-30).** The managed cert only validates
+  AFTER this DNS flip points `app.lingolinq.com` at the LB IP. Expect a `PROVISIONING` window where
+  DNS resolves to the LB but the cert is not yet issued, so HTTPS returns a cert error. This is
+  acceptable because prod has **no real users at cutover** (only internal testers). Watch for the
+  transition to `ACTIVE` before declaring the cut clean:
+  `gcloud compute ssl-certificates describe lingolinq-cert --global --project=lingolinq-prod --format='value(managed.status,managed.domainStatus)'`
+  - **Realistic timing (Google docs):** provisioning takes up to **~60 min AFTER DNS changes have
+    propagated worldwide**, plus up to **~30 min more** before the cert is usable by the LB. And
+    propagation itself is not instant even at a 60s TTL: Google notes it "sometimes takes up to 72
+    hours worldwide." So do **not** treat 60 min as a hard ceiling - start the clock from when
+    `dig +short app.lingolinq.com` first returns the LB IP, and only investigate if it is still
+    `PROVISIONING` well after propagation has completed.
+  - **Pre-flip gotchas worth a 60-second check (each can silently wedge issuance):**
+    1. **Stale AAAA record.** DNS must not resolve to any IP other than the LB. If an `A` record is
+       correct but an `AAAA` (IPv6) record still points elsewhere, `domainStatus` goes
+       `FAILED_NOT_VISIBLE`. We publish no IPv6 for the LB, so `dig AAAA app.lingolinq.com +short`
+       must be **empty**.
+    2. **CAA record.** If `lingolinq.com` (or `app.lingolinq.com`, or an inherited parent) has any
+       **CAA record**, it must authorize **both** `pki.goog` **and** `letsencrypt.org`: Google
+       issues managed certs from either CA and may switch CAs on renewal, so authorizing only one
+       "isn't recommended" and can break a later renewal. An empty CAA (the default) allows both.
+       Check: `dig CAA lingolinq.com +short` should be **empty**, or list both CAs.
+    3. **One claimant.** Confirm only ONE cert resource claims the domain (a second managed cert on
+       the same domain stalls both).
+  (To eliminate the window entirely instead, pre-provision via Certificate Manager DNS-authorization
+  before the flip - deliberately NOT chosen for this cut.)
+
+### 9c. Cloud Armor WAF: preview -> enforce (POST-REAL-TRAFFIC, GATE: enforce = outage-capable)
+
+The WAF ships and cuts over in **PREVIEW** (step 8, item 2), and it **stays in preview through the
+cutover and the no-users soak.** This is deliberate: prod has no real users at cutover, so the soak
+generates only internal-tester traffic (and pre-DNS the LB gets none at all - `run.app` bypasses
+it). That is enough to prove the LB path, TLS, and app health, but it is **NOT** a representative
+sample of real AAC request payloads, so it cannot tell you whether the WAF signature rules would
+false-positive on legitimate traffic. "Clean preview logs" during a no-users soak is therefore
+trivially true and proves nothing about the WAF.
+
+Enforcement is a **separate, later step gated on REAL production traffic**, not on the cutover soak:
+after the first real districts/clinics are actually using the app through the LB (define this as at
+least a few days of genuine multi-user traffic, or the first onboarded district), review the preview
+hits and only then flip the signature rules to enforce. The rate-limit rule (2000) is gated
+separately again and stays in preview even longer (see below). Sequence, when that real-traffic
+condition is met:
+
+1. **Review preview hits from real production traffic** (this covers BOTH the WAF rules AND the
+   rate-limit rule - all of ours resolve to a deny outcome, so `outcome="DENY"` catches them, and
+   `configuredAction` tells them apart: `DENY` for the WAF sig rules, `THROTTLE` for the rate limit).
+   **Default output omits `remoteIp`/`requestUrl`** - those land in Cloud Logging under the GCP BAA,
+   but printing them to the operator's own terminal is a distinct exposure surface (shell scrollback,
+   history, screen share) that the BAA does not cover (Codex review of PR #513):
+   ```bash
+   gcloud logging read \
+     'resource.type="http_load_balancer" AND jsonPayload.previewSecurityPolicy.outcome="DENY"' \
+     --project=lingolinq-prod --freshness=<soak-days>d --limit=1000 \
+     --format='value(timestamp, insertId, jsonPayload.previewSecurityPolicy.priority, jsonPayload.previewSecurityPolicy.configuredAction, jsonPayload.previewSecurityPolicy.rateLimitAction.outcome)'
+   ```
+   The `insertId` column above is what you paste into the follow-up command below (Codex review of
+   PR #513: the summary command must actually emit the id the follow-up references). Only pull
+   `httpRequest.remoteIp` / `httpRequest.requestUrl` as an explicit follow-up, scoped to a
+   single `insertId` you are actively investigating (e.g. confirming a specific flagged hit is a real
+   AAC utterance, not an attack) - never as the default bulk sweep:
+   ```bash
+   gcloud logging read \
+     'resource.type="http_load_balancer" AND insertId="<id-from-the-summary-above>"' \
+     --project=lingolinq-prod --format='value(httpRequest.remoteIp, httpRequest.requestUrl)'
+   ```
+   Split the hits by `priority` (raise `--limit` / narrow `--freshness` if you hit the cap):
+   - **WAF rules 1001-1004** (`configuredAction=DENY`, `outcome=DENY`): each is traffic the WAF
+     would block at enforce. Confirm each is genuinely malicious, not a legitimate AAC utterance /
+     board payload tripping SQLi/XSS. If a real request is flagged, add a preconfigured-WAF
+     exclusion (or lower the rule) and keep it in preview - do NOT enforce over a false positive.
+   - **Rate-limit rule 2000** (`configuredAction=THROTTLE`, `rateLimitAction.outcome=RATE_LIMIT_THRESHOLD_EXCEED`):
+     see the caveat below - this rule CANNOT be validated by internal-tester traffic, so do not treat
+     a clean log as license to enforce it. It is gated separately and stays in preview.
+
+   > **Rate-limit rule 2000 is gated separately and stays in preview.** Even with real traffic, a
+   > per-IP limit is uniquely dangerous: the many-users-behind-one-IP pattern real districts/hospitals
+   > produce means a whole school or clinic NATs to a single public IP and shares ONE per-IP token
+   > bucket (`--enforce-on-key=IP`, 600 req/60s), so a threshold that looks generous per-user can 429
+   > an entire building at once. The script therefore does **not** flip rule 2000 with the WAF sig
+   > rules: `ARMOR_ENFORCE=1` enforces only 1001-1004 and **does not touch rule 2000 at all**, so no
+   > WAF-enforce run can ever flip it to enforcing. Conversely, a routine Armor run will **not**
+   > silently downgrade a rule 2000 you have deliberately enforced - it leaves it as-is and prints a
+   > `[GATE]` warning, so returning 2000 to preview is only ever done via the explicit revert (step 3).
+   > Enforcing 2000 is a deliberate, even-later step - only after its threshold is proven generous for
+   > building-scale NAT against real district traffic - done by ALSO passing its own gate:
+   > ```bash
+   > CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 \
+   >   RATE_LIMIT_ENFORCE=1 CONFIRM_RATE_LIMIT_ENFORCE=1 DOMAIN=app.lingolinq.com \
+   >   ./scripts/gcp/phase5-frontend-lb.sh
+   > ```
+   > After this run, confirm rule 2000 now reads `preview=false` in the step-2e readback (this is the
+   > one case where `preview=false` on rule 2000 is the intended, correct result).
+2. **Flip to enforce (double-gated):**
+   ```bash
+   CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 DOMAIN=app.lingolinq.com \
+     ./scripts/gcp/phase5-frontend-lb.sh
+   ```
+   **`CONFIRM_LB=1` is REQUIRED here**, not just the ARMOR flags: the script hard-exits at the LB
+   gate (`phase5-frontend-lb.sh` step 1) whenever `CONFIRM_LB != 1`, so it never reaches the Cloud
+   Armor block and the enforce flip silently no-ops (WAF stays in preview while the run reports
+   success). The LB build is idempotent (every create is describe-guarded), so re-passing
+   `CONFIRM_LB=1` against the already-built LB just skips through to the Armor block. The script
+   then converges the **WAF sig rules 1001-1004** to `--no-preview`, does **not** touch rule 2000,
+   and prints the actual per-rule preview state PLUS rule 2000's actual threshold (step 2e). For this
+   WAF-sig-only enforce run (no `RATE_LIMIT_ENFORCE`), confirm rules 1001-1004 read `preview=false`
+   **and rule 2000's preview state is unchanged from whatever it was before this run** - do NOT trust
+   the exit code alone, and do NOT assume 2000 reads `preview=true` here: this run never mutates 2000
+   either way (correction, Codex review of PR #513), so if 2000 was already deliberately enforced from
+   an earlier rate-limit-enforce run, it correctly stays `preview=false` here too. (Rule 2000 first
+   reads `preview=false` after the separate rate-limit enforce run in step 1's blockquote.)
+3. **Verify** a known-bad probe (e.g. `?q=' OR 1=1--`) now returns `403` and that normal app use is
+   unaffected. **Rollback is manual**: re-running the script WITHOUT `ARMOR_ENFORCE` does NOT
+   restore preview - the script only converges rules to `--no-preview` (there is no preview-restore
+   branch), so a describe-guarded re-run just skips the existing enforcing rules. To roll back, set
+   each rule back to preview explicitly:
+   ```bash
+   for P in 1001 1002 1003 1004 2000; do
+     gcloud compute security-policies rules update "$P" \
+       --security-policy=lingolinq-armor --preview --project=lingolinq-prod
+   done
+   ```
+   (This manual loop is the ONLY way any enforced rule returns to preview - the script never
+   auto-reverts. That is deliberate: once validated and enforced, both the WAF sig rules 1001-1004
+   AND rate-limit rule 2000 should stay enforced until an operator explicitly rolls them back here,
+   so no routine Armor re-run silently drops a live security control. A non-`RATE_LIMIT_ENFORCE` run
+   leaves an already-enforced rule 2000 untouched and prints a `[GATE]` warning rather than
+   downgrading it.)
+
+This is independent of the Render decommission (9b) and happens once real production traffic has
+been reviewed clean (not the no-users cutover soak).
 
 ### 9b. Render decommission - POINTER ONLY (tracker Phase 6, 6.2, GATE: delete prod)
 
@@ -574,20 +733,132 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 
 ## Window scheduling
 
-- **Lowest AAC usage** is overnight with US schools closed. Target a **Sunday 02:00-05:00
+- **This section describes the full-data-cutover fallback** (dump -> restore -> S1 -> S2), where a
+  low-usage window matters because real data is moving and a live-user freeze has a blast radius.
+  **The clean-DB path in effect now (see the banner above) does not need a low-usage window for the
+  same reason**: `lingolinq-prod` carries no real client data or users
+  ([[project_prod_no_real_users]] equivalent - see PHASE5-CLEAN-DB-REHEARSAL.md), so the "lowest AAC
+  usage" rationale below does not apply. **Corrected 2026-07-02 (Scot's call):** do not wait for a
+  Sunday; schedule the DNS flip once the still-open checklist items below are closed, regardless of
+  day/time.
+- Full-data fallback guidance (retained in case real users are onboarded before any future
+  cutover): lowest AAC usage is overnight with US schools closed; target a **Sunday 02:00-05:00
   America/New_York** slot (~2-3h end to end: announce -> freeze -> fresh dump -> restore -> S1 ->
   S2 -> deploy -> 0b/0c verify -> DNS).
-- **Not schedulable to a firm date** until the dress rehearsal (0a), W1, and the 5.3 front-end
-  build are done. Earliest realistic date if the rehearsal passes cleanly: **Sunday 2026-07-12**.
+- ~~Earliest realistic date if the rehearsal passes cleanly: Sunday 2026-07-12.~~ **Stale as of
+  2026-07-02: the clean-DB rehearsal (0a/0c below) already ran and passed on 2026-06-29** (see
+  checklist), so this date no longer gates anything. Schedule per checklist readiness, not calendar.
 - Lower the DNS TTL to **60s** ahead of the window (the decided mechanism; see step 1).
 
 ---
 
 ## Pre-cutover checklist (all must be true before scheduling the window)
 
-- [ ] 0a dress rehearsal passed (all five smoke paths, row reconcile, sequences verified).
-- [ ] 0c Redis TLS handshake green against live Memorystore, CA-completeness asserted
-      (LL-6619cc1811 verified-closed).
+- [ ] **0a dress rehearsal - PARTIALLY confirmed, do NOT check this box yet** (Codex review of
+      PR #513 correctly caught an earlier draft of this note overclaiming full completion).
+      **Confirmed live via Cloud Run job execution history (2026-06-29):** Step 2 Redis TLS
+      handshake (`lingolinq-redischeck-zsq74`, 22:38 UTC, PONG over `rediss://`); Step 3a schema
+      load (`lingolinq-migrate-cleandb-ss6m8`, `gcp:guarded_schema_load`, 22:46 UTC); Step 3b seed
+      (`lingolinq-migrate-cleandb-kzqkk`, `db:seed`, 23:16 UTC, 29m35s incl. the full Moby word
+      import); admin **login** confirmed working 2026-06-30 (per session notes).
+      **Confirmed live 2026-07-02/03 (five-path re-run against the rehearsal stack):** admin
+      **login** (after a one-off password reset via a throwaway Cloud Run Job - self-service
+      password change is still broken by the known `valet_login` boolean-coercion bug, fixed in
+      PR #506 but not yet deployed to this rehearsal's image
+      `web:ccbdb5e21f764754662a42471206fb745854028c`); **board load** rendered fully with 50+
+      buttons; **S3 read** returned real 200s from `lingolinq-prod-static` and `opensymbols`.
+      **Resque enqueue/process - still open, do not check this box for it, and the picture got
+      worse, not better.** The `lingolinq-worker` pool's ~24,842-job `queue:default` backlog
+      (leftover `WordData#assert_priority` from the 2026-06-29 Moby seed import, not a bug) was
+      drained by a temporary scale to 8 instances (`gcloud beta run worker-pools update
+      lingolinq-worker --instances=8`, ~6.6 jobs/sec); the pool has since correctly scaled back
+      down to `manualInstanceCount: 1` (verified live, 2026-07-03), and as of the next check
+      **all three queues are empty** (`queue:priority`/`queue:default`/`queue:slow` all size 0).
+      But `Resque::Failure.count` jumped from `174` to **`914`** across that same window. A first
+      pass at this attributed the jump to the scale-8-back-to-1 transition; that was wrong (caught
+      by Codex review of PR #516 - the arithmetic didn't even add up) and has been corrected. The
+      verified crosstab (job class x error, sums to exactly 914): 830 `SIGKILL` + 2 `SIGSEGV`
+      across `ButtonImage`/`BoardDownstreamButtonSet`/`User`; 58 `BoardDownstreamButtonSet` S3
+      SigV4/KMS errors, traced to `lib/uploader.rb`'s handcrafted SigV2 POST-policy upload path
+      (`Uploader.remote_upload_params`, lines 293-336 - AWSAccessKeyId + HMAC-SHA1, posted via
+      `Typhoeus.post`, never touching `Aws::S3::Client`) rather than an SDK client config knob
+      (register: `LL-705b10bcd7`, remediation corrected after Codex review of PR #516 caught the
+      original "bump signature_version" fix targeting a client this path doesn't use - the real
+      fix is replacing the handcrafted policy with a SigV4 presigned POST); 16 `ButtonImage`
+      ImageMagick-`identify`-missing
+      + 3 `Board` `job_stash` + 1 `Board:update_privacy`-method-not-found, all pre-existing (register:
+      `LL-5954bcbbe6`). **The SIGKILL/SIGSEGV failures are NOT clustered around the scale-down
+      transition** - an hourly histogram of their `failed_at` timestamps spans 2026-07-03 01h
+      through 15h UTC continuously, hours after the pool had already returned to
+      `manualInstanceCount: 1`. Root cause confirmed directly via `gcloud logging read` on
+      `resource.type=cloud_run_worker_pool`: **833 "Out-of-memory event detected in container" log
+      lines** in the trailing 24h, matching the SIGKILL/SIGSEGV count almost exactly. The pool's
+      container memory limit is `512Mi` - too small for the forked `ButtonImage`/
+      `BoardDownstreamButtonSet` job processes that shell out to ImageMagick. This is a standing
+      capacity problem, not a one-time scale-transition artifact (register: `LL-a95e9c5f7c`; the
+      existing W1 SIGTERM-requeue fix from PR #473 doesn't cover OOM-killed forked children, so
+      these land in `Resque::Failure` instead of being requeued). Our own test job
+      (`Board#check_for_parts_of_speech_and_inflections` on board id 7) is not among any sampled
+      failure and the queue is now fully empty, which is stronger circumstantial evidence it ran
+      successfully than the prior check had, but `board.updated_at` is still unchanged from
+      `2026-06-30 21:49:48 UTC` (the method only saves when something actually changes, so this
+      remains inconclusive rather than a confirmed pass). **Fix `LL-a95e9c5f7c` before relying on
+      this environment for real image-processing load** (register remediation: bump the
+      worker-pool's memory limit to 1-2Gi and re-verify `Resque::Failure` stops accumulating this
+      error) - this OOM condition will recur continuously under normal single-instance load,
+      independent of any worker-pool scaling operation.
+      **SES send - functionally confirmed, but verify final delivery before checking this box.**
+      The original UI-only "Email sent!" check was correctly flagged as weak (a `gcloud logging
+      read` sweep found zero mail-related log lines despite confirmed-working log capture for the
+      same service). Re-tested by bypassing ActionMailer's `Aws::Rails::Mailer` delivery method
+      (whose `deliver!` return value is the local `Mail::Message`, not the SES API response - the
+      first re-test's `message_id` of `...@localhost.mail` was a locally-generated header, not
+      proof of anything) and calling `Aws::SES::Client#send_email` directly. It returned a real AWS
+      SES message ID (`0101019f28e79404-...-000000` format), meaning SES genuinely accepted the
+      send with no exception. This is real server-side confirmation of successful handoff to SES -
+      check the box once the test message is confirmed received at the destination inbox (final
+      proof of end-to-end delivery, not just acceptance).
+      **Update 2026-07-04 (see `PHASE5-0A-STATUS-2026-07-04.md`):** re-tested through the real
+      ActionMailer `:ses` adapter (not the raw SDK) directly in Cloud Run - real SES MessageIds
+      returned for both recipients, `beta@lingolinq.com` confirmed delivered, direct
+      `scotwahlquist@gmail.com` confirmed still non-delivered (checked inbox/spam/trash). This
+      partially closes the "was the raw-SDK test representative of the real app" question at the
+      adapter level (credentials/region/delivery-method wiring); it used a generic
+      `ActionMailer::Base.mail(...)` call rather than a concrete mailer class (`UserMailer` etc.),
+      so full mailer-class representativeness is still untested, and per-message delivery-event
+      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked;
+      `LL-42a24ee911` stays `open`.
+- [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
+      gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
+      checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status
+      `open`: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
+      forked `ButtonImage`/`BoardDownstreamButtonSet` job processes - 832 SIGKILL/SIGSEGV failures,
+      see above), `LL-705b10bcd7` (S3 SigV4/KMS-SSE misconfiguration on `BoardDownstreamButtonSet`
+      - 58 failures, see above), and `LL-5954bcbbe6` (pre-existing: 16 `ButtonImage` failures from a
+      missing/misconfigured ImageMagick `identify` binary in the Cloud Run image, 3 `Board`
+      `job_stash` lookup failures, and 1 job calling a `Board` method - `update_privacy` - that no
+      longer exists, suggesting deploy/version skew). Needs root-cause fixes and re-verification
+      (`Resque::Failure.count == 0` or an explained/accepted residual) before this environment is
+      customer-facing.
+      **Update 2026-07-04 (see `PHASE5-0A-STATUS-2026-07-04.md`):** `LL-5954bcbbe6`'s ImageMagick
+      fix (already merged, PR #521) is now live - `lingolinq-web`/`lingolinq-worker` redeployed from
+      `origin/staging` (`efb758284`), `identify -version` confirmed working in the new image, and
+      `Resque::Failure.count` unchanged at 914 with zero new `identify` failures since the
+      redeploy. Not yet exercised under real upload load. `LL-a95e9c5f7c` (OOM) and
+      `LL-705b10bcd7` (S3 SigV4) were not touched today - out of scope for this pass.
+- [ ] **`lingolinq_admin` test credential rotated or the account deleted - separate gate from 0a, do
+      NOT treat as satisfied just because the 0a login box above is checked.** The account currently
+      has a deliberately simple, memorable password (Scot's call, 2026-07-03: needed for hands-on
+      testing - board creation, org-feature testing - across multiple devices before cutover; not
+      a real secret risk today since this rehearsal DB has no real user data). Do not write the
+      literal value in this or any other repo file going forward. Once testing is done, either
+      rotate to a real secret or delete the account before this environment is customer-facing.
+- [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
+      above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
+      the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
+      `status: open` as of 2026-07-02) - only Scot can close/downgrade a register finding per repo
+      policy, so this still needs his explicit sign-off + a register edit before it is formally
+      closed, even though the technical gate has passed.
 - [x] W1 worker SIGTERM grace + requeue fix built + dual-reviewed (tracker 4.W1, **PR #473**,
       merged to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
       existing BoyBand requeue).
@@ -595,10 +866,14 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       (operational mitigation, step 1) rather than building a per-class selective requeue. The
       blanket requeue's double-run risk is handled by ensuring no long notifier is in flight at the
       freeze. (Selective requeue remains a possible later improvement, not a cutover blocker.)
-- [ ] 5.3 front-end choice **decided (Option B, LB + Cloud Armor, gated on the rehearsal; fallback
-      A-now-B-soak)** AND built. Build script shipped (`scripts/gcp/phase5-frontend-lb.sh`, PR #476);
-      still to run (gated): provision the LB, validate it + the WAF preview in the rehearsal, flip
-      the WAF to enforce, then the ingress lockdown.
+- [x] 5.3 front-end choice **decided (Option B, LB + Cloud Armor) AND built + provisioned** as of
+      2026-06-30: LB IP `136.68.41.122`, Cloud Armor policy attached, WAF rules 1001-1004 + rate-limit
+      2000 all in preview (log-only). **Still open, NOT part of this box:** the ingress lockdown (run
+      only after the LB path is validated against real DNS traffic) and the DNS cut itself. The WAF
+      **enforce** flip is deferred to **post-real-traffic** (step 9c), reviewed against genuine
+      multi-user traffic - NOT flipped during the rehearsal or the no-users cutover soak (neither
+      produces representative LB traffic). Rate-limit rule 2000 is gated separately again and stays
+      in preview even after the sig rules enforce.
 - [x] **Render write-reject mode built + tested + dual-reviewed** (tracker 5.2, **PR #472**,
       merged to staging: `WriteFreeze` middleware, ENV-gated `WRITE_FREEZE`, 503 +
       Retry-After on mutating verbs AND side-effect GETs incl. the `lib/json_api` write paths;

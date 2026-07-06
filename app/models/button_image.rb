@@ -436,10 +436,7 @@ class ButtonImage < ApplicationRecord
     if preserve_source_image?
       settings['used_library'] = 'original'
       settings['url'] = self.best_url
-      token = user && user.user_token
-      if token && settings['url'] && settings['url'].match(/\/api\/v1\/users\/.+\/protected_image/)
-        settings['url'] = settings['url'] + (settings['url'].match(/\?/) ? '&' : '?') + "user_token=#{token}"
-      end
+      settings['url'] = Uploadable.tokenize_protected_image_url(settings['url'], user)
       return settings
     end
     if self.settings['library_alternates']
@@ -471,10 +468,7 @@ class ButtonImage < ApplicationRecord
       end
     end
     settings['used_library'] = used_library
-    token = user && user.user_token
-    if token && settings['url'] && settings['url'].match(/\/api\/v1\/users\/.+\/protected_image/)
-      settings['url'] = settings['url'] + (settings['url'].match(/\?/) ? '&' : '?') + "user_token=#{token}"
-    end
+    settings['url'] = Uploadable.tokenize_protected_image_url(settings['url'], user)
     settings
   end
 

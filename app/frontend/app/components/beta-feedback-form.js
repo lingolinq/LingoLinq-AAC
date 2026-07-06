@@ -404,7 +404,9 @@ export default Component.extend({
       fd.append('file', blob);
       return new RSVP.Promise(function(resolve, reject) {
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', rec.remote_upload.upload_url);
+        // post_url is the SigV4-signed regional S3 endpoint; upload_url stays
+        // the canonical object URL other code matches self.url against.
+        xhr.open('POST', rec.remote_upload.post_url || rec.remote_upload.upload_url);
         xhr.onload = function() {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(rec);

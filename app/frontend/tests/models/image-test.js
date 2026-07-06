@@ -80,7 +80,7 @@ describe('Image', function() {
     it('should return the right value', function() {
       var image = LingoLinq.store.createRecord('image', {url: 'http://www.example.com/api/v1/users/2/protected_image/lessonpix/asdf'});
       expect(image.get('personalized_url')).toEqual('http://www.example.com/api/v1/users/2/protected_image/lessonpix/asdf');
-      appStateTarget().set('currentUser', { user_token: 'asdf' });
+      appStateTarget().set('currentUser', { protected_image_token: 'asdf' });
       expect(image.get('personalized_url')).toEqual('http://www.example.com/api/v1/users/2/protected_image/lessonpix/asdf?user_token=asdf');
       image.set('url', 'http://www.example.com/pic.png');
       expect(image.get('personalized_url')).toEqual('http://www.example.com/pic.png');

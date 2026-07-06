@@ -1847,6 +1847,11 @@ export default Component.extend({
         if(res && res.name && !(_this.get('model.name') || '').trim().length) {
           _this.set('model.name', res.name);
         }
+        // EU AI Act Article 50(2): carry the signed AI-generation marker onto the board
+        // so it rides the save payload and the server can verify + persist it.
+        if(res && res.ai_generated) {
+          _this.set('model.ai_generated', res.ai_generated);
+        }
         _this.set('ai_generating', false);
         _this.set('ai_labels_generated', true);
       }, function(err) {

@@ -222,6 +222,9 @@ export default Component.extend({
         _this.set('labels', labels);
         if (res && res.name) { _this.set('name', res.name); }
         if (res && res.description) { _this.set('description', res.description); }
+        // EU AI Act Article 50(2): hold the signed AI-generation marker so createBoard
+        // can include it in the board payload for the server to verify + persist.
+        if (res && res.ai_generated) { _this.set('ai_generated', res.ai_generated); }
       }, function(err) {
         var msg = i18n.t('generate_failed', 'Generation failed');
         var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
@@ -266,6 +269,11 @@ export default Component.extend({
       };
       if (this.get('image_url')) {
         boardPayload.image_url = this.get('image_url');
+      }
+      // EU AI Act Article 50(2): pass the signed AI-generation marker through so the
+      // server verifies and persists it onto the new board's settings.
+      if (this.get('ai_generated')) {
+        boardPayload.ai_generated = this.get('ai_generated');
       }
 
       if (!persistenceService || !persistenceService.ajax) {

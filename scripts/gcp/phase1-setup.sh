@@ -218,7 +218,12 @@ done
 # ---------------------------------------------------------------------------------------
 log "Step 5: IAM bindings (machine identities)"
 # Deploy SA: deploy Cloud Run + push images. project-level.
-for role in roles/run.admin roles/artifactregistry.writer; do
+# secretmanager.viewer (list/metadata, NOT value-read) lets the deploy workflow's "Assert referenced
+# secrets exist" step probe every boot/app secret for an enabled version via `gcloud secrets versions
+# list` WITHOUT granting it read access to the secret values (least privilege: only the runtime SA reads
+# values). The build step still needs to READ two client-public build-arg secrets (MAPS_KEY,
+# DEFAULT_HOST) -- those get scoped per-secret secretAccessor in Step 8 below, not a project-wide grant.
+for role in roles/run.admin roles/artifactregistry.writer roles/secretmanager.viewer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${DEPLOY_SA}" --role="$role" --condition=None --quiet >/dev/null
 done
@@ -228,7 +233,7 @@ gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
   --project="$PROJECT_ID" \
   --member="serviceAccount:${DEPLOY_SA}" \
   --role="roles/iam.serviceAccountUser" --condition=None --quiet >/dev/null
-echo "    deploy SA -> run.admin, artifactregistry.writer, serviceAccountUser(on runtime SA)"
+echo "    deploy SA -> run.admin, artifactregistry.writer, secretmanager.viewer, serviceAccountUser(on runtime SA)"
 # NOTE (Phase 3): grant the RUNTIME SA roles/cloudsql.client once the Cloud SQL instance
 # exists. Intentionally NOT granted here - see the handoff block. Redis needs no IAM (VPC).
 
@@ -395,6 +400,27 @@ for secret in "${ALL_SECRETS[@]}"; do
     --role="roles/secretmanager.secretAccessor" --quiet >/dev/null
 done
 echo "    Created/verified ${#ALL_SECRETS[@]} empty secrets (no versions yet)."
+
+# Build-arg secrets: globals.js.erb bakes these into /assets/globals.js AT docker build
+# (asset-precompile, see Dockerfile + deploy-cloudrun.yml "Build and push image"), so the DEPLOY SA
+# (which runs the build) must READ them to pass --build-arg. They are CLIENT-PUBLIC (emitted to the
+# browser as window.maps_key / window.default_host), never PHI. MAPS_KEY is build-only (no runtime
+# mount, so it is NOT in ALL_SECRETS and gets no runtime-SA accessor); DEFAULT_HOST is also a boot
+# secret (already created + runtime-accessor'd above), but the build needs deploy-SA read too.
+BUILD_ARG_SECRETS=(MAPS_KEY DEFAULT_HOST)
+for secret in "${BUILD_ARG_SECRETS[@]}"; do
+  if ! gcloud secrets describe "$secret" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    gcloud secrets create "$secret" \
+      --project="$PROJECT_ID" \
+      --replication-policy="user-managed" \
+      --locations="$REGION"
+  fi
+  gcloud secrets add-iam-policy-binding "$secret" \
+    --project="$PROJECT_ID" \
+    --member="serviceAccount:${DEPLOY_SA}" \
+    --role="roles/secretmanager.secretAccessor" --quiet >/dev/null
+done
+echo "    deploy SA -> secretAccessor on build-arg secrets: ${BUILD_ARG_SECRETS[*]} (client-public, build-time)"
 
 # ---------------------------------------------------------------------------------------
 # 9. [FREE] GitHub repo variables the workflow reads. GCP_PROJECT_ID is DELIBERATELY

@@ -12,6 +12,15 @@ module Uploadable
   # 512KB is enough for typical button images (400x400) but blocks oversized photos.
   DATA_URI_STORE_MAX_BYTES = 512 * 1024
 
+  PROTECTED_IMAGE_URL_MATCHER = /\/api\/v1\/users\/.+\/protected_image/
+
+  # Shared by url_for and ButtonImage#settings_for so the protected_image
+  # token-minting logic (and any future changes to it) lives in one place.
+  def self.tokenize_protected_image_url(url, user)
+    return url unless user && url && url.match(PROTECTED_IMAGE_URL_MATCHER)
+    url + (url.match(/\?/) ? '&' : '?') + "user_token=#{user.protected_image_token}"
+  end
+
   def file_type 
     if self.is_a?(ButtonImage)
       'images'
@@ -52,10 +61,7 @@ module Uploadable
   end
   
   def url_for(user)
-    token = user && user.user_token
-    return self.url if !token
-    return self.url unless self.url.match(/\/api\/v1\/users\/.+\/protected_image/)
-    self.url + (self.url.match(/\?/) ? '&' : '?') + "user_token=#{token}"
+    Uploadable.tokenize_protected_image_url(self.url, user)
   end
   
   def file_prefix
@@ -310,7 +316,7 @@ module Uploadable
     post_params[:file] = file
 
     # upload to s3 from tempfile
-    res = Typhoeus.post(params[:upload_url], body: post_params)
+    res = Typhoeus.post(params[:post_url], body: post_params)
     if rasterize
       if res.success?
         self.settings['rasterized'] = 'from_filename'
@@ -507,7 +513,7 @@ module Uploadable
     post_params = params[:upload_params]
     post_params['Content-Type'] = content_type
     post_params[:file] = file
-    res = Typhoeus.post(params[:upload_url], body: post_params)
+    res = Typhoeus.post(params[:post_url], body: post_params)
     file.close
     unless res.success?
       Rails.logger.warn("Failed to replace sanitized SVG for #{self.class.name} #{self.global_id}")

@@ -783,7 +783,7 @@ LingoLinq.Buttonset = BaseModel.extend({
             }
             emberSet(button, 'image', emberGet(button, 'image') || templateHelpers.path('images/blank.gif'));
             if(emberGet(button, 'image') && LingoLinqImage.personalize_url) {
-              emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin));
+              emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, _this.appState.get('currentUser.protected_image_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin));
             }
             emberSet(button, 'on_same_board', emberGet(button, 'steps') === 0);
   
@@ -1202,7 +1202,7 @@ LingoLinq.Buttonset = BaseModel.extend({
 
 LingoLinq.Buttonset.fix_image = function(button, images) {
   if(button.image && LingoLinqImage.personalize_url) {
-    button.image = LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
+    button.image = LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.protected_image_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
   }
   var image = images.find(function(img) { return img.get('id') === button.image_id; });
   if(image) {
