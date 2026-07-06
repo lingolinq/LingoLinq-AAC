@@ -398,6 +398,21 @@ describe Uploader do
       expect(Uploader.signed_internal_url("https://s3.amazonaws.com/#{uploads_bucket}/extras/foo.json")).to eq('signed-url')
     end
 
+    it "should keep the leading slash for legacy version-0 extra_data double-slash urls" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: '/extras0/LogSession/1_1/nonce/data-x.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com//extras0/LogSession/1_1/nonce/data-x.json")).to eq('signed-url')
+    end
+
+    it "should pass through a bare bucket url with no key" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+
     it "should pass through non-bucket urls untouched" do
       expect(Aws::S3::Presigner).to_not receive(:new)
       expect(Uploader.signed_internal_url("https://example.com/pic.png")).to eq("https://example.com/pic.png")

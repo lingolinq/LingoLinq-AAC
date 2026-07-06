@@ -300,18 +300,26 @@ module Uploader
     remote_path = nil
     bucket = ENV['UPLOADS_S3_BUCKET']
     if bucket.present? && url.present?
-      if url.match(/^https:\/\/#{bucket}\.s3\.amazonaws\.com\//)
-        remote_path = url.sub(/^https:\/\/#{bucket}\.s3\.amazonaws\.com\//, '')
-      elsif url.match(/^https:\/\/s3\.amazonaws\.com\/#{bucket}\//)
-        remote_path = url.sub(/^https:\/\/s3\.amazonaws\.com\/#{bucket}\//, '')
+      bucket_re = Regexp.escape(bucket)
+      if url.match(/^https:\/\/#{bucket_re}\.s3\.amazonaws\.com\//)
+        remote_path = url.sub(/^https:\/\/#{bucket_re}\.s3\.amazonaws\.com\//, '')
+      elsif url.match(/^https:\/\/s3\.amazonaws\.com\/#{bucket_re}\//)
+        remote_path = url.sub(/^https:\/\/s3\.amazonaws\.com\/#{bucket_re}\//, '')
       end
     end
-    return url unless remote_path
+    # Unlike presigned_url_for_uploads, a leading slash is deliberately KEPT:
+    # legacy extra_data version-0 paths start with '/' (extra_data_remote_paths
+    # prepends it), the object was uploaded under that literal key, and the old
+    # unsigned double-slash URL resolved to the same slash-prefixed key.
+    return url unless remote_path.present?
 
     config = remote_upload_config
     return url unless config[:access_key] && config[:secret]
     presigned_get_url(s3_client(config), bucket, remote_path)
-  rescue Aws::S3::Errors::ServiceError
+  rescue StandardError
+    # Graceful pass-through by design: callers (assert_extra_data, OBF
+    # save_image) tolerate a failed fetch but have no rescue around URL
+    # construction, so signing must never raise into them.
     url
   end
 
