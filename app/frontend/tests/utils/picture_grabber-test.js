@@ -293,7 +293,7 @@ describe('pictureGrabber', function() {
     });
     it('should create a new image record correctly', function() {
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: '/logo.png'});
+      controller.set('image_preview', {url: 'http://example.com/logo.png', width: 100, height: 100});
       var button_set = false;
       stub(editManager, 'change_button', function(id, args) {
         if(id == '456' && args.image_id == '123') { button_set = true; }
@@ -301,15 +301,15 @@ describe('pictureGrabber', function() {
       queryLog.defineFixture({
         method: 'POST',
         type: 'image',
-        compare: function(s) { return s.get('url') == '/logo.png'; },
-        response: RSVP.resolve({image: {id: '123', url: '/logo.png'}})
+        compare: function(s) { return s.get('url') == 'http://example.com/logo.png'; },
+        response: RSVP.resolve({image: {id: '123', url: 'http://example.com/logo.png'}})
       });
       pictureGrabber.select_image_preview();
       waitsFor(function() { return controller.get('model.image'); });
       runs(function() {
         expect(controller.get('model.image.id')).toEqual('123');
-        expect(controller.get('model.image.url')).toEqual('/logo.png');
-        expect(controller.get('model.image.url')).toEqual('/logo.png');
+        expect(controller.get('model.image.url')).toEqual('http://example.com/logo.png');
+        expect(controller.get('model.image.url')).toEqual('http://example.com/logo.png');
         expect(button_set).toEqual(true);
         expect(controller.get('image_preview')).toEqual(null);
       });
@@ -593,7 +593,7 @@ describe('pictureGrabber', function() {
 
     it('should request a proxy data-URI if value is a URL', function() {
       pictureGrabber.setup(button, controller);
-      stub($, 'ajax', function(url, args) {
+      stub(persistence, 'ajax', function(url, args) {
         return RSVP.resolve({
           data: "data:image/png;aaa===",
           content_type: "image/png"
@@ -608,7 +608,7 @@ describe('pictureGrabber', function() {
 
     it('should search for results with a remote call otherwise', function() {
       var promise = null;
-      stub($, 'ajax', function(url, args) {
+      stub(persistence, 'ajax', function(url, args) {
         promise = easyPromise();
         return promise;
       });
@@ -894,6 +894,7 @@ describe('pictureGrabber', function() {
       expect(editManager.controller.get('image_preview')).toEqual({
         editor: true,
         word_editor: true,
+        hc: true,
         license: {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
@@ -905,6 +906,7 @@ describe('pictureGrabber', function() {
       expect(controller.get('image_preview')).toEqual({
         editor: true,
         word_editor: true,
+        hc: true,
         license: {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
@@ -972,7 +974,7 @@ describe('pictureGrabber', function() {
         expect(library).toEqual('lessonpix');
         expect(fallback).toEqual(true);
       });
-      contentGrabbers.pictureGrabber.picture_search('lessonpix', 'rabbit', 'stacey', true);
+      contentGrabbers.pictureGrabber.picture_search('lessonpix', 'rabbit', 'stacey', null, true);
       expect(called).toEqual(true);
     });
   });
@@ -1055,7 +1057,7 @@ describe('pictureGrabber', function() {
         ]);
       });
       var result = null;
-      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', true).then(function(res) {
+      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', null, true).then(function(res) {
         result = res;
       });
       waitsFor(function() { return result; });
@@ -1075,7 +1077,7 @@ describe('pictureGrabber', function() {
         return RSVP.reject();
       });
       var result = null;
-      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', false).then(function(res) {
+      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', null, false).then(function(res) {
         result = res;
       }, function(err) { result = err; });
       waitsFor(function() { return result; });

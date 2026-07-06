@@ -22,6 +22,7 @@ import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import lingoLinqExtras from '../../utils/extras';
 import stashes from '../../utils/_stashes';
+import geo from '../../utils/geo';
 import { primeAllServices, stashesTarget, appStateTarget, persistenceTarget } from './service-stub';
 import modal from '../../utils/modal';
 import utterance from '../../utils/utterance';
@@ -104,11 +105,13 @@ queryLog.respondAndLog = function(event, defaultResponse) {
       if(fixture.method == 'GET' && fixture.id && fixture.id == event.id) {
         found = true;
         // find
-      } else if(fixture.method == 'POST' && fixture.compare && fixture.compare(event.object.record)) {
-        found = true;
+      } else if(fixture.method == 'POST' && fixture.compare) {
+        var record = (event.object && event.object.record) || event.object;
+        found = fixture.compare(record);
         // createRecord
-      } else if(fixture.method == 'PUT' && fixture.compare && fixture.compare(event.object.record)) {
-        found = true;
+      } else if(fixture.method == 'PUT' && fixture.compare) {
+        var updateRecord = (event.object && event.object.record) || event.object;
+        found = fixture.compare(updateRecord);
         // updateRecord
       } else if(fixture.method == 'GET' && fixture.query && queryFixtureMatches(fixture.query, event.query)) {
         found = true;
@@ -633,8 +636,12 @@ beforeEach(function() {
     app_state.reset();
   }
   LingoLinq.all_wait = false;
-  var modalTests = isModalTestModule((typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null);
-  var utteranceTests = isUtteranceTestModule((typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null);
+  var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
+  var modalTests = isModalTestModule(moduleName);
+  var utteranceTests = isUtteranceTestModule(moduleName);
+  var stashesTests = isStashesTestModule(moduleName);
+  var geoTests = isGeoTestModule(moduleName);
+  var grabberTests = isGrabberTestModule(moduleName);
   if (modalTests) {
     setupModalTestHarness();
   } else {
@@ -654,6 +661,15 @@ beforeEach(function() {
   if (utteranceTests) {
     setupUtteranceTestHarness();
   }
+  if (stashesTests || geoTests) {
+    setupStashesGeoTestHarness();
+  }
+  if (geoTests) {
+    setupGeoTestHarness();
+  }
+  if (grabberTests) {
+    setupGrabberTestHarness();
+  }
   boundClasses.setup(true);
 });
 
@@ -664,6 +680,9 @@ afterEach(function() {
   }
   if (isUtteranceTestModule(moduleName)) {
     teardownUtteranceTestHarness();
+  }
+  if (isStashesTestModule(moduleName) || isGeoTestModule(moduleName)) {
+    teardownStashesGeoTestHarness();
   }
   capabilities.setup_database.already_tried = false;
   capabilities.setup_database.already_tried_deleting = false;
@@ -977,6 +996,94 @@ function teardownUtteranceTestHarness() {
   } catch (e) { /* mid-teardown */ }
 }
 
+function isStashesTestModule(moduleName) {
+  if (moduleName === 'stashes') {
+    return true;
+  }
+  if (typeof QUnit === 'undefined' || !QUnit.config) {
+    return false;
+  }
+  var current = QUnit.config.current;
+  if (current && current.module && current.module.name === 'stashes') {
+    return true;
+  }
+  var testName = current && current.testName;
+  return !!(testName && /^stashes(\s|-)/.test(testName));
+}
+
+function isGeoTestModule(moduleName) {
+  if (moduleName === 'geo') {
+    return true;
+  }
+  if (typeof QUnit === 'undefined' || !QUnit.config) {
+    return false;
+  }
+  var current = QUnit.config.current;
+  if (current && current.module && current.module.name === 'geo') {
+    return true;
+  }
+  var testName = current && current.testName;
+  return !!(testName && /^geo(\s|-)/.test(testName));
+}
+
+function isGrabberTestModule(moduleName) {
+  if (moduleName === 'pictureGrabber' || moduleName === 'soundGrabber' || moduleName === 'videoGrabber' || moduleName === 'contentGrabbers') {
+    return true;
+  }
+  if (typeof QUnit === 'undefined' || !QUnit.config) {
+    return false;
+  }
+  var current = QUnit.config.current;
+  if (current && current.module && current.module.name) {
+    var name = current.module.name;
+    if (name === 'pictureGrabber' || name === 'soundGrabber' || name === 'videoGrabber' || name === 'contentGrabbers') {
+      return true;
+    }
+  }
+  var testName = current && current.testName;
+  return !!(testName && /^(pictureGrabber|soundGrabber|videoGrabber|contentGrabbers)(\s|-)/.test(testName));
+}
+
+function setupStashesGeoTestHarness() {
+  var target = stashesTarget() || stashes;
+  if (target && typeof target.set === 'function') {
+    target.set('online', true);
+  }
+  if (target && typeof target.db_connect === 'function' && capabilities) {
+    target.db_connect(capabilities);
+  }
+  target.errored_at = null;
+  target.last_log_push = null;
+  target.wait_timer = null;
+  target.timer = null;
+  LingoLinq.sync_testing = true;
+  LingoLinq.embedded = false;
+  if (!LingoLinq._stashesGeoHarnessPermissions) {
+    stub(capabilities.permissions, 'assert', function() {
+      return RSVP.resolve();
+    });
+    LingoLinq._stashesGeoHarnessPermissions = true;
+  }
+}
+
+function teardownStashesGeoTestHarness() {
+  LingoLinq.sync_testing = false;
+}
+
+function setupGeoTestHarness() {
+  geo.setup(appStateTarget(), persistenceTarget(), stashesTarget() || stashes);
+}
+
+function setupGrabberTestHarness() {
+  var persistenceSvc = persistenceTarget();
+  if (persistenceSvc && typeof persistenceSvc.set === 'function') {
+    persistenceSvc.set('online', true);
+  }
+  if (LingoLinq.testOwner) {
+    primeAllServices(LingoLinq.testOwner);
+  }
+}
+
 function stubModalSafe(owner) {
   stub(modal, 'open', function() { return RSVP.resolve(); });
   stub(modal, 'notice', function() { return RSVP.resolve(); });
@@ -1023,4 +1130,4 @@ function boardModelStub(attrs) {
   }, attrs || {}));
 }
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, fakeBlob, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, ensureUserReload, persistenceTarget, stubNavigatorGetUserMedia };
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, fakeBlob, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, setupStashesGeoTestHarness, teardownStashesGeoTestHarness, setupGeoTestHarness, setupGrabberTestHarness, ensureUserReload, persistenceTarget, stashesTarget, appStateTarget, stubNavigatorGetUserMedia };
