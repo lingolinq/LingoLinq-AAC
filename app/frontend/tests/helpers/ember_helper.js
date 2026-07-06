@@ -669,8 +669,10 @@ afterEach(function() {
   capabilities.setup_database.already_tried_deleting = false;
   capabilities.setup_database.already_tried_deleting_all = false;
   capabilities.dbman = capabilities.dbman || capabilities.original_dbman;
-  app_state.set('label_locale', null);
-  app_state.set('vocalization_locale', null);
+  if (app_state && !app_state.isDestroyed && typeof app_state.set === 'function') {
+    app_state.set('label_locale', null);
+    app_state.set('vocalization_locale', null);
+  }
   while(queryLog.length > 0) {
     queryLog.pop();
   }
@@ -730,27 +732,25 @@ function asStoreRecordArray(items) {
 }
 
 function asEmberArray(items) {
-  items = items || [];
-  var arr = asStoreRecordArray(items);
+  var arr = (items || []).slice();
   arr.pushObject = function(o) {
-    items.push(o);
-    arr.length = items.length;
+    this.push(o);
     return o;
   };
   arr.slice = function() {
-    return asEmberArray(Array.prototype.slice.apply(items, arguments));
+    return asEmberArray(Array.prototype.slice.apply(this, arguments));
   };
   arr.mapBy = function(key) {
-    return items.map(function(i) {
+    return asEmberArray(this.map(function(i) {
       if (i && typeof i.get === 'function') {
         return i.get(key);
       }
       return i ? i[key] : undefined;
-    });
+    }));
   };
   arr.findBy = function(key, val) {
-    for (var idx = 0; idx < items.length; idx++) {
-      var i = items[idx];
+    for (var idx = 0; idx < this.length; idx++) {
+      var i = this[idx];
       var candidate = (i && typeof i.get === 'function') ? i.get(key) : i[key];
       if (candidate === val) {
         return i;
@@ -759,14 +759,29 @@ function asEmberArray(items) {
     return undefined;
   };
   arr.uniq = function() {
-    return asEmberArray(items.filter(function(item, index) {
-      return items.indexOf(item) === index;
-    }));
+    return asEmberArray(this.filter(function(item, index) {
+      return this.indexOf(item) === index;
+    }, this));
   };
   arr.toArray = function() {
-    return items.slice();
+    return this.slice();
   };
   return arr;
+}
+
+function fakeBlob(parts, options) {
+  if (typeof Blob !== 'undefined') {
+    return new Blob(parts, options);
+  }
+  return {
+    type: (options && options.type) || '',
+    size: (parts || []).reduce(function(n, part) {
+      if (typeof part === 'string') {
+        return n + part.length;
+      }
+      return n + (part && part.length ? part.length : 0);
+    }, 0)
+  };
 }
 
 function stubComputed(object, key, value) {
@@ -1008,4 +1023,4 @@ function boardModelStub(attrs) {
   }, attrs || {}));
 }
 
-export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, ensureUserReload, persistenceTarget, stubNavigatorGetUserMedia };
+export { queryLog, fakeAudio, fakeRecorder, fakeMediaRecorder, fakeCanvas, fakeBlob, easyPromise, db_wait, fake_dbman, queue_promise, result_wrap, replaceLocalStorage, asStoreRecordArray, asEmberArray, stubComputed, boardModelStub, userRecordStub, stubModalSafe, setupModalTestHarness, teardownModalTestHarness, setupUtteranceTestHarness, teardownUtteranceTestHarness, ensureUserReload, persistenceTarget, stubNavigatorGetUserMedia };
