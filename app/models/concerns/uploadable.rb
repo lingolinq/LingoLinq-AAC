@@ -270,7 +270,7 @@ module Uploadable
     post_params[:file] = file
 
     # upload to s3 from tempfile
-    res = Typhoeus.post(params[:upload_url], body: post_params)
+    res = Typhoeus.post(params[:post_url], body: post_params)
     if rasterize
       if res.success?
         self.settings['rasterized'] = 'from_filename'
