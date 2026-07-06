@@ -6,6 +6,13 @@ import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 
+// post_url is the SigV4-signed regional S3 endpoint; upload_url stays the
+// canonical object URL other code matches self.url against. Fall back for
+// responses cached before post_url existed.
+export function uploadTargetUrl(remote_upload) {
+  return remote_upload.post_url || remote_upload.upload_url;
+}
+
 export default Component.extend({
   tagName: '',
 
@@ -380,9 +387,7 @@ export default Component.extend({
       fd.append('file', blob);
       return new RSVP.Promise(function(resolve, reject) {
         var xhr = new XMLHttpRequest();
-        // post_url is the SigV4-signed regional S3 endpoint; upload_url stays
-        // the canonical object URL other code matches self.url against.
-        xhr.open('POST', rec.remote_upload.post_url || rec.remote_upload.upload_url);
+        xhr.open('POST', uploadTargetUrl(rec.remote_upload));
         xhr.onload = function() {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(rec);

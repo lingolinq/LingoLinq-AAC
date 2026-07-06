@@ -20,6 +20,18 @@ import progress_tracker from '../../utils/progress_tracker';
 import { run as emberRun } from '@ember/runloop';
 
 describe("contentGrabbers", function() {
+  describe('upload_target_url', function() {
+    it('should prefer post_url and fall back to legacy upload_url', function() {
+      expect(contentGrabbers.upload_target_url({
+        post_url: 'https://bucket.s3.us-west-2.amazonaws.com/',
+        upload_url: 'https://bucket.s3.amazonaws.com/'
+      })).toEqual('https://bucket.s3.us-west-2.amazonaws.com/');
+      expect(contentGrabbers.upload_target_url({
+        upload_url: 'https://bucket.s3.amazonaws.com/'
+      })).toEqual('https://bucket.s3.amazonaws.com/');
+    });
+  });
+
   var button, controller;
   var pictureGrabber = contentGrabbers.pictureGrabber;
   var soundGrabber = contentGrabbers.soundGrabber;

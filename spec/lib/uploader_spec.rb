@@ -284,6 +284,19 @@ describe Uploader do
 
       res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
       expect(res[:upload_params]['acl']).to eq(nil)
+
+      orig = ENV['UPLOADS_S3_NO_ACL']
+      begin
+        ENV['UPLOADS_S3_NO_ACL'] = '1'
+        res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+        expect(res[:upload_params]['acl']).to eq(nil)
+      ensure
+        if orig.nil?
+          ENV.delete('UPLOADS_S3_NO_ACL')
+        else
+          ENV['UPLOADS_S3_NO_ACL'] = orig
+        end
+      end
     end
   end
 

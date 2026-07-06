@@ -230,6 +230,12 @@ var contentGrabbers = Service.extend({
     });
     return promise;
   },
+  // post_url is the SigV4-signed regional S3 endpoint; upload_url is the
+  // canonical global-style object URL other code matches self.url against,
+  // so it can't also be the POST target. Fall back for older cached data.
+  upload_target_url: function(params) {
+    return params.post_url || params.upload_url;
+  },
   upload_to_remote: function(params, extra) {
     var _this = this;
     var promise = new RSVP.Promise(function(resolve, reject) {
@@ -256,10 +262,7 @@ var contentGrabbers = Service.extend({
       }
 
       persistenceService.ajax({
-        // post_url is the SigV4-signed regional S3 endpoint; upload_url is the
-        // canonical global-style object URL other code matches self.url against,
-        // so it can't also be the POST target. Fall back for older cached data.
-        url: params.post_url || params.upload_url,
+        url: _this.upload_target_url(params),
         type: 'POST',
         data: fd,
         processData: false,  // tell jQuery not to process the data
