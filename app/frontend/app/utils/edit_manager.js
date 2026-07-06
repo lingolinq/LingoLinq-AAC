@@ -264,6 +264,21 @@ var editManager = EmberObject.extend({
     }
     return lines.join("\n");
   },
+  /**
+   * Schema-2 (Universal Dependencies) lookback-rules seam, gated behind
+   * feature_flags.multilingual_grammar. Flag OFF (default) or no schema-2 rules
+   * available: returns null, so inflection_for_types's existing rules resolution
+   * (i18n.lang_overrides -> hardcoded EN rules[] fallback) runs completely unchanged --
+   * this is the FLAG-03 fallback path (COMPAT-04). Flag ON: minimal stub only; the real
+   * schema-2 resolver is backend-only and not yet wired to the frontend (Plan 01-05
+   * known gap, see PARITY.md).
+   */
+  schema2_rules_override: function(lang) {
+    if(!this.appState || typeof this.appState.get !== 'function' || !this.appState.get('feature_flags.multilingual_grammar')) {
+      return null;
+    }
+    return null;
+  },
   inflection_for_types: function(history, locale, inflection_shift) {
     if(!inflection_shift) {
       if(!locale || history.length == 0) {
@@ -276,6 +291,8 @@ var editManager = EmberObject.extend({
     var lang = (this.appState.get('speak_mode') && this.appState.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
     var lang_fallback = lang.split(/-|_/)[0];
     var rules = (i18n.lang_overrides[lang] || i18n.lang_overrides[lang_fallback] || {}).rules;
+    var schema2_rules = this.schema2_rules_override(lang);
+    if(schema2_rules) { rules = schema2_rules; }
     if(!rules && lang.match(/^en/)) {
       rules = [
         // Verbs:
@@ -653,6 +670,20 @@ var editManager = EmberObject.extend({
     return res;
   },
   /**
+   * Schema-2 (Universal Dependencies) overlay-slot seam, gated behind
+   * feature_flags.multilingual_grammar. Flag OFF (default) or no schema-2 slot data:
+   * returns null, so grid_for's existing locs/defaults-based overlay construction runs
+   * completely unchanged -- this is the FLAG-03 fallback path (COMPAT-04). Flag ON:
+   * minimal stub only; the real schema-2 resolver is backend-only and not yet wired to
+   * the frontend (Plan 01-05 known gap, see PARITY.md).
+   */
+  schema2_slot_override: function(button, locale) {
+    if(!this.appState || typeof this.appState.get !== 'function' || !this.appState.get('feature_flags.multilingual_grammar')) {
+      return null;
+    }
+    return null;
+  },
+  /**
    * Builds the inflection options grid for a button (nw, n, ne, w, c, e, sw, s, se).
    * Used by the long-press inflections overlay in Speak Mode.
    * REFACTOR NOTE: See docs/INFLECTIONS_LONG_PRESS_OVERLAY.md - ensure button lookup
@@ -668,6 +699,7 @@ var editManager = EmberObject.extend({
     var board = this.controller.get('model');
     var res = [];
     if(!button) { return null; }
+    var schema2_override = this.schema2_slot_override(button, board.get('locale'));
     var select_button = function(label, vocalization, event) {
       var overlay_button = editManager.overlay_button_from(button, board);
   
@@ -881,6 +913,12 @@ var editManager = EmberObject.extend({
       event.overlay_location = obj.location;
       select_button(obj.label, obj.vocalization, event);
     };
+    // Schema-2 seam: only used when the existing locs/defaults-based construction above
+    // produced nothing AND a schema-2 override is present (never true today -- the
+    // override is a stub, see schema2_slot_override -- so this is a no-op fallback).
+    if(final.length == 0 && schema2_override && schema2_override.length) {
+      final = schema2_override;
+    }
     if(final.length == 0) { return null; }
     return final;
   },
