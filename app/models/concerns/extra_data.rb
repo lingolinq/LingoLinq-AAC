@@ -208,7 +208,9 @@ module ExtraData
       self.data[self.extra_data_attribute] = @cached_extra_data
     end
     if url && !self.data[self.extra_data_attribute]
-      req = Typhoeus.get(url, timeout: 3)
+      # The uploads bucket blocks public access; an unsigned GET on the raw
+      # bucket URL 403s, so sign it (non-bucket URLs pass through unchanged)
+      req = Typhoeus.get(Uploader.signed_internal_url(url), timeout: 3)
       data = self.decrypted_json(req.body) rescue nil
       self.data[self.extra_data_attribute] = data
     end
