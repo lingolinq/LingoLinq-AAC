@@ -10,6 +10,7 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
 import templateHelpers, { registerTemplateHelpers } from './template_helpers';
+import app_state from './app_state';
 
 function escapeHtmlForInterpolation(val) {
   if(val == null || val === '') { return ''; }
@@ -362,6 +363,35 @@ var i18n = EmberObject.extend({
       res = "not " + str;
     }
     return res;
+  },
+  // Schema-2 (Universal Dependencies) morphology seam, gated behind
+  // feature_flags.multilingual_grammar -- the server-provided flag map only (never a
+  // client-side ENV check; ENV['MULTILINGUAL_GRAMMAR'] gates the Rails backend only,
+  // see lib/feature_flags.rb). Flag OFF (default): schema2_morph delegates straight
+  // through to the hardcoded English helpers above, completely unchanged -- this is the
+  // FLAG-03 fallback path (COMPAT-05). Flag ON: minimal stub only; the real schema-2
+  // resolver (lib/language/schema2_resolver.rb, Plan 01-05) is backend-only and is not
+  // wired into the frontend yet (see Plan 01-05 PARITY.md known gap).
+  multilingual_grammar_enabled: function(appStateService) {
+    var state = appStateService || app_state;
+    if(!state || typeof state.get !== 'function') { return false; }
+    return !!state.get('feature_flags.multilingual_grammar');
+  },
+  schema2_morph: function(kind, str, options, schema2_data, appStateService) {
+    var legacy = function() {
+      if(kind == 'pluralize') { return i18n.pluralize(str); }
+      if(kind == 'singularize') { return i18n.singularize(str); }
+      if(kind == 'tense') { return i18n.tense(str, options); }
+      if(kind == 'verb_negation') { return i18n.verb_negation(str); }
+      return str;
+    };
+    if(!i18n.multilingual_grammar_enabled(appStateService) || !schema2_data) {
+      return legacy();
+    }
+    // Schema-2 stub only -- no real UD-feature resolution is wired to the client yet, so
+    // flag ON still falls through to the legacy helper (enabling the flag today cannot
+    // regress existing output).
+    return legacy();
   },
   syllables: function(word) {
     // http://stackoverflow.com/questions/405161/detecting-syllables-in-a-word
