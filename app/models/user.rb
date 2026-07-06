@@ -2674,7 +2674,7 @@ class User < ApplicationRecord
     user_id, expires_at, sig = parts
     return nil unless expires_at.match?(/\A\d+\z/)
     verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
-    return nil unless sig == verifier
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(sig, verifier)
     return nil if expires_at.to_i < Time.now.to_i
     User.find_by_global_id(user_id)
   end
