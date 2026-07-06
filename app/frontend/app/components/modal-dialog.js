@@ -45,7 +45,8 @@ export default Component.extend({
       // tabbable element, or the modal container.
       runLater(() => {
         if (this.isDestroyed || this.isDestroying || !this.element) { return; }
-        const explicit = $(this.element).find('[data-autofocus]').filter(':visible')[0];
+        const explicit = Array.prototype.slice.call(this.element.querySelectorAll('[data-autofocus]'))
+          .find((el) => el.getClientRects().length > 0);
         if (explicit) {
           if (explicit.getAttribute('tabindex') == null) { explicit.setAttribute('tabindex', '-1'); }
           explicit.focus();

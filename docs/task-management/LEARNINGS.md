@@ -5964,3 +5964,15 @@ etc.); the brain doc explicitly defers to the register as SSOT, so when either s
 classification language, grep the other side for the stale term in the same session. Found
 2026-07-05 when a brain-repo audit caught the register still saying "de-identified" three
 weeks after the program doc was corrected to "pseudonymized". (2026-07-05)
+
+- Ember Data "mutating a preferences object in place won't persist" is a FALSE ALARM in this
+  app — don't add ref-reassign dances to force dirtiness. Two facts: (1) `record.save()` always
+  issues a network request (it does NOT skip a pristine record); (2) the User serializer extends
+  `@ember-data/serializer/rest` (`serializers/application.js`), whose `serialize()` walks EVERY
+  attribute via `eachAttribute` regardless of dirty state — so the full `preferences` object
+  (including a nested `set('preferences.progress.x', …)` mutation) is always in the PUT payload.
+  Canonical analog: `components/intro.js` does `user.set('preferences.progress.intro_watched',
+  true); user.save()` with no ref-reassign and persists fine. The ONLY real gotcha with nested
+  prefs is that `Ember.set('preferences.progress.x', …)` throws if `preferences.progress` is
+  undefined — so vivify the intermediate object first; that's a correctness guard, not a
+  dirty-tracking hack. (2026-07-06, adversarial-review triage)

@@ -630,7 +630,12 @@ export default Component.extend({
       appState.set('board_detail_tour_pending_speak', key);
       var t = _this.get('router').transitionTo('user.board-detail', userName, boardname);
       if (t && typeof t.catch === 'function') {
-        t.catch(function() { appState.hide_loading_overlay(); });
+        t.catch(function() {
+          // Transition failed: clear the pending flag so the speak tour doesn't
+          // auto-open on an unrelated future board-detail visit.
+          appState.set('board_detail_tour_pending_speak', false);
+          appState.hide_loading_overlay();
+        });
       }
     };
     var retry = function() {
@@ -656,7 +661,9 @@ export default Component.extend({
       // initiate a copy. On success, prime the board-detail cache so the route
       // is a cache hit; if the copy hasn't materialized, ingest_tree returns
       // false (no usable root) and we keep polling.
-      _this.get('persistence').ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
+      // Encode the user-supplied user_name segment (boardname is a safe literal);
+      // the '/' separator stays literal since the board key is `username/boardname`.
+      _this.get('persistence').ajax('/api/v1/boards/' + encodeURIComponent(userName) + '/' + boardname + '/tree', { type: 'GET' }).then(function(data) {
         if (boardDetailCache.ingest_tree(data, warm_opts, { force: true })) {
           go();
         } else {
