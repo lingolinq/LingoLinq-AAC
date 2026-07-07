@@ -1,0 +1,5179 @@
+{
+  "_rule": "every surface string occurring in more than one (list_id, index) position across/within the 4 core arrays maps to occurrences + count; entries already classified as non-concept in non-concept-classification.json are excluded from \"duplicates\" and recorded separately under non_concept_repeats",
+  "duplicates": {
+    "a": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 42,
+          "list_id": "default"
+        },
+        {
+          "index": 44,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "about": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 101,
+          "list_id": "default"
+        },
+        {
+          "index": 102,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "after": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 93,
+          "list_id": "default"
+        },
+        {
+          "index": 435,
+          "list_id": "default"
+        },
+        {
+          "index": 93,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "again": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 31,
+          "list_id": "default"
+        },
+        {
+          "index": 30,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 56,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "all": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 51,
+          "list_id": "default"
+        },
+        {
+          "index": 22,
+          "list_id": "project_core"
+        },
+        {
+          "index": 51,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 41,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "almost": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 163,
+          "list_id": "default"
+        },
+        {
+          "index": 168,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "already": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 262,
+          "list_id": "default"
+        },
+        {
+          "index": 294,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "also": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 253,
+          "list_id": "default"
+        },
+        {
+          "index": 286,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "am": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 64,
+          "list_id": "default"
+        },
+        {
+          "index": 64,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "an": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 103,
+          "list_id": "default"
+        },
+        {
+          "index": 104,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "and": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 33,
+          "list_id": "default"
+        },
+        {
+          "index": 34,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "another": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 145,
+          "list_id": "default"
+        },
+        {
+          "index": 149,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "any": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 102,
+          "list_id": "default"
+        },
+        {
+          "index": 101,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "are": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 27,
+          "list_id": "default"
+        },
+        {
+          "index": 28,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "around": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 165,
+          "list_id": "default"
+        },
+        {
+          "index": 169,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "as": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 85,
+          "list_id": "default"
+        },
+        {
+          "index": 82,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "ask": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 302,
+          "list_id": "default"
+        },
+        {
+          "index": 362,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "at": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 76,
+          "list_id": "default"
+        },
+        {
+          "index": 75,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "away": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 59,
+          "list_id": "default"
+        },
+        {
+          "index": 59,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "baby": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 137,
+          "list_id": "default"
+        },
+        {
+          "index": 139,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "back": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 151,
+          "list_id": "default"
+        },
+        {
+          "index": 156,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bad": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 148,
+          "list_id": "default"
+        },
+        {
+          "index": 146,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "ball": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 181,
+          "list_id": "default"
+        },
+        {
+          "index": 188,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bathroom": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 188,
+          "list_id": "default"
+        },
+        {
+          "index": 200,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "be": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 63,
+          "list_id": "default"
+        },
+        {
+          "index": 62,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bean": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 335,
+          "list_id": "default"
+        },
+        {
+          "index": 398,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "because": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 56,
+          "list_id": "default"
+        },
+        {
+          "index": 56,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bed": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 322,
+          "list_id": "default"
+        },
+        {
+          "index": 367,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "before": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 94,
+          "list_id": "default"
+        },
+        {
+          "index": 92,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "being": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 272,
+          "list_id": "default"
+        },
+        {
+          "index": 309,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bet": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 329,
+          "list_id": "default"
+        },
+        {
+          "index": 394,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "better": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 141,
+          "list_id": "default"
+        },
+        {
+          "index": 143,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "big": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 79,
+          "list_id": "default"
+        },
+        {
+          "index": 77,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 46,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "bird": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 318,
+          "list_id": "default"
+        },
+        {
+          "index": 369,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "birds": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 275,
+          "list_id": "default"
+        },
+        {
+          "index": 316,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bite": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 330,
+          "list_id": "default"
+        },
+        {
+          "index": 395,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "black": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 198,
+          "list_id": "default"
+        },
+        {
+          "index": 209,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "blue": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 202,
+          "list_id": "default"
+        },
+        {
+          "index": 220,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "both": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 183,
+          "list_id": "default"
+        },
+        {
+          "index": 198,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "box": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 323,
+          "list_id": "default"
+        },
+        {
+          "index": 372,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "boy": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 184,
+          "list_id": "default"
+        },
+        {
+          "index": 195,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "break": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 512,
+          "list_id": "default"
+        },
+        {
+          "index": 77,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "bring": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 355,
+          "list_id": "default"
+        },
+        {
+          "index": 76,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "brother": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 281,
+          "list_id": "default"
+        },
+        {
+          "index": 323,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bugs": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 266,
+          "list_id": "default"
+        },
+        {
+          "index": 301,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "but": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 65,
+          "list_id": "default"
+        },
+        {
+          "index": 66,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "buy": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 236,
+          "list_id": "default"
+        },
+        {
+          "index": 258,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "by": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 82,
+          "list_id": "default"
+        },
+        {
+          "index": 81,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "bye": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 516,
+          "list_id": "default"
+        },
+        {
+          "index": 45,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "call": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 161,
+          "list_id": "default"
+        },
+        {
+          "index": 165,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "came": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 200,
+          "list_id": "default"
+        },
+        {
+          "index": 222,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "can": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 37,
+          "list_id": "default"
+        },
+        {
+          "index": 28,
+          "list_id": "project_core"
+        },
+        {
+          "index": 38,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 75,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "candy": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 338,
+          "list_id": "default"
+        },
+        {
+          "index": 400,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "car": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 179,
+          "list_id": "default"
+        },
+        {
+          "index": 189,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "cat": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 324,
+          "list_id": "default"
+        },
+        {
+          "index": 374,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "catch": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 239,
+          "list_id": "default"
+        },
+        {
+          "index": 259,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "cause": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 328,
+          "list_id": "default"
+        },
+        {
+          "index": 396,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "chair": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 251,
+          "list_id": "default"
+        },
+        {
+          "index": 274,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "child": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 347,
+          "list_id": "default"
+        },
+        {
+          "index": 439,
+          "list_id": "default"
+        }
+      ]
+    },
+    "clean": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 278,
+          "list_id": "default"
+        },
+        {
+          "index": 321,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "close": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 540,
+          "list_id": "default"
+        },
+        {
+          "index": 55,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "color": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 225,
+          "list_id": "default"
+        },
+        {
+          "index": 251,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "come": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 73,
+          "list_id": "default"
+        },
+        {
+          "index": 72,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 54,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "comes": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 201,
+          "list_id": "default"
+        },
+        {
+          "index": 221,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "cookie": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 337,
+          "list_id": "default"
+        },
+        {
+          "index": 401,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "cool": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 226,
+          "list_id": "default"
+        },
+        {
+          "index": 252,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "corn": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 336,
+          "list_id": "default"
+        },
+        {
+          "index": 402,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "could": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 78,
+          "list_id": "default"
+        },
+        {
+          "index": 79,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "cup": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 299,
+          "list_id": "default"
+        },
+        {
+          "index": 352,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "cut": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 235,
+          "list_id": "default"
+        },
+        {
+          "index": 260,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "day": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 122,
+          "list_id": "default"
+        },
+        {
+          "index": 125,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "did": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 75,
+          "list_id": "default"
+        },
+        {
+          "index": 73,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "different": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 58,
+          "list_id": "default"
+        },
+        {
+          "index": 11,
+          "list_id": "project_core"
+        },
+        {
+          "index": 58,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 27,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "do": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 12,
+          "list_id": "default"
+        },
+        {
+          "index": 15,
+          "list_id": "project_core"
+        },
+        {
+          "index": 12,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 14,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "doctor": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 321,
+          "list_id": "default"
+        },
+        {
+          "index": 375,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "does": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 106,
+          "list_id": "default"
+        },
+        {
+          "index": 105,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "dog": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 250,
+          "list_id": "default"
+        },
+        {
+          "index": 275,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "doing": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 120,
+          "list_id": "default"
+        },
+        {
+          "index": 121,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "done": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 135,
+          "list_id": "default"
+        },
+        {
+          "index": 135,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 33,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "door": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 245,
+          "list_id": "default"
+        },
+        {
+          "index": 276,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "down": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 77,
+          "list_id": "default"
+        },
+        {
+          "index": 76,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 40,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "drink": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 40,
+          "list_id": "default"
+        },
+        {
+          "index": 41,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 26,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "duck": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 293,
+          "list_id": "default"
+        },
+        {
+          "index": 330,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "each": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 326,
+          "list_id": "default"
+        },
+        {
+          "index": 392,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "eat": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 24,
+          "list_id": "default"
+        },
+        {
+          "index": 25,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 11,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "eating": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 274,
+          "list_id": "default"
+        },
+        {
+          "index": 305,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "else": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 167,
+          "list_id": "default"
+        },
+        {
+          "index": 170,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "even": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 280,
+          "list_id": "default"
+        },
+        {
+          "index": 324,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "every": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 190,
+          "list_id": "default"
+        },
+        {
+          "index": 203,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "everybody": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 217,
+          "list_id": "default"
+        },
+        {
+          "index": 236,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "everything": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 295,
+          "list_id": "default"
+        },
+        {
+          "index": 345,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "eye": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 346,
+          "list_id": "default"
+        },
+        {
+          "index": 436,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "face": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 286,
+          "list_id": "default"
+        },
+        {
+          "index": 331,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "fall": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 177,
+          "list_id": "default"
+        },
+        {
+          "index": 186,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "fast": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 542,
+          "list_id": "default"
+        },
+        {
+          "index": 53,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "father": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 344,
+          "list_id": "default"
+        },
+        {
+          "index": 418,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "favorite": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 265,
+          "list_id": "default"
+        },
+        {
+          "index": 295,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "feel": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 128,
+          "list_id": "default"
+        },
+        {
+          "index": 129,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 43,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "find": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 88,
+          "list_id": "default"
+        },
+        {
+          "index": 89,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "finger": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 332,
+          "list_id": "default"
+        },
+        {
+          "index": 403,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "finish": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 590,
+          "list_id": "default"
+        },
+        {
+          "index": 74,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "finished": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 53,
+          "list_id": "default"
+        },
+        {
+          "index": 29,
+          "list_id": "project_core"
+        },
+        {
+          "index": 53,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 25,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "fire": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 212,
+          "list_id": "default"
+        },
+        {
+          "index": 231,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "first": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 113,
+          "list_id": "default"
+        },
+        {
+          "index": 114,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "five": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 149,
+          "list_id": "default"
+        },
+        {
+          "index": 152,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "fixed": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 331,
+          "list_id": "default"
+        },
+        {
+          "index": 391,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "fly": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 291,
+          "list_id": "default"
+        },
+        {
+          "index": 334,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "food": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 317,
+          "list_id": "default"
+        },
+        {
+          "index": 377,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "foot": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 248,
+          "list_id": "default"
+        },
+        {
+          "index": 277,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "for": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 30,
+          "list_id": "default"
+        },
+        {
+          "index": 31,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "found": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 153,
+          "list_id": "default"
+        },
+        {
+          "index": 155,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "friend": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 311,
+          "list_id": "default"
+        },
+        {
+          "index": 378,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "from": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 143,
+          "list_id": "default"
+        },
+        {
+          "index": 147,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "full": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 447,
+          "list_id": "default"
+        },
+        {
+          "index": 515,
+          "list_id": "default"
+        }
+      ]
+    },
+    "fun": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 268,
+          "list_id": "default"
+        },
+        {
+          "index": 300,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "game": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 316,
+          "list_id": "default"
+        },
+        {
+          "index": 379,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "get": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 28,
+          "list_id": "default"
+        },
+        {
+          "index": 2,
+          "list_id": "project_core"
+        },
+        {
+          "index": 29,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 16,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "gets": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 305,
+          "list_id": "default"
+        },
+        {
+          "index": 360,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "getting": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 270,
+          "list_id": "default"
+        },
+        {
+          "index": 306,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "girl": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 186,
+          "list_id": "default"
+        },
+        {
+          "index": 196,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "girls": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 246,
+          "list_id": "default"
+        },
+        {
+          "index": 278,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "give": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 81,
+          "list_id": "default"
+        },
+        {
+          "index": 80,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 73,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "go": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 5,
+          "list_id": "default"
+        },
+        {
+          "index": 7,
+          "list_id": "project_core"
+        },
+        {
+          "index": 5,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 0,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "goes": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 134,
+          "list_id": "default"
+        },
+        {
+          "index": 132,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "going": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 91,
+          "list_id": "default"
+        },
+        {
+          "index": 88,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "gone": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 232,
+          "list_id": "default"
+        },
+        {
+          "index": 261,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "gonna": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 255,
+          "list_id": "default"
+        },
+        {
+          "index": 287,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "good": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 61,
+          "list_id": "default"
+        },
+        {
+          "index": 4,
+          "list_id": "project_core"
+        },
+        {
+          "index": 60,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 72,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "great": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 261,
+          "list_id": "default"
+        },
+        {
+          "index": 292,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "green": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 174,
+          "list_id": "default"
+        },
+        {
+          "index": 177,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "guys": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 166,
+          "list_id": "default"
+        },
+        {
+          "index": 171,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "had": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 110,
+          "list_id": "default"
+        },
+        {
+          "index": 108,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hair": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 249,
+          "list_id": "default"
+        },
+        {
+          "index": 279,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hand": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 162,
+          "list_id": "default"
+        },
+        {
+          "index": 166,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hands": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 185,
+          "list_id": "default"
+        },
+        {
+          "index": 194,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "happy": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 218,
+          "list_id": "default"
+        },
+        {
+          "index": 235,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 52,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "has": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 119,
+          "list_id": "default"
+        },
+        {
+          "index": 122,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "have": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 62,
+          "list_id": "default"
+        },
+        {
+          "index": 63,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 35,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "he": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 26,
+          "list_id": "default"
+        },
+        {
+          "index": 13,
+          "list_id": "project_core"
+        },
+        {
+          "index": 27,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 71,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "head": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 210,
+          "list_id": "default"
+        },
+        {
+          "index": 232,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hear": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 230,
+          "list_id": "default"
+        },
+        {
+          "index": 262,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hello": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 195,
+          "list_id": "default"
+        },
+        {
+          "index": 205,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "help": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 3,
+          "list_id": "default"
+        },
+        {
+          "index": 10,
+          "list_id": "project_core"
+        },
+        {
+          "index": 3,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 5,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "her": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 99,
+          "list_id": "default"
+        },
+        {
+          "index": 99,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "here": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 13,
+          "list_id": "default"
+        },
+        {
+          "index": 25,
+          "list_id": "project_core"
+        },
+        {
+          "index": 13,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 80,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "hers": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 310,
+          "list_id": "default"
+        },
+        {
+          "index": 359,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hi": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 219,
+          "list_id": "default"
+        },
+        {
+          "index": 237,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 34,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "hide": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 307,
+          "list_id": "default"
+        },
+        {
+          "index": 363,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "high": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 297,
+          "list_id": "default"
+        },
+        {
+          "index": 348,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hill": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 325,
+          "list_id": "default"
+        },
+        {
+          "index": 380,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "him": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 97,
+          "list_id": "default"
+        },
+        {
+          "index": 97,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "his": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 115,
+          "list_id": "default"
+        },
+        {
+          "index": 115,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hold": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 285,
+          "list_id": "default"
+        },
+        {
+          "index": 335,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "home": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 157,
+          "list_id": "default"
+        },
+        {
+          "index": 161,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "horse": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 290,
+          "list_id": "default"
+        },
+        {
+          "index": 336,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "hot": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 193,
+          "list_id": "default"
+        },
+        {
+          "index": 201,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "house": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 158,
+          "list_id": "default"
+        },
+        {
+          "index": 162,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "how": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 66,
+          "list_id": "default"
+        },
+        {
+          "index": 67,
+          "list_id": "default"
+        },
+        {
+          "index": 65,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "i": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 1,
+          "list_id": "default"
+        },
+        {
+          "index": 12,
+          "list_id": "project_core"
+        },
+        {
+          "index": 2,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 7,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "if": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 83,
+          "list_id": "default"
+        },
+        {
+          "index": 83,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "in": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 8,
+          "list_id": "default"
+        },
+        {
+          "index": 26,
+          "list_id": "project_core"
+        },
+        {
+          "index": 8,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 12,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "is": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 16,
+          "list_id": "default"
+        },
+        {
+          "index": 453,
+          "list_id": "default"
+        },
+        {
+          "index": 16,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "it": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 9,
+          "list_id": "default"
+        },
+        {
+          "index": 24,
+          "list_id": "project_core"
+        },
+        {
+          "index": 9,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 18,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "juice": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 228,
+          "list_id": "default"
+        },
+        {
+          "index": 253,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "jump": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 243,
+          "list_id": "default"
+        },
+        {
+          "index": 257,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "jumped": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 304,
+          "list_id": "default"
+        },
+        {
+          "index": 355,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "jumping": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 256,
+          "list_id": "default"
+        },
+        {
+          "index": 456,
+          "list_id": "default"
+        },
+        {
+          "index": 285,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "just": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 142,
+          "list_id": "default"
+        },
+        {
+          "index": 153,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "keep": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 358,
+          "list_id": "default"
+        },
+        {
+          "index": 457,
+          "list_id": "default"
+        }
+      ]
+    },
+    "kind": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 208,
+          "list_id": "default"
+        },
+        {
+          "index": 229,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "know": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 70,
+          "list_id": "default"
+        },
+        {
+          "index": 69,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "last": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 155,
+          "list_id": "default"
+        },
+        {
+          "index": 159,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "late": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 415,
+          "list_id": "default"
+        },
+        {
+          "index": 416,
+          "list_id": "default"
+        }
+      ]
+    },
+    "leave": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 345,
+          "list_id": "default"
+        },
+        {
+          "index": 422,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "leaves": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 207,
+          "list_id": "default"
+        },
+        {
+          "index": 224,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "let": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 130,
+          "list_id": "default"
+        },
+        {
+          "index": 136,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "lift": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 300,
+          "list_id": "default"
+        },
+        {
+          "index": 354,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "light": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 247,
+          "list_id": "default"
+        },
+        {
+          "index": 273,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "like": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 6,
+          "list_id": "default"
+        },
+        {
+          "index": 0,
+          "list_id": "project_core"
+        },
+        {
+          "index": 6,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 4,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "listen": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 534,
+          "list_id": "default"
+        },
+        {
+          "index": 60,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "little": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 80,
+          "list_id": "default"
+        },
+        {
+          "index": 78,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 59,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "long": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 211,
+          "list_id": "default"
+        },
+        {
+          "index": 230,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "look": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 46,
+          "list_id": "default"
+        },
+        {
+          "index": 8,
+          "list_id": "project_core"
+        },
+        {
+          "index": 47,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 13,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "looking": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 221,
+          "list_id": "default"
+        },
+        {
+          "index": 248,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "lot": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 205,
+          "list_id": "default"
+        },
+        {
+          "index": 225,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "love": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 223,
+          "list_id": "default"
+        },
+        {
+          "index": 247,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "lunch": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 180,
+          "list_id": "default"
+        },
+        {
+          "index": 190,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "mad": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 621,
+          "list_id": "default"
+        },
+        {
+          "index": 70,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "made": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 129,
+          "list_id": "default"
+        },
+        {
+          "index": 128,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "make": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 11,
+          "list_id": "default"
+        },
+        {
+          "index": 3,
+          "list_id": "project_core"
+        },
+        {
+          "index": 11,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 30,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "man": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 182,
+          "list_id": "default"
+        },
+        {
+          "index": 199,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "many": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 169,
+          "list_id": "default"
+        },
+        {
+          "index": 174,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "may": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 252,
+          "list_id": "default"
+        },
+        {
+          "index": 288,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "maybe": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 171,
+          "list_id": "default"
+        },
+        {
+          "index": 175,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "me": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 57,
+          "list_id": "default"
+        },
+        {
+          "index": 57,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 32,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "mean": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 209,
+          "list_id": "default"
+        },
+        {
+          "index": 233,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "middle": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 227,
+          "list_id": "default"
+        },
+        {
+          "index": 254,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "mine": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 19,
+          "list_id": "default"
+        },
+        {
+          "index": 20,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 39,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "mom": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 160,
+          "list_id": "default"
+        },
+        {
+          "index": 160,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "money": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 314,
+          "list_id": "default"
+        },
+        {
+          "index": 383,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "more": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 0,
+          "list_id": "default"
+        },
+        {
+          "index": 5,
+          "list_id": "project_core"
+        },
+        {
+          "index": 0,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 2,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "morning": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 341,
+          "list_id": "default"
+        },
+        {
+          "index": 413,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "most": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 259,
+          "list_id": "default"
+        },
+        {
+          "index": 293,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "mother": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 327,
+          "list_id": "default"
+        },
+        {
+          "index": 393,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "move": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 176,
+          "list_id": "default"
+        },
+        {
+          "index": 187,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 69,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "much": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 189,
+          "list_id": "default"
+        },
+        {
+          "index": 206,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "must": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 269,
+          "list_id": "default"
+        },
+        {
+          "index": 312,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "my": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 43,
+          "list_id": "default"
+        },
+        {
+          "index": 43,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 51,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "myself": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 168,
+          "list_id": "default"
+        },
+        {
+          "index": 172,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "name": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 133,
+          "list_id": "default"
+        },
+        {
+          "index": 138,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "named": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 306,
+          "list_id": "default"
+        },
+        {
+          "index": 356,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "need": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 44,
+          "list_id": "default"
+        },
+        {
+          "index": 45,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 42,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "never": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 283,
+          "list_id": "default"
+        },
+        {
+          "index": 341,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "new": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 150,
+          "list_id": "default"
+        },
+        {
+          "index": 154,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "next": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 124,
+          "list_id": "default"
+        },
+        {
+          "index": 126,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "nice": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 172,
+          "list_id": "default"
+        },
+        {
+          "index": 173,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "night": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 312,
+          "list_id": "default"
+        },
+        {
+          "index": 384,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "no": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 45,
+          "list_id": "default"
+        },
+        {
+          "index": 48,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 15,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "none": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 298,
+          "list_id": "default"
+        },
+        {
+          "index": 350,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "not": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 22,
+          "list_id": "default"
+        },
+        {
+          "index": 6,
+          "list_id": "project_core"
+        },
+        {
+          "index": 23,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 10,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "now": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 95,
+          "list_id": "default"
+        },
+        {
+          "index": 95,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "of": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 68,
+          "list_id": "default"
+        },
+        {
+          "index": 70,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "off": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 35,
+          "list_id": "default"
+        },
+        {
+          "index": 35,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 29,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "oh": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 192,
+          "list_id": "default"
+        },
+        {
+          "index": 207,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "okay": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 154,
+          "list_id": "default"
+        },
+        {
+          "index": 158,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "old": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 196,
+          "list_id": "default"
+        },
+        {
+          "index": 210,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "on": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 18,
+          "list_id": "default"
+        },
+        {
+          "index": 27,
+          "list_id": "project_core"
+        },
+        {
+          "index": 19,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 21,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "one": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 104,
+          "list_id": "default"
+        },
+        {
+          "index": 106,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "only": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 139,
+          "list_id": "default"
+        },
+        {
+          "index": 141,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "open": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 55,
+          "list_id": "default"
+        },
+        {
+          "index": 14,
+          "list_id": "project_core"
+        },
+        {
+          "index": 55,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 20,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "or": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 84,
+          "list_id": "default"
+        },
+        {
+          "index": 84,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "orange": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 296,
+          "list_id": "default"
+        },
+        {
+          "index": 462,
+          "list_id": "default"
+        },
+        {
+          "index": 347,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "other": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 116,
+          "list_id": "default"
+        },
+        {
+          "index": 116,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "our": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 146,
+          "list_id": "default"
+        },
+        {
+          "index": 148,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "ours": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 273,
+          "list_id": "default"
+        },
+        {
+          "index": 304,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "out": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 14,
+          "list_id": "default"
+        },
+        {
+          "index": 14,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 24,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "over": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 52,
+          "list_id": "default"
+        },
+        {
+          "index": 52,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "paint": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 187,
+          "list_id": "default"
+        },
+        {
+          "index": 197,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "paper": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 342,
+          "list_id": "default"
+        },
+        {
+          "index": 414,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "party": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 289,
+          "list_id": "default"
+        },
+        {
+          "index": 337,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "people": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 204,
+          "list_id": "default"
+        },
+        {
+          "index": 227,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "pick": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 240,
+          "list_id": "default"
+        },
+        {
+          "index": 263,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "picture": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 343,
+          "list_id": "default"
+        },
+        {
+          "index": 415,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "piece": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 320,
+          "list_id": "default"
+        },
+        {
+          "index": 385,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "play": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 15,
+          "list_id": "default"
+        },
+        {
+          "index": 15,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 8,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "please": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 98,
+          "list_id": "default"
+        },
+        {
+          "index": 98,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "push": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 257,
+          "list_id": "default"
+        },
+        {
+          "index": 289,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "put": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 23,
+          "list_id": "default"
+        },
+        {
+          "index": 16,
+          "list_id": "project_core"
+        },
+        {
+          "index": 24,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 19,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "question": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 215,
+          "list_id": "default"
+        },
+        {
+          "index": 240,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 68,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "read": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 222,
+          "list_id": "default"
+        },
+        {
+          "index": 250,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 38,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "ready": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 194,
+          "list_id": "default"
+        },
+        {
+          "index": 208,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "real": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 313,
+          "list_id": "default"
+        },
+        {
+          "index": 386,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "really": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 214,
+          "list_id": "default"
+        },
+        {
+          "index": 241,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "red": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 224,
+          "list_id": "default"
+        },
+        {
+          "index": 245,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "remember": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 234,
+          "list_id": "default"
+        },
+        {
+          "index": 264,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "ride": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 242,
+          "list_id": "default"
+        },
+        {
+          "index": 265,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "room": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 244,
+          "list_id": "default"
+        },
+        {
+          "index": 281,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "run": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 231,
+          "list_id": "default"
+        },
+        {
+          "index": 266,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "said": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 131,
+          "list_id": "default"
+        },
+        {
+          "index": 133,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "same": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 173,
+          "list_id": "default"
+        },
+        {
+          "index": 17,
+          "list_id": "project_core"
+        },
+        {
+          "index": 178,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 50,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "saw": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 164,
+          "list_id": "default"
+        },
+        {
+          "index": 167,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "say": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 87,
+          "list_id": "default"
+        },
+        {
+          "index": 90,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "school": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 340,
+          "list_id": "default"
+        },
+        {
+          "index": 416,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "see": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 108,
+          "list_id": "default"
+        },
+        {
+          "index": 109,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 49,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "she": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 36,
+          "list_id": "default"
+        },
+        {
+          "index": 19,
+          "list_id": "project_core"
+        },
+        {
+          "index": 37,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 67,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "show": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 123,
+          "list_id": "default"
+        },
+        {
+          "index": 124,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 66,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "shut": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 292,
+          "list_id": "default"
+        },
+        {
+          "index": 342,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "side": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 315,
+          "list_id": "default"
+        },
+        {
+          "index": 387,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "sister": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 282,
+          "list_id": "default"
+        },
+        {
+          "index": 325,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "sit": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 121,
+          "list_id": "default"
+        },
+        {
+          "index": 123,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "slow": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 592,
+          "list_id": "default"
+        },
+        {
+          "index": 48,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "so": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 48,
+          "list_id": "default"
+        },
+        {
+          "index": 49,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "some": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 39,
+          "list_id": "default"
+        },
+        {
+          "index": 23,
+          "list_id": "project_core"
+        },
+        {
+          "index": 40,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 79,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "somebody": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 309,
+          "list_id": "default"
+        },
+        {
+          "index": 361,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "someone": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 294,
+          "list_id": "default"
+        },
+        {
+          "index": 346,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "something": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 144,
+          "list_id": "default"
+        },
+        {
+          "index": 150,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "sometimes": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 263,
+          "list_id": "default"
+        },
+        {
+          "index": 296,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "somewhere": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 333,
+          "list_id": "default"
+        },
+        {
+          "index": 405,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "stand": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 288,
+          "list_id": "default"
+        },
+        {
+          "index": 338,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "stay": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 238,
+          "list_id": "default"
+        },
+        {
+          "index": 267,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "still": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 213,
+          "list_id": "default"
+        },
+        {
+          "index": 243,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "stop": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 17,
+          "list_id": "default"
+        },
+        {
+          "index": 35,
+          "list_id": "project_core"
+        },
+        {
+          "index": 18,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 3,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "story": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 303,
+          "list_id": "default"
+        },
+        {
+          "index": 358,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "stuff": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 334,
+          "list_id": "default"
+        },
+        {
+          "index": 406,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "swing": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 468,
+          "list_id": "default"
+        },
+        {
+          "index": 618,
+          "list_id": "default"
+        }
+      ]
+    },
+    "take": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 112,
+          "list_id": "default"
+        },
+        {
+          "index": 113,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "talk": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 229,
+          "list_id": "default"
+        },
+        {
+          "index": 268,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "tape": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 264,
+          "list_id": "default"
+        },
+        {
+          "index": 298,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "tell": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 74,
+          "list_id": "default"
+        },
+        {
+          "index": 74,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 65,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "than": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 138,
+          "list_id": "default"
+        },
+        {
+          "index": 142,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "that": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 7,
+          "list_id": "default"
+        },
+        {
+          "index": 20,
+          "list_id": "project_core"
+        },
+        {
+          "index": 7,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 17,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "the": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 29,
+          "list_id": "default"
+        },
+        {
+          "index": 32,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "their": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 220,
+          "list_id": "default"
+        },
+        {
+          "index": 246,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "then": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 125,
+          "list_id": "default"
+        },
+        {
+          "index": 127,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "there": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 71,
+          "list_id": "default"
+        },
+        {
+          "index": 71,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "these": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 114,
+          "list_id": "default"
+        },
+        {
+          "index": 118,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "they": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 69,
+          "list_id": "default"
+        },
+        {
+          "index": 68,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 58,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "thing": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 178,
+          "list_id": "default"
+        },
+        {
+          "index": 191,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "things": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 159,
+          "list_id": "default"
+        },
+        {
+          "index": 163,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "think": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 107,
+          "list_id": "default"
+        },
+        {
+          "index": 110,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "this": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 32,
+          "list_id": "default"
+        },
+        {
+          "index": 33,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 47,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "those": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 117,
+          "list_id": "default"
+        },
+        {
+          "index": 119,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "three": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 136,
+          "list_id": "default"
+        },
+        {
+          "index": 140,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "threw": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 271,
+          "list_id": "default"
+        },
+        {
+          "index": 310,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "through": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 284,
+          "list_id": "default"
+        },
+        {
+          "index": 343,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "time": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 92,
+          "list_id": "default"
+        },
+        {
+          "index": 94,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "to": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 20,
+          "list_id": "default"
+        },
+        {
+          "index": 22,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "today": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 90,
+          "list_id": "default"
+        },
+        {
+          "index": 87,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "together": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 267,
+          "list_id": "default"
+        },
+        {
+          "index": 303,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "too": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 170,
+          "list_id": "default"
+        },
+        {
+          "index": 176,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "top": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 216,
+          "list_id": "default"
+        },
+        {
+          "index": 244,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "toys": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 287,
+          "list_id": "default"
+        },
+        {
+          "index": 344,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "trees": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 277,
+          "list_id": "default"
+        },
+        {
+          "index": 318,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "try": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 175,
+          "list_id": "default"
+        },
+        {
+          "index": 183,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "trying": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 197,
+          "list_id": "default"
+        },
+        {
+          "index": 211,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "turn": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 54,
+          "list_id": "default"
+        },
+        {
+          "index": 9,
+          "list_id": "project_core"
+        },
+        {
+          "index": 54,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 6,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "two": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 127,
+          "list_id": "default"
+        },
+        {
+          "index": 130,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "under": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 191,
+          "list_id": "default"
+        },
+        {
+          "index": 202,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "until": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 361,
+          "list_id": "default"
+        },
+        {
+          "index": 473,
+          "list_id": "default"
+        }
+      ]
+    },
+    "up": {
+      "count": 5,
+      "occurrences": [
+        {
+          "index": 41,
+          "list_id": "default"
+        },
+        {
+          "index": 474,
+          "list_id": "default"
+        },
+        {
+          "index": 21,
+          "list_id": "project_core"
+        },
+        {
+          "index": 42,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 31,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "us": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 147,
+          "list_id": "default"
+        },
+        {
+          "index": 475,
+          "list_id": "default"
+        },
+        {
+          "index": 151,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "use": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 109,
+          "list_id": "default"
+        },
+        {
+          "index": 111,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "used": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 279,
+          "list_id": "default"
+        },
+        {
+          "index": 319,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "very": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 96,
+          "list_id": "default"
+        },
+        {
+          "index": 96,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "wait": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 237,
+          "list_id": "default"
+        },
+        {
+          "index": 269,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 57,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "walk": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 233,
+          "list_id": "default"
+        },
+        {
+          "index": 270,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 64,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "want": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 4,
+          "list_id": "default"
+        },
+        {
+          "index": 1,
+          "list_id": "project_core"
+        },
+        {
+          "index": 4,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 1,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "wanted": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 276,
+          "list_id": "default"
+        },
+        {
+          "index": 315,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "was": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 47,
+          "list_id": "default"
+        },
+        {
+          "index": 46,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "wash": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 258,
+          "list_id": "default"
+        },
+        {
+          "index": 291,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "watch": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 111,
+          "list_id": "default"
+        },
+        {
+          "index": 112,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 63,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "water": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 206,
+          "list_id": "default"
+        },
+        {
+          "index": 228,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "way": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 126,
+          "list_id": "default"
+        },
+        {
+          "index": 131,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "we": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 60,
+          "list_id": "default"
+        },
+        {
+          "index": 61,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "wear": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 241,
+          "list_id": "default"
+        },
+        {
+          "index": 271,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "week": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 370,
+          "list_id": "default"
+        },
+        {
+          "index": 479,
+          "list_id": "default"
+        }
+      ]
+    },
+    "well": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 203,
+          "list_id": "default"
+        },
+        {
+          "index": 226,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "went": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 132,
+          "list_id": "default"
+        },
+        {
+          "index": 134,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 62,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "were": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 100,
+          "list_id": "default"
+        },
+        {
+          "index": 100,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "what": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 10,
+          "list_id": "default"
+        },
+        {
+          "index": 31,
+          "list_id": "project_core"
+        },
+        {
+          "index": 10,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 28,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "when": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 49,
+          "list_id": "default"
+        },
+        {
+          "index": 50,
+          "list_id": "default"
+        },
+        {
+          "index": 34,
+          "list_id": "project_core"
+        },
+        {
+          "index": 50,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "where": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 21,
+          "list_id": "default"
+        },
+        {
+          "index": 30,
+          "list_id": "project_core"
+        },
+        {
+          "index": 21,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 37,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "which": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 140,
+          "list_id": "default"
+        },
+        {
+          "index": 144,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "while": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 260,
+          "list_id": "default"
+        },
+        {
+          "index": 299,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "white": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 254,
+          "list_id": "default"
+        },
+        {
+          "index": 283,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "who": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 25,
+          "list_id": "default"
+        },
+        {
+          "index": 33,
+          "list_id": "project_core"
+        },
+        {
+          "index": 26,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 36,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "whole": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 339,
+          "list_id": "default"
+        },
+        {
+          "index": 410,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "why": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 72,
+          "list_id": "default"
+        },
+        {
+          "index": 32,
+          "list_id": "project_core"
+        },
+        {
+          "index": 67,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "will": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 38,
+          "list_id": "default"
+        },
+        {
+          "index": 39,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "with": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 34,
+          "list_id": "default"
+        },
+        {
+          "index": 482,
+          "list_id": "default"
+        },
+        {
+          "index": 36,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "work": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 89,
+          "list_id": "default"
+        },
+        {
+          "index": 91,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 78,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "would": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 118,
+          "list_id": "default"
+        },
+        {
+          "index": 120,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "write": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 152,
+          "list_id": "default"
+        },
+        {
+          "index": 157,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "wrong": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 484,
+          "list_id": "default"
+        },
+        {
+          "index": 541,
+          "list_id": "default"
+        }
+      ]
+    },
+    "yellow": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 301,
+          "list_id": "default"
+        },
+        {
+          "index": 485,
+          "list_id": "default"
+        },
+        {
+          "index": 349,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "yes": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 105,
+          "list_id": "default"
+        },
+        {
+          "index": 107,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 22,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "yet": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 156,
+          "list_id": "default"
+        },
+        {
+          "index": 164,
+          "list_id": "unc_common_core"
+        }
+      ]
+    },
+    "you": {
+      "count": 4,
+      "occurrences": [
+        {
+          "index": 2,
+          "list_id": "default"
+        },
+        {
+          "index": 18,
+          "list_id": "project_core"
+        },
+        {
+          "index": 1,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 9,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "your": {
+      "count": 3,
+      "occurrences": [
+        {
+          "index": 86,
+          "list_id": "default"
+        },
+        {
+          "index": 86,
+          "list_id": "unc_common_core"
+        },
+        {
+          "index": 61,
+          "list_id": "basic_core"
+        }
+      ]
+    },
+    "yours": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 199,
+          "list_id": "default"
+        },
+        {
+          "index": 218,
+          "list_id": "unc_common_core"
+        }
+      ]
+    }
+  },
+  "non_concept_repeats": {
+    "+er": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 429,
+          "list_id": "default"
+        },
+        {
+          "index": 430,
+          "list_id": "default"
+        }
+      ]
+    },
+    "don’t": {
+      "count": 2,
+      "occurrences": [
+        {
+          "index": 446,
+          "list_id": "default"
+        },
+        {
+          "index": 44,
+          "list_id": "basic_core"
+        }
+      ]
+    }
+  },
+  "total_duplicate_surfaces": 360,
+  "total_non_concept_repeat_surfaces": 2
+}

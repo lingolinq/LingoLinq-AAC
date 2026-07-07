@@ -1,0 +1,57 @@
+{
+  "_rule": {
+    "contraction": "surface contains an apostrophe (straight ' or curly ’, e.g. don’t, i’m) -- contraction/possessive surface forms, not standalone concepts",
+    "morpheme_marker": "surface begins with '+' OR ends with '+' (e.g. '+ed', 'to+') -- grammatical inflection markers, not concepts",
+    "pos_label": "surface is exactly one of: adjectives, determiners, nouns, possessive -- POS category labels used as literal entries, not concepts",
+    "slash_form": "surface contains a '/' and does not match the rules above (e.g. do/does) -- a combined-form entry, not a single concept"
+  },
+  "contraction": [
+    "aren’t",
+    "can’t",
+    "children’s",
+    "couldn’t",
+    "didn’t",
+    "doesn’t",
+    "don’t",
+    "haven’t",
+    "he’s",
+    "here’s",
+    "i’ll",
+    "i’m",
+    "isn’t",
+    "it’s",
+    "let’s",
+    "o’clock",
+    "person’s",
+    "she’s",
+    "they’ll",
+    "they’re",
+    "wasn’t",
+    "we’ll",
+    "we’re",
+    "what’s",
+    "where’s",
+    "won’t",
+    "you’ll",
+    "you’re"
+  ],
+  "morpheme_marker": [
+    "+ed",
+    "+en",
+    "+er",
+    "+est",
+    "+ing",
+    "+s",
+    "to+"
+  ],
+  "pos_label": [
+    "adjectives",
+    "determiners",
+    "nouns",
+    "possessive"
+  ],
+  "slash_form": [
+    "do/does"
+  ],
+  "total": 40
+}
