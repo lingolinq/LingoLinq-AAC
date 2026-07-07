@@ -84,6 +84,25 @@ queryLog.log = function(event) {
   }
   queryLog.push(event);
 };
+function logRecordFromAdapterObject(object) {
+  if (!object) {
+    return object;
+  }
+  if (object.record && typeof object.attr === 'function') {
+    return object.record;
+  }
+  if (typeof object.get === 'function') {
+    return object;
+  }
+  if (typeof object.attr === 'function') {
+    return {
+      get: function(key) {
+        return object.attr(key);
+      }
+    };
+  }
+  return object;
+}
 function queryFixtureMatches(fixtureQuery, eventQuery) {
   if (!fixtureQuery) {
     return false;
@@ -108,7 +127,7 @@ queryLog.respondAndLog = function(event, defaultResponse) {
         found = true;
         // find
       } else if(fixture.method == 'POST' && fixture.compare) {
-        var record = (event.object && event.object.record) || event.object;
+        var record = logRecordFromAdapterObject((event.object && event.object.record) || event.object);
         found = fixture.compare(record);
         // createRecord
       } else if(fixture.method == 'PUT' && fixture.compare) {

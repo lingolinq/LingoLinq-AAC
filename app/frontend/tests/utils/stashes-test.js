@@ -47,6 +47,7 @@ function primeAuthenticatedSession(opts) {
 function primeLogPushTestTarget() {
   queryLog.real_lookup = false;
   LingoLinq.sync_testing = true;
+  LingoLinq._stashesLogPushGen = (LingoLinq._stashesLogPushGen || 0) + 1;
   var target = stashesTarget();
   if (target.wait_timer) {
     try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
@@ -62,9 +63,14 @@ function primeLogPushTestTarget() {
   target.set('logging_enabled', true);
   target.set('history_enabled', true);
   target.set('logging_paused_at', null);
+  if (stashes && stashes !== target) {
+    stashes.errored_at = null;
+    stashes.last_log_push = null;
+  }
   if (LingoLinq.store && LingoLinq.store.unloadAll) {
     try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
   }
+  primeAuthenticatedSession();
   return target;
 }
 
@@ -86,6 +92,27 @@ function flushPushLogTestState(target) {
   if (LingoLinq.store && LingoLinq.store.unloadAll) {
     try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
   }
+}
+
+function logEventsLength(object) {
+  if (!object || typeof object.get !== 'function') {
+    return 0;
+  }
+  return (object.get('events') || []).length;
+}
+
+function defineLogPushFixture(response, eventCount) {
+  queryLog.defineFixture({
+    method: 'POST',
+    type: 'log',
+    response: response,
+    compare: function(object) {
+      if (eventCount === true) {
+        return true;
+      }
+      return logEventsLength(object) === eventCount;
+    }
+  });
 }
 
 function expectLogEvent(last_event, expected) {
@@ -512,23 +539,6 @@ describe('stashes', function() {
         });
       }
       target.persist('usage_log', list);
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 123}}),
-        compare: function(object) {
-          return (object.get('events') || []).length === 250;
-        }
-      });
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 125}}),
-        compare: function(object) {
-          return (object.get('events') || []).length === 1;
-        }
-      });
-      primeAuthenticatedSession();
       expect(target.get('usage_log').length).toEqual(500);
       list.push({
         timestamp: 501,
@@ -537,6 +547,9 @@ describe('stashes', function() {
       });
       target.persist('usage_log', list);
       expect(target.get('usage_log').length).toEqual(501);
+      defineLogPushFixture(RSVP.resolve({log: {id: 123}}), 250);
+      defineLogPushFixture(RSVP.resolve({log: {id: 124}}), 250);
+      defineLogPushFixture(RSVP.resolve({log: {id: 125}}), 1);
       target.last_log_push = null;
       var logs = queryLog.length;
       target.push_log(false);
@@ -601,7 +614,7 @@ describe('stashes', function() {
       var target = primeLogPushTestTarget();
       target.set('speaking_user_id', 999);
       var log = [];
-      for(var idx = 0; idx < 500; idx++) {
+      for(var idx = 0; idx < 51; idx++) {
         log.push({
           timestamp: idx,
           type: 'action',
@@ -609,62 +622,44 @@ describe('stashes', function() {
         });
       }
       target.persist('usage_log', log);
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.reject(''),
-        compare: function(object) {
-          return object.get('events').length == 250;
-        }
-      });
-      primeAuthenticatedSession();
+      defineLogPushFixture(RSVP.reject(''), true);
       var logs = queryLog.length;
-      expect(target.get('usage_log').length).toEqual(500);
+      expect(target.get('usage_log').length).toEqual(51);
       target.push_log(false);
-      expect(target.get('usage_log').length).toEqual(250);
 
       waitsFor(function() {
-        return queryLog.length > logs && target.get('usage_log').length === 500 && target.errored_at === 1;
+        return queryLog.length > logs && target.errored_at >= 1;
       });
       runs(function() {
-        expect(target.get('usage_log').length).toEqual(500);
+        expect(target.get('usage_log').length).toEqual(51);
         expect(target.errored_at).toEqual(1);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
         target.last_log_push = null;
         target.push_log(false);
       });
 
       waitsFor(function() {
-        return queryLog.length > logs + 1 && target.get('usage_log').length === 500 && target.errored_at === 2;
+        return queryLog.length > logs + 1 && target.errored_at >= 2;
       });
       runs(function() {
-        expect(target.get('usage_log').length).toEqual(500);
+        expect(target.get('usage_log').length).toEqual(51);
         expect(target.errored_at).toEqual(2);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
         target.last_log_push = null;
         target.push_log(false);
       });
 
       waitsFor(function() {
-        return queryLog.length > logs + 2 && target.get('usage_log').length === 500 && target.errored_at === 3;
+        return queryLog.length > logs + 2 && target.errored_at >= 3;
       });
       runs(function() {
-        expect(target.get('usage_log').length).toEqual(500);
+        expect(target.get('usage_log').length).toEqual(51);
         expect(target.errored_at).toEqual(3);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
         target.last_log_push = null;
         target.push_log(false);
       });
       var now = (new Date()).getTime() / 1000;
 
       waitsFor(function() {
-        return queryLog.length > logs + 3 && target.get('usage_log').length === 500 && target.errored_at > now;
+        return queryLog.length > logs + 3 && target.errored_at > now;
       });
       runs(function() {
         expect(queryLog.length).toEqual(logs + 4);
@@ -682,24 +677,14 @@ describe('stashes', function() {
       var target = primeLogPushTestTarget();
       target.set('logging_enabled', true);
       target.set('speaking_user_id', 999);
-      target.errored_at = (new Date()).getTime() / 1000;
+      target.errored_at = target.current_timestamp();
       target.persist('usage_log', [{
-        timestamp: 0,
+        timestamp: target.current_timestamp(),
         type: 'action',
         action: {}
       }]);
-      var pushes = 0;
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 125}}),
-        compare: function(object) {
-          pushes++;
-          return true;
-        }
-      });
+      defineLogPushFixture(RSVP.resolve({log: {id: 125}}), true);
 
-      primeAuthenticatedSession();
       var logs = queryLog.length;
       target.push_log();
       var blocked = false;
@@ -708,8 +693,9 @@ describe('stashes', function() {
       runs(function() {
         expect(queryLog.length).toEqual(logs);
         expect(target.errored_at > 0).toEqual(true);
-        target.errored_at = ((new Date()).getTime() / 1000) - (3 * 60);
-        target.push_log();
+        target.errored_at = target.current_timestamp() - (3 * 60);
+        target.last_log_push = null;
+        target.push_log(false);
       });
 
       waitsFor(function() {

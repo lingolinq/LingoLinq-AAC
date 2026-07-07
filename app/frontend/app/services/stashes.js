@@ -786,16 +786,26 @@ export default Service.extend({
         });
         log.cleanup();
         this.last_log_push = timestamp;
+        var push_gen = (typeof LingoLinq !== 'undefined' && LingoLinq._stashesLogPushGen) || 0;
         log.save().then(() => {
+          if(((typeof LingoLinq !== 'undefined' && LingoLinq._stashesLogPushGen) || 0) !== push_gen) {
+            return;
+          }
           this.errored_at = null;
           if(for_later.length > 0) {
-            var batch_delay = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 1 : 10000;
-            runLater(() => {
+            if(typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
               this.push_log();
-            }, batch_delay);
+            } else {
+              runLater(() => {
+                this.push_log();
+              }, 10000);
+            }
           }
           // success!
         }, (err) => {
+          if(((typeof LingoLinq !== 'undefined' && LingoLinq._stashesLogPushGen) || 0) !== push_gen) {
+            return;
+          }
           // error, try again later
           if(!this.errored_at || this.errored_at <= 2) {
 //             this.persist('usage_log', to_persist.concat(this.get('usage_log')));
