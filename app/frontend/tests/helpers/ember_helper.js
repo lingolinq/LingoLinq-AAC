@@ -24,7 +24,7 @@ import lingoLinqExtras from '../../utils/extras';
 import stashes from '../../utils/_stashes';
 import geo from '../../utils/geo';
 import { primeAllServices, primeSessionService, stashesTarget, appStateTarget, persistenceTarget, serviceAlive } from './service-stub';
-import { cancelHarnessAsyncWork } from './sync-test-cleanup';
+import { cancelHarnessAsyncWork, resetSyncHarnessFlags } from './sync-test-cleanup';
 import modal from '../../utils/modal';
 import utterance from '../../utils/utterance';
 import Button from '../../utils/button';
@@ -34,7 +34,7 @@ import boundClasses from '../../utils/bound_classes';
 import buttonTracker from '../../utils/raw_events';
 import ApplicationAdapter from 'frontend/adapters/application';
 // import startApp from '../helpers/start-app';
-import { run as emberRun, later as runLater } from '@ember/runloop';
+import { run as emberRun, later as runLater, cancel as runCancel } from '@ember/runloop';
 import $ from 'jquery';
 import TestAdapter from '@ember/test/adapter';
 import { inspect } from '@ember/debug';
@@ -540,15 +540,24 @@ function resetPersistenceForTest(owner) {
 function resetStashesForTest(owner) {
   var target = serviceForTest(owner, 'stashes', stashes);
   if (!target) {
-    return;
+    target = stashesTarget();
   }
-  target.set('online', true);
+  resetStashesHarnessState(target);
+  if (stashes && stashes !== target) {
+    stashes.errored_at = null;
+    stashes.last_log_push = null;
+    if (stashes.wait_timer) {
+      try { runCancel(stashes.wait_timer); } catch (e) { /* torn down */ }
+      stashes.wait_timer = null;
+    }
+  }
 }
 
 beforeEach(function() {
   // Jasmine afterEach hooks run via delayed runs() AFTER ember-qunit teardown,
   // so restore/clear stubs here while the owner is still live.
   restoreStubs();
+  queryLog.real_lookup = false;
 
   LingoLinq.ignore_filesystem = true;
   capabilities.dbman = capabilities.dbman || capabilities.original_dbman;
@@ -711,6 +720,7 @@ afterEach(function() {
   queryLog.real_lookup = false;
   $.ajax.metas = [];
   buttonTracker.scanning_enabled = false;
+  resetSyncHarnessFlags();
   // Previously: waitsFor/runs delayed LingoLinq.app.destroy. We no longer destroy
   // (all tests share the app). Run sync to avoid hangs from the waitsFor/runs pattern.
 });
@@ -1084,7 +1094,10 @@ function isGrabberTestModule(moduleName) {
 }
 
 function isSyncHeavyTestModule(moduleName) {
-  var syncModules = ['app_state', 'capabilities', 'persistence-sync', 'persistence', 'word_suggestions', 'Board', 'frame_listener'];
+  var syncModules = [
+    'app_state', 'capabilities', 'persistence-sync', 'persistence', 'word_suggestions',
+    'Board', 'frame_listener', 'speecher', 'Utterance', 'User', 'stashes', 'dbman', 'session'
+  ];
   if (moduleName && syncModules.indexOf(moduleName) >= 0) {
     return true;
   }
@@ -1096,7 +1109,7 @@ function isSyncHeavyTestModule(moduleName) {
     return true;
   }
   var testName = current && current.testName;
-  return !!(testName && /^(app_state|capabilities|persistence-sync|persistence|word_suggestions|Board|frame_listener)(\s|-)/.test(testName));
+  return !!(testName && /^(app_state|capabilities|persistence-sync|persistence|word_suggestions|Board|frame_listener|speecher|Utterance|User|stashes|dbman|session)(\s|-)/.test(testName));
 }
 
 function setupSyncHeavyTestHarness() {
@@ -1104,21 +1117,51 @@ function setupSyncHeavyTestHarness() {
 }
 
 function teardownSyncHeavyTestHarness() {
+  cancelHarnessAsyncWork();
+  resetStashesHarnessState(stashesTarget());
+  if (app_state && !app_state.isDestroyed && typeof app_state.set === 'function') {
+    app_state.set('refresh_stamp', null);
+    app_state.set('short_refresh_stamp', null);
+    app_state.set('medium_refresh_stamp', null);
+  }
   LingoLinq.sync_testing = false;
 }
 
-function setupStashesGeoTestHarness() {
-  var target = stashesTarget() || stashes;
-  if (target && typeof target.set === 'function') {
-    target.set('online', true);
+function resetStashesHarnessState(target) {
+  if (!target) {
+    return;
   }
-  if (target && typeof target.db_connect === 'function' && capabilities) {
-    target.db_connect(capabilities);
+  if (target.wait_timer) {
+    try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+    target.wait_timer = null;
+  }
+  if (target.timer) {
+    try { runCancel(target.timer); } catch (e) { /* torn down */ }
+    target.timer = null;
   }
   target.errored_at = null;
   target.last_log_push = null;
-  target.wait_timer = null;
-  target.timer = null;
+  LingoLinq._stashesLogPushGen = (LingoLinq._stashesLogPushGen || 0) + 1;
+  if (typeof target.set === 'function') {
+    target.set('online', true);
+    target.set('logging_enabled', false);
+    target.set('history_enabled', true);
+    target.set('usage_log', []);
+    target.set('logging_paused_at', null);
+  }
+  if (typeof target.persist === 'function') {
+    target.persist('usage_log', []);
+  }
+}
+
+function setupStashesGeoTestHarness() {
+  queryLog.real_lookup = false;
+  var target = stashesTarget() || stashes;
+  LingoLinq._stashesLogPushGen = (LingoLinq._stashesLogPushGen || 0) + 1;
+  resetStashesHarnessState(target);
+  if (target && typeof target.db_connect === 'function' && capabilities) {
+    target.db_connect(capabilities);
+  }
   LingoLinq.sync_testing = true;
   LingoLinq.embedded = false;
   if (!LingoLinq._stashesGeoHarnessPermissions) {
@@ -1130,6 +1173,7 @@ function setupStashesGeoTestHarness() {
 }
 
 function teardownStashesGeoTestHarness() {
+  resetStashesHarnessState(stashesTarget() || stashes);
   LingoLinq.sync_testing = false;
 }
 

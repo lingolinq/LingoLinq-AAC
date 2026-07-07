@@ -174,6 +174,10 @@ export function cancelSyncTailWork() {
   var target = persistenceTarget();
   [target, persistence].forEach(function(inst) {
     if (!inst) { return; }
+    if (inst.set) {
+      inst.set('sync_status', null);
+      inst.set('sync_progress', null);
+    }
     if (typeof inst.cancel_sync === 'function') {
       inst.cancel_sync();
     }
@@ -198,10 +202,17 @@ export function cancelSyncTailWork() {
   persistence.storing_urls = null;
 }
 
-export function cancelHarnessAsyncWork() {
-  if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
-    cancelSyncTailWork();
+export function resetSyncHarnessFlags() {
+  if (typeof LingoLinq !== 'undefined') {
+    LingoLinq.all_wait = false;
+    LingoLinq.sync_testing_real_boards = false;
   }
+  persistence.known_missing = {};
+}
+
+export function cancelHarnessAsyncWork() {
+  cancelSyncTailWork();
+  resetSyncHarnessFlags();
 }
 
 export function waitUntil(conditionFn) {

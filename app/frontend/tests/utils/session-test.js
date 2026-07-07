@@ -343,6 +343,10 @@ describe('session', function() {
 
     it("should not log the user out if there is an unexpected issue confirming the token", function() {
       stub(emberDebug, 'isTesting', function() { return false; });
+      var persistTarget = persistenceTarget();
+      persistTarget.set('online', true);
+      persistTarget.tokens = {};
+      stashesTarget().set('enabled', true);
       stub(stashesTarget(), 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
@@ -352,7 +356,7 @@ describe('session', function() {
         }
       });
       var queried = false;
-      stub(persistenceTarget(), 'ajax', function(url, opts) {
+      stub(persistTarget, 'ajax', function(url, opts) {
         if(urlStartsWithTokenCheck(url, '12345')) {
           later(function() {
             queried = true;
@@ -363,6 +367,9 @@ describe('session', function() {
       var invalidated = false;
       stub(sessionTarget(), 'invalidate', function(force) {
         if(force) { invalidated = true; }
+      });
+      stub(sessionTarget(), 'force_logout', function() {
+        invalidated = true;
       });
       var res = session.restore(true);
 

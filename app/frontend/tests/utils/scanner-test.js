@@ -1194,6 +1194,9 @@ describe('scanner', function() {
   describe("next_element", function() {
     beforeEach(function() {
       scanner.scanning_distances = { x: 0, y: 0 };
+      scanner.element_index = 0;
+      scanner.element_index_advanced = true;
+      scanner.current_element = null;
       buttonTracker.any_select = true;
       stub(scanner, 'measure', function() {
         return { top: 0, left: 0, width: 10, height: 10 };

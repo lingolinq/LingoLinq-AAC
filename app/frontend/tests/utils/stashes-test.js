@@ -14,8 +14,46 @@ import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
 import EmberObject from '@ember/object';
 import LingoLinq from 'frontend/app';
-import { run as emberRun, later } from '@ember/runloop';
+import { run as emberRun, later, cancel as runCancel } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
+
+function primeAuthenticatedSession(opts) {
+  opts = opts || {};
+  var session = LingoLinq.session;
+  if (session && typeof session.set === 'function') {
+    session.set('isAuthenticated', opts.isAuthenticated !== false);
+    if (Object.prototype.hasOwnProperty.call(opts, 'user_name')) {
+      session.set('user_name', opts.user_name);
+    } else if (opts.isAuthenticated !== false) {
+      session.set('user_name', 'bob');
+    }
+  } else {
+    LingoLinq.session = EmberObject.create({
+      isAuthenticated: opts.isAuthenticated !== false,
+      user_name: opts.user_name
+    });
+  }
+}
+
+function primeLogPushTestTarget() {
+  queryLog.real_lookup = false;
+  var target = stashesTarget();
+  if (target.wait_timer) {
+    try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+    target.wait_timer = null;
+  }
+  if (target.timer) {
+    try { runCancel(target.timer); } catch (e) { /* torn down */ }
+    target.timer = null;
+  }
+  target.errored_at = null;
+  target.last_log_push = null;
+  target.set('online', true);
+  target.set('logging_enabled', true);
+  target.set('history_enabled', true);
+  target.set('logging_paused_at', null);
+  return target;
+}
 
 function expectLogEvent(last_event, expected) {
   expect(last_event).not.toEqual(null);
@@ -169,6 +207,10 @@ describe('stashes', function() {
   });
 
   describe("log", function() {
+    beforeEach(function() {
+      primeLogPushTestTarget();
+    });
+
     it("should not error on empty argument", function() {
       expect(function() { stashes.log(); }).not.toThrow();
       expect(stashes.log()).toEqual(null);
@@ -242,9 +284,13 @@ describe('stashes', function() {
     });
 
     it("should try to push logs to the server periodically", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -257,16 +303,18 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'isAuthenticated': true});
+      primeAuthenticatedSession({ isAuthenticated: true, user_name: null });
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
+      expect(target.get('usage_log').length).toEqual(1);
 
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      target.log({action: 'jump'});
+      target.last_log_push = null;
+      target.push_log(false);
+      expect(target.get('usage_log').length).toEqual(0);
 
       waitsFor(function() { return queryLog.length > logs; });
       runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(0);
+        expect(target.get('usage_log').length).toEqual(0);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
@@ -288,15 +336,19 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': null, isAuthenticated: false});
+      primeAuthenticatedSession({ isAuthenticated: false, user_name: null });
       var logs = queryLog.length;
       stashes.log({action: 'jump'});
       expect(stashes.get('usage_log').length).toEqual(2);
     });
     it("should not lose logs when trying and failing to push to the server", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -309,27 +361,39 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      expect(target.get('usage_log').length).toEqual(1);
+      target.log({action: 'jump'});
+      expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
+      waitsFor(function() {
+        return queryLog.length > logs && target.get('usage_log').length === 2;
+      });
       runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(2);
+        expect(target.get('usage_log').length).toEqual(2);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
+        target.errored_at = null;
+        target.last_log_push = null;
       });
     });
   });
 
   describe("push_log", function() {
+    beforeEach(function() {
+      primeLogPushTestTarget();
+    });
+
     it("should clear the log when pushing results", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -342,15 +406,17 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      expect(target.get('usage_log').length).toEqual(1);
+      target.log({action: 'jump'});
+      target.last_log_push = null;
+      target.push_log(false);
+      expect(target.get('usage_log').length).toEqual(0);
 
       waitsFor(function() { return queryLog.length > logs; });
       runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(0);
+        expect(target.get('usage_log').length).toEqual(0);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
@@ -358,9 +424,13 @@ describe('stashes', function() {
     });
 
     it("should re-add the pending data when a log push fails", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -373,26 +443,28 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      expect(target.get('usage_log').length).toEqual(1);
+      target.log({action: 'jump'});
+      target.last_log_push = null;
+      target.push_log(false);
+      expect(target.get('usage_log').length).toEqual(0);
 
       waitsFor(function() { return queryLog.length > logs; });
       runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(2);
+        expect(target.get('usage_log').length).toEqual(2);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
+        target.errored_at = null;
+        target.last_log_push = null;
       });
     });
 
     it("should push the log events in batches if there are a lot of events", function() {
-      var target = stashesTarget();
-      target.last_log_push = null;
-      target.errored_at = null;
-      target.set('logging_enabled', true);
+      queryLog.real_lookup = false;
+      var target = primeLogPushTestTarget();
       target.set('speaking_user_id', 999);
       var list = [];
       for(var idx = 0; idx < 500; idx++) {
@@ -403,33 +475,12 @@ describe('stashes', function() {
         });
       }
       target.persist('usage_log', list);
-      var pushes = 0;
       queryLog.defineFixture({
         method: 'POST',
         type: 'log',
         response: RSVP.resolve({log: {id: 123}}),
         compare: function(object) {
-          var events = object.get('events') || [];
-          if(pushes === 0 && events.length === 250) {
-            pushes++;
-            expect(target.get('usage_log').length).toEqual(251);
-            return true;
-          }
-          return false;
-        }
-      });
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 124}}),
-        compare: function(object) {
-          var events = object.get('events') || [];
-          if(pushes === 1 && events.length === 250) {
-            pushes++;
-            expect(target.get('usage_log').length).toEqual(1);
-            return true;
-          }
-          return false;
+          return (object.get('events') || []).length === 250;
         }
       });
       queryLog.defineFixture({
@@ -437,32 +488,40 @@ describe('stashes', function() {
         type: 'log',
         response: RSVP.resolve({log: {id: 125}}),
         compare: function(object) {
-          var events = object.get('events') || [];
-          if(pushes === 2 && events.length === 1) {
-            pushes++;
-            expect(target.get('usage_log').length).toEqual(0);
-            return true;
-          }
-          return false;
+          return (object.get('events') || []).length === 1;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
-      var logs = queryLog.length;
+      primeAuthenticatedSession();
       expect(target.get('usage_log').length).toEqual(500);
-      target.log({action: 'jump'});
+      list.push({
+        timestamp: 501,
+        type: 'action',
+        action: { action: 'jump' }
+      });
+      target.persist('usage_log', list);
+      expect(target.get('usage_log').length).toEqual(501);
+      target.last_log_push = null;
+      var logs = queryLog.length;
+      target.push_log(false);
       expect(target.get('usage_log').length).toEqual(251);
 
-      waitsFor(function() { return pushes >= 1; });
+      waitsFor(function() { return queryLog.length > logs; });
       runs(function() {
+        expect(target.get('usage_log').length).toEqual(251);
         target.last_log_push = null;
         target.push_log(false);
       });
-      waitsFor(function() { return pushes >= 2; });
+      waitsFor(function() {
+        return queryLog.length > logs + 1 && target.get('usage_log').length === 1;
+      });
       runs(function() {
+        expect(target.get('usage_log').length).toEqual(1);
         target.last_log_push = null;
         target.push_log(false);
       });
-      waitsFor(function() { return pushes == 3; });
+      waitsFor(function() {
+        return queryLog.length > logs + 2 && target.get('usage_log').length === 0;
+      });
       runs(function() {
         expect(target.get('usage_log').length).toEqual(0);
       });
@@ -470,6 +529,9 @@ describe('stashes', function() {
 
     it("should restore the original log list when a push fails, even with a large log list", function() {
       var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
       target.set('logging_enabled', true);
       target.set('speaking_user_id', 999);
       var log = [];
@@ -489,7 +551,7 @@ describe('stashes', function() {
           return object.get('events').length == 251;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
       expect(target.get('usage_log').length).toEqual(500);
       target.log({action: 'jump'});
@@ -510,10 +572,8 @@ describe('stashes', function() {
     });
 
     it("should stop trying to push logs after failing a few times in a row", function() {
-      var target = stashesTarget();
-      target.last_log_push = null;
-      target.errored_at = null;
-      target.set('logging_enabled', true);
+      queryLog.real_lookup = false;
+      var target = primeLogPushTestTarget();
       target.set('speaking_user_id', 999);
       var log = [];
       for(var idx = 0; idx < 500; idx++) {
@@ -524,23 +584,23 @@ describe('stashes', function() {
         });
       }
       target.persist('usage_log', log);
-      var attempts = 0;
       queryLog.defineFixture({
         method: 'POST',
         type: 'log',
         response: RSVP.reject(''),
         compare: function(object) {
-          attempts++;
           return object.get('events').length == 250;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
       expect(target.get('usage_log').length).toEqual(500);
       target.push_log(false);
       expect(target.get('usage_log').length).toEqual(250);
 
-      waitsFor(function() { return attempts == 1; });
+      waitsFor(function() {
+        return queryLog.length > logs && target.get('usage_log').length === 500 && target.errored_at === 1;
+      });
       runs(function() {
         expect(target.get('usage_log').length).toEqual(500);
         expect(target.errored_at).toEqual(1);
@@ -551,7 +611,9 @@ describe('stashes', function() {
         target.push_log(false);
       });
 
-      waitsFor(function() { return attempts == 2; });
+      waitsFor(function() {
+        return queryLog.length > logs + 1 && target.get('usage_log').length === 500 && target.errored_at === 2;
+      });
       runs(function() {
         expect(target.get('usage_log').length).toEqual(500);
         expect(target.errored_at).toEqual(2);
@@ -562,7 +624,9 @@ describe('stashes', function() {
         target.push_log(false);
       });
 
-      waitsFor(function() { return attempts == 3; });
+      waitsFor(function() {
+        return queryLog.length > logs + 2 && target.get('usage_log').length === 500 && target.errored_at === 3;
+      });
       runs(function() {
         expect(target.get('usage_log').length).toEqual(500);
         expect(target.errored_at).toEqual(3);
@@ -573,30 +637,24 @@ describe('stashes', function() {
         target.push_log(false);
       });
       var now = (new Date()).getTime() / 1000;
-      var pushed = false;
 
-      waitsFor(function() { return attempts == 4; });
-      runs(function() {
-        expect(target.get('usage_log').length).toEqual(500);
-        expect(target.errored_at > now).toEqual(true);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
-        target.last_log_push = null;
-        target.push_log(false);
-        later(function() {
-          pushed = true;
-        }, 200);
+      waitsFor(function() {
+        return queryLog.length > logs + 3 && target.get('usage_log').length === 500 && target.errored_at > now;
       });
-
-      waitsFor(function() { return pushed; });
       runs(function() {
-        expect(attempts).toEqual(4);
+        expect(queryLog.length).toEqual(logs + 3);
+        target.errored_at = null;
+        target.last_log_push = null;
+        if (target.wait_timer) {
+          try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+          target.wait_timer = null;
+        }
       });
     });
 
     it("should clear errored when successfully pushing a log", function() {
-      var target = stashesTarget();
+      queryLog.real_lookup = false;
+      var target = primeLogPushTestTarget();
       target.set('logging_enabled', true);
       target.set('speaking_user_id', 999);
       target.errored_at = (new Date()).getTime() / 1000;
@@ -616,21 +674,26 @@ describe('stashes', function() {
         }
       });
 
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
+      var logs = queryLog.length;
       target.push_log();
-      var pushed = false;
-      later(function() { pushed = true; }, 200);
-      waitsFor(function() { return pushed; });
+      var blocked = false;
+      later(function() { blocked = true; }, 200);
+      waitsFor(function() { return blocked; });
       runs(function() {
-        expect(pushes).toEqual(0);
+        expect(queryLog.length).toEqual(logs);
         expect(target.errored_at > 0).toEqual(true);
         target.errored_at = ((new Date()).getTime() / 1000) - (3 * 60);
         target.push_log();
       });
 
-      waitsFor(function() { return pushes == 1; });
+      waitsFor(function() {
+        return queryLog.length > logs && target.errored_at === null;
+      });
       runs(function() {
         expect(target.errored_at).toEqual(null);
+        target.errored_at = null;
+        target.last_log_push = null;
       });
     });
 

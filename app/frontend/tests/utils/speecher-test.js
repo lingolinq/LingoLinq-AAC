@@ -46,7 +46,13 @@ describe('speecher', function() {
   });
 
   afterEach(function() {
+    try {
+      speecher.stop('all');
+    } catch (e) { /* mid-teardown */ }
     speecher.scope = window;
+    speecher.audio = {};
+    speecher.sounds = {};
+    speecher.last_utterance = null;
   });
 
   describe('stop', function() {
@@ -684,6 +690,7 @@ describe('speecher', function() {
     });
 
     it('should progress on no events, if playback does started but then got stuck', function() {
+      audio_elem.duration = 0.1;
       speecher.play_audio(audioRef(audio_elem));
       var ended = false;
       stub(speecher, 'speak_end_handler', function() {
@@ -695,11 +702,11 @@ describe('speecher', function() {
         var pumps = 0;
         var pump = function() {
           pumps++;
-          if (pumps < 15 && !ended) {
-            later(pump, 100);
+          if (pumps < 8 && !ended) {
+            later(pump, 50);
           }
         };
-        later(pump, 100);
+        later(pump, 50);
       });
       waitsFor(function() { return ended; });
       runs();

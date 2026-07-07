@@ -133,23 +133,22 @@ describe('dbman', function() {
     });
 
     it("should return the newest result when finding by key for boards if specified", function() {
+      var findKey = 'dbman/newest-board-' + Math.random().toString(36).slice(2);
       var result1 = null, result2 = null, result3 = null;
-      capabilities.dbman.store('board', {id: 'a/b', key: 'bacon'}, function(res) {
+      capabilities.dbman.store('board', {id: 'a/b', key: findKey, persisted: 1}, function(res) {
         result1 = res;
       }, function() { });
-      capabilities.dbman.store('board', {id: 'bacon', key: 'a/b'}, function(res) {
+      capabilities.dbman.store('board', {id: 'bacon', key: findKey, persisted: 2}, function(res) {
         result2 = res;
       }, function() { });
-      setTimeout(function() {
-        capabilities.dbman.store('board', {id: 'bacon2', key: 'a/b'}, function(res) {
-          result3 = res;
-        }, function() { });
-      }, 200);
+      capabilities.dbman.store('board', {id: 'bacon2', key: findKey, persisted: 3}, function(res) {
+        result3 = res;
+      }, function() { });
 
       var found_result = null;
       waitsFor(function() { return result1 && result2 && result3; });
       runs(function() {
-        capabilities.dbman.find('board', 'a/b', function(res) {
+        capabilities.dbman.find('board', findKey, function(res) {
           found_result = res;
         }, function() { });
       });
@@ -157,7 +156,7 @@ describe('dbman', function() {
       waitsFor(function() { return found_result; });
       runs(function() {
         expect(found_result.id).toEqual('bacon2');
-        expect(found_result.key).toEqual('a/b');
+        expect(found_result.key).toEqual(findKey);
       });
     });
 
