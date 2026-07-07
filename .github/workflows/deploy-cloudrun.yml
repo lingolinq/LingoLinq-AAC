@@ -138,6 +138,11 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v3
+        with:
+          # `gcloud beta run worker-pools deploy` needs the beta component; gcloud 568+
+          # on the runner no longer preinstalls it, and the on-demand install prompt
+          # fails in a non-interactive job (run 28843502297, 2026-07-07).
+          install_components: beta
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
