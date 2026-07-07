@@ -39760,6 +39760,12 @@ a.la-footer-bottom-a11y-wcag {
     &:hover {
       text-decoration: underline;
     }
+
+    // On the dedicated email step the start-code link sits directly above the
+    // Sign Up button; add breathing room so it isn't crowded against it.
+    &.register-start-code-link--spaced {
+      margin-bottom: $aac-spacing-16;
+    }
   }
 }
 
