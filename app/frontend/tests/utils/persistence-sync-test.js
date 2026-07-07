@@ -430,27 +430,71 @@ function waitForBoardRaw(boardId, predicate, maxAttempts) {
   predicate = predicate || function(raw) {
     return raw && raw.buttons && raw.buttons[0];
   };
-  maxAttempts = maxAttempts || 40;
-  return new RSVP.Promise(function(resolve) {
+  maxAttempts = maxAttempts || (LingoLinq.sync_testing ? 240 : 40);
+  return new RSVP.Promise(function(resolve, reject) {
     var attempts = 0;
+    var boardRecordToRaw = function(record) {
+      if (!record) {
+        return null;
+      }
+      return {
+        id: record.get('id'),
+        key: record.get('key'),
+        buttons: record.get('buttons'),
+        grid: record.get('grid')
+      };
+    };
     var tryFind = function() {
-      lingoLinqExtras.storage.find('board', String(boardId)).then(function(res) {
-        var raw = res && res.raw;
+      var handleRaw = function(raw) {
         if (predicate(raw)) {
           resolve(raw);
         } else if (attempts < maxAttempts) {
           attempts++;
           setTimeout(tryFind, 50);
         } else {
-          resolve(raw || null);
+          reject(new Error('board ' + boardId + ' never reached expected state'));
         }
+      };
+      var peeked = LingoLinq.store && LingoLinq.store.peekRecord ?
+        LingoLinq.store.peekRecord('board', String(boardId)) : null;
+      if (peeked) {
+        handleRaw(boardRecordToRaw(peeked));
+        return;
+      }
+      if (LingoLinq.store && LingoLinq.store.findRecord) {
+        LingoLinq.store.findRecord('board', String(boardId)).then(function(record) {
+          handleRaw(boardRecordToRaw(record));
+        }, function() {
+          persistence.find('board', boardId).then(function(res) {
+            handleRaw(res && res.raw);
+          }, function() {
+            lingoLinqExtras.storage.find('board', String(boardId)).then(function(res) {
+              handleRaw(res && res.raw);
+            }, function() {
+              if (attempts < maxAttempts) {
+                attempts++;
+                setTimeout(tryFind, 50);
+              } else {
+                reject(new Error('board ' + boardId + ' not found'));
+              }
+            });
+          });
+        });
+        return;
+      }
+      persistence.find('board', boardId).then(function(res) {
+        handleRaw(res && res.raw);
       }, function() {
-        if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(tryFind, 50);
-        } else {
-          resolve(null);
-        }
+        lingoLinqExtras.storage.find('board', String(boardId)).then(function(res) {
+          handleRaw(res && res.raw);
+        }, function() {
+          if (attempts < maxAttempts) {
+            attempts++;
+            setTimeout(tryFind, 50);
+          } else {
+            reject(new Error('board ' + boardId + ' not found'));
+          }
+        });
       });
     };
     tryFind();
@@ -3481,6 +3525,9 @@ describe("persistence-sync", function() {
     db_wait(function() {
       finishFindChangedSyncTest();
       var persistTarget = primeFindChangedSyncHarness('1567');
+      stub(contentGrabbers, 'save_record', function(record) {
+        return record.save();
+      });
       var serverBoardId = '9334';
       var tmpBoardId = '9335';
       var imageId = '9336';
@@ -3567,12 +3614,16 @@ describe("persistence-sync", function() {
             tmp_board = res;
           });
 
-          var image = LingoLinq.store.createRecord('image', {});
+          var image = LingoLinq.store.createRecord('image', {
+            data_url: 'data:image/png;base64,abc'
+          });
           image.save().then(function(res) {
             tmp_image = { id: res.get('id') };
           });
 
-          var sound = LingoLinq.store.createRecord('sound', {});
+          var sound = LingoLinq.store.createRecord('sound', {
+            data_url: 'data:audio/wav;base64,abc'
+          });
           sound.save().then(function(res) {
             tmp_sound = { id: res.get('id') };
           });
@@ -3666,7 +3717,7 @@ describe("persistence-sync", function() {
                 tmp_sound = null;
                 synced = true;
               }, function() {
-                synced = true;
+                synced = false;
               });
             }, 50);
           }, function() {
@@ -3681,7 +3732,8 @@ describe("persistence-sync", function() {
       waitsFor(function() {
         return sync_done && synced && !tmp_image && !tmp_sound && !tmp_board &&
           new_image && new_sound && new_board && new_board.buttons && new_board.buttons[0] &&
-          server_board && server_board.buttons && server_board.buttons[0];
+          server_board && server_board.buttons && server_board.buttons[0] &&
+          boardHasPermanentButtonLinks(new_board) && boardHasPermanentButtonLinks(server_board);
       });
       runs(function() {
         cancelSyncTailWork();

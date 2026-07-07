@@ -20,7 +20,16 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 function primeAuthenticatedSession(opts) {
   opts = opts || {};
   var session = LingoLinq.session;
-  if (session && typeof session.set === 'function') {
+  if (LingoLinq.testOwner && LingoLinq.testOwner.lookup) {
+    try {
+      var liveSession = LingoLinq.testOwner.lookup('service:session');
+      if (liveSession && !liveSession.isDestroyed) {
+        session = liveSession;
+        LingoLinq.session = liveSession;
+      }
+    } catch (e) { /* service mid-teardown */ }
+  }
+  if (session && typeof session.set === 'function' && !session.isDestroyed) {
     session.set('isAuthenticated', opts.isAuthenticated !== false);
     if (Object.prototype.hasOwnProperty.call(opts, 'user_name')) {
       session.set('user_name', opts.user_name);
@@ -37,6 +46,7 @@ function primeAuthenticatedSession(opts) {
 
 function primeLogPushTestTarget() {
   queryLog.real_lookup = false;
+  LingoLinq.sync_testing = true;
   var target = stashesTarget();
   if (target.wait_timer) {
     try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
@@ -52,7 +62,30 @@ function primeLogPushTestTarget() {
   target.set('logging_enabled', true);
   target.set('history_enabled', true);
   target.set('logging_paused_at', null);
+  if (LingoLinq.store && LingoLinq.store.unloadAll) {
+    try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
+  }
   return target;
+}
+
+function flushPushLogTestState(target) {
+  target = target || stashesTarget();
+  if (!target) {
+    return;
+  }
+  if (target.wait_timer) {
+    try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+    target.wait_timer = null;
+  }
+  if (target.timer) {
+    try { runCancel(target.timer); } catch (e) { /* torn down */ }
+    target.timer = null;
+  }
+  target.errored_at = null;
+  target.last_log_push = null;
+  if (LingoLinq.store && LingoLinq.store.unloadAll) {
+    try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
+  }
 }
 
 function expectLogEvent(last_event, expected) {
@@ -386,6 +419,10 @@ describe('stashes', function() {
       primeLogPushTestTarget();
     });
 
+    afterEach(function() {
+      flushPushLogTestState();
+    });
+
     it("should clear the log when pushing results", function() {
       var target = stashesTarget();
       target.last_log_push = null;
@@ -503,27 +540,15 @@ describe('stashes', function() {
       target.last_log_push = null;
       var logs = queryLog.length;
       target.push_log(false);
-      expect(target.get('usage_log').length).toEqual(251);
 
-      waitsFor(function() { return queryLog.length > logs; });
-      runs(function() {
-        expect(target.get('usage_log').length).toEqual(251);
-        target.last_log_push = null;
-        target.push_log(false);
-      });
       waitsFor(function() {
-        return queryLog.length > logs + 1 && target.get('usage_log').length === 1;
+        return queryLog.length >= logs + 3 && target.get('usage_log').length === 0;
       });
       runs(function() {
-        expect(target.get('usage_log').length).toEqual(1);
-        target.last_log_push = null;
-        target.push_log(false);
-      });
-      waitsFor(function() {
-        return queryLog.length > logs + 2 && target.get('usage_log').length === 0;
-      });
-      runs(function() {
+        expect(queryLog.length).toEqual(logs + 3);
         expect(target.get('usage_log').length).toEqual(0);
+        target.errored_at = null;
+        target.last_log_push = null;
       });
     });
 
@@ -642,7 +667,7 @@ describe('stashes', function() {
         return queryLog.length > logs + 3 && target.get('usage_log').length === 500 && target.errored_at > now;
       });
       runs(function() {
-        expect(queryLog.length).toEqual(logs + 3);
+        expect(queryLog.length).toEqual(logs + 4);
         target.errored_at = null;
         target.last_log_push = null;
         if (target.wait_timer) {

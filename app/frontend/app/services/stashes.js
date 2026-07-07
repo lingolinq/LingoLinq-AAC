@@ -755,12 +755,14 @@ export default Service.extend({
     var usage_log = this.get('usage_log');
     var timestamp = this.current_timestamp();
     // Wait at least 10 seconds between log pushes
-    if(this.last_log_push && timestamp - this.last_log_push < 10) {
+    var min_push_interval = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 0 : 10;
+    if(this.last_log_push && timestamp - this.last_log_push < min_push_interval) {
       if(!this.wait_timer) {
+        var retry_delay = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 10 : 8000;
         this.wait_timer = runLater(() => {
           this.wait_timer = null;
           this.push_log();
-        }, 8000);  
+        }, retry_delay);  
       }
       return;
     }
@@ -787,9 +789,10 @@ export default Service.extend({
         log.save().then(() => {
           this.errored_at = null;
           if(for_later.length > 0) {
+            var batch_delay = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 1 : 10000;
             runLater(() => {
               this.push_log();
-            }, 10000);
+            }, batch_delay);
           }
           // success!
         }, (err) => {

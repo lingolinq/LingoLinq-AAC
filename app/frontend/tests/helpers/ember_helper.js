@@ -445,7 +445,11 @@ ApplicationAdapter.reopen({
     }, nothing);
   },
   createRecord: function(store, type, obj) {
-    if(queryLog.real_lookup) {
+    var modelName = type.modelName || type.typeKey;
+    var hasLogFixture = modelName === 'log' && queryLog.fixtures && queryLog.fixtures.some(function(fixture) {
+      return fixture.method === 'POST' && fixture.type === 'log';
+    });
+    if(queryLog.real_lookup && !hasLogFixture) {
       return this._super.apply(this, arguments);
     }
     var nothing = RSVP.reject('');
@@ -1045,19 +1049,34 @@ function teardownUtteranceTestHarness() {
   cancelHarnessAsyncWork();
 }
 
+function moduleNameMatches(moduleName, tokens) {
+  if (!moduleName) {
+    return false;
+  }
+  if (tokens.indexOf(moduleName) >= 0) {
+    return true;
+  }
+  for (var idx = 0; idx < tokens.length; idx++) {
+    if (moduleName.indexOf(tokens[idx]) >= 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isStashesTestModule(moduleName) {
-  if (moduleName === 'stashes') {
+  if (moduleNameMatches(moduleName, ['stashes'])) {
     return true;
   }
   if (typeof QUnit === 'undefined' || !QUnit.config) {
     return false;
   }
   var current = QUnit.config.current;
-  if (current && current.module && current.module.name === 'stashes') {
+  if (current && current.module && moduleNameMatches(current.module.name, ['stashes'])) {
     return true;
   }
   var testName = current && current.testName;
-  return !!(testName && /^stashes(\s|-)/.test(testName));
+  return !!(testName && /^stashes(\s|:|-)/.test(testName));
 }
 
 function isGeoTestModule(moduleName) {
@@ -1098,18 +1117,18 @@ function isSyncHeavyTestModule(moduleName) {
     'app_state', 'capabilities', 'persistence-sync', 'persistence', 'word_suggestions',
     'Board', 'frame_listener', 'speecher', 'Utterance', 'User', 'stashes', 'dbman', 'session'
   ];
-  if (moduleName && syncModules.indexOf(moduleName) >= 0) {
+  if (moduleNameMatches(moduleName, syncModules)) {
     return true;
   }
   if (typeof QUnit === 'undefined' || !QUnit.config) {
     return false;
   }
   var current = QUnit.config.current;
-  if (current && current.module && current.module.name && syncModules.indexOf(current.module.name) >= 0) {
+  if (current && current.module && moduleNameMatches(current.module.name, syncModules)) {
     return true;
   }
   var testName = current && current.testName;
-  return !!(testName && /^(app_state|capabilities|persistence-sync|persistence|word_suggestions|Board|frame_listener|speecher|Utterance|User|stashes|dbman|session)(\s|-)/.test(testName));
+  return !!(testName && /^(app_state|capabilities|persistence-sync|persistence|word_suggestions|Board|frame_listener|speecher|Utterance|User|stashes|dbman|session)(\s|:|-)/.test(testName));
 }
 
 function setupSyncHeavyTestHarness() {
