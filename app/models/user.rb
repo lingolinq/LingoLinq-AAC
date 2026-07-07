@@ -2246,9 +2246,47 @@ class User < ApplicationRecord
   
   def sidebar_boards
     stored = (self.settings && self.settings['preferences'] && self.settings['preferences']['sidebar_boards']) || []
-    return User.default_active_sidebar_boards if stored.empty?
+    if stored.empty?
+      return User.resolve_sidebar_boards_for(self, User.default_active_sidebar_boards)
+    end
 
-    User.merge_missing_default_sidebar_boards(stored)
+    User.resolve_sidebar_boards_for(self, User.merge_missing_default_sidebar_boards(stored))
+  end
+
+  def self.sidebar_system_keys
+    [
+      SystemBoardSources.board_key('keyboard'),
+      SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG)
+    ].freeze
+  end
+
+  def self.resolve_sidebar_boards_for(user, boards)
+    (boards || []).map { |entry| resolve_sidebar_entry(user, entry) }
+  end
+
+  # Default sidebar entries reference public system boards. Resolve to the user's
+  # owned copy when one exists (parent_board lineage), except keyboard and crisis
+  # which stay on the shared system boards.
+  def self.resolve_sidebar_entry(user, entry)
+    return entry unless entry.is_a?(Hash)
+    return entry if entry['alert'] || (entry['special'] && entry['alert'])
+
+    key = entry['key']
+    return entry unless key
+    return entry if sidebar_system_keys.include?(key)
+
+    system_board = Board.find_by_path(key)
+    return entry unless system_board
+
+    copy = user.boards.where(parent_board_id: system_board.id).order('id DESC').first
+    return entry unless copy
+
+    resolved = entry.merge(
+      'key' => copy.key,
+      'name' => copy.settings['name'] || entry['name']
+    )
+    resolved['image'] = copy.settings['image_url'] if copy.settings['image_url'].present?
+    resolved
   end
 
   def self.sidebar_board_identity(board)

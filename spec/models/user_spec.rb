@@ -2640,6 +2640,23 @@ describe User, :type => :model do
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
       expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
     end
+
+    it "should resolve default sidebar entries to user-owned copies except keyboard and crisis" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
+      yesno_copy = yesno.copy_for(u)
+      inflections_copy = inflections.copy_for(u)
+
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(yesno_copy.key)
+      expect(keys).to include(inflections_copy.key)
+      expect(keys).to include(SystemBoardSources.board_key('keyboard'))
+      expect(keys).to include(SystemBoardSources.board_key('crisis-vocabulary'))
+      expect(keys).not_to include(yesno.key)
+      expect(keys).not_to include(inflections.key)
+    end
   end
   
   describe "avatars" do

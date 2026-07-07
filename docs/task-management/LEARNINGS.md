@@ -2973,6 +2973,10 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 **Evidence:** `lib/user_board_provisioner.rb`, `lib/system_board_sources.rb`, `app/models/user.rb`; task log `2026-05-28-signup-default-library-boards.md`.
 
+**Extension (2026-07-06) — VF84 sync + sidebar user copies:** Put `vocal-flair-84` in `SIGNUP_SYNC_SLUGS` and call `copy_board_to_library` inline in `UserBoardProvisioner` before enqueueing `SIGNUP_ASYNC_SLUGS` (yesno/inflections first, then remaining library slugs). Default sidebar still lists system keys in `default_sidebar_boards`, but `User#sidebar_boards` resolves entries to user-owned copies via `parent_board_id` except `keyboard` and `crisis-vocabulary` (`sidebar_system_keys`). Home-board pickers should use `findExistingUserCopy` / `links_copy_as_home` (see `assign-vocal-flair-home.js`), not point `preferences.home_board` at the catalog board.
+
+**Evidence:** task log `2026-07-06-signup-boards-sidebar-copies.md`.
+
 ---
 
 ## Pattern: custom lingolinq content boards — commit OBZ + `SystemBoardSources.ensure_*`
