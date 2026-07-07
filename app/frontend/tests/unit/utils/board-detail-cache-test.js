@@ -3,18 +3,66 @@ import RSVP from 'rsvp';
 import boardDetailCache from 'frontend/utils/board_detail_cache';
 import LingoLinq from 'frontend/app';
 import { setupTest } from '../../helpers';
-import { stubOnPersistence } from '../../helpers/persistence-stub';
+import { chainPersistenceAjax, persistenceTarget, stubOnPersistence } from '../../helpers/persistence-stub';
+import { restoreStubs } from '../../helpers/jasmine';
+
+var savedDocumentHiddenDesc = null;
+var savedAppState = null;
+var savedStore = null;
+
+function restoreLingoLinqTestGlobals() {
+  if (savedAppState !== null) {
+    LingoLinq.appState = savedAppState;
+    savedAppState = null;
+  }
+  if (savedStore !== null) {
+    LingoLinq.store = savedStore;
+    savedStore = null;
+  }
+}
+
+function stashLingoLinqGlobals() {
+  savedAppState = LingoLinq.appState;
+  savedStore = LingoLinq.store;
+}
+
+function restoreDocumentHidden() {
+  if (savedDocumentHiddenDesc) {
+    Object.defineProperty(document, 'hidden', savedDocumentHiddenDesc);
+    savedDocumentHiddenDesc = null;
+    return;
+  }
+  try {
+    delete document.hidden;
+  } catch (e) { /* ignore */ }
+}
+
+function resetDocumentHiddenForTest() {
+  restoreDocumentHidden();
+  var hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+  if (hiddenDesc && typeof hiddenDesc.get === 'function' && hiddenDesc.configurable) {
+    savedDocumentHiddenDesc = hiddenDesc;
+    try {
+      delete document.hidden;
+    } catch (e) { /* ignore */ }
+  }
+}
 
 function stubBoardDetailCacheOnline() {
+  var target = persistenceTarget();
+  var priorGet = (target && typeof target.get === 'function') ? target.get.bind(target) : null;
   stubOnPersistence('get', function(key) {
     if (key === 'online') { return true; }
-    return true;
+    if (priorGet) {
+      return priorGet(key);
+    }
+    return undefined;
   });
 }
 
 function stubBoardDetailCacheAjax(ajaxFn) {
   stubBoardDetailCacheOnline();
-  stubOnPersistence('ajax', ajaxFn);
+  chainPersistenceAjax(ajaxFn);
 }
 
 function prefetchFeatureFlags(opts) {
@@ -29,18 +77,26 @@ function prefetchFeatureFlags(opts) {
   return flags;
 }
 
+function runPrefetchPipeline(user, warmOpts) {
+  return boardDetailCache._run_prefetch_pipeline(user, warmOpts, { gapMs: 0 });
+}
+
 module('Unit | Utility | board-detail-cache', function(hooks) {
   setupTest(hooks);
 
   hooks.beforeEach(function() {
+    restoreStubs();
     boardDetailCache.clear();
+    resetDocumentHiddenForTest();
+    stashLingoLinqGlobals();
     stubBoardDetailCacheOnline();
-    var hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    if (hiddenDesc && typeof hiddenDesc.get === 'function' && hiddenDesc.configurable) {
-      try {
-        delete document.hidden;
-      } catch (e) { /* ignore */ }
-    }
+  });
+
+  hooks.afterEach(function() {
+    boardDetailCache.clear();
+    restoreDocumentHidden();
+    restoreLingoLinqTestGlobals();
+    restoreStubs();
   });
 
   test('set skips re-caching a fresh entry unless force is true', function(assert) {
@@ -61,8 +117,6 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('warm_linked_images warms cached child boards without refetching', function(assert) {
-    boardDetailCache.clear();
-    var done = assert.async();
     var url = 'https://example.com/child-symbol.png';
     var parent = {
       key: 'user/parent',
@@ -84,16 +138,16 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       return { complete: true, onload: null, onerror: null, src: '' };
     };
 
-    boardDetailCache.warm_linked_images(parent).then(function() {
+    return boardDetailCache.warm_linked_images(parent).then(function() {
       window.Image = OriginalImage;
       assert.equal(loadCount, 1, 'warms images for cached linked board');
-      done();
+    }, function(err) {
+      window.Image = OriginalImage;
+      throw err;
     });
   });
 
   test('warm_images skips URLs already warmed for another board', function(assert) {
-    boardDetailCache.clear();
-    var done = assert.async();
     var url = 'https://example.com/symbol-a.png';
     var sharedImage = { id: 'img-1', url: url };
     var raw1 = {
@@ -115,18 +169,19 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       return { complete: true, onload: null, onerror: null, src: '' };
     };
 
-    boardDetailCache.warm_images(raw1).then(function() {
+    return boardDetailCache.warm_images(raw1).then(function() {
       loadCount = 0;
       return boardDetailCache.warm_images(raw2);
     }).then(function() {
       window.Image = OriginalImage;
       assert.equal(loadCount, 0, 'does not create Image() for an already-warmed URL');
-      done();
+    }, function(err) {
+      window.Image = OriginalImage;
+      throw err;
     });
   });
 
   test('prefetch_lingolinq_catalog lists roots then fetches each tree', function(assert) {
-    boardDetailCache.clear();
     var calls = [];
     var origAppState = LingoLinq.appState;
 
@@ -173,7 +228,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    return boardDetailCache.prefetch_lingolinq_catalog(user).then(function() {
+    return boardDetailCache.prefetch_lingolinq_catalog(user, null, { gapMs: 0 }).then(function() {
       LingoLinq.appState = origAppState;
 
       assert.ok(calls.some(function(c) { return c.url.indexOf('user_id=lingolinq') !== -1; }), 'lists lingolinq roots');
@@ -189,7 +244,6 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch_lingolinq_catalog skips roots already fresh in cache', function(assert) {
-    boardDetailCache.clear();
     var calls = [];
     var origAppState = LingoLinq.appState;
 
@@ -233,7 +287,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    return boardDetailCache.prefetch_lingolinq_catalog(user).then(function() {
+    return boardDetailCache.prefetch_lingolinq_catalog(user, null, { gapMs: 0 }).then(function() {
       LingoLinq.appState = origAppState;
       var treeCalls = calls.filter(function(u) { return u.indexOf('/tree') !== -1; });
       assert.equal(treeCalls.length, 1, 'only fetches uncached root');
@@ -245,7 +299,6 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('get_ordered_buttons returns null when url_cache_primed context differs', function(assert) {
-    boardDetailCache.clear();
     var raw = { key: 'user/board-a', id: '1_1', buttons: [] };
     boardDetailCache.set(raw);
     var grid = [[{ id: 'btn-1' }]];
@@ -267,7 +320,6 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch_lingolinq_catalog warms images for root only', function(assert) {
-    boardDetailCache.clear();
     var origAppState = LingoLinq.appState;
     var warmCalls = [];
     var origWarm = boardDetailCache.warm_images;
@@ -311,7 +363,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    return boardDetailCache.prefetch_lingolinq_catalog(user).then(function() {
+    return boardDetailCache.prefetch_lingolinq_catalog(user, null, { gapMs: 0 }).then(function() {
       LingoLinq.appState = origAppState;
       boardDetailCache.warm_images = origWarm;
       assert.equal(warmCalls.length, 1, 'warms root images once');
@@ -324,8 +376,6 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch pipeline runs home then liked then owned when background flag enabled', function(assert) {
-    boardDetailCache.clear();
-    var done = assert.async();
     var treeOrder = [];
     var origAppState = LingoLinq.appState;
 
@@ -362,7 +412,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
 
     var user = {
       get: function(k) {
-        if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true }); }
+        if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true, catalog: false }); }
         if (k === 'id') { return '1_50'; }
         if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
         if (k === 'preferences.skin') { return 'default'; }
@@ -373,10 +423,9 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+    return runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
       LingoLinq.appState = origAppState;
       assert.deepEqual(treeOrder, ['user/home', 'user/liked', 'user/owned'], 'runs phased trees in order');
-      done();
     }, function(err) {
       LingoLinq.appState = origAppState;
       throw err;
@@ -384,8 +433,6 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch pipeline skips extended phases when background flag off', function(assert) {
-    boardDetailCache.clear();
-    var done = assert.async();
     var treeOrder = [];
     var origAppState = LingoLinq.appState;
 
@@ -418,10 +465,9 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+    return runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
       LingoLinq.appState = origAppState;
       assert.deepEqual(treeOrder, ['user/home'], 'only home phase when flag off');
-      done();
     }, function(err) {
       LingoLinq.appState = origAppState;
       throw err;
@@ -429,8 +475,6 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch pipeline skips roots already fresh in cache', function(assert) {
-    boardDetailCache.clear();
-    var done = assert.async();
     var treeOrder = [];
     var origAppState = LingoLinq.appState;
 
@@ -466,7 +510,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
 
     var user = {
       get: function(k) {
-        if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true }); }
+        if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true, catalog: false }); }
         if (k === 'id') { return '1_50'; }
         if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
         if (k === 'preferences.skin') { return 'default'; }
@@ -477,10 +521,9 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+    return runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
       LingoLinq.appState = origAppState;
       assert.deepEqual(treeOrder, ['user/home'], 'skips cached liked board');
-      done();
     }, function(err) {
       LingoLinq.appState = origAppState;
       throw err;
@@ -488,11 +531,8 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch pipeline does not mark phase done when interrupted mid-phase', function(assert) {
-    boardDetailCache.clear();
-    var done = assert.async();
     var treeCount = 0;
     var origAppState = LingoLinq.appState;
-    var origHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 
     LingoLinq.appState = {
       get: function(path) {
@@ -529,7 +569,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
 
     var user = {
       get: function(k) {
-        if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true }); }
+        if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true, catalog: false }); }
         if (k === 'id') { return '1_50'; }
         if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
         if (k === 'preferences.skin') { return 'default'; }
@@ -542,31 +582,18 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+    return runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
       var phaseDone = boardDetailCache._prefetch_phase_done['1_50'] || {};
       assert.ok(phaseDone.phase1, 'phase1 marked done when home tree finishes');
       assert.notOk(phaseDone.phase2, 'phase2 stays incomplete when tab hidden mid-phase');
       LingoLinq.appState = origAppState;
-      if (origHidden) {
-        Object.defineProperty(document, 'hidden', origHidden);
-      } else {
-        delete document.hidden;
-      }
-      done();
     }, function(err) {
       LingoLinq.appState = origAppState;
-      if (origHidden) {
-        Object.defineProperty(document, 'hidden', origHidden);
-      } else {
-        try { delete document.hidden; } catch (e) { /* ignore */ }
-      }
-      done();
       throw err;
     });
   });
 
   test('prefetch_caseload_for_user caps supervisees and dedupes reruns', function(assert) {
-    boardDetailCache.clear();
     var treeCalls = [];
     var findCalls = [];
     var origStore = LingoLinq.store;
@@ -622,12 +649,12 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    var first = boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0 });
-    var second = boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0 });
+    var first = boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0, pipelineGapMs: 0 });
+    var second = boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0, pipelineGapMs: 0 });
     assert.strictEqual(second, first, 'returns the running prefetch promise for the same supervisor');
 
     return first.then(function() {
-      return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0 });
+      return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0, pipelineGapMs: 0 });
     }).then(function() {
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
@@ -642,13 +669,11 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch_caseload_for_user retries after interrupted phased prefetch', function(assert) {
-    boardDetailCache.clear();
     var treeCalls = [];
     var treeCount = 0;
     var hidden = false;
     var origStore = LingoLinq.store;
     var origAppState = LingoLinq.appState;
-    var origHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
 
     LingoLinq.appState = {
       get: function(path) {
@@ -663,7 +688,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       findRecord: function(type, id) {
         return RSVP.resolve({
           get: function(k) {
-            if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true }); }
+            if (k === 'feature_flags') { return prefetchFeatureFlags({ background: true, catalog: false }); }
             if (k === 'id') { return id; }
             if (k === 'preferences.home_board') { return { key: 'student/home', id: id + '-home' }; }
             if (k === 'preferences.skin') { return 'default'; }
@@ -716,27 +741,17 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       }
     };
 
-    return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 1, gapMs: 0 }).then(function() {
+    return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 1, gapMs: 0, pipelineGapMs: 0 }).then(function() {
       hidden = false;
-      return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 1, gapMs: 0 });
+      return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 1, gapMs: 0, pipelineGapMs: 0 });
     }).then(function() {
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
-      if (origHidden) {
-        Object.defineProperty(document, 'hidden', origHidden);
-      } else {
-        delete document.hidden;
-      }
 
       assert.deepEqual(treeCalls, ['student/home', 'student/liked'], 'reruns incomplete caseload prefetch phases after visibility returns');
     }, function(err) {
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
-      if (origHidden) {
-        Object.defineProperty(document, 'hidden', origHidden);
-      } else {
-        delete document.hidden;
-      }
       throw err;
     });
   });
