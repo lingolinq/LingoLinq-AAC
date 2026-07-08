@@ -1184,6 +1184,22 @@ class WordData < ApplicationRecord
   def self.core_lists
     @@core_lists ||= nil
     return @@core_lists if @@core_lists
+
+    # Multilingual Language Layer -- Phase 2, Plan 03. Schema-2 vocab seam, gated behind
+    # FeatureFlags.multilingual_grammar_enabled_for?. Evaluated ONCE per call (never per list),
+    # PURELY ADDITIVE: with the flag OFF (default), or if nothing has been ingested into
+    # Setting['vocab/en'] yet, control falls straight through to the unchanged legacy
+    # File.read body below -- nothing from here on is removed, edited, or re-indented. With the
+    # flag ON, the reconstructed shape is byte-identical to the legacy file (COMPAT-01/02),
+    # proven in spec/models/word_data_vocab_spec.rb against the Plan 01 reader golden.
+    if FeatureFlags.multilingual_grammar_enabled_for?(nil)
+      reconstructed = reconstruct_core_lists_from_vocab
+      if reconstructed
+        @@core_lists = reconstructed
+        return @@core_lists
+      end
+    end
+
     json = JSON.parse(File.read('./lib/core_lists.json')) rescue nil
     if json
       @@core_lists = json
@@ -1191,10 +1207,21 @@ class WordData < ApplicationRecord
     @@core_lists ||= []
     @@core_lists
   end
-  
+
   def self.fringe_lists
     @@fringe_lists ||= nil
     return @@fringe_lists if @@fringe_lists
+
+    # Multilingual Language Layer -- Phase 2, Plan 03. Same purely-additive seam as
+    # `core_lists` above: flag OFF (or nothing ingested yet) falls through unchanged.
+    if FeatureFlags.multilingual_grammar_enabled_for?(nil)
+      reconstructed = reconstruct_fringe_lists_from_vocab
+      if reconstructed
+        @@fringe_lists = reconstructed
+        return @@fringe_lists
+      end
+    end
+
     json = JSON.parse(File.read('./lib/fringe_suggestions.json')) rescue nil
     if json
       @@fringe_lists = json

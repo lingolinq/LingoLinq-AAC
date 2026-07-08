@@ -125,15 +125,16 @@ module AiPredictionGenerator
       starters = Set.new
 
       # 1. Core AAC vocabulary from curated lists
-      core_file = Rails.root.join('lib', 'core_lists.json')
-      if File.exist?(core_file)
-        lists = JSON.parse(File.read(core_file))
-        lists.each do |list|
-          (list['words'] || []).each do |w|
-            word = w.to_s.strip.downcase
-            next if word.empty? || word.start_with?('+') || word.length > 20
-            starters << word
-          end
+      # Multilingual Language Layer -- Phase 2, Plan 03. Routed through WordData.core_lists
+      # (the shared flag-gated accessor) instead of reading lib/core_lists.json directly, so
+      # this observes identical output through Setting['vocab/en'] once the schema-2 vocab
+      # source is active (COMPAT-02); flag-OFF behavior is byte-identical since the accessor
+      # reads this same flat file. The '+' / length>20 filters are preserved exactly.
+      WordData.core_lists.each do |list|
+        (list['words'] || []).each do |w|
+          word = w.to_s.strip.downcase
+          next if word.empty? || word.start_with?('+') || word.length > 20
+          starters << word
         end
       end
 
