@@ -27,8 +27,11 @@ shared place to see current posture - without a drift-prone bidirectional mirror
    - Every run after: overwrite that page's content with the new body via the Notion MCP
      (`notion-update-page` / replace-content on the recorded page id).
 
-   **Page id:** _(to be filled in when the page is first created; until then the publish is
-   generate-only and nothing has been pushed.)_
+   **Page id:** `37f5fe82-15c2-814c-9904-feb6c2a8c13e` (Notion "Compliance & Audit Posture
+   (GENERATED ...)" in the Master Inbox). First created + pushed on the 2026-06-19 run; the id
+   was backfilled here on 2026-07-08 after it had to be rediscovered by search. On each run,
+   UPDATE this page in place (`notion-update-page` replace_content + the Name property); never
+   create a new page.
 
 ## Hard rules (non-negotiable)
 
