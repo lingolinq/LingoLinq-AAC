@@ -62,7 +62,9 @@ describe MediaObject, :type => :model do
     it "should schedule transcoding only the first save after a filename is created" do
       expect(GoSecure).to receive(:nonce).and_return('chicken').at_least(1).times
       bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c'})
-      prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s
+      action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder', 'convert_audio', bs.global_id] }
+      expect(action).to_not eq(nil)
+      prefix = action['args'][3]
       expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, 'chicken')).to eq(true)
 
       Worker.flush_queues
@@ -75,12 +77,15 @@ describe MediaObject, :type => :model do
     it "should re-transcode if already attempted but force=true" do
       expect(GoSecure).to receive(:nonce).and_return('chicken').at_least(1).times
       bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c'})
-      prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s
-      expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, 'chicken')).to eq(true)
+      action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder', 'convert_audio', bs.global_id] }
+      expect(action).to_not eq(nil)
+      expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, action['args'][3], 'chicken')).to eq(true)
 
       Worker.flush_queues
       bs.schedule_transcoding(true)
-      expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, 'chicken')).to eq(true)
+      action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder', 'convert_audio', bs.global_id] }
+      expect(action).to_not eq(nil)
+      expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, action['args'][3], 'chicken')).to eq(true)
     end
   end
 end
