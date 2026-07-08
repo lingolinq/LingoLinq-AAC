@@ -73,14 +73,17 @@ module PredictionLibrary
 
     def export_spelling_words!(output_path: SPELLING_WORDS_FILE, ngrams_payload: nil)
       words = Set.new
-      if File.exist?(CORE_LISTS_FILE)
-        JSON.parse(File.read(CORE_LISTS_FILE)).each do |list|
-          Array.wrap(list['words']).each do |word|
-            normalized = word.to_s.downcase.strip
-            next if normalized.blank? || normalized.start_with?('+') || normalized.length > 30
+      # Multilingual Language Layer -- Phase 2, Plan 03. Routed through WordData.core_lists
+      # (the shared flag-gated accessor) instead of reading CORE_LISTS_FILE directly, so this
+      # observes identical output through Setting['vocab/en'] once the schema-2 vocab source is
+      # active (COMPAT-02); flag-OFF behavior is byte-identical since the accessor reads this
+      # same flat file. CORE_LISTS_FILE stays defined for other callers/tests.
+      WordData.core_lists.each do |list|
+        Array.wrap(list['words']).each do |word|
+          normalized = word.to_s.downcase.strip
+          next if normalized.blank? || normalized.start_with?('+') || normalized.length > 30
 
-            words << normalized
-          end
+          words << normalized
         end
       end
 
