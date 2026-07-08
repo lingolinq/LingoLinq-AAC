@@ -40,6 +40,14 @@ Notes:
   (`rev-gemini-baa-annual`; section 7).
 - No persistent or autonomous AI agent runs against production user data. Prediction is
   request-scoped and stateless beyond logging.
+- **Fable 5 / Mythos 5 are not ZDR-eligible and must never carry identifiable student or
+  patient data.** Anthropic requires 30-day retention on these "Covered Models" for safety
+  review, overriding any org-wide zero-data-retention agreement (confirmed 2026-07-06 against
+  Anthropic's own Privacy Center: [Data retention practices for Mythos-class models](https://privacy.claude.com/en/articles/15425996-data-retention-practices-for-mythos-class-models)).
+  This applies specifically to the `EVAL_NARRATOR_MODEL` override in `lib/eval_narrator.rb:102`
+  (default `claude-opus-4-7`, env-overridable) and to any other model-override env var: neither
+  may ever be pointed at Fable 5 or Mythos 5. The current runtime AI inventory (Claude Haiku
+  4.5, Claude Opus 4.7) is unaffected and remains ZDR-eligible.
 
 ### 2.1 COPPA and under-13 AI training disclosure
 
@@ -183,3 +191,9 @@ attestation (confirmed: `claude-haiku-4-5-20251001`, `gemini-2.5-flash`, `claude
 the `EVAL_NARRATOR_MODEL` override; `PiiScrubber.redact_for_ai` at `lib/ai_word_predictor.rb:55`;
 LL-11db0dc848 and LL-6619cc1811 open). They remain point-in-time and must be re-verified at each
 future publish._
+
+_Amended 2026-07-08: added a Fable 5 / Mythos 5 ZDR-exclusion guardrail note to section 2
+(model inventory). This is non-substantive preventive-control documentation; it does not alter
+the attested scope, controls, or claims, so no full re-attestation is required per the
+living-document policy in the header. The new code citation (`lib/eval_narrator.rb:102`,
+`EVAL_NARRATOR_MODEL` override) was re-verified against live code on 2026-07-08._
