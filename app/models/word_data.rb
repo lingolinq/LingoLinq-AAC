@@ -1092,13 +1092,72 @@ class WordData < ApplicationRecord
     res
   end
 
+  # Multilingual Language Layer -- Phase 2, Plan 03. Fetches the ingested schema-2 vocab
+  # payload (Setting["vocab/#{locale}"], stored by `rake vocab:ingest`), preferring the
+  # Redis-backed cache and falling back to a direct DB read. Returns nil if nothing has been
+  # ingested yet (callers fall back to the legacy flat-file readers).
+  def self.vocab_setting(locale='en')
+    Setting.get_cached("vocab/#{locale}") || Setting.get("vocab/#{locale}")
+  end
+  private_class_method :vocab_setting
+
+  # Rebuilds the legacy `core_lists` shape (Array<{id,name,url,locale,words}>) from the
+  # ingested vocab setting's core sets, using each set's verbatim `ext_members` (NOT the
+  # `concepts` view) as `words` so the result is byte-identical to the pre-migration
+  # File.read('./lib/core_lists.json') reader (COMPAT-01/02). Returns nil if the vocab setting
+  # is absent so the caller falls back to the flat file.
+  def self.reconstruct_core_lists_from_vocab(locale='en')
+    setting = vocab_setting(locale)
+    return nil unless setting && setting['sets'].is_a?(Array)
+    setting['sets'].select { |set| set['category'] == 'core' }.map do |set|
+      {
+        'id' => set['id'],
+        'name' => set['name'],
+        'url' => set['url'],
+        'locale' => locale,
+        'words' => set['ext_members']
+      }
+    end
+  end
+  private_class_method :reconstruct_core_lists_from_vocab
+
+  # Rebuilds the legacy `fringe_lists` shape (a single-element array wrapping the
+  # 'common_fringe' object with nested categories) from the ingested vocab setting's fringe
+  # sets, using each set's verbatim `ext_members` as `words`. The wrapper id/name/description
+  # are fixed literals matching lib/fringe_suggestions.json's single top-level entry (that
+  # metadata is not carried per-set in vocab-en.json, which flattens fringe categories into
+  # individual sets -- see 02-02-SUMMARY.md); only `categories` is rebuilt from the ingested
+  # sets. Returns nil if the vocab setting is absent or has no fringe sets so the caller falls
+  # back to the flat file.
+  def self.reconstruct_fringe_lists_from_vocab(locale='en')
+    setting = vocab_setting(locale)
+    return nil unless setting && setting['sets'].is_a?(Array)
+    fringe_sets = setting['sets'].select { |set| set['category'] == 'fringe' }
+    return nil if fringe_sets.empty?
+    categories = fringe_sets.map do |set|
+      {
+        'name' => set['name'],
+        'id' => set['id'],
+        'words' => set['ext_members']
+      }
+    end
+    [{
+      'id' => 'common_fringe',
+      'name' => 'Common Fringe Words',
+      'locale' => locale,
+      'description' => "Sometimes it's hard to remember what fringe words to include. Here's a list of common fringe words to use, or just to jog your memory.",
+      'categories' => categories
+    }]
+  end
+  private_class_method :reconstruct_fringe_lists_from_vocab
+
   def self.clear_lists
     @@default_core_list = nil
     @@basic_core_list = nil
     @@core_lists = nil
     @@fringe_lists = nil
   end
-  
+
   def self.default_core_list
     @@default_core_list ||= nil
     return @@default_core_list if @@default_core_list
