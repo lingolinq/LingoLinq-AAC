@@ -198,16 +198,43 @@ function renderApiRequest(method, reqPath, body = null) {
 }
 
 async function getRenderEnvVars(serviceId) {
-  try {
-    // Render API paginates at 20 by default -- use limit=100 to get all
-    const result = await renderApiRequest('GET', `/services/${serviceId}/env-vars?limit=100`);
-    if (!Array.isArray(result)) return [];
+  // Fail CLOSED: any failure here must THROW, never degrade to []. Render's
+  // env-vars PUT replaces the service's ENTIRE list, and the apply path
+  // builds its payload from this read -- so a swallowed error (e.g. a 401
+  // from a revoked API key) that returned [] would turn --apply into "wipe
+  // every unmanaged var on prod" (2026-07-06 near-miss during the Render
+  // key rotation; this script runs hourly with --apply via
+  // .github/workflows/sync-render-secrets.yml, unattended).
+  const vars = [];
+  let cursor = null;
+  const PAGE_LIMIT = 100;
+  const MAX_PAGES = 50; // far beyond any real service; a loop guard, not a cap
+  const seenCursors = new Set();
+  for (let page = 0; ; page++) {
+    if (page >= MAX_PAGES) {
+      throw new Error(`Pagination for ${serviceId} exceeded ${MAX_PAGES} pages -- aborting rather than trusting the read`);
+    }
+    const cursorParam = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
+    const result = await renderApiRequest(
+      'GET',
+      `/services/${serviceId}/env-vars?limit=${PAGE_LIMIT}${cursorParam}`
+    );
+    if (!Array.isArray(result)) {
+      throw new Error(`Unexpected env-vars response for ${serviceId}: ${JSON.stringify(result).slice(0, 200)}`);
+    }
+    if (result.length === 0) break;
     // Render wraps each var in { envVar: { key, value }, cursor }
-    return result.map(item => item.envVar || item);
-  } catch (err) {
-    console.warn(`  Warning: Could not read env vars for ${serviceId}: ${err.message}`);
-    return [];
+    for (const item of result) vars.push(item.envVar || item);
+    // Follow the cursor so a service with more vars than one page is read
+    // completely -- a truncated read has the same wipe effect as a failed one.
+    cursor = result[result.length - 1].cursor;
+    if (result.length < PAGE_LIMIT || !cursor) break;
+    if (seenCursors.has(cursor)) {
+      throw new Error(`Pagination for ${serviceId} repeated cursor ${cursor} -- aborting rather than trusting the read`);
+    }
+    seenCursors.add(cursor);
   }
+  return vars;
 }
 
 async function updateRenderEnvVars(serviceId, envVars) {
@@ -254,6 +281,20 @@ function maskValue(val) {
   return val.slice(0, 4) + '...' + val.slice(-4);
 }
 
+// Services that failed to sync: current env vars unreadable, read as
+// suspiciously empty in apply mode, or the update PUT itself failed.
+// Non-empty at exit -> exit code 1, so the GitHub Actions workflow (and any
+// wrapper) sees the failure instead of a clean "Done."
+const syncFailures = [];
+
+function reportEnvReadFailure(serviceName, reason) {
+  console.error(`  ERROR: ${reason}`);
+  console.error(`  Skipping ${serviceName}: without a trusted read of its current env vars,`);
+  console.error('  an apply would replace the ENTIRE env-var list with only the managed');
+  console.error('  keys and wipe everything unmanaged (UPLOADS_S3_*, etc.).');
+  syncFailures.push(serviceName);
+}
+
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
@@ -263,9 +304,15 @@ async function audit(services) {
 
   for (const [envName, svc] of Object.entries(services)) {
     console.log(`--- ${envName.toUpperCase()} (${svc.name}) ---`);
-    const vars = await getRenderEnvVars(svc.id);
+    let vars;
+    try {
+      vars = await getRenderEnvVars(svc.id);
+    } catch (err) {
+      console.warn(`  Warning: Could not read env vars: ${err.message}\n`);
+      continue;
+    }
     if (vars.length === 0) {
-      console.log('  (no vars found or access denied)\n');
+      console.log('  (no vars found)\n');
       continue;
     }
 
@@ -281,8 +328,12 @@ async function audit(services) {
   console.log('--- Cross-Environment Comparison ---');
   const allVars = {};
   for (const [envName, svc] of Object.entries(services)) {
-    const vars = await getRenderEnvVars(svc.id);
-    allVars[envName] = new Set(vars.map(v => v.key));
+    try {
+      const vars = await getRenderEnvVars(svc.id);
+      allVars[envName] = new Set(vars.map(v => v.key));
+    } catch (err) {
+      console.warn(`  Warning: skipping ${envName} in comparison (read failed: ${err.message})`);
+    }
   }
 
   const allKeys = new Set();
@@ -291,18 +342,25 @@ async function audit(services) {
   }
 
   const missing = [];
+  const comparedEnvs = Object.keys(allVars);
   for (const key of [...allKeys].sort()) {
     const present = Object.entries(allVars)
       .filter(([, keys]) => keys.has(key))
       .map(([env]) => env);
-    if (present.length < Object.keys(services).length) {
-      const absent = Object.keys(services).filter(e => !present.includes(e));
+    if (present.length < comparedEnvs.length) {
+      const absent = comparedEnvs.filter(e => !present.includes(e));
       missing.push({ key, present, absent });
     }
   }
 
+  if (comparedEnvs.length < Object.keys(services).length) {
+    const unread = Object.keys(services).filter(e => !comparedEnvs.includes(e));
+    console.log(`  Comparison INCOMPLETE: could not read [${unread.join(', ')}].`);
+  }
   if (missing.length === 0) {
-    console.log('  All environments have the same variables.\n');
+    console.log(comparedEnvs.length === Object.keys(services).length
+      ? '  All environments have the same variables.\n'
+      : '  No differences among the environments that could be read.\n');
   } else {
     console.log('  Variables missing from some environments:');
     for (const m of missing) {
@@ -376,7 +434,13 @@ async function sync(services, source, apply) {
   // Compare and update each service
   for (const [envName, svc] of Object.entries(services)) {
     console.log(`\n--- ${envName.toUpperCase()} (${svc.name}) ---`);
-    const currentVars = await getRenderEnvVars(svc.id);
+    let currentVars;
+    try {
+      currentVars = await getRenderEnvVars(svc.id);
+    } catch (err) {
+      reportEnvReadFailure(svc.name, `Could not read current env vars: ${err.message}`);
+      continue;
+    }
     const currentMap = {};
     for (const v of currentVars) {
       currentMap[v.key] = v.value;
@@ -423,6 +487,14 @@ async function sync(services, source, apply) {
     }
 
     if (apply) {
+      // Belt-and-suspenders: every LingoLinq service carries unmanaged vars
+      // (DATABASE_URL, UPLOADS_S3_*, ...), so a zero-var read in apply mode
+      // is almost certainly a bad read, not a bare service. There is
+      // deliberately no override flag; verify in the Render dashboard.
+      if (currentVars.length === 0) {
+        reportEnvReadFailure(svc.name, 'Current env-var list read as EMPTY.');
+        continue;
+      }
       // Merge: keep existing vars, add new ones, update changed ones
       const mergedVars = [...currentVars];
       for (const a of additions) {
@@ -446,6 +518,7 @@ async function sync(services, source, apply) {
         }
       } catch (err) {
         console.error(`  Error updating ${svc.name}: ${err.message}`);
+        syncFailures.push(svc.name);
       }
     } else {
       console.log(`  (dry-run -- use --apply to push changes)`);
@@ -517,7 +590,10 @@ async function notifyKeyRotation(appliedChanges) {
 async function exportToOp() {
   console.log('\n=== Export .env Keys to 1Password ===\n');
   console.log('This generates the `op` CLI commands to populate your 1Password vault.');
-  console.log('Install 1Password CLI first: https://developer.1password.com/docs/cli/get-started\n');
+  console.log('Install 1Password CLI first: https://developer.1password.com/docs/cli/get-started');
+  console.log('WARNING: the commands below contain PLAINTEXT secret values.');
+  console.log('Run this only in a terminal whose scrollback you control, and clear it after.');
+  console.log('Replace <VAULT> with the target vault (see VAULTS at the top of this script).\n');
 
   const envVars = loadEnvFile(ENV_FILE_PATH);
   const categories = {
@@ -550,8 +626,10 @@ async function exportToOp() {
     console.log(`  Creating: ${itemName} (${fields.length} fields)`);
     const fieldArgs = fields.map(f => `--field "${f}"`).join(' ');
 
-    // Print command for review (don't auto-execute to be safe)
-    console.log(`    op item create --vault "${OP_VAULT}" --category "API Credential" --title "${itemName}" ${fieldArgs}`);
+    // Print command for review (don't auto-execute to be safe).
+    // <VAULT> is a deliberate placeholder: the 4-vault structure means the
+    // right vault differs per item, so the operator must choose it.
+    console.log(`    op item create --vault "<VAULT>" --category "API Credential" --title "${itemName}" ${fieldArgs}`);
   }
 
   console.log('\nReview the commands above and run them manually to populate 1Password.');
@@ -593,10 +671,20 @@ async function main() {
     await audit(services);
   } else {
     await sync(services, source, apply);
+    if (syncFailures.length > 0) {
+      console.error(`\nSync INCOMPLETE -- ${syncFailures.length} service(s) skipped or failed: ${[...new Set(syncFailures)].join(', ')}`);
+      process.exit(1);
+    }
   }
 }
 
-main().catch(err => {
-  console.error('Fatal error:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(err => {
+    console.error('Fatal error:', err.message);
+    process.exit(1);
+  });
+}
+
+// Exported for tests (scripts/sync-render-env.test.js); CLI behavior is
+// unchanged because main() only runs when invoked directly.
+module.exports = { getRenderEnvVars, sync, syncFailures };

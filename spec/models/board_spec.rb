@@ -1767,6 +1767,47 @@ describe Board, :type => :model do
       expect { b.process_params({}, {}) }.to_not raise_error
     end
     
+    it "defers update_privacy for an unsaved board until the create commits" do
+      u = User.create
+      downstream = Board.create(:user => u)
+      b = Board.new(:user => u)
+      expect(b.id).to eq(nil)
+      allow(b).to receive(:schedule_for)
+      b.process_params({
+        'buttons' => [
+          {'id' => 1, 'label' => 'linked', 'load_board' => {'id' => downstream.global_id, 'key' => downstream.key}}
+        ],
+        'visibility' => 'public',
+        'update_visibility_downstream' => true
+      }, {:user => u})
+      expect(b).not_to have_received(:schedule_for).with(:priority, :update_privacy, any_args)
+
+      b.save!
+      # Transactional fixtures roll the test transaction back, so after_commit
+      # callbacks never fire on their own — run them explicitly to exercise the
+      # deferred schedule_pending_privacy_update (after_commit on: :create).
+      b.run_callbacks(:commit)
+
+      expect(b.settings['immediately_downstream_board_ids']).to include(downstream.global_id)
+      expect(b).to have_received(:schedule_for).with(:priority, :update_privacy, 'public', u.global_id, [])
+    end
+
+    it "does not schedule update_privacy when visibility is blank" do
+      u = User.create
+      b = Board.create(:user => u)
+      allow(b).to receive(:schedule_for)
+      b.process_params({'visibility' => '', 'update_visibility_downstream' => true}, {:user => u})
+      expect(b).not_to have_received(:schedule_for).with(:priority, :update_privacy, any_args)
+    end
+
+    it "schedules update_privacy on a saved board with real visibility + downstream flag" do
+      u = User.create
+      b = Board.create(:user => u)
+      allow(b).to receive(:schedule_for)
+      b.process_params({'visibility' => 'public', 'update_visibility_downstream' => true}, {:user => u})
+      expect(b).to have_received(:schedule_for).with(:priority, :update_privacy, 'public', anything, [])
+    end
+
     it "should ignore non-sent parameters" do
       u = User.create
       b = Board.new(:user => u)

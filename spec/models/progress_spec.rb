@@ -188,6 +188,14 @@ describe Progress, :type => :model do
   end
 
   describe "perform_action" do
+    it "no-ops when the progress record was deleted before the job runs" do
+      p = Progress.create(:settings => {'method' => 'count', 'class' => 'User'})
+      id = p.id
+      p.destroy
+      expect(Progress.find_by(:id => id)).to eq(nil)
+      expect { Progress.perform_action(id) }.not_to raise_error
+    end
+
     it "should set the progress record for the current pid" do
       p = Progress.create(:settings => {'method' => 'count', 'class' => 'User'})
       expect(User).to receive(:count) do |*args|
