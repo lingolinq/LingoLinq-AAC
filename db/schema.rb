@@ -620,7 +620,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_07_02_120000) do
     t.index ["communicator_user_id"], name: "index_supervisor_relationships_on_communicator_user_id"
     t.index ["consent_response_token"], name: "index_supervisor_rel_consent_token", unique: true, where: "(consent_response_token IS NOT NULL)"
     t.index ["consent_token_expires_at"], name: "index_supervisor_rel_pending_expiry", where: "((status)::text = 'pending'::text)"
-    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying])::text[]))"
+    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text]))"
     t.index ["supervisor_user_id"], name: "index_supervisor_relationships_on_supervisor_user_id"
   end
 
