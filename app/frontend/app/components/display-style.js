@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import i18n from '../utils/i18n';
-import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, gridLayoutState, reorderInsert, reorderForFocused, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER } from '../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor } from '../utils/dashboard_sections';
 
 // Centered-step show hook — toggles the body flag the CSS uses to scope the
 // "paused" backdrop blur to centered (non-anchored) modal steps, mirroring
@@ -425,7 +425,7 @@ function _onDisplayShow(component) {
     // (and persists from) the latest saved state.
     try {
       var _appState = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
-      var _seedUser = _appState && _appState.get('currentUser');
+      var _seedUser = _appState && (_appState.get('referenced_user') || _appState.get('currentUser'));
       if (_seedUser && liveEl) {
         var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'gentle';
         if (['gentle', 'focused'].indexOf(_savedLayout) === -1) { _savedLayout = 'gentle'; }
@@ -462,7 +462,7 @@ function _onDisplayShow(component) {
       var _flagState = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
       if (_flagState) {
         flagOn = !!_flagState.get('feature_flags.dashboard_drag_layout');
-        previewUser = _flagState.get('currentUser');
+        previewUser = _flagState.get('referenced_user') || _flagState.get('currentUser');
       }
     } catch (e) { flagOn = dragEnabled; }
     var boxes = el.querySelectorAll('.md-ds-section__input');
@@ -549,7 +549,10 @@ function _onDisplayShow(component) {
       if (sel) { return sel.getAttribute('data-gst-layout') || 'gentle'; }
       try {
         var as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
-        return (as && as.get('currentUser.preferences.dashboard_layout')) || 'gentle';
+        // Resolve through the same dashboard user the rest of this component uses
+        // (referenced_user || currentUser) so this fallback can't diverge from the seam.
+        var u = as && (as.get('referenced_user') || as.get('currentUser'));
+        return (u && u.get('preferences.dashboard_layout')) || 'gentle';
       } catch (e) { return 'gentle'; }
     };
     var applyLayoutSections = function(layout) {
@@ -587,7 +590,7 @@ function _onDisplayShow(component) {
       var listEl = el.querySelector('.md-ds-sections__list');
       if (!listEl) { return; }
       var layout = currentLayout();
-      var base = (layout === 'focused') ? FOCUSED_DEFAULT_ORDER : DEFAULT_ORDER;
+      var base = defaultOrderFor(previewUser, layout);
       var ord = (order && order.length) ? order.slice() : base.slice();
       base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
       var rank = function(row) {
@@ -718,7 +721,7 @@ function _onDisplayShow(component) {
       // divides by it to keep the ghost 1:1 under the cursor.
       var previewZoom = 1;
       try { previewZoom = parseFloat(window.getComputedStyle(liveEl).getPropertyValue('--md-ds-preview-zoom')) || 1; } catch (e) { previewZoom = 1; }
-      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return currentLayout() === 'focused' ? FOCUSED_DEFAULT_ORDER : null; }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom, hintEl: el.querySelector('.md-ds-preview__legend-hint') }); } catch (e) { /* drag is an enhancement — never block the step */ }
+      try { _wirePreviewDrag(liveEl, { getVis: readVis, getOrder: function() { return order; }, getDefaultOrder: function() { return defaultOrderFor(previewUser, currentLayout()); }, getLayout: function() { return currentLayout(); }, setOrder: function(o) { order = o; liveEl.setAttribute('data-gst-order', JSON.stringify(order)); }, onChange: onUserChange, scale: previewZoom, hintEl: el.querySelector('.md-ds-preview__legend-hint') }); } catch (e) { /* drag is an enhancement — never block the step */ }
     };
     wireDrag();
   } catch (e) { /* preview + gating are decorative — never block the step */ }
@@ -797,7 +800,15 @@ export default Component.extend({
   // once. The fresh reference makes ember-data mark it dirty (→ sent to the server) AND
   // fires the property change (→ the home grid computeds recompute / re-render).
   _persistDisplaySelection: function(root) {
-    var user = this.get('appState.currentUser');
+    // The dashboard user we read + WRITE. `appState.referenced_user` is a COMPUTED
+    // that returns currentUser EXCEPT during a speak-mode modeling session (it then
+    // returns the modeled communicator). This component renders only on user.home,
+    // where speak_mode/modeling is off, so referenced_user === currentUser here — and
+    // reads and writes both go through this same resolved `user`, so the edit never
+    // reads one identity and writes another. (`|| currentUser` is a belt-and-suspenders
+    // guard for the brief boot window before the computed settles.) This is also the
+    // single wire-in point for a future "supervisor edits a supervisee's dashboard".
+    var user = this.get('appState.referenced_user') || this.get('appState.currentUser');
     if (!user) { return; }
     // Scope every DOM read to THIS step's element so multiple display pages (the
     // original config step + the copy that follows it) persist independently and
@@ -1123,15 +1134,18 @@ export default Component.extend({
   // the matching card in the preview clone (wired in _onDisplayShow) and is
   // saved to preferences.dashboard_sections on Next.
   _sectionTogglesHtml: function() {
-    var user = this.get('appState.currentUser');
+    // Dashboard user (see _persistDisplaySelection): referenced_user || currentUser.
+    var user = this.get('appState.referenced_user') || this.get('appState.currentUser');
     // Order the checklist to MATCH the live preview / dashboard order (was an
     // alphabetical sort): rank each available section by its index in the active
     // layout's saved order so the list reads top-to-bottom the way the cards lay
     // out. `.slice()` so we never mutate the array availableHomeSections returns.
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
+    var layout = (user && user.get('preferences.dashboard_layout')) || 'gentle';
     if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
-    var base = (layout === 'focused') ? FOCUSED_DEFAULT_ORDER : DEFAULT_ORDER;
-    var savedOrder = this.get('appState.currentUser.preferences.dashboard_order');
+    // Role-aware default order so a supervisor's checklist ranks by SUPERVISOR order
+    // (matching their grid), not the communicator default.
+    var base = defaultOrderFor(user, layout);
+    var savedOrder = user && user.get('preferences.dashboard_order');
     var ord = (savedOrder && savedOrder.length) ? savedOrder.slice() : base.slice();
     base.forEach(function(k) { if (ord.indexOf(k) === -1) { ord.push(k); } });
     var rank = function(s) { var i = ord.indexOf(s.key); return i === -1 ? 999 : i; };

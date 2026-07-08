@@ -30,6 +30,7 @@
 {{/if}}
 <div class='visible-print-block' style='margin-top: -10px; margin-bottom: 10px;'>{{this.user.name}} - {{this.user.user_name}}</div>
 {{#if this.processed_assessment}}
+  <div class="md-eval-report">
   {{#if this.processed_assessment.date}}
     <div class="row" style='page-break-inside: avoid;'>
       <div class="col-sm-3 col-xs-6">
@@ -300,6 +301,7 @@
   {{else}}
     <p>{{t "No data found for this evaluation" key="no_data_for_evaluation"}}</p>
   {{/if}}
+  </div>
 {{else if this.model.profile_type}}
   <UserProfileLog @processedProfile={{this.processed_profile}} @expectedProfile={{this.expected_profile}} @model={{this.model}} @repeatProfile={{action "repeat_profile"}} />
 {{else}}

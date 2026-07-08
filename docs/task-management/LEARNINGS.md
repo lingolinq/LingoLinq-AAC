@@ -2121,6 +2121,81 @@ a hard reload is in play.
 
 **First seen in:** post-registration home-tour auto-open work, traci/styling/styling-updates branch (2026-05-27)
 
+## Pattern: carry register attestation across the Google OAuth redirect via the backend, not controller memory
+
+Same hard-reload trap as above, but for a *pre*-auth signal. `continue_with_google`
+does `location.href = '/auth/google/start?…'` — a full navigation — so any
+controller state (e.g. `age_attested`, set when the user checks "I am at least
+13…") is wiped before the user returns to the Google-signup modal. The ONLY
+durable channel across the redirect is the OAuth `state` config the backend
+stores:
+
+- Frontend passes `terms_agree` on the `google_start` URL →
+  `session_controller#google_start` stores `config['terms_agree']` (line ~748) →
+  `google_signup_candidates` echoes it back (line ~898) → `loadGoogleSignup`
+  reads `res.terms_agree` into `googleSignupTerms`.
+- **Gotcha:** `googleSignupSubmitDisabled` also requires `age_attested` when
+  `!showCoppaConsent`, and `age_attested` is a plain controller prop that the
+  redirect reset to `false`. So after the redirect you must **re-derive it**:
+  `this.set('age_attested', !!res.terms_agree)` inside `loadGoogleSignup`.
+  Otherwise Create Account stays disabled with no visible checkbox to fix it.
+- Keep a safety-net `{{#unless this.googleSignupTerms}}` attestation checkbox in
+  the modal so a stale/direct session that arrives without the carried flag
+  isn't permanently stuck.
+
+**First seen in:** register signup-method split (method chooser → Google/email),
+task `2026-07-01-register-signup-method-split.md`.
+
+## Pattern: Shepherd tours must resolve targets at SHOW time, not build time
+
+**Symptom:** A guided-tour step spotlights the wrong place — renders centered
+instead of attached, or the popover flies to a corner — intermittently, and
+"only when deployed" (works locally). Placements/auto-routing "don't translate
+to deployment."
+
+**Root cause (build-time fragility):** the tour builders (`utils/tours/*.js`)
+resolved each step's target ONCE at build time and captured the element ref:
+`var el = visibleEl(cfg.sel); if(!el) return; attachTo:{element: el}`. Two failure
+modes fall out of this:
+1. **Late paint** — under deployment latency the board grid / cards / panels
+   render AFTER the tour is built, so `visibleEl` returns null → the step is
+   dropped or the captured ref is stale (Shepherd centers / mis-places). Fast
+   local render hides it.
+2. **`visibleEl` uses `offsetParent`, which is ALWAYS null for `position:fixed`
+   elements** — so a fixed target (e.g. `.md-tour__trigger`) is reported hidden
+   and the step falls back to centered even though it's on screen.
+
+**Fix (all in `utils/tours/shared.js`, applied across every tour):**
+- `visibleBySelector(sel)` — "first visible match" by `getBoundingClientRect`
+  width/height, NOT `offsetParent`. Works for fixed elements AND skips
+  display:none variants of a multi-markup selector.
+- `liveTarget(sel, fallbackEl)` — returns a FUNCTION for `attachTo.element`.
+  Shepherd v14 re-runs `parseAttachTo` on every `_show()` ("Force resolve … on
+  subsequent shows"), and it supports a function element — so the target is
+  resolved LIVE each show (survives re-render, picks the on-screen variant),
+  falling back to the build-time element so a resolved step never regresses.
+- `waitForElement(sel)` — a bounded (`20×75ms`) `beforeShowPromise` that waits
+  for the target to be visible before positioning, so a late paint is
+  spotlighted instead of centered.
+- Where a target can be fixed, gate inclusion on `visibleBySelector` too (home
+  header items), not `visibleEl`.
+
+Keep the build-time `visibleEl`/`visibleBySelector` call for ORDERING and the
+add/skip decision; only the ATTACH resolution moves to show time.
+
+**Runner note:** `attachTo.element` can now be a function — any code that reads
+it (e.g. `guided-tour.js#_onTourResize`) must resolve function/string/element
+before measuring.
+
+**Not a deploy-pipeline bug:** verified the Render build does NO minify/
+fingerprint (dart-sass, real-file copies, cache clobber), so tour source ships
+byte-identical — the divergence was purely this runtime timing race surfacing
+under production latency.
+
+**First seen in:** home-tour skip-handoff rendering centered (fixed trigger);
+generalized to all tours. Task `2026-07-01` tour work,
+traci/styling/styling-updates.
+
 ## Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations
 
 The codebase has `app/frontend/app/helpers/and.js` and
@@ -5753,6 +5828,30 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   (2026-06-29: added the "Modern Eval Board Body" block — soft gradient surface + white glass button
   cards + navy labels — scoped to `.board.eval_mode`, companion to the existing Modern Eval Header.)
 
+## Pattern: the dashboard is role-agnostic by DATA — never fork the edit per role
+
+The home dashboard + its edit (`display-style.js`) are ONE surface driven by the section
+registry in `utils/dashboard_sections.js`. Roles are expressed as data, not code branches:
+- `HOME_SECTIONS[].available(user)` gates each card per role (`availableHomeSections(user)`).
+- Default card order is single-sourced through **`defaultOrderFor(user, layout)`** (2026-07-03):
+  Focused shares one `FOCUSED_DEFAULT_ORDER`; Gentle is role-aware — a supervisor (any of
+  caseload/rooms/attention/org available) gets `SUPERVISOR_DEFAULT_ORDER`, else `DEFAULT_ORDER`.
+  Both the live grid (`dashboardLayout`) and the edit resolve their default from the SAME arrays,
+  so they can't drift. **Never hardcode `(layout==='focused')?FOCUSED_DEFAULT_ORDER:DEFAULT_ORDER`
+  in the edit** — that was the supervisor bug (edit used the communicator order, mismatching the grid).
+- Adding a future role = add sections with `available` predicates (+ maybe a default-order array).
+  The single edit picks it up; do NOT create a per-role edit page (breaks the "grid + preview read
+  the same `dashboard_order` so they never drift" guarantee, and duplicates drag/persist logic).
+
+**The dashboard user is `referenced_user || currentUser`** (the app's idiom, app-state 907/1256).
+Resolve it ONCE per method and use it for BOTH `availableHomeSections()` AND preference read/write —
+never read one identity and write another. Today `referenced_user` is only ever set to `null`
+(app-state.js:1994, never assigned), so it == `currentUser` — which is already masquerade-correct
+(act-as re-resolves `currentUser` to the acted-as user, app-state.js:468-475). Modeling
+(`referenced_speak_mode_user`) is speak-mode-only and never reaches dashboard-edit. So the seam is
+behavior-neutral today and the single wire-in point for a future "supervisor edits a supervisee's
+dashboard" flow: set `referenced_user` and the whole edit routes to that user, no other changes.
+
 - Org access is role-tiered (organization.rb:42-48): manager→view/edit/manage, assistant→view/edit,
   **supervisor→view ONLY**, communicator→none. EVERY org-management endpoint (managers/users/
   supervisors/units/stats/admin_reports/settings) gates on `allowed?(@org,'edit')`, so a supervisor
@@ -5774,6 +5873,85 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   SAME captured `level`. If a branch jumps to a different level (welcome → find-4, which lives in a
   later level), you must resync `level = levels[working.level]` after setting working.level, or the
   normalization re-increments past the target. (2026-06-29, adversarial review)
+
+- Below-chip / below-anchor popover inside an overflow-clipped scroller (speak-bar chip edit
+  menu): the sentence-bar chips live in `.md-board-detail-sentence-bar__text--with-symbols`,
+  which is `overflow-y:auto; max-height:86px` — and per spec `overflow-y:auto` FORCES
+  `overflow-x` to auto too, so a menu positioned `top:100%` INSIDE a chip is clipped on BOTH
+  axes. Fix pattern: render the popover as a sibling OUTSIDE the scroller (a child of the
+  `position:relative` bar, which has no overflow), then JS-anchor it under the chip by
+  measuring `chip.getBoundingClientRect()` vs `bar.getBoundingClientRect()`, clamping `left`
+  into the bar, and offsetting a caret. Because the bar has `transform:translateZ(0)` (its own
+  stacking context) and sits BEFORE the board grid in DOM, lift the whole row with
+  `.md-board-detail-sentence-row:has(<the-menu>){position:relative;z-index:20}` so the dropped
+  card paints above the grid. Avoid the first-frame `left:0` flash by positioning twice —
+  provisionally with a fallback width BEFORE the `{{#if}}` renders the menu, then exact via
+  `runLater(this, this._position_chip_menu, 0)` on afterRender. (2026-06-30)
+- AAC accidental-tap guard for an edit menu = PRESS-AND-HOLD, not a post-tap dwell.
+  First attempt used "tap now, reveal menu after a 2s dwell" — but that still opens on a single
+  accidental tap (the timer fires regardless), which the user rejected. Correct pattern: require
+  a deliberate 2s press-and-hold; any shorter press does nothing. Implement the hold in the
+  presentational component with POINTER events (not click): `pointerdown` arms a
+  `runLater(HOLD_DURATION)` + a `--pressing` state; `pointerup`/`pointercancel`/`pointerleave`
+  cancel; `pointermove` past a tolerance (~12px, generous for tremor) cancels as a drag/scroll.
+  On completion fire the open action AND set a `_hold_fired` flag so the trailing synthetic
+  `click` (pointerup → click) is swallowed instead of toggling the just-opened menu shut. A
+  short tap stays useful: no-op when nothing's open, dismiss when THIS item's menu is open,
+  immediate-select in a mode that already committed (e.g. swap-target). Keyboard Enter opens
+  immediately (already deliberate). On the pressable element set `user-select:none` +
+  `-webkit-touch-callout:none` + `touch-action:manipulation` so the long-press doesn't select
+  text / fire the iOS callout / double-tap-zoom, and add a fill animation whose duration EQUALS
+  HOLD_DURATION as a "keep holding" progress cue (static tint under reduced-motion). Cancel the
+  hold timer in `dragStart` and `willDestroy`. (2026-06-30)
+
+- Decorative box-shadow vanishing "on click" = the global focus reset stripping it. app.scss
+  has `#within_ember *:focus:not(:focus-visible) { outline:none !important; box-shadow:none
+  !important; }` (line ~274) to suppress Bootstrap's focus box-shadow on MOUSE clicks. It's
+  `*`-broad, so ANY focusable element whose box-shadow is DECORATIVE (a glass/elevation shadow,
+  not a focus ring) loses that shadow the instant a click focuses it — reads as the element
+  going flat / "actively clicked". Symptom: shadow present at rest + on keyboard focus
+  (`:focus-visible` path), but gone on pointer click (`:focus:not(:focus-visible)` path). Fix:
+  carve the element out of that global rule with `:not(.the-class)` (edit the rule in place,
+  don't stack an `!important` shadow re-assert). Safe because UA browsers only draw the default
+  outline for `:focus-visible`, so excluding it adds no stray outline on click. This bit the
+  speak-bar chip (`.md-board-detail-sentence-bar__chip`, a focusable span[role=button]).
+  (2026-06-30)
+
+- Dead responsive rules = base display swapped flex↔grid, media queries not updated.
+  Symptom: a component's `@media` blocks set `grid-template-columns` / `grid-column: span N`
+  but the layout doesn't respond and the desktop layout looks off (e.g. a centered flex-wrap
+  leaving an awkward 4+2 row). Cause: the BASE rule uses `display: flex` (someone changed it
+  from grid) so every `grid-*` property in the media queries is inert. Fix: switch the base
+  back to `display: grid` with explicit `grid-template-columns` — it both fixes the desktop
+  layout AND reactivates the already-written responsive rules for free. Seen on
+  `.md-org-stats__grid` (org dashboard): base was flex, but 820px/550px media queries + the
+  `--wide` modifier all assumed grid. Check the base display before writing NEW responsive
+  rules — the ones you want may already exist. (2026-07-01)
+
+- The `/setup` route is DUAL-PURPOSE — don't delete it wholesale. It serves (1) first-run
+  ONBOARDING (Getting Started wizard, `mode:'critical'` / `page:'board_category'`) AND (2)
+  BOARD/COMMUNICATOR setup (`board-actions.js:112` symbol-layout editor `page:'symbols'`; and
+  supervisors/org-admins "set up a communicator's board" from caseload/org-people/user-index/
+  switch-communicators). Only #1 is being replaced by the Shepherd home tour + the standalone
+  `board-picker` route (`router.js:140`, decoupled from setup). Full map:
+  docs/task-management/2026-07-02-setup-pages-deprecation-map.md. Two gotchas found: (a) there are
+  TWO terms-agree files — the live modal `components/terms-agree.js:31` ALWAYS routes to setup and
+  ignores the `home_tour` flag, while the stale `controllers/terms-agree.js:25-46` has the correct
+  flag branch (ON → home+tour, OFF → setup); that mismatch is why a terms-needing login lands in the
+  old wizard even with `home_tour` enabled. (b) `progress.setup_done` is written ONLY by the wizard
+  (`getting-started.js:75`) and read only by setup/dashboard/`routes/index.js:104` — so repurposing
+  it for "tour done" means wiring the tour's completion to set it. (2026-07-02)
+
+- Eval stuck repeating a step (no advancement): the adaptive advance decision
+  (`utils/eval.js` ~l.2077) gates entirely on `assessment.mastery_cutoff /
+  non_mastery_cutoff / attempt_minimum / attempt_maximum`. Those are assigned
+  ONLY in the `opts[1] == 'start'` branch (~l.1159); `populate_assessment`
+  (~l.2318) sets device prefs + `populated=true` but NOT the cutoffs. So a
+  resume/deep-link (`eval-<level>-<step>`) or a re-entry after a page refresh
+  (module reload resets `assessment = {}`) leaves them undefined, every
+  comparison is `>= undefined` (false), and `next_step` never fires. Fix:
+  default the four cutoffs from the module constants on every board build
+  (no-op on 'start'). Not dev-only — any real resume hits it. (2026-07-06)
 
 ## Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method
 
@@ -5843,3 +6021,15 @@ etc.); the brain doc explicitly defers to the register as SSOT, so when either s
 classification language, grep the other side for the stale term in the same session. Found
 2026-07-05 when a brain-repo audit caught the register still saying "de-identified" three
 weeks after the program doc was corrected to "pseudonymized". (2026-07-05)
+
+- Ember Data "mutating a preferences object in place won't persist" is a FALSE ALARM in this
+  app — don't add ref-reassign dances to force dirtiness. Two facts: (1) `record.save()` always
+  issues a network request (it does NOT skip a pristine record); (2) the User serializer extends
+  `@ember-data/serializer/rest` (`serializers/application.js`), whose `serialize()` walks EVERY
+  attribute via `eachAttribute` regardless of dirty state — so the full `preferences` object
+  (including a nested `set('preferences.progress.x', …)` mutation) is always in the PUT payload.
+  Canonical analog: `components/intro.js` does `user.set('preferences.progress.intro_watched',
+  true); user.save()` with no ref-reassign and persists fine. The ONLY real gotcha with nested
+  prefs is that `Ember.set('preferences.progress.x', …)` throws if `preferences.progress` is
+  undefined — so vivify the intermediate object first; that's a correctness guard, not a
+  dirty-tracking hack. (2026-07-06, adversarial-review triage)

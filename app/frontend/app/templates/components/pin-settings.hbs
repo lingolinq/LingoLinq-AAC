@@ -24,9 +24,17 @@
     {{#if (or this.require_speak_mode_pin this.require_sidebar_edit_pin)}}
       <div class="form-group md-pin-settings__group">
         <label for="speak_mode_pin">{{t "Speak Mode PIN" key='speak_mode_pin'}}</label>
-        <Input @value={{this.pin_value}} class="form-control md-pin-settings__input" id="speak_mode_pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder={{t "4-digit" key="pin_placeholder_4_digit"}} {{on "change" (action "save_pin")}} />
+        <div class="md-pin-settings__input-wrap">
+          <Input @value={{this.pin_value}} class="form-control md-pin-settings__input" id="speak_mode_pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder={{t "4-digit" key="pin_placeholder_4_digit"}} {{on "change" (action "save_pin")}} />
+          {{#if this.pin_value}}
+            <button type="button" class="md-pin-settings__clear" aria-label={{t "Clear PIN" key="pin_clear"}} title={{t "Clear PIN" key="pin_clear"}} {{on "click" (action "clear_pin")}}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span class="md-pin-settings__clear-label">{{t "Clear" key="clear"}}</span>
+            </button>
+          {{/if}}
+        </div>
         {{#if this.pin_incomplete}}
-          <p class="text-danger md-pin-settings__warning">{{t "Enter a 4-digit PIN, or this gate won't take effect." key='pin_incomplete_warning'}}</p>
+          <p class="text-danger md-pin-settings__warning">{{t "Enter a 4-digit PIN." key='pin_incomplete_warning'}}</p>
         {{/if}}
       </div>
 
@@ -40,6 +48,11 @@
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">
-    <button type="button" class="btn btn-primary md-modal-btn md-modal-btn--primary" {{action "close"}}>{{t "Done" key="done"}}</button>
+    {{!-- Cancel is always enabled — the clear exit when Done is disabled (a PIN
+         gate on but the PIN isn't a valid 4-digit value). Done is disabled in that
+         state so a gate can't be confirmed with no usable PIN; both close via the
+         same action, which reconciles any incomplete entry (see close()). --}}
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <button type="button" class="btn btn-primary md-modal-btn md-modal-btn--primary" disabled={{this.pin_incomplete}} {{action "close"}}>{{t "Done" key="done"}}</button>
   </div>
 {{/modal-dialog}}

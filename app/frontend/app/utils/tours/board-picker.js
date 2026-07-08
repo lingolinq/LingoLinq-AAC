@@ -14,7 +14,7 @@
 // static-parser gotcha — bound/dynamic keys are invisible to it).
 import i18n from '../i18n';
 import modal from '../modal';
-import { standardButtons, decoratedTitle, tourChecklist, visibleEl, nextAdvance } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, visibleEl, liveTarget, waitForElement, nextAdvance } from './shared';
 
 // NOTE: "smooth scroll, then show" is applied by the guided-tour RUNNER
 // (_applySmoothScroll) to every attached step of every tour — steps just declare
@@ -184,7 +184,12 @@ function pushInteriorSteps(steps) {
     }
     var step = {
       id: cfg.id,
-      attachTo: { element: el, on: cfg.on },
+      // Resolve the target LIVE at show time + WAIT (bounded) for it before
+      // positioning, so a target that re-rendered or painted late (category
+      // switch, deployment latency) is still spotlighted. visibleEl() above still
+      // gates/orders the step against the current category state.
+      attachTo: { element: liveTarget(cfg.sel, el), on: cfg.on },
+      beforeShowPromise: waitForElement(cfg.sel),
       // The runner smooth-scrolls each target into view before showing (uniform
       // 'bottom' placement → popover always reads directly under the spotlight,
       // no flip-flash). `scrollBlock` forces the scroll position for the tall card

@@ -24,7 +24,16 @@ export function bg_style(model) {
   var left = 100 * xmin / cols;
   var top = 100 * ymin / rows;
 
-  var str = 'position: absolute; top: ' + top + '%; left: ' + left + '%; width: ' + width + '%; height: ' + height + '%; overflow: hidden;';
+  // Eval boards: the answer-button grid starts a few px above the region's exact
+  // percentage bottom (button grid padding), so a full-percentage region overhangs
+  // the top button row by ~8px. Trim a small fixed inset off the height for eval
+  // so the region clears the buttons. Fixed px, so it works whatever the region's
+  // percentage is (33/50/66%) and however many button rows there are.
+  var height_css = height + '%';
+  if(/^obf\/eval/.test(get(model, 'key') || '')) {
+    height_css = 'calc(' + height + '% - 14px)';
+  }
+  var str = 'position: absolute; top: ' + top + '%; left: ' + left + '%; width: ' + width + '%; height: ' + height_css + '; overflow: hidden;';
   if(get(model, 'background.color') && window.tinycolor) {
     var clr = window.tinycolor(get(model, 'background.color'));
     if(clr && clr.toRgbString()) {

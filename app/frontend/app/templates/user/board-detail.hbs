@@ -730,6 +730,49 @@
         {{#if this.sentence_bar_editing_enabled}}
           <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{this.sentence_edit_announcement}}</div>
         {{/if}}
+        {{!-- Below-chip labeled edit menu (feature: sentence_bar_editing). The
+             tapped chip HIGHLIGHTS immediately; this menu opens after a 2s dwell
+             (accidental / repeat-tap guard). Rendered here as a child of the bar
+             — NOT inside the overflow-clipped __text scroller — so it can drop
+             below the chip; JS anchors it (chip_menu_style) with a caret. --}}
+        {{#if (and this.sentence_bar_editing_enabled this.chip_menu_open)}}
+          <div class="md-board-detail-sentence-bar__chip-menu" role="group"
+               aria-label={{t "Edit word" key='sentence_bar_edit_word'}}
+               style={{this.chip_menu_style}}>
+            <span class="md-board-detail-sentence-bar__chip-menu-caret" style={{this.chip_menu_caret_style}} aria-hidden="true"></span>
+            <div class="md-board-detail-sentence-bar__chip-menu-actions">
+              {{#if this.selected_chip_can_move_left}}
+                <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn"
+                  aria-label={{t "Move left (%{word})" key='sentence_bar_move_left' word=this.selected_chip_word}}
+                  {{on "click" (action "move_chip" this.selected_chip_index -1)}}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                  <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Move left" key='sentence_bar_action_move_left'}}</span>
+                </button>
+              {{/if}}
+              <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn md-board-detail-sentence-bar__chip-menu-btn--switch {{if this.selected_chip_swapping 'is-active'}}"
+                aria-pressed={{if this.selected_chip_swapping "true" "false"}}
+                aria-label={{t "Switch or replace (%{word})" key='sentence_bar_switch' word=this.selected_chip_word}}
+                {{on "click" (action "toggle_chip_swap" this.selected_chip_index)}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Switch" key='sentence_bar_action_switch'}}</span>
+              </button>
+              <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn md-board-detail-sentence-bar__chip-menu-btn--remove"
+                aria-label={{t "Remove (%{word})" key='sentence_bar_remove' word=this.selected_chip_word}}
+                {{on "click" (action "remove_chip" this.selected_chip_index)}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Remove" key='sentence_bar_action_remove'}}</span>
+              </button>
+              {{#if this.selected_chip_can_move_right}}
+                <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn"
+                  aria-label={{t "Move right (%{word})" key='sentence_bar_move_right' word=this.selected_chip_word}}
+                  {{on "click" (action "move_chip" this.selected_chip_index 1)}}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Move right" key='sentence_bar_action_move_right'}}</span>
+                </button>
+              {{/if}}
+            </div>
+          </div>
+        {{/if}}
         <div class="md-board-detail-sentence-bar__actions">
           {{!-- Inline mic = the primary, keyboard/SR-accessible speak control.
                Tapping the sentence-bar text above also speaks (a bonus
