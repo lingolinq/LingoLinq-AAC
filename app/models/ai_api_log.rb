@@ -228,6 +228,25 @@ class AiApiLog < ApplicationRecord
       .update_all(ip_address: '[REDACTED]')
   end
 
+  # EU AI Act Article 50 record-keeping: AI-call logs for EU-jurisdiction users
+  # are retained for five years, then purged. The `jurisdiction = 'EU'` value is
+  # the canonical stamp written by the shared call-context helper (the partial
+  # index `index_ai_api_logs_on_jurisdiction_and_created_at` backs this scan).
+  #
+  # Scope is deliberately EU-only. There is no blanket ai_api_logs purge today,
+  # and one is out of scope here: these rows double as a HIPAA audit trail
+  # (45 CFR 164.316(b)(2) -> six years), so a shorter default purge is a separate
+  # decision that must weigh the HIPAA floor, not a byproduct of this EU rule.
+  # `delete_all` is used (not destroy_all): these rows have no dependents and no
+  # destroy callbacks, and a bulk purge should not instantiate five years of rows.
+  #
+  # Returns the number of records deleted.
+  def self.purge_old_eu_logs!(years: 5)
+    where(jurisdiction: 'EU')
+      .where('created_at < ?', years.years.ago)
+      .delete_all
+  end
+
   # Returns a hash representation suitable for audit log exports.
   # Excludes raw request/response payloads and any fields that could
   # contain PII beyond the global_id references.
