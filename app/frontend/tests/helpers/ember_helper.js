@@ -565,6 +565,9 @@ function resetStashesForTest(owner) {
   if (!target) {
     target = stashesTarget();
   }
+  if (typeof LingoLinq !== 'undefined') {
+    LingoLinq._pushLogAllowUnauthenticated = false;
+  }
   resetStashesHarnessState(target);
   if (stashes && stashes !== target) {
     stashes.errored_at = null;
@@ -1166,25 +1169,40 @@ function teardownSyncHeavyTestHarness() {
 }
 
 function resetStashesHarnessState(target) {
+  var instances = [target, stashes];
+  if (typeof window !== 'undefined' && window.stashes) {
+    instances.push(window.stashes);
+  }
+  instances.forEach(function(inst) {
+    if (!inst) {
+      return;
+    }
+    if (inst.wait_timer) {
+      try { runCancel(inst.wait_timer); } catch (e) { /* torn down */ }
+      inst.wait_timer = null;
+    }
+    if (inst.timer) {
+      try { runCancel(inst.timer); } catch (e) { /* torn down */ }
+      inst.timer = null;
+    }
+    if (inst._dbPersistDebounce) {
+      try { runCancel(inst._dbPersistDebounce); } catch (e) { /* torn down */ }
+      inst._dbPersistDebounce = null;
+    }
+    inst._logPushSerial = (inst._logPushSerial || 0) + 1;
+    inst.errored_at = null;
+    inst.last_log_push = null;
+  });
   if (!target) {
     return;
   }
-  if (target.wait_timer) {
-    try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
-    target.wait_timer = null;
-  }
-  if (target.timer) {
-    try { runCancel(target.timer); } catch (e) { /* torn down */ }
-    target.timer = null;
-  }
-  target.errored_at = null;
-  target.last_log_push = null;
-  LingoLinq._stashesLogPushGen = (LingoLinq._stashesLogPushGen || 0) + 1;
   if (typeof target.set === 'function') {
     target.set('online', true);
     target.set('logging_enabled', false);
     target.set('history_enabled', true);
     target.set('usage_log', []);
+    target.set('daily_use', []);
+    target.set('daily_events', {});
     target.set('logging_paused_at', null);
   }
   if (typeof target.persist === 'function') {

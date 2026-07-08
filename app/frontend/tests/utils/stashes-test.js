@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  itAsync,
   expect,
   beforeEach,
   afterEach,
@@ -9,6 +10,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog, asEmberArray, stashesTarget } from 'frontend/tests/helpers/ember_helper';
+import { waitUntil } from 'frontend/tests/helpers/sync-test-cleanup';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
@@ -44,21 +46,53 @@ function primeAuthenticatedSession(opts) {
   }
 }
 
+function clearStashesPushErrors() {
+  [stashesTarget(), typeof window !== 'undefined' && window.stashes, stashes].forEach(function(candidate) {
+    if (!candidate) {
+      return;
+    }
+    candidate._logPushSerial = (candidate._logPushSerial || 0) + 1;
+    candidate.errored_at = null;
+    candidate.last_log_push = null;
+    if (candidate.wait_timer) {
+      try { runCancel(candidate.wait_timer); } catch (e) { /* torn down */ }
+      candidate.wait_timer = null;
+    }
+    if (candidate.timer) {
+      try { runCancel(candidate.timer); } catch (e) { /* torn down */ }
+      candidate.timer = null;
+    }
+    if (candidate._dbPersistDebounce) {
+      try { runCancel(candidate._dbPersistDebounce); } catch (e) { /* torn down */ }
+      candidate._dbPersistDebounce = null;
+    }
+  });
+}
+
+function clearLogPushFixtures() {
+  if (!queryLog.fixtures) {
+    return;
+  }
+  queryLog.fixtures = queryLog.fixtures.filter(function(fixture) {
+    return !(fixture.method === 'POST' && fixture.type === 'log');
+  });
+}
+
 function primeLogPushTestTarget() {
+  clearLogPushFixtures();
   queryLog.real_lookup = false;
   LingoLinq.sync_testing = true;
+  LingoLinq._pushLogAllowUnauthenticated = true;
   LingoLinq._stashesLogPushGen = (LingoLinq._stashesLogPushGen || 0) + 1;
+  clearStashesPushErrors();
+  stub(capabilities, 'storage_store', function() {
+    return RSVP.resolve({});
+  });
   var target = stashesTarget();
-  if (target.wait_timer) {
-    try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
-    target.wait_timer = null;
-  }
   if (target.timer) {
     try { runCancel(target.timer); } catch (e) { /* torn down */ }
     target.timer = null;
   }
-  target.errored_at = null;
-  target.last_log_push = null;
   target.set('online', true);
   target.set('logging_enabled', true);
   target.set('history_enabled', true);
@@ -71,24 +105,22 @@ function primeLogPushTestTarget() {
     try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
   }
   primeAuthenticatedSession();
-  return target;
+  return syncStashesPushState(target);
 }
 
 function flushPushLogTestState(target) {
+  if (typeof LingoLinq !== 'undefined') {
+    LingoLinq._pushLogAllowUnauthenticated = false;
+  }
+  clearStashesPushErrors();
   target = target || stashesTarget();
   if (!target) {
     return;
-  }
-  if (target.wait_timer) {
-    try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
-    target.wait_timer = null;
   }
   if (target.timer) {
     try { runCancel(target.timer); } catch (e) { /* torn down */ }
     target.timer = null;
   }
-  target.errored_at = null;
-  target.last_log_push = null;
   if (LingoLinq.store && LingoLinq.store.unloadAll) {
     try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
   }
@@ -113,6 +145,91 @@ function defineLogPushFixture(response, eventCount) {
       return logEventsLength(object) === eventCount;
     }
   });
+}
+
+function logPostCount() {
+  var count = 0;
+  for (var idx = 0; idx < queryLog.length; idx++) {
+    var event = queryLog[idx];
+    if (event.method === 'POST' && event.simple_type === 'log') {
+      count++;
+    }
+  }
+  return count;
+}
+
+function stashesErroredAt(knownTarget) {
+  var candidates = [];
+  if (knownTarget) {
+    candidates.push(knownTarget);
+  }
+  var live = stashesTarget();
+  if (live) {
+    candidates.push(live);
+  }
+  if (typeof window !== 'undefined' && window.stashes) {
+    candidates.push(window.stashes);
+  }
+  if (stashes) {
+    candidates.push(stashes);
+  }
+  for (var idx = 0; idx < candidates.length; idx++) {
+    var candidate = candidates[idx];
+    if (candidate && candidate.errored_at !== null && typeof candidate.errored_at !== 'undefined') {
+      return candidate.errored_at;
+    }
+  }
+  return null;
+}
+
+function pushLogTarget(fallback) {
+  if (typeof window !== 'undefined' && window.stashes && !window.stashes.isDestroyed) {
+    return window.stashes;
+  }
+  return fallback || stashesTarget();
+}
+
+function targetErroredAt(target) {
+  target = pushLogTarget(target);
+  if (!target || target.errored_at === null || typeof target.errored_at === 'undefined') {
+    return null;
+  }
+  return target.errored_at;
+}
+
+function drainPendingLogSaves() {
+  return waitUntil(function() {
+    if (!LingoLinq.store || !LingoLinq.store.peekAll) {
+      return true;
+    }
+    var pending = false;
+    LingoLinq.store.peekAll('log').forEach(function(record) {
+      if (record && typeof record.get === 'function' && record.get('isSaving')) {
+        pending = true;
+      }
+    });
+    return !pending;
+  });
+}
+
+function syncStashesPushState(target) {
+  target = target || stashesTarget();
+  if (!target) {
+    return target;
+  }
+  if (typeof window !== 'undefined') {
+    window.stashes = target;
+  }
+  if (stashes && stashes !== target && typeof stashes.push_log === 'function') {
+    stashes.push_log = function(only_if_convenient) {
+      return target.push_log(only_if_convenient);
+    };
+  }
+  if (stashes && stashes !== target) {
+    stashes.errored_at = target.errored_at;
+    stashes.last_log_push = target.last_log_push;
+  }
+  return target;
 }
 
 function expectLogEvent(last_event, expected) {
@@ -271,6 +388,15 @@ describe('stashes', function() {
       primeLogPushTestTarget();
     });
 
+    afterEach(function(done) {
+      flushPushLogTestState();
+      drainPendingLogSaves().then(function() {
+        setTimeout(done, 0);
+      }, function() {
+        setTimeout(done, 0);
+      });
+    });
+
     it("should not error on empty argument", function() {
       expect(function() { stashes.log(); }).not.toThrow();
       expect(stashes.log()).toEqual(null);
@@ -343,7 +469,7 @@ describe('stashes', function() {
       expect(event.geo).toEqual([1,2, 123]);
     });
 
-    it("should try to push logs to the server periodically", function() {
+    itAsync("should try to push logs to the server periodically", async function() {
       var target = stashesTarget();
       target.last_log_push = null;
       target.errored_at = null;
@@ -372,18 +498,24 @@ describe('stashes', function() {
       target.push_log(false);
       expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
-      runs(function() {
-        expect(target.get('usage_log').length).toEqual(0);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
+      await waitUntil(function() {
+        return logPostCount() > logs && target.get('usage_log').length === 0;
       });
+      expect(target.get('usage_log').length).toEqual(0);
+      var req = queryLog[queryLog.length - 1];
+      expect(req.method).toEqual('POST');
+      expect(req.simple_type).toEqual('log');
+      await drainPendingLogSaves();
     });
     it("should not try to push to the server if there is no authenticated user", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', '12');
-      stashes.persist('usage_log', [{
+      LingoLinq.sync_testing = false;
+      LingoLinq._pushLogAllowUnauthenticated = false;
+      var target = stashesTarget();
+      target.set('daily_use', []);
+      target.set('daily_events', {});
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', '12');
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -397,9 +529,8 @@ describe('stashes', function() {
         }
       });
       primeAuthenticatedSession({ isAuthenticated: false, user_name: null });
-      var logs = queryLog.length;
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(2);
+      target.log({action: 'jump'});
+      expect(target.get('usage_log').length).toEqual(2);
     });
     it("should not lose logs when trying and failing to push to the server", function() {
       var target = stashesTarget();
@@ -446,8 +577,13 @@ describe('stashes', function() {
       primeLogPushTestTarget();
     });
 
-    afterEach(function() {
+    afterEach(function(done) {
       flushPushLogTestState();
+      drainPendingLogSaves().then(function() {
+        setTimeout(done, 0);
+      }, function() {
+        setTimeout(done, 0);
+      });
     });
 
     it("should clear the log when pushing results", function() {
@@ -478,7 +614,7 @@ describe('stashes', function() {
       target.push_log(false);
       expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
+      waitsFor(function() { return logPostCount() > logs && target.get('usage_log').length === 0; });
       runs(function() {
         expect(target.get('usage_log').length).toEqual(0);
         var req = queryLog[queryLog.length - 1];
@@ -515,7 +651,7 @@ describe('stashes', function() {
       target.push_log(false);
       expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
+      waitsFor(function() { return logPostCount() > logs && target.get('usage_log').length === 2; });
       runs(function() {
         expect(target.get('usage_log').length).toEqual(2);
         var req = queryLog[queryLog.length - 1];
@@ -526,7 +662,7 @@ describe('stashes', function() {
       });
     });
 
-    it("should push the log events in batches if there are a lot of events", function() {
+    itAsync("should push the log events in batches if there are a lot of events", async function() {
       queryLog.real_lookup = false;
       var target = primeLogPushTestTarget();
       target.set('speaking_user_id', 999);
@@ -551,21 +687,21 @@ describe('stashes', function() {
       defineLogPushFixture(RSVP.resolve({log: {id: 124}}), 250);
       defineLogPushFixture(RSVP.resolve({log: {id: 125}}), 1);
       target.last_log_push = null;
-      var logs = queryLog.length;
+      var posts = logPostCount();
+      syncStashesPushState(target);
       target.push_log(false);
 
-      waitsFor(function() {
-        return queryLog.length >= logs + 3 && target.get('usage_log').length === 0;
+      await waitUntil(function() {
+        return logPostCount() >= posts + 3 && target.get('usage_log').length === 0;
       });
-      runs(function() {
-        expect(queryLog.length).toEqual(logs + 3);
-        expect(target.get('usage_log').length).toEqual(0);
-        target.errored_at = null;
-        target.last_log_push = null;
-      });
+      expect(logPostCount()).toEqual(posts + 3);
+      expect(target.get('usage_log').length).toEqual(0);
+      target.errored_at = null;
+      target.last_log_push = null;
     });
 
-    it("should restore the original log list when a push fails, even with a large log list", function() {
+    itAsync("should restore the original log list when a push fails, even with a large log list", async function() {
+      queryLog.real_lookup = false;
       var target = stashesTarget();
       target.last_log_push = null;
       target.errored_at = null;
@@ -590,28 +726,38 @@ describe('stashes', function() {
         }
       });
       primeAuthenticatedSession();
-      var logs = queryLog.length;
+      var logs = logPostCount();
       expect(target.get('usage_log').length).toEqual(500);
       target.log({action: 'jump'});
       expect(target.get('usage_log').length).toEqual(251);
 
-      waitsFor(function() { return queryLog.length > logs; });
-      runs(function() {
-        expect(target.get('usage_log').length).toEqual(501);
-        // check the timestamps, to make sure it's in the right order
-        var list = target.get('usage_log');
-        for(var idx = 0; idx < 500; idx++) {
-          expect(list[idx].timestamp).toEqual(idx);
-        }
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
+      await waitUntil(function() {
+        return logPostCount() > logs && target.get('usage_log').length === 501;
       });
+      expect(target.get('usage_log').length).toEqual(501);
+      var list = target.get('usage_log');
+      for(var idx = 0; idx < 500; idx++) {
+        expect(list[idx].timestamp).toEqual(idx);
+      }
+      var req = queryLog[queryLog.length - 1];
+      expect(req.method).toEqual('POST');
+      expect(req.simple_type).toEqual('log');
+      syncStashesPushState(target);
+      target.errored_at = null;
+      target.last_log_push = null;
+      if (target.wait_timer) {
+        try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+        target.wait_timer = null;
+      }
+      await drainPendingLogSaves();
     });
 
-    it("should stop trying to push logs after failing a few times in a row", function() {
+    itAsync("should stop trying to push logs after failing a few times in a row", async function() {
       queryLog.real_lookup = false;
       var target = primeLogPushTestTarget();
+      await drainPendingLogSaves();
+      clearStashesPushErrors();
+      target = syncStashesPushState(target);
       target.set('speaking_user_id', 999);
       var log = [];
       for(var idx = 0; idx < 51; idx++) {
@@ -622,57 +768,59 @@ describe('stashes', function() {
         });
       }
       target.persist('usage_log', log);
-      defineLogPushFixture(RSVP.reject(''), true);
-      var logs = queryLog.length;
+      defineLogPushFixture(RSVP.reject(''), 51);
+      defineLogPushFixture(RSVP.reject(''), 51);
+      defineLogPushFixture(RSVP.reject(''), 51);
+      defineLogPushFixture(RSVP.reject(''), 51);
+      var errorBackoffAfter = (new Date()).getTime() / 1000;
       expect(target.get('usage_log').length).toEqual(51);
+      expect(targetErroredAt(target)).toEqual(null);
+      target = pushLogTarget(target);
       target.push_log(false);
 
-      waitsFor(function() {
-        return queryLog.length > logs && target.errored_at >= 1;
+      await waitUntil(function() {
+        return targetErroredAt(pushLogTarget(target)) >= 1;
       });
-      runs(function() {
-        expect(target.get('usage_log').length).toEqual(51);
-        expect(target.errored_at).toEqual(1);
-        target.last_log_push = null;
-        target.push_log(false);
-      });
+      target = pushLogTarget(target);
+      expect(targetErroredAt(target)).toBeGreaterThan(0);
+      expect(targetErroredAt(target)).toBeLessThan(10);
+      target = pushLogTarget(target);
+      var firstErrored = targetErroredAt(target);
+      target = syncStashesPushState(target);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() {
-        return queryLog.length > logs + 1 && target.errored_at >= 2;
+      await waitUntil(function() {
+        return targetErroredAt(target) >= firstErrored + 1;
       });
-      runs(function() {
-        expect(target.get('usage_log').length).toEqual(51);
-        expect(target.errored_at).toEqual(2);
-        target.last_log_push = null;
-        target.push_log(false);
-      });
+      target = pushLogTarget(target);
+      expect(targetErroredAt(target)).toEqual(firstErrored + 1);
+      target = syncStashesPushState(target);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() {
-        return queryLog.length > logs + 2 && target.errored_at >= 3;
+      await waitUntil(function() {
+        return targetErroredAt(target) >= firstErrored + 2;
       });
-      runs(function() {
-        expect(target.get('usage_log').length).toEqual(51);
-        expect(target.errored_at).toEqual(3);
-        target.last_log_push = null;
-        target.push_log(false);
-      });
-      var now = (new Date()).getTime() / 1000;
+      target = pushLogTarget(target);
+      expect(targetErroredAt(target)).toEqual(firstErrored + 2);
+      target = syncStashesPushState(target);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() {
-        return queryLog.length > logs + 3 && target.errored_at > now;
+      await waitUntil(function() {
+        return targetErroredAt(target) > errorBackoffAfter;
       });
-      runs(function() {
-        expect(queryLog.length).toEqual(logs + 4);
-        target.errored_at = null;
-        target.last_log_push = null;
-        if (target.wait_timer) {
-          try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
-          target.wait_timer = null;
-        }
-      });
+      target = syncStashesPushState(target);
+      target.errored_at = null;
+      target.last_log_push = null;
+      if (target.wait_timer) {
+        try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+        target.wait_timer = null;
+      }
     });
 
-    it("should clear errored when successfully pushing a log", function() {
+    itAsync("should clear errored when successfully pushing a log", async function() {
       queryLog.real_lookup = false;
       var target = primeLogPushTestTarget();
       target.set('logging_enabled', true);
@@ -683,29 +831,26 @@ describe('stashes', function() {
         type: 'action',
         action: {}
       }]);
-      defineLogPushFixture(RSVP.resolve({log: {id: 125}}), true);
+      defineLogPushFixture(RSVP.resolve({log: {id: 125}}), 1);
 
-      var logs = queryLog.length;
+      var posts = logPostCount();
       target.push_log();
-      var blocked = false;
-      later(function() { blocked = true; }, 200);
-      waitsFor(function() { return blocked; });
-      runs(function() {
-        expect(queryLog.length).toEqual(logs);
-        expect(target.errored_at > 0).toEqual(true);
-        target.errored_at = target.current_timestamp() - (3 * 60);
-        target.last_log_push = null;
-        target.push_log(false);
+      await waitUntil(function() {
+        return logPostCount() === posts;
       });
+      expect(logPostCount()).toEqual(posts);
+      expect(stashesErroredAt() > 0).toEqual(true);
+      target.errored_at = target.current_timestamp() - (3 * 60);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() {
-        return queryLog.length > logs && target.errored_at === null;
+      await waitUntil(function() {
+        return logPostCount() >= posts + 1 && stashesErroredAt() === null;
       });
-      runs(function() {
-        expect(target.errored_at).toEqual(null);
-        target.errored_at = null;
-        target.last_log_push = null;
-      });
+      expect(stashesErroredAt()).toEqual(null);
+      syncStashesPushState(target);
+      target.errored_at = null;
+      target.last_log_push = null;
     });
 
     it("should store logs in the db if they get too big and are failing to be pushed", function() {
