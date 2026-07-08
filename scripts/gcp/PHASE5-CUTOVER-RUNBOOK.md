@@ -130,6 +130,21 @@ is not schedulable to a firm date until this passes.
   measured number, tracker 4.2). Also confirm DirtyExit jobs (TERM outside job execution / SIGKILL)
   are visible in the Resque failed queue.
 
+**Private-bucket read/write path checks (added 2026-07-05, findings LL-705b10bcd7 / LL-9a09771121):**
+
+- **S3 write path.** Create a real ButtonImage from an external PNG URL and let the worker pool
+  process it: the record's `url` must become a `lingolinq-prod-uploads` bucket URL (no
+  `data_uri` fallback, no `errored_pending_url`), and `head-object` must show the object with
+  `ServerSideEncryption: aws:kms` under the expected CMK. Verified green on the rehearsal stack
+  2026-07-05 (synthetic ButtonImage id 840). Prerequisites: IAM policy `lingolinq-cloudrun-s3-ses`
+  v2 (KMS statement) attached to `lingolinq-cloudrun-prod`; `UPLOADS_S3_NO_ACL=1` in the deploy env.
+- **S3 read path via CDN.** The bucket blocks all public access; client reads go through CloudFront
+  distribution `E2X2HAS6Y1L2MI` (`https://d34sa6lc5jfe66.cloudfront.net`, OAC + KMS grant). Confirm
+  `UPLOADS_S3_CDN` is set on web + worker, an uploaded image renders in a browser via its CDN URL
+  (and the raw `s3.amazonaws.com` URL still 403s), and the response carries
+  `access-control-allow-origin` (the Ember offline-sync XHR needs CORS). Then sync a board offline
+  in the app and confirm images cache.
+
 ### 0b. Worker health verification  (was Copilot "6b warmup", reframed)
 
 The worker is a Cloud Run **worker-pool** (`gcloud beta run worker-pools`, see
@@ -803,6 +818,16 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       send with no exception. This is real server-side confirmation of successful handoff to SES -
       check the box once the test message is confirmed received at the destination inbox (final
       proof of end-to-end delivery, not just acceptance).
+      **Update 2026-07-04 (see `PHASE5-0A-STATUS-2026-07-04.md`):** re-tested through the real
+      ActionMailer `:ses` adapter (not the raw SDK) directly in Cloud Run - real SES MessageIds
+      returned for both recipients, `beta@lingolinq.com` confirmed delivered, direct
+      `scotwahlquist@gmail.com` confirmed still non-delivered (checked inbox/spam/trash). This
+      partially closes the "was the raw-SDK test representative of the real app" question at the
+      adapter level (credentials/region/delivery-method wiring); it used a generic
+      `ActionMailer::Base.mail(...)` call rather than a concrete mailer class (`UserMailer` etc.),
+      so full mailer-class representativeness is still untested, and per-message delivery-event
+      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked;
+      `LL-42a24ee911` stays `open`.
 - [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
       gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
       checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status
@@ -815,6 +840,12 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       longer exists, suggesting deploy/version skew). Needs root-cause fixes and re-verification
       (`Resque::Failure.count == 0` or an explained/accepted residual) before this environment is
       customer-facing.
+      **Update 2026-07-04 (see `PHASE5-0A-STATUS-2026-07-04.md`):** `LL-5954bcbbe6`'s ImageMagick
+      fix (already merged, PR #521) is now live - `lingolinq-web`/`lingolinq-worker` redeployed from
+      `origin/staging` (`efb758284`), `identify -version` confirmed working in the new image, and
+      `Resque::Failure.count` unchanged at 914 with zero new `identify` failures since the
+      redeploy. Not yet exercised under real upload load. `LL-a95e9c5f7c` (OOM) and
+      `LL-705b10bcd7` (S3 SigV4) were not touched today - out of scope for this pass.
 - [ ] **`lingolinq_admin` test credential rotated or the account deleted - separate gate from 0a, do
       NOT treat as satisfied just because the 0a login box above is checked.** The account currently
       has a deliberately simple, memorable password (Scot's call, 2026-07-03: needed for hands-on

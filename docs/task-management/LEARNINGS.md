@@ -5827,3 +5827,17 @@ count against what the prior analysis predicted and abort on a large gap
 2,674 (267×) — an assertion would have caught it. Note there is effectively no
 undo: `Resque::Failure.remove` is irreversible, and the dev Redis has no AOF and
 auto-BGSAVEs on churn, so the pre-delete RDB is overwritten within minutes.
+
+## Pattern: privacy classification language in docs/legal/* is load-bearing and drifts across repos
+
+"De-identified", "anonymous", and "pseudonymized" are legally distinct terms, not synonyms.
+`lib/pii_scrubber.rb` output is **pseudonymized personal data** (GDPR Art. 4(5)): known direct
+identifiers removed by design (a safeguard, not a guarantee — free-hand third-party names can
+evade pattern/blocklist scrubbing), still personal data, all processor obligations apply. Never describe
+scrubbed AI-vendor prompts as "de-identified" or "anonymous" in `docs/legal/*` — a regulator
+or customer DPO reads those words as claims. Also: corrections made in the ai-company-brain
+program docs do NOT auto-propagate to this repo's registers (`docs/legal/SUBPROCESSORS.md`
+etc.); the brain doc explicitly defers to the register as SSOT, so when either side changes
+classification language, grep the other side for the stale term in the same session. Found
+2026-07-05 when a brain-repo audit caught the register still saying "de-identified" three
+weeks after the program doc was corrected to "pseudonymized". (2026-07-05)

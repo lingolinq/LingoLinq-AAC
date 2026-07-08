@@ -38,7 +38,9 @@ module OBFSaveImageHardening
       end
     elsif image['url']
       OBF::Utils.log "  retrieving #{image['url']}"
-      url_data = OBF::Utils.get_url(image['url'])
+      # Sign uploads-bucket URLs: the bucket blocks public access, so the
+      # embedded raw URL 403s on an unsigned fetch (CDN/external unchanged)
+      url_data = OBF::Utils.get_url(Uploader.signed_internal_url(image['url']))
       OBF::Utils.log "  done!"
       image['raw_data'] = url_data['data']
       image['content_type'] = url_data['content_type']

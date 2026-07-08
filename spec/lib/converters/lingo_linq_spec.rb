@@ -1159,7 +1159,52 @@ describe Converters::LingoLinq do
         expect(zipper.read("board_#{b2.global_id}.obf")).to eq(nil)
       end
     end
-    
+
+    it "should embed a working protected_image token at export time, and let it expire per LL-310b464be4" do
+      res = OpenStruct.new(:success? => true, :body => "abc", :headers => {'Content-Type' => 'image/png'})
+      allow(Typhoeus).to receive(:get).and_return(res)
+      allow(OBF::Utils).to receive(:image_attrs).and_return({})
+
+      u = User.create
+      bi = ButtonImage.create(:user => u, :url => "https://example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/abc123")
+      bi.settings['protected'] = true
+      bi.settings['protected_source'] = 'lessonpix'
+      bi.settings['content_type'] = 'image/png'
+      bi.settings['width'] = 100
+      bi.settings['height'] = 100
+      bi.save!
+      b = Board.new(:user => u, :settings => {'name' => 'Protected Export Test'})
+      b.settings['buttons'] = [{'id' => '1', 'label' => 'btn', 'image_id' => bi.global_id}]
+      b.settings['grid'] = {'rows' => 1, 'columns' => 1, 'order' => [['1']]}
+      b.instance_variable_set('@buttons_changed', true)
+      b.save
+
+      path = OBF::Utils.temp_path(['obz_protected_token', '.obz'])
+      Converters::LingoLinq.to_obz(b.reload, path, {'user' => u})
+
+      exported_url = nil
+      OBF::Utils.load_zip(path) do |zipper|
+        manifest = JSON.parse(zipper.read('manifest.json'))
+        board_json = JSON.parse(zipper.read(manifest['root']))
+        exported_url = board_json['images'][0]['url']
+      end
+      File.unlink(path) if File.exist?(path)
+
+      expect(exported_url).to match(/user_token=/)
+      token = exported_url.match(/user_token=([^&]+)/)[1]
+
+      # Right after export the embedded token is live, so the protected image
+      # resolves for whoever opens the freshly-exported .obz.
+      expect(User.find_by_protected_image_token(token)).to eq(u)
+
+      # There's no refresh mechanism for a token baked into an already-exported
+      # file, so once the 30-day window passes the same URL goes dark -- a
+      # tradeoff of the expiring-token fix (LL-310b464be4) that's flagged in
+      # the PR description, not silently regressed.
+      allow(Time).to receive(:now).and_return(Time.now + 31.days)
+      expect(User.find_by_protected_image_token(token)).to eq(nil)
+    end
+
     it "should include images" do
       res = OpenStruct.new(:success? => true, :body => "abc", :headers => {'Content-Type' => 'text/plaintext'})
       expect(OBF::Utils).to receive(:image_attrs).and_return({})

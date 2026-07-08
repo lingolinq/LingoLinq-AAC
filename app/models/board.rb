@@ -1,3 +1,9 @@
+# EU AI Act Article 50(2) marker verification. Required explicitly (not left to
+# Zeitwerk) for parity with app/cloners/board_cloner.rb and lib/json_api/board.rb,
+# so the persist path below stays deterministic even where lib/ autoload is skipped
+# (RESQUE_WORKER=='true'); require_relative loads it regardless of the autoloader.
+require_relative '../../lib/art50_marker'
+
 class Board < ApplicationRecord
   DEFAULT_ICON = "/images/lingolinq-board-icon.png"
   TRANSLATION_LANGUAGE_LABELS = {
@@ -1885,11 +1891,13 @@ class Board < ApplicationRecord
     self.settings['small_header'] = params['small_header'] if params['small_header'] != nil
     # EU AI Act Article 50(2): if the client supplied an AI-generation marker, persist
     # it onto settings ONLY if it verifies as a genuine, server-signed marker. Client
-    # input is never trusted: a missing, malformed, or forged marker is silently dropped
-    # and never overwrites an existing valid marker. Marking is unconditional (no feature
-    # flag); see lib/art50_marker.rb. verify never raises, but we still guard so a marker
-    # problem can never break a board save -- including the Resque-worker path where lib/
-    # autoload is skipped and Art50Marker may be undefined (workers carry no client marker).
+    # input is never trusted: a missing, malformed, or forged marker is silently dropped,
+    # leaving any existing valid marker intact (the assignment is guarded on `marker`);
+    # only a freshly verified marker replaces the stored one. Marking is unconditional
+    # (no feature flag); see lib/art50_marker.rb. verify never raises, but we still guard
+    # so a marker problem can never break a board save. Art50Marker is require_relative'd
+    # at the top of this file, so it is defined even on the Resque-worker path where lib/
+    # autoload is skipped.
     if params['ai_generated']
       begin
         marker = Art50Marker.normalized(params['ai_generated'])

@@ -414,7 +414,8 @@ describe ExtraData, :type => :model do
     it 'should apply the remote request results if a url is available' do
       s = LogSession.new(data: {'extra_data_nonce' => 'asdfasdf'})
       expect(s.extra_data_private_url).to_not eq(nil)
-      expect(Typhoeus).to receive(:get).with(s.extra_data_private_url, {timeout: 3}).and_return(OpenStruct.new(body: [{a: 1}].to_json))
+      expect(Uploader).to receive(:signed_internal_url).with(s.extra_data_private_url).and_return('https://signed.example.com/extra-data')
+      expect(Typhoeus).to receive(:get).with('https://signed.example.com/extra-data', {timeout: 3}).and_return(OpenStruct.new(body: [{a: 1}].to_json))
       s.assert_extra_data
       expect(s.data['events']).to eq([{'a' => 1}])
     end
