@@ -52,11 +52,14 @@ export default Component.extend({
           explicit.focus();
           return;
         }
-        const tabbable = $(this.element).find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
-        if (tabbable.length > 0) {
-          tabbable[0].focus();
+        const focusable = Array.prototype.slice.call(
+          this.element.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        ).find((el) => el.getClientRects().length > 0);
+        if (focusable) {
+          focusable.focus();
         } else {
-          $(this.element).find('.modal-content').attr('tabindex', '-1').focus();
+          const content = this.element.querySelector('.modal-content');
+          if (content) { content.setAttribute('tabindex', '-1'); content.focus(); }
         }
       }, 100);
     }
