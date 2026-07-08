@@ -80,7 +80,10 @@ class Api::ButtonSetsController < ApplicationController
         rescue => e
           Rails.logger.error "SYNC DEBUG ERROR: #{e.message}"
           Rails.logger.error e.backtrace.join("\n")
-          render json: {error: e.message, backtrace: e.backtrace}, status: 500
+          # The backtrace is already in the server log above; never return it to
+          # the client. Standardize on the {error: message} shape the rest of the
+          # API uses so this debug path stops leaking internal paths/gem versions.
+          render json: {error: e.message}, status: 500
           return # Stop execution here for sync mode
         end
       end
