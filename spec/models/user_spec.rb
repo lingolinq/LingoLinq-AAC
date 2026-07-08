@@ -2697,6 +2697,23 @@ describe User, :type => :model do
       end
       expect(crisis_keys).to eq([crisis_copy.key])
     end
+
+    it "should dedupe duplicate non-crisis sidebar entries after resolving to the user copy" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      yesno_copy = yesno.copy_for(u)
+      system_key = SystemBoardSources.board_key('yesno')
+      u.settings = {'preferences' => {'sidebar_boards' => [
+        {'name' => 'Yes/No', 'key' => system_key, 'image' => 'https://example.com/yesno.png', 'home_lock' => false},
+        {'name' => 'Yes/No', 'key' => yesno_copy.key, 'image' => 'https://example.com/yesno.png', 'home_lock' => false}
+      ]}}
+
+      yesno_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == 'yesno'
+      end
+      expect(yesno_keys).to eq([yesno_copy.key])
+    end
   end
   
   describe "avatars" do
