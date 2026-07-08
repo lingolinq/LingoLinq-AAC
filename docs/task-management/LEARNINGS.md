@@ -95,6 +95,8 @@ file (see [README.md](README.md)).
 - [Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state](#gotcha-dashboard-preview-tiles--selection-gates-leak-hidden-but-present-state)
 - [Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`](#gotcha-a-saved-frontend-preference-silently-vanishes-if-its-not-in-userpreference_params)
 - [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
+- [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
+- [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
 
 ---
 
@@ -5772,6 +5774,61 @@ Scoping hooks (both eval-only, safe to style without touching normal boards):
   SAME captured `level`. If a branch jumps to a different level (welcome → find-4, which lives in a
   later level), you must resync `level = levels[working.level]` after setting working.level, or the
   normalization re-increments past the target. (2026-06-29, adversarial review)
+
+## Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method
+
+**Surface:** any `self.schedule_for(queue, :some_instance_method, ...)` (boy_band async)
+called from a `before_save` / `process_params`-style path where `self` may not be
+persisted yet.
+
+**Symptom:** Resque failures `method not found: <Class>:<method>` that accumulate slowly
+over months, one per record created through that path. The failed payload has
+`"id": null` and targets `<Class>` (the class, not an instance).
+
+**Root cause:** boy_band's `schedule_for` captures `id = self.id` at ENQUEUE time
+(`boy_band.rb:408`). On CREATE, `process_params` runs before the INSERT, so `self.id` is
+nil. At run time, `perform_action` sees no id, leaves `obj = self` (the class), and
+`Class.respond_to?(instance_method)` is false → `raise "method not found: Class:method"`.
+The job can never succeed, so it just piles up in the failed queue.
+
+**Fix:** never enqueue the instance job until `self.id` exists. If create-time work is a
+true no-op, guard the enqueue on `self.id`. If the create payload can already identify
+downstream targets, preserve the request on the model instance and enqueue it from an
+`after_commit` callback on create. `Board#update_privacy` uses the latter approach because a
+new board can contain links to existing boards that still need the requested privacy
+cascade. Also skip payloads that would no-op (e.g. blank privacy). Detection: the failed job
+shows `"id": null` + `method not found`.
+
+**Evidence:** `app/models/board.rb` `schedule_for(:priority, :update_privacy, ...)` ran
+before a new board had an id; ~26 dead `Board:update_privacy` jobs accumulated Mar–Jun
+2026. Fixed by deferring the create-time enqueue until after commit (branch
+`fix/traci-update-privacy-unsaved-board-guard`).
+
+## Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes
+
+Two lessons from a 2026-07-03 over-deletion (a "clear last-two-days failures"
+cleanup deleted 2,674 jobs when ~10 were in scope; full account in
+`docs/task-management/2026-07-03-failed-queue-deletion-incident.md`).
+
+**1. A job's origination is the `chain::` timestamp — not `scheduled`, `run_at`, or `failed_at`.**
+A Resque/boy_band failed-job payload carries a `chain::j<ISO-timestamp>_...` arg
+(the immutable time the chain first started); to slice the failed queue by
+age/origination, parse THAT. The over-delete happened because the cleanup's
+origination helper tried the inner `settings['scheduled']` epoch and then fell
+through to `run_at`/`failed_at` — but never checked `chain::`. Two traps combined:
+(a) not every job has a `scheduled` hash — Progress jobs pass a bare integer id
+(`["Progress","perform_action",3355]`), so there was nothing to read; and
+(b) `run_at`/`failed_at` reflect the LAST attempt, which today's reprocessing had
+set to the current date. So ~2,664 months-old Progress failures resolved to
+`failed_at` = "today" and got swept into a "last two days" delete.
+
+**2. Count-check before any destructive bulk Resque/Redis op.** Before
+`Resque::Failure.remove` / `redis del` on a filtered set, assert the selected
+count against what the prior analysis predicted and abort on a large gap
+(`abort if selected > expected * N`). Analysis said ~10; the delete selected
+2,674 (267×) — an assertion would have caught it. Note there is effectively no
+undo: `Resque::Failure.remove` is irreversible, and the dev Redis has no AOF and
+auto-BGSAVEs on churn, so the pre-delete RDB is overwritten within minutes.
 
 ## Pattern: privacy classification language in docs/legal/* is load-bearing and drifts across repos
 
