@@ -1,10 +1,8 @@
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
 import demoBoardLoader from '../../utils/demo_board_loader';
 import i18n from '../../utils/i18n';
 
 export default Route.extend({
-  appState: service('app-state'),
   queryParams: {
     board_key: {
       refreshModel: true

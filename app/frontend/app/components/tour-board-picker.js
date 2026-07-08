@@ -1,8 +1,8 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
-import LingoLinq from '../app';
 import modal from '../utils/modal';
+import { assignVocalFlair84AsHome } from '../utils/assign-vocal-flair-home';
 
 // Final step of the board-picker guided tour, rendered as an almost full-screen
 // modal: a LIVE, interactive board-picker so the user can actually assign, create,
@@ -81,38 +81,17 @@ export default Component.extend({
         return;
       }
       this.set('assigning_home_board', true);
-      LingoLinq.store.query('board', { q: 'Vocal Flair 84', public: true, per_page: 10 }).then(function(results) {
-        var list = (results && results.slice) ? results.slice() : (results || []);
-        var pick = function(re) {
-          for (var i = 0; i < list.length; i++) {
-            if (re.test((list[i].get('key') || ''))) { return list[i]; }
-          }
-          return null;
-        };
-        var board = pick(/(^|\/)vocal-flair-84$/) || pick(/vocal-flair-84/) || list[0];
-        if (!board) {
-          _this.set('assigning_home_board', false);
-          modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
-          return;
-        }
-        user.set('preferences.home_board', {
-          id: board.get('id'),
-          key: board.get('key'),
-          locale: _this.get('appState.label_locale')
-        });
-        user.save().then(function() {
+      assignVocalFlair84AsHome(user, {
+        locale: _this.get('appState.label_locale'),
+        onSuccess: function() {
           if (_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
             _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
           }
           modal.close();
           _this.get('appState').return_to_index();
-        }, function() {
-          _this.set('assigning_home_board', false);
-          modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
-        });
-      }, function() {
+        }
+      }).catch(function() {
         _this.set('assigning_home_board', false);
-        modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
       });
     },
     // Mirrors controllers/board-picker#create_new_board, PLUS sets the from-tour

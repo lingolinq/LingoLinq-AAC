@@ -8,7 +8,6 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
 
 describe('RegisterController', 'controller:register', function() {
@@ -115,6 +114,17 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('googleSignupSubmitDisabled')).toEqual(true);
   });
 
+  it("blocks Google completion when the OAuth link omitted terms attestation", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('googleSignupBusy', false);
+    controller.set('googleSignupMissingLinkTerms', true);
+    controller.set('googleSignupTerms', true);
+    controller.set('googleSignupUserName', 'chosen-name');
+    controller.set('age_attested', true);
+
+    expect(controller.get('googleSignupSubmitDisabled')).toEqual(true);
+  });
+
   it("requires username on staged email signup steps", function() {
     var controller = testOwner.lookup('controller:register');
     controller.set('model', EmberObject.create({ preferences: {}, terms_agree: true, user_name: '' }));
@@ -128,6 +138,46 @@ describe('RegisterController', 'controller:register', function() {
     controller.set('model.user_name', 'chosen-name');
     expect(controller.get('userNameMissing')).toEqual(false);
     expect(controller.get('accountStepEmailSignupDisabled')).toEqual(false);
+  });
+
+  it("gates the method-chooser buttons on the age/terms attestation", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {}, terms_agree: false }));
+
+    expect(controller.get('emailMethodDisabled')).toEqual(true);
+
+    controller.set('combined_consent', true);
+    expect(controller.get('model.terms_agree')).toEqual(true);
+    expect(controller.get('age_attested')).toEqual(true);
+    expect(controller.get('emailMethodDisabled')).toEqual(false);
+  });
+
+  it("advances from the method chooser to the email step only once terms are agreed", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {}, terms_agree: false }));
+    controller.set('registrationStep', 'account');
+
+    controller.send('continue_with_email');
+    expect(controller.get('registrationStep')).toEqual('account');
+
+    controller.set('combined_consent', true);
+    controller.send('continue_with_email');
+    expect(controller.get('registrationStep')).toEqual('email');
+    expect(controller.get('showEmailStep')).toEqual(true);
+  });
+
+  it("requires username, email, and password before the email step can submit", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {}, terms_agree: true, user_name: 'chosen-name', email: '', password: '' }));
+    controller.set('user', EmberObject.create({ user_name_check: { exists: false } }));
+
+    expect(controller.get('emailStepSignupDisabled')).toEqual(true);
+
+    controller.set('model.email', 'person@example.com');
+    expect(controller.get('emailStepSignupDisabled')).toEqual(true);
+
+    controller.set('model.password', 'secret6');
+    expect(controller.get('emailStepSignupDisabled')).toEqual(false);
   });
 });
 // import Ember from 'ember';

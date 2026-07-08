@@ -31,6 +31,8 @@ gem 'matrix'
 
 # CVE-2026-54904/54905/54906; bundler-audit minimum
 gem 'concurrent-ruby', '>= 1.3.7'
+# CVE-2026-54463/54464/54465, GHSA-2x63-gw47-w4mm; bundler-audit minimum (transitive via actioncable)
+gem 'websocket-driver', '>= 0.8.2'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)

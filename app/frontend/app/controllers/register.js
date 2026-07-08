@@ -13,6 +13,7 @@ export default Controller.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   session: service('session'),
+  router: service('router'),
   title: "Register",
   queryParams: ['code', 'v', 'google_signup'],
   registrationStep: 'role',
@@ -25,6 +26,7 @@ export default Controller.extend({
   googleSignupUserName: '',
   googleSignupRegistrationType: 'communicator',
   googleSignupTerms: false,
+  googleSignupMissingLinkTerms: false,
   googleSignupProductImprovementOptIn: false,
   showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
     return !!(this.get('google_signup') && this.get('googleSignupProfile'));
@@ -35,8 +37,9 @@ export default Controller.extend({
   googleSignupUserNameInvalid: computed('googleSignupUserName', function() {
     return !!(this.get('googleSignupUserName') || '').match(/[\s\.'"]/);
   }),
-  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', 'showCoppaConsent', 'age_attested', function() {
+  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupMissingLinkTerms', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', 'showCoppaConsent', 'age_attested', function() {
     if(this.get('googleSignupBusy')) { return true; }
+    if(this.get('googleSignupMissingLinkTerms')) { return true; }
     if(!this.get('googleSignupTerms')) { return true; }
     if(this.get('googleSignupUserNameMissing')) { return true; }
     if(this.get('googleSignupUserNameInvalid')) { return true; }
@@ -85,6 +88,9 @@ export default Controller.extend({
   }),
   showAccountStep: computed('registrationStep', function() {
     return this.get('registrationStep') === 'account';
+  }),
+  showEmailStep: computed('registrationStep', function() {
+    return this.get('registrationStep') === 'email';
   }),
   showSupporterTypeStep: computed('registrationStep', function() {
     return this.get('registrationStep') === 'supporter_type';
@@ -197,12 +203,13 @@ export default Controller.extend({
   googleSsoEnabled: computed('appState.feature_flags.google_sso', function() {
     return !!this.get('appState.feature_flags.google_sso');
   }),
-  googleRegisterAllowed: computed('model.terms_agree', 'googleSsoEnabled', 'registrationStep', 'coppa_age_group', 'roleIncomplete', 'persistence.online', 'userNameBlank', 'noSpacesName', 'userNameUnavailable', function() {
+  // The Google button lives on the method-chooser (`account`) step. The
+  // username is collected AFTER Google returns (in the Google modal), so we no
+  // longer gate this on the username — only on the age/terms attestation.
+  googleRegisterAllowed: computed('model.terms_agree', 'googleSsoEnabled', 'registrationStep', 'coppa_age_group', 'roleIncomplete', 'persistence.online', function() {
     if(!this.get('googleSsoEnabled')) { return false; }
     if(!this.persistence.get('online')) { return false; }
     if(!this.get('model.terms_agree')) { return false; }
-    if(this.get('userNameBlank')) { return false; }
-    if(this.get('noSpacesName') || this.get('userNameUnavailable')) { return false; }
     if(this.get('registrationStep') !== 'account') { return false; }
     if(this.get('coppa_age_group') === 'under_13') { return false; }
     if(this.get('roleIncomplete')) { return false; }
@@ -211,8 +218,26 @@ export default Controller.extend({
   googleRegisterDisabled: computed('googleRegisterAllowed', function() {
     return !this.get('googleRegisterAllowed');
   }),
+  // Still used by the under-13 COPPA step, whose Sign Up relies on
+  // saveProfile-side validation for email/password.
   accountStepEmailSignupDisabled: computed('registering.saving', 'model.terms_agree', 'userNameBlank', 'noSpacesName', 'userNameUnavailable', function() {
     return !!(this.get('registering.saving') || !this.get('model.terms_agree') || this.get('userNameBlank') || this.get('noSpacesName') || this.get('userNameUnavailable'));
+  }),
+  // "Sign up with Email" button on the method-chooser step: only the age/terms
+  // attestation gates whether the user can proceed to the email form.
+  emailMethodDisabled: computed('model.terms_agree', function() {
+    return !this.get('model.terms_agree');
+  }),
+  // "Sign Up" on the dedicated email step. Terms are already attested on the
+  // method-chooser step, so here we additionally require a filled-in username,
+  // email, and password before enabling submit.
+  emailStepSignupDisabled: computed('registering.saving', 'model.terms_agree', 'userNameBlank', 'noSpacesName', 'userNameUnavailable', 'model.email', 'model.password', function() {
+    if(this.get('registering.saving')) { return true; }
+    if(!this.get('model.terms_agree')) { return true; }
+    if(this.get('userNameBlank') || this.get('noSpacesName') || this.get('userNameUnavailable')) { return true; }
+    if(!(this.get('model.email') || '').trim()) { return true; }
+    if((this.get('model.password') || '').length < 6) { return true; }
+    return false;
   }),
   clear_start_code_ref: observer('model.start_code', 'start_code_ref', function() {
     if(this.get('model.start_code') && this.get('model.start_code') != this.get('start_code_ref.code')) {
@@ -236,12 +261,22 @@ export default Controller.extend({
     if(!nonce) { return; }
     this.set('googleSignupBusy', true);
     this.set('googleSignupError', null);
+    this.set('googleSignupMissingLinkTerms', false);
     this.persistence.ajax('/auth/google/signup?nonce=' + encodeURIComponent(nonce), { type: 'GET' }).then(function(res) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('googleSignupProfile', res);
       _this.set('googleSignupBusy', false);
       _this.set('googleSignupRegistrationType', res.registration_type || 'communicator');
-      _this.set('googleSignupTerms', !!res.terms_agree);
+      var linkTermsAgreed = !!res.terms_agree;
+      _this.set('googleSignupMissingLinkTerms', !linkTermsAgreed);
+      _this.set('googleSignupTerms', linkTermsAgreed);
+      // The age/terms attestation was made on the method-chooser step before
+      // the OAuth redirect (which resets in-memory controller state). Carry it
+      // forward from the round-tripped terms_agree so the Google modal doesn't
+      // have to re-ask, and Create Account enables once a username is entered.
+      // When the link omitted terms, the safety-net checkbox cannot satisfy the
+      // server — googleSignupMissingLinkTerms blocks submit and shows restart UI.
+      _this.set('age_attested', linkTermsAgreed);
       _this.set('googleSignupProductImprovementOptIn', !!res.product_improvement_opt_in);
       _this.set('googleSignupUserName', res.user_name || '');
       if(res.name && !_this.get('googleSignupUserName')) {
@@ -336,6 +371,26 @@ export default Controller.extend({
     allow_start_code: function() {
       this.set('start_code', !this.get('start_code'));
     },
+    continue_with_email: function() {
+      // Only proceed once the age/terms attestation is made on the method
+      // chooser; the attestation is carried forward (same controller, no
+      // reload) so the email step never re-asks for it.
+      if(!this.get('model.terms_agree')) { return; }
+      this.set('triedToSave', false);
+      this.set('registrationStep', 'email');
+    },
+    restart_google_signup: function() {
+      this.set('googleSignupProfile', null);
+      this.set('googleSignupMissingLinkTerms', false);
+      this.set('googleSignupBusy', false);
+      this.set('googleSignupError', null);
+      this.set('googleSignupTerms', false);
+      this.set('googleSignupUserName', '');
+      this.set('age_attested', false);
+      this.set('googleSignupProductImprovementOptIn', false);
+      this.set('registrationStep', 'account');
+      this.router.transitionTo('register', { queryParams: { google_signup: null } });
+    },
     continue_with_google: function() {
       if(!this.get('googleRegisterAllowed') || !this.persistence.get('online')) { return; }
       var url = '/auth/google/start?flow=register&device_id=' + encodeURIComponent(capabilities.device_id());
@@ -381,7 +436,12 @@ export default Controller.extend({
       }, function(xhr) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('googleSignupBusy', false);
-        _this.set('googleSignupError', true);
+        var err = xhr && xhr.responseJSON && xhr.responseJSON.error;
+        if(err === 'terms_required') {
+          _this.set('googleSignupMissingLinkTerms', true);
+        } else {
+          _this.set('googleSignupError', true);
+        }
       });
     }
   }

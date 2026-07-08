@@ -1264,8 +1264,8 @@ describe Relinking, :type => :model do
       expect(ref.reload.settings['downstream_board_ids']).to eq([old.global_id, leave_alone.global_id, change_inline.global_id])
       expect(u.reload.sidebar_boards.length).to be > 1
       count = u.sidebar_boards.length
-      expect(u.sidebar_boards[0]['key']).to eq(yesno_key)
-      
+      expect(u.sidebar_boards[0]['key']).to eq(new.key)
+
       Board.replace_board_for(u.reload, {:starting_old_board => old.reload, :starting_new_board => new.reload})
       expect(u.settings['preferences']['sidebar_boards'][0]['key']).to eq(new.key)
       expect(u.settings['preferences']['sidebar_boards'].length).to eq(count)

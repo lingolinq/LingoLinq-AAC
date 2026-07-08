@@ -2432,7 +2432,8 @@ describe SessionController, :type => :controller do
         'name' => 'Signup User',
         'flow' => 'register',
         'device_id' => 'dev1',
-        'app' => false
+        'app' => false,
+        'terms_agree' => true
       }
       allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
       expect(GoogleOAuth).to receive(:clear_link).with('signup-nonce')
@@ -2520,6 +2521,38 @@ describe SessionController, :type => :controller do
         terms_agree: 'false'
       }
       assert_error('terms_required', 400)
+    end
+
+    it "rejects signup_complete when OAuth start did not attest terms" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-signup',
+        'email' => 'signup@gmail.com',
+        'name' => 'Signup User',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'terms_agree' => false
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      post :google_signup_complete, params: {
+        nonce: 'signup-nonce',
+        user_name: 'google_signup_user3',
+        registration_type: 'individual',
+        terms_agree: 'true'
+      }
+      assert_error('terms_required', 400)
+    end
+
+    it "rejects register google_start without terms attestation" do
+      expect(GoogleOAuth).not_to receive(:store_state)
+      get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'false'
+      }
+      expect(response).to redirect_to('http://localhost:8184/register?google_error=terms_required')
     end
   end
 

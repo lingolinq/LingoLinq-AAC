@@ -179,7 +179,7 @@ class BoardSetCopier
       next unless brd['key']
       board = Board.find_by_path(brd['key'])
       next unless board
-      @sidebar_ids[brd['key']] = board.global_id
+      @sidebar_ids[brd['key']] = sidebar_relink_source_id(board)
       board_ids << board.global_id
       board.track_downstream_boards!
       downstream_ids = board.downstream_board_ids
@@ -337,5 +337,15 @@ class BoardSetCopier
       boards_to_save << board
       boards_to_save_hash[board.global_id] = board
     end
+  end
+
+  # Sidebar display keys may resolve to a user copy while replace_board_for maps
+  # parent (catalog) board global_ids — track the lineage source for sidebar updates.
+  def sidebar_relink_source_id(board)
+    if board.parent_board_id
+      parent = Board.find_by(id: board.parent_board_id)
+      return parent.global_id if parent
+    end
+    board.global_id
   end
 end
