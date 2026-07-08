@@ -13,6 +13,7 @@ export default Controller.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   session: service('session'),
+  router: service('router'),
   title: "Register",
   queryParams: ['code', 'v', 'google_signup'],
   registrationStep: 'role',
@@ -25,6 +26,7 @@ export default Controller.extend({
   googleSignupUserName: '',
   googleSignupRegistrationType: 'communicator',
   googleSignupTerms: false,
+  googleSignupMissingLinkTerms: false,
   googleSignupProductImprovementOptIn: false,
   showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
     return !!(this.get('google_signup') && this.get('googleSignupProfile'));
@@ -35,8 +37,9 @@ export default Controller.extend({
   googleSignupUserNameInvalid: computed('googleSignupUserName', function() {
     return !!(this.get('googleSignupUserName') || '').match(/[\s\.'"]/);
   }),
-  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', 'showCoppaConsent', 'age_attested', function() {
+  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupMissingLinkTerms', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', 'showCoppaConsent', 'age_attested', function() {
     if(this.get('googleSignupBusy')) { return true; }
+    if(this.get('googleSignupMissingLinkTerms')) { return true; }
     if(!this.get('googleSignupTerms')) { return true; }
     if(this.get('googleSignupUserNameMissing')) { return true; }
     if(this.get('googleSignupUserNameInvalid')) { return true; }
@@ -258,17 +261,22 @@ export default Controller.extend({
     if(!nonce) { return; }
     this.set('googleSignupBusy', true);
     this.set('googleSignupError', null);
+    this.set('googleSignupMissingLinkTerms', false);
     this.persistence.ajax('/auth/google/signup?nonce=' + encodeURIComponent(nonce), { type: 'GET' }).then(function(res) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('googleSignupProfile', res);
       _this.set('googleSignupBusy', false);
       _this.set('googleSignupRegistrationType', res.registration_type || 'communicator');
-      _this.set('googleSignupTerms', !!res.terms_agree);
+      var linkTermsAgreed = !!res.terms_agree;
+      _this.set('googleSignupMissingLinkTerms', !linkTermsAgreed);
+      _this.set('googleSignupTerms', linkTermsAgreed);
       // The age/terms attestation was made on the method-chooser step before
       // the OAuth redirect (which resets in-memory controller state). Carry it
       // forward from the round-tripped terms_agree so the Google modal doesn't
       // have to re-ask, and Create Account enables once a username is entered.
-      _this.set('age_attested', !!res.terms_agree);
+      // When the link omitted terms, the safety-net checkbox cannot satisfy the
+      // server — googleSignupMissingLinkTerms blocks submit and shows restart UI.
+      _this.set('age_attested', linkTermsAgreed);
       _this.set('googleSignupProductImprovementOptIn', !!res.product_improvement_opt_in);
       _this.set('googleSignupUserName', res.user_name || '');
       if(res.name && !_this.get('googleSignupUserName')) {
@@ -355,6 +363,18 @@ export default Controller.extend({
       this.set('triedToSave', false);
       this.set('registrationStep', 'email');
     },
+    restart_google_signup: function() {
+      this.set('googleSignupProfile', null);
+      this.set('googleSignupMissingLinkTerms', false);
+      this.set('googleSignupBusy', false);
+      this.set('googleSignupError', null);
+      this.set('googleSignupTerms', false);
+      this.set('googleSignupUserName', '');
+      this.set('age_attested', false);
+      this.set('googleSignupProductImprovementOptIn', false);
+      this.set('registrationStep', 'account');
+      this.router.transitionTo('register', { queryParams: { google_signup: null } });
+    },
     continue_with_google: function() {
       if(!this.get('googleRegisterAllowed') || !this.persistence.get('online')) { return; }
       var url = '/auth/google/start?flow=register&device_id=' + encodeURIComponent(capabilities.device_id());
@@ -400,7 +420,12 @@ export default Controller.extend({
       }, function(xhr) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('googleSignupBusy', false);
-        _this.set('googleSignupError', true);
+        var err = xhr && xhr.responseJSON && xhr.responseJSON.error;
+        if(err === 'terms_required') {
+          _this.set('googleSignupMissingLinkTerms', true);
+        } else {
+          _this.set('googleSignupError', true);
+        }
       });
     }
   }

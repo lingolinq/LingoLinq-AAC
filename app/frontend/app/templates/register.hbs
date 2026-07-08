@@ -25,6 +25,15 @@
           <hr class="la-about-hero-separator" aria-hidden="true">
         </div>
         <p class="google-link-context">{{t "Signed in to Google as %{email}" email=this.googleSignupProfile.email key="google_signed_in_as"}}</p>
+        {{#if this.googleSignupMissingLinkTerms}}
+          <p class="register-error">{{t "This Google sign-up session did not include agreement to the Terms of Service." key="google_signup_link_terms_missing"}}</p>
+          <p class="register-help-text">{{t "Go back to sign up, agree to the terms, then continue with Google again." key="google_signup_link_terms_missing_hint"}}</p>
+          <div class="register-btn-wrap">
+            <button type="button" class="register-btn" {{action "restart_google_signup"}}>
+              {{t "Restart Google sign up" key="google_signup_restart"}}
+            </button>
+          </div>
+        {{else}}
         <p>{{t "Choose the username you want for your LingoLinq account, then finish creating your account." key="google_signup_complete_body_username_required"}}</p>
         <div class="register-checkboxes">
           {{#unless this.googleSignupTerms}}
@@ -74,6 +83,7 @@
         </div>
         {{#if this.googleSignupError}}
           <p class="register-error">{{t "There was an unexpected error while registering" key="error_registering"}}</p>
+        {{/if}}
         {{/if}}
       {{else if this.google_signup}}
         <div class="la-section-header">

@@ -113,6 +113,17 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('googleSignupSubmitDisabled')).toEqual(true);
   });
 
+  it("blocks Google completion when the OAuth link omitted terms attestation", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('googleSignupBusy', false);
+    controller.set('googleSignupMissingLinkTerms', true);
+    controller.set('googleSignupTerms', true);
+    controller.set('googleSignupUserName', 'chosen-name');
+    controller.set('age_attested', true);
+
+    expect(controller.get('googleSignupSubmitDisabled')).toEqual(true);
+  });
+
   it("requires username on staged email signup steps", function() {
     var controller = testOwner.lookup('controller:register');
     controller.set('model', EmberObject.create({ preferences: {}, terms_agree: true, user_name: '' }));

@@ -2347,6 +2347,9 @@ class User < ApplicationRecord
     end
     return entry unless system_board
 
+    # Stored key already references this user's board — do not swap to a lineage copy.
+    return entry if system_board.user_id == user.id
+
     copy = if copies_by_parent_id
       copies_by_parent_id[system_board.id]
     else
