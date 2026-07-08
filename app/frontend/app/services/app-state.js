@@ -2815,37 +2815,41 @@ export default Service.extend({
               }
             }, function() { });
           }
-        }
-        this.set('eye_gaze', capabilities.eye_gaze);
-        this.set('embedded', !!(LingoLinq.embedded));
-        this.set('full_screen_capable', capabilities.fullscreen_capable());
-        // Eval boards (obf/eval*) require speak mode and enter it as part of the
-        // assessment's own flow, which has its own on-board intro. Suppress the
-        // generic speak-mode-intro / modeling-intro here so they don't interrupt
-        // an eval. speak_mode_intro_done stays unset, so a later normal (non-eval)
-        // speak-mode entry still shows the intro. (Same spirit as the tour guard
-        // below, where the guided tour IS the intro.)
-        if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro') && !this.get('eval_mode')) {
-          var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
-          // Stand down when a board-detail SPEAK tour is pending/handing off (home
-          // tour "start speaking" button, board picker, board-preview overlay): the
-          // guided tour IS the speak-mode intro, so the legacy modal would otherwise
-          // race it and render dimmed behind the tour card. The tour clears the flag
-          // once it opens, after which normal (no-tour) entry shows the modal again.
-          if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
-            if(modal.route && !modal.is_open('speak-mode-intro')) {
-              modal.open('speak-mode-intro');
-            }
-          } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
-            var now = (new Date()).getTime();
-            if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
-            if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
-              if(modal.route && !modal.is_open('modeling-intro')) {
-                modal.open('modeling-intro');
+          // Speak-mode / modeling intros belong with first speak-mode entry only.
+          // speak_mode_handlers also fires on board loads and referenced-user
+          // changes while already in speak mode — showing the intro here on every
+          // fire made board switches re-open the welcome modal.
+          // Eval boards (obf/eval*) require speak mode and enter it as part of the
+          // assessment's own flow, which has its own on-board intro. Suppress the
+          // generic speak-mode-intro / modeling-intro here so they don't interrupt
+          // an eval. speak_mode_intro_done stays unset, so a later normal (non-eval)
+          // speak-mode entry still shows the intro. (Same spirit as the tour guard
+          // below, where the guided tour IS the intro.)
+          if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro') && !this.get('eval_mode')) {
+            var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
+            // Stand down when a board-detail SPEAK tour is pending/handing off (home
+            // tour "start speaking" button, board picker, board-preview overlay): the
+            // guided tour IS the speak-mode intro, so the legacy modal would otherwise
+            // race it and render dimmed behind the tour card. The tour clears the flag
+            // once it opens, after which normal (no-tour) entry shows the modal again.
+            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
+              if(modal.route && !modal.is_open('speak-mode-intro')) {
+                modal.open('speak-mode-intro');
+              }
+            } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
+              var now = (new Date()).getTime();
+              if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
+              if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
+                if(modal.route && !modal.is_open('modeling-intro')) {
+                  modal.open('modeling-intro');
+                }
               }
             }
           }
         }
+        this.set('eye_gaze', capabilities.eye_gaze);
+        this.set('embedded', !!(LingoLinq.embedded));
+        this.set('full_screen_capable', capabilities.fullscreen_capable());
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
         var fullscreenPromise = capabilities.fullscreen(false);

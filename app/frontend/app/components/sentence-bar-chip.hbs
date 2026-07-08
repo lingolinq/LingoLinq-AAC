@@ -17,18 +17,18 @@
   data-chip-index={{this.index}}
   aria-pressed={{if this.editingEnabled (if this.swapSource "true" "false")}}
   aria-label={{if this.editingEnabled this.part.label}}
-  {{on "click" (action "tap")}}
-  {{on "pointerdown" (action "holdStart")}}
-  {{on "pointerup" (action "holdEnd")}}
-  {{on "pointermove" (action "holdMove")}}
-  {{on "pointercancel" (action "holdEnd")}}
-  {{on "pointerleave" (action "holdEnd")}}
-  {{on "keydown" (action "keydown")}}
-  {{on "dragstart" (action "dragStart")}}
-  {{on "dragover" (action "dragOver")}}
-  {{on "dragleave" (action "dragLeave")}}
-  {{on "drop" (action "drop")}}
-  {{on "dragend" (action "dragEnd")}}
+  {{on "click" (this.chipAction "tap")}}
+  {{on "pointerdown" (this.chipAction "holdStart")}}
+  {{on "pointerup" (this.chipAction "holdEnd")}}
+  {{on "pointermove" (this.chipAction "holdMove")}}
+  {{on "pointercancel" (this.chipAction "holdEnd")}}
+  {{on "pointerleave" (this.chipAction "holdEnd")}}
+  {{on "keydown" (this.chipAction "keydown")}}
+  {{on "dragstart" (this.chipAction "dragStart")}}
+  {{on "dragover" (this.chipAction "dragOver")}}
+  {{on "dragleave" (this.chipAction "dragLeave")}}
+  {{on "drop" (this.chipAction "drop")}}
+  {{on "dragend" (this.chipAction "dragEnd")}}
 >
   {{#if this.textOnTop}}
     <span class="md-board-detail-sentence-bar__chip-label">{{this.part.label}}</span>

@@ -111,13 +111,13 @@
             <button type="button"
               class="md-board-edit-view-style__opt {{unless this.is_modern 'md-board-edit-view-style__opt--active'}}"
               aria-pressed={{if this.is_modern "false" "true"}}
-              {{action "set_view_style" "classic"}}>
+              {{on "click" (this.ctrlAction "set_view_style" "classic")}}>
               {{t "Classic" key="board_view_classic_short"}}
             </button>
             <button type="button"
               class="md-board-edit-view-style__opt {{if this.is_modern 'md-board-edit-view-style__opt--active'}}"
               aria-pressed={{if this.is_modern "true" "false"}}
-              {{action "set_view_style" "modern"}}>
+              {{on "click" (this.ctrlAction "set_view_style" "modern")}}>
               {{t "Modern" key="board_view_modern_short"}}
             </button>
           </div>

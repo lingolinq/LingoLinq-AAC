@@ -58,7 +58,7 @@
                under the home pill (see .speak-header__home-col) — kept OUT of
                .speak-header__home-marker so it isn't grouped with the home icon.
                Hidden on board-alt and the welcome intro via show_eval_pause. --}}
-          <button class="btn access speak-header__eval-pause" id="eval_pause_button" {{action "toggleEvalPause"}} aria-label={{if this.app_state.eval_paused (t "Resume evaluation" key="resume_eval") (t "Pause evaluation" key="pause_eval")}} title={{if this.app_state.eval_paused (t "Resume evaluation" key="resume_eval") (t "Pause evaluation" key="pause_eval")}}>
+          <button class="btn access speak-header__eval-pause" id="eval_pause_button" {{on "click" (this.ctrlAction "toggleEvalPause")}} aria-label={{if this.app_state.eval_paused (t "Resume evaluation" key="resume_eval") (t "Pause evaluation" key="pause_eval")}} title={{if this.app_state.eval_paused (t "Resume evaluation" key="resume_eval") (t "Pause evaluation" key="pause_eval")}}>
             <span class="sr-only">{{if this.app_state.eval_paused (t "Resume" key="resume") (t "Pause" key="pause")}}</span>
             {{#if this.app_state.eval_paused}}
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true" style="pointer-events: none; display: block;">
@@ -1496,7 +1496,7 @@
       {{#if this.app_state.eval_paused_elapsed}}
         <p class="eval-pause-overlay__elapsed">{{t "Time elapsed" key="eval_time_elapsed"}}: <strong>{{this.app_state.eval_paused_elapsed}}</strong></p>
       {{/if}}
-      <button class="btn btn-primary eval-pause-overlay__resume" {{action "toggleEvalPause"}}>
+      <button class="btn btn-primary eval-pause-overlay__resume" {{on "click" (this.ctrlAction "toggleEvalPause")}}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true" style="pointer-events: none; vertical-align: middle; margin-right: 6px;">
           <path d="M8 5v14l11-7z"/>
         </svg>

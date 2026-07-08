@@ -32,22 +32,40 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
   },
 
+  _markIntroDone() {
+    const user = this.get('appState').get('currentUser');
+    if (!user) { return; }
+    const progress = user.get('preferences.progress') || {};
+    if (progress.speak_mode_intro_done) {
+      this.get('appState').set('speak-mode-intro', true);
+      return;
+    }
+    progress.speak_mode_intro_done = (new Date()).getTime();
+    this.get('appState').set('speak-mode-intro', true);
+    user.set('preferences.progress', progress);
+    user.save().then(null, function() {});
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    // Mark seen as soon as the modal mounts — modal-dialog's opening callback
+    // can run before these handlers are bound (child didRender vs parent
+    // didInsertElement). Same pattern as modeling-intro.js.
+    this._markIntroDone();
+  },
 
   actions: {
     close() {
+      this._markIntroDone();
       this.get('modal').close();
     },
     opening() {
-      const user = this.get('appState').get('currentUser');
-      if (user) {
-        const progress = user.get('preferences.progress') || {};
-        progress.speak_mode_intro_done = (new Date()).getTime();
-        this.get('appState').set('speak-mode-intro', true);
-        user.set('preferences.progress', progress);
-        user.save().then(null, function() {});
-      }
+      this._markIntroDone();
     },
     closing() {
       const user = this.get('appState').get('currentUser');
@@ -60,13 +78,5 @@ export default Component.extend({
       }
     }
   },
-
-  didInsertElement() {
-  this._super(...arguments);
-  var self = this;
-    this.onClose = function() { self.send('close'); };
-    this.onOpening = function() { self.send('opening'); };
-    this.onClosing = function() { self.send('closing'); };
-},
 
 });

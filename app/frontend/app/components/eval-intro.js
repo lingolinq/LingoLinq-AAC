@@ -11,6 +11,22 @@ export default Component.extend({
   classNames: ['md-eval-intro'],
   // `text` is passed in (the current intro step's prompt, from
   // obf.eval.current_intro().text).
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      return function() {
+        var args = Array.prototype.slice.call(arguments);
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+  },
+
   actions: {
     start: function() {
       if(obf.eval && obf.eval.intro_header_start) {

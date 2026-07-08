@@ -7,10 +7,10 @@
   </div>
   <div class="beta-mode-toggle {{if this.showShort 'beta-mode-toggle--short'}}" role="group" aria-label={{t "Preview layout" key="beta_mode_toggle_aria"}}>
     <span class="beta-mode-toggle__slider" aria-hidden="true"></span>
-    <button type="button" class="beta-mode-toggle__option {{if this.showShort '' 'beta-mode-toggle__option--active'}}" aria-pressed={{if this.showShort "false" "true"}} {{action "set_beta_mode" false}}>
+    <button type="button" class="beta-mode-toggle__option {{if this.showShort '' 'beta-mode-toggle__option--active'}}" aria-pressed={{if this.showShort "false" "true"}} {{on "click" (this.ctrlAction "set_beta_mode" false)}}>
       {{t "Original" key="beta_mode_original"}}
     </button>
-    <button type="button" class="beta-mode-toggle__option {{if this.showShort 'beta-mode-toggle__option--active' ''}}" aria-pressed={{if this.showShort "true" "false"}} {{action "set_beta_mode" true}}>
+    <button type="button" class="beta-mode-toggle__option {{if this.showShort 'beta-mode-toggle__option--active' ''}}" aria-pressed={{if this.showShort "true" "false"}} {{on "click" (this.ctrlAction "set_beta_mode" true)}}>
       {{t "Short" key="beta_mode_short"}}
     </button>
   </div>
@@ -46,7 +46,7 @@
         </div>
 
         <div class="register-btn-wrap beta-welcome-actions">
-          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{action "acceptAgreement"}}>
+          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{on "click" (this.ctrlAction "acceptAgreement")}}>
             {{t "Get Started" key="get_started"}}
           </button>
         </div>

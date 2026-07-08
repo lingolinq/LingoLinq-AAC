@@ -39,6 +39,21 @@ const PRESS_FEEDBACK_DELAY = 300;
 export default Component.extend({
   tagName: '',
 
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.chipAction = function(actionName) {
+      return function() {
+        var args = Array.prototype.slice.call(arguments);
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+  },
+
   // Per-chip flags derived from position. `total === 1` ⇒ both arrows hidden.
   show_move_left: computed('index', 'editingEnabled', function() {
     return !!this.get('editingEnabled') && this.get('index') > 0;

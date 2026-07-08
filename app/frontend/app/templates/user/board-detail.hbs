@@ -692,13 +692,13 @@
                   @swapActive={{this.chip_swap_active}}
                   @textOnTop={{this.utterance_text_on_top}}
                   @showSymbols={{this.utterance_show_symbols}}
-                  @onSelect={{action "select_chip"}}
-                  @onRemove={{action "remove_chip"}}
-                  @onMove={{action "move_chip"}}
-                  @onToggleSwap={{action "toggle_chip_swap"}}
-                  @onSwapTarget={{action "chip_swap_target"}}
-                  @onDragMove={{action "chip_drag_move"}}
-                  @onCancel={{action "cancel_chip_edit"}} />
+                  @onSelect={{this.ctrlAction "select_chip"}}
+                  @onRemove={{this.ctrlAction "remove_chip"}}
+                  @onMove={{this.ctrlAction "move_chip"}}
+                  @onToggleSwap={{this.ctrlAction "toggle_chip_swap"}}
+                  @onSwapTarget={{this.ctrlAction "chip_swap_target"}}
+                  @onDragMove={{this.ctrlAction "chip_drag_move"}}
+                  @onCancel={{this.ctrlAction "cancel_chip_edit"}} />
               {{/each}}
             {{else}}
               {{this.sentence_text}}
@@ -745,7 +745,7 @@
               {{#if this.selected_chip_can_move_left}}
                 <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn"
                   aria-label={{t "Move left (%{word})" key='sentence_bar_move_left' word=this.selected_chip_word}}
-                  {{on "click" (action "move_chip" this.selected_chip_index -1)}}>
+                  {{on "click" (this.ctrlAction "move_chip" this.selected_chip_index -1)}}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
                   <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Move left" key='sentence_bar_action_move_left'}}</span>
                 </button>
@@ -753,20 +753,20 @@
               <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn md-board-detail-sentence-bar__chip-menu-btn--switch {{if this.selected_chip_swapping 'is-active'}}"
                 aria-pressed={{if this.selected_chip_swapping "true" "false"}}
                 aria-label={{t "Switch or replace (%{word})" key='sentence_bar_switch' word=this.selected_chip_word}}
-                {{on "click" (action "toggle_chip_swap" this.selected_chip_index)}}>
+                {{on "click" (this.ctrlAction "toggle_chip_swap" this.selected_chip_index)}}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                 <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Switch" key='sentence_bar_action_switch'}}</span>
               </button>
               <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn md-board-detail-sentence-bar__chip-menu-btn--remove"
                 aria-label={{t "Remove (%{word})" key='sentence_bar_remove' word=this.selected_chip_word}}
-                {{on "click" (action "remove_chip" this.selected_chip_index)}}>
+                {{on "click" (this.ctrlAction "remove_chip" this.selected_chip_index)}}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Remove" key='sentence_bar_action_remove'}}</span>
               </button>
               {{#if this.selected_chip_can_move_right}}
                 <button type="button" class="md-board-detail-sentence-bar__chip-menu-btn"
                   aria-label={{t "Move right (%{word})" key='sentence_bar_move_right' word=this.selected_chip_word}}
-                  {{on "click" (action "move_chip" this.selected_chip_index 1)}}>
+                  {{on "click" (this.ctrlAction "move_chip" this.selected_chip_index 1)}}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                   <span class="md-board-detail-sentence-bar__chip-menu-btn-label">{{t "Move right" key='sentence_bar_action_move_right'}}</span>
                 </button>

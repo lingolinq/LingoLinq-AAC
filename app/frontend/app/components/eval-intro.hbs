@@ -40,7 +40,7 @@
   {{/if}}
 
   <div class="md-eval-intro__actions">
-    <button type="button" class="md-eval-intro__settings" {{action "settings"}} aria-label={{t "Eval Settings" key="eval_settings"}}>
+    <button type="button" class="md-eval-intro__settings" {{on "click" (this.ctrlAction "settings")}} aria-label={{t "Eval Settings" key="eval_settings"}}>
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -48,7 +48,7 @@
       <span>{{t "Eval Settings" key="eval_settings"}}</span>
     </button>
 
-    <button type="button" class="md-eval-intro__cta" {{action "start"}} aria-label={{t "Start Evaluation" key="eval_intro_start_cta"}}>
+    <button type="button" class="md-eval-intro__cta" {{on "click" (this.ctrlAction "start")}} aria-label={{t "Start Evaluation" key="eval_intro_start_cta"}}>
       <span>{{t "Start Evaluation" key="eval_intro_start_cta"}}</span>
       <svg class="md-eval-intro__cta-arrow" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true" focusable="false">
         <path d="M5 12h13M12.5 5.5L19 12l-6.5 6.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -62,7 +62,7 @@
         screen (which only explains + starts the evaluation). --}}
   {{#unless this.isWelcome}}
   <div class="md-eval-intro__nav">
-    <button type="button" class="md-eval-intro__nav-btn" {{action "back"}} aria-label={{t "Previous Section" key="previous_section"}}>
+    <button type="button" class="md-eval-intro__nav-btn" {{on "click" (this.ctrlAction "back")}} aria-label={{t "Previous Section" key="previous_section"}}>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true" focusable="false">
         <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
@@ -70,12 +70,12 @@
     </button>
 
     {{#if this.showSkip}}
-      <button type="button" class="md-eval-intro__nav-btn md-eval-intro__nav-btn--skip" {{action "skip"}} aria-label={{t "Skip Section" key="skip_section"}}>
+      <button type="button" class="md-eval-intro__nav-btn md-eval-intro__nav-btn--skip" {{on "click" (this.ctrlAction "skip")}} aria-label={{t "Skip Section" key="skip_section"}}>
         <span>{{t "Skip" key="skip"}}</span>
       </button>
     {{/if}}
 
-    <button type="button" class="md-eval-intro__nav-btn" {{action "next"}} aria-label={{t "Next Section" key="next_section"}}>
+    <button type="button" class="md-eval-intro__nav-btn" {{on "click" (this.ctrlAction "next")}} aria-label={{t "Next Section" key="next_section"}}>
       <span>{{t "Next" key="next"}}</span>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true" focusable="false">
         <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
