@@ -2270,7 +2270,33 @@ class User < ApplicationRecord
   end
 
   def self.resolve_sidebar_boards_for(user, boards)
-    resolved = (boards || []).map { |entry| resolve_sidebar_entry(user, entry) }
+    entries = boards || []
+    system_keys = []
+    entries.each do |entry|
+      next unless entry.is_a?(Hash)
+      next if entry['alert'] || (entry['special'] && entry['alert'])
+      key = entry['key']
+      next unless key
+      next if sidebar_system_keys.include?(key)
+      system_keys << key
+    end
+
+    system_boards_by_key = {}
+    if system_keys.any?
+      Board.find_all_by_path(system_keys.uniq).each do |board|
+        system_boards_by_key[board.key] = board
+      end
+    end
+
+    copies_by_parent_id = {}
+    parent_ids = system_boards_by_key.values.map(&:id).compact
+    if parent_ids.any?
+      user.boards.where(parent_board_id: parent_ids).order('parent_board_id ASC, id DESC').each do |copy|
+        copies_by_parent_id[copy.parent_board_id] ||= copy
+      end
+    end
+
+    resolved = entries.map { |entry| resolve_sidebar_entry(user, entry, system_boards_by_key, copies_by_parent_id) }
     dedupe_resolved_sidebar_boards(resolved)
   end
 
@@ -2306,7 +2332,7 @@ class User < ApplicationRecord
   # Default sidebar entries reference public system boards. Resolve to the user's
   # owned copy when one exists (parent_board lineage), except keyboard which stays
   # on the shared system board.
-  def self.resolve_sidebar_entry(user, entry)
+  def self.resolve_sidebar_entry(user, entry, system_boards_by_key = nil, copies_by_parent_id = nil)
     return entry unless entry.is_a?(Hash)
     return entry if entry['alert'] || (entry['special'] && entry['alert'])
 
@@ -2314,10 +2340,18 @@ class User < ApplicationRecord
     return entry unless key
     return entry if sidebar_system_keys.include?(key)
 
-    system_board = Board.find_by_path(key)
+    system_board = if system_boards_by_key
+      system_boards_by_key[key]
+    else
+      Board.find_by_path(key)
+    end
     return entry unless system_board
 
-    copy = user.boards.where(parent_board_id: system_board.id).order('id DESC').first
+    copy = if copies_by_parent_id
+      copies_by_parent_id[system_board.id]
+    else
+      user.boards.where(parent_board_id: system_board.id).order('id DESC').first
+    end
     return entry unless copy
 
     resolved = entry.merge(

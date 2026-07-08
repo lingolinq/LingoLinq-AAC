@@ -26,11 +26,11 @@
         </div>
         <p class="google-link-context">{{t "Signed in to Google as %{email}" email=this.googleSignupProfile.email key="google_signed_in_as"}}</p>
         <p>{{t "Choose the username you want for your LingoLinq account, then finish creating your account." key="google_signup_complete_body_username_required"}}</p>
-        {{#unless this.googleSignupTerms}}
-          {{! Safety net: the age/terms attestation is normally carried forward
-              from the method-chooser step. If it didn't (e.g. an expired or
-              direct session), show it here so the user isn't stuck. }}
-          <div class="register-checkboxes">
+        <div class="register-checkboxes">
+          {{#unless this.googleSignupTerms}}
+            {{! Safety net: the age/terms attestation is normally carried forward
+                from the method-chooser step. If it didn't (e.g. an expired or
+                direct session), show it here so the user isn't stuck. }}
             {{#if this.showCoppaConsent}}
               <div class="checkbox big_checkbox">
                 <Input @type="checkbox" @checked={{this.googleSignupTerms}} id="register_google_terms_consent" aria-labelledby="register_google_terms_consent_text" />
@@ -46,9 +46,7 @@
                 </span>
               </div>
             {{/if}}
-          </div>
-        {{/unless}}
-        <div class="register-checkboxes">
+          {{/unless}}
           <div class="checkbox big_checkbox">
             <label>
               <Input @type="checkbox" @checked={{this.googleSignupProductImprovementOptIn}} />

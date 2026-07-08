@@ -997,12 +997,6 @@ export default Controller.extend({
             _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
           }
           _this.appState.return_to_index();
-        },
-        onError: function() {
-          _this.set('assigning_home_board', false);
-        },
-        onNotFound: function() {
-          _this.set('assigning_home_board', false);
         }
       }).catch(function() {
         _this.set('assigning_home_board', false);

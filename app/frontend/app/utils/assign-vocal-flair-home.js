@@ -34,6 +34,19 @@ function saveHomeBoard(user, board, locale) {
   return user.save();
 }
 
+function copyBoardAndSaveHome(board, user, lib, locale, onSuccess, onError) {
+  return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
+    return saveHomeBoard(user, copiedBoard, locale).then(function() {
+      if (onSuccess) { onSuccess(copiedBoard); }
+      return copiedBoard;
+    });
+  }, function(err) {
+    var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
+    onError(msg);
+    return RSVP.reject(err);
+  });
+}
+
 /* Find the public Vocal Flair 84 catalog board and set the user's owned copy
    (reusing the signup sync copy when present) as home board. */
 export function assignVocalFlair84AsHome(user, options) {
@@ -68,27 +81,9 @@ export function assignVocalFlair84AsHome(user, options) {
           return existing;
         });
       }
-      return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-        return saveHomeBoard(user, copiedBoard, locale).then(function() {
-          if (onSuccess) { onSuccess(copiedBoard); }
-          return copiedBoard;
-        });
-      }, function(err) {
-        var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-        onError(msg);
-        return RSVP.reject(err);
-      });
+      return copyBoardAndSaveHome(board, user, lib, locale, onSuccess, onError);
     }, function() {
-      return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-        return saveHomeBoard(user, copiedBoard, locale).then(function() {
-          if (onSuccess) { onSuccess(copiedBoard); }
-          return copiedBoard;
-        });
-      }, function(err) {
-        var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-        onError(msg);
-        return RSVP.reject(err);
-      });
+      return copyBoardAndSaveHome(board, user, lib, locale, onSuccess, onError);
     });
   }, function() {
     onNotFound();

@@ -64,12 +64,6 @@ export default Component.extend({
           }
           modal.close();
           _this.get('appState').return_to_index();
-        },
-        onError: function() {
-          _this.set('assigning_home_board', false);
-        },
-        onNotFound: function() {
-          _this.set('assigning_home_board', false);
         }
       }).catch(function() {
         _this.set('assigning_home_board', false);

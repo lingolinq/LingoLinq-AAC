@@ -8,7 +8,6 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
 
 describe('RegisterController', 'controller:register', function() {
