@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import { later, cancel } from '@ember/runloop';
 import auto_score from '../utils/eval_auto_score';
 import eval_symbols from '../utils/eval_symbols';
@@ -101,7 +102,7 @@ export default Component.extend({
 
   // ── computed dispatch ──────────────────────────────────────────
 
-  kind: computed.alias('item.kind'),
+  kind: alias('item.kind'),
 
   kindClass: computed('kind', function() {
     const k = this.get('kind');

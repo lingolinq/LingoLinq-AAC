@@ -225,6 +225,12 @@ export default Controller.extend({
   },
 
   actions: {
+    // Open the static "Managing Your Caseload" guide modal (info button next to
+    // the "People you support" subheader) — maps the row quick-action icons and
+    // explains what opening a communicator's card lets you do.
+    showCaseloadGuide: function() {
+      modal.open('modals/caseload-guide');
+    },
     // Toggle the selected supervisee. Clicking a row in the compact
     // student list opens that supervisee's full card below; clicking
     // the same row again (or another row) collapses or switches.

@@ -7,6 +7,7 @@ export default Route.extend({
   router: service('router'),
   store: service('store'),
   persistence: service('persistence'),
+  appState: service('app-state'),
   model: function(params) {
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque, 'cache' for the cache iframe) would
@@ -28,16 +29,35 @@ export default Route.extend({
     // Use queryRecord with 'path' to allow the adapter to construct the correct URL
     // while checking for a single record response, avoiding ID mismatch warnings
     // when 'example' redirects to '1_1'
-    var obj = this.store.queryRecord('user', { path: params.user_id });
     var _this = this;
-    return obj.then(function(data) {
-      if(!data.get('really_fresh') && _this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online')) {
-        runLater(function() {data.reload();});
-      }
-      return data;
-    }).then(function(data) {
-      data.set('subroute_name', '');
-      return data;
+    var online = function() {
+      return !!(_this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online'));
+    };
+    var bg_reload = function(data) {
+      if(online()) { runLater(function() { var p = data.reload(); if(p && p.catch) { p.catch(function() { }); } }); }
+    };
+    var finish = function(data) { data.set('subroute_name', ''); return data; };
+
+    // Cache-first for the CURRENT user's own pages. The `user` route is the parent of
+    // ~20 child routes (home/boards/reports/extras AND edit/preferences/subscription/
+    // goals/logs/history/…). When navigating to one of your OWN pages, resolve the
+    // transition INSTANTLY from the already-loaded currentUser instead of blocking on
+    // queryRecord's network round-trip (which visibly stalls navigation, esp. on a
+    // slow API), then ALWAYS background-refresh the record so children that don't
+    // reload in setupController still self-heal — the instant nav comes from returning
+    // the cached record, not from skipping the fetch. Everyone else (supervisees not
+    // in the store, other users, the 'example' → self redirect) still uses queryRecord.
+    var current = this.appState && this.appState.get('currentUser');
+    if(current && (current.get('user_name') === params.user_id || current.get('id') === params.user_id)) {
+      bg_reload(current);
+      return finish(current);
+    }
+
+    return this.store.queryRecord('user', { path: params.user_id }).then(function(data) {
+      // queryRecord just fetched fresh — only refresh if the record is somehow stale
+      // (preserves the prior behaviour for non-self users).
+      if(!data.get('really_fresh')) { bg_reload(data); }
+      return finish(data);
     });
   },
   actions: {

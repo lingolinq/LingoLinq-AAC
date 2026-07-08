@@ -31,6 +31,18 @@ LingoLinq.User = BaseModel.extend({
     if(this.get('preferences') && !this.get('preferences.stretch_buttons')) {
       this.set('preferences.stretch_buttons', 'none');
     }
+    // Default progress.setup_done = true for everyone. The legacy setup wizard is
+    // being retired in favor of the Shepherd page tours + the standalone
+    // board-picker. setup_done will be re-wired to tour-completion once all page
+    // tours exist, and removed entirely when the setup pages are deleted. Until
+    // then, defaulting it true keeps any remaining setup_done gate (e.g.
+    // routes/index.js) from treating users as "not set up".
+    // See docs/task-management/2026-07-02-setup-pages-deprecation-map.md.
+    if(this.get('preferences') && !this.get('preferences.progress.setup_done')) {
+      var progress = this.get('preferences.progress') || {};
+      this.set('preferences.progress', progress);
+      this.set('preferences.progress.setup_done', true);
+    }
   },
   user_name: attr('string'),
   user_token: attr('string'),

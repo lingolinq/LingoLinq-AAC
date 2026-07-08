@@ -1,19 +1,4 @@
 {{#if this.model.permissions.edit}}
-  <div class="md-org-context-actions">
-    <LinkTo @route="organizations" class="md-org-context-actions__link">{{t "All Organizations" key="all_organizations"}}</LinkTo>
-    {{#if this.model.parent_org}}
-      <span class="md-org-context-actions__divider" aria-hidden="true">/</span>
-      <span class="md-org-parent-badge">
-        {{t "Parent Organization: " key="parent_org_colon"}}
-        {{#if this.model.parent_org.permissions.view}}
-          <LinkTo @route="organization" @model={{this.model.parent_org.id}}>{{this.model.parent_org.name}}</LinkTo>
-        {{else}}
-          {{this.model.parent_org.name}}
-        {{/if}}
-      </span>
-    {{/if}}
-  </div>
-
   {{!-- Link to Caseload --}}
   {{#if this.app_state.currentUser.supporter_role}}
     <div class="md-org-supervisees-link">
@@ -75,44 +60,76 @@
   {{!-- ═══════════════ Dashboard Stats (visible to managing users) ═══════════════ --}}
   {{#if this.model.permissions.manage}}
     <section class="md-org-stats" aria-label={{t "Organization Statistics" key="org_statistics"}}>
-      <div class="md-org-stats__grid">
+      {{!-- ── ACTIVITY OVERVIEW (operational metrics, teal-headed cards) ── --}}
+      <div class="md-stats-section-head md-stats-section-head--first">
+        <h2 class="md-stats-section-head__label">{{t "Activity Overview" key="activity_overview"}}</h2>
+        <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+      </div>
+      <div class="md-org-stats__grid md-org-stats__grid--activity">
         <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Last logged session" key="last_logged_session"}}</div>
-          <div class="md-org-stat-card__value">
-            {{#if this.first_log}}{{date_ago this.first_log.started_at}}{{else}}{{t "..." key="ellipsis"}}{{/if}}
+          <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Last Session" key="last_session"}}</span></div>
+          <div class="md-org-stat-card__body">
+            <span class="md-org-stat-card__value">
+              {{#if this.last_session_stale}}<span class="md-org-stat-dot md-org-stat-dot--stale" title={{t "No recent activity" key="no_recent_activity"}}></span>{{/if}}
+              {{#if this.first_log}}{{date_ago this.first_log.started_at}}{{else}}{{t "..." key="ellipsis"}}{{/if}}
+            </span>
           </div>
         </div>
         <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Recent Sessions" key="recent_sessions"}}</div>
-          <div class="md-org-stat-card__value">{{t "session" key="n_sessions" count=this.user_counts.recent_session_count}}</div>
-        </div>
-        <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Recently-logged users" key="recently_logged_users"}}</div>
-          <div class="md-org-stat-card__value">
-            {{this.user_counts.recent_session_user_count}}{{#if this.model.total_users}} / {{this.model.total_users}}{{/if}} {{t "users" key="users_lower"}}
+          <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Recent Sessions" key="recent_sessions"}}</span></div>
+          <div class="md-org-stat-card__body">
+            <span class="md-org-stat-card__value">{{t "session" key="n_sessions" count=this.user_counts.recent_session_count}}</span>
           </div>
         </div>
         <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Recently-logged hours" key="recently_logged_hours"}}</div>
-          <div class="md-org-stat-card__value">
-            {{#if this.user_counts}}{{t "hour" key="n_hours" count=this.user_counts.recent_session_hours}}{{else}}{{t "..." key="ellipsis"}}{{/if}}
+          <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Active Users" key="org_active_users"}}</span></div>
+          <div class="md-org-stat-card__body">
+            <span class="md-org-stat-card__value">{{this.user_counts.recent_session_user_count}}{{#if this.model.total_users}} / {{this.model.total_users}}{{/if}} {{t "users" key="users_lower"}}</span>
           </div>
         </div>
-        {{#if this.model.site}}
-          <div class="md-org-stat-card">
-            <div class="md-org-stat-card__label">{{t "Cache Memory" key="cache_memory"}}</div>
-            <div class="md-org-stat-card__value"><span class={{this.redis_state}}>{{this.model.site.mem_redis}} / {{this.model.site.max_redis}}</span></div>
+        <div class="md-org-stat-card">
+          <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Hours Logged" key="hours_logged"}}</span></div>
+          <div class="md-org-stat-card__body">
+            <span class="md-org-stat-card__value">{{#if this.user_counts}}{{t "hour" key="n_hours" count=this.user_counts.recent_session_hours}}{{else}}{{t "..." key="ellipsis"}}{{/if}}</span>
           </div>
-          <div class="md-org-stat-card md-org-stat-card--wide">
-            <div class="md-org-stat-card__label">{{t "Background Queues" key="background_queues"}}</div>
-            <div class="md-org-stat-card__value">
-              <span class={{this.queue_state.default}}>{{delimit this.model.site.default_queue}} {{t "Default" key="default"}}</span>,
-              <span class={{this.queue_state.priority}}>{{delimit this.model.site.priority_queue}} {{t "Priority" key="priority"}}</span>,
-              <span class={{this.queue_state.slow}}>{{delimit this.model.site.slow_queue}} {{t "Slow" key="slow"}}</span>
+        </div>
+      </div>
+
+      {{!-- ── SYSTEM HEALTH (infra status, neutral gray-blue cards) — site admins ── --}}
+      {{#if this.model.site}}
+        <div class="md-stats-section-head">
+          <h2 class="md-stats-section-head__label">{{t "System Health" key="system_health"}}</h2>
+          <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+        </div>
+        <div class="md-org-stats__grid md-org-stats__grid--system">
+          <div class="md-org-stat-card md-org-stat-card--system">
+            <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Cache Memory" key="cache_memory"}}</span></div>
+            <div class="md-org-stat-card__body">
+              <span class="md-org-stat-card__value"><span class={{this.redis_state}}>{{this.model.site.mem_redis}} / {{this.model.site.max_redis}}</span></span>
             </div>
           </div>
-        {{/if}}
-      </div>
+          <div class="md-org-stat-card md-org-stat-card--system md-org-status-panel">
+            <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{t "Background Queues" key="background_queues"}}</span></div>
+            <div class="md-org-stat-card__body md-org-status-panel__body">
+              <div class="md-org-status-row">
+                <span class="md-org-status-dot md-org-status-dot--default {{this.queue_state.default}}" aria-hidden="true"></span>
+                <span class="md-org-status-row__label">{{t "Default" key="default"}}</span>
+                <span class="md-org-status-row__count">{{delimit this.model.site.default_queue}}</span>
+              </div>
+              <div class="md-org-status-row">
+                <span class="md-org-status-dot {{this.queue_state.priority}}" aria-hidden="true"></span>
+                <span class="md-org-status-row__label">{{t "Priority" key="priority"}}</span>
+                <span class="md-org-status-row__count">{{delimit this.model.site.priority_queue}}</span>
+              </div>
+              <div class="md-org-status-row">
+                <span class="md-org-status-dot {{this.queue_state.slow}}" aria-hidden="true"></span>
+                <span class="md-org-status-row__label">{{t "Slow" key="slow"}}</span>
+                <span class="md-org-status-row__count">{{delimit this.model.site.slow_queue}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      {{/if}}
 
       {{!-- Home board info --}}
       <div class="md-org-home-board">
@@ -143,8 +160,12 @@
         {{/if}}
       </div>
 
-      {{!-- Charts row --}}
-      <div class="md-org-charts">
+      {{!-- ── COMMUNICATION ACTIVITY (large weekly chart + recent-sessions ratio) ── --}}
+      <div class="md-stats-section-head">
+        <h2 class="md-stats-section-head__label">{{t "Communication Activity" key="communication_activity"}}</h2>
+        <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+      </div>
+      <div class="md-org-charts md-org-charts--comm">
         <div class="md-org-charts__item md-org-charts__item--wide">
           {{#if this.weekly_stats.error}}
             <p class="md-muted">{{t "There was a problem loading this report" key="problem_loading_report"}}</p>
@@ -153,13 +174,16 @@
           {{/if}}
         </div>
         <div class="md-org-charts__item">
-          {{stats/recent-sessions total=this.model.total_users recent=this.user_counts.recent_session_user_count}}
+          {{#if this.model.total_users}}
+            {{stats/recent-sessions total=this.model.total_users recent=this.user_counts.recent_session_user_count}}
+          {{else}}
+            <div class="md-org-chart-empty">
+              <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 13l3-3 3 3 5-5"/></svg>
+              <p class="md-org-chart-empty__title">{{t "No recent sessions" key="empty_recent_sessions"}}</p>
+              <p class="md-org-chart-empty__sub">{{t "Sessions will appear here once users begin communicating." key="empty_recent_sessions_sub"}}</p>
+            </div>
+          {{/if}}
         </div>
-        {{#if this.user_counts}}
-          <div class="md-org-charts__item">
-            {{stats/recent-goals total=this.model.total_users goal_set=this.user_counts.goal_set tracked=this.user_counts.goal_recently_logged}}
-          </div>
-        {{/if}}
       </div>
 
       {{!-- Word clouds row --}}
@@ -181,14 +205,48 @@
           {{/if}}
         </div>
       </div>
-      {{#if this.app_state.feature_flags.profiles}}
-        <div class="md-org-charts">
+      {{!-- ── GOALS & PROGRESS (goal tracking + profile completion) ── --}}
+      {{#if this.user_counts}}
+        <div class="md-stats-section-head">
+          <h2 class="md-stats-section-head__label">{{t "Goals & Progress" key="goals_and_progress"}}</h2>
+          <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+        </div>
+        <div class="md-org-charts md-org-charts--goals">
           <div class="md-org-charts__item">
-            {{stats/recent-profiles type="communicator" total=this.user_counts.communicators recent=this.user_counts.communicator_recent_profiles}}
+            {{#if this.model.total_users}}
+              {{stats/recent-goals total=this.model.total_users goal_set=this.user_counts.goal_set tracked=this.user_counts.goal_recently_logged}}
+            {{else}}
+              <div class="md-org-chart-empty">
+                <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/></svg>
+                <p class="md-org-chart-empty__title">{{t "No goals yet" key="empty_goals"}}</p>
+                <p class="md-org-chart-empty__sub">{{t "Goal progress will appear here once goals are set." key="empty_goals_sub"}}</p>
+              </div>
+            {{/if}}
           </div>
-          <div class="md-org-charts__item">
-            {{stats/recent-profiles type="supervisor" total=this.user_counts.supervisors recent=this.user_counts.supervisor_recent_profiles}}
-          </div>
+          {{#if this.app_state.feature_flags.profiles}}
+            <div class="md-org-charts__item">
+              {{#if this.user_counts.communicators}}
+                {{stats/recent-profiles type="communicator" total=this.user_counts.communicators recent=this.user_counts.communicator_recent_profiles}}
+              {{else}}
+                <div class="md-org-chart-empty">
+                  <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-2-2"/></svg>
+                  <p class="md-org-chart-empty__title">{{t "Communicator Profiles" key="communicator_profiles"}}</p>
+                  <p class="md-org-chart-empty__sub">{{t "Profiles will appear here once they're completed." key="empty_profiles_sub"}}</p>
+                </div>
+              {{/if}}
+            </div>
+            <div class="md-org-charts__item">
+              {{#if this.user_counts.supervisors}}
+                {{stats/recent-profiles type="supervisor" total=this.user_counts.supervisors recent=this.user_counts.supervisor_recent_profiles}}
+              {{else}}
+                <div class="md-org-chart-empty">
+                  <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <p class="md-org-chart-empty__title">{{t "Supervisor Profiles" key="supervisor_profiles"}}</p>
+                  <p class="md-org-chart-empty__sub">{{t "Profiles will appear here once they're completed." key="empty_profiles_sub"}}</p>
+                </div>
+              {{/if}}
+            </div>
+          {{/if}}
         </div>
       {{/if}}
     </section>
@@ -233,15 +291,29 @@
     {{/if}}
 
     <section class="md-org-section" aria-label={{t "Recent Activity" key="recent_activity"}}>
-      <h3 class="md-org-section-title" style="margin-top: 2rem;">{{t "Recent Sessions" key="recent_sessions"}}</h3>
+      <div class="md-stats-section-head md-stats-section-head--first">
+        <h2 class="md-stats-section-head__label">{{t "Recent Sessions" key="recent_sessions"}}</h2>
+        <span class="md-stats-section-head__rule" aria-hidden="true"></span>
+      </div>
       {{#if this.logs.data}}
         <div class="md-org-session-list">
           {{#each this.logs.data as |log|}}
             <div class="md-org-session-row">
-              <LinkTo @route="user" @model={{log.user.user_name}} class="md-org-session-row__user">{{log.user.user_name}}</LinkTo>
-              <span class="md-org-session-row__time" title={{date log.started_at}}>{{date_ago log.started_at}}</span>
-              <LinkTo @route="user.log" @models={{array log.user.user_name log.id}} class="md-org-session-row__count">{{t "button" count=log.button_count key="button_count"}}</LinkTo>
-              <span class="md-org-session-row__summary">{{log.summary}}</span>
+              <div class="md-org-session-row__top">
+                <span class="md-org-session-row__id">
+                  <span class="md-org-session-row__avatar" aria-hidden="true">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <LinkTo @route="user" @model={{log.user.user_name}} class="md-org-session-row__user">{{log.user.user_name}}</LinkTo>
+                </span>
+                <LinkTo @route="user.log" @models={{array log.user.user_name log.id}} class="md-org-session-row__view">{{t "View" key="view"}} <span class="md-org-session-row__view-arrow" aria-hidden="true">&rarr;</span></LinkTo>
+              </div>
+              <div class="md-org-session-row__meta">
+                <span class="md-org-session-row__time" title={{date log.started_at}}>{{date_ago log.started_at}}</span>
+                <span class="md-org-session-row__sep" aria-hidden="true">&bull;</span>
+                <span class="md-org-session-row__count">{{t "button" count=log.button_count key="button_count"}}</span>
+              </div>
+              <div class="md-org-session-row__summary">{{log.summary}}</div>
             </div>
           {{/each}}
         </div>

@@ -16,7 +16,7 @@
 // i18n_generator.rb's STATIC parser can extract it (see LEARNINGS.md on the
 // static-parser gotcha — bound/dynamic keys are invisible to it).
 import i18n from '../i18n';
-import { standardButtons, decoratedTitle, tourChecklist, visibleEl } from './shared';
+import { standardButtons, decoratedTitle, tourChecklist, visibleEl, liveTarget, waitForElement } from './shared';
 
 // i18n extraction no-op: the centered welcome/done steps build their heading via
 // decoratedTitle('key', "Default"), and i18n_generator.rb's static scanner only
@@ -145,7 +145,11 @@ function pushInteriorSteps(steps) {
     if (!el) { return; }
     var step = {
       id: cfg.id,
-      attachTo: { element: el, on: cfg.on },
+      // Resolve the target LIVE at show time + WAIT (bounded) for it before
+      // positioning, so a control that re-rendered or painted late is still
+      // spotlighted. visibleEl() above still gates/orders the step.
+      attachTo: { element: liveTarget(cfg.sel, el), on: cfg.on },
+      beforeShowPromise: waitForElement(cfg.sel),
       title: cfg.title,
       text: cfg.text,
       classes: 'md-tour__step' + (cfg.cls ? ' ' + cfg.cls : ''),

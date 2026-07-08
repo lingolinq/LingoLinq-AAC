@@ -1,7 +1,11 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") uncloseable="true"}}
   <div class="la-support-modal-wrap la-terms-agree-modal-wrap">
     <div class="la-modal-header">
-      <span class="la-modal-header-label">{{t "Complete %app_name% Registration" key="complete_registration"}}</span>
+      {{!-- Initial focus lands here (data-autofocus, per modal-dialog.js) so the
+           dialog title is announced first and focus does NOT start on the Terms
+           link buried in the body; Tab then moves to the Terms link, then Agree.
+           role=heading/aria-level keep it a span (avoids the global h2 sizing). --}}
+      <span class="la-modal-header-label" id="terms-agree-title" role="heading" aria-level="2" tabindex="-1" data-autofocus>{{t "Complete %app_name% Registration" key="complete_registration"}}</span>
     </div>
     <div class="la-support-modal-body">
       <div class="la-terms-agree-message">

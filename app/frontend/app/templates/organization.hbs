@@ -1,6 +1,11 @@
 <div class="md-shell md-shell--org">
   <div class="md-workspace">
     <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+      {{!-- Back to the org list — same "< Home" pattern used on the org directory page. --}}
+      <LinkTo @route="organizations" class="md-pillnav__pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
+        {{t "My Organizations" key="my_organizations"}}
+      </LinkTo>
       <LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav__pill">{{t "Dashboard" key="dashboard"}}</LinkTo>
       {{!-- Management tabs are manager/assistant-only (every backing endpoint
            requires 'edit'). Supervisors have view-only org access, so these
@@ -30,30 +35,28 @@
           {{t "Organization" key="organization"}}
         {{/if}}
       </span></h1>
-      <div class="md-org-meta">
-        <span class="md-org-meta__chip">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="md-hero__divider" aria-hidden="true"></span>
+      <p class="md-hero__sub md-hero__sub--meta"><span class="md-hero__sub--from-right">
+        <span class="md-hero-meta__item">
+          <svg class="md-hero-meta__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           {{t "user" key="user_count" count=this.model.total_users}}
         </span>
         {{#if this.model.total_supervisors}}
-          <span class="md-org-meta__chip">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="md-hero-meta__item">
+            <svg class="md-hero-meta__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             {{t "supervisor" key="supervisor_count" count=this.model.total_supervisors}}
           </span>
         {{/if}}
-        <span class="md-org-meta__chip">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span class="md-hero-meta__item">
+          <svg class="md-hero-meta__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           {{t "manager" key="manager_count" count=this.model.total_managers}}
         </span>
         {{#if this.model.created}}
-          <span class="md-org-meta__chip md-org-meta__chip--muted" title={{date this.model.created}}>
-            {{t "created" key="created_lower"}} {{date_ago this.model.created}}
+          <span class="md-hero-meta__item" title={{date this.model.created}}>
+            {{t "created" key="created_lower"}} <span class="md-hero-meta__nocap">{{date_ago this.model.created}}</span>
           </span>
         {{/if}}
-      </div>
-      <div class="md-org-hero-actions">
-        <LinkTo @route="organizations" class="md-org-hero-actions__link">{{t "Switch organization" key="switch_organization"}}</LinkTo>
-      </div>
+      </span></p>
     </header>
 
     <main class="md-main md-main--org">

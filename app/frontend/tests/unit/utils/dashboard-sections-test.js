@@ -17,18 +17,22 @@ function visFor(on) {
 
 module('Unit | Utility | dashboard sections layout engine', function() {
   test('default communicator order packs to the expected layout', function(assert) {
-    // No caseload/org → DEFAULT_ORDER filters to account, extras, boards,
-    // createboard, speak, reports, editdashboard.
+    // No caseload/org → DEFAULT_ORDER filters to speak, boards, account,
+    // createboard, reports, editdashboard, extras. Speak + Extras are full-width
+    // showcase rows for communicators (md-grid--fullspan-*).
     var vis = visFor(['account', 'extras', 'boards', 'createboard', 'speak', 'reports', 'editdashboard']);
     var state = gridLayoutState(vis, null, 'gentle');
     assert.deepEqual(state.areas, [
-      'account speak',
+      'speak speak',
       'boards boards',
-      'createboard extras',
+      'account createboard',
       'reports editdashboard',
+      'extras extras',
       '. sup'
     ], 'default communicator areas');
-    assert.equal(state.rows, 'auto auto auto auto 0', 'rows');
+    assert.equal(state.rows, 'auto auto auto auto auto 0', 'rows');
+    assert.ok(state.classes.indexOf('md-grid--fullspan-speak') !== -1, 'speak full-width styling');
+    assert.ok(state.classes.indexOf('md-grid--fullspan-extras') !== -1, 'extras full-width styling');
   });
 
   test('Boards always renders full-width and flags md-grid--boards-full', function(assert) {
@@ -44,11 +48,13 @@ module('Unit | Utility | dashboard sections layout engine', function() {
   });
 
   test('order controls placement; hidden cards are skipped', function(assert) {
-    var vis = visFor(['account', 'extras', 'reports']);
-    var a = gridLayoutState(vis, ['account', 'extras', 'reports'], 'gentle');
-    assert.deepEqual(a.areas, ['account extras', 'reports reports', '. sup'], 'account|extras then reports');
-    var b = gridLayoutState(vis, ['reports', 'account', 'extras'], 'gentle');
-    assert.deepEqual(b.areas, ['reports account', 'extras extras', '. sup'], 'reordered');
+    // Uses the small paired cards (account / createboard / reports) — Extras is a
+    // full-width showcase now, so it no longer pairs.
+    var vis = visFor(['account', 'createboard', 'reports']);
+    var a = gridLayoutState(vis, ['account', 'createboard', 'reports'], 'gentle');
+    assert.deepEqual(a.areas, ['account createboard', 'reports reports', '. sup'], 'account|createboard then reports');
+    var b = gridLayoutState(vis, ['reports', 'account', 'createboard'], 'gentle');
+    assert.deepEqual(b.areas, ['reports account', 'createboard createboard', '. sup'], 'reordered');
   });
 
   test('reorderInsert moves a card before/after a target in the full order', function(assert) {

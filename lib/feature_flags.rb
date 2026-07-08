@@ -40,14 +40,14 @@ module FeatureFlags
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
               'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
-              'customize_menu', # TEMPORARY: ON for everyone during testing — remove from this list when moving to beta-opt-in (see comment above AVAILABLE_FRONTEND_FEATURES)
+              'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
-              'portrait_orientation_overlay', # TEMPORARY (2026-05-29): ON for everyone so Traci can view the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
+              'portrait_orientation_overlay', # TEMPORARY (2026-05-29): forced ON for everyone to validate the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'background_board_prefetch',
               'signup_default_library_boards', 'english_first_board_generation',
-              'dashboard_drag_layout', # TEMPORARY (2026-06-09): ON for everyone pre-production so the Getting Started drag-to-swap home layout can be validated. REMOVE from this list before production — canonical state is AVAILABLE-only (beta opt-in per user).
-              'edit_sidebar', # TEMPORARY (2026-06-25): ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
-              'sentence_bar_editing'] # TEMPORARY (2026-06-27): ON for everyone so the speak-bar active-edit controls (remove + reorder chips) can be validated in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
+              'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'sentence_bar_editing'] # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

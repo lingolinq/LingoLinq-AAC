@@ -72,9 +72,13 @@ export default Route.extend({
       // Other gates kept: `_index_login_entry` so in-app returns to
       // index (e.g. Exit Speak Mode) don't bounce back into speak,
       // and supporter_view / eval_ended which need the dashboard.
+      // Also skip auto-speak for non-communicator accounts that manage an org
+      // (`has_management_responsibility`) — a manager/admin whose role isn't
+      // explicitly 'supporter' would otherwise slip past `supporter_view` and get
+      // dropped into speak mode on login/refresh instead of their dashboard.
       // Users without a home_board_key still fall through to the
       // dashboard below — there's no board to send them to yet.
-      if (this.appState.get('_index_login_entry') && home_board_key && !model.get('supporter_view') && !model.get('eval_ended')) {
+      if (this.appState.get('_index_login_entry') && home_board_key && !model.get('supporter_view') && !model.get('has_management_responsibility') && !model.get('eval_ended')) {
         this.appState.home_in_speak_mode({user: model});
         this.appState.set('already_homed', true);
         return;
@@ -131,7 +135,7 @@ export default Route.extend({
     } else {
       if(_this.stashes.get('current_mode') == 'edit') {
         _this.stashes.persist('current_mode', 'default');
-      } else if(jump_to_speak && model && model.get('id') && !model.get('supporter_view') && !_this.appState.get('already_homed') && model.get('preferences.home_board.key')) {
+      } else if(jump_to_speak && model && model.get('id') && !model.get('supporter_view') && !model.get('has_management_responsibility') && !_this.appState.get('already_homed') && model.get('preferences.home_board.key')) {
         var homey = function() {
           _this.appState.home_in_speak_mode({user: model});
           _this.appState.set('already_homed', true);

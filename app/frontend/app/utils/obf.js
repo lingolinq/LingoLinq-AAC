@@ -66,6 +66,7 @@ var obf = EmberObject.extend({
     board.set('background', {
       image: bg['image'] || bg['image_url'],
       image_exclusion: bg['ext_lingolinq_image_exclusion'],
+      eval_helper: bg['ext_lingolinq_eval_helper'],
       color: bg['color'],
       position: bg['position'],
       text: bg['text'],
