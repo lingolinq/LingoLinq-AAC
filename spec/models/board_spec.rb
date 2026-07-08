@@ -1783,6 +1783,10 @@ describe Board, :type => :model do
       expect(b).not_to have_received(:schedule_for).with(:priority, :update_privacy, any_args)
 
       b.save!
+      # Transactional fixtures roll the test transaction back, so after_commit
+      # callbacks never fire on their own — run them explicitly to exercise the
+      # deferred schedule_pending_privacy_update (after_commit on: :create).
+      b.run_callbacks(:commit)
 
       expect(b.settings['immediately_downstream_board_ids']).to include(downstream.global_id)
       expect(b).to have_received(:schedule_for).with(:priority, :update_privacy, 'public', u.global_id, [])
