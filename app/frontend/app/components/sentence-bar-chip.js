@@ -73,6 +73,11 @@ export default Component.extend({
     // The "holding" cue is delayed by PRESS_FEEDBACK_DELAY so a normal CLICK/tap
     // never flashes a pressed/active look — a short release cancels it first.
     holdStart(event) {
+      // Start every gesture clean: if a prior completed hold ended on a
+      // pointerup that synthesized NO click (rare), `_hold_fired` dangles true
+      // and would eat this fresh tap — reset it before the guard so it clears in
+      // any mode (swap/selected included).
+      this._hold_fired = false;
       if(!this.get('editingEnabled') || this.get('swapActive') || this.get('selected')) { return; }
       var _this = this;
       this._hold_origin = event ? { x: event.clientX, y: event.clientY } : null;

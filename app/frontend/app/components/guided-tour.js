@@ -664,12 +664,16 @@ export default Component.extend({
       // Encode the user-supplied user_name segment (boardname is a safe literal);
       // the '/' separator stays literal since the board key is `username/boardname`.
       _this.get('persistence').ajax('/api/v1/boards/' + encodeURIComponent(userName) + '/' + boardname + '/tree', { type: 'GET' }).then(function(data) {
+        // The poll can settle after the component is torn down (tour closed /
+        // route left) — bail so go()/retry() don't run on a destroyed component.
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         if (boardDetailCache.ingest_tree(data, warm_opts, { force: true })) {
           go();
         } else {
           retry();
         }
       }, function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         retry();
       });
     };
