@@ -4,6 +4,7 @@ import { computed } from '@ember/object';
 import { observer } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { htmlSafe } from '@ember/template';
 import RSVP from 'rsvp';
 import { later as runLater, cancel as runCancel, next, scheduleOnce } from '@ember/runloop';
 import $ from 'jquery';
@@ -918,6 +919,15 @@ export default Controller.extend(prefClasses, {
   swap_source_index: null,
   // Bound to an aria-live region — set to announce the result of each edit.
   sentence_edit_announcement: '',
+  // Whether the labeled edit menu is shown for the selected chip. It opens only
+  // after a deliberate 2s press-and-hold on the chip (the hold is detected in the
+  // sentence-bar-chip component, so a short/accidental tap never opens it), or via
+  // keyboard Enter. selected_chip_index + chip_menu_open are set together.
+  chip_menu_open: false,
+  // Measured horizontal offsets (px, relative to the sentence bar) that place the
+  // below-chip menu + its caret under the selected chip. Set by _position_chip_menu.
+  chip_menu_left: 0,
+  chip_menu_caret_left: 20,
 
   // Gate: edit controls only in SPEAK mode (never while editing the board) and
   // only when the feature flag is on.
@@ -928,14 +938,68 @@ export default Controller.extend(prefClasses, {
   chip_swap_active: computed('swap_source_index', function() {
     return this.get('swap_source_index') != null;
   }),
+  // If editing turns off (e.g. entering board edit mode), tear down any open chip
+  // menu / dwell timer so a stale highlight+menu can't linger into the next mode.
+  _close_chip_menu_when_disabled: observer('sentence_bar_editing_enabled', function() {
+    if(!this.get('sentence_bar_editing_enabled')) { this._deselect_chip(); }
+  }),
+  // ----- Below-chip labeled menu (bound in board-detail.hbs) -----
+  selected_chip_word: computed('selected_chip_index', 'sentence_parts.@each.label', function() {
+    return this._chip_label(this.get('selected_chip_index'));
+  }),
+  selected_chip_can_move_left: computed('selected_chip_index', function() {
+    var idx = this.get('selected_chip_index');
+    return idx != null && idx > 0;
+  }),
+  selected_chip_can_move_right: computed('selected_chip_index', 'sentence_parts.length', function() {
+    var idx = this.get('selected_chip_index');
+    return idx != null && idx < ((this.get('sentence_parts') || []).length - 1);
+  }),
+  // Switch button reflects whether THIS chip is currently the held swap source.
+  selected_chip_swapping: computed('selected_chip_index', 'swap_source_index', function() {
+    return this.get('selected_chip_index') != null && this.get('selected_chip_index') === this.get('swap_source_index');
+  }),
+  chip_menu_style: computed('chip_menu_left', function() {
+    return htmlSafe('left: ' + (this.get('chip_menu_left') || 0) + 'px;');
+  }),
+  chip_menu_caret_style: computed('chip_menu_caret_left', function() {
+    return htmlSafe('left: ' + (this.get('chip_menu_caret_left') || 20) + 'px;');
+  }),
 
   _chip_label: function(index) {
     var parts = this.get('sentence_parts') || [];
-    return (parts[index] && parts[index].label) || '';
+    return (index != null && parts[index] && parts[index].label) || '';
   },
   _deselect_chip: function() {
+    this.set('chip_menu_open', false);
     this.set('selected_chip_index', null);
     this.set('swap_source_index', null);
+  },
+  // Measure the selected chip against the sentence bar and place the labeled menu
+  // (and its caret) centered under it, clamped to stay inside the bar. Rendered as
+  // a child of the bar (not the overflow-clipped chip scroller) so it can drop
+  // below. Synchronous: callers run it once BEFORE the menu renders (provisional
+  // width) to avoid a first-frame flash at left:0, then again on afterRender (exact
+  // width once the buttons are laid out).
+  _position_chip_menu: function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var bar = document.querySelector('#speak .md-board-detail-sentence-bar');
+    var idx = this.get('selected_chip_index');
+    if(!bar || idx == null) { return; }
+    var chip = bar.querySelector('.md-board-detail-sentence-bar__chip[data-chip-index="' + idx + '"]');
+    if(!chip) { return; }
+    var menu = bar.querySelector('.md-board-detail-sentence-bar__chip-menu');
+    // Fall back to a typical width when the menu hasn't rendered yet (provisional pass).
+    var menu_w = (menu && menu.offsetWidth) || 240;
+    var bar_rect = bar.getBoundingClientRect();
+    var chip_rect = chip.getBoundingClientRect();
+    var chip_center = (chip_rect.left + chip_rect.width / 2) - bar_rect.left;
+    var left = chip_center - (menu_w / 2);
+    var max_left = Math.max(8, bar_rect.width - menu_w - 8);
+    left = Math.max(8, Math.min(left, max_left));
+    var caret = Math.max(16, Math.min(chip_center - left, menu_w - 16));
+    this.set('chip_menu_left', Math.round(left));
+    this.set('chip_menu_caret_left', Math.round(caret));
   },
   _announce_sentence_edit: function(msg) {
     // Toggle a trailing (regular) space so a repeated IDENTICAL message still
@@ -1014,7 +1078,7 @@ export default Controller.extend(prefClasses, {
     // resolution, a condense rule, a modeling session) a held/selected chip index
     // can dangle past the end; clear it so an edit can't act on a stale index.
     var n = parts.length;
-    if(this.get('selected_chip_index') != null && this.get('selected_chip_index') >= n) { this.set('selected_chip_index', null); }
+    if(this.get('selected_chip_index') != null && this.get('selected_chip_index') >= n) { this._deselect_chip(); }
     if(this.get('swap_source_index') != null && this.get('swap_source_index') >= n) { this.set('swap_source_index', null); }
     this._resolve_missing_sentence_images();
   },
@@ -6330,15 +6394,21 @@ export default Controller.extend(prefClasses, {
     },
 
     // ----- Speak-bar chip active-edit actions (feature: sentence_bar_editing) -----
-    // Tap a chip body: toggle its edit controls (or, in swap mode, treat as the
-    // swap target — handled by chip_swap_target, which the component calls instead).
+    // Open a chip's labeled menu. Fired by the component only after a deliberate
+    // 2s PRESS-AND-HOLD (a short tap never gets here — the hold guard is in the
+    // component), or by keyboard Enter/Space (deliberate). Re-triggering on the
+    // open chip closes it (toggle). (In swap mode a tap is a swap target instead —
+    // handled by chip_swap_target, which the component calls.)
     select_chip: function(index) {
-      if(this.get('selected_chip_index') === index) {
+      if(this.get('selected_chip_index') === index && this.get('chip_menu_open')) {
         this._deselect_chip();
-      } else {
-        this.set('swap_source_index', null);
-        this.set('selected_chip_index', index);
+        return;
       }
+      this.set('swap_source_index', null);
+      this.set('selected_chip_index', index);
+      this._position_chip_menu();          // provisional (chip is rendered; menu isn't yet)
+      this.set('chip_menu_open', true);
+      runLater(this, this._position_chip_menu, 0); // exact, once the menu has laid out
     },
     // Tap ✕ — remove the chip (and its raw block) from the utterance.
     remove_chip: function(index) {
@@ -6356,6 +6426,9 @@ export default Controller.extend(prefClasses, {
       var ok = utterance.move_button(index, direction);
       if(ok) {
         this.set('selected_chip_index', target);
+        // The chip moved — re-anchor the open menu under its new position once the
+        // reordered chips have re-rendered.
+        if(this.get('chip_menu_open')) { runLater(this, this._position_chip_menu, 0); }
         this._announce_sentence_edit(i18n.t('sentence_bar_moved', "Moved %{word} to %{pos} of %{total}", {word: label, pos: target + 1, total: total}));
       }
     },

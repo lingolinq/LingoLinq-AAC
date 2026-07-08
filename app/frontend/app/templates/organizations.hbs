@@ -1,14 +1,8 @@
 <div class="md-shell md-shell--org md-shell--org-directory">
   <div class="md-workspace">
-    {{!-- Primary nav — same pattern as the caseload page ("Home" + current
-         page pill), adapted to show "My Organizations". --}}
-    <nav class="md-pillnav" aria-label={{t "Organization Navigation" key="org_navigation"}}>
-      <LinkTo @route="index" class="md-pillnav__pill">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
-        {{t "Home" key="home"}}
-      </LinkTo>
-      <span class="md-pillnav__pill is-active">{{t "My Organizations" key="my_organizations"}}</span>
-    </nav>
+    {{!-- Shared user-level pill-nav (Home / Organizations / Boards / Reports /
+         Extras / Account) — the Organizations pill renders as the active page here. --}}
+    <UserPillNav @active="organizations" @userName={{this.app_state.currentUser.user_name}} />
     <header class="md-hero md-hero--dashboard">
       <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Organizations" key="my_organizations"}}</span></h1>
       <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Choose an organization to" key="choose_org_to_manage_pre"}} <em class="md-hero__gradient-text">{{t "manage or view..." key="choose_org_to_manage_em"}}</em></span></p>

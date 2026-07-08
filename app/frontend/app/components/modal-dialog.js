@@ -44,14 +44,29 @@ export default Component.extend({
         opening();
       }
 
-      // Accessibility: Focus first tabbable element or the modal itself
+      // Accessibility (ARIA APG dialog pattern): initial focus.
+      // A modal may OPT IN to "focus a static element first" by marking one with
+      // [data-autofocus] — e.g. read-first dialogs (terms agreement) focus their
+      // title so it's announced and the body isn't skipped, and Tab then walks to
+      // the controls. Otherwise fall back to the general default: focus the first
+      // tabbable element, or the modal container.
       runLater(() => {
         if (this.isDestroyed || this.isDestroying || !this.element) { return; }
-        const tabbable = $(this.element).find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
-        if (tabbable.length > 0) {
-          tabbable[0].focus();
+        const explicit = Array.prototype.slice.call(this.element.querySelectorAll('[data-autofocus]'))
+          .find((el) => el.getClientRects().length > 0);
+        if (explicit) {
+          if (explicit.getAttribute('tabindex') == null) { explicit.setAttribute('tabindex', '-1'); }
+          explicit.focus();
+          return;
+        }
+        const focusable = Array.prototype.slice.call(
+          this.element.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        ).find((el) => el.getClientRects().length > 0);
+        if (focusable) {
+          focusable.focus();
         } else {
-          $(this.element).find('.modal-content').attr('tabindex', '-1').focus();
+          const content = this.element.querySelector('.modal-content');
+          if (content) { content.setAttribute('tabindex', '-1'); content.focus(); }
         }
       }, 100);
     }

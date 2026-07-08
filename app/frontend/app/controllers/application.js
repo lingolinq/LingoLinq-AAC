@@ -159,6 +159,23 @@ export default Controller.extend({
     return !!(intro && intro.intro === 'intro');
   }),
 
+  // Show the in-place Pause button only during a running eval on the modern
+  // board view — never on board-alt (per request) and never on the welcome
+  // intro (nothing to pause before the assessment starts).
+  show_eval_pause: computed('appState.eval_mode', 'on_board_alt', 'eval_welcome_active', function() {
+    return !!(this.appState.get('eval_mode') && !this.get('on_board_alt') && !this.get('eval_welcome_active'));
+  }),
+
+  // Hide the header Previous button while on the first assessment section:
+  // stepping back from there lands on the welcome/intro (obf/eval-0-0), which is
+  // a broken dead end once the eval has started. Keyed off the board so it
+  // re-evaluates on every navigation.
+  show_eval_prev: computed('appState.eval_mode', 'on_board_alt', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode') || this.get('on_board_alt')) { return false; }
+    var ev = obf.eval;
+    return !!(ev && ev.can_go_back && ev.can_go_back());
+  }),
+
   boardMenuOpen: false,
 
   init() {
@@ -557,6 +574,9 @@ export default Controller.extend({
   }),
 
   actions: {
+    toggleEvalPause: function() {
+      if(obf.eval && obf.eval.toggle_pause) { obf.eval.toggle_pause(); }
+    },
     invalidateSession: function() {
       var sess = this.get('session');
       if (sess && typeof sess.invalidate === 'function') {

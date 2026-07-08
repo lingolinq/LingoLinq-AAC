@@ -90,6 +90,9 @@
           {{/if}}
           <img src={{this.board.background_image_url_with_fallback}} style={{this.bg_img_style}}>
         {{/if}}
+        {{#if board.background.eval_helper}}
+          <div class='eval-helper'>({{board.background.eval_helper}})</div>
+        {{/if}}
       </div>
     {{/if}}
     {{#if this.nothing_visible_not_edit}}

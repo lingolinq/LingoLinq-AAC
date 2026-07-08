@@ -1,92 +1,141 @@
-{{!-- Intake form — 4 quick fields with pill-button pickers --}}
+{{!-- Intake — first choose to tailor (4 questions) or run a general screen, then (if tailoring) the form --}}
 <section class="evq-intake" aria-labelledby="evq-intake-title">
-  <header class="evq-intake__header">
-    <h2 id="evq-intake-title" class="evq-intake__title">
-      {{#if this.user}}
-        {{t "Tell us about %{user_name}" key="intake_tell_us_about" user_name=this.user.user_name}}
-      {{else}}
-        {{t "Tell us about this communicator" key="intake_tell_us_generic"}}
-      {{/if}}
-    </h2>
-    <p class="evq-intake__caption">
-      {{t "Four quick questions route the screen to age- and etiology-appropriate items." key="intake_caption"}}
-    </p>
-  </header>
+  {{#if this.isChoosing}}
+    <header class="evq-intake__header">
+      <h2 id="evq-intake-title" class="evq-intake__title">
+        {{#if this.user}}
+          {{t "Set up %{user_name}'s screen" key="intake_setup_for" user_name=this.user.user_name}}
+        {{else}}
+          {{t "Set up the screen" key="intake_setup_generic"}}
+        {{/if}}
+      </h2>
+      <p class="evq-intake__caption">
+        {{t "Tailor the screen to this communicator, or skip straight to a general screen." key="intake_choice_caption"}}
+      </p>
+    </header>
 
-  <form class="evq-intake__form" {{on "submit" (this.ctrlAction "begin")}}>
-    <div class="evq-intake__field">
-      <p class="evq-intake__legend">{{t "Age band" key="intake_age_band"}}</p>
-      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Age band" key="intake_age_band"}}>
-        {{#each this.ageBands as |opt|}}
-          <button type="button" role="radio" class="evq-pill {{if (is_equal this.ageBand opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.ageBand opt.value) "true" "false"}} {{on "click" (this.ctrlAction "pick" "ageBand" opt.value)}}>
-            {{opt.label}}
-          </button>
-        {{/each}}
-      </div>
-    </div>
-
-    <div class="evq-intake__field">
-      <p class="evq-intake__legend">{{t "Etiology" key="intake_etiology"}}</p>
-      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Etiology" key="intake_etiology"}}>
-        {{#each this.etiologyOptions as |opt|}}
-          <button type="button" role="radio" class="evq-pill {{if (is_equal this.etiology opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.etiology opt.value) "true" "false"}} {{on "click" (this.ctrlAction "pick" "etiology" opt.value)}}>
-            {{opt.label}}
-          </button>
-        {{/each}}
-      </div>
-    </div>
-
-    <div class="evq-intake__field">
-      <p class="evq-intake__legend">{{t "Current communication" key="intake_current_comm"}}</p>
-      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Current communication" key="intake_current_comm"}}>
-        {{#each this.currentCommOptions as |opt|}}
-          <button type="button" role="radio" class="evq-pill {{if (is_equal this.currentComm opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.currentComm opt.value) "true" "false"}} {{on "click" (this.ctrlAction "pick" "currentComm" opt.value)}}>
-            {{opt.label}}
-          </button>
-        {{/each}}
-      </div>
-    </div>
-
-    <div class="evq-intake__field">
-      <p class="evq-intake__legend">{{t "Suspected access channel" key="intake_suspected_access"}}</p>
-      <div class="evq-pillgroup evq-pillgroup--access" role="radiogroup" aria-label={{t "Suspected access channel" key="intake_suspected_access"}}>
-        {{#each this.accessOptions as |opt|}}
-          <button type="button" role="radio"
-                  class="evq-pill evq-pill--access {{if (is_equal this.suspectedAccess opt.value) 'evq-pill--active'}} evq-pill--access-status-{{opt.status}}"
-                  aria-checked={{if (is_equal this.suspectedAccess opt.value) "true" "false"}}
-                  disabled={{opt.unavailable}}
-                  {{on "click" (this.ctrlAction "pick" "suspectedAccess" opt.value)}}>
-            <span class="evq-pill__label">{{opt.label}}</span>
-            {{#if opt.statusLabel}}
-              <span class="evq-pill__status-badge evq-pill__status-badge--{{opt.status}}" aria-label={{opt.statusLabel}}>
-                {{#if (is_equal opt.status 'ready')}}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
-                {{else if (is_equal opt.status 'software_fallback')}}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                {{else}}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-                {{/if}}
-                {{opt.statusLabel}}
-              </span>
+    <div class="evq-intake__choice" role="group" aria-label={{t "Choose how to run the screen" key="intake_choice_aria"}}>
+      <button type="button" class="evq-choice-card evq-choice-card--tailor" {{on "click" (this.ctrlAction "chooseTailor")}}>
+        <span class="evq-choice-card__icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        </span>
+        <span class="evq-choice-card__body">
+          <span class="evq-choice-card__title">
+            {{#if this.user}}
+              {{t "Tailor to %{user_name}" key="intake_choice_tailor" user_name=this.user.user_name}}
+            {{else}}
+              {{t "Tailor to this communicator" key="intake_choice_tailor_generic"}}
             {{/if}}
-          </button>
-        {{/each}}
-      </div>
-    </div>
+          </span>
+          <span class="evq-choice-card__desc">{{t "Answer four quick questions to route the screen to age- and etiology-appropriate items." key="intake_choice_tailor_desc"}}</span>
+        </span>
+        <span class="evq-choice-card__chev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+      </button>
 
-    {{#if this.previewProfile}}
-      <aside class="evq-intake__preview" aria-live="polite">
-        <span class="evq-intake__preview-label">{{t "We'll use the" key="intake_preview_prefix"}}</span>
-        <strong class="evq-intake__preview-name">{{this.previewProfile}}</strong>
-        <span class="evq-intake__preview-suffix">{{t "item bank." key="intake_preview_suffix"}}</span>
-      </aside>
-    {{/if}}
-
-    <div class="evq-intake__actions">
-      <button type="submit" class="evq-btn evq-btn--primary" disabled={{unless this.isComplete "disabled"}}>
-        {{t "Begin Quick Screen" key="intake_begin"}}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      <button type="button" class="evq-choice-card evq-choice-card--general" {{on "click" (this.ctrlAction "chooseSkip")}}>
+        <span class="evq-choice-card__icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+        </span>
+        <span class="evq-choice-card__body">
+          <span class="evq-choice-card__title">{{t "Run a general screen" key="intake_choice_general"}}</span>
+          <span class="evq-choice-card__desc">{{t "Skip the questions and run a standard 5-minute screen without narrowing to demographics." key="intake_choice_general_desc"}}</span>
+        </span>
+        <span class="evq-choice-card__chev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
       </button>
     </div>
-  </form>
+  {{else}}
+    <header class="evq-intake__header evq-intake__header--form">
+      <button type="button" class="evq-intake__back" {{on "click" (this.ctrlAction "backToChoice")}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>{{t "Back" key="intake_back"}}</span>
+      </button>
+      <h2 id="evq-intake-title" class="evq-intake__title">
+        {{#if this.user}}
+          {{t "Tell us about %{user_name}" key="intake_tell_us_about" user_name=this.user.user_name}}
+        {{else}}
+          {{t "Tell us about this communicator" key="intake_tell_us_generic"}}
+        {{/if}}
+      </h2>
+      <p class="evq-intake__caption">
+        {{t "Four quick questions route the screen to age- and etiology-appropriate items." key="intake_caption"}}
+      </p>
+    </header>
+
+    <form class="evq-intake__form" {{on "submit" (this.ctrlAction "begin")}}>
+      <div class="evq-intake__field">
+        <p class="evq-intake__legend">{{t "Age band" key="intake_age_band"}}</p>
+        <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Age band" key="intake_age_band"}}>
+          {{#each this.ageBands as |opt|}}
+            <button type="button" role="radio" class="evq-pill {{if (is_equal this.ageBand opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.ageBand opt.value) "true" "false"}} {{on "click" (this.ctrlAction "pick" "ageBand" opt.value)}}>
+              {{opt.label}}
+            </button>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="evq-intake__field">
+        <p class="evq-intake__legend">{{t "Etiology" key="intake_etiology"}}</p>
+        <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Etiology" key="intake_etiology"}}>
+          {{#each this.etiologyOptions as |opt|}}
+            <button type="button" role="radio" class="evq-pill {{if (is_equal this.etiology opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.etiology opt.value) "true" "false"}} {{on "click" (this.ctrlAction "pick" "etiology" opt.value)}}>
+              {{opt.label}}
+            </button>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="evq-intake__field">
+        <p class="evq-intake__legend">{{t "Current communication" key="intake_current_comm"}}</p>
+        <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Current communication" key="intake_current_comm"}}>
+          {{#each this.currentCommOptions as |opt|}}
+            <button type="button" role="radio" class="evq-pill {{if (is_equal this.currentComm opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.currentComm opt.value) "true" "false"}} {{on "click" (this.ctrlAction "pick" "currentComm" opt.value)}}>
+              {{opt.label}}
+            </button>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="evq-intake__field">
+        <p class="evq-intake__legend">{{t "Suspected access channel" key="intake_suspected_access"}}</p>
+        <div class="evq-pillgroup evq-pillgroup--access" role="radiogroup" aria-label={{t "Suspected access channel" key="intake_suspected_access"}}>
+          {{#each this.accessOptions as |opt|}}
+            <button type="button" role="radio"
+                    class="evq-pill evq-pill--access {{if (is_equal this.suspectedAccess opt.value) 'evq-pill--active'}} evq-pill--access-status-{{opt.status}}"
+                    aria-checked={{if (is_equal this.suspectedAccess opt.value) "true" "false"}}
+                    disabled={{opt.unavailable}}
+                    {{on "click" (this.ctrlAction "pick" "suspectedAccess" opt.value)}}>
+              <span class="evq-pill__label">{{opt.label}}</span>
+              {{#if opt.statusLabel}}
+                <span class="evq-pill__status-badge evq-pill__status-badge--{{opt.status}}" aria-label={{opt.statusLabel}}>
+                  {{#if (is_equal opt.status 'ready')}}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
+                  {{else if (is_equal opt.status 'software_fallback')}}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  {{else}}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                  {{/if}}
+                  {{opt.statusLabel}}
+                </span>
+              {{/if}}
+            </button>
+          {{/each}}
+        </div>
+      </div>
+
+      {{#if this.previewProfile}}
+        <aside class="evq-intake__preview" aria-live="polite">
+          <span class="evq-intake__preview-label">{{t "We'll use the" key="intake_preview_prefix"}}</span>
+          <strong class="evq-intake__preview-name">{{this.previewProfile}}</strong>
+          <span class="evq-intake__preview-suffix">{{t "item bank." key="intake_preview_suffix"}}</span>
+        </aside>
+      {{/if}}
+
+      <div class="evq-intake__actions">
+        <button type="submit" class="evq-btn evq-btn--primary" disabled={{unless this.isComplete "disabled"}}>
+          {{t "Begin Quick Screen" key="intake_begin"}}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </form>
+  {{/if}}
 </section>

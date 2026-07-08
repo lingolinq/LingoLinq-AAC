@@ -55,8 +55,8 @@
       <div class="md-org-stats__grid md-org-telemetry__summary">
         {{#each this.summary_cards as |card|}}
           <div class="md-org-stat-card">
-            <div class="md-org-stat-card__label">{{card.label}}</div>
-            <div class="md-org-stat-card__value">{{card.value}}</div>
+            <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{card.label}}</span></div>
+            <div class="md-org-stat-card__body"><span class="md-org-stat-card__value">{{card.value}}</span></div>
           </div>
         {{/each}}
       </div>

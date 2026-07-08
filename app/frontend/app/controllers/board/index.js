@@ -82,6 +82,27 @@ export default Controller.extend(prefClasses, {
     'appState.speak_mode',
     function() { runShareApprovalCheck(this, this.appState); }
   ),
+  // In-place eval pause (utils/eval.js sets appState.eval_paused). The overlay
+  // blocks input; here we freeze the board's own timers: cancel the pending
+  // audio reprompt on pause, and on resume shift `rendered` forward by the
+  // paused span so the per-item response clock (time_to_select = now - rendered)
+  // excludes the pause.
+  eval_pause_watcher: observer('appState.eval_paused', function() {
+    if(!this.appState.get('eval_mode')) { return; }
+    var board = this.get('model');
+    if(!board || !board.get) { return; }
+    if(this.appState.get('eval_paused')) {
+      if(board.get('reprompt_wait')) {
+        cancelLater(board.get('reprompt_wait'));
+        board.set('reprompt_wait', null);
+      }
+    } else {
+      var ms = this.appState.get('eval_last_pause_ms') || 0;
+      if(ms && board.get('rendered')) {
+        board.set('rendered', board.get('rendered') + ms);
+      }
+    }
+  }),
   updateSuggestions: observer(
     'appState.button_list',
     'appState.button_list.[]',
@@ -98,7 +119,10 @@ export default Controller.extend(prefClasses, {
       // explicit true is on; null/undefined = off), not a per-board flag — it
       // behaves identically on the classic board-alt and modern board-detail
       // speak pages.
-      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode')) { return; }
+      // Eval boards (obf/eval*) are a controlled assessment — word prediction
+      // would interfere and its symbols aren't part of the test — so suppress
+      // the lookup (and the bar below) whenever eval_mode is active.
+      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode') || this.appState.get('eval_mode')) { return; }
       var _this = this;
       var button_list = this.get('appState.button_list');
       var last_button = button_list[button_list.length - 1];
@@ -431,7 +455,7 @@ export default Controller.extend(prefClasses, {
       }
       var topHeight = header_base + (this.appState.get('extra_header_height') || 0);
       var sidebarTopHeight = topHeight;
-      this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode'));
+      this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode') && !this.appState.get('eval_mode'));
       if(this.get('show_word_suggestions')) {
         topHeight = topHeight + 55;
         var style = this.get('get_style');

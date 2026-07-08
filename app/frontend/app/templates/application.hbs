@@ -9,6 +9,7 @@
   {{else}}
   {{#if (and this.app_state.speak_mode this.app_state.currentBoardState.id)}}
     <span id="speak" class="{{if this.app_state.eval_mode "md-eval-header"}}">
+      <span class="speak-header__home-col">
       <span class="speak-header__home-marker">
         {{#triple-click-listener triple_click="meta_home_click"}}
           {{#if this.app_state.eval_mode}}
@@ -52,6 +53,26 @@
           {{/if}}
         {{/triple-click-listener}}
       </span>
+        {{#if this.show_eval_pause}}
+          {{!-- In-place Pause/Resume for a running eval. Its own control stacked
+               under the home pill (see .speak-header__home-col) — kept OUT of
+               .speak-header__home-marker so it isn't grouped with the home icon.
+               Hidden on board-alt and the welcome intro via show_eval_pause. --}}
+          <button class="btn access speak-header__eval-pause" id="eval_pause_button" {{action "toggleEvalPause"}} aria-label={{if this.app_state.eval_paused (t "Resume evaluation" key="resume_eval") (t "Pause evaluation" key="pause_eval")}} title={{if this.app_state.eval_paused (t "Resume evaluation" key="resume_eval") (t "Pause evaluation" key="pause_eval")}}>
+            <span class="sr-only">{{if this.app_state.eval_paused (t "Resume" key="resume") (t "Pause" key="pause")}}</span>
+            {{#if this.app_state.eval_paused}}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true" style="pointer-events: none; display: block;">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            {{else}}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true" style="pointer-events: none; display: block;">
+                <rect x="6" y="5" width="4" height="14" rx="1"/>
+                <rect x="14" y="5" width="4" height="14" rx="1"/>
+              </svg>
+            {{/if}}
+          </button>
+        {{/if}}
+      </span>
       {{#if this.show_back}}
         <button class="btn btn-default access skinnier" id="back_button" type="button" {{on "click" (this.ctrlAction "back")}}>
           <span class="sr-only">{{t "Back" key="back"}}</span>
@@ -70,15 +91,17 @@
               {{t "Skip" key="skip"}}
             </button>
           {{/if}}
-          <button type="button" class="btn btn-default access skinnier speak-bar__eval-btn" id="eval_prev_section" {{on "click" (this.ctrlAction "change_section" "back")}} title={{t "Previous Section" key="previous_section"}} aria-label={{t "Previous Section" key="previous_section"}}>
-            <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
+          <button type="button" class="btn btn-default access skinnier speak-bar__eval-btn" id="eval_open_settings" {{on "click" (this.ctrlAction "assessment_settings")}} title={{t "Eval Settings" key="eval_settings"}} aria-label={{t "Eval Settings" key="eval_settings"}}>
+            <span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
           </button>
+          {{#if this.show_eval_prev}}
+            <button type="button" class="btn btn-default access skinnier speak-bar__eval-btn" id="eval_prev_section" {{on "click" (this.ctrlAction "change_section" "back")}} title={{t "Previous Section" key="previous_section"}} aria-label={{t "Previous Section" key="previous_section"}}>
+              <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
+            </button>
+          {{/if}}
           <button type="button" class="btn btn-default access speak-bar__eval-btn speak-bar__eval-btn--next" id="eval_next_section" {{on "click" (this.ctrlAction "change_section" "forward")}} title={{t "Next Section" key="next_section"}} aria-label={{t "Next Section" key="next_section"}}>
             <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
             <span class="speak-bar__eval-actions__label">{{t "Next" key="next"}}</span>
-          </button>
-          <button type="button" class="btn btn-default access skinnier speak-bar__eval-btn" id="eval_open_settings" {{on "click" (this.ctrlAction "assessment_settings")}} title={{t "Eval Settings" key="eval_settings"}} aria-label={{t "Eval Settings" key="eval_settings"}}>
-            <span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
           </button>
         </div>
       {{/if}}
@@ -1448,7 +1471,7 @@
         <svg class="beta-feedback-drawer-tab__caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
     {{/if}}
-    <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}}>
+    <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}} inert={{unless this.betaFeedbackDrawerOpen true}}>
       <aside class="beta-feedback-drawer__panel">
         {{beta-feedback-panel isDrawer=true onSubmitSuccess=this.onCloseBetaFeedbackDrawer onCancel=this.onCloseBetaFeedbackDrawer onClose=this.onCloseBetaFeedbackDrawer}}
       </aside>
@@ -1458,6 +1481,30 @@
 <div id="content" class="{{this.content_class}} {{if this.hide_header "content--no-top-padding"}}">
   {{ outlet }}
 </div>
+{{#if this.app_state.eval_paused}}
+  {{!-- In-place eval pause overlay: covers the board below the header and eats
+       all pointer input (no button activations while paused). Resume here or via
+       the header Pause button. --}}
+  <div id="eval_pause_overlay" class="eval-pause-overlay" role="dialog" aria-live="assertive" aria-label={{t "Evaluation paused" key="eval_paused"}}>
+    <div class="eval-pause-overlay__card">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="46" height="46" aria-hidden="true" class="eval-pause-overlay__icon">
+        <rect x="6" y="5" width="4" height="14" rx="1"/>
+        <rect x="14" y="5" width="4" height="14" rx="1"/>
+      </svg>
+      <h2 class="eval-pause-overlay__title">{{t "Evaluation paused" key="eval_paused"}}</h2>
+      <p class="eval-pause-overlay__desc">{{t "The evaluation is paused. Tap Resume to continue." key="eval_paused_desc"}}</p>
+      {{#if this.app_state.eval_paused_elapsed}}
+        <p class="eval-pause-overlay__elapsed">{{t "Time elapsed" key="eval_time_elapsed"}}: <strong>{{this.app_state.eval_paused_elapsed}}</strong></p>
+      {{/if}}
+      <button class="btn btn-primary eval-pause-overlay__resume" {{action "toggleEvalPause"}}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true" style="pointer-events: none; vertical-align: middle; margin-right: 6px;">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        {{t "Resume" key="resume"}}
+      </button>
+    </div>
+  </div>
+{{/if}}
 {{#if this.app_state.sidebar_visible}}
   <div id="sidebar" class='noselect advanced_selection' style={{this.sidebar_style}}>
     <span style="display: block; text-align: center; padding: 5px;">

@@ -7,6 +7,7 @@ export default Route.extend({
   session: service('session'),
   appState: service('app-state'),
   store: service('store'),
+  betaWelcomeMode: service('beta-welcome-mode'),
   beforeModel() {
     if (!this.session.get('isAuthenticated') && config.environment !== 'development') {
       this.router.transitionTo('login');
@@ -32,10 +33,19 @@ export default Route.extend({
     var user = this.appState.get('currentUser') || this.store.peekRecord('user', 'self');
     var name = user && (user.get('name') || user.get('user_name'));
     controller.set('displayName', (name || '').trim() || 'Friend');
+    controller.set('agreementAccepted', false);
   },
   actions: {
+    // Original layout: advance to the full agreement page.
     goToAgreement() {
       this.router.transitionTo('beta-welcome');
+    },
+    // Short layout: the Get Started button lives on this page. Records
+    // acceptance and enters the app via the shared flow.
+    acceptAgreement() {
+      var controller = this.get('controller');
+      if (!controller.get('agreementAccepted')) { return; }
+      this.betaWelcomeMode.acceptAndFinish();
     }
   }
 });

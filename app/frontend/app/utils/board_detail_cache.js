@@ -310,7 +310,24 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
     if (existing && _is_fresh(existing) && existing.raw) {
       return _schedule_sequential_step(processNext, gapMs);
     }
-    return persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
+    // Dedup concurrent warm passes for the same board: a caseload warm and a
+    // board-route warm can request the same /tree at once, and (unlike the
+    // sibling SHOW fetch above) this GET otherwise skips the _inflight map, so
+    // both fire. Share the in-flight request so identical concurrent fetches
+    // collapse to one network call; each pass still ingests the shared response
+    // into its own cache with its own warm_opts. Namespaced key ('tree:') so it
+    // can't collide with the bare-lookup SHOW entries in _inflight.
+    var tree_lookup = 'tree:' + key;
+    var tree_req = _inflight[tree_lookup];
+    if (!tree_req) {
+      tree_req = persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' });
+      _inflight[tree_lookup] = tree_req;
+      var _clear_tree_inflight = function() {
+        if (_inflight[tree_lookup] === tree_req) { delete _inflight[tree_lookup]; }
+      };
+      tree_req.then(_clear_tree_inflight, _clear_tree_inflight);
+    }
+    return tree_req.then(function(data) {
       _ingest_tree_response(cache, data, warm_opts);
     }, function() {
       /* swallow per-board errors */
@@ -327,7 +344,12 @@ function _ingest_tree_response(cache, data, warm_opts, options) {
   if (!data || !data.root || !data.root.board) { return false; }
   var root_raw = normalize_board_payload(data.root);
   if (!root_raw) { return false; }
-  cache.set(root_raw);
+  // options.force lets a caller that fetched a fresh /tree (e.g. the speak
+  // handoff waiting on a just-copied board) make its root authoritative even
+  // when a staler entry is still within TTL — so the route's cache-first read
+  // and the store record agree on the newest server response. Prefetch callers
+  // pass no options, so their non-forcing behavior is unchanged.
+  cache.set(root_raw, { force: !!options.force });
   if (options.warm_root_images !== false) {
     cache.warm_images(root_raw, warm_opts);
   }
@@ -356,6 +378,19 @@ function _collect_linked_lookups(raw) {
 
 export default {
   normalize_board_payload: normalize_board_payload,
+
+  // Ingest a /api/v1/boards/:id/tree response (root + descendants) into the
+  // cache AND the Ember Data store, exactly as the route's own model hook and
+  // the prefetch pipeline do. Callers that fetch a tree ahead of navigation
+  // (e.g. the guided-tour speak handoff waiting for a freshly-copied board)
+  // use this to prime the cache so the subsequent board-detail transition is
+  // a pure cache HIT — no second network load, descendants already warm.
+  // Returns true when the root was ingested, false when the payload has no
+  // usable root (board not materialized yet), so the caller can keep polling.
+  ingest_tree: function(data, warm_opts, options) {
+    return _ingest_tree_response(this, data, warm_opts, options);
+  },
+
   // Returns the cached raw board JSON, or null if missing/stale.
   get: function(key_or_id) {
     var entry = _lookup(key_or_id);

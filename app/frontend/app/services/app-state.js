@@ -2819,9 +2819,20 @@ export default Service.extend({
         this.set('eye_gaze', capabilities.eye_gaze);
         this.set('embedded', !!(LingoLinq.embedded));
         this.set('full_screen_capable', capabilities.fullscreen_capable());
-        if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro')) {
+        // Eval boards (obf/eval*) require speak mode and enter it as part of the
+        // assessment's own flow, which has its own on-board intro. Suppress the
+        // generic speak-mode-intro / modeling-intro here so they don't interrupt
+        // an eval. speak_mode_intro_done stays unset, so a later normal (non-eval)
+        // speak-mode entry still shows the intro. (Same spirit as the tour guard
+        // below, where the guided tour IS the intro.)
+        if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro') && !this.get('eval_mode')) {
           var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
-          if(!intro && !this.get('speak-mode-intro')) {
+          // Stand down when a board-detail SPEAK tour is pending/handing off (home
+          // tour "start speaking" button, board picker, board-preview overlay): the
+          // guided tour IS the speak-mode intro, so the legacy modal would otherwise
+          // race it and render dimmed behind the tour card. The tour clears the flag
+          // once it opens, after which normal (no-tour) entry shows the modal again.
+          if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
             if(modal.route && !modal.is_open('speak-mode-intro')) {
               modal.open('speak-mode-intro');
             }
@@ -4389,6 +4400,13 @@ export default Service.extend({
       }
     }
   },
+  // In-place eval pause state (set by utils/eval.js pause/unpause). eval_paused
+  // drives the pause overlay + the Pause/Resume button label; eval_last_pause_ms
+  // is read once by board/index on the unpause flip to shift the board's
+  // `rendered` so per-item response time excludes the paused span.
+  eval_paused: false,
+  eval_last_pause_ms: 0,
+  eval_paused_elapsed: null,
   eval_mode: computed('currentBoardState.key', function() {
     return (this.get('currentBoardState.key') || '').match(/^obf\/eval/);
   }),

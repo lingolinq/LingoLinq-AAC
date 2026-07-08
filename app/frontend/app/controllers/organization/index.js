@@ -122,23 +122,37 @@ export default Controller.extend({
     return 'site-normal';
   }),
   queue_state: computed('model.site.default_queue', 'model.site.priority_queue', 'model.site.slow_queue', function() {
+    var _this = this;
     var res = {
       'default-limit': 5000,
       'slow-limit': 15000,
       'priority-limit': 50
     };
     ['default', 'priority', 'slow'].forEach(function(q) {
-      if(q > res[q + '-limit'] * 0.95) {
+      // Compare the ACTUAL queue depth against the limit (the prior code compared
+      // the string key `q` — e.g. 'default' > 4750 — which is always false, so
+      // every queue reported 'site-normal'). The status dots now reflect real load.
+      var val = parseInt(_this.get('model.site.' + q + '_queue'), 10) || 0;
+      if(val > res[q + '-limit'] * 0.95) {
         res[q] = 'site-emergency';
-      } else if(q > res[q + '-limit'] * 0.80) {
+      } else if(val > res[q + '-limit'] * 0.80) {
         res[q] = 'site-danger';
-      } else if(q > res[q + '-limit'] * 0.5) {
+      } else if(val > res[q + '-limit'] * 0.5) {
         res[q] = 'site-warning';
       } else {
         res[q] = 'site-normal';
       }
     });
     return res;
+  }),
+  // True when the most recent logged session is older than two weeks, so the
+  // dashboard can flag a stale "Last Session" card with a subtle amber dot.
+  last_session_stale: computed('first_log', function() {
+    var log = this.get('first_log');
+    if(!log || !log.started_at) { return false; }
+    var ts = new Date(log.started_at).getTime();
+    if(!isFinite(ts)) { return false; }
+    return (Date.now() - ts) > (14 * 24 * 60 * 60 * 1000);
   }),
   actions: {
     update_org: function() {
