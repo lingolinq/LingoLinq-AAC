@@ -3652,8 +3652,8 @@
     {
       "id": "LL-5e7676187f",
       "ruleKey": "abandoned-indexeddbshim-shipped",
-      "title": "indexeddbshim (abandoned upstream) is bundled to production and underlies the offline AAC data sync path",
-      "severity": "high",
+      "title": "indexeddbshim is pinned to a stale major (^6.1.0, ~10 majors behind latest 16.1.0) in the production bundle",
+      "severity": "low",
       "confidence": "high",
       "frameworks": [],
       "status": "open",
@@ -3668,15 +3668,15 @@
       "lastSeen": "2026-07-08",
       "owner": "unassigned",
       "remediation": {
-        "options": "Evaluate whether indexeddbshim is still needed given current browser IndexedDB support; if the offline path only targets modern browsers/Cordova, drop it. If retained, pin and vendor it and document that no upstream security patches are possible (abandoned ~2019). Bundled to production via ember-cli-build.js:44-47.",
-        "timeframe": "30-60d"
+        "options": "Bump indexeddbshim from ^6.1.0 to the current major (16.x, published 2025-09-01) and re-test the offline path. The package is actively maintained, so this is a routine dependency upgrade, not a vendor-and-freeze. Bundled to production via ember-cli-build.js:44; the shim is inert on modern browsers (capabilities.js gates __useShim on navigator.standalone AND WebSQL present), so blast radius is limited to legacy standalone-mode webviews.",
+        "timeframe": "60-90d"
       },
       "closureEvidence": {
         "sha": "",
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dependency finder on 2026-07-08. New. Unlike moment/qrcodejs (LL-65700d9bd8/LL-553fdc242b), this is bundled to production AND underlies the app's offline IndexedDB sync path for AAC user data; abandoned upstream since ~2019, no future security patches possible. Not previously in the register. | adversary: REFUTED AS WRITTEN -- RECOMMEND SCOT DOWNGRADE + RE-SCOPE. Bundled-to-prod is TRUE (ember-cli-build.js:44, unconditional). But the load-bearing premises fail: indexeddbshim is NOT abandoned (npm latest 16.1.0 published 2025-09-01, actively maintained) -- the real defect is a stale major-version pin ^6.1.0 (~10 majors behind), patchable via upgrade, not unpatchable abandonment; and underlies-offline-AAC-sync is overstated (capabilities.js:18 prefers native window.indexedDB; shim __useShim only under navigator.standalone AND WebSQL present, inert on modern browsers). A re-filed low/medium stale-6.x-pin finding would be valid; the high-severity abandonment framing is not. Scot decides (not auto-changed)."
+      "notes": "Surfaced by dependency finder on 2026-07-08. Not previously in the register. | adversary: REFUTED AS WRITTEN. Bundled-to-prod is TRUE (ember-cli-build.js:44, unconditional). But the load-bearing premises fail: indexeddbshim is NOT abandoned (npm latest 16.1.0 published 2025-09-01, actively maintained) -- the real defect is a stale major-version pin ^6.1.0 (~10 majors behind), patchable via upgrade, not unpatchable abandonment; and underlies-offline-AAC-sync is overstated (capabilities.js:18 prefers native window.indexedDB; shim __useShim only under navigator.standalone AND WebSQL present, inert on modern browsers). | TRIAGE 2026-07-08 (Scot): DOWNGRADED high->low and RE-SCOPED per the adversary refutation -- reframed from 'abandoned package' to 'stale major-version pin', upgrade-fixable, stays open as a routine dependency bump. ruleKey 'abandoned-indexeddbshim-shipped' retained for finding-ID stability; label is legacy, substance is the stale pin."
     },
     {
       "id": "LL-1bb85a2ef5",
