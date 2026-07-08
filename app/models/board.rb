@@ -56,6 +56,7 @@ class Board < ApplicationRecord
   after_commit :enqueue_suggested_sounds_if_deferred, on: %i[create update]
   after_save :post_process
   after_save :assert_shallow_mapping
+  after_commit :schedule_pending_privacy_update, on: :create
   after_commit :schedule_pending_folder_cascades, on: %i[create update]
   after_destroy :flush_related_records
 #  replicated_model
@@ -1196,6 +1197,23 @@ class Board < ApplicationRecord
     @cascade_invalidations = invalidations if invalidations.any?
   end
 
+  # A new board can already contain links to existing boards, but it has no id
+  # while process_params runs. Preserve a requested privacy cascade until the
+  # create commits so the async dispatcher receives an instance id.
+  def schedule_pending_privacy_update
+    pending = @pending_privacy_update
+    @pending_privacy_update = nil
+    return unless pending
+
+    schedule_for(
+      :priority,
+      :update_privacy,
+      pending['privacy_level'],
+      pending['author_global_id'],
+      []
+    )
+  end
+
   def post_process
     if @skip_post_process
       @skip_post_process = false
@@ -1945,15 +1963,19 @@ class Board < ApplicationRecord
       self.settings['grid'] = grid_val if grid_val.is_a?(Hash)
     end
     if params['visibility'] != nil && !self.unshareable?
-      # Guard on self.id (matches the sibling schedule_update_available_boards lines below):
-      # process_params runs on the before_save path, so on CREATE self.id is still nil.
-      # schedule_for captures self.id at enqueue time, so an unsaved board would enqueue
-      # update_privacy with id:null -> boy_band dispatches it as a CLASS method (Board.update_privacy),
-      # which doesn't exist (it's an instance method) -> "method not found" failure. A brand-new
-      # board also has no downstream boards yet, so the downstream propagation is a no-op on create.
-      # Also skip blank visibility ("") — update_privacy no-ops on it, so don't enqueue dead work.
-      if params['update_visibility_downstream'] && self.id && !params['visibility'].blank?
-        self.schedule_for(:priority, :update_privacy, params['visibility'], (non_user_params[:updater] || ref_user).global_id, [])
+      # process_params runs before save. Defer a new board's cascade until
+      # after_commit so schedule_for captures its id; linked boards may already
+      # be present in the create payload and still need the requested update.
+      if params['update_visibility_downstream'] && !params['visibility'].blank?
+        author_global_id = (non_user_params[:updater] || ref_user).global_id
+        if self.id
+          self.schedule_for(:priority, :update_privacy, params['visibility'], author_global_id, [])
+        else
+          @pending_privacy_update = {
+            'privacy_level' => params['visibility'],
+            'author_global_id' => author_global_id
+          }
+        end
       end
       if params['visibility'] == 'public'
         if !self.public || self.settings['unlisted']
