@@ -2640,6 +2640,63 @@ describe User, :type => :model do
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
       expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
     end
+
+    it "should resolve default sidebar entries to user-owned copies except keyboard" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      yesno_copy = yesno.copy_for(u)
+      inflections_copy = inflections.copy_for(u)
+      crisis_copy = crisis.copy_for(u)
+
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(yesno_copy.key)
+      expect(keys).to include(inflections_copy.key)
+      expect(keys).to include(crisis_copy.key)
+      expect(keys).to include(SystemBoardSources.board_key('keyboard'))
+      expect(keys).not_to include(yesno.key)
+      expect(keys).not_to include(inflections.key)
+      expect(keys).not_to include(crisis.key)
+    end
+
+    it "should not auto-add crisis when the user's resolved copy key is already stored" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      crisis_copy = crisis.copy_for(u)
+      saved = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }
+      saved << {
+        'name' => 'Crisis Vocabulary',
+        'key' => crisis_copy.key,
+        'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png',
+        'home_lock' => false
+      }
+      u.settings = {'preferences' => {'sidebar_boards' => saved}}
+
+      crisis_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+      end
+      expect(crisis_keys).to eq([crisis_copy.key])
+    end
+
+    it "should dedupe duplicate crisis sidebar entries after resolving to the user copy" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      crisis_copy = crisis.copy_for(u)
+      system_key = SystemBoardSources.board_key('crisis-vocabulary')
+      u.settings = {'preferences' => {'sidebar_boards' => [
+        {'name' => 'Crisis Vocabulary', 'key' => system_key, 'image' => 'https://example.com/crisis.png', 'home_lock' => false},
+        {'name' => 'Crisis Vocabulary', 'key' => crisis_copy.key, 'image' => 'https://example.com/crisis.png', 'home_lock' => false}
+      ]}}
+
+      crisis_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+      end
+      expect(crisis_keys).to eq([crisis_copy.key])
+    end
   end
   
   describe "avatars" do

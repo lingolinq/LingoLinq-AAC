@@ -96,6 +96,16 @@ function ordered_buttons_for_obf(board) {
 function normalize_board(board, source_path) {
   board = Object.assign({}, board);
   board.source_path = source_path;
+  // Static demo boards were exported from CoughDrop and still carry legacy
+  // user/key/url metadata (e.g. wahlquist/...). The demo shell is fully
+  // offline — strip remote references so nothing tries the LingoLinq API.
+  board.key = 'demo/' + (source_path || 'pc36').replace(/^boards\//, '').replace(/\.obf$/, '');
+  delete board.data_url;
+  delete board.url;
+  if(board.ext_coughdrop_settings) {
+    board.ext_coughdrop_settings = Object.assign({}, board.ext_coughdrop_settings);
+    delete board.ext_coughdrop_settings.key;
+  }
   board.has_background = !!(board.background && (board.background.image || board.background.color || board.background.text));
   board.ordered_buttons = ordered_buttons_for(board);
   return board;

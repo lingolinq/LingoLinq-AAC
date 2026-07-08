@@ -25,7 +25,44 @@
           <hr class="la-about-hero-separator" aria-hidden="true">
         </div>
         <p class="google-link-context">{{t "Signed in to Google as %{email}" email=this.googleSignupProfile.email key="google_signed_in_as"}}</p>
+        {{#if this.googleSignupMissingLinkTerms}}
+          <p class="register-error">{{t "This Google sign-up session did not include agreement to the Terms of Service." key="google_signup_link_terms_missing"}}</p>
+          <p class="register-help-text">{{t "Go back to sign up, agree to the terms, then continue with Google again." key="google_signup_link_terms_missing_hint"}}</p>
+          <div class="register-btn-wrap">
+            <button type="button" class="register-btn" {{action "restart_google_signup"}}>
+              {{t "Restart Google sign up" key="google_signup_restart"}}
+            </button>
+          </div>
+        {{else}}
         <p>{{t "Choose the username you want for your LingoLinq account, then finish creating your account." key="google_signup_complete_body_username_required"}}</p>
+        <div class="register-checkboxes">
+          {{#unless this.googleSignupTerms}}
+            {{! Safety net: the age/terms attestation is normally carried forward
+                from the method-chooser step. If it didn't (e.g. an expired or
+                direct session), show it here so the user isn't stuck. }}
+            {{#if this.showCoppaConsent}}
+              <div class="checkbox big_checkbox">
+                <Input @type="checkbox" @checked={{this.googleSignupTerms}} id="register_google_terms_consent" aria-labelledby="register_google_terms_consent_text" />
+                <span id="register_google_terms_consent_text" class="big_checkbox__consent">
+                  {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+                </span>
+              </div>
+            {{else}}
+              <div class="checkbox big_checkbox">
+                <Input @type="checkbox" @checked={{this.combined_google_consent}} id="register_google_combined_consent" aria-labelledby="register_google_combined_consent_text" />
+                <span id="register_google_combined_consent_text" class="big_checkbox__consent">
+                  {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
+                </span>
+              </div>
+            {{/if}}
+          {{/unless}}
+          <div class="checkbox big_checkbox">
+            <label>
+              <Input @type="checkbox" @checked={{this.googleSignupProductImprovementOptIn}} />
+              {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
+            </label>
+          </div>
+        </div>
         <div class="form-group">
           <label for="google_signup_user_name">{{t "Username" key="username"}}</label>
           <Input @value={{this.googleSignupUserName}} class="form-control" id="google_signup_user_name" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
@@ -35,33 +72,6 @@
             <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
           {{/if}}
         </div>
-        <div class="register-checkboxes">
-          {{#if this.showCoppaConsent}}
-            <div class="checkbox big_checkbox">
-              <Input @type="checkbox" @checked={{this.googleSignupTerms}} id="register_google_terms_consent" aria-labelledby="register_google_terms_consent_text" />
-              <span id="register_google_terms_consent_text" class="big_checkbox__consent">
-                {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
-              </span>
-            </div>
-          {{else}}
-            <div class="checkbox big_checkbox">
-              <Input @type="checkbox" @checked={{this.combined_google_consent}} id="register_google_combined_consent" aria-labelledby="register_google_combined_consent_text" />
-              <span id="register_google_combined_consent_text" class="big_checkbox__consent">
-                {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
-              </span>
-            </div>
-          {{/if}}
-        </div>
-        {{#unless this.googleSignupTerms}}
-          <div class="register-checkboxes">
-            <div class="checkbox big_checkbox">
-              <div id="google_signup_terms_label">
-                <Input @type="checkbox" @checked={{this.googleSignupTerms}} aria-labelledby="google_signup_terms_label" />
-                {{t "By checking this box, I agree to the LingoLinq " key="register_terms_privacy_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Service" key="terms_of_service"}}</a>{{t " and " key="and_spaced"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t "." key="period"}}
-              </div>
-            </div>
-          </div>
-        {{/unless}}
         <div class="register-btn-wrap">
           <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
             {{#if this.googleSignupBusy}}
@@ -73,6 +83,7 @@
         </div>
         {{#if this.googleSignupError}}
           <p class="register-error">{{t "There was an unexpected error while registering" key="error_registering"}}</p>
+        {{/if}}
         {{/if}}
       {{else if this.google_signup}}
         <div class="la-section-header">
@@ -276,6 +287,8 @@
             {{/if}}
 
           {{else if this.showAccountStep}}
+            {{! Method chooser: pick Google or email. The age/terms attestation
+                made here is carried forward into whichever method is chosen. }}
             {{#if (is-equal this.registration_role "supporter")}}
               <button type="button" class="register-back-link" {{action "go_to_step" "supporter_type"}}>
                 <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
@@ -288,17 +301,6 @@
               </button>
             {{/if}}
             <h3 class="register-role-heading">{{this.selectedRoleSignupHeading}}</h3>
-            <div class="form-group">
-              <label for="user_name_account">{{t "Username" key="username"}}</label>
-              <Input @type="text" @value={{this.model.user_name}} class="form-control" id="user_name_account" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
-              {{#if this.userNameMissing}}
-                <span class='text-danger'>{{t "username required" key="username_required"}}</span>
-              {{else if this.noSpacesName}}
-                <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
-              {{else if this.user.user_name_check.exists}}
-                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
-              {{/if}}
-            </div>
             <div class="register-checkboxes">
               {{#if this.showCoppaConsent}}
                 <div class="checkbox big_checkbox">
@@ -315,15 +317,6 @@
                   </span>
                 </div>
               {{/if}}
-              <div class="checkbox big_checkbox">
-                <label>
-                  <Input @type="checkbox" @checked={{this.productImprovementOptIn}} />
-                  {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
-                </label>
-              </div>
-              {{#if this.ageAttestationRequired}}
-                <span class='text-danger register-checkboxes__error'>{{t "You must confirm your age and agree to the Terms of Use and Privacy Policy to create an account." key="combined_consent_required_message"}}</span>
-              {{/if}}
             </div>
             {{#if this.googleSsoEnabled}}
               <div class="register-btn-wrap">
@@ -339,43 +332,73 @@
                   <span class="register-btn--google__label">{{t "Continue with Google" key="continue_with_google"}}</span>
                 </button>
               </div>
-              {{#unless this.model.terms_agree}}
-                <p class="register-help-text">{{t "Agree to the Terms of Service before continuing with Google." key="google_terms_required_hint"}}</p>
-              {{/unless}}
-              {{#if this.userNameBlank}}
-                <p class="register-help-text">{{t "Choose a username before continuing with Google." key="google_username_required_hint"}}</p>
-              {{/if}}
               <div class="login-google-divider">
-                <span>{{t "or sign up with email" key="or_sign_up_with_email"}}</span>
+                <span>{{t "or" key="or_separator"}}</span>
               </div>
             {{/if}}
+            <div class="register-btn-wrap">
+              <button type="button" disabled={{this.emailMethodDisabled}} class="register-btn register-btn--wide" {{action "continue_with_email"}}>
+                {{t "Sign up with Email" key="sign_up_with_email"}}
+              </button>
+            </div>
+            {{#unless this.model.terms_agree}}
+              <p class="register-help-text">{{t "Agree to the Terms of Service before continuing." key="terms_required_before_continue"}}</p>
+            {{/unless}}
+
+          {{else if this.showEmailStep}}
+            {{! Dedicated email form, reached from the method chooser. Terms are
+                already attested there, so they are not re-asked here. }}
+            <button type="button" class="register-back-link" {{action "go_to_step" "account"}}>
+              <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
+              {{t "Choose a different sign up method" key="choose_different_signup_method"}}
+            </button>
+            <h3 class="register-role-heading">{{this.selectedRoleSignupHeading}}</h3>
+            <div class="register-checkboxes">
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @type="checkbox" @checked={{this.productImprovementOptIn}} />
+                  {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
+                </label>
+              </div>
+            </div>
             <div class="form-group">
-              <label for="email_account">{{t "Email" key="email"}}</label>
-              <Input @type="email" @value={{this.model.email}} class="form-control" id="email_account" autocomplete="email" inputmode="email" />
+              <label for="user_name_email">{{t "Username" key="username"}}</label>
+              <Input @type="text" @value={{this.model.user_name}} class="form-control" id="user_name_email" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              {{#if this.userNameMissing}}
+                <span class='text-danger'>{{t "username required" key="username_required"}}</span>
+              {{else if this.noSpacesName}}
+                <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
+              {{else if this.user.user_name_check.exists}}
+                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+              {{/if}}
+            </div>
+            <div class="form-group">
+              <label for="email_email_step">{{t "Email" key="email"}}</label>
+              <Input @type="email" @value={{this.model.email}} class="form-control" id="email_email_step" autocomplete="email" inputmode="email" />
               {{#if this.badEmail}}
                 <span class='text-danger'>{{t "email required" key="email_required"}}</span>
               {{/if}}
             </div>
             <div class="form-group">
-              <label for="password_account">{{t "Password" key="password"}}</label>
-              {{password-field id="password_account" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
+              <label for="password_email_step">{{t "Password" key="password"}}</label>
+              {{password-field id="password_email_step" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
               {{#if this.shortPassword}}
                 <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
               {{/if}}
             </div>
             {{#if this.start_code}}
               <div class="form-group">
-                <label for="start_code_account">{{t "Start Code" key="start_code"}}</label>
-                <Input @value={{this.model.start_code}} class="form-control" id="start_code_account" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+                <label for="start_code_email">{{t "Start Code" key="start_code"}}</label>
+                <Input @value={{this.model.start_code}} class="form-control" id="start_code_email" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
               </div>
             {{else}}
-              <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+              <button type="button" class="register-start-code-link register-start-code-link--spaced" {{action "allow_start_code"}}>
                 {{t "I have a start code" key="have_a_start_code"}}
               </button>
             {{/if}}
             <div class="register-btn-wrap">
               {{#if (persistence-online)}}
-                <button type="submit" disabled={{this.accountStepEmailSignupDisabled}} class="register-btn register-btn--wide">
+                <button type="submit" disabled={{this.emailStepSignupDisabled}} class="register-btn register-btn--wide">
                   {{#if this.registering.initializing}}
                     {{t "Handling Start Code..." key="processing_start_code"}}
                   {{else if this.registering.saving}}
@@ -390,12 +413,6 @@
                 </button>
               {{/if}}
             </div>
-            {{#unless this.model.terms_agree}}
-              <p class="register-help-text">{{t "Agree to the Terms of Service before continuing with email." key="email_terms_required_hint"}}</p>
-            {{/unless}}
-            {{#if this.userNameBlank}}
-              <p class="register-help-text">{{t "Choose a username before continuing with email." key="email_username_required_hint"}}</p>
-            {{/if}}
           {{/if}}
 
           {{#if this.registering.error}}

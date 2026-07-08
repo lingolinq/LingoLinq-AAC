@@ -739,6 +739,7 @@ class SessionController < ApplicationController
       'popout_id' => params['popout_id'],
       'app' => ActiveModel::Type::Boolean.new.cast(params['app'] || false)
     }
+    return_origin = params['return_origin'].to_s.strip
     if flow == 'register'
       registration_type = params['registration_type'].to_s.strip
       allowed_registration_types = %w[communicator therapist parent teacher other]
@@ -747,8 +748,10 @@ class SessionController < ApplicationController
       config['user_name'] = params['user_name'].to_s.strip
       config['terms_agree'] = ActiveModel::Type::Boolean.new.cast(params['terms_agree'])
       config['product_improvement_opt_in'] = ActiveModel::Type::Boolean.new.cast(params['product_improvement_opt_in'])
+      unless config['terms_agree']
+        return redirect_to google_frontend_redirect('/register?google_error=terms_required', return_origin.present? ? { 'return_origin' => return_origin } : nil), allow_other_host: true
+      end
     end
-    return_origin = params['return_origin'].to_s.strip
     origin = GoogleOAuth.frontend_origin(request, return_origin.present? ? { 'return_origin' => return_origin } : nil)
     config['return_origin'] = origin if origin.present?
     GoogleOAuth.store_state(code, config)
@@ -909,6 +912,9 @@ class SessionController < ApplicationController
       return api_error 400, {error: 'session_expired'}
     end
     unless ActiveModel::Type::Boolean.new.cast(params['terms_agree'])
+      return api_error 400, {error: 'terms_required'}
+    end
+    unless ActiveModel::Type::Boolean.new.cast(link['terms_agree'])
       return api_error 400, {error: 'terms_required'}
     end
     profile = {
