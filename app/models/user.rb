@@ -2160,9 +2160,13 @@ class User < ApplicationRecord
           allowed = true
         end
         if record && allowed
+          stored_key = board['key']
+          if stored_key && stored_key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+            stored_key = SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG)
+          end
           brd = {
             'name' => board['name'] || record.settings['name'] || 'Board',
-            'key' => board['key'],
+            'key' => stored_key,
             'image' => board['image'] || record.settings['image_url'] || '/images/lingolinq-board-icon.png',
             'home_lock' => !!board['home_lock']
           }
@@ -2234,7 +2238,15 @@ class User < ApplicationRecord
       self.settings['sidebar_changed'] = true
       self.settings['preferences'].delete('sidebar_boards')
     else
-      result = result.uniq{|b| b['special'] ? (b['alert'].to_s + "_" + b['action'].to_s + "_" + b['arg'].to_s) : b['key'] }
+      result = result.uniq do |b|
+        if b['special']
+          b['alert'].to_s + "_" + b['action'].to_s + "_" + b['arg'].to_s
+        elsif b['key'] && b['key'].split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+          SystemBoardSources::CRISIS_VOCABULARY_SLUG
+        else
+          b['key']
+        end
+      end
       pre_json = self.settings['preferences']['sidebar_boards'].to_json
       self.settings['sidebar_changed'] = true if pre_json != result.to_json
       self.settings['preferences']['sidebar_boards'] = result
@@ -2254,19 +2266,46 @@ class User < ApplicationRecord
   end
 
   def self.sidebar_system_keys
-    [
-      SystemBoardSources.board_key('keyboard'),
-      SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG)
-    ].freeze
+    [SystemBoardSources.board_key('keyboard')].freeze
   end
 
   def self.resolve_sidebar_boards_for(user, boards)
-    (boards || []).map { |entry| resolve_sidebar_entry(user, entry) }
+    resolved = (boards || []).map { |entry| resolve_sidebar_entry(user, entry) }
+    dedupe_resolved_sidebar_boards(resolved)
+  end
+
+  def self.dedupe_resolved_sidebar_boards(boards)
+    seen = {}
+    boards.each_with_object([]) do |entry, result|
+      slug = sidebar_board_slug(entry)
+      if slug == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+        next if seen[slug]
+        seen[slug] = true
+      end
+      result << entry
+    end
+  end
+
+  def self.sidebar_board_slug(entry)
+    return nil unless entry.is_a?(Hash) && entry['key']
+    entry['key'].split('/').last
+  end
+
+  def self.sidebar_stored_key_present?(stored, key)
+    return false unless key
+    slug = key.split('/').last
+    (stored || []).any? do |entry|
+      next false unless entry.is_a?(Hash)
+      entry['key'] == key || (
+        slug == SystemBoardSources::CRISIS_VOCABULARY_SLUG &&
+        sidebar_board_slug(entry) == slug
+      )
+    end
   end
 
   # Default sidebar entries reference public system boards. Resolve to the user's
-  # owned copy when one exists (parent_board lineage), except keyboard and crisis
-  # which stay on the shared system boards.
+  # owned copy when one exists (parent_board lineage), except keyboard which stays
+  # on the shared system board.
   def self.resolve_sidebar_entry(user, entry)
     return entry unless entry.is_a?(Hash)
     return entry if entry['alert'] || (entry['special'] && entry['alert'])
@@ -2308,7 +2347,7 @@ class User < ApplicationRecord
 
     return stored unless stored_ids.any? { |id| default_ids.include?(id) }
 
-    missing_auto_add = sidebar_auto_add_keys.reject { |key| stored_ids.include?(key) }
+    missing_auto_add = sidebar_auto_add_keys.reject { |key| sidebar_stored_key_present?(stored, key) }
     return stored if missing_auto_add.empty?
 
     result = stored.dup
