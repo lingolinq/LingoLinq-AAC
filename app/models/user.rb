@@ -381,44 +381,76 @@ class User < ApplicationRecord
     !!c['pending_parent_consent']
   end
 
-  # Parent completes email link with token. Returns true when consent is newly recorded or already granted.
-  def grant_parental_consent!(token)
+  # Parent completes email link with token. Returns true when consent is newly
+  # recorded. Mirrors grant_ai_consent! (COPPA 16 CFR 312.5 record-keeping): the
+  # settings write, the Privacy Policy acknowledgment, User#save! and an immutable
+  # AuditEvent all run inside one `with_lock(requires_new: true)` (SELECT FOR
+  # UPDATE + SAVEPOINT). Two consequences that a fail-open, post-save audit could
+  # not give: an audit-insert failure rolls back the consent grant - including the
+  # token invalidation, so the parent can simply retry the same link rather than
+  # being left consented-without-a-record; and concurrent token requests against
+  # the same user are serialized, so the second reloads, sees the committed grant
+  # and no-ops instead of double-granting/double-logging. `ip:`/`user_agent:` come
+  # from the request so the immutable record identifies where and with what the
+  # parent completed consent.
+  def grant_parental_consent!(token, ip: nil, user_agent: nil)
     return false if token.blank?
-    self.settings ||= {}
-    c = self.settings['coppa']
-    return false unless c.is_a?(Hash)
-    return false if c['parent_consent_granted_at'].present?
-    return false unless c['pending_parent_consent']
-    stored = c['parent_consent_token'].to_s
-    tok = token.to_s
-    return false if stored.blank?
-    return false if stored.bytesize != tok.bytesize
-    return false unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
-    exp = c['parent_consent_expires_at']
-    if exp.present?
-      begin
-        return false if Time.iso8601(exp) < Time.now.utc
-      rescue ArgumentError
-        return false
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_granted_at'].present?
+      next unless c['pending_parent_consent']
+      stored = c['parent_consent_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      exp = c['parent_consent_expires_at']
+      if exp.present?
+        begin
+          next if Time.iso8601(exp) < Time.now.utc
+        rescue ArgumentError
+          next
+        end
       end
+      granted_at = Time.now.utc.iso8601
+      record_id = SecureRandom.uuid
+      c['parent_consent_granted_at'] = granted_at
+      c.delete('parent_consent_token')
+      c.delete('parent_consent_expires_at')
+      c.delete('pending_parent_consent')
+      self.settings['coppa'] = c
+      # Record the parent's Privacy Policy acknowledgment (on the child's behalf)
+      # at the moment they complete the token flow; deferred from the child's
+      # signup (see process_params).
+      self.settings['privacy_policy_acknowledged'] = {
+        'acknowledged_at' => granted_at,
+        'policy_version' => PRIVACY_POLICY_VERSION,
+        'acknowledged_by' => 'parent'
+      }
+      self.save!
+      # Immutable, tamper-evident grant record independent of the mutable
+      # settings['coppa'] blob. Captures the exact persisted grant timestamp,
+      # the acknowledged policy version, and request provenance.
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_grant',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'privacy_policy_version' => PRIVACY_POLICY_VERSION,
+          'granted_at' => granted_at,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_grant',
+        record_id: record_id
+      )
+      res = true
     end
-    c['parent_consent_granted_at'] = Time.now.utc.iso8601
-    c.delete('parent_consent_token')
-    c.delete('parent_consent_expires_at')
-    c.delete('pending_parent_consent')
-    self.settings['coppa'] = c
-    # Record the parent's Privacy Policy acknowledgment (on the child's behalf)
-    # at the moment they complete the token flow; deferred from the child's
-    # signup (see process_params).
-    self.settings['privacy_policy_acknowledged'] = {
-      'acknowledged_at' => Time.now.utc.iso8601,
-      'policy_version' => PRIVACY_POLICY_VERSION,
-      'acknowledged_by' => 'parent'
-    }
-    res = self.save
-    if res
-      devices.each(&:invalidate_cached_keys)
-    end
+    devices.each(&:invalidate_cached_keys) if res
     res
   end
 

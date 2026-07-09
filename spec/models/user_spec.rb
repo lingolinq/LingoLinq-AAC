@@ -612,6 +612,52 @@ describe User, :type => :model do
       expect(u.settings['privacy_policy_acknowledged']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
     end
 
+    it "grant_parental_consent! writes an immutable AuditEvent atomically, and rolls the grant back if the audit insert fails" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      AuditEvent.delete_all
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_audit',
+        'email' => 'kidaudit@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentaudit@example.com'
+      }, {})
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+
+      # Happy path: one immutable event carrying the persisted grant timestamp.
+      expect { expect(u.grant_parental_consent!(token, ip: '203.0.113.7', user_agent: 'TestAgent/1.0')).to eq(true) }
+        .to change { AuditEvent.where(event_type: 'parental_consent_grant', user_key: u.global_id).count }.by(1)
+      ae = AuditEvent.where(event_type: 'parental_consent_grant', user_key: u.global_id).last
+      expect(ae.record_id).to be_present
+      expect(ae.data['ip']).to eq('203.0.113.7')
+      expect(ae.data['user_agent']).to eq('TestAgent/1.0')
+      expect(ae.data['privacy_policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(ae.data['granted_at']).to eq(u.reload.settings['coppa']['parent_consent_granted_at'])
+
+      # Rollback: a fresh grantable user whose audit insert raises must NOT end up
+      # consented, and the token must remain usable for a retry.
+      u2 = User.new
+      u2.process_params({
+        'name' => 'coppa_kid_rollback',
+        'email' => 'kidrollback@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentrollback@example.com'
+      }, {})
+      u2.save!
+      token2 = u2.settings['coppa']['parent_consent_token']
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        expect { u2.grant_parental_consent!(token2) }.to raise_error(ActiveRecord::RecordInvalid)
+      }.to_not change { AuditEvent.count }
+      u2.reload
+      expect(u2.settings['coppa']['parent_consent_granted_at']).to be_blank
+      expect(u2.settings['coppa']['parent_consent_token']).to eq(token2)
+      expect(u2.coppa_parental_consent_pending?).to eq(true)
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}
