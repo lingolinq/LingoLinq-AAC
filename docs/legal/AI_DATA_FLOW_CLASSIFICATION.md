@@ -97,7 +97,27 @@ of those three is already live in code (EU only) versus decided-but-not-yet-enfo
 general). See `docs/legal/DATA_RETENTION.md`, which is corrected in this same commit set to carry
 the same breakdown instead of the stale flat "2 years" figure.
 
-## 7. What is explicitly OUT of scope for Phase 2
+## 7. i18n strategy for the disclosure content (Task 02-01.5)
+
+`i18n_generator.rb` only scans `app/frontend/app/**/*.js` and `app/frontend/app/**/*.hbs`; it does
+not read Rails ERB views. The `[V2]` design decision made the disclosure a server-rendered Rails
+view (`app/views/ai_consent/disclosures/v1.html.erb`) precisely so the legal copy lives in one
+place rather than being re-keyed into 13 Ember locale JSON files, so this is expected, not a gap:
+the disclosure's strings live in `config/locales/en.yml` under `ai_consent_disclosures.v1.*` and
+are resolved with the standard Rails `t()` helper, the same pattern already used for the
+`parental_consent` mailer and controller copy in that file.
+
+Running `ruby i18n_generator.rb` before any Ember template changes in this phase confirms a clean
+baseline (0 dups, 0 missing, 7701 total strings) so any dup/missing count reported after the
+`privacy.hbs` edit in Task 02-02.1 is attributable to that edit alone.
+
+`es` coverage for the disclosure itself does not yet exist (`config/locales` currently has only
+`en.yml`); a human-reviewed `config/locales/es.yml` mirroring the same key structure is required
+before this disclosure can be shown to a Spanish-speaking parent, tracked alongside the `es` hard
+gate for `privacy.hbs` (Task 02-02.6) as a blocking pre-enforcement dependency, not a loose
+follow-up.
+
+## 8. What is explicitly OUT of scope for Phase 2
 
 - Wiring any of this into an actual consent gate at the AI call sites (VPC Phase 4).
 - Building the general non-EU / children's-data purge jobs described in section 6 (separate ticket,
