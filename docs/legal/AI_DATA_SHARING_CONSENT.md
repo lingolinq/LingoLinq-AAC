@@ -105,7 +105,7 @@ endpoint. There is no code path in this product that sends data to OpenAI's actu
 | Never send externally | Blocked unless an explicit approved legal + vendor basis exists |
 
 AI board suggestions are classified **Scrubbed-personal** (conservative default, gated pending the
-open counsel question in section 6.1). AI word prediction and AI evaluation narration are both
+open counsel question in section 7). AI word prediction and AI evaluation narration are both
 classified **Regulated PII** (highest sensitivity: the child's own expressive communication content,
 and clinical evaluation data, respectively) and require the second-tier consent under all
 circumstances contemplated by this phase.
@@ -179,7 +179,24 @@ decision:
    consent request") and does not imply a one-click email link suffices. See section 8 for the
    cross-phase escalation this creates for VPC Phase 3.
 
-## 8. Attestation
+## 8. Cross-phase escalation: Phase 3 consent-method pre-decision (HIGH priority)
+
+Recorded here, and in this plan's SUMMARY.md, per the Phase 2 task instructions (STATE.md is
+updated centrally by the orchestrator, not by this phase's execution).
+
+**Finding:** VPC Phase 3 ("Parent UX") was modeled on the existing email-link parental-consent flow
+(`parental_consents_controller.rb`). Per the amended COPPA Rule, email-plus and text-plus consent
+methods are **not adequate** to consent to third-party disclosure, which is exactly what granting AI
+data-sharing consent is. Building Phase 3 UX around a one-click email link, without first deciding
+question 2 in section 7 above, risks shipping a consent flow whose grants are legally invalid --
+"a perfect versioned disclosure gating an invalidly-obtained consent protects nothing."
+
+**Action required before VPC Phase 3 begins implementation:** Scot decides the verifiable-consent
+method for the AI-data-sharing gate specifically (distinct from the existing signup-time COPPA
+consent method, which is unaffected). This phase's disclosure copy is deliberately written to be
+compatible with any outcome of that decision.
+
+## 9. Attestation
 
 | Field | Value |
 |---|---|
