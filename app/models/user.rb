@@ -457,10 +457,28 @@ class User < ApplicationRecord
   # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
   # consent record exists at the queried disclosures_version. Per D-03: missing
   # settings['ai_consent'] is treated as "not granted", no migration needed.
-  # `disclosures_version:` is required: callers that forget the kwarg get
-  # ArgumentError at boot/test time rather than a silent false (which Phase 4
-  # would interpret as "guard fired, AI suppressed for an actually-consented user").
-  def ai_consent_granted?(disclosures_version:)
+  #
+  # `disclosures_version:` DEFAULTS to LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+  # (VPC Phase 2). D-03 originally made this kwarg required with NO default,
+  # specifically because no canonical version source existed yet: an omitted
+  # kwarg with some accidental implicit value (e.g. nil) would silently return
+  # false, and Phase 4 would misread that as "the gate correctly fired" rather
+  # than "the caller forgot to pass a version" (see the original rationale
+  # preserved below). Phase 2 supplies that canonical source, which removes
+  # the failure mode D-03 was guarding against: the implicit value is no
+  # longer arbitrary, it is the exact version every caller SHOULD be checking
+  # against in the common case. A caller that needs to check a specific
+  # (e.g. stale) version still passes disclosures_version: explicitly; no
+  # caller should ever hardcode a literal version number.
+  #
+  # Original D-03 rationale, still true for why *some* explicit default was
+  # required rather than silently defaulting to nil/0: "callers that forget
+  # the kwarg get ArgumentError at boot/test time rather than a silent false
+  # (which Phase 4 would interpret as 'guard fired, AI suppressed for an
+  # actually-consented user')." Defaulting to CURRENT_VERSION resolves this
+  # the same way ArgumentError did (no silent wrong answer), while also being
+  # useful.
+  def ai_consent_granted?(disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION)
     c = self.settings && self.settings['ai_consent']
     return false unless c.is_a?(Hash)
     return false if c['granted_at'].blank?
