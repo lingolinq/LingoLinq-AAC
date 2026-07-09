@@ -76,7 +76,7 @@ class Api::LessonsController < ApplicationController
     return unless exists?(lesson, lesson_id)
     return unless lesson.nonce == lesson_code || allowed?(lesson, 'view')
     user = User.find_by_lesson_share_token(user_token)
-    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user, extra_user: user})
+    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user, extra_user: user, extra_user_token: user_token})
   end
 
   def update
@@ -101,7 +101,7 @@ class Api::LessonsController < ApplicationController
 
     Lesson.complete(lesson, user, params['rating'].to_i, nil, params['duration'].to_i)
 
-    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, extra_user: user, permissions: user})
+    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, extra_user: user, permissions: user, extra_user_token: user_token})
   end
 
   def assign
