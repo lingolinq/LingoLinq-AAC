@@ -155,6 +155,13 @@ module FeatureFlags
   # reads flags (window.enabled_frontend_features = ENABLED_FRONTEND_FEATURES),
   # since there is no user yet at signup. OFF by default (AVAILABLE-only) so the
   # registration flow stays identical to today until deliberately enabled.
+  #
+  # DEPENDENCY: EU-16 only actually GATES when the host also has
+  # coppa_parental_consent enabled (JsonApi::Json.coppa_parental_consent_enabled?).
+  # With this flag ON but that OFF, the register UI collects a parent email but
+  # the backend does not gate -- a cosmetic prompt. Enable BOTH together on an
+  # EU host. (And note the age gate itself trusts a client boolean; server-side
+  # enforcement is a separate hardening item, see the PR/plan.)
   def self.eu_consent_age_enabled?
     ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
   end

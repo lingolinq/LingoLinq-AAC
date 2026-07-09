@@ -23,6 +23,19 @@ describe LingoLinq::Jurisdiction do
       expect(LingoLinq::Jurisdiction.country_code('pl-PL,pl;q=0.9,en;q=0.8')).to eq('PL')
     end
 
+    it "finds the region subtag past a script subtag (BCP-47)" do
+      expect(LingoLinq::Jurisdiction.country_code('sr-Latn-RS')).to eq('RS')
+      expect(LingoLinq::Jurisdiction.country_code('zh-Hant-HK')).to eq('HK')
+      expect(LingoLinq::Jurisdiction.country_code('de-Latn-DE')).to eq('DE')
+    end
+
+    it "treats an explicit 2-letter token as its ISO country by contract" do
+      # 'DE' is Delaware as a US state code but Germany as ISO 3166-1; the
+      # primitive reads explicit country/region tokens as ISO country codes.
+      expect(LingoLinq::Jurisdiction.country_code({ 'region' => 'DE' })).to eq('DE')
+      expect(LingoLinq::Jurisdiction.eu?({ 'region' => 'DE' })).to eq(true)
+    end
+
     it "treats a bare lowercase language subtag as unknown (ambiguous)" do
       expect(LingoLinq::Jurisdiction.country_code('pl')).to eq(nil)
       expect(LingoLinq::Jurisdiction.country_code('es')).to eq(nil)
