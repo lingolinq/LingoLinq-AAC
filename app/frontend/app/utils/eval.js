@@ -268,6 +268,10 @@ var evaluation = {
   // Ignore an abandoned in-progress snapshot older than this so a stale eval
   // doesn't resurface indefinitely on last-eval / auto-resume.
   EVAL_PROGRESS_MAX_AGE_S: 24 * 60 * 60,
+  // Snapshot schema version. Bump when the assessment/working shape changes so a
+  // snapshot written by an older build is ignored instead of restored into a
+  // shape analyze()/the board builder can't read.
+  EVAL_PROGRESS_VERSION: 1,
   _json_safe: function(obj) {
     // Strip functions (e.g. word.action closures on working.ref) so the snapshot
     // survives structured-clone into IndexedDB. Scored data (events/started) is
@@ -298,6 +302,7 @@ var evaluation = {
     snap.in_progress = true;
     snap.saved_at = (new Date()).getTime() / 1000;
     snap.user_id = snap.user_id || uid;
+    snap.v = evaluation.EVAL_PROGRESS_VERSION;
     try {
       var s = evaluation.persistence.store('settings', snap, evaluation.EVAL_PROGRESS_PREFIX + uid);
       if(s && s.then) { s.then(null, function() {}); }
@@ -310,6 +315,9 @@ var evaluation = {
       return evaluation.persistence.find('settings', key).then(function(rec) {
         var snap = rec && (rec.raw || rec);
         if(!snap || !snap.in_progress) { return null; }
+        // Schema-version guard: ignore a snapshot written by a different build so
+        // a shape change can't crash restore/analyze.
+        if(snap.v !== evaluation.EVAL_PROGRESS_VERSION) { return null; }
         // Freshness bound: drop an abandoned snapshot past EVAL_PROGRESS_MAX_AGE_S.
         var age = ((new Date()).getTime() / 1000) - (snap.saved_at || 0);
         if(snap.saved_at && age > evaluation.EVAL_PROGRESS_MAX_AGE_S) { return null; }
@@ -335,6 +343,27 @@ var evaluation = {
       }
     } catch(e) { /* best-effort */ }
     evaluation._clear_pointer();
+  },
+  // Sign-out purge: an in-progress snapshot is partially-answered clinical data,
+  // so it must NOT survive logout on a shared device (clear_user_state keeps the
+  // rest of IndexedDB by design, but this transient assessment is different).
+  // Removes the mid-eval snapshot (via the per-tab pointer) AND the current
+  // in-memory eval's key, clears the pointer, and drops in-memory state. Wired
+  // from services/session.js#invalidate. Best-effort.
+  purge_for_logout: function() {
+    var puid = evaluation._get_pointer();
+    var uid = evaluation._eval_user_id();
+    [puid, uid].forEach(function(id) {
+      if(!id) { return; }
+      try {
+        var p = evaluation.persistence.remove('settings', {id: evaluation.EVAL_PROGRESS_PREFIX + id}, evaluation.EVAL_PROGRESS_PREFIX + id);
+        if(p && p.then) { p.then(null, function() {}); }
+      } catch(e) { /* best-effort */ }
+    });
+    evaluation._clear_pointer();
+    evaluation._restore_attempted = true;
+    assessment = {};
+    working = {};
   },
   restore_progress: function() {
     // Called on re-entry (reload/deep-link) when the live assessment is empty.

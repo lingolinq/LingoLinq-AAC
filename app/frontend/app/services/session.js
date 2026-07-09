@@ -8,6 +8,7 @@ import LingoLinq from '../app';
 import capabilities from '../utils/capabilities';
 import lingoLinqExtras from '../utils/extras';
 import i18n from '../utils/i18n';
+import evaluation from '../utils/eval';
 import modal from '../utils/modal';
 
 export default Service.extend({
@@ -605,6 +606,12 @@ export default Service.extend({
     }
     var full_invalidate = force || !!(this.appState.get('currentUser') || this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback());
     if(full_invalidate) {
+      // Purge any in-progress eval snapshot (partially-answered clinical data)
+      // BEFORE the transition/reload so it doesn't survive logout at rest on a
+      // shared device (the rest of IndexedDB survives sign-out by design; this
+      // transient assessment is different). Best-effort; issued early so the
+      // IndexedDB removes have the best chance to commit ahead of any reload.
+      try { evaluation.purge_for_logout(); } catch(e) { /* best-effort */ }
       if(window.navigator.splashscreen) {
         window.navigator.splashscreen.show();
       }

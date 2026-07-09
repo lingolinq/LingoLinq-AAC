@@ -122,9 +122,14 @@
                   <button type="button" class="md-caseload__quick-action md-caseload__quick-action--assess" {{on "click" (this.ctrlActionNoBubble "quick_assessment" supervisee)}} aria-label={{concat (t "Quick assessment for" key="quick_assessment_for_lower") " " supervisee.user_name}} title={{t "Quick Assessment" key="quick_assessment"}}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Assess" key="caseload_qa_assess"}}</span>
                   </button>
+                  {{!-- Full Eval launches a clinical assessment — gate it behind the
+                       eval flag (currently ENABLED for everyone in beta) so its
+                       rollout can be staged for production like Quick Screen Eval. --}}
+                  {{#if this.appState.feature_flags.quick_screen_eval}}
                   <button type="button" class="md-caseload__quick-action md-caseload__quick-action--run-eval" {{on "click" (this.ctrlActionNoBubble "run_eval" supervisee)}} aria-label={{concat (t "Run Evaluation" key="run_evaluation") " " supervisee.user_name}} title={{t "Run Evaluation" key="run_evaluation"}}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="6" stroke="#2A9D8F"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Full Eval" key="caseload_qa_run_eval"}}</span>
                   </button>
+                  {{/if}}
                   <span class="md-caseload__list-chevron" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </span>
