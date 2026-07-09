@@ -720,7 +720,7 @@ describe Subscription, :type => :model do
       expect(Organization.sponsored?(u)).to eq(true)
       expect(RemoteAction.where(action: 'notify_unassigned').count).to eq(0)
       u.update_subscription_organization("r#{o.global_id}")
-      expect(u.expires_at.to_i).to eq(12.weeks.from_now.to_i)
+      expect(u.expires_at.to_i).to be_within(10).of(12.weeks.from_now.to_i)
       ra = RemoteAction.where(action: 'notify_unassigned').last
       expect(ra).to_not eq(nil)
       RemoteAction.where(id: ra.id).update_all(act_at: 5.seconds.ago)

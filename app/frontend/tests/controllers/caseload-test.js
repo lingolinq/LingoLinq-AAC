@@ -2,13 +2,20 @@ import {
   describe,
   it,
   expect,
+  beforeEach,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
 import modal from '../../utils/modal';
 
 describe('CaseloadController', 'controller:caseload', function() {
+  var testOwner;
+
+  beforeEach(function() {
+    testOwner = this.owner;
+  });
+
   it("should exist", function() {
     expect(this).not.toEqual(null);
     expect(this).not.toEqual(window);
@@ -20,12 +27,13 @@ describe('CaseloadController', 'controller:caseload', function() {
       supervisees: [{ user_name: 'supervisee' }],
       known_supervisees: []
     });
-    this.set('model', model);
+    var controller = testOwner.lookup('controller:caseload');
+    controller.set('model', model);
     stub(modal, 'open', function(template, options) {
       opened = { template: template, options: options };
     });
 
-    this.send('modeling_ideas');
+    controller.send('modeling_ideas');
 
     expect(opened.template).toEqual('modals/modeling-ideas');
     expect(opened.options.users).toEqual([model]);

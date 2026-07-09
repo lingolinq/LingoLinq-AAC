@@ -5,7 +5,7 @@ import { later as RunLater } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import Resolver from 'ember-resolver';
+import Resolver from 'ember-resolver/index';
 import loadInitializers from 'ember-load-initializers';
 import config from './config/environment';
 import capabilities from './utils/capabilities';

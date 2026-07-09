@@ -281,6 +281,31 @@ export default Component.extend({
       this.set('activeTab', initial);
     }
     this._loadPreviewBoards();
+    var self = this;
+    var send = function(action) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      self.send.apply(self, [action].concat(args));
+    };
+    this.onGoTab = function(tab) { send('goTab', tab); };
+    this.onSelectTab = function(tab) { send('selectTab', tab); };
+    this.onApproveOrRejectOrg = function(decision) { send('approve_or_reject_org', decision); };
+    this.onGo = function(dest) { send('go', dest); };
+    this.onGoToBoard = function(boardKey) { send('goToBoard', boardKey); };
+    this.onGoAndCloseSearch = function(dest) { send('goAndCloseSearch', dest); };
+    this.onExtraAction = function(name) { send('extraAction', name); };
+    this.onHomeInSpeakMode = function(boardForUserId, keepAsSelf) {
+      send('homeInSpeakMode', boardForUserId, keepAsSelf);
+    };
+    this.onRecordNoteFor = function(supervisee) { send('recordNoteFor', supervisee); };
+    this.onQuickAssessmentFor = function(supervisee) { send('quickAssessmentFor', supervisee); };
+    this.onTogglePillnavDropdown = function() { send('togglePillnavDropdown'); };
+    this.onGettingStarted = function() { send('getting_started'); };
+    this.onGoOrganizations = function() { send('goOrganizations'); };
+    this.onOpenNewBoardOnBoards = function() { send('openNewBoardOnBoards'); };
+    this.onEditDashboard = function() { send('editDashboard'); };
+    this.onCloseSearch = function() { send('closeSearch'); };
+    this.onOpenExtrasTab = function() { send('openExtrasTab'); };
+    this.onSearchKeydown = function(event) { send('onSearchKeydown', event); };
   },
   didInsertElement() {
     this._super(...arguments);
@@ -883,7 +908,7 @@ export default Component.extend({
     // from the dashboard grid (see authenticated-view.hbs), so the layout
     // doesn't reserve a hole where the card used to live. To re-enable:
     // restore the original return below AND un-comment the matching
-    // article block in templates/components/dashboard/authenticated-view.hbs.
+    // article block in app/components/dashboard/authenticated-view.hbs.
     // var progress = this.appState.get('currentUser.preferences.progress');
     // return progress && !progress.setup_done;
     return false;

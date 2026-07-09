@@ -13,7 +13,7 @@ import Utils from '../utils/misc';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
-import ButtonSet from '../models/buttonset';
+import Buttonset from '../models/buttonset';
 import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import { observer } from '@ember/object';
@@ -157,7 +157,7 @@ LingoLinq.User = BaseModel.extend({
         res = res.concat(org.home_board_keys);
       }
     })
-    return res.uniq();
+    return Utils.uniq(res);
   }),
   manages_multiple_orgs: computed('managed_orgs', function() {
     return (this.get('managed_orgs') || []).length > 1;
@@ -881,8 +881,9 @@ LingoLinq.User = BaseModel.extend({
     }
     var promises = [];
     var list = [];
+    var buttonset = LingoLinq.Buttonset || Buttonset;
     ids.forEach(function(id, idx) {
-      promises.push(LingoLinq.Buttonset.load_button_set(id).then(function(bs) {
+      promises.push(buttonset.load_button_set(id).then(function(bs) {
         list[idx] = bs;
       }));
     });

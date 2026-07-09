@@ -1,12 +1,12 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
   <div class="modal-header">
-      <button type="button" class="close" {{action "close"}}>&times;</button>
+      <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>
       {{t "Add Connected Tool" key="add_connected_tool"}}
     </h3>
   </div>
   <div class="modal-body">
-   <form class="form-horizontal" {{action "save" on="submit"}}>
+   <form class="form-horizontal" {{on "submit" (this.ctrlAction "save")}}>
       <div class="form-group">
         <label for="integration_name" class="col-sm-3 control-label">{{t "Tool Name" key="tool_name"}}</label>
         <div class="col-sm-9" style='max-width: 300px;'>
@@ -77,13 +77,13 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{action "save"}} class='btn btn-primary' disabled={{this.status.saving}}>
+    <button {{on "click" (this.ctrlAction "save")}} class='btn btn-primary' disabled={{this.status.saving}}>
       {{#if this.status.saving}}
         {{t "Creating Connected Tool..." key="creating_connected_tool"}}
       {{else}}
         {{t "Create Connected Tool" key="create_connected_tool"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    <button {{on "click" (this.ctrlAction "close")}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

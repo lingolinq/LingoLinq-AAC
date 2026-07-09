@@ -779,6 +779,10 @@ export default Component.extend({
   init: function() {
     this._super(...arguments);
     this.set('appState.dashboard_design_opener', this._startDisplayStyle.bind(this));
+    var self = this;
+    this.onStartDisplayStyle = function() {
+      self.send('startDisplayStyle');
+    };
   },
 
   willDestroy: function() {

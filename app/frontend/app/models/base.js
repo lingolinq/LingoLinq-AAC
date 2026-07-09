@@ -1,5 +1,6 @@
 import Model, { attr } from '@ember-data/model';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 
@@ -27,6 +28,7 @@ function attributeValuesForRecord(record) {
 }
 
 const BaseModel = Model.extend({
+  appState: service('app-state'),
   reload: function(ignore_local) {
     if(ignore_local === false) {
       persistence.force_reload = null;
@@ -39,12 +41,17 @@ const BaseModel = Model.extend({
     return this._super();
   },
   retrieved: attr('number'),
-  fresh: computed('retrieved', 'app_state.refresh_stamp', function() {
+  fresh: computed('retrieved', 'appState.refresh_stamp', function() {
     var retrieved = this.get('retrieved');
+    if (!retrieved) { return false; }
+    var refresh = this.get('appState.refresh_stamp');
+    if (refresh && refresh > retrieved) {
+      return false;
+    }
     var now = (new Date()).getTime();
     return (now - retrieved) < (5 * 60 * 1000);
   }),
-  really_fresh: computed('retrieved', 'app_state.short_refresh_stamp', function() {
+  really_fresh: computed('retrieved', 'appState.short_refresh_stamp', function() {
     var retrieved = this.get('retrieved');
     var now = (new Date()).getTime();
     return (now - retrieved) < (30 * 1000);

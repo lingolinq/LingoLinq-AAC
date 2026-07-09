@@ -11,7 +11,7 @@
       <p>{{t "There was an error loading words" key="error_loading_words"}}</p>
     {{else if this.word}}
       
-      <form class="form-horizontal" {{action "save" on="submit"}}>
+      <form class="form-horizontal" {{on "submit" (this.ctrlAction "save")}}>
         <div class='form-group'>
           <div class='col-sm-9 col-sm-offset-3'>
             <h3>{{this.word.word}} - {{this.word.locale}}</h3>
@@ -25,7 +25,7 @@
           <div class="col-sm-8">
             <div style={{this.word_type_style}}>
               <div style='max-width: 400px;'>
-                {{bound-select select_class="form-control" select_id="type" content=this.word_types selection=this.word.primary_part_of_speech action=(action (mut this.word.primary_part_of_speech)) }}
+                {{bound-select select_class="form-control" select_id="type" content=this.word_types selection=this.word.primary_part_of_speech action=(mut this.word.primary_part_of_speech) }}
               </div>
               <em class='text-muted'>{{t "If the word matches more than one type, use the most common" key="use_most_common_type"}}</em>
             </div>
@@ -282,7 +282,7 @@
         {{/each}}
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3">
-            <button class='btn btn-default' {{action "add_extra"}}>{{t "Add Other Inflection" key="add_other_inflection"}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "add_extra")}}>{{t "Add Other Inflection" key="add_other_inflection"}}</button>
           </div>
         </div>
         <div class="form-group">
@@ -305,7 +305,7 @@
                 {{t "Confirm Inflections" key="confirm_inflections"}}
               {{/if}}
             </button>
-            <button type='button' class='btn btn-default' {{action "skip"}}>{{t "Skip" key="skip"}}</button>
+            <button type='button' class='btn btn-default' {{on "click" (this.ctrlAction "skip")}}>{{t "Skip" key="skip"}}</button>
             {{#if this.status.error}}
               <p class='text-danger'>{{t "There was an unexpected error while updating the word" key="error_updating_word"}}</p>
             {{/if}}

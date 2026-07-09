@@ -294,6 +294,46 @@ export default Controller.extend({
       _this.set('status_message', i18n.t('demo_folder_load_failed', "This demo folder could not be loaded."));
     });
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    // board-detail-grid calls these closures directly (not via {{on}}), so they
+    // must invoke send immediately — unlike ctrlAction, which returns a handler.
+    this.gridSelectButton = function(button) {
+      self.send('select_button', button);
+    };
+    this.gridSelectButtonKey = function(button, event) {
+      self.send('select_button_key', button, event);
+    };
+    this.gridDemoDisabled = function() {
+      self.send('demo_disabled');
+    };
+    this.onSymbolBackgroundChange = function(event) {
+      var value = event && event.target && event.target.value;
+      self.send('set_symbol_background_from_select', value);
+    };
+  },
+
 
   actions: {
     select_button: function(button) {

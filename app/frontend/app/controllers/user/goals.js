@@ -52,6 +52,22 @@ export default Controller.extend({
   past_goals: computed('goals.list', function() {
     return (this.get('goals.list') || []).filter(function(g) { return !g.get('active'); });
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+  },
   actions: {
     add_goal: function() {
       var _this = this;

@@ -593,6 +593,7 @@ DEPENDENCIES
   bundler-audit
   clowne (~> 1.4)
   concurrent-ruby (>= 1.3.7)
+  crass (>= 1.0.7)
   dotenv
   drb
   erb (>= 6.0.4)

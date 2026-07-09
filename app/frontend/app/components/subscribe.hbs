@@ -1,0 +1,50 @@
+{{#modal-dialog opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing") uncloseable="true"}}
+  <div class="modal-header subscribe-modal-header subscribe-modal-header--hero">
+    {{#unless (and this.model.subscription this.model.subscription.finalizing_purchase)}}
+      <button type="button" class="la-modal-close subscribe-modal-header__close" {{on "click" (this.ctrlAction "dismiss_subscribe_modal")}} aria-label={{t "Close" key="close"}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    {{/unless}}
+    <div class="subscribe-modal-header__title-wrap">
+      {{#unless this.model.user.really_expired}}
+        {{app-logo size="auto" imgClass="subscribe-modal-header__logo" imgAlt=""}}
+      {{/unless}}
+      {{#if this.model.user.really_expired}}
+        <h3 class="subscribe-modal-header__title">{{t "Purchase Update" key="subscription_update"}}</h3>
+      {{else}}
+        <h3 class="subscribe-modal-header__title">{{t "Welcome to %app_name%!" key="welcome_to_app"}}</h3>
+      {{/if}}
+    </div>
+    {{#unless this.model.user.really_expired}}
+      <button type="button" class="subscribe-trial-btn subscribe-modal-header__trial-btn" {{on "click" (this.ctrlAction "really_subscription_skip")}}>{{t "Start w/ 2-Month Trial" key="start_with_2_month_trial_brief"}}</button>
+    {{/unless}}
+  </div>
+  <div class="modal-body md-modal-body subscribe-modal-body" id="button_settings">
+    {{#if this.model.user.really_expired}}
+      <p class="subscribe-modal-intro">
+        {{t "Your %app_name% trial period has expired. Please update your billing settings to continue using LingoLinq." key="welcome_fill_out_subscription"}}
+      </p>
+    {{else}}
+      <p class="subscribe-modal-intro">
+        {{t "Welcome! Your account includes 2 free months of cloud extras — try %app_name% before committing, or pick a plan to start right away." key="welcome_fill_out_subscription3"}}
+      </p>
+      {{#if this.model.subscription.discount_period}}
+        <p class="subscribe-modal-banner subscribe-modal-banner--discount">
+          {{t "<strong>Discount available!</strong> If you purchase within the first 24 hours after signing up you're eligible for a <strong>25% discount</strong> on your account. You'll still get your 2-month trial included as well." key="welcome_fill_out_subscription_free_trial"}}
+        </p>
+      {{else if this.model.subscription.sale}}
+        <p class="subscribe-modal-banner subscribe-modal-banner--sale">
+          {{t "<strong>%app_name% is on sale!</strong> Sign up now to receive a discount, the sale ends" key="welcome_fill_out_subscription_sale"}}
+          {{date this.model.subscription.sale_ends "day"}}{{t "." key="period"}}
+        </p>
+      {{/if}}
+    {{/if}}
+    {{#if this.model.subscription.finalizing_purchase}}
+      <h4 class="subscribe-modal-finalizing">{{t "Confirming purchase..." key="finalizing_subscription"}}</h4>
+    {{else if this.error}}
+      <h4 class="subscribe-modal-error text-danger">{{this.error}}</h4>
+    {{else}}
+      {{subscription-form user=this.model.user subscription=this.model.subscription trial_option=true subscription_skip=(this.ctrlAction "subscription_skip") subscription_error=(this.ctrlAction "subscription_error") subscription_success=(this.ctrlAction "subscription_success")}}
+    {{/if}}
+  </div>
+{{/modal-dialog}}

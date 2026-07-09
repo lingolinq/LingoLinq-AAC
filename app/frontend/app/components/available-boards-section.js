@@ -64,6 +64,66 @@ export default Component.extend({
         this.set('foldersExpanded', stored === 'true');
       }
     } catch (e) { /* localStorage unavailable; keep default */ }
+
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        var ctrl = self.get('boardsCtrl');
+        if (ctrl) { ctrl.send.apply(ctrl, [actionName].concat(args)); }
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        var ctrl = self.get('boardsCtrl');
+        if (ctrl) { ctrl.send.apply(ctrl, [actionName].concat(bound)); }
+      };
+    };
+    this.sendAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.selfActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.onBoardsSectionSelect = function(event) {
+      var value = event && event.target && event.target.value;
+      var ctrl = self.get('boardsCtrl');
+      if (ctrl && value) { ctrl.send('set_selected', value); }
+    };
+    this.onSaveFolderRename = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('saveFolderRename');
+    };
+    this.onOpenBoardInUserView = function(board) {
+      var ctrl = self.get('boardsCtrl');
+      if (ctrl) { ctrl.send('open_board_in_user_view', board); }
+    };
+    this.onLoadChildren = function() {
+      var ctrl = self.get('boardsCtrl');
+      if (ctrl) { ctrl.send('load_children'); }
+    };
   },
 
   /* Info popover next to the BOARDS-section "in this section" pill.

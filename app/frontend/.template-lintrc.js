@@ -3,7 +3,10 @@
 module.exports = {
   extends: 'recommended',
 
+  plugins: ['./template-lint-plugin-lingolinq'],
+
   rules: {
+    'no-fn-handler-factory': 'error',
     'no-partial': true,
     // Temporarily disabled for Phase 1 - will address in Phase 2
     'link-rel-noopener': false,

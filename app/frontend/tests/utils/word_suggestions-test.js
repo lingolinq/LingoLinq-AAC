@@ -14,13 +14,16 @@ import {
   fakeCanvas,
   queryLog,
   easyPromise,
-  queue_promise
+  queue_promise,
+  replaceLocalStorage
 } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
+import EmberObject from '@ember/object';
 import LingoLinq from 'frontend/app';
 import app_state from '../../utils/app_state';
 import word_suggestions from '../../utils/word_suggestions';
 import persistence from '../../utils/persistence';
+import templateHelpers from '../../utils/template_helpers';
 
 describe('word_suggestions', function() {
   beforeEach(function() {
@@ -30,6 +33,7 @@ describe('word_suggestions', function() {
     word_suggestions.last_time_bucket = null;
     word_suggestions.last_topic_context = null;
     word_suggestions.last_locale = null;
+    word_suggestions.fallback_url_result = null;
   });
   describe("lookup", function() {
     it("should suggest words", function() {
@@ -93,47 +97,59 @@ describe('word_suggestions', function() {
     });
 
     it("should set the result's image to the matching button's image if found", function() {
-      stub(word_suggestions, 'fallback_url', function() { return RSVP.resolve('data:stuff'); });
+      var fallbackDeferred = easyPromise();
+      stub(word_suggestions, 'fallback_url', function() {
+        return fallbackDeferred;
+      });
       word_suggestions.ngrams = {
         "": [['jump', -1.5], ['friend', -1.2], ['fancy', -1.0], ['for', -2.5]]
       };
       var res = null;
-      var calls = 0;
-      var bs = {
-        find_buttons: function(word, board_id, user, include_home) {
-          calls++;
-          if(word == 'fancy') {
-            return RSVP.resolve([
-              {label: 'fancy', image: 'data:fancy'}
-            ]);
-          } else if(word == 'for') {
-            return RSVP.resolve([{label: 'ford', image: 'data:ford'}]);
-          }
-          return RSVP.reject();
+      var bs = EmberObject.create({
+        id: 'bacon',
+        redepth: function() {
+          return [
+            {
+              label: 'fancy',
+              vocalization: 'fancy',
+              image_id: '1',
+              depth: 0,
+              image: 'data:fancy',
+              original_image: 'data:fancy',
+              image_license: {}
+            }
+          ];
         }
-      };
-      stub(LingoLinq.store, 'findRecord', function(type, id) {
-        expect(type).toEqual('board');
-        expect(id).toEqual('bacon');
-        return RSVP.resolve({
-          get: function() { return 'bacon'; },
-          load_button_set: function() {
-            return RSVP.resolve(bs);
-          }
-        });
       });
-      word_suggestions.lookup({word_in_progress: 'f', button_set: bs, board_ids: ['bacon']}).then(function(r) { res = r; });
-      waitsFor(function() { return res; });
-      runs(function() {
-        expect(res[0].word).toEqual('friend');
-        expect(res[1].word).toEqual('fancy');
-        expect(res[2].word).toEqual('for');
+      stub(LingoLinq.Buttonset, 'fix_image', function() {
+        return RSVP.resolve();
       });
-      waitsFor(function() { return res && calls >= 3; });
+      word_suggestions.lookup({
+        word_in_progress: 'f',
+        button_sets: [bs]
+      }).then(function(r) { res = r; });
+      function wordItem(label) {
+        return res && res.find(function(w) { return w.word.toLowerCase() === label; });
+      }
+      waitsFor(function() { return res && wordItem('friend') && wordItem('fancy') && wordItem('for'); });
       runs(function() {
-        expect(res[0].image).toEqual('data:stuff');
-        expect(res[1].image).toEqual('data:fancy');
-        expect(res[2].image).toEqual('data:stuff');
+        expect(wordItem('friend').word.toLowerCase()).toEqual('friend');
+        expect(wordItem('fancy').word.toLowerCase()).toEqual('fancy');
+        expect(wordItem('for').word.toLowerCase()).toEqual('for');
+      });
+      waitsFor(function() { return wordItem('fancy') && wordItem('fancy').image === 'data:fancy'; });
+      runs(function() {
+        fallbackDeferred.resolve('data:stuff');
+      });
+      waitsFor(function() {
+        return wordItem('friend') && wordItem('friend').image === 'data:stuff'
+          && wordItem('fancy') && wordItem('fancy').image === 'data:fancy'
+          && wordItem('for') && wordItem('for').image === 'data:stuff';
+      });
+      runs(function() {
+        expect(wordItem('friend').image).toEqual('data:stuff');
+        expect(wordItem('fancy').image).toEqual('data:fancy');
+        expect(wordItem('for').image).toEqual('data:stuff');
       });
     });
 
@@ -163,14 +179,7 @@ describe('word_suggestions', function() {
         "": [['we', -1.0], ['you', -1.1], ['i', -1.2]]
       };
 
-      // Fake localStorage for test isolation
-      var store = {};
-      var oldLS = window.localStorage;
-      window.localStorage = {
-        getItem: function(k) { return store[k] || null; },
-        setItem: function(k, v) { store[k] = v; },
-        removeItem: function(k) { delete store[k]; }
-      };
+      var restoreLocalStorage = replaceLocalStorage();
 
       // Record selecting "you" a few times
       var now = Date.now();
@@ -183,7 +192,7 @@ describe('word_suggestions', function() {
       waitsFor(function() { return res; });
       runs(function() {
         expect(res[0].word.toLowerCase()).toEqual('you');
-        window.localStorage = oldLS;
+        restoreLocalStorage();
       });
     });
 
@@ -273,13 +282,7 @@ describe('word_suggestions', function() {
         'i want': [['to', -1.0], ['more', -1.1], ['help', -1.2]]
       };
 
-      var store = {};
-      var oldLS = window.localStorage;
-      window.localStorage = {
-        getItem: function(k) { return store[k] || null; },
-        setItem: function(k, v) { store[k] = v; },
-        removeItem: function(k) { delete store[k]; }
-      };
+      var restoreLocalStorage = replaceLocalStorage();
 
       var now = Date.now();
       word_suggestions.record_selection('more', now, 'i want');
@@ -294,7 +297,7 @@ describe('word_suggestions', function() {
       waitsFor(function() { return res; });
       runs(function() {
         expect(res[0].word.toLowerCase()).toEqual('more');
-        window.localStorage = oldLS;
+        restoreLocalStorage();
       });
     });
 
@@ -364,18 +367,15 @@ describe('word_suggestions', function() {
       word_suggestions.fallback_url_result = null;
       var done = false;
       var url = null;
-      stub(persistence, 'find_url', function(url) {
-        expect(url).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
-        return RSVP.resolve('file://fallback.png');
-      });
+      var localFallback = templateHelpers.path('images/square.svg');
       word_suggestions.fallback_url().then(function(res) {
         done = true;
         url = res;
       });
       waitsFor(function() { return done; });
       runs(function() {
-        expect(url).toEqual('file://fallback.png');
-        expect(word_suggestions.fallback_url_result).toEqual('file://fallback.png');
+        expect(url).toEqual(localFallback);
+        expect(word_suggestions.fallback_url_result).toEqual(localFallback);
       });
     });
 
@@ -383,21 +383,15 @@ describe('word_suggestions', function() {
       word_suggestions.fallback_url_result = null;
       var done = false;
       var url = null;
-      var looked_up = false;
-      stub(persistence, 'find_url', function(url) {
-        looked_up = true;
-        expect(url).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
-        return RSVP.reject();
-      });
+      var localFallback = templateHelpers.path('images/square.svg');
       word_suggestions.fallback_url().then(function(res) {
         done = true;
         url = res;
       });
       waitsFor(function() { return done; });
       runs(function() {
-        expect(url).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
-        expect(looked_up).toEqual(true);
-        expect(word_suggestions.fallback_url_result).toEqual(null);
+        expect(url).toEqual(localFallback);
+        expect(word_suggestions.fallback_url_result).toEqual(localFallback);
       });
     });
   });

@@ -55,6 +55,12 @@ export default Route.extend({
     _this.appState.check_for_needing_purchase().then(function() {
       boardDetailController.set('edit_mode', true);
       boardDetailController.set('board_collapsed', false);
+      // Speak-mode grid cells are plain objects from _make_btn (with
+      // display_as_hidden). Rebuild as Ember Button instances before any
+      // editManager undo/save path runs clone_state / Button.create.
+      if(boardDetailController._last_raw) {
+        boardDetailController.processButtons();
+      }
       _this.stashes.persist('current_mode', 'edit');
       // If a modeling session is live (e.g. supervisor speaking-as / modeling-for
       // a supervisee), pause the modeled-event tagging while on the edit page.

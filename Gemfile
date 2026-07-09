@@ -46,6 +46,8 @@ gem 'json', '>= 2.19.2'
 gem 'oj', '>= 3.17.3'
 # GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
 gem 'loofah', '>= 2.25.1'
+# GHSA-6jxj-px6v-747w et al.; bundler-audit minimum (transitive via loofah, rails-dom-testing)
+gem 'crass', '>= 1.0.7'
 # ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
 gem 'erb', '>= 6.0.4'
 gem 'pg', '~> 1.5'

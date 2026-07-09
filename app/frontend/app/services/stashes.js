@@ -2,7 +2,8 @@ import Service from '@ember/service';
 import EmberObject from '@ember/object';
 import {
   later as runLater,
-  debounce as runDebounce
+  debounce as runDebounce,
+  cancel as runCancel
 } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
@@ -30,6 +31,9 @@ export default Service.extend({
   },
 
   setup: function() {
+    if (this.isDestroyed || this.isDestroying) {
+      return;
+    }
     this.memory_stash = memory_stash;
     this.prefix = 'lingolinqStash-';
     var legacyPrefix = 'cdStash-';
@@ -60,7 +64,9 @@ export default Service.extend({
       localStorage[this.prefix + 'test'] = Math.random();
       this.set('enabled', true);
     } catch(e) {
-      this.set('enabled', false);
+      if (!this.isDestroyed && !this.isDestroying) {
+        this.set('enabled', false);
+      }
       if(console.debug) {
         console.debug('LINGOLINQ: localStorage not working');
         console.debug(e);
@@ -142,6 +148,9 @@ export default Service.extend({
     stash_capabilities = cap;
     if(!cap.dbman) { return RSVP.resolve(); }
     return stash_capabilities.storage_find({store: 'settings', key: 'stash'}).then((stash) => {
+      if (this.isDestroyed) {
+        return {};
+      }
       var count = 0;
       for(var idx in stash) {
         if(idx != 'raw' && idx != 'storageId' && idx != 'changed' && stash[idx] !== undefined) {
@@ -217,27 +226,32 @@ export default Service.extend({
   },
 
   db_persist: function() {
-    if(stash_capabilities && stash_capabilities.dbman) {
-      var stringed_stash = {};
-      for(var idx in memory_stash) {
-        stringed_stash[idx] = JSON.stringify(memory_stash[idx]);
-      }
-      stringed_stash.storageId = 'stash';
-      // I intended for this to be a fallback in case localStorage data got lost
-      // somehow, which is why the db id is also being stored in the cookie
-      // as a fallback for the db id which is usually kept in localStorage.
-      stash_capabilities.storage_store({store: 'settings', id: 'stash', record: stringed_stash});
+    this._dbPersistDebounce = null;
+    if (this.isDestroyed || !stash_capabilities || !stash_capabilities.dbman) {
+      return;
     }
+    var stringed_stash = {};
+    for(var idx in memory_stash) {
+      stringed_stash[idx] = JSON.stringify(memory_stash[idx]);
+    }
+    stringed_stash.storageId = 'stash';
+    // I intended for this to be a fallback in case localStorage data got lost
+    // somehow, which is why the db id is also being stored in the cookie
+    // as a fallback for the db id which is usually kept in localStorage.
+    stash_capabilities.storage_store({store: 'settings', id: 'stash', record: stringed_stash});
   },
 
   persist: function(key, obj) {
-    if(!key) { return; }
+    if(!key || this.isDestroyed) { return; }
     this.persist_object(key, obj, true);
     this.set(key, obj);
 
     if(memory_stash[key] != obj) {
       memory_stash[key] = obj;
-      runDebounce(this, this.db_persist, 500);
+      if (this._dbPersistDebounce) {
+        runCancel(this._dbPersistDebounce);
+      }
+      this._dbPersistDebounce = runDebounce(this, this.db_persist, 500);
     }
   },
 
@@ -689,6 +703,9 @@ export default Service.extend({
         events: days
       });
       log.save().then(() => {
+        if (this.isDestroyed) {
+          return;
+        }
         // clear the old days that have been persisted
         var dailies = this.get('daily_use') || [];
         dailies = dailies.filter((d) => d.date == today);
@@ -747,15 +764,23 @@ export default Service.extend({
   },
 
   push_log: function(only_if_convenient) {
+    if (this.isDestroyed) {
+      return;
+    }
+    if(typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing && typeof window !== 'undefined') {
+      window.stashes = this;
+    }
     var usage_log = this.get('usage_log');
     var timestamp = this.current_timestamp();
     // Wait at least 10 seconds between log pushes
-    if(this.last_log_push && timestamp - this.last_log_push < 10) {
+    var min_push_interval = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 0 : 10;
+    if(this.last_log_push && timestamp - this.last_log_push < min_push_interval) {
       if(!this.wait_timer) {
+        var retry_delay = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 10 : 8000;
         this.wait_timer = runLater(() => {
           this.wait_timer = null;
           this.push_log();
-        }, 8000);  
+        }, retry_delay);  
       }
       return;
     }
@@ -764,7 +789,9 @@ export default Service.extend({
     // If log pushes have been failing, don't keep trying on every button press
     var wait_on_error = this.errored_at && this.errored_at > 10 && ((timestamp - this.errored_at) < (2 * 60));
     // TODO: add listener on persistence.online and trigger this log save stuff when reconnected
-    if(LingoLinq.session && LingoLinq.session.get('isAuthenticated') && this.get('online') && usage_log.length > 0 && !wait_on_error) {
+    var sessionAuthenticated = LingoLinq.session && LingoLinq.session.get('isAuthenticated');
+    var canPushLogs = sessionAuthenticated || (typeof LingoLinq !== 'undefined' && LingoLinq._pushLogAllowUnauthenticated);
+    if(canPushLogs && this.get('online') && usage_log.length > 0 && !wait_on_error) {
       // If there's more than 50 events, or it's been more than 30 minutes
       // since the last recorded event.
       if(usage_log.length > 50 || diff == -1 || diff > (30 * 60 * 1000) || !only_if_convenient) {
@@ -779,16 +806,31 @@ export default Service.extend({
         });
         log.cleanup();
         this.last_log_push = timestamp;
+        var pushSerial = (this._logPushSerial || 0) + 1;
+        this._logPushSerial = pushSerial;
         log.save().then(() => {
+          if (this.isDestroyed || pushSerial !== this._logPushSerial) {
+            return;
+          }
           this.errored_at = null;
           if(for_later.length > 0) {
-            runLater(() => {
+            if(typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
               this.push_log();
-            }, 10000);
+            } else {
+              runLater(() => {
+                this.push_log();
+              }, 10000);
+            }
           }
           // success!
         }, (err) => {
+          if (this.isDestroyed || pushSerial !== this._logPushSerial) {
+            return;
+          }
           // error, try again later
+          if(typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing && typeof window !== 'undefined') {
+            window.stashes = this;
+          }
           if(!this.errored_at || this.errored_at <= 2) {
 //             this.persist('usage_log', to_persist.concat(this.get('usage_log')));
             this.errored_at = (this.errored_at || 0) + 1;

@@ -1,0 +1,109 @@
+<div class="row">
+  <div class='col-sm-12'>
+  {{#if this.browse_audio}}
+    {{audio-browser audio_selected=(this.ctrlAction "audio_selected") prompt=this.text}}
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "clear_sound_work")}}>{{t "Stop Browsing" key="stop_browsing"}}</button>
+  {{else if this.sound_preview}}
+    <div class="form-horizontal">
+      <div style="text-align: center;">
+        Selected sound{{#if this.sound_preview.name}} ({{this.sound_preview.name}}){{/if}}:<br>
+        <audio controls src={{this.sound_preview.url}}></audio>
+      </div>
+      <div class="form-group">
+        <label for='sound_preview_name' class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
+        <div class='col-sm-10'>
+          <Input id="sound_preview_name" type="text" @value={{this.sound_preview.name}} class="form-control" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for='sound_preview_transcription' class="col-sm-2 control-label">{{t "Transcription" key="transcription"}}</label>
+        <div class='col-sm-10'>
+          <Input id="sound_preview_transcription" type="text" @value={{this.sound_preview.transcription}} class="form-control" />
+        </div>
+      </div>
+
+      <div>
+        {{pick-license license=this.sound_preview.license}}
+      </div>
+      <div>
+        <button {{on "click" (this.ctrlAction "clear_sound_work")}} class='btn btn-default'>{{t "Cancel" key="cancel"}}</button>
+        {{#if this.sound_preview.from_recording}}
+          <button {{on "click" (this.ctrlAction "record_sound")}} class='btn btn-default'>
+            {{t "Try Again" key="try_again"}}
+          </button>
+        {{/if}}
+        <button {{on "click" (this.ctrlAction "select_sound_preview")}} class='btn btn-primary'>{{t "Save This Recording" key="save_this_recording"}}</button>
+      </div>
+    </div>
+  {{else}}
+    {{#if this.sound_recording.ready}}
+      <button id="recording_status" type="button" {{on "click" (this.ctrlAction "toggle_recording_sound")}} class={{if this.sound_recording.recording "recording"}} aria-pressed={{if this.sound_recording.recording "true" "false"}}>
+        <span class="sub_status">
+          <span>
+            {{#if this.sound_recording.recording}}
+              {{t "Stop" key="stop"}}
+            {{else}}
+              {{t "Start" key="start"}}
+            {{/if}}
+          </span>
+        </span>
+      </button>
+      {{#unless this.capabilities.mobile}}
+        <div class='text-muted' style='text-align: center; margin-top: -20px; margin-bottom: 20px;'>{{t "Hit spacebar to start/stop without recording a clicking sound" key="spacebar_to_silently_toggle_recording"}}</div>
+      {{/unless}}
+      <div style='text-align: center;'>
+        <button {{on "click" (this.ctrlAction "toggle_recording_sound")}} class='btn btn-lg btn-primary'>
+          {{#if this.sound_recording.recording}}
+            {{t "Stop Recording" key="stop_recording"}}
+          {{else}}
+            {{t "Start Recording" key="start_recording"}}
+          {{/if}}
+        </button>
+        <div style='margin-top: 5px;'>
+          <span class="file_select_holder">
+            <button class='btn btn-default'>{{t "upload recording" key="upload_recording"}}</button>
+            <input type="file" name="sound_upload" id="sound_upload" accept="audio/*" tabindex="-1">
+          </span>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "browse_audio")}}>{{t "browse recordings" key="browse_recordings"}}</button>
+        </div>
+      </div>
+    {{else}}
+      {{#if this.sound.url}}
+        <div style="margin-bottom: 50px; margin-top: 50px; text-align: center;">
+          {{t "Current sound:" key="current_sound_colon"}} {{this.sound.name}}<br>
+          <p class='text-muted'>{{this.sound.transcription}}</p>
+          <audio controls src={{this.sound.url}}></audio>
+          <div style='text-align: center;'>
+            {{#if this.pending_sound}}
+              <div style='margin: 5px 20% 10px;'>
+                {{t "This recording seems like it matches the phrase, would you like to accept it for this phrase?" key="choose_to_accept_recording"}}
+              </div>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction "decide_on_recording" "reject")}}>{{t "Cancel" key="cancel"}}</button>
+              <button class='btn btn-primary' {{on "click" (this.ctrlAction "decide_on_recording" "approve")}}>{{t "Accept Recording" key="accept_recording"}}</button>
+            {{else}}
+              <button class='btn btn-default' {{on "click" (this.ctrlAction "clear_sound")}}>{{t "Clear Sound" key="clear_sound"}}</button>
+            {{/if}}
+          </div>
+        </div>
+      {{else if this.sound.errored}}
+        <div style='margin: 50px 0 80px; text-align: center;'>
+          <p>{{t "There was an unexpected error loading the recorded audio" key="error_loading_audio"}}</p>
+        </div>
+      {{else if this.sound.unloaded}}
+        <div style='margin: 50px 0 80px; text-align: center;'>
+          <p>{{t "Loading recorded audio..." key="loading_audio"}}</p>
+        </div>
+      {{else}}
+        <div style='margin: 50px 0 80px; text-align: center;'>
+          <p>{{t "There was an unexpected error getting ready to record audio" key="error_prepping_recording_audio"}}</p>
+        </div>
+      {{/if}}
+    {{/if}}
+  {{/if}}
+  </div>
+</div>
+{{#if this.show_next_phrase}}
+  <div style='text-align: right; position: relative; top: -50px; height: 0;'>
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "select_phrase" this.next_phrase.id)}} style='margin-left: 5px; height: 50px;'>{{t "Next Phrase" key="next_phrase"}}</button>
+  </div>
+{{/if}}

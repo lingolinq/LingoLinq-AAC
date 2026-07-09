@@ -1901,8 +1901,8 @@ var videoGrabber = EmberObject.extend({
           console.error('native vidoe capture failed', e) 
         }, {limit: 1});
       } else if(navigator.getUserMedia) {
-        if(this.controller.get('video_recording.stream')) {
-          _this.user_media_ready(this.controller.get('video_recording.stream'));
+        if(_this.controller.get('video_recording.stream')) {
+          _this.user_media_ready(_this.controller.get('video_recording.stream'));
           return;
         }
 
@@ -2704,7 +2704,7 @@ var boardGrabber = EmberObject.extend({
             });
           } else {
             _this.controller.set('foundBoards.ready', true);
-            _this.controller.set('foundBoards.results', data.slice());
+            _this.controller.set('foundBoards.results', Utils.query_results_as_array(data));
           }
         });
       } else {

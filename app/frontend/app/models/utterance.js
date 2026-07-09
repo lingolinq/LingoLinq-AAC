@@ -41,12 +41,15 @@ LingoLinq.Utterance = BaseModel.extend({
     return this.get('large_image_url') || this.get('image_url');
   }),
   check_for_large_image_url: function() {
+    if(this.isDestroyed || this.isDestroying) { return false; }
     var attempt = this.get('large_image_attempt') || 1;
     var _this = this;
     if(_this.get('permissions.edit') && !_this.get('large_image_url') && attempt < 15) {
       runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('large_image_attempt', attempt + 1);
-        _this.reload().then(function(u) {
+        _this.reload().then(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
           _this.check_for_large_image_url();
         });
       }, attempt * 500);

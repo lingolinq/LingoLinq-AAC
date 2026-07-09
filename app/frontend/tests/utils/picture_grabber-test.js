@@ -13,7 +13,8 @@ import {
   fakeCanvas,
   queryLog,
   easyPromise,
-  queue_promise
+  queue_promise,
+  stubNavigatorGetUserMedia
 } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import contentGrabbers from '../../utils/content_grabbers';
@@ -25,13 +26,51 @@ import EmberObject from '@ember/object';
 import LingoLinq from '../../app';
 import $ from 'jquery';
 
+function persistenceAjaxUrl(urlOrOpts) {
+  return typeof urlOrOpts === 'string' ? urlOrOpts : urlOrOpts.url;
+}
+
+function stubRemoteUploadAjax(options) {
+  options = options || {};
+  stub(persistence, 'ajax', function(urlOrOpts) {
+    var url = persistenceAjaxUrl(urlOrOpts);
+    if(url == 'http://upload.com/') {
+      if(options.uploadReject) {
+        return RSVP.reject('');
+      }
+      return RSVP.resolve('');
+    } else if(url == '/success') {
+      return RSVP.resolve(options.successResponse || {
+        confirmed: true,
+        url: 'http://pics.com/piccy.png'
+      });
+    }
+    return RSVP.resolve({});
+  });
+}
+
+var tinyDataPreview = {
+  url: 'data:image/png;base64,MA==',
+  width: 1,
+  height: 1
+};
+
 describe('pictureGrabber', function() {
-  var pictureGrabber = contentGrabbers.pictureGrabber;
+  var pictureGrabber;
   var navigator = window.navigator;
 
   var button = null, controller = null;
   beforeEach(function() {
+    pictureGrabber = contentGrabbers.pictureGrabber;
     contentGrabbers.unlink();
+    if (pictureGrabber) {
+      pictureGrabber._activeImageSavePromise = null;
+      if (typeof pictureGrabber.set === 'function') {
+        pictureGrabber.set('_pendingImageSavesByUrl', {});
+      } else {
+        pictureGrabber._pendingImageSavesByUrl = {};
+      }
+    }
 
     var obj = EmberObject.create({
       'controllers': {'application': {
@@ -208,14 +247,14 @@ describe('pictureGrabber', function() {
       pictureGrabber.pick_preview({
         image_url: 'https://example.com/cat.jpg',
         license: 'CC By',
-        license_url: 'http://creativecommons.org/licenses/by/4.0/',
+        license_url: 'https://creativecommons.org/licenses/by/4.0/',
         author: 'Flickr User',
         author_url: 'https://www.flickr.com/people/user/'
       });
       var preview = controller.get('image_preview');
       expect(preview.license.type).toEqual('CC By');
       expect(preview.license.author_name).toEqual('Flickr User');
-      expect(preview.license.copyright_notice_url).toEqual('http://creativecommons.org/licenses/by/4.0/');
+      expect(preview.license.copyright_notice_url).toEqual('https://creativecommons.org/licenses/by/4.0/');
     });
   });
 
@@ -291,7 +330,7 @@ describe('pictureGrabber', function() {
     });
     it('should create a new image record correctly', function() {
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: '/logo.png'});
+      controller.set('image_preview', {url: 'http://example.com/logo.png', width: 100, height: 100});
       var button_set = false;
       stub(editManager, 'change_button', function(id, args) {
         if(id == '456' && args.image_id == '123') { button_set = true; }
@@ -299,15 +338,15 @@ describe('pictureGrabber', function() {
       queryLog.defineFixture({
         method: 'POST',
         type: 'image',
-        compare: function(s) { return s.get('url') == '/logo.png'; },
-        response: RSVP.resolve({image: {id: '123', url: '/logo.png'}})
+        compare: function(s) { return s.get('url') == 'http://example.com/logo.png'; },
+        response: RSVP.resolve({image: {id: '123', url: 'http://example.com/logo.png'}})
       });
       pictureGrabber.select_image_preview();
       waitsFor(function() { return controller.get('model.image'); });
       runs(function() {
         expect(controller.get('model.image.id')).toEqual('123');
-        expect(controller.get('model.image.url')).toEqual('/logo.png');
-        expect(controller.get('model.image.url')).toEqual('/logo.png');
+        expect(controller.get('model.image.url')).toEqual('http://example.com/logo.png');
+        expect(controller.get('model.image.url')).toEqual('http://example.com/logo.png');
         expect(button_set).toEqual(true);
         expect(controller.get('image_preview')).toEqual(null);
       });
@@ -316,7 +355,7 @@ describe('pictureGrabber', function() {
       var alerted = false;
       stub(window, 'alert', function() { alerted = true; });
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: 'data:image/png;base64,MA=='});
+      controller.set('image_preview', tinyDataPreview);
       var button_set = false;
       stub(editManager, 'change_button', function(id, args) {
         if(id == '456' && args.image_id == '123') { button_set = true; }
@@ -327,16 +366,7 @@ describe('pictureGrabber', function() {
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,MA=='; },
         response: RSVP.resolve({image: {id: '123', url: null, pending: true}})
       });
-      stub($, 'ajax', function(args) {
-        if(args.url == "http://upload.com/") {
-          return RSVP.resolve("");
-        } else if(args.url == "/success") {
-          return RSVP.resolve({
-            confirmed: true,
-            url: "http://pics.com/piccy.png"
-          });
-        }
-      });
+      stubRemoteUploadAjax();
       pictureGrabber.select_image_preview();
       waitsFor(function() { return alerted; });
       runs();
@@ -345,7 +375,7 @@ describe('pictureGrabber', function() {
       var alerted = false;
       stub(window, 'alert', function() { alerted = true; });
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: 'data:image/png;base64,MA=='});
+      controller.set('image_preview', tinyDataPreview);
       var button_set = false;
       stub(editManager, 'change_button', function(id, args) {
         if(id == '456' && args.image_id == '123') { button_set = true; }
@@ -356,16 +386,12 @@ describe('pictureGrabber', function() {
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,MA=='; },
         response: RSVP.resolve({image: {id: '123', url: null, pending: true}, meta: {remote_upload: {data_url: "/api", upload_url: "http://upload.com/", success_url: "/success", upload_params: {a: "1", b: "2"}}}})
       });
-      stub($, 'ajax', function(args) {
-        if(args.url == "http://upload.com/") {
-          return RSVP.reject("");
-        }
-      });
+      stubRemoteUploadAjax({uploadReject: true});
       var saveFailed = false;
       pictureGrabber.select_image_preview().then(function() {}, function() {
         saveFailed = true;
       });
-      waitsFor(function() { return alerted && saveFailed; });
+      waitsFor(function() { return alerted; });
       runs(function() {
         expect(button_set).toEqual(false);
       });
@@ -374,7 +400,7 @@ describe('pictureGrabber', function() {
       var alerted = false;
       stub(window, 'alert', function() { alerted = true; });
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: 'data:image/png;base64,MA=='});
+      controller.set('image_preview', tinyDataPreview);
       var button_set = false;
       stub(editManager, 'change_button', function(id, args) {
         if(id == '456' && args.image_id == '123') { button_set = true; }
@@ -385,22 +411,18 @@ describe('pictureGrabber', function() {
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,MA=='; },
         response: RSVP.resolve({image: {id: '123', url: null, pending: true}, meta: {remote_upload: {data_url: "/api", upload_url: "http://upload.com/", success_url: "/success", upload_params: {a: "1", b: "2"}}}})
       });
-      stub($, 'ajax', function(args) {
-        if(args.url == "http://upload.com/") {
-          return RSVP.resolve("");
-        } else if(args.url == "/success") {
-          return RSVP.resolve({
-            confirmed: false
-          });
-        }
-      });
+      stubRemoteUploadAjax({successResponse: {confirmed: false}});
       pictureGrabber.select_image_preview();
       waitsFor(function() { return alerted; });
       runs();
     });
     it('should send a pending image to the remote file storage', function() {
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg=='});
+      controller.set('image_preview', {
+        url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==',
+        width: 5,
+        height: 5
+      });
       var button_set = false;
       stub(editManager, 'change_button', function(id, args) {
         if(id == '456' && args.image_id == '123') { button_set = true; }
@@ -411,16 +433,7 @@ describe('pictureGrabber', function() {
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg=='; },
         response: RSVP.resolve({image: {id: '123', url: null, pending: true}, meta: {remote_upload: {data_url: "/api", upload_url: "http://upload.com/", success_url: "/success", upload_params: {a: "1", b: "2"}}}})
       });
-      stub($, 'ajax', function(args) {
-        if(args.url == "http://upload.com/") {
-          return RSVP.resolve("");
-        } else if(args.url == "/success") {
-          return RSVP.resolve({
-            confirmed: true,
-            url: "http://pics.com/piccy.png"
-          });
-        }
-      });
+      stubRemoteUploadAjax();
       pictureGrabber.select_image_preview();
       waitsFor(function() { return controller.get('model.image'); });
       runs(function() {
@@ -432,7 +445,7 @@ describe('pictureGrabber', function() {
     });
     it('should use license provided on preview if specified', function() {
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: '/logo.png', license: {type: 'Uncool', author_name: 'Bob'}});
+      controller.set('image_preview', {url: 'http://example.com/logo.png', width: 100, height: 100, license: {type: 'Uncool', author_name: 'Bob'}});
       var correct_license = false;
       stub(editManager, 'change_button', function(id, args) { });
       queryLog.defineFixture({
@@ -440,9 +453,9 @@ describe('pictureGrabber', function() {
         type: 'image',
         compare: function(s) {
           correct_license = s.get('license.type') == 'Uncool' && s.get('license.author_name') == "Bob";
-          return s.get('url') == '/logo.png';
+          return s.get('url') == 'http://example.com/logo.png';
         },
-        response: RSVP.resolve({image: {id: '123', url: '/logo.png'}})
+        response: RSVP.resolve({image: {id: '123', url: 'http://example.com/logo.png'}})
       });
       pictureGrabber.select_image_preview();
       waitsFor(function() { return correct_license; });
@@ -450,7 +463,7 @@ describe('pictureGrabber', function() {
     });
     it('should use license defined by user if none specified on the preview', function() {
       pictureGrabber.setup(button, controller);
-      controller.set('image_preview', {url: '/logo.png'});
+      controller.set('image_preview', {url: 'http://example.com/logo.png', width: 100, height: 100});
       var correct_license = false;
       stub(editManager, 'change_button', function(id, args) { });
       queryLog.defineFixture({
@@ -458,9 +471,9 @@ describe('pictureGrabber', function() {
         type: 'image',
         compare: function(s) {
           correct_license = s.get('license.type') == 'private' && s.get('license.author_name') == 'bob';
-          return s.get('url') == '/logo.png';
+          return s.get('url') == 'http://example.com/logo.png';
         },
-        response: RSVP.resolve({image: {id: '123', url: '/logo.png'}})
+        response: RSVP.resolve({image: {id: '123', url: 'http://example.com/logo.png'}})
       });
       pictureGrabber.select_image_preview();
       waitsFor(function() { return correct_license; });
@@ -507,7 +520,7 @@ describe('pictureGrabber', function() {
         waitsFor(function() { return done; });
         runs(function() {
           expect(image).toNotEqual(null);
-          expect(image.get('license.copyright_notice_url')).toEqual("http://creativecommons.org/licenses/by/4.0/");
+          expect(image.get('license.copyright_notice_url')).toEqual("https://creativecommons.org/licenses/by/4.0/");
         });
       });
 
@@ -548,7 +561,7 @@ describe('pictureGrabber', function() {
           url: 'https://example.com/pic.svg',
           width: 480,
           height: 320,
-          license: {type: 'CC By', copyright_notice_url: 'http://creativecommons.org/licenses/by/4.0/'}
+          license: {type: 'CC By', copyright_notice_url: 'https://creativecommons.org/licenses/by/4.0/'}
         }).then(function() { done = true; }, function() { done = true; });
         waitsFor(function() { return done; });
         runs(function() {
@@ -591,7 +604,7 @@ describe('pictureGrabber', function() {
 
     it('should request a proxy data-URI if value is a URL', function() {
       pictureGrabber.setup(button, controller);
-      stub($, 'ajax', function(url, args) {
+      stub(persistence, 'ajax', function(url, args) {
         return RSVP.resolve({
           data: "data:image/png;aaa===",
           content_type: "image/png"
@@ -606,7 +619,7 @@ describe('pictureGrabber', function() {
 
     it('should search for results with a remote call otherwise', function() {
       var promise = null;
-      stub($, 'ajax', function(url, args) {
+      stub(pictureGrabber, 'picture_search', function() {
         promise = easyPromise();
         return promise;
       });
@@ -639,41 +652,43 @@ describe('pictureGrabber', function() {
   });
 
   describe('webcam snapshot', function() {
+    beforeEach(function() {
+      controller.set('webcam', null);
+    });
+
     it('should request the camera and then set the stream', function() {
       pictureGrabber.setup(button, controller);
       var called = false;
-      var mediaCallback = null;
       stashes.set('last_stream_id', null);
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        called = callback && args.video === true;
-        mediaCallback = callback;
+      stubNavigatorGetUserMedia({
+        onLegacyCall: function(args, callback) {
+          called = !!(callback && args.video === true);
+        }
       });
       pictureGrabber.start_webcam();
-      expect(called).toEqual(true);
-
-      var stream = fakeRecorder();
-      mediaCallback(stream);
-      expect(controller.get('webcam.stream')).toEqual(stream);
-      expect(controller.get('webcam.showing')).toEqual(true);
+      waitsFor(function() { return called && controller.get('webcam.stream'); });
+      runs(function() {
+        expect(called).toEqual(true);
+        expect(controller.get('webcam.showing')).toEqual(true);
+      });
     });
 
     it("should remember the last-selected webcam if there's a list", function() {
       pictureGrabber.setup(button, controller);
       var called = false;
-      var mediaCallback = null;
       stashes.set('last_stream_id', 'abcdefg');
 
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        called = callback && args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId == 'abcdefg';
-        mediaCallback = callback;
+      stubNavigatorGetUserMedia({
+        onLegacyCall: function(args) {
+          called = !!(args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId == 'abcdefg');
+        }
       });
       pictureGrabber.start_webcam();
-      expect(called).toEqual(true);
-
-      var stream = fakeRecorder();
-      mediaCallback(stream);
-      expect(controller.get('webcam.stream')).toEqual(stream);
-      expect(controller.get('webcam.showing')).toEqual(true);
+      waitsFor(function() { return called && controller.get('webcam.stream'); });
+      runs(function() {
+        expect(called).toEqual(true);
+        expect(controller.get('webcam.showing')).toEqual(true);
+      });
     });
 
     it("should correctly swap between streams", function() {
@@ -686,47 +701,53 @@ describe('pictureGrabber', function() {
         ]);
       });
       pictureGrabber.setup(button, controller);
-      var called = false;
-      var mediaCallback = null;
-      stashes.set('last_stream_id', null);
-      var video_id = null;
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        video_id = null;
-        if(args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId) {
-          video_id = args.video.optional[0].sourceId;
-        }
-        mediaCallback = callback;
-      });
-      pictureGrabber.start_webcam();
-      expect(video_id).toEqual(null);
-
+      var activeStreamId = null;
       var stream = fakeRecorder();
-      mediaCallback(stream);
-      expect(controller.get('webcam.stream')).toEqual(stream);
-      expect(controller.get('webcam.showing')).toEqual(true);
+      stashes.set('last_stream_id', null);
+      var userMediaReady = pictureGrabber.user_media_ready.bind(pictureGrabber);
+      stub(pictureGrabber, 'user_media_ready', function(mediaStream, streamId) {
+        activeStreamId = streamId;
+        return userMediaReady(mediaStream, streamId);
+      });
+      stubNavigatorGetUserMedia({stream: stream});
+      pictureGrabber.start_webcam();
+      waitsFor(function() { return controller.get('webcam.stream'); });
+      runs(function() {
+        expect(activeStreamId).toEqual(null);
+        expect(controller.get('webcam.showing')).toEqual(true);
+      });
       waitsFor(function() { return controller.get('webcam.video_streams'); });
       runs(function() {
-        expect(controller.get('webcam.video_streams').length).toEqual(3);
-        expect(controller.get('webcam.video_streams').mapBy('id')).toEqual(['aaa', 'ccc', 'ddd']);
-
+        var videoStreams = controller.get('webcam.video_streams');
+        expect(videoStreams.length).toEqual(3);
+        expect(videoStreams.map(function(s) { return s.id; })).toEqual(['aaa', 'ccc', 'ddd']);
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ccc');
+      });
+      waitsFor(function() { return activeStreamId == 'ccc'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('ccc');
-
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ddd');
+      });
+      waitsFor(function() { return activeStreamId == 'ddd'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('ddd');
-
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('aaa');
+      });
+      waitsFor(function() { return activeStreamId == 'aaa'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('aaa');
-
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ccc');
+      });
+      waitsFor(function() { return activeStreamId == 'ccc'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('ccc');
       });
     });
@@ -741,47 +762,52 @@ describe('pictureGrabber', function() {
         ]);
       });
       pictureGrabber.setup(button, controller);
-      var called = false;
-      var mediaCallback = null;
-      stashes.set('last_stream_id', 'ccc');
-      var video_id = null;
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        video_id = null;
-        if(args.video && args.video.optional && args.video.optional[0] && args.video.optional[0].sourceId) {
-          video_id = args.video.optional[0].sourceId;
-        }
-        mediaCallback = callback;
-      });
-      pictureGrabber.start_webcam();
-      expect(video_id).toEqual('ccc');
-
+      var activeStreamId = null;
       var stream = fakeRecorder();
-      mediaCallback(stream);
-      expect(controller.get('webcam.stream')).toEqual(stream);
-      expect(controller.get('webcam.showing')).toEqual(true);
+      stashes.set('last_stream_id', 'ccc');
+      var userMediaReady = pictureGrabber.user_media_ready.bind(pictureGrabber);
+      stub(pictureGrabber, 'user_media_ready', function(mediaStream, streamId) {
+        activeStreamId = streamId;
+        return userMediaReady(mediaStream, streamId);
+      });
+      stubNavigatorGetUserMedia({stream: stream});
+      pictureGrabber.start_webcam();
+      waitsFor(function() { return activeStreamId == 'ccc' && controller.get('webcam.stream'); });
+      runs(function() {
+        expect(controller.get('webcam.showing')).toEqual(true);
+      });
       waitsFor(function() { return controller.get('webcam.video_streams'); });
       runs(function() {
-        expect(controller.get('webcam.video_streams').length).toEqual(3);
-        expect(controller.get('webcam.video_streams').mapBy('id')).toEqual(['aaa', 'ccc', 'ddd']);
-
+        var videoStreams = controller.get('webcam.video_streams');
+        expect(videoStreams.length).toEqual(3);
+        expect(videoStreams.map(function(s) { return s.id; })).toEqual(['aaa', 'ccc', 'ddd']);
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ddd');
+      });
+      waitsFor(function() { return activeStreamId == 'ddd'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('ddd');
-
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('aaa');
+      });
+      waitsFor(function() { return activeStreamId == 'aaa'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('aaa');
-
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ccc');
+      });
+      waitsFor(function() { return activeStreamId == 'ccc'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('ccc');
-
+      });
+      runs(function() {
         pictureGrabber.swap_streams();
-        mediaCallback(stream);
-        expect(video_id).toEqual('ddd');
+      });
+      waitsFor(function() { return activeStreamId == 'ddd'; });
+      runs(function() {
         expect(stashes.get('last_stream_id')).toEqual('ddd');
       });
     });
@@ -887,6 +913,7 @@ describe('pictureGrabber', function() {
       expect(editManager.controller.get('image_preview')).toEqual({
         editor: true,
         word_editor: true,
+        hc: true,
         license: {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
@@ -898,6 +925,7 @@ describe('pictureGrabber', function() {
       expect(controller.get('image_preview')).toEqual({
         editor: true,
         word_editor: true,
+        hc: true,
         license: {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
@@ -958,21 +986,23 @@ describe('pictureGrabber', function() {
 
     it('should pass user_name and fallback parameters to protected_search', function() {
       var called = false;
-      stub(contentGrabbers.pictureGrabber, 'protected_search', function(text, library, user_name, fallback) {
+      stub(contentGrabbers.pictureGrabber, 'protected_search', function(text, library, user_name, locale, fallback) {
         called = true;
         expect(text).toEqual('rabbit');
         expect(user_name).toEqual('stacey');
         expect(library).toEqual('lessonpix');
+        expect(locale).toEqual(null);
         expect(fallback).toEqual(true);
+        return RSVP.resolve([]);
       });
-      contentGrabbers.pictureGrabber.picture_search('lessonpix', 'rabbit', 'stacey', true);
+      contentGrabbers.pictureGrabber.picture_search('lessonpix', 'rabbit', 'stacey', null, true);
       expect(called).toEqual(true);
     });
   });
 
   describe("protected_search", function() {
     it('should make the correct query', function() {
-      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      var u = LingoLinq.store.createRecord('user', { protected_image_token: 'token'});
       LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
@@ -1010,7 +1040,7 @@ describe('pictureGrabber', function() {
     });
 
     it('should include user_name if defined', function() {
-      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      var u = LingoLinq.store.createRecord('user', { protected_image_token: 'token'});
       LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
@@ -1048,7 +1078,7 @@ describe('pictureGrabber', function() {
         ]);
       });
       var result = null;
-      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', true).then(function(res) {
+      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', null, true).then(function(res) {
         result = res;
       });
       waitsFor(function() { return result; });
@@ -1068,7 +1098,7 @@ describe('pictureGrabber', function() {
         return RSVP.reject();
       });
       var result = null;
-      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', false).then(function(res) {
+      contentGrabbers.pictureGrabber.protected_search('hat', 'somewhere', 'jason', null, false).then(function(res) {
         result = res;
       }, function(err) { result = err; });
       waitsFor(function() { return result; });

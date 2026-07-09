@@ -56,5 +56,21 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     this.syncHighlightControllerModel();
+
+    this.openingHandler = () => {
+      this.get('highlightController').send('opening');
+    };
+    this.closingHandler = () => {
+      this.get('highlightController').send('closing');
+    };
+    this.selectReleaseHandler = (event) => {
+      this.get('highlightController').send('select_release', event);
+    };
+    this.closeHighlight = () => {
+      this.get('highlightController').send('close');
+    };
+    this.selectHighlight = () => {
+      this.get('highlightController').send('select');
+    };
   }
 });

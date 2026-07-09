@@ -1,5 +1,4 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 
 /**
@@ -26,6 +25,14 @@ export default Component.extend({
   showNewBoard: true,
   filterInputId: 'ub-boards-filter-input',
   headingId: 'ub-boards-heading',
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.onNewBoard = function() {
+      self.send('newBoard');
+    };
+  },
 
   actions: {
     newBoard() {

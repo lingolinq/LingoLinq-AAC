@@ -445,6 +445,9 @@ import app_state from './app_state';
   extras.meta_push = $.ajax.meta_push;
 
   window.lingoLinqExtras = extras;
+  if(!extras.storage && extras.prototype && extras.prototype.storage) {
+    extras.storage = extras.prototype.storage;
+  }
   extras.advance.watch('device', function() {
     capabilities.invoke({type: 'lingoLinqExtras', method: 'init'}).then(function(res) {
       extras.enable();

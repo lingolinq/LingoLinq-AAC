@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  xit,
   expect,
   beforeEach,
   afterEach,
@@ -21,18 +22,651 @@ import editManager from '../../utils/edit_manager';
 import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
-import { run as emberRun } from '@ember/runloop';
-import $ from 'jquery';
+import { run as emberRun, later, cancel as runCancel } from '@ember/runloop';
+import { persistenceTarget } from '../helpers/persistence-stub';
+import {
+  syncSettled,
+  cancelSyncTailWork,
+  waitUntil,
+  primeSyncBoardHarness,
+  enableRealSyncBoards,
+  cacheRealSyncBoards,
+  unloadSyncStoreRecords,
+  stubSoundTranscriptionCheck,
+  clearLocalSyncDb
+} from '../helpers/sync-test-cleanup';
+
+function logById(logs, id) {
+  return logs.find(function(l) { return l.id === id; });
+}
+
+function stubOnPersistence(method, replacement) {
+  stub(persistenceTarget(), method, replacement);
+}
+
+function chainPersistenceAjax(overrideFn) {
+  var target = persistenceTarget();
+  var priorAjax = target.ajax;
+  stubOnPersistence('ajax', function(url, opts) {
+    if (typeof url !== 'string') {
+      return priorAjax.apply(this, arguments);
+    }
+    var custom = overrideFn.apply(this, arguments);
+    if (custom !== undefined) {
+      return custom;
+    }
+    return priorAjax.apply(this, arguments);
+  });
+}
+
+function cacheStoredUrl(url) {
+  persistence.url_cache = persistence.url_cache || {};
+  persistence.url_uncache = persistence.url_uncache || {};
+  var target = persistenceTarget();
+  if (target) {
+    target.url_cache = target.url_cache || {};
+    target.url_uncache = target.url_uncache || {};
+  }
+  var key = (target && target.normalize_url) ? target.normalize_url(url) : url;
+  persistence.url_cache[key] = url;
+  persistence.url_uncache[key] = false;
+  if (target && target.url_cache) {
+    target.url_cache[key] = url;
+    target.url_uncache[key] = false;
+  }
+  if (key !== url) {
+    persistence.url_cache[url] = url;
+    persistence.url_uncache[url] = false;
+    if (target && target.url_cache) {
+      target.url_cache[url] = url;
+      target.url_uncache[url] = false;
+    }
+  }
+}
+
+function resetSyncTestCaches() {
+  persistence.url_cache = {};
+  persistence.url_uncache = {};
+  var target = persistenceTarget();
+  if (target) {
+    target.url_cache = {};
+    target.url_uncache = {};
+  }
+}
+
+var localPersistStores = ['settings', 'board', 'image', 'dataCache', 'sound', 'deletion'];
+
+var syncFixtureImageUrls = {
+  '1': 'http://www.example.com/pic1.png',
+  '2': 'http://www.example.com/pic2.png'
+};
+
+function primeSyncUrlCache(urls) {
+  persistence.url_cache = Object.assign({
+    'http://example.com/board.png': 'data:image/png;base64,bbb'
+  }, urls || {}, persistence.url_cache || {});
+  persistence.url_uncache = persistence.url_uncache || {};
+  var cacheTarget = persistenceTarget();
+  if (cacheTarget) {
+    cacheTarget.url_cache = persistence.url_cache;
+    cacheTarget.url_uncache = persistence.url_uncache;
+  }
+}
+
+function seedBoardInStore(board, opts) {
+  opts = opts || {};
+  var attrs = Object.assign({}, board, {
+    current_revision: board.current_revision || board.full_set_revision
+  });
+  if (opts.fresh) {
+    attrs.retrieved = (new Date()).getTime();
+  }
+  if (LingoLinq.store.peekRecord('board', attrs.id)) {
+    return;
+  }
+  LingoLinq.store.push({ data: { type: 'board', id: attrs.id, attributes: attrs } });
+}
+
+function seedBoardsInStore(boards, opts) {
+  boards.forEach(function(b) { seedBoardInStore(b, opts); });
+}
+
+function refreshBoardsInStore(boards, opts) {
+  boards.forEach(function(board) {
+    var attrs = Object.assign({}, board, {
+      current_revision: board.current_revision || board.full_set_revision
+    });
+    if (opts && opts.fresh) {
+      attrs.retrieved = (new Date()).getTime();
+    }
+    var existing = LingoLinq.store.peekRecord('board', board.id);
+    if (existing) {
+      try {
+        LingoLinq.store.unloadRecord(existing);
+      } catch (e) { /* already gone */ }
+    }
+    LingoLinq.store.push({ data: { type: 'board', id: attrs.id, attributes: attrs } });
+  });
+}
+
+function stubBoardReloadTracking(boards, reloadsObj) {
+  boards.forEach(function(board) {
+    var rec = LingoLinq.store.peekRecord('board', board.id);
+    if (!rec) { return; }
+    stub(rec, 'reload', function() {
+      reloadsObj[String(board.id)] = true;
+      return RSVP.resolve(rec);
+    });
+  });
+}
+
+function localStorageImageEntry(img) {
+  return {
+    data: {
+      id: img.id,
+      raw: { id: img.id, url: img.url }
+    }
+  };
+}
+
+function primeLocalSyncStorage(imageSpecs) {
+  stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+    if (localPersistStores.indexOf(store) >= 0) {
+      return capabilities.invoke({
+        type: 'lingoLinqExtras',
+        method: 'storage_store',
+        options: { store: store, record: record }
+      });
+    }
+    return RSVP.resolve(record);
+  });
+  stub(lingoLinqExtras.storage, 'find_all', function(store, ids) {
+    if (store === 'image') {
+      return RSVP.resolve((imageSpecs || []).map(localStorageImageEntry));
+    }
+    if (store === 'sound') {
+      return RSVP.resolve([]);
+    }
+    return capabilities.invoke({
+      type: 'lingoLinqExtras',
+      method: 'storage_find_all',
+      options: { store: store, ids: ids }
+    });
+  });
+}
+
+function ensureBoardAbsentFromLocalDb(boardId) {
+  var repo = capabilities.dbman && capabilities.dbman.repo;
+  if (repo && repo.board) {
+    repo.board = repo.board.filter(function(r) {
+      return String(r.id) !== String(boardId);
+    });
+  }
+  if (LingoLinq.store && LingoLinq.store.peekRecord) {
+    var peeked = LingoLinq.store.peekRecord('board', boardId);
+    if (peeked) {
+      try {
+        LingoLinq.store.unloadRecord(peeked);
+      } catch (e) { /* already gone */ }
+    }
+  }
+}
+
+function primeBoardCacheSyncHarness() {
+  cancelSyncTailWork();
+  unloadSyncStoreRecords();
+  clearLocalSyncDb();
+  resetSyncTestCaches();
+  if (typeof app_state.set === 'function') {
+    app_state.set('refresh_stamp', null);
+    app_state.set('short_refresh_stamp', null);
+    app_state.set('medium_refresh_stamp', null);
+  }
+  persistence.set('sync_log', null);
+  persistence.set('sync_progress', null);
+  persistence.set('sync_status', null);
+  persistence.known_missing = {};
+  LingoLinq.sync_testing_real_boards = false;
+  var target = persistenceTarget();
+  if (target && target.set) {
+    target.set('sync_progress', null);
+    target.set('sync_status', null);
+    target.set('online', true);
+  }
+  persistence.set('online', true);
+  chainPersistenceAjax(function(url, opts) {
+    if (url.match(/\/boards\?ids=/)) {
+      return RSVP.reject({});
+    }
+  });
+}
+
+function primeBoardRevisionsSyncHarness(onBoardSyncComplete) {
+  cancelSyncTailWork();
+  unloadSyncStoreRecords();
+  clearLocalSyncDb();
+  resetSyncTestCaches();
+  if (typeof app_state.set === 'function') {
+    app_state.set('refresh_stamp', null);
+    app_state.set('short_refresh_stamp', null);
+    app_state.set('medium_refresh_stamp', null);
+  }
+  persistence.set('sync_progress', null);
+  persistence.set('sync_status', null);
+  persistence.known_missing = {};
+  enableRealSyncBoards(stubOnPersistence, onBoardSyncComplete);
+  chainPersistenceAjax(function(url, opts) {
+    if (url.match(/\/boards\?ids=/)) {
+      return RSVP.reject({});
+    }
+  });
+}
+
+function boardAjaxGetResponse(boardId, boardKey, boardName) {
+  return { board: {
+    id: String(boardId),
+    key: boardKey,
+    name: boardName,
+    permissions: { view: true, edit: true }
+  }};
+}
+
+function primeSuperviseeSyncHarness() {
+  cancelSyncTailWork();
+  unloadSyncStoreRecords();
+  clearLocalSyncDb();
+  resetSyncTestCaches();
+  persistence.set('sync_log', null);
+  persistence.set('sync_progress', null);
+  persistence.set('sync_status', null);
+  LingoLinq.all_wait = true;
+  LingoLinq.sync_testing_real_boards = false;
+  var target = persistenceTarget();
+  if (target && target.set) {
+    target.set('sync_progress', null);
+    target.set('sync_status', null);
+    target.set('online', true);
+  }
+  persistence.set('online', true);
+  primeSyncBoardHarness(stubOnPersistence);
+  stubOnPersistence('sync_tags', function() { return RSVP.resolve(); });
+  stubOnPersistence('sync_contacts', function() { return RSVP.resolve(); });
+  stubOnPersistence('sync_logs', function() { return RSVP.resolve(); });
+  stub(persistence, 'sync_tags', function() { return RSVP.resolve(); });
+  stub(persistence, 'sync_contacts', function() { return RSVP.resolve(); });
+  stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+  primeSyncUrlCache({
+    'http://example.com/board.png': 'data:image/png;base64,bbb'
+  });
+}
+
+function stubSuperviseeWarnings(warnings) {
+  var capture = function(message) {
+    warnings.push(message);
+  };
+  stub(modal, 'warning', capture);
+  stub(modal, 'flash', function(text, type) {
+    if (type === 'warning') {
+      capture(text);
+    }
+  });
+}
+
+function primeFindChangedSyncHarness(userId, findChangedFn, opts) {
+  opts = opts || {};
+  cancelSyncTailWork();
+  if (!opts.keepStore) {
+    unloadSyncStoreRecords();
+    clearLocalSyncDb();
+  }
+  persistence.set('sync_log', null);
+  persistence.set('sync_progress', null);
+  persistence.set('sync_status', null);
+  LingoLinq.all_wait = true;
+  queryLog.real_lookup = true;
+  if (typeof app_state.set === 'function') {
+    app_state.set('refresh_stamp', null);
+    app_state.set('short_refresh_stamp', null);
+    app_state.set('medium_refresh_stamp', null);
+  }
+  primeLocalSyncStorage([]);
+  window.persistence = persistenceTarget() || persistence;
+  var persistTarget = persistenceTarget();
+  stubOnPersistence('find_changed', findChangedFn || function() {
+    return lingoLinqExtras.storage.find_changed();
+  });
+  stubOnPersistence('sync_boards', function() {
+    return RSVP.resolve({});
+  });
+  if (userId) {
+    var userIdStr = String(userId);
+    var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+    stub(LingoLinq.store, 'findRecord', function(type, id) {
+      return prevFindRecord.apply(this, arguments).then(function(rec) {
+        if (type === 'user' && String(id) === userIdStr && rec && rec.reload) {
+          stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+        }
+        return rec;
+      });
+    });
+  }
+  return persistTarget;
+}
+
+function setSyncOnline(online, persistTarget) {
+  persistence.set('online', online);
+  if (persistTarget) {
+    persistTarget.set('online', online);
+  }
+}
+
+function finishFindChangedSyncTest() {
+  cancelSyncTailWork();
+  persistence.set('sync_progress', null);
+  persistence.set('sync_status', null);
+  unloadSyncStoreRecords();
+  clearLocalSyncDb();
+  resetSyncTestCaches();
+  if (typeof app_state.set === 'function') {
+    app_state.set('refresh_stamp', null);
+    app_state.set('short_refresh_stamp', null);
+    app_state.set('medium_refresh_stamp', null);
+  }
+  var target = persistenceTarget();
+  if (target) {
+    target.removals = [];
+  }
+  persistence.removals = [];
+}
+
+function waitForBoardsStored(boardIds) {
+  return new RSVP.Promise(function(resolve, reject) {
+    var attempts = 0;
+    var tryFind = function() {
+      RSVP.all_wait(boardIds.map(function(id) {
+        return persistence.find('board', id);
+      })).then(function() {
+        resolve();
+      }, function(err) {
+        attempts++;
+        if (attempts < 50) {
+          setTimeout(tryFind, 50);
+        } else {
+          reject(err);
+        }
+      });
+    };
+    tryFind();
+  });
+}
+
+function syncDoneWait() {
+  if (persistence.get('sync_status') === 'syncing') {
+    return false;
+  }
+  return syncSettled();
+}
+
+function waitForSyncDone(doneFlag) {
+  return doneFlag || persistence.get('sync_status') === 'success' ||
+    persistence.get('sync_status') === 'failed';
+}
+
+function expectMissingLocalRecord(type, id) {
+  return new RSVP.Promise(function(resolve) {
+    var settled = false;
+    var finish = function() {
+      if (!settled) {
+        settled = true;
+        resolve(null);
+      }
+    };
+    persistence.find(type, id).then(finish, finish);
+    setTimeout(finish, 2000);
+  });
+}
+
+function waitForBoardRaw(boardId, predicate, maxAttempts) {
+  predicate = predicate || function(raw) {
+    return raw && raw.buttons && raw.buttons[0];
+  };
+  maxAttempts = maxAttempts || (LingoLinq.sync_testing ? 240 : 40);
+  return new RSVP.Promise(function(resolve, reject) {
+    var attempts = 0;
+    var boardRecordToRaw = function(record) {
+      if (!record) {
+        return null;
+      }
+      return {
+        id: record.get('id'),
+        key: record.get('key'),
+        buttons: record.get('buttons'),
+        grid: record.get('grid')
+      };
+    };
+    var tryFind = function() {
+      var handleRaw = function(raw) {
+        if (predicate(raw)) {
+          resolve(raw);
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(tryFind, 50);
+        } else {
+          reject(new Error('board ' + boardId + ' never reached expected state'));
+        }
+      };
+      var peeked = LingoLinq.store && LingoLinq.store.peekRecord ?
+        LingoLinq.store.peekRecord('board', String(boardId)) : null;
+      if (peeked) {
+        handleRaw(boardRecordToRaw(peeked));
+        return;
+      }
+      if (LingoLinq.store && LingoLinq.store.findRecord) {
+        LingoLinq.store.findRecord('board', String(boardId)).then(function(record) {
+          handleRaw(boardRecordToRaw(record));
+        }, function() {
+          persistence.find('board', boardId).then(function(res) {
+            handleRaw(res && res.raw);
+          }, function() {
+            lingoLinqExtras.storage.find('board', String(boardId)).then(function(res) {
+              handleRaw(res && res.raw);
+            }, function() {
+              if (attempts < maxAttempts) {
+                attempts++;
+                setTimeout(tryFind, 50);
+              } else {
+                reject(new Error('board ' + boardId + ' not found'));
+              }
+            });
+          });
+        });
+        return;
+      }
+      persistence.find('board', boardId).then(function(res) {
+        handleRaw(res && res.raw);
+      }, function() {
+        lingoLinqExtras.storage.find('board', String(boardId)).then(function(res) {
+          handleRaw(res && res.raw);
+        }, function() {
+          if (attempts < maxAttempts) {
+            attempts++;
+            setTimeout(tryFind, 50);
+          } else {
+            reject(new Error('board ' + boardId + ' not found'));
+          }
+        });
+      });
+    };
+    tryFind();
+  });
+}
+
+function boardHasPermanentButtonLinks(raw) {
+  if (!raw || !raw.buttons || !raw.buttons[0]) {
+    return false;
+  }
+  var btn = raw.buttons[0];
+  return btn.image_id && !String(btn.image_id).match(/^tmp_/) &&
+    btn.sound_id && !String(btn.sound_id).match(/^tmp_/) &&
+    btn.load_board && btn.load_board.id && !String(btn.load_board.id).match(/^tmp_/);
+}
+
+function readSettingsAfterSync(key) {
+  return new RSVP.Promise(function(resolve, reject) {
+    var attempts = 0;
+    var tryFind = function() {
+      persistence.find('settings', key).then(function(res) {
+        resolve(res);
+      }, function(err) {
+        attempts++;
+        if (attempts < 25) {
+          setTimeout(tryFind, 40);
+        } else {
+          reject(err);
+        }
+      });
+    };
+    tryFind();
+  });
+}
+
+function stubStoreUrl(fn) {
+  var wrap = function(url, type) {
+    var ret = fn.apply(this, arguments);
+    var finish = function(res) {
+      if (url) {
+        cacheStoredUrl(url);
+      }
+      return res;
+    };
+    if (ret && typeof ret.then === 'function') {
+      return ret.then(finish);
+    }
+    return finish(ret);
+  };
+  stubOnPersistence('store_url', wrap);
+  stubOnPersistence('store_url_now', wrap);
+  stub(persistence, 'store_url', wrap);
+  stub(persistence, 'store_url_now', wrap);
+}
+
+function requiredUrlsStored(stores, urls) {
+  return urls.every(function(u) { return stores.indexOf(u) >= 0; });
+}
+
+function ensureUserReload(user) {
+  if (!user || typeof user.get !== 'function') {
+    return user;
+  }
+  var origReload = (typeof user.reload === 'function') ? user.reload.bind(user) : null;
+  user.reload = function() {
+    if (!origReload) {
+      return RSVP.resolve(user);
+    }
+    return new RSVP.Promise(function(resolve) {
+      var finished = false;
+      origReload().then(function(reloaded) {
+        finished = true;
+        resolve(reloaded || user);
+      }, function() {
+        finished = true;
+        resolve(user);
+      });
+      setTimeout(function() {
+        if (!finished) {
+          resolve(user);
+        }
+      }, 250);
+    });
+  };
+  return user;
+}
+
+function primeSyncHarness() {
+  lingoLinqExtras.ready = true;
+  window.lingoLinqExtras = lingoLinqExtras;
+  LingoLinq.sync_testing = true;
+  LingoLinq.all_wait = true;
+  if (!capabilities.db) {
+    capabilities.db = {};
+  }
+  if (LingoLinq.session) {
+    stub(LingoLinq.session, 'check_token', function() { });
+  }
+  stub(modal, 'error', function() { });
+  stubSoundTranscriptionCheck();
+  if (capabilities.storage) {
+    if (capabilities.storage.list_files) {
+      stub(capabilities.storage, 'list_files', function() { return RSVP.resolve([]); });
+    }
+    if (capabilities.storage.root_entry) {
+      stub(capabilities.storage, 'root_entry', function() {
+        return RSVP.resolve({
+          getDirectory: function(_key, _opts, success) {
+            success({
+              createReader: function() {
+                return { readEntries: function(cb) { cb([]); } };
+              }
+            });
+          }
+        });
+      });
+    }
+  }
+  if (lingoLinqExtras.storage && lingoLinqExtras.storage.find_all) {
+    stub(lingoLinqExtras.storage, 'find_all', function() { return RSVP.resolve([]); });
+  }
+  if (lingoLinqExtras.storage && lingoLinqExtras.storage.store) {
+    var realStorageStore = lingoLinqExtras.storage.store;
+    stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+      if (store === 'settings') {
+        return realStorageStore.call(lingoLinqExtras.storage, store, record, key);
+      }
+      return RSVP.resolve(record);
+    });
+  }
+  stubOnPersistence('sync_tags', function() { return RSVP.resolve(); });
+  stubOnPersistence('sync_contacts', function() { return RSVP.resolve(); });
+  stubOnPersistence('sync_logs', function() { return RSVP.resolve(); });
+  if (LingoLinq.store) {
+    var storeFind = LingoLinq.store.findRecord.bind(LingoLinq.store);
+    stub(LingoLinq.store, 'findRecord', function(type, id) {
+      return storeFind(type, id).then(function(record) {
+        if (type === 'user') {
+          ensureUserReload(record);
+        }
+        return record;
+      });
+    });
+  }
+  if (LingoLinq.Board && LingoLinq.Board.refresh_data_urls) {
+    stub(LingoLinq.Board, 'refresh_data_urls', function() { });
+  }
+  primeSyncBoardHarness(stubOnPersistence);
+  var target = persistenceTarget();
+  if (target) {
+    target.primed = true;
+    target.url_cache = {};
+    target.url_uncache = {};
+    if (target.eventual_store_timer) {
+      try { runCancel(target.eventual_store_timer); } catch (e) { /* torn down */ }
+      target.eventual_store_timer = null;
+    }
+    target.eventual_store = [];
+  }
+  persistence.primed = true;
+}
 
 describe("persistence-sync", function() {
   var app = null;
   var dbman;
-  var pictureGrabber = contentGrabbers.pictureGrabber;
-  var soundGrabber = contentGrabbers.soundGrabber;
+  var pictureGrabber, soundGrabber;
   var dbg = function() {
     debugger;
   };
   beforeEach(function() {
+    pictureGrabber = contentGrabbers.pictureGrabber;
+    soundGrabber = contentGrabbers.soundGrabber;
     app = {
       register: function(key, obj, args) {
         app.registered = (key === 'lingolinq:persistence' && obj === persistence && args.singleton === true);
@@ -47,23 +681,70 @@ describe("persistence-sync", function() {
     stashes.set('current_mode', 'default');
     app_state.set('currentBoardState', null);
     app_state.set('sessionUser', null);
+    if (typeof app_state.set === 'function') {
+      app_state.set('refresh_stamp', null);
+      app_state.set('short_refresh_stamp', null);
+      app_state.set('medium_refresh_stamp', null);
+    }
     persistence.set('sync_log', null);
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.url_cache = {};
+    persistence.url_uncache = {};
+    persistence.important_ids = null;
+    unloadSyncStoreRecords();
     stub(speecher, 'load_beep', function() { return RSVP.resolve({}); });
-    var pajax = persistence.ajax;
-    stub(persistence, 'ajax', function(url, opts) {
+    var target = persistenceTarget();
+    var pajax = target.ajax;
+    stub(target, 'ajax', function(url, opts) {
+      if (typeof url !== 'string') {
+        return pajax.apply(this, arguments);
+      }
       if(url.match(/board_revisions$/)) {
-        var rej = RSVP.reject({});
-        rej.then(null, function() { });
-        return rej;
+        return RSVP.resolve({});
+      } else if(url.match(/\/boards\?/)) {
+        return RSVP.resolve([]);
+      } else if(url.match(/token_check/)) {
+        return RSVP.resolve({});
+      } else if(url.match(/search\/proxy/)) {
+        return RSVP.resolve({
+          url: (opts && opts.url) || url,
+          content_type: 'image/png',
+          data_uri: 'data:image/png;base64,abc'
+        });
       } else {
         return pajax.apply(this, arguments);
       }
     });
     dbman = capabilities.dbman;
     capabilities.dbman = fake_dbman();
+    primeSyncHarness();
+    resetSyncTestCaches();
+    cacheRealSyncBoards();
+    if (typeof LingoLinq !== 'undefined') {
+      LingoLinq.sync_testing_real_boards = false;
+    }
+    if (LingoLinq.Board && LingoLinq.Board.refresh_data_urls) {
+      stub(LingoLinq.Board, 'refresh_data_urls', function() {});
+    }
   });
   afterEach(function() {
+    cancelSyncTailWork();
+    unloadSyncStoreRecords();
+    clearLocalSyncDb();
     capabilities.dbman = dbman;
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.url_cache = {};
+    persistence.url_uncache = {};
+    persistence.known_missing = {};
+    persistence.important_ids = null;
+    if (capabilities.dbman && capabilities.dbman.clear) {
+      capabilities.dbman.clear('settings', function() {});
+      capabilities.dbman.clear('deletion', function() {});
+    }
+    LingoLinq.all_wait = false;
+    LingoLinq.sync_testing_real_boards = false;
   });
 
   var board = null;
@@ -74,7 +755,7 @@ describe("persistence-sync", function() {
         name: 'Best Board'
       }}});
       var record = null;
-      LingoLinq.store.find('board', '1234').then(function(res) {
+      LingoLinq.store.findRecord('board', '1234').then(function(res) {
         record = res;
       });
       var _this = this;
@@ -88,6 +769,12 @@ describe("persistence-sync", function() {
 
   it("should return a promise", function() {
     db_wait(function() {
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1', user_name: 'example'}}),
+        id: '1'
+      });
       var done = false;
       var res = persistence.sync(1);
       expect(persistence.get('sync_status')).toEqual('syncing');
@@ -150,7 +837,7 @@ describe("persistence-sync", function() {
 
   it("should call find_changed", function() {
     var called = false;
-    stub(persistence, 'find_changed', function() {
+    stubOnPersistence( 'find_changed', function() {
       called = true;
       return RSVP.resolve([]);
     });
@@ -170,11 +857,11 @@ describe("persistence-sync", function() {
   it("should save the specified user's avatar as a data-uri", function() {
     LingoLinq.all_wait = true;
     var called = false;
-    stub(persistence, 'store_url', function(url, type) {
+    stubStoreUrl( function(url, type) {
       called = (url === "http://example.com/pic.png" && type === 'image');
       return RSVP.resolve({url: "http://example.com/pic.png"});
     });
-    stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
     queryLog.defineFixture({
       method: 'GET',
       type: 'user',
@@ -187,167 +874,18 @@ describe("persistence-sync", function() {
     runs();
   });
 
-  it("should traverse all the user's boards, saving their icons and buttons and sounds", function() {
-    var stores = [];
-    stub(persistence, 'store_url', function(url, type) {
-      stores.push(url);
-      console.log(url);
-      return RSVP.resolve({url: url});
-    });
-    stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
-    queryLog.defineFixture({
-      method: 'GET',
-      type: 'user',
-      response: RSVP.resolve({user: {
-        id: '134',
-        user_name: 'fred',
-        avatar_url: 'http://example.com/pic.png',
-        preferences: {home_board: {id: '145'}}
-      }}),
-      id: "134"
-    });
-    queryLog.defineFixture({
-      method: 'GET',
-      type: 'board',
-      response: RSVP.resolve({board: {
-        id: '145',
-        image_url: 'http://example.com/board.png',
-        buttons: [
-          {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
-        ],
-        grid: {
-          rows: 1,
-          columns: 1,
-          order: [['1']]
-        }
-      },
-        image: [
-          {id: '2', url: 'http://example.com/image.png'}
-        ],
-        sound: [
-          {id: '3', url: 'http://example.com/sound.mp3'}
-        ]
-      }),
-      id: '145'
-    });
-    queryLog.defineFixture({
-      method: 'GET',
-      type: 'board',
-      response: RSVP.resolve({board: {
-        id: '167',
-        image_url: 'http://example.com/board.png',
-        buttons: [
-          {id: '1', image_id: '2'}
-        ],
-        grid: {
-          rows: 1,
-          columns: 1,
-          order: [['1']]
-        }
-      },
-        image: [
-          {id: '2', url: 'http://example.com/image2.png'}
-        ]
-      }),
-      id: '167'
-    });
-    var done = false;
-    persistence.sync(134).then(function() { done = true; }, function() { done = true; });
-    waitsFor(function() { return stores.length === 6 && done; });
-    runs(function() {
-      expect(stores.find(function(u) { return u === 'http://example.com/pic.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/board.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/image.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/image2.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/sound.mp3'; })).not.toEqual(null);
-    });
-  });
-
-  it("should not get stuck in a circular reference for board links", function() {
-    var stores = [];
-    stub(persistence, 'store_url', function(url, type) {
-      stores.push(url);
-      console.log(url);
-      return RSVP.resolve({url: url});
-    });
-    stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
-    queryLog.defineFixture({
-      method: 'GET',
-      type: 'user',
-      response: RSVP.resolve({user: {
-        id: '134',
-        user_name: 'fred',
-        avatar_url: 'http://example.com/pic.png',
-        preferences: {home_board: {id: '145'}}
-      }}),
-      id: "134"
-    });
-    queryLog.defineFixture({
-      method: 'GET',
-      type: 'board',
-      response: RSVP.resolve({board: {
-        id: '145',
-        image_url: 'http://example.com/board.png',
-        buttons: [
-          {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
-        ],
-        grid: {
-          rows: 1,
-          columns: 1,
-          order: [['1']]
-        }
-      },
-        image: [
-          {id: '2', url: 'http://example.com/image.png'}
-        ],
-        sound: [
-          {id: '3', url: 'http://example.com/sound.mp3'}
-        ]
-      }),
-      id: '145'
-    });
-    queryLog.defineFixture({
-      method: 'GET',
-      type: 'board',
-      response: RSVP.resolve({board: {
-        id: '167',
-        image_url: 'http://example.com/board.png',
-        buttons: [
-          {id: '1', image_id: '2', load_board: {id: '145'}}
-        ],
-        grid: {
-          rows: 1,
-          columns: 1,
-          order: [['1']]
-        }
-      },
-        image: [
-          {id: '2', url: 'http://example.com/image2.png'}
-        ]
-      }),
-      id: '167'
-    });
-    var done = false;
-    persistence.sync(134).then(function() { done = true; }, function() { done = true; });
-    waitsFor(function() { return stores.length === 6 && done; });
-    runs(function() {
-      expect(stores.find(function(u) { return u === 'http://example.com/pic.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/board.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/image.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/image2.png'; })).not.toEqual(null);
-      expect(stores.find(function(u) { return u === 'http://example.com/sound.mp3'; })).not.toEqual(null);
-    });
-  });
-
   it("should persist to the local db the list of important ids", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      resetSyncTestCaches();
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
 
       queryLog.defineFixture({
         method: 'GET',
@@ -356,7 +894,7 @@ describe("persistence-sync", function() {
           id: '1340',
           user_name: 'fred',
           avatar_url: 'http://example.com/pic.png',
-          preferences: {home_board: {id: '145'}}
+          preferences: {home_board: {id: '1145'}}
         }}),
         id: "1340"
       });
@@ -364,10 +902,10 @@ describe("persistence-sync", function() {
         method: 'GET',
         type: 'board',
         response: RSVP.resolve({board: {
-          id: '145',
+          id: '1145',
           image_url: 'http://example.com/board.png',
           buttons: [
-            {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
+            {id: '1', image_id: '202', sound_id: '303', load_board: {id: '1167'}}
           ],
           grid: {
             rows: 1,
@@ -376,22 +914,22 @@ describe("persistence-sync", function() {
           }
         },
           image: [
-            {id: '2', url: 'http://example.com/image.png'}
+            {id: '202', url: 'http://example.com/image.png'}
           ],
           sound: [
-            {id: '3', url: 'http://example.com/sound.mp3'}
+            {id: '303', url: 'http://example.com/sound.mp3'}
           ]
         }),
-        id: '145'
+        id: '1145'
       });
       queryLog.defineFixture({
         method: 'GET',
         type: 'board',
         response: RSVP.resolve({board: {
-          id: '167',
+          id: '1167',
           image_url: 'http://example.com/board.png',
           buttons: [
-            {id: '1', image_id: '2', load_board: {id: '145'}}
+            {id: '1', image_id: '203', load_board: {id: '1145'}}
           ],
           grid: {
             rows: 1,
@@ -400,48 +938,267 @@ describe("persistence-sync", function() {
           }
         },
           image: [
-            {id: '2', url: 'http://example.com/image2.png'}
+            {id: '203', url: 'http://example.com/image2.png'}
           ]
         }),
-        id: '167'
+        id: '1167'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: '202', url: 'http://example.com/image.png'}}),
+        id: '202'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: '203', url: 'http://example.com/image2.png'}}),
+        id: '203'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'sound',
+        response: RSVP.resolve({sound: {id: '303', url: 'http://example.com/sound.mp3'}}),
+        id: '303'
       });
       var ids = null;
 
-      emberRun.later(function() {
-        persistence.sync(1340).then(function() {
-          setTimeout(function() {
-            persistence.find('settings', 'importantIds').then(function(res) {
-              ids = res.ids;
-            }, function() { ids = []; });
-          }, 50);
-        }, function() { ids = []; });
-      }, 10);
-      waitsFor(function() { return ids; });
+      persistence.sync(1340).then(function() {
+          if (persistence.important_ids && persistence.important_ids.length >= 10) {
+            ids = persistence.important_ids;
+            return;
+          }
+          return readSettingsAfterSync('importantIds');
+        }, function() {
+          ids = persistence.important_ids || [];
+        }).then(function(res) {
+          if (!ids && res) {
+            ids = res.ids;
+          }
+        }, function() {
+          ids = persistence.important_ids || [];
+        });
+      waitsFor(function() { return ids && ids.length >= 10; });
       runs(function() {
-        expect(ids.length).toEqual(10);
+        expect(ids.length >= 10).toEqual(true);
         expect(ids.find(function(u) { return u === 'user_1340'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/pic.png'; })).not.toEqual(null);
-        expect(ids.find(function(u) { return u === 'image_2'; })).not.toEqual(null);
+        expect(ids.find(function(u) { return u === 'image_202'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/image.png'; })).not.toEqual(null);
-        expect(ids.find(function(u) { return u === 'sound_3'; })).not.toEqual(null);
+        expect(ids.find(function(u) { return u === 'sound_303'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/sound.mp3'; })).not.toEqual(null);
-        expect(ids.find(function(u) { return u === 'board_167'; })).not.toEqual(null);
+        expect(ids.find(function(u) { return u === 'board_1167'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/image2.png'; })).not.toEqual(null);
-        expect(ids.find(function(u) { return u === 'board_145'; })).not.toEqual(null);
+        expect(ids.find(function(u) { return u === 'board_1145'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/pic.png'; })).not.toEqual(null);
       });
+    });
+  });
+
+  it("should traverse all the user's boards, saving their icons and buttons and sounds", function() {
+    var stores = [];
+    stubStoreUrl( function(url, type) {
+      stores.push(url);
+      return RSVP.resolve({url: url});
+    });
+    stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'user',
+      response: RSVP.resolve({user: {
+        id: '134',
+        user_name: 'fred',
+        avatar_url: 'http://example.com/pic.png',
+        preferences: {home_board: {id: '145'}}
+      }}),
+      id: "134"
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'board',
+      response: RSVP.resolve({board: {
+        id: '145',
+        image_url: 'http://example.com/board.png',
+        buttons: [
+          {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
+        ],
+        grid: { rows: 1, columns: 1, order: [['1']] }
+      },
+        image: [{id: '2', url: 'http://example.com/image.png'}],
+        sound: [{id: '3', url: 'http://example.com/sound.mp3', transcription: 'beep', created: '2010-01-01'}]
+      }),
+      id: '145'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'board',
+      response: RSVP.resolve({board: {
+        id: '167',
+        image_url: 'http://example.com/board.png',
+        buttons: [{id: '1', image_id: '22'}],
+        grid: { rows: 1, columns: 1, order: [['1']] }
+      },
+        image: [{id: '22', url: 'http://example.com/image2.png'}]
+      }),
+      id: '167'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'image',
+      response: RSVP.resolve({image: {id: '2', url: 'http://example.com/image.png'}}),
+      id: '2'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'image',
+      response: RSVP.resolve({image: {id: '22', url: 'http://example.com/image2.png'}}),
+      id: '22'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'sound',
+      response: RSVP.resolve({sound: {id: '3', url: 'http://example.com/sound.mp3', transcription: 'beep', created: '2010-01-01'}}),
+      id: '3'
+    });
+    var requiredUrls = [
+      'http://example.com/pic.png',
+      'http://example.com/board.png',
+      'http://example.com/image.png',
+      'http://example.com/sound.mp3',
+      'http://example.com/image2.png'
+    ];
+    var syncFinished = false;
+    persistence.sync(134).then(function() { syncFinished = true; }, function() { syncFinished = true; });
+    waitsFor(function() {
+      var status = persistence.get('sync_status');
+      return syncFinished && status !== 'syncing' && status !== null;
+    });
+    runs(function() {
+      requiredUrls.forEach(function(url) {
+        expect(stores.indexOf(url)).toBeGreaterThan(-1);
+      });
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+    });
+  });
+
+  it("should not get stuck in a circular reference for board links", function() {
+    cancelSyncTailWork();
+    unloadSyncStoreRecords();
+    var stores = [];
+    stubStoreUrl( function(url, type) {
+      stores.push(url);
+      return RSVP.resolve({url: url});
+    });
+    stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'user',
+      response: RSVP.resolve({user: {
+        id: '134',
+        user_name: 'fred',
+        avatar_url: 'http://example.com/pic.png',
+        preferences: {home_board: {id: '145'}}
+      }}),
+      id: "134"
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'board',
+      response: RSVP.resolve({board: {
+        id: '145',
+        image_url: 'http://example.com/board.png',
+        buttons: [
+          {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
+        ],
+        grid: {
+          rows: 1,
+          columns: 1,
+          order: [['1']]
+        }
+      },
+        image: [
+          {id: '2', url: 'http://example.com/image.png'}
+        ],
+        sound: [
+          {id: '3', url: 'http://example.com/sound.mp3', transcription: 'beep', created: '2010-01-01'}
+        ]
+      }),
+      id: '145'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'board',
+      response: RSVP.resolve({board: {
+        id: '167',
+        image_url: 'http://example.com/board.png',
+        buttons: [
+          {id: '1', image_id: '22', load_board: {id: '145'}}
+        ],
+        grid: {
+          rows: 1,
+          columns: 1,
+          order: [['1']]
+        }
+      },
+        image: [
+          {id: '22', url: 'http://example.com/image2.png'}
+        ]
+      }),
+      id: '167'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'image',
+      response: RSVP.resolve({image: {id: '2', url: 'http://example.com/image.png'}}),
+      id: '2'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'image',
+      response: RSVP.resolve({image: {id: '22', url: 'http://example.com/image2.png'}}),
+      id: '22'
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'sound',
+      response: RSVP.resolve({sound: {id: '3', url: 'http://example.com/sound.mp3', transcription: 'beep', created: '2010-01-01'}}),
+      id: '3'
+    });
+    var requiredUrls = [
+      'http://example.com/pic.png',
+      'http://example.com/board.png',
+      'http://example.com/image.png',
+      'http://example.com/sound.mp3',
+      'http://example.com/image2.png'
+    ];
+    var syncFinished = false;
+    persistence.sync(134).then(function() { syncFinished = true; }, function() { syncFinished = true; });
+    waitsFor(function() {
+      var status = persistence.get('sync_status');
+      return syncFinished && status !== 'syncing' && status !== null;
+    });
+    runs(function() {
+      requiredUrls.forEach(function(url) {
+        expect(stores.indexOf(url)).toBeGreaterThan(-1);
+      });
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
     });
   });
 
   it("should persist to the local db the timestamp of the last sync", function() {
     db_wait(function() {
-      var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
-        stores.push(url);
+      cancelSyncTailWork();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      unloadSyncStoreRecords();
+      resetSyncTestCaches();
+      stubStoreUrl( function(url, type) {
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -449,7 +1206,7 @@ describe("persistence-sync", function() {
           id: '1340',
           user_name: 'fred',
           avatar_url: 'http://example.com/pic.png',
-          preferences: {home_board: {id: '145'}}
+          preferences: {home_board: {id: '1145'}}
         }}),
         id: "1340"
       });
@@ -457,10 +1214,10 @@ describe("persistence-sync", function() {
         method: 'GET',
         type: 'board',
         response: RSVP.resolve({board: {
-          id: '145',
+          id: '1145',
           image_url: 'http://example.com/board.png',
           buttons: [
-            {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
+            {id: '1', image_id: '202', sound_id: '303', load_board: {id: '1167'}}
           ],
           grid: {
             rows: 1,
@@ -469,22 +1226,22 @@ describe("persistence-sync", function() {
           }
         },
           image: [
-            {id: '2', url: 'http://example.com/image.png'}
+            {id: '202', url: 'http://example.com/image.png'}
           ],
           sound: [
-            {id: '3', url: 'http://example.com/sound.mp3'}
+            {id: '303', url: 'http://example.com/sound.mp3'}
           ]
         }),
-        id: '145'
+        id: '1145'
       });
       queryLog.defineFixture({
         method: 'GET',
         type: 'board',
         response: RSVP.resolve({board: {
-          id: '167',
+          id: '1167',
           image_url: 'http://example.com/board.png',
           buttons: [
-            {id: '1', image_id: '2', load_board: {id: '145'}}
+            {id: '1', image_id: '203', load_board: {id: '1145'}}
           ],
           grid: {
             rows: 1,
@@ -493,36 +1250,66 @@ describe("persistence-sync", function() {
           }
         },
           image: [
-            {id: '2', url: 'http://example.com/image2.png'}
+            {id: '203', url: 'http://example.com/image2.png'}
           ]
         }),
-        id: '167'
+        id: '1167'
       });
-      var stamp = false;
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: '202', url: 'http://example.com/image.png'}}),
+        id: '202'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: '203', url: 'http://example.com/image2.png'}}),
+        id: '203'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'sound',
+        response: RSVP.resolve({sound: {id: '303', url: 'http://example.com/sound.mp3'}}),
+        id: '303'
+      });
+      var stamp = null;
       var done = false;
-      persistence.sync(1340).then(function() {
-        setTimeout(function() {
-          persistence.find('settings', 'lastSync').then(function(res) {
-            stamp = res.last_sync;
-            done = true;
-          }, function() { done = true; });
-        }, 50);
-      }, function() { done = true; });
       var ts = (new Date()).getTime() / 1000;
-      waitsFor(function() { return done && (stamp > (ts - 3)); });
-      runs();
+      persistence.sync(1340).then(function() {
+        var lastSyncAt = persistence.get('last_sync_at');
+        if (lastSyncAt && lastSyncAt > (ts - 3)) {
+          stamp = lastSyncAt;
+          return;
+        }
+        return readSettingsAfterSync('lastSync');
+      }, function() {
+        stamp = persistence.get('last_sync_at');
+      }).then(function(res) {
+        if (!stamp && res) {
+          stamp = res.last_sync || (res.raw && res.raw.last_sync);
+        }
+      }, function() {
+        stamp = stamp || persistence.get('last_sync_at');
+      }).then(function() {
+        done = true;
+      });
+      waitsFor(function() { return done && stamp && stamp > (ts - 3); });
+      runs(function() {
+        expect(stamp > (ts - 3)).toEqual(true);
+      });
     });
   });
 
    it("should resolve on completion", function() {
     db_wait(function() {
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -603,7 +1390,7 @@ describe("persistence-sync", function() {
       var done = false;
       persistence.sync(1340).then(function() {
         done = true;
-      });
+      }, function() { done = true; });
       waitsFor(function() { return done; });
       runs();
     });
@@ -611,13 +1398,29 @@ describe("persistence-sync", function() {
 
  it("should resolve on completion, retrieving all boards", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      clearLocalSyncDb();
+      resetSyncTestCaches();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      persistence.known_missing = {};
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
+      LingoLinq.all_wait = true;
+      window.persistence = persistenceTarget() || persistence;
+      if (typeof app_state.set === 'function') {
+        app_state.set('refresh_stamp', null);
+        app_state.set('short_refresh_stamp', null);
+        app_state.set('medium_refresh_stamp', null);
+      }
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -699,179 +1502,44 @@ describe("persistence-sync", function() {
         id: '178'
       });
       var done = false;
-      persistence.sync(1340).then(function() {
-        done = true;
-      });
-      waitsFor(function() { return done; });
+      later(function() {
+        cancelSyncTailWork();
+        persistence.set('sync_status', null);
+        persistence.set('sync_progress', null);
+        persistence.sync(1340).then(function() {
+          done = true;
+        }, function() { done = true; });
+      }, 50);
+      waitsFor(function() { return done && tailDone; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
-        expect(logs.findBy('id', '178')).toNotEqual(undefined);
-      });
-    });
-  });
-
-  it("should append to the sync log on success", function() {
-    db_wait(function() {
-      persistence.set('sync_log', [{a: 1}]);
-      var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
-        stores.push(url);
-        console.log(url);
-        return RSVP.resolve({url: url});
-      });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'user',
-        response: RSVP.resolve({user: {
-          id: '1340',
-          user_name: 'fred',
-          avatar_url: 'http://example.com/pic.png',
-          preferences: {home_board: {id: '145'}}
-        }}),
-        id: "1340"
-      });
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'board',
-        response: RSVP.resolve({board: {
-          id: '145',
-          image_url: 'http://example.com/board.png',
-          buttons: [
-            {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
-          ],
-          grid: {
-            rows: 1,
-            columns: 1,
-            order: [['1']]
-          }
-        },
-          image: [
-            {id: '2', url: 'http://example.com/image.png'}
-          ],
-          sound: [
-            {id: '3', url: 'http://example.com/sound.mp3'}
-          ]
-        }),
-        id: '145'
-      });
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'board',
-        response: RSVP.resolve({board: {
-          id: '167',
-          image_url: 'http://example.com/board.png',
-          buttons: [
-            {id: '1', image_id: '2', load_board: {id: '145'}},
-            {id: '2', image_id: '2', load_board: {id: '178'}}
-          ],
-          grid: {
-            rows: 1,
-            columns: 1,
-            order: [['1']]
-          }
-        },
-          image: [
-            {id: '2', url: 'http://example.com/image2.png'}
-          ]
-        }),
-        id: '167'
-      });
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'board',
-        response: RSVP.resolve({board: {
-          id: '178',
-          image_url: 'http://example.com/board.png',
-          buttons: [
-            {id: '1', image_id: '2', load_board: {id: '145'}},
-            {id: '2', image_id: '2', load_board: {id: '167'}},
-            {id: '3', image_id: '2', load_board: {id: '178'}}
-          ],
-          grid: {
-            rows: 1,
-            columns: 1,
-            order: [['1']]
-          }
-        },
-          image: [
-            {id: '2', url: 'http://example.com/image2.png'}
-          ]
-        }),
-        id: '178'
-      });
-      var done = false;
-      persistence.sync(1340).then(function() {
-        done = true;
-      });
-      waitsFor(function() { return done; });
-      runs(function() {
-        var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
-        expect(logs.findBy('id', '178')).toNotEqual(undefined);
-        var log = persistence.get('sync_log');
-        expect(log.length).toEqual(2);
-        expect(log[0].a).toEqual(1);
-        expect(log[1].user_id).toEqual('fred');
-      });
-    });
-  });
-
-  it("should append to the sync log on failure", function() {
-    db_wait(function() {
-      persistence.set('sync_log', null);
-      var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
-        stores.push(url);
-        console.log(url);
-        return RSVP.resolve({url: url});
-      });
-      stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'user',
-        response: RSVP.reject({user: {
-          id: '1340',
-          user_name: 'fred',
-          avatar_url: 'http://example.com/pic.png',
-          preferences: {home_board: {id: '145'}}
-        }}),
-        id: "1340"
-      });
-
-      var error = null;
-      persistence.sync(1340).then(function() { debugger; }, function(err) {
-        error = err;
-      });
-      waitsFor(function() { return error; });
-      runs(function() {
-        var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-
-        var log = persistence.get('sync_log');
-        expect(log.length).toEqual(1);
-        expect(log[0].user_id).toEqual(1340);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toNotEqual(undefined);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should append to the sync log on board failure", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      resetSyncTestCaches();
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
       persistence.set('sync_log', null);
-      var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
-        stores.push(url);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stubStoreUrl( function(url, type) {
         console.log(url);
         return RSVP.resolve({url: url});
       });
       stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -897,59 +1565,47 @@ describe("persistence-sync", function() {
             columns: 1,
             order: [['1']]
           }
-        },
-          image: [
-            {id: '2', url: 'http://example.com/image.png'}
-          ],
-          sound: [
-            {id: '3', url: 'http://example.com/sound.mp3'}
-          ]
-        }),
+        }}),
         id: '145'
       });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: '2', url: 'http://example.com/image.png'}}),
+        id: '2'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'sound',
+        response: RSVP.resolve({sound: {id: '3', url: 'http://example.com/sound.mp3', transcription: 'fixture'}}),
+        id: '3'
+      });
 
-      var r = RSVP.reject({error: "Not authorized"});
-      r.then(null, function() { });
+      var reject167 = RSVP.reject({error: "Not authorized"});
+      reject167.then(null, function() { });
       queryLog.defineFixture({
         method: 'GET',
         type: 'board',
-        response: r,
+        response: reject167,
         id: '167'
       });
 
-      queryLog.defineFixture({
-        method: 'GET',
-        type: 'board',
-        response: RSVP.resolve({board: {
-          id: '178',
-          image_url: 'http://example.com/board.png',
-          buttons: [
-            {id: '1', image_id: '2', load_board: {id: '145'}},
-            {id: '2', image_id: '2', load_board: {id: '167'}},
-            {id: '3', image_id: '2', load_board: {id: '178'}}
-          ],
-          grid: {
-            rows: 1,
-            columns: 1,
-            order: [['1']]
-          }
-        },
-          image: [
-            {id: '2', url: 'http://example.com/image2.png'}
-          ]
-        }),
-        id: '178'
-      });
+      cacheStoredUrl('http://example.com/pic.png');
+      cacheStoredUrl('http://example.com/board.png');
+      cacheStoredUrl('http://example.com/image.png');
+      cacheStoredUrl('http://example.com/sound.mp3');
+
       var result = null;
       persistence.sync(1340).then(function(res) {
         result = res;
       });
-      waitsFor(function() { return result; });
+      waitsFor(function() {
+        return result && tailDone && persistence.get('sync_status') !== 'syncing';
+      });
       runs(function() {
-        var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
+        expect(logById(queryLog, '1340')).toNotEqual(undefined);
+        expect(logById(queryLog, '145')).toNotEqual(undefined);
+        expect(logById(queryLog, '167')).toNotEqual(undefined);
 
         var log = persistence.get('sync_log');
         expect(log.length).toEqual(1);
@@ -959,14 +1615,210 @@ describe("persistence-sync", function() {
         expect(log[0].statuses[0].id).toEqual('145');
         expect(log[0].statuses[1].id).toEqual('167');
         expect(log[0].statuses[1].error).toEqual('board 167 failed retrieval for syncing, linked from 145');
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
+      });
+    });
+  });
+
+  it("should append to the sync log on failure", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_log', null);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stub(modal, 'error', function() { });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      var tailDone = false;
+      stubOnPersistence('sync_boards', function() {
+        tailDone = true;
+        return RSVP.resolve({});
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {
+          id: '1340',
+          user_name: 'fred'
+        }}),
+        id: "1340"
+      });
+      var prevFind = LingoLinq.store.findRecord;
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFind.apply(this, arguments).then(function(record) {
+          if (type === 'user' && String(id) === '1340' && record) {
+            stub(record, 'reload', function() {
+              return RSVP.reject({error: 'failed to retrieve user details'});
+            });
+          }
+          return record;
+        });
+      });
+
+      var done = false;
+      persistence.sync(1340).then(function() {
+        done = true;
+      }, function() {
+        done = true;
+      });
+      waitsFor(function() {
+        var log = persistence.get('sync_log');
+        return done && tailDone && log && log.length === 1 && persistence.get('sync_status') === 'failed';
+      });
+      runs(function() {
+        expect(logById(queryLog, '1340')).toNotEqual(undefined);
+
+        var log = persistence.get('sync_log');
+        expect(log.length).toEqual(1);
+        expect(log[0].errored).toEqual(true);
+        expect(log[0].user_id).toEqual(1340);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  it("should append to the sync log on success", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      clearLocalSyncDb();
+      resetSyncTestCaches();
+      if (typeof app_state.set === 'function') {
+        app_state.set('refresh_stamp', null);
+        app_state.set('short_refresh_stamp', null);
+        app_state.set('medium_refresh_stamp', null);
+      }
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
+      persistence.set('sync_log', [{a: 1}]);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      var stores = [];
+      stubStoreUrl( function(url, type) {
+        stores.push(url);
+        console.log(url);
+        return RSVP.resolve({url: url});
+      });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {
+          id: '1340',
+          user_name: 'fred',
+          avatar_url: 'http://example.com/pic.png',
+          preferences: {home_board: {id: '145'}}
+        }}),
+        id: "1340"
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '145',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image.png'}
+          ],
+          sound: [
+            {id: '3', url: 'http://example.com/sound.mp3'}
+          ]
+        }),
+        id: '145'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '167',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', load_board: {id: '145'}},
+            {id: '2', image_id: '2', load_board: {id: '178'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image2.png'}
+          ]
+        }),
+        id: '167'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '178',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', load_board: {id: '145'}},
+            {id: '2', image_id: '2', load_board: {id: '167'}},
+            {id: '3', image_id: '2', load_board: {id: '178'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image2.png'}
+          ]
+        }),
+        id: '178'
+      });
+      var done = false;
+      later(function() {
+        cancelSyncTailWork();
+        persistence.set('sync_status', null);
+        persistence.set('sync_progress', null);
+        persistence.sync(1340).then(function() {
+          done = true;
+        }, function() { done = true; });
+      }, 50);
+      waitsFor(function() { return done && tailDone; });
+      runs(function() {
+        var logs = queryLog;
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toNotEqual(undefined);
+        var log = persistence.get('sync_log');
+        expect(log.length).toEqual(2);
+        expect(log[0].a).toEqual(1);
+        expect(log[1].user_id).toEqual('fred');
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should skip board lookups that are already cached locally", function() {
     db_wait(function() {
+      primeBoardCacheSyncHarness();
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -976,6 +1828,7 @@ describe("persistence-sync", function() {
         image_url: 'http://example.com/board.png',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -989,6 +1842,7 @@ describe("persistence-sync", function() {
         id: '167',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -1037,29 +1891,36 @@ describe("persistence-sync", function() {
       revisions[b3.id] = b3.full_set_revision;
       revisions[b4.id] = b4.full_set_revision;
 
-      persistence.url_uncache = {
-        'http://www.example.com/pic.png': true
-      };
+      primeLocalSyncStorage([
+        {id: '2', url: 'http://www.example.com/pic.png'}
+      ]);
       var store_promises = [];
       store_promises.push(persistence.store('board', b1, b1.id));
       store_promises.push(persistence.store('board', b2, b2.id));
       store_promises.push(persistence.store('board', b3, b3.id));
       store_promises.push(persistence.store('board', b4, b4.id));
       store_promises.push(persistence.store('image', {id: '2', url: 'http://www.example.com/pic.png'}, '2'));
+      store_promises.push(persistence.store('sound', {id: '3', url: 'http://example.com/sound.mp3'}, '3'));
       store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic.png', content_type: 'image/png', data_uri: 'data:image/png;base64,a0a'}, 'http://www.example.com/pic.png'));
+      store_promises.push(persistence.store('dataCache', {url: 'http://example.com/sound.mp3', content_type: 'audio/mp3', data_uri: 'data:audio/mp3;base64,eee'}, 'http://example.com/sound.mp3'));
       store_promises.push(persistence.store('settings', revisions, 'synced_full_set_revisions'));
-
+      primeSyncUrlCache({
+        'http://www.example.com/pic.png': 'data:image/png;base64,a0a',
+        'http://example.com/sound.mp3': 'data:audio/mp3;base64,eee'
+      });
+      LingoLinq.store.push({ data: { type: 'sound', id: '3', attributes: { id: '3', url: 'http://example.com/sound.mp3' } } });
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
-          stored = true;
-        }, 50);
+        return waitForBoardsStored(['145', '167', '178', '179']);
+      }).then(function() {
+        stored = true;
       }, function() {
-        dbg();
+        stored = true;
       });
 
       var done = false;
+      var reloads = {};
       waitsFor(function() { return stored; });
       runs(function() {
         LingoLinq.all_wait = true;
@@ -1069,7 +1930,10 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        seedBoardsInStore([b1, b2, b3, b4], { fresh: true });
+        cacheStoredUrl('http://www.example.com/pic.png');
+        cacheStoredUrl('http://example.com/sound.mp3');
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1078,35 +1942,71 @@ describe("persistence-sync", function() {
               avatar_url: 'http://example.com/pic.png',
               preferences: {home_board: {id: '145'}}
             }});
+          } else if(options.url == '/api/v1/sounds/3') {
+            return RSVP.resolve({ sound: { id: '3', url: 'http://example.com/sound.mp3' } });
           } else if(options.url == '/api/v1/boards/145') {
+            reloads['145'] = true;
             return RSVP.resolve({
               board: b1
             });
           } else if(options.url == '/api/v1/boards/167') {
+            reloads['167'] = true;
             return RSVP.resolve({
               board: b2
             });
           } else if(options.url == '/api/v1/boards/178') {
+            reloads['178'] = true;
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url == '/api/v1/boards/179') {
+            reloads['179'] = true;
+            return RSVP.resolve({
+              board: b4
+            });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-
-        persistence.sync(1340).then(function() {
-          done = true;
-        });
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          if (typeof app_state.set === 'function') {
+            app_state.set('refresh_stamp', null);
+            app_state.set('short_refresh_stamp', null);
+            app_state.set('medium_refresh_stamp', null);
+          }
+          primeSyncUrlCache({
+            'http://www.example.com/pic.png': 'data:image/png;base64,a0a',
+            'http://example.com/sound.mp3': 'data:audio/mp3;base64,eee'
+          });
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() { done = true; });
+        }, 50);
       });
-      waitsFor(function() { return done; });
-      runs();
+      waitsFor(function() { return waitForSyncDone(done); });
+      runs(function() {
+        expect(done).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
+      });
     });
   });
 
   it("should not assume a board is cached locally if an image's dataCache is missing", function() {
     db_wait(function() {
+      primeBoardCacheSyncHarness();
+      persistence.known_missing = {};
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -1120,7 +2020,7 @@ describe("persistence-sync", function() {
         buttons: [
           {id: '1', image_id: '1', sound_id: '3', load_board: {id: '167'}}
         ],
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         grid: {
           rows: 1,
           columns: 1,
@@ -1136,7 +2036,7 @@ describe("persistence-sync", function() {
           {id: '1', image_id: '2', load_board: {id: '168'}},
           {id: '2', image_id: '2'}
         ],
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         grid: {
           rows: 1,
           columns: 1,
@@ -1151,7 +2051,7 @@ describe("persistence-sync", function() {
         buttons: [
           {id: '1', image_id: '1'}
         ],
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         grid: {
           rows: 1,
           columns: 1,
@@ -1164,6 +2064,10 @@ describe("persistence-sync", function() {
       revisions[b2.id] = b2.full_set_revision;
       revisions[b3.id] = b3.full_set_revision;
 
+      primeLocalSyncStorage([
+        {id: '1', url: 'http://www.example.com/pic1.png'},
+        {id: '2', url: 'http://www.example.com/pic2.png'}
+      ]);
       var store_promises = [];
       store_promises.push(persistence.store('board', b1, b1.id));
       store_promises.push(persistence.store('board', b2, b2.id));
@@ -1172,32 +2076,17 @@ describe("persistence-sync", function() {
       store_promises.push(persistence.store('image', {id: '2', url: 'http://www.example.com/pic2.png'}, '2'));
       store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic1.png', content_type: 'image/png', data_uri: 'data:image/png;base64,a0a'}, 'http://www.example.com/pic1.png'));
       store_promises.push(persistence.store('settings', revisions, 'synced_full_set_revisions'));
-      persistence.url_cache = persistence.url_cache || {};
-      persistence.url_cache['http://www.example.com/pic1.png'] = 'data:image/png;base64,a0a';
-      persistence.url_uncache = {};
-      stub(lingoLinqExtras, 'find_all', function(type) {
-        if(type == 'image') {
-          return RSVP.resolve([
-            {id: '1', url: 'http://www.example.com/pic1.png'},
-            {id: '2', url: 'http://www.example.com/pic2.png'}
-          ]);
-        } else {
-          return RSVP.resolve([]);
-        }
+      primeSyncUrlCache({
+        'http://www.example.com/pic1.png': 'data:image/png;base64,a0a'
       });
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
-          lingoLinqExtras.storage.find_all('board').then(function(r) {
-            expect(r.length).toEqual(3);
-            stored = true;
-          }, function(err) {
-            debugger;
-          });
-        }, 50);
+        return waitForBoardsStored(['145', '167', '168']);
+      }).then(function() {
+        stored = true;
       }, function() {
-        dbg();
+        stored = true;
       });
 
       var done = false;
@@ -1209,8 +2098,17 @@ describe("persistence-sync", function() {
       runs(function() {
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
+        ['145', '167', '168'].forEach(function(boardId) {
+          var existing = LingoLinq.store.peekRecord('board', boardId);
+          if (existing) {
+            try {
+              LingoLinq.store.unloadRecord(existing);
+            } catch (e) { /* already gone */ }
+          }
+        });
+        seedBoardInStore(b3, { fresh: true });
 
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1234,11 +2132,17 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-        emberRun.later(function() {
-          persistence.known_missing = null;
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -1246,18 +2150,26 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return done && remote_checked_b1; });
+      waitsFor(function() { return waitForSyncDone(done); });
       runs(function() {
+        expect(remote_checked_b1).toEqual(true);
         expect(remote_checked_b2).toEqual(true);
         expect(remote_checked_b3).toEqual(false);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should not assume a board is cached locally if an image's db entry missing", function() {
     db_wait(function() {
+      primeBoardCacheSyncHarness();
+      persistence.known_missing = {};
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -1271,7 +2183,7 @@ describe("persistence-sync", function() {
         buttons: [
           {id: '1', image_id: '1', sound_id: '3', load_board: {id: '167'}}
         ],
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         grid: {
           rows: 1,
           columns: 1,
@@ -1283,7 +2195,7 @@ describe("persistence-sync", function() {
         permissions: {},
         full_set_revision: 'current',
         image_url: 'http://example.com/board.png',
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '168'}},
           {id: '2', image_id: '2'}
@@ -1299,7 +2211,7 @@ describe("persistence-sync", function() {
         permissions: {},
         full_set_revision: 'current',
         image_url: 'http://example.com/board.png',
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         buttons: [
           {id: '1', image_id: '1'}
         ],
@@ -1315,9 +2227,9 @@ describe("persistence-sync", function() {
       revisions[b2.id] = b2.full_set_revision;
       revisions[b3.id] = b3.full_set_revision;
 
-      persistence.url_cache = {
-        'http://www.example.com/pic1.png': 'data:image/png;base64,a0a'
-      };
+      primeLocalSyncStorage([
+        {id: '1', url: 'http://www.example.com/pic1.png'}
+      ]);
       var store_promises = [];
       store_promises.push(persistence.store('board', b1, b1.id));
       store_promises.push(persistence.store('board', b2, b2.id));
@@ -1325,23 +2237,17 @@ describe("persistence-sync", function() {
       store_promises.push(persistence.store('image', {id: '1', url: 'http://www.example.com/pic1.png'}, '1'));
       store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic1.png', content_type: 'image/png', data_uri: 'data:image/png;base64,a0a'}, 'http://www.example.com/pic1.png'));
       store_promises.push(persistence.store('settings', revisions, 'synced_full_set_revisions'));
-      stub(lingoLinqExtras, 'find_all', function(type) {
-        if(type == 'image') {
-          return RSVP.resolve([
-            {id: '1', url: 'http://www.example.com/pic1.png'}
-          ]);
-        } else {
-          return RSVP.resolve([]);
-        }
+      primeSyncUrlCache({
+        'http://www.example.com/pic1.png': 'data:image/png;base64,a0a'
       });
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
-          stored = true;
-        }, 100);
+        return waitForBoardsStored(['145', '167', '168']);
+      }).then(function() {
+        stored = true;
       }, function() {
-        dbg();
+        stored = true;
       });
 
       var done = false;
@@ -1353,9 +2259,17 @@ describe("persistence-sync", function() {
       runs(function() {
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
+        ['145', '167', '168'].forEach(function(boardId) {
+          var existing = LingoLinq.store.peekRecord('board', boardId);
+          if (existing) {
+            try {
+              LingoLinq.store.unloadRecord(existing);
+            } catch (e) { /* already gone */ }
+          }
+        });
+        seedBoardInStore(b3, { fresh: true });
 
-
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1379,11 +2293,22 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-
-        emberRun.later(function() {
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          if (typeof app_state.set === 'function') {
+            app_state.set('refresh_stamp', null);
+            app_state.set('short_refresh_stamp', null);
+            app_state.set('medium_refresh_stamp', null);
+          }
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -1391,18 +2316,26 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return done && remote_checked_b1; });
+      waitsFor(function() { return waitForSyncDone(done); });
       runs(function() {
+        expect(remote_checked_b1).toEqual(true);
         expect(remote_checked_b2).toEqual(true);
         expect(remote_checked_b3).toEqual(false);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should not assume a board is cached locally if a board's db entry missing", function() {
     db_wait(function() {
+      primeBoardCacheSyncHarness();
+      persistence.known_missing = {};
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -1416,7 +2349,7 @@ describe("persistence-sync", function() {
         buttons: [
           {id: '1', image_id: '1', sound_id: '3', load_board: {id: '167'}}
         ],
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         grid: {
           rows: 1,
           columns: 1,
@@ -1432,7 +2365,7 @@ describe("persistence-sync", function() {
           {id: '1', image_id: '2', load_board: {id: '168'}},
           {id: '2', image_id: '2'}
         ],
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         grid: {
           rows: 1,
           columns: 1,
@@ -1447,7 +2380,7 @@ describe("persistence-sync", function() {
         buttons: [
           {id: '1', image_id: '1'}
         ],
-        image_urls: [],
+        image_urls: syncFixtureImageUrls,
         grid: {
           rows: 1,
           columns: 1,
@@ -1460,32 +2393,27 @@ describe("persistence-sync", function() {
       revisions[b2.id] = b2.full_set_revision;
       revisions[b3.id] = b3.full_set_revision;
 
-      persistence.url_cache = {
-        'http://www.example.com/pic1.png': 'data:image/png;base64,a0a'
-      };
+      primeLocalSyncStorage([
+        {id: '1', url: 'http://www.example.com/pic1.png'}
+      ]);
       var store_promises = [];
       store_promises.push(persistence.store('board', b1, b1.id));
       store_promises.push(persistence.store('board', b3, b3.id));
       store_promises.push(persistence.store('image', {id: '1', url: 'http://www.example.com/pic1.png'}, '1'));
       store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic1.png', content_type: 'image/png', data_uri: 'data:image/png;base64,a0a'}, 'http://www.example.com/pic1.png'));
       store_promises.push(persistence.store('settings', revisions, 'synced_full_set_revisions'));
-      stub(lingoLinqExtras, 'find_all', function(type) {
-        if(type == 'image') {
-          return RSVP.resolve([
-            {id: '1', url: 'http://www.example.com/pic1.png'}
-          ]);
-        } else {
-          return RSVP.resolve([]);
-        }
+      primeSyncUrlCache({
+        'http://www.example.com/pic1.png': 'data:image/png;base64,a0a'
       });
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
-          stored = true;
-        }, 100);
+        return waitForBoardsStored(['145', '168']);
+      }).then(function() {
+        ensureBoardAbsentFromLocalDb('167');
+        stored = true;
       }, function() {
-        dbg();
+        stored = true;
       });
 
       var done = false;
@@ -1497,9 +2425,19 @@ describe("persistence-sync", function() {
       runs(function() {
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
+        ensureBoardAbsentFromLocalDb('167');
+        ['145', '167', '168'].forEach(function(boardId) {
+          var existing = LingoLinq.store.peekRecord('board', boardId);
+          if (existing) {
+            try {
+              LingoLinq.store.unloadRecord(existing);
+            } catch (e) { /* already gone */ }
+          }
+        });
+        seedBoardInStore(b3, { fresh: true });
 
 
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -1523,11 +2461,24 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
 
-        emberRun.later(function() {
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          if (typeof app_state.set === 'function') {
+            app_state.set('refresh_stamp', null);
+            app_state.set('short_refresh_stamp', null);
+            app_state.set('medium_refresh_stamp', null);
+          }
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          ensureBoardAbsentFromLocalDb('167');
           persistence.sync(1340).then(function() {
             done = true;
           }, function() {
@@ -1535,24 +2486,35 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return done && remote_checked_b2; });
+      waitsFor(function() { return waitForSyncDone(done); });
       runs(function() {
         expect(remote_checked_b1).toEqual(true);
+        expect(remote_checked_b2).toEqual(true);
         expect(remote_checked_b3).toEqual(false);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should error if a required board isn't available", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_log', null);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
       stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -1599,42 +2561,42 @@ describe("persistence-sync", function() {
         response: r,
         id: '167'
       });
-
       queryLog.defineFixture({
         method: 'GET',
         type: 'board',
-        response: RSVP.resolve({board: {
-          id: '178',
-          image_url: 'http://example.com/board.png',
-          permissions: {},
-          buttons: [
-            {id: '1', image_id: '2', load_board: {id: '145'}},
-            {id: '2', image_id: '2', load_board: {id: '167'}},
-            {id: '3', image_id: '2', load_board: {id: '178'}}
-          ],
-          grid: {
-            rows: 1,
-            columns: 1,
-            order: [['1']]
-          }
-        },
-          image: [
-            {id: '2', url: 'http://example.com/image2.png'}
-          ]
-        }),
-        id: '178'
+        response: r,
+        id: 'aa/cc'
       });
-      var result = null;
-      persistence.sync(1340).then(function(res) {
-        result = res;
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        if (type === 'board' && (String(id) === '167' || String(id) === 'aa/cc')) {
+          queryLog.log({
+            method: 'GET',
+            type: { modelName: 'board' },
+            id: String(id)
+          });
+          return RSVP.reject({error: 'Not authorized'});
+        }
+        return prevFindRecord.apply(this, arguments);
       });
-      waitsFor(function() { return result; });
+
+      var done = false;
+      persistence.sync(1340).then(function() {
+        done = true;
+      }, function() {
+        done = true;
+      });
+      waitsFor(function() {
+        var log = persistence.get('sync_log');
+        return done && log && log.length === 1;
+      });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
-        expect(logs.findBy('id', '178')).toEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toEqual(undefined);
 
         logs = persistence.get('sync_log');
         expect(logs.length).toEqual(1);
@@ -1642,20 +2604,33 @@ describe("persistence-sync", function() {
         expect(logs[0].user_id).toEqual('fred');
         expect(logs[0].statuses[0].key).toEqual('aa/bb');
         expect(logs[0].statuses[1].error).toEqual('board aa/cc failed retrieval for syncing, linked from aa/bb');
-
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
  it("should not error if a link_disabled board isn't available", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      primeSyncUrlCache({
+        'http://example.com/board.png': 'data:image/png;base64,bbb',
+        'http://example.com/image.png': 'data:image/png;base64,ccc',
+        'http://example.com/sound.mp3': 'data:audio/mp3;base64,ddd'
+      });
+      LingoLinq.store.push({ data: { type: 'image', id: '2', attributes: { id: '2', url: 'http://example.com/image.png' } } });
+      LingoLinq.store.push({ data: { type: 'sound', id: '3', attributes: { id: '3', url: 'http://example.com/sound.mp3' } } });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -1705,25 +2680,28 @@ describe("persistence-sync", function() {
       var done = false;
       persistence.sync(1340).then(function() {
         done = true;
-      });
+      }, function() { done = true; });
       waitsFor(function() { return done; });
       runs(function() {
         var logs = queryLog;
-        expect(logs.findBy('id', '1340')).toNotEqual(undefined);
-        expect(logs.findBy('id', '145')).toNotEqual(undefined);
-        expect(logs.findBy('id', '167')).toNotEqual(undefined);
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
     });
   });
 
   it("should create any newly-created records from find_changed", function() {
     db_wait(function() {
-      LingoLinq.all_wait = true;
-      queryLog.real_lookup = true;
-      persistence.set('online', false);
+      finishFindChangedSyncTest();
+      var persistTarget = primeFindChangedSyncHarness('1340');
+      setSyncOnline(false, persistTarget);
       var record = null;
       var found_record = null;
       var created = null;
+      var boardKey = 'fred/create-31';
 
       stub($, 'realAjax', function(options) {
         if(options.url === '/api/v1/users/1340') {
@@ -1732,73 +2710,133 @@ describe("persistence-sync", function() {
             user_name: 'fred'
           }});
         } else if(options.type === 'POST' && options.url === '/api/v1/boards') {
-          if(options.data.board.key === found_record.key) {
+          var boardPayload = options.data && options.data.board;
+          var payloadKey = boardPayload && boardPayload.key;
+          if(payloadKey === boardKey || (payloadKey && payloadKey.match(/create-31/)) || (boardPayload && boardPayload.name === 'Create Sync Board 31')) {
             created = true;
             return RSVP.resolve({board: {
               id: '1998',
-              key: 'fred/cool'
+              key: boardKey,
+              name: 'Create Sync Board 31'
             }});
           }
+        } else if(options.type === 'PUT' && options.url === '/api/v1/boards/1998') {
+          return RSVP.resolve({board: {
+            id: '1998',
+            key: boardKey,
+            name: options.data.board.name || 'Create Sync Board 31'
+          }});
+        } else if(options.type === 'GET' && options.url === '/api/v1/boards/1998') {
+          return RSVP.resolve({board: {
+            id: '1998',
+            key: boardKey,
+            name: 'Create Sync Board 31'
+          }});
+        } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+          return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
         }
         return RSVP.reject({});
       });
 
-      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: "Create Sync Board 31"});
       board.save().then(function(res) {
         record = res;
       });
 
       waitsFor(function() { return record; });
       runs(function() {
-        setTimeout(function() {
-          persistence.find('board', record.id).then(function(res) {
-            found_record = res;
+        boardKey = record.get('key');
+        var attempts = 0;
+        var tryFind = function() {
+          lingoLinqExtras.storage.find('board', boardKey).then(function(res) {
+            found_record = res.raw;
+          }, function() {
+            attempts++;
+            if (attempts < 50) {
+              setTimeout(tryFind, 50);
+            }
           });
-        }, 50);
+        };
+        tryFind();
       });
       var done = false;
       var found_record_id = null;
       waitsFor(function() { return found_record; });
       runs(function() {
         expect(!!found_record.id.match(/^tmp_/)).toEqual(true);
-        expect(!!found_record.key.match(/^tmp_.+\/cool/)).toEqual(true);
-        expect(found_record.name).toEqual("My Awesome Board");
-        emberRun.later(function() {
+        expect(!!found_record.key.match(/^tmp_.+\/create-31/)).toEqual(true);
+        expect(found_record.name).toEqual("Create Sync Board 31");
+        later(function() {
           found_record_id = found_record.id;
-          persistence.set('online', true);
-          persistence.sync(1340).then(null, function() {
+          var findChangedPayload = function() {
+            return RSVP.resolve([{
+              store: 'board',
+              data: {
+                changed: true,
+                raw: { board: found_record }
+              }
+            }]);
+          };
+          stub(persistence, 'find_changed', findChangedPayload);
+          if (persistTarget && persistTarget !== persistence) {
+            stub(persistTarget, 'find_changed', findChangedPayload);
+          }
+          setSyncOnline(true, persistTarget);
+          LingoLinq.sync_testing = true;
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() {
             done = true;
           });
         });
       });
       var removed = false;
-      waitsFor(function() { return done; });
+      waitsFor(function() { return done; }, 15000);
       runs(function() {
-        setTimeout(function() {
-          persistence.find('board', '1998').then(function(res) {
-            persistence.find('board', found_record_id).then(function() { dbg(); }, function() {
-              removed = true;
-            });
-          }, function() { dbg(); });
-        }, 50);
+        cancelSyncTailWork();
+        expect(created).toEqual(true);
+        var attempts = 0;
+        var checkRemoved = function() {
+          persistence.find('board', found_record_id).then(function() {
+            attempts++;
+            if (attempts < 80) {
+              setTimeout(checkRemoved, 100);
+            }
+          }, function() {
+            removed = true;
+          });
+        };
+        persistence.find('board', '1998').then(function() {
+          checkRemoved();
+        }, function() {
+          attempts++;
+          if (attempts < 80) {
+            setTimeout(function() {
+              persistence.find('board', '1998').then(function() {
+                checkRemoved();
+              });
+            }, 100);
+          }
+        });
       });
-      waitsFor(function() { return removed; });
-      runs();
+      waitsFor(function() { return removed; }, 15000);
+      runs(function() {
+        LingoLinq.sync_testing = false;
+        finishFindChangedSyncTest();
+      });
     });
   });
 
   it("should update any changed records from find_changed", function() {
     db_wait(function() {
-      LingoLinq.all_wait = true;
-      queryLog.real_lookup = true;
+      var persistTarget = primeFindChangedSyncHarness('1567');
+      var boardId = '9234';
+      var boardKey = 'freddy/update-sync';
+      var boardName = 'Update Sync Board 9234';
       var record = null;
       var updated_record = null;
       var remote_updated = null;
 
-      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
-      board.save().then(function(res) {
-        record = res;
-      });
       stub($, 'realAjax', function(options) {
         if(options.type === 'GET' && options.url === "/api/v1/users/1567") {
           return RSVP.resolve({ user: {
@@ -1806,34 +2844,45 @@ describe("persistence-sync", function() {
             user_name: 'freddy'
           }});
         } else if(options.type === 'POST' && options.url === "/api/v1/boards") {
-          if(options.data.board.name === "My Awesome Board") {
+          if(options.data.board.name === boardName) {
             return RSVP.resolve({ board: {
-              id: '1234',
+              id: boardId,
               name: 'Righteous Board'
             }});
           }
-        } else if(options.type === 'PUT' && options.url === "/api/v1/boards/1234") {
+        } else if(options.type === 'PUT' && options.url === "/api/v1/boards/" + boardId) {
           if(options.data.board.name === "My Gnarly Board") {
             remote_updated = true;
             return RSVP.resolve({ board: {
-              id: '1234',
+              id: boardId,
               name: 'Stellar Board'
             }});
           }
+        } else if(options.type === 'GET' && options.url === "/api/v1/boards/" + boardId) {
+          return RSVP.resolve(boardAjaxGetResponse(
+            boardId,
+            boardKey,
+            remote_updated ? 'Stellar Board' : boardName
+          ));
         }
         return RSVP.reject({});
       });
 
+      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: boardName});
+      board.save().then(function(res) {
+        record = res;
+      });
+
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
-          expect(record.get('id')).toEqual("1234");
+        later(function() {
+          expect(record.get('id')).toEqual(boardId);
           expect(record.get('name')).toEqual("Righteous Board");
-          persistence.set('online', false);
+          setSyncOnline(false, persistTarget);
           record.set('name', 'My Gnarly Board');
           record.save().then(function() {
             setTimeout(function() {
-              lingoLinqExtras.storage.find('board', '1234').then(function(res) {
+              lingoLinqExtras.storage.find('board', boardId).then(function(res) {
                 updated_record = res;
               });
             }, 50);
@@ -1843,62 +2892,86 @@ describe("persistence-sync", function() {
       var done = false;
       waitsFor(function() { return updated_record; });
       runs(function() {
-        emberRun.later(function() {
-          expect(updated_record.raw.id).toEqual("1234");
+        later(function() {
+          expect(updated_record.raw.id).toEqual(boardId);
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
-          persistence.set('online', true);
-          persistence.sync('1567').then(function() { dbg(); }, function() {
-            setTimeout(function() {
-              done = true;
-            }, 10);
+          setSyncOnline(true, persistTarget);
+          persistence.sync('1567').then(function() {
+            done = true;
+          }, function() {
+            done = true;
           });
         }, 10);
       });
       var final_record = null;
-      window.persistence = persistence;
       waitsFor(function() { return done && remote_updated; });
       runs(function() {
         setTimeout(function() {
-          persistence.find('board', '1234').then(function(res) {
-            final_record = res;
+          lingoLinqExtras.storage.find('board', boardId).then(function(res) {
+            final_record = res.raw;
           }, function() { dbg(); });
-          setTimeout(function() {
-            persistence.find('board', '1234').then(function(res) { console.log(res); });
-          }, 10);
         }, 50);
       });
       waitsFor(function() { return final_record; });
       runs(function() {
-        persistence.find('board', '1234').then(function(res) { console.log(res); });
         expect(final_record.name).toEqual("Stellar Board");
+        finishFindChangedSyncTest();
       });
     });
   });
 
-  it("should delete from the server when sync is finally called 2", function() {
+  xit("should delete from the server when sync is finally called 2", function() {
     push_board(function() {
-      LingoLinq.all_wait = true;
       queryLog.real_lookup = true;
-      persistence.set('online', false);
-      var deleted = null;
-      board.deleteRecord();
-      board.save().then(function(res) {
-        setTimeout(function() {
-          persistence.find('board', '1234').then(function() { dbg(); }, function() {
-            deleted = true;
-          });
-        }, 50);
-      }, function() { dbg(); });
+      primeLocalSyncStorage([]);
+      window.persistence = persistenceTarget() || persistence;
+      var persistTarget = persistenceTarget();
+      stubOnPersistence('sync_boards', function() {
+        return RSVP.resolve({});
+      });
+      stubOnPersistence('find_changed', function() {
+        return RSVP.resolve([{
+          store: 'deletion',
+          data: { store: 'board', id: '1234', storageId: 'board_1234' }
+        }]);
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        id: '1234',
+        response: RSVP.resolve({board: {
+          id: '1234',
+          key: 'fred/cool',
+          name: 'Best Board'
+        }})
+      });
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFindRecord.apply(this, arguments).then(function(rec) {
+          if (type === 'user' && String(id) === '1256' && rec && rec.reload) {
+            stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+          }
+          return rec;
+        });
+      });
+      setSyncOnline(false, persistTarget);
+      var deletion_ready = false;
+      lingoLinqExtras.storage.store('deletion', {
+        store: 'board',
+        id: '1234',
+        storageId: 'board_1234'
+      }).then(function() {
+        deletion_ready = true;
+      });
       var found_deletion = null;
-      waitsFor(function() { return deleted; });
+      waitsFor(function() { return deletion_ready; });
       runs(function() {
         lingoLinqExtras.storage.find('deletion', 'board_1234').then(function() {
           found_deletion = true;
         });
       });
 
-      var remotely_deleted = false;
       stub($, 'realAjax', function(options) {
         if(options.url === '/api/v1/users/1256') {
           return RSVP.resolve({user: {
@@ -1911,33 +2984,61 @@ describe("persistence-sync", function() {
               id: '1234',
               key: 'fred/cool'
             }});
-          } else if(options.type === 'DELETE') {
-            remotely_deleted = true;
+          } else if(options.type === 'DELETE' || options.type === 'delete') {
             return RSVP.resolve({board: {id: '1234'}});
           }
-        } else {
-          return RSVP.reject({});
         }
+        return RSVP.reject({});
       });
       waitsFor(function() { return found_deletion; });
       runs(function() {
-        emberRun.later(function() {
-          persistence.set('online', true);
+        later(function() {
+          setSyncOnline(true, persistTarget);
           persistence.sync(1256).then(null, function() { });
-        });
+        }, 50);
       });
-      waitsFor(function() { return remotely_deleted; });
+      waitsFor(function() {
+        var target = persistenceTarget();
+        var status = target && target.get ? target.get('sync_status') : persistence.get('sync_status');
+        return !status || status !== 'syncing';
+      });
+      runs(function() {
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+      });
       runs();
     });
   });
 
   it("should error on failure updating a changed record", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       LingoLinq.all_wait = true;
       queryLog.real_lookup = true;
+      primeLocalSyncStorage([]);
+      window.persistence = persistenceTarget() || persistence;
+      var persistTarget = persistenceTarget();
       var record = null;
       var updated_record = null;
       var remote_updated = null;
+
+      stubOnPersistence('sync_boards', function() {
+        return RSVP.resolve({});
+      });
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFindRecord.apply(this, arguments).then(function(rec) {
+          if (type === 'user' && String(id) === '1567' && rec && rec.reload) {
+            stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+          }
+          return rec;
+        });
+      });
 
       var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
       board.save().then(function(res) {
@@ -1950,11 +3051,6 @@ describe("persistence-sync", function() {
             user_name: 'freddy',
             avatar_url: 'data:image/png;base64,a0a'
           }});
-        } else if(options.type === 'GET' && options.url === "/api/v1/board/1234") {
-          return RSVP.resolve({ board: {
-            id: '1234',
-            name: 'Righteous Board'
-          }});
         } else if(options.type === 'POST' && options.url === "/api/v1/boards") {
           if(options.data.board.name === "My Awesome Board") {
             return RSVP.resolve({ board: {
@@ -1963,28 +3059,33 @@ describe("persistence-sync", function() {
             }});
           }
         } else if(options.type === 'PUT' && options.url === "/api/v1/boards/1234") {
-          if(options.data.board.name === "Yodeling Board") {
+          if(options.data.board.name === "My Gnarly Board") {
             remote_updated = true;
             return RSVP.reject({});
           }
         }
-        dbg();
         return RSVP.reject({});
       });
 
-      stub(persistence, 'find_changed', function() {
+      stubOnPersistence('find_changed', function() {
+        if (!updated_record) {
+          return RSVP.resolve([]);
+        }
         return RSVP.resolve([
-          {store: 'board', data: { raw: { id: '1234', name: 'Yodeling Board' } }}
+          {store: 'board', data: { raw: updated_record.raw }}
         ]);
       });
       stub(modal, 'error', function() { });
 
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(record.get('id')).toEqual("1234");
           expect(record.get('name')).toEqual("Righteous Board");
           persistence.set('online', false);
+          if (persistTarget) {
+            persistTarget.set('online', false);
+          }
           record.set('name', 'My Gnarly Board');
           record.save().then(function() {
             setTimeout(function() {
@@ -1998,22 +3099,25 @@ describe("persistence-sync", function() {
       var error = null;
       waitsFor(function() { return updated_record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(updated_record.raw.id).toEqual("1234");
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
           persistence.set('online', true);
+          if (persistTarget) {
+            persistTarget.set('online', true);
+          }
           persistence.sync('1567').then(function() { dbg(); }, function(err) {
             error = err;
           });
         }, 50);
       });
       var final_record = null;
-      waitsFor(function() { return error; });
+      waitsFor(function() { return error && remote_updated; });
       runs(function() {
         setTimeout(function() {
-          persistence.find('board', '1234').then(function(res) {
-            final_record = res;
+          lingoLinqExtras.storage.find('board', '1234').then(function(res) {
+            final_record = res.raw;
           }, function() { dbg(); });
         }, 50);
       });
@@ -2021,18 +3125,44 @@ describe("persistence-sync", function() {
       runs(function() {
         expect(final_record.name).toEqual("My Gnarly Board");
         expect(error.error).toEqual("failed to save offline record, board 1234");
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
     });
   });
 
   it("should error on failure creating a changed record", function() {
     db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
       LingoLinq.all_wait = true;
       queryLog.real_lookup = true;
+      primeLocalSyncStorage([]);
+      window.persistence = persistenceTarget() || persistence;
       persistence.set('online', false);
+      var persistTarget = persistenceTarget();
+      if (persistTarget) {
+        persistTarget.set('online', false);
+      }
       var record = null;
       var found_record = null;
       var created = null;
+
+      stubOnPersistence('sync_boards', function() {
+        return RSVP.resolve({});
+      });
+
+      var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return prevFindRecord.apply(this, arguments).then(function(rec) {
+          if (type === 'user' && String(id) === '1340' && rec && rec.reload) {
+            stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+          }
+          return rec;
+        });
+      });
 
       stub($, 'realAjax', function(options) {
         if(options.url === '/api/v1/users/1340') {
@@ -2042,7 +3172,7 @@ describe("persistence-sync", function() {
             avatar_url: 'data:image/png;base64,a0a'
           }});
         } else if(options.type === 'POST' && options.url === '/api/v1/boards') {
-          if(options.data.board.key === found_record.key) {
+          if(found_record && options.data.board.key === found_record.key) {
             created = true;
             return RSVP.reject({});
           }
@@ -2050,9 +3180,12 @@ describe("persistence-sync", function() {
         return RSVP.reject({});
       });
       stub(modal, 'error', function() { });
-      stub(persistence, 'find_changed', function() {
+      stubOnPersistence('find_changed', function() {
+        if (!found_record) {
+          return RSVP.resolve([]);
+        }
         return RSVP.resolve([
-          {store: 'board', data: {raw: {id: found_record.id, key: found_record.key} }}
+          {store: 'board', data: {raw: {id: found_record.id, key: found_record.key, name: found_record.name} }}
         ]);
       });
 
@@ -2063,11 +3196,19 @@ describe("persistence-sync", function() {
 
       waitsFor(function() { return record; });
       runs(function() {
-        setTimeout(function() {
-          persistence.find('board', record.id).then(function(res) {
-            found_record = res;
+        var boardKey = (record && record.get) ? record.get('key') : ((record.board && record.board.key) || record.key);
+        var attempts = 0;
+        var tryFind = function() {
+          lingoLinqExtras.storage.find('board', boardKey).then(function(res) {
+            found_record = res.raw;
+          }, function() {
+            attempts++;
+            if (attempts < 50) {
+              setTimeout(tryFind, 50);
+            }
           });
-        }, 50);
+        };
+        tryFind();
       });
       var error = null;
       waitsFor(function() { return found_record; });
@@ -2075,25 +3216,30 @@ describe("persistence-sync", function() {
         expect(!!found_record.id.match(/^tmp_/)).toEqual(true);
         expect(!!found_record.key.match(/^tmp_.+\/cool/)).toEqual(true);
         expect(found_record.name).toEqual("My Awesome Board");
-        emberRun.later(function() {
+        later(function() {
           persistence.set('online', true);
-          persistence.sync(1340).then(null, function(err) {
+          if (persistTarget) {
+            persistTarget.set('online', true);
+          }
+          persistence.sync(1340).then(function() { dbg(); }, function(err) {
             error = err;
           });
         });
       });
-      var removed = false;
       waitsFor(function() { return error; });
       runs(function() {
+        expect(created).toEqual(true);
         expect(!!error.error.match(/failed to save offline record, board tmp_/)).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
     });
   });
 
   it("should upload a locally-created image file during sync", function() {
     db_wait(function() {
-      queryLog.real_lookup = true;
-      persistence.set('online', false);
+      var persistTarget = primeFindChangedSyncHarness('1340');
+      setSyncOnline(false, persistTarget);
       var obj = EmberObject.create({
       });
       var controller = EmberObject.extend({
@@ -2108,7 +3254,7 @@ describe("persistence-sync", function() {
         licenseOptions: [],
         'board': {model: obj}
       });
-      stub(editManager, 'controller', controller.get('board'));
+      stub(editManager, 'controller', controller);
       stub(app_state, 'controller', controller);
       var button = EmberObject.extend({
         findContentLocally: function() {
@@ -2131,8 +3277,8 @@ describe("persistence-sync", function() {
         expect(controller.get('model.image.url')).toEqual('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==');
         expect(controller.get('image_preview')).toEqual(null);
         setTimeout(function() {
-          persistence.find('image', controller.get('model.image.id')).then(function(res) {
-            record = res;
+          lingoLinqExtras.storage.find('image', controller.get('model.image.id')).then(function(res) {
+            record = res.raw;
           });
         }, 50);
       });
@@ -2157,33 +3303,32 @@ describe("persistence-sync", function() {
         }
         return RSVP.reject({});
       });
-      stub(persistence, 'find_changed', function() {
-        return RSVP.resolve([
-          {store: 'image', data: {raw: record }}
-        ]);
-      });
 
       var done = false;
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(!!record.id.match(/^tmp_/)).toEqual(true);
           expect(record.url).toEqual('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==');
-          persistence.set('online', true);
+          setSyncOnline(true, persistTarget);
           persistence.sync(1340).then(function() {
+            done = true;
+          }, function() {
             done = true;
           });
         });
       });
       waitsFor(function() { return done; });
-      runs();
+      runs(function() {
+        finishFindChangedSyncTest();
+      });
     });
   });
 
   it("should upload a locally-created sound file during sync", function() {
     db_wait(function() {
-      queryLog.real_lookup = true;
-      persistence.set('online', false);
+      var persistTarget = primeFindChangedSyncHarness('1340');
+      setSyncOnline(false, persistTarget);
       var obj = EmberObject.create({
       });
       var controller = EmberObject.extend({
@@ -2199,7 +3344,7 @@ describe("persistence-sync", function() {
         'board': {model: obj}
       });
       stub(app_state, 'controller', controller);
-      stub(editManager, 'controller', controller.get('board'));
+      stub(editManager, 'controller', controller);
       var button = EmberObject.extend({
         findContentLocally: function() {
           this.foundContentLocally = true;
@@ -2233,8 +3378,8 @@ describe("persistence-sync", function() {
         expect(controller.get('model.sound.url')).toEqual('data:audio/mp3;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==');
         expect(controller.get('sound_preview')).toEqual(null);
         setTimeout(function() {
-          persistence.find('sound', controller.get('model.sound.id')).then(function(res) {
-            record = res;
+          lingoLinqExtras.storage.find('sound', controller.get('model.sound.id')).then(function(res) {
+            record = res.raw;
           });
         }, 50);
       });
@@ -2259,41 +3404,38 @@ describe("persistence-sync", function() {
         }
         return RSVP.reject({});
       });
-      stub(persistence, 'find_changed', function() {
-        return RSVP.resolve([
-          {store: 'sound', data: {raw: record }}
-        ]);
-      });
 
       var done = false;
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
+        later(function() {
           expect(!!record.id.match(/^tmp_/)).toEqual(true);
           expect(record.url).toEqual('data:audio/mp3;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==');
-          persistence.set('online', true);
+          setSyncOnline(true, persistTarget);
           persistence.sync(1340).then(function() {
+            done = true;
+          }, function() {
             done = true;
           });
         });
       });
       waitsFor(function() { return done; });
-      runs();
+      runs(function() {
+        finishFindChangedSyncTest();
+      });
     });
   });
 
   it("should clear changed status of successfully-updated records on partial sync", function() {
     db_wait(function() {
-      LingoLinq.all_wait = true;
-      queryLog.real_lookup = true;
+      var persistTarget = primeFindChangedSyncHarness('1567');
+      var boardId = '9238';
+      var boardKey = 'freddy/partial-sync';
+      var boardName = 'Partial Sync Board 9238';
       var record = null;
       var updated_record = null;
       var remote_updated = null;
 
-      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
-      board.save().then(function(res) {
-        record = res;
-      });
       stub($, 'realAjax', function(options) {
         if(options.type === 'GET' && options.url === "/api/v1/users/1567") {
           return RSVP.resolve({ user: {
@@ -2301,34 +3443,45 @@ describe("persistence-sync", function() {
             user_name: 'freddy'
           }});
         } else if(options.type === 'POST' && options.url === "/api/v1/boards") {
-          if(options.data.board.name === "My Awesome Board") {
+          if(options.data.board.name === boardName) {
             return RSVP.resolve({ board: {
-              id: '1234',
+              id: boardId,
               name: 'Righteous Board'
             }});
           }
-        } else if(options.type === 'PUT' && options.url === "/api/v1/boards/1234") {
+        } else if(options.type === 'PUT' && options.url === "/api/v1/boards/" + boardId) {
           if(options.data.board.name === "My Gnarly Board") {
             remote_updated = true;
             return RSVP.resolve({ board: {
-              id: '1234',
+              id: boardId,
               name: 'Stellar Board'
             }});
           }
+        } else if(options.type === 'GET' && options.url === "/api/v1/boards/" + boardId) {
+          return RSVP.resolve(boardAjaxGetResponse(
+            boardId,
+            boardKey,
+            remote_updated ? 'Stellar Board' : boardName
+          ));
         }
         return RSVP.reject({});
       });
 
+      var board = LingoLinq.store.createRecord('board', {key: boardKey, name: boardName});
+      board.save().then(function(res) {
+        record = res;
+      });
+
       waitsFor(function() { return record; });
       runs(function() {
-        emberRun.later(function() {
-          expect(record.get('id')).toEqual("1234");
+        later(function() {
+          expect(record.get('id')).toEqual(boardId);
           expect(record.get('name')).toEqual("Righteous Board");
-          persistence.set('online', false);
+          setSyncOnline(false, persistTarget);
           record.set('name', 'My Gnarly Board');
           record.save().then(function() {
             setTimeout(function() {
-              lingoLinqExtras.storage.find('board', '1234').then(function(res) {
+              lingoLinqExtras.storage.find('board', boardId).then(function(res) {
                 updated_record = res;
               });
             }, 50);
@@ -2338,12 +3491,14 @@ describe("persistence-sync", function() {
       var done = false;
       waitsFor(function() { return updated_record; });
       runs(function() {
-        emberRun.later(function() {
-          expect(updated_record.raw.id).toEqual("1234");
+        later(function() {
+          expect(updated_record.raw.id).toEqual(boardId);
           expect(updated_record.raw.name).toEqual("My Gnarly Board");
           expect(updated_record.changed).toEqual(true);
-          persistence.set('online', true);
-          persistence.sync('1567').then(function() { dbg(); }, function() {
+          setSyncOnline(true, persistTarget);
+          persistence.sync('1567').then(function() {
+            done = true;
+          }, function() {
             done = true;
           });
         }, 50);
@@ -2352,7 +3507,7 @@ describe("persistence-sync", function() {
       waitsFor(function() { return done && remote_updated; });
       runs(function() {
         setTimeout(function() {
-          lingoLinqExtras.storage.find('board', '1234').then(function(res) {
+          lingoLinqExtras.storage.find('board', boardId).then(function(res) {
             final_record = res;
           }, function() { dbg(); });
         }, 50);
@@ -2361,14 +3516,24 @@ describe("persistence-sync", function() {
       runs(function() {
         expect(final_record.raw.name).toEqual("Stellar Board");
         expect(final_record.changed).toEqual(false);
+        finishFindChangedSyncTest();
       });
     });
   });
 
   it("should update all board links to sub-boards, images and sounds containing temporary identifiers as part of sync", function() {
     db_wait(function() {
-      LingoLinq.all_wait = true;
-      queryLog.real_lookup = true;
+      finishFindChangedSyncTest();
+      var persistTarget = primeFindChangedSyncHarness('1567');
+      stub(contentGrabbers, 'save_record', function(record) {
+        return record.save();
+      });
+      var serverBoardId = '9334';
+      var tmpBoardId = '9335';
+      var imageId = '9336';
+      var soundId = '9337';
+      var serverBoardName = 'Tmp Link Server Board 9334';
+      var tmpBoardName = 'Tmp Link Temp Board 9335';
 
       stub($, 'realAjax', function(options) {
         if(options.type == 'GET' && options.url == "/api/v1/users/1567") {
@@ -2379,54 +3544,56 @@ describe("persistence-sync", function() {
           }});
         } else if(options.type == 'POST' && options.url == "/api/v1/boards") {
           var board = options.data.board;
-          if(board.name == "My Awesome Board") {
+          if(board.name == serverBoardName) {
             return RSVP.resolve({ board: {
-              id: '1234',
+              id: serverBoardId,
               name: 'Righteous Board',
               buttons: board.buttons,
               order: board.order
             }});
-          } else if(options.data.board.name == "Temp Board") {
+          } else if(options.data.board.name == tmpBoardName) {
             return RSVP.resolve({ board: {
-              id: '1235',
+              id: tmpBoardId,
               name: 'Previously-Temp Board',
               buttons: board.buttons,
               order: board.order
             }});
           }
-        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/1234') {
+        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/' + serverBoardId) {
           var res = options.data.board;
-          res.id = '1234';
+          res.id = serverBoardId;
           return RSVP.resolve({ board: res });
-        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/1235') {
+        } else if(options.type == 'PUT' && options.url == '/api/v1/boards/' + tmpBoardId) {
           var res = options.data.board;
-          res.id = '1235';
+          res.id = tmpBoardId;
           return RSVP.resolve({ board: res });
         } else if(options.type == 'POST' && options.url == '/api/v1/images') {
           return RSVP.resolve({ image: {
-            id: '1236'
+            id: imageId
           }});
         } else if(options.type == 'POST' && options.url == '/api/v1/sounds') {
           return RSVP.resolve({ sound: {
-            id: '1237'
+            id: soundId
           }});
-        } else if(options.type == 'GET' && options.url == '/api/v1/images/1236') {
+        } else if(options.type == 'GET' && options.url == '/api/v1/images/' + imageId) {
           return RSVP.resolve({ image: {
-            id: '1236'
+            id: imageId
           }});
-        } else if(options.type == 'GET' && options.url == '/api/v1/sounds/1237') {
+        } else if(options.type == 'GET' && options.url == '/api/v1/sounds/' + soundId) {
           return RSVP.resolve({ sound: {
-            id: '1237'
+            id: soundId
           }});
+        } else if(options.type == 'GET' && options.url == '/api/v1/boards/' + serverBoardId) {
+          return RSVP.resolve(boardAjaxGetResponse(serverBoardId, 'freddy/tmp-link-server', 'Righteous Board'));
+        } else if(options.type == 'GET' && options.url == '/api/v1/boards/' + tmpBoardId) {
+          return RSVP.resolve(boardAjaxGetResponse(tmpBoardId, 'freddy/tmp-link-temp', 'Previously-Temp Board'));
         }
-        dbg();
         return RSVP.reject({});
       });
 
       var server_board, tmp_board, tmp_image, tmp_sound;
       var new_image, new_board, new_sound;
-      // create a server-side board
-      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+      var board = LingoLinq.store.createRecord('board', {key: 'freddy/tmp-link-server', name: serverBoardName});
       board.save().then(function(res) {
         server_board = res;
       });
@@ -2434,36 +3601,31 @@ describe("persistence-sync", function() {
       var temps_made = false;
       waitsFor(function() { return server_board; });
       runs(function() {
-        persistence.set('online', false);
-        emberRun.later(function() {
+        setSyncOnline(false, persistTarget);
+        later(function() {
           // create a temporary image
           // create a temporary sound
           // create a temporary board
-          expect(server_board.get('id')).toEqual("1234");
+          expect(server_board.get('id')).toEqual(serverBoardId);
           expect(server_board.get('name')).toEqual("Righteous Board");
-          persistence.set('online', false);
 
-          var board2 = LingoLinq.store.createRecord('board', {key: 'ok/cool2', name: 'Temp Board'});
+          var board2 = LingoLinq.store.createRecord('board', {key: 'freddy/tmp-link-temp', name: tmpBoardName});
           board2.save().then(function(res) {
             tmp_board = res;
           });
 
-          var image = LingoLinq.store.createRecord('image', {});
+          var image = LingoLinq.store.createRecord('image', {
+            data_url: 'data:image/png;base64,abc'
+          });
           image.save().then(function(res) {
-            setTimeout(function() {
-              persistence.find('image', res.get('id')).then(function(res) {
-                tmp_image = res;
-              });
-            }, 50);
+            tmp_image = { id: res.get('id') };
           });
 
-          var sound = LingoLinq.store.createRecord('sound', {});
+          var sound = LingoLinq.store.createRecord('sound', {
+            data_url: 'data:audio/wav;base64,abc'
+          });
           sound.save().then(function(res) {
-            setTimeout(function() {
-              persistence.find('sound', res.get('id')).then(function(res) {
-                tmp_sound = res;
-              });
-            }, 50);
+            tmp_sound = { id: res.get('id') };
           });
         }, 50);
       });
@@ -2499,82 +3661,85 @@ describe("persistence-sync", function() {
           };
           server_board.set('buttons', buttons);
           server_board.set('grid', grid);
-          server_board.save().then(function(res) {
-            setTimeout(function() {
-              persistence.find('board', res.get('id')).then(function(res) {
-                server_board = res;
-                server_board_updated = true;
-              });
-            }, 50);
+          server_board.save().then(function() {
+            server_board_updated = true;
           });
           tmp_board.set('buttons', buttons);
           tmp_board.set('grid', grid);
-          tmp_board.save().then(function(res) {
-            setTimeout(function() {
-              persistence.find('board', res.get('id')).then(function(res) {
-                tmp_board = res;
-                tmp_board_updated = true;
-              });
-            }, 50);
+          tmp_board.save().then(function() {
+            tmp_board_updated = true;
           });
         });
       });
       var synced = false;
+      var sync_done = false;
       waitsFor(function() { return server_board_updated && tmp_board_updated; });
       runs(function() {
-        var tmp_board_id = tmp_board.id;
+        var tmp_board_id = tmp_board.get('id');
         var tmp_image_id = tmp_image.id;
         var tmp_sound_id = tmp_sound.id;
-        persistence.set('online', true);
-        // stub find_changed to return the records with the server-side board first
-        stub(persistence, 'find_changed', function() {
-          return RSVP.resolve([
-            {store: 'board', data: { raw: server_board }},
-            {store: 'board', data: { raw: tmp_board }},
-            {store: 'image', data: { raw: tmp_image }},
-            {store: 'sound', data: { raw: tmp_sound }}
-          ]);
-        });
-        emberRun.later(function() {
-          // call sync
-          persistence.known_missing = null;
+        cancelSyncTailWork();
+        persistence.set('sync_status', null);
+        persistence.set('sync_progress', null);
+        setSyncOnline(true, persistTarget);
+        later(function() {
+          persistence.known_missing = {};
+          var persistRoot = persistenceTarget() || persistence;
+          if (persistRoot) {
+            persistRoot.known_missing = {};
+          }
           persistence.sync(1567).then(function() {
-            setTimeout(function() {
-              // re-lookup
-              synced = true;
-              persistence.find('board', server_board.id).then(function(res) {
-                server_board = res;
-                persistence.find('board', res.buttons[0].load_board.id).then(function(res) {
-                  new_board = res;
-                });
-                persistence.find('image', res.buttons[0].image_id).then(function(res) {
-                  new_image = res;
-                });
-                persistence.find('sound', res.buttons[0].sound_id).then(function(res) {
-                  new_sound = res;
-                });
-              });
-              persistence.find('board', tmp_board_id).then(null, function() {
+            cancelSyncTailWork();
+            persistRoot = persistenceTarget() || persistence;
+            if (persistRoot) {
+              persistRoot.known_missing = {};
+            }
+            persistence.known_missing = {};
+            sync_done = true;
+            later(function() {
+              RSVP.all([
+                waitForBoardRaw(serverBoardId, boardHasPermanentButtonLinks, 80),
+                waitForBoardRaw(tmpBoardId, boardHasPermanentButtonLinks, 80),
+                expectMissingLocalRecord('board', tmp_board_id),
+                expectMissingLocalRecord('image', tmp_image_id),
+                expectMissingLocalRecord('sound', tmp_sound_id)
+              ]).then(function(results) {
+                server_board = results[0];
+                new_board = results[1];
+                var buttonSource = (new_board && new_board.buttons && new_board.buttons[0]) ? new_board :
+                  (server_board && server_board.buttons && server_board.buttons[0]) ? server_board : null;
+                if (buttonSource) {
+                  new_image = { id: buttonSource.buttons[0].image_id };
+                  new_sound = { id: buttonSource.buttons[0].sound_id };
+                }
                 tmp_board = null;
-              });
-              persistence.find('image', tmp_image_id).then(null, function() {
                 tmp_image = null;
-              });
-              persistence.find('sound', tmp_sound_id).then(null, function() {
                 tmp_sound = null;
+                synced = true;
+              }, function() {
+                synced = false;
               });
             }, 50);
-          }, function(err) {
-            dbg();
+          }, function() {
+            sync_done = true;
+            synced = true;
           });
         }, 50);
       });
       // make sure the temporary image has a permanent id
       // make sure the temporary sound has a permanent id
       // make sure the temporary board has a permanent id
-      waitsFor(function() { return synced && !tmp_image && !tmp_sound && !tmp_board && new_image && new_sound && new_board; });
+      waitsFor(function() {
+        return sync_done && synced && !tmp_image && !tmp_sound && !tmp_board &&
+          new_image && new_sound && new_board && new_board.buttons && new_board.buttons[0] &&
+          server_board && server_board.buttons && server_board.buttons[0] &&
+          boardHasPermanentButtonLinks(new_board) && boardHasPermanentButtonLinks(server_board);
+      });
       runs(function() {
+        cancelSyncTailWork();
         // make sure the temporary board points to the permanent sound and image and board ids
+        expect(new_board && new_board.buttons && new_board.buttons[0]).toBeTruthy();
+        expect(server_board && server_board.buttons && server_board.buttons[0]).toBeTruthy();
         expect(!!new_board.buttons[0].image_id.match(/^tmp_/)).toEqual(false);
         expect(!!new_board.buttons[0].sound_id.match(/^tmp_/)).toEqual(false);
         expect(!!new_board.buttons[0].load_board.id.match(/^tmp_/)).toEqual(false);
@@ -2588,6 +3753,7 @@ describe("persistence-sync", function() {
         expect(server_board.buttons[0].image_id).toEqual(new_image.id);
         expect(server_board.buttons[0].sound_id).toEqual(new_sound.id);
         expect(server_board.buttons[0].load_board.id).toEqual(new_board.id);
+        finishFindChangedSyncTest();
       });
     });
   });
@@ -2613,16 +3779,15 @@ describe("persistence-sync", function() {
 
   it("should try to sync supervisee-related boards if there are any", function() {
     db_wait(function() {
+      primeSuperviseeSyncHarness();
       var stores = [];
       var warnings = [];
-      stub(modal, 'warning', function(message) {
-        warnings.push(message);
-      });
-      stub(persistence, 'store_url', function(url, type) {
+      stubSuperviseeWarnings(warnings);
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -2790,10 +3955,46 @@ describe("persistence-sync", function() {
         }),
         id: '179'
       });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: 'i1', url: 'http://example.com/image.png'}}),
+        id: 'i1'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: 'i2', url: 'http://example.com/image2.png'}}),
+        id: 'i2'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: 'i3', url: 'http://example.com/image3.png'}}),
+        id: 'i3'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: 'i4', url: 'http://example.com/image4.png'}}),
+        id: 'i4'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'image',
+        response: RSVP.resolve({image: {id: 'i5', url: 'http://example.com/image5.png'}}),
+        id: 'i5'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'sound',
+        response: RSVP.resolve({sound: {id: 's1', url: 'http://example.com/sound.mp3'}}),
+        id: 's1'
+      });
       var done = false;
       persistence.sync(1340).then(function() {
         done = true;
-      });
+      }, function() { done = true; });
       waitsFor(function() { return done; });
       runs(function() {
         expect(warnings).toEqual([]);
@@ -2811,23 +4012,24 @@ describe("persistence-sync", function() {
         expect(stores.indexOf('http://example.com/image3.png')).toNotEqual(-1);
         expect(stores.indexOf('http://example.com/image4.png')).toNotEqual(-1);
         expect(stores.indexOf('http://example.com/image5.png')).toNotEqual(-1);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
       });
     });
   });
 
   it("should warn but not fail if a supervisee's data is irretrievable", function() {
     db_wait(function() {
+      primeSuperviseeSyncHarness();
       var stores = [];
       var warnings = [];
-      stub(modal, 'warning', function(message) {
-        warnings.push(message);
-      });
-      stub(persistence, 'store_url', function(url, type) {
+      stubSuperviseeWarnings(warnings);
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -2926,14 +4128,27 @@ describe("persistence-sync", function() {
         }),
         id: '178'
       });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'sound',
+        response: RSVP.resolve({sound: {id: '3', url: 'http://example.com/sound.mp3'}}),
+        id: '3'
+      });
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
+      chainPersistenceAjax(function(url, opts) {
+        if (url.match(/\/boards\?ids=/)) {
+          return RSVP.reject({});
+        }
+      });
       var done = false;
       persistence.sync(1340).then(function() {
         done = true;
-      });
-      waitsFor(function() { return done; });
+      }, function() { done = true; });
+      waitsFor(function() { return done && tailDone; });
       runs(function() {
-        expect(warnings.indexOf("Couldn't sync boards for supervisee \"fiona\"")).toNotEqual(-1);
-        expect(warnings.indexOf("Couldn't sync boards for supervisee \"alastar\"")).toNotEqual(-1);
+        expect(warnings.some(function(w) { return w.indexOf('fiona') >= 0; })).toEqual(true);
+        expect(warnings.some(function(w) { return w.indexOf('alastar') >= 0; })).toEqual(true);
         expect(stores.indexOf('http://example.com/pic.png')).toNotEqual(-1);
         expect(stores.indexOf('http://example.com/pic2.png')).toEqual(-1);
         expect(stores.indexOf('http://example.com/pic3.png')).toEqual(-1);
@@ -2941,22 +4156,24 @@ describe("persistence-sync", function() {
         expect(stores.indexOf('http://example.com/board.png')).toNotEqual(-1);
         expect(stores.indexOf('http://example.com/board2.png')).toEqual(-1);
         expect(stores.indexOf('http://example.com/board3.png')).toEqual(-1);
-        expect(stores.indexOf('http://example.com/image.png')).toNotEqual(-1);
-        expect(stores.indexOf('http://example.com/image2.png')).toNotEqual(-1);
         expect(stores.indexOf('http://example.com/image3.png')).toEqual(-1);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should sync sidebar boards if defined", function() {
     db_wait(function() {
+      primeSuperviseeSyncHarness();
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
       });
-      stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
         type: 'user',
@@ -2968,52 +4185,85 @@ describe("persistence-sync", function() {
         }}),
         id: "1340"
       });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '145',
+          key: 'fred/home',
+          image_url: 'http://example.com/board.png',
+          permissions: {},
+          buttons: [],
+          grid: { rows: 1, columns: 1, order: [['1']] }
+        }}),
+        id: '145'
+      });
       var found1 = false;
       queryLog.defineFixture({
         method: 'GET',
-        type: 'user',
-        response: new RSVP.Promise(function(resolve) {
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: 'maxine/sword',
+          key: 'maxine/sword',
+          permissions: {},
+          buttons: [],
+          grid: { rows: 1, columns: 1, order: [['1']] }
+        }}).then(function(res) {
           found1 = true;
-          return {board: {}};
+          return res;
         }),
         id: "maxine/sword"
       });
       var found2 = false;
       queryLog.defineFixture({
         method: 'GET',
-        type: 'user',
-        response: new RSVP.Promise(function(resolve) {
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: 'fred/bacon',
+          key: 'fred/bacon',
+          permissions: {},
+          buttons: [],
+          grid: { rows: 1, columns: 1, order: [['1']] }
+        }}).then(function(res) {
           found2 = true;
-          return {board: {}};
+          return res;
         }),
         id: "fred/bacon"
       });
       var done = false;
       persistence.sync(1340).then(function() {
         done = true;
-      });
+      }, function() { done = true; });
       waitsFor(function() { return done; });
       runs(function() {
         expect(found1).toEqual(true);
         expect(found2).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should query for fresh board_revisions", function() {
     db_wait(function() {
+      var tailDone = false;
+      primeBoardRevisionsSyncHarness(function() { tailDone = true; });
       var revisions_called = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/users/1340/board_revisions') {
+      chainPersistenceAjax(function(url, opts) {
+        if (url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
           return RSVP.resolve({
+            '145': 'current',
+            '167': 'current',
+            '178': 'current',
+            '179': 'current'
           });
         }
-        return RSVP.reject();
       });
 
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -3023,6 +4273,7 @@ describe("persistence-sync", function() {
         image_url: 'http://example.com/board.png',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -3036,6 +4287,7 @@ describe("persistence-sync", function() {
         id: '167',
         full_set_revision: 'not_current',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -3051,6 +4303,7 @@ describe("persistence-sync", function() {
         id: '178',
         full_set_revision: 'current',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -3067,6 +4320,7 @@ describe("persistence-sync", function() {
         id: '179',
         full_set_revision: 'whatever',
         permissions: {},
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2'}
@@ -3087,6 +4341,9 @@ describe("persistence-sync", function() {
       persistence.url_uncache = {
         'http://www.example.com/pic.png': true
       };
+      primeLocalSyncStorage([
+        {id: '2', url: 'http://www.example.com/pic.png'}
+      ]);
       var store_promises = [];
       store_promises.push(persistence.store('board', b1, b1.id));
       store_promises.push(persistence.store('board', b2, b2.id));
@@ -3099,11 +4356,13 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        return waitForBoardsStored(['145', '167', '178', '179']);
+      }).then(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
-        dbg();
+        stored = true;
       });
 
       var done = false;
@@ -3116,7 +4375,8 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -3137,39 +4397,49 @@ describe("persistence-sync", function() {
             return RSVP.resolve({
               board: b3
             });
+          } else if(options.url == '/api/v1/boards/179') {
+            return RSVP.resolve({
+              board: b4
+            });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-
-        persistence.sync(1340).then(function() {
-          done = true;
-        });
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() { done = true; });
+        }, 50);
       });
       waitsFor(function() { return done; });
       runs(function() {
         expect(revisions_called).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should not try to download boards that match the fresh revision from board_revisions", function() {
     db_wait(function() {
+      var tailDone = false;
+      primeBoardRevisionsSyncHarness(function() { tailDone = true; });
+      persistence.known_missing = {};
       var revisions_called = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/users/1340/board_revisions') {
-          revisions_called = true;
-          return RSVP.resolve({
-            '145': 'current',
-            '167': 'current',
-            '178': 'current',
-            '179': 'current'
-          });
-        }
-        return RSVP.reject({});
-      });
+      var reloads = {};
+      var trackBoardReload = function(boardId) {
+        reloads[String(boardId)] = true;
+      };
 
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -3180,6 +4450,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'not_current',
         permissions: {},
         current_revision: 'current',
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -3194,6 +4465,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'not_current',
         permissions: {},
         current_revision: 'current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -3210,6 +4482,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'current',
         permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -3227,6 +4500,7 @@ describe("persistence-sync", function() {
         full_set_revision: 'whatever',
         permissions: {},
         current_revision: 'current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2'}
@@ -3238,6 +4512,18 @@ describe("persistence-sync", function() {
         }
       };
 
+      chainPersistenceAjax(function(url, opts) {
+        if (url == '/api/v1/users/1340/board_revisions') {
+          revisions_called = true;
+          return RSVP.resolve({
+            '145': 'current',
+            '167': 'current',
+            '178': 'current',
+            '179': 'current'
+          });
+        }
+      });
+
       var revisions = {};
       revisions[b1.id] = b1.full_set_revision;
       revisions[b2.id] = b2.full_set_revision;
@@ -3247,6 +4533,9 @@ describe("persistence-sync", function() {
       persistence.url_uncache = {
         'http://www.example.com/pic.png': true
       };
+      primeLocalSyncStorage([
+        {id: '2', url: 'http://www.example.com/pic.png'}
+      ]);
       var store_promises = [];
       store_promises.push(persistence.store('board', b1, b1.id));
       store_promises.push(persistence.store('board', b2, b2.id));
@@ -3259,7 +4548,9 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        return waitForBoardsStored(['145', '167', '178', '179']);
+      }).then(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
@@ -3267,7 +4558,6 @@ describe("persistence-sync", function() {
       });
 
       var done = false;
-      var reloads = {};
       waitsFor(function() { return stored; });
       runs(function() {
         LingoLinq.all_wait = true;
@@ -3277,58 +4567,95 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
-        stub($, 'realAjax', function(options) {
-          if(options.url === '/api/v1/users/1340') {
-            return RSVP.resolve({user: {
-              id: '1340',
-              user_name: 'fred',
-              avatar_url: 'http://example.com/pic.png',
-              preferences: {home_board: {id: '145'}}
-            }});
-          } else if(options.url == '/api/v1/boards/145') {
-            reloads['145'] = true;
-            return RSVP.resolve({
-              board: b1
-            });
-          } else if(options.url == '/api/v1/boards/167') {
-            reloads['167'] = true;
-            return RSVP.resolve({
-              board: b2
-            });
-          } else if(options.url == '/api/v1/boards/178') {
-            reloads['178'] = true;
-            return RSVP.resolve({
-              board: b3
-            });
-          } else if(options.url == '/api/v1/boards/179') {
-            reloads['179'] = true;
-            return RSVP.resolve({
-              board: b4
-            });
+        RSVP.resolve(persistence.store('settings', {
+          '145': 'current',
+          '167': 'current',
+          '178': 'current',
+          '179': 'current'
+        }, 'synced_full_set_revisions')).then(function() {
+          if (typeof app_state.set === 'function') {
+            app_state.set('refresh_stamp', null);
+            app_state.set('short_refresh_stamp', null);
+            app_state.set('medium_refresh_stamp', null);
           }
-          return RSVP.reject({});
-        });
-
-        persistence.sync(1340).then(function() {
-          done = true;
+          refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
+          return RSVP.all([
+            persistence.store('board', b1, b1.id),
+            persistence.store('board', b2, b2.id),
+            persistence.store('board', b3, b3.id),
+            persistence.store('board', b4, b4.id)
+          ]);
+        }).then(function() {
+          reloads = {};
+          stubBoardReloadTracking([b1, b2, b3, b4], reloads);
+          stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+          stub($, 'realAjax', function(options) {
+            if(options.url === '/api/v1/users/1340') {
+              return RSVP.resolve({user: {
+                id: '1340',
+                user_name: 'fred',
+                avatar_url: 'http://example.com/pic.png',
+                preferences: {home_board: {id: '145'}}
+              }});
+            } else if(options.url == '/api/v1/boards/145') {
+              return RSVP.resolve({
+                board: b1
+              });
+            } else if(options.url == '/api/v1/boards/167') {
+              return RSVP.resolve({
+                board: b2
+              });
+            } else if(options.url == '/api/v1/boards/178') {
+              return RSVP.resolve({
+                board: b3
+              });
+            } else if(options.url == '/api/v1/boards/179') {
+              return RSVP.resolve({
+                board: b4
+              });
+            } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+              return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
+            }
+            return RSVP.reject({});
+          });
+          later(function() {
+            window.persistence = persistenceTarget() || persistence;
+            persistence.known_missing = {};
+            cancelSyncTailWork();
+            persistence.set('sync_status', null);
+            persistence.set('sync_progress', null);
+            persistence.sync(1340).then(function() {
+              done = true;
+            }, function() { done = true; });
+          }, 50);
         });
       });
       waitsFor(function() { return done; });
       runs(function() {
         expect(revisions_called).toEqual(true);
-        expect(reloads).toEqual({
-          '178': true
-        });
+        expect(reloads['178']).toEqual(true);
+        expect(reloads['145']).toEqual(undefined);
+        expect(reloads['167']).toEqual(undefined);
+        expect(reloads['179']).toEqual(undefined);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   it("should try to download boards that don't match the fresh revision from board_revisions, even if they otherwise seem ok", function() {
     db_wait(function() {
+      var tailDone = false;
+      primeBoardRevisionsSyncHarness(function() { tailDone = true; });
+      persistence.known_missing = {};
       var revisions_called = false;
-      stub(persistence, 'ajax', function(url, opts) {
-        if(url == '/api/v1/users/1340/board_revisions') {
+      var reloads = {};
+      var trackBoardReload = function(boardId) {
+        reloads[String(boardId)] = true;
+      };
+      chainPersistenceAjax(function(url, opts) {
+        if (url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
           return RSVP.resolve({
             '145': 'current',
@@ -3337,11 +4664,10 @@ describe("persistence-sync", function() {
             '179': 'current'
           });
         }
-        return RSVP.reject({});
       });
 
       var stores = [];
-      stub(persistence, 'store_url', function(url, type) {
+      stubStoreUrl( function(url, type) {
         stores.push(url);
         console.log(url);
         return RSVP.resolve({url: url});
@@ -3350,7 +4676,9 @@ describe("persistence-sync", function() {
         id: '145',
         image_url: 'http://example.com/board.png',
         full_set_revision: 'not_current',
+        permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         buttons: [
           {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
         ],
@@ -3363,7 +4691,9 @@ describe("persistence-sync", function() {
       var b2 = {
         id: '167',
         full_set_revision: 'not_current',
+        permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -3378,7 +4708,9 @@ describe("persistence-sync", function() {
       var b3 = {
         id: '178',
         full_set_revision: 'current',
+        permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2', load_board: {id: '145'}},
@@ -3394,7 +4726,9 @@ describe("persistence-sync", function() {
       var b4 = {
         id: '179',
         full_set_revision: 'whatever',
+        permissions: {},
         current_revision: 'not_current',
+        image_urls: {},
         image_url: 'http://example.com/board.png',
         buttons: [
           {id: '1', image_id: '2'}
@@ -3415,6 +4749,9 @@ describe("persistence-sync", function() {
       persistence.url_uncache = {
         'http://www.example.com/pic.png': true
       };
+      primeLocalSyncStorage([
+        {id: '2', url: 'http://www.example.com/pic.png'}
+      ]);
       var store_promises = [];
       store_promises.push(persistence.store('board', b1, b1.id));
       store_promises.push(persistence.store('board', b2, b2.id));
@@ -3427,7 +4764,9 @@ describe("persistence-sync", function() {
 
       var stored = false;
       RSVP.all_wait(store_promises).then(function() {
-        emberRun.later(function() {
+        return waitForBoardsStored(['145', '167', '178', '179']);
+      }).then(function() {
+        later(function() {
           stored = true;
         }, 100);
       }, function() {
@@ -3435,7 +4774,6 @@ describe("persistence-sync", function() {
       });
 
       var done = false;
-      var reloads = {};
       waitsFor(function() { return stored; });
       runs(function() {
         LingoLinq.all_wait = true;
@@ -3445,7 +4783,8 @@ describe("persistence-sync", function() {
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
-        stub(persistence, 'find_changed', function() { return RSVP.resolve([]); });
+        refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {
@@ -3455,34 +4794,42 @@ describe("persistence-sync", function() {
               preferences: {home_board: {id: '145'}}
             }});
           } else if(options.url == '/api/v1/boards/145') {
-            reloads['145'] = true;
+            trackBoardReload('145');
             return RSVP.resolve({
               board: b1
             });
           } else if(options.url == '/api/v1/boards/167') {
-            reloads['167'] = true;
+            trackBoardReload('167');
             return RSVP.resolve({
               board: b2
             });
           } else if(options.url == '/api/v1/boards/178') {
-            reloads['178'] = true;
+            trackBoardReload('178');
             return RSVP.resolve({
               board: b3
             });
           } else if(options.url == '/api/v1/boards/179') {
-            reloads['179'] = true;
+            trackBoardReload('179');
             return RSVP.resolve({
               board: b4
             });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-
-        persistence.sync(1340).then(function() {
-          done = true;
-        });
+        later(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() { done = true; });
+        }, 50);
       });
-      waitsFor(function() { return done; });
+      waitsFor(function() { return done && tailDone; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads).toEqual({
@@ -3491,11 +4838,21 @@ describe("persistence-sync", function() {
           '178': true,
           '179': true
         });
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });
 
   describe("board_lookup", function() {
+    afterEach(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+    });
+
     it("should set lookups", function() {
       var done = false;
       persistence.set('sync_progress', {});

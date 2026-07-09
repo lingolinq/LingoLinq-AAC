@@ -14,9 +14,7 @@ export default Component.extend({
     }
     return i18n.t('show_password', "Show password");
   }),
-  actions: {
-    togglePasswordVisibility: function() {
-      this.toggleProperty('showPassword');
-    }
+  togglePasswordVisibility() {
+    this.toggleProperty('showPassword');
   }
 });

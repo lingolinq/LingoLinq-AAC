@@ -3,6 +3,13 @@ var EmberApp = require('ember-cli/lib/broccoli/ember-app');
 
 module.exports = function (defaults) {
   var app = new EmberApp(defaults, {
+    babel: {
+      plugins: [
+        ['@babel/plugin-transform-class-properties', { loose: true }],
+        ['@babel/plugin-transform-private-methods', { loose: true }],
+        ['@babel/plugin-transform-private-property-in-object', { loose: true }]
+      ]
+    },
     sourcemaps: {
       enabled: true
     },
@@ -17,7 +24,8 @@ module.exports = function (defaults) {
       enabled: false
     },
     'ember-cli-babel': {
-      includePolyfill: true
+      includePolyfill: true,
+      enableTypeScriptTransform: true
     },
     sassOptions: {
       implementation: require('sass')
@@ -34,8 +42,18 @@ module.exports = function (defaults) {
           chunkFilename: 'auto-import-[name].js'
         }
       }
+    },
+    emberData: {
+      deprecations: {
+        // App store is explicit (app/services/store.js); no custom Store subclass.
+        DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false
+      }
     }
   });
+
+  // ember-cli-babel 8 no longer honors includePolyfill; ember-fetch (and other
+  // vendor deps) still emit regeneratorRuntime for generators/async.
+  app.import('node_modules/regenerator-runtime/runtime.js', { prepend: true });
 
   app.import('node_modules/bootstrap/dist/css/bootstrap.min.css');
   app.import('node_modules/jquery-minicolors/jquery.minicolors.css');
@@ -55,11 +73,6 @@ module.exports = function (defaults) {
   app.import('vendor/media_recorder/media_recorder.js');
   app.import('vendor/speak_js/speakClient.js');
   app.import('vendor/speech/speech.js');
-
-  app.import('node_modules/qunit/qunit/qunit.js', {
-    type: 'vendor',
-    outputFile: 'assets/qunit-standalone.js'
-  });
 
   return app.toTree();
 };

@@ -1,4 +1,3 @@
-import DS from 'ember-data';
 import {
   describe,
   it,
@@ -9,8 +8,9 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { } from 'frontend/tests/helpers/ember_helper';
 import LingoLinq from '../../app';
+import persistence from '../../utils/persistence';
+import RSVP from 'rsvp';
 
 describe('Sound', function() {
   describe("filename", function() {
@@ -32,8 +32,8 @@ describe('Sound', function() {
     });
   });
   it("should automatically check for locally-stored data-uri on load", function() {
-    var sound = LingoLinq.store.createRecord('sound', {});
-    sound.didLoad();
+    var sound = LingoLinq.store.createRecord('sound', { url: 'data:audio/wav;abc' });
+    sound.checkForDataURL();
     expect(sound.get('checked_for_data_url')).toEqual(true);
   });
 

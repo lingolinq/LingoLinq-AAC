@@ -22,7 +22,7 @@
     <div class="alert alert-info">
       <h3>{{t "Login Required" key="login_required"}}</h3>
       <p>{{t "You need to log in to respond to this supervision consent request." key="consent_login_required_detail"}}</p>
-      <button class="btn btn-primary" {{action "login_and_return"}}>
+      <button class="btn btn-primary" {{on "click" (this.ctrlAction "login_and_return")}}>
         {{t "Log In" key="log_in"}}
       </button>
     </div>
@@ -65,14 +65,14 @@
         {{/if}}
 
         <div style="margin-top: 20px;">
-          <button class="btn btn-success" {{action "approve"}} disabled={{this.submitting}}>
+          <button class="btn btn-success" {{on "click" (this.ctrlAction "approve")}} disabled={{this.submitting}}>
             {{#if this.submitting}}
               {{t "Processing..." key="processing"}}
             {{else}}
               {{t "Approve Access" key="approve_access"}}
             {{/if}}
           </button>
-          <button class="btn btn-danger" style="margin-left: 10px;" {{action "deny"}} disabled={{this.submitting}}>
+          <button class="btn btn-danger" style="margin-left: 10px;" {{on "click" (this.ctrlAction "deny")}} disabled={{this.submitting}}>
             {{#if this.submitting}}
               {{t "Processing..." key="processing"}}
             {{else}}

@@ -24,7 +24,7 @@
           <tr>
             <td style='min-width: 70px;'>
               <strong style='font-size: 16px;'>{{btn.label}}:</strong><br>
-              <button class='btn btn-default btn-sm hidden-print' {{action "toggle" btn}}>{{t "hide" key="hide"}}</button>
+              <button class='btn btn-default btn-sm hidden-print' {{on "click" (this.ctrlAction "toggle" btn)}}>{{t "hide" key="hide"}}</button>
             </td>
             <td style='width: 80%;'>
               <div style='white-space: nowrap; overflow: hidden; margin-bottom: 10px;'>
@@ -65,7 +65,7 @@
         <p>
           <em>{{t "Plus %{n} more:" n=this.analysis_extras.length key="plus_n_more"}}</em>
           {{#each this.analysis_extras as |btn|}}
-            <span class='analysis_extra' style={{btn.mini_style}} {{action "toggle" btn}}>
+            <span class='analysis_extra' style={{btn.mini_style}} {{on "click" (this.ctrlAction "toggle" btn)}}>
               <div style={{btn.print_style}}></div>
               <div style='position: absolute; top: 0; right: 0; left: 0; bottom: 0;'>
                 {{btn.label}}
@@ -87,7 +87,7 @@
       {{/each}}
     {{/if}}
     <div style='margin-top: 20px;' class='hidden-print'>
-      <button class='btn btn-lg btn-default' {{action "print"}}>{{t "Print This Report" key="print_this_report"}}</button>
+      <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "print")}}>{{t "Print This Report" key="print_this_report"}}</button>
     </div>
   </div>
 {{else}}

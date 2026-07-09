@@ -1,0 +1,64 @@
+<div class="modal fade in md-board-details-modal" style="display: block;" data-uncloseable={{this.uncloseable}} role="dialog" aria-modal="true">
+  <div class="modal-dialog md-board-details-modal__dialog">
+    <div class="modal-content md-board-details-modal__content">
+      <div class="modal-header md-modal-header md-board-details-modal__header">
+        <button type="button" class="la-modal-close md-board-details-modal__close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h3>{{t "Board Preview - Details" key="board_preview_details"}}</h3>
+        {{#if this.preview_loading}}
+          {{!-- Inline header pill mirrors the controller-rendered
+               board-preview.hbs path so both routing modes share the
+               same loading affordance. --}}
+          <span class="md-board-details-modal__header-loading" role="status" aria-live="polite">
+            <span class="md-board-details-modal__header-spinner" aria-hidden="true"></span>
+            <span class="md-board-details-modal__header-loading-text">{{t "Loading preview..." key="loading_preview"}}</span>
+          </span>
+        {{/if}}
+      </div>
+      {{#if this.style_missing}}
+        <div class="modal-body md-modal-body md-board-details-modal__body">
+          {{#if this.modal.boardPreview.board.style.long_description}}
+            <p>{{this.modal.boardPreview.board.style.long_description}}</p>
+          {{/if}}
+          <p>{{t "This board style has multiple grid sizes. As you choose a grid size, try to focus on the smallest buttons that the user can reliably hit, rather than worrying about showing too many buttons. A many-button grid can be \"turned down\" to show fewer buttons more easily than a few-button grid can be adjusted to add more buttons later." key="grid_size_suggestion_prompt"}}</p>
+          <div class='row'>
+            {{#each this.style_boards as |board|}}
+              <div class={{this.style_cols}}>
+                {{board-icon board=board onActionOverride=(this.ctrlAction "preview") locale=this.modal.boardPreview.locale}}
+              </div>
+            {{/each}}
+          </div>
+        </div>
+      {{else}}
+        <div class="modal-body md-modal-body md-board-details-modal__body">
+          {{#if (or this.preview_loading this.copying)}}
+            {{!-- Full-body loading overlay — covers the canvas + side panel while
+                 (a) the board model resolves AND every canvas button-image promise
+                 settles (preview_loading), or (b) "Pick this Board" is copying the
+                 board into the user's account (copying). --}}
+            <div class="md-board-details-modal__overlay" role="status" aria-live="polite">
+              <div class="md-board-details-modal__overlay-card">
+                <span class="md-board-details-modal__overlay-spinner" aria-hidden="true"></span>
+                {{!-- The translated label sits in the aria-live region (announced
+                     once); the per-image "N / total" count is aria-hidden so the
+                     rapidly-changing numbers don't spam screen readers. --}}
+                {{#if this.copying}}
+                  <span class="md-board-details-modal__overlay-text">{{t "Setting up your board..." key="setting_up_your_board"}}</span>
+                {{else if this.preview_images_total}}
+                  <span class="md-board-details-modal__overlay-text">
+                    {{t "Loading board images..." key="loading_board_images"}}
+                    <span class="md-board-details-modal__overlay-count" aria-hidden="true">{{this.preview_images_loaded}} / {{this.preview_images_total}}</span>
+                  </span>
+                {{else}}
+                  <span class="md-board-details-modal__overlay-text">{{t "Loading board preview..." key="loading_board_preview_overlay"}}</span>
+                {{/if}}
+              </div>
+            </div>
+          {{/if}}
+          {{board-preview key=this.model_key back=this.back_func option=this.modal.boardPreview.option locale=this.modal.boardPreview.locale onSelect=(this.ctrlAction "select") onPickForHome=(this.ctrlAction "pick_for_home") dark_mode=true onLoadingChange=(this.ctrlAction "set_preview_loading") onCanvasProgress=(this.ctrlAction "set_preview_progress")}}
+        </div>
+      {{/if}}
+    </div>
+  </div>
+</div>

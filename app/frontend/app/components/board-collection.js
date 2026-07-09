@@ -314,7 +314,7 @@ export default Component.extend({
   /* The board key (`<owner>/<slug>`) the subject treats as their home
      board. Surfaced to the template so each row can compare its own
      key and render the home indicator (glyphicon-home, matching the
-     pattern in `templates/components/board-icon.hbs`). Returns '' when
+     pattern in `app/components/board-icon.hbs`). Returns '' when
      no home board is set; the template's `(is_equal board.key '')` then
      never matches a real row. */
   home_key: computed(
@@ -383,5 +383,37 @@ export default Component.extend({
       }
       runLater(_this, done, 8000);
     }
-  }
+  },
+
+  init() {
+    this._super(...arguments);
+var self = this;
+this.ctrlAction = function(actionName) {
+  var bound = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    var args = bound.concat(Array.prototype.slice.call(arguments));
+    var evt = args[args.length - 1];
+    if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+      if (evt.preventDefault) { evt.preventDefault(); }
+      args.pop();
+    }
+    self.send.apply(self, [actionName].concat(args));
+  };
+};
+this.ctrlActionNoBubble = function(actionName) {
+  var bound = Array.prototype.slice.call(arguments, 1);
+  return function(event) {
+    if (event && event.stopPropagation) { event.stopPropagation(); }
+    if (event && event.preventDefault) { event.preventDefault(); }
+    self.send.apply(self, [actionName].concat(bound));
+  };
+};
+this.ctrlActionEventValue = function(actionName, targetProp) {
+  return function(event) {
+    var value = event && event.target ? event.target[targetProp] : undefined;
+    self.send(actionName, value);
+  };
+};
+  },
+
 });

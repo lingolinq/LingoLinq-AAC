@@ -14,6 +14,16 @@ export default Component.extend({
   _planObserver: null,
   _ctaSectionObserver: null,
 
+  init() {
+    this._super(...arguments);
+    this.applicationSupport = () => {
+      modal.open('support');
+    };
+    this.applicationLanguage = () => {
+      modal.open('modals/choose-locale');
+    };
+  },
+
   /** Only show page footer when authenticated (matches application footer visibility). */
   showPageFooter: computed('session.isAuthenticated', 'appState.currentUser', function() {
     return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser');
@@ -138,23 +148,14 @@ export default Component.extend({
     this._ctaSectionObserver = observer;
   },
 
-  actions: {
-    applicationSupport() {
-      modal.open('support');
-    },
-    applicationLanguage() {
-      modal.open('modals/choose-locale');
-    },
-    toggleFont(fontName) {
-      var _this = this;
-      if (_this.get('activeFont') === fontName) {
-        _this.set('activeFont', null);
-      } else {
-        _this.set('activeFont', fontName);
-      }
-    },
-    toggleHeroContainer() {
-      this.toggleProperty('heroContainerHidden');
-    },
+  toggleFont(fontName) {
+    if (this.get('activeFont') === fontName) {
+      this.set('activeFont', null);
+    } else {
+      this.set('activeFont', fontName);
+    }
+  },
+  toggleHeroContainer() {
+    this.toggleProperty('heroContainerHidden');
   }
 });

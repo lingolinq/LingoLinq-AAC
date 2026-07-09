@@ -28,7 +28,7 @@
       {{#if this.single_button_full_sentence}}
         <div style='margin-bottom: 50px;'>{{this.model.sentence}}</div>
       {{else}}
-        <div id="utterance" class="button_list" {{ action "vocalize"}}>
+        <div id="utterance" class="button_list" {{on "click" (this.ctrlAction "vocalize")}}>
           {{#let this.model.button_list as |button_list|}}
             {{#if button_list}}
               {{button-list buttonList=button_list}}
@@ -55,7 +55,7 @@
             {{#if this.expanded_list}}
                - {{this.spaced_core}}
             {{else}}
-              <a href="#" {{action "expand_core"}}>{{t "Show All" key="show_all"}}</a>
+              <a href="#" {{on "click" (this.ctrlAction "expand_core")}}>{{t "Show All" key="show_all"}}</a>
               <div class='text-muted'>
                 {{t "Used vocabulary words: " key="used_words"}}
                 <span style='color: #000;'>{{this.used_core}}</span>
@@ -64,7 +64,7 @@
           {{/if}}
         {{/if}}
         <Textarea @value={{this.message}} class="form-control" id="utterance_reply" />
-        <button class='btn btn-lg btn-primary' {{action "reply"}} disabled={{this.reply_status.loading}}>
+        <button class='btn btn-lg btn-primary' {{on "click" (this.ctrlAction "reply")}} disabled={{this.reply_status.loading}}>
           {{#if this.reply_status.loading}}
             {{t "Sending Reply..." key="sending_reply"}}
           {{else if this.reply_status.error}}
@@ -73,7 +73,7 @@
             {{t "Send Reply" key="send_reply"}}
           {{/if}}
         </button>
-        <button class='btn btn-lg btn-default' {{action "clear_reply"}}>{{t "Clear" key="clear"}}</button>
+        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "clear_reply")}}>{{t "Clear" key="clear"}}</button>
         {{#if this.reply_status.sent}}
           <p class='text-success'>{{t "Message successfully sent!" key="message_sent"}}</p>
         {{/if}}
@@ -88,7 +88,7 @@
     {{else}}
       {{#if this.speakable}}
         <div style="float: left; margin-right: 15px;">
-          <button class='btn btn-primary btn-lg' {{action "vocalize"}}>{{t "Speak This Sentence" key="speak_this_sentence"}}</button>
+          <button class='btn btn-primary btn-lg' {{on "click" (this.ctrlAction "vocalize")}}>{{t "Speak This Sentence" key="speak_this_sentence"}}</button>
         </div>
       {{/if}}
       {{share-bar url=this.model.link text=this.model.sentence element_id="sentence" user=this.app_state.currentUser utterance=this.model copy_event="copy_event"}}
@@ -101,7 +101,7 @@
       {{#if this.model.permissions.edit}}
         {{#unless this.single_button_full_sentence}}
           <div class="row"><div class="col-sm-6">
-          <form class="form-horizontal well" {{action "update_utterance" on="submit"}} style="margin-top: 20px;">
+          <form class="form-horizontal well" {{on "submit" (this.ctrlAction "update_utterance")}} style="margin-top: 20px;">
             <div class="form-group">
               <div class="col-sm-8">
                 <h2>{{t "Sentence settings" key="sentence_settings"}}</h2>
@@ -121,11 +121,11 @@
               <div class="col-sm-12">
                 <p class="form-control-static">
                   {{t "In some web sites, an image preview will be shown. You can select the image you would like to appear in these cases." key="preview_symbol"}}<br>
-                  <button type='button' {{action "change_image" "prev"}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-left'></span></button>
+                  <button type='button' {{on "click" (this.ctrlAction "change_image" "prev")}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-left'></span></button>
                   <span style="width: 400px; height: 200px; display: inline-block; overflow: hidden; vertical-align: middle; text-align: center;">
                   <img src={{this.image_url}} style="max-height: 200px; max-width: 400px;" alt="preview symbol">
                   </span>
-                  <button type='button' {{action "change_image" "next"}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-right'></span></button>
+                  <button type='button' {{on "click" (this.ctrlAction "change_image" "next")}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-right'></span></button>
                 </p>
               </div>
             </div>
@@ -139,7 +139,7 @@
         {{/unless}}
       {{/if}}
       {{#unless this.model.show_attribution}}
-        <p><a href="#" {{action "show_attribution"}}>{{t "show attributions" key="show_attribution"}}</a></p>
+        <p><a href="#" {{on "click" (this.ctrlAction "show_attribution")}}>{{t "show attributions" key="show_attribution"}}</a></p>
       {{else}}
         <h4>{{t "Image License Attribution" key="image_license_attribution"}}</h4>
         <ul class="list-unstyled">

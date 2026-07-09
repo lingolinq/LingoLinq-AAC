@@ -54,8 +54,11 @@ if(!window.persistence || typeof window.persistence.get !== 'function') {
       if(key === 'last_sync_stamp') return this.last_sync_stamp;
       if(key === 'sync_progress') return this.sync_progress;
       if(key === 'sync_stamps') return this.sync_stamps;
+      if(key && key.indexOf('sync_progress.') === 0) {
+        var progressKey = key.slice('sync_progress.'.length);
+        return this.sync_progress ? this.sync_progress[progressKey] : null;
+      }
       if(key && key.indexOf('local_system') === 0) return null;
-      if(key && key.indexOf('sync_progress') === 0) return null;
       return null;
     },
     // Safe set method - stores property on placeholder
@@ -106,10 +109,30 @@ if(!window.persistence || typeof window.persistence.get !== 'function') {
 var getPersistence = function() {
   // Prefer window.persistence (service instance) over module-level persistence (class)
   if(window.persistence && typeof window.persistence.get === 'function') {
+    if(window.persistence.isDestroyed || window.persistence.isDestroying) {
+      return null;
+    }
     return window.persistence;
   }
   return null;
 };
+
+function activePersistenceRoot() {
+  var inst = getPersistence();
+  if (inst && typeof inst.store === 'function') {
+    return inst;
+  }
+  return persistence;
+}
+
+function extrasIsReady() {
+  var e = window.lingoLinqExtras;
+  if (!e) { return false; }
+  if (typeof e.get === 'function') {
+    return !!e.get('ready');
+  }
+  return !!e.ready;
+}
 
 var getStashes = function() {
   // Prefer window.stashes (service instance) over module-level stashes
@@ -136,7 +159,7 @@ var safeGet = function(instance, key, defaultValue) {
 
 // Safe property setter - does nothing if instance not available
 var safeSet = function(instance, key, value) {
-  if(instance && typeof instance.set === 'function') {
+  if(instance && typeof instance.set === 'function' && !instance.isDestroyed && !instance.isDestroying) {
     try {
       return instance.set(key, value);
     } catch(e) {
@@ -145,215 +168,85 @@ var safeSet = function(instance, key, value) {
   }
 };
 
+function time_promise(inputPromise, msg, ms) {
+  ms = ms || 30000;
+  var wrapped = new RSVP.Promise(function(resolve, reject) {
+    var done = false;
+    RSVP.resolve(inputPromise).then(function(res) {
+      done = true;
+      resolve(res);
+    }, function(err) {
+      done = true;
+      reject(err);
+    });
+    setTimeout(function() {
+      if(!done) {
+        LingoLinq.track_error("sync promise took too long:" + msg);
+        reject({error: 'promise timed out:' + msg});
+      }
+    }, ms);
+  });
+  wrapped.promise_name = msg;
+  return wrapped;
+}
+
+function sync_test_delay(ms) {
+  return (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 0 : ms;
+}
+
+function schedule_sync_board_step(callback, delay) {
+  if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+    if (delay && delay > 0) {
+      runLater(callback, 1);
+    } else {
+      run(callback);
+    }
+  } else {
+    runLater(callback, delay);
+  }
+}
+
 var persistence = EmberObject.extend({
   setup: function(application) {
-    // TEMPORARILY DISABLED: Old persistence setup should not be called during migration
-    // The new persistence service handles initialization via init()
-    // This setup method is kept for backward compatibility but should not execute
-    console.log('[OLD PERSISTENCE SETUP] ========== OLD setup() CALLED (DISABLED) ==========');
-    console.log('[OLD PERSISTENCE SETUP] application:', application);
-    console.log('[OLD PERSISTENCE SETUP] persistence:', persistence);
-    console.log('[OLD PERSISTENCE SETUP] Call stack:', new Error().stack.split('\n').slice(0, 15).join('\n'));
-    console.warn('[OLD PERSISTENCE SETUP] WARNING: Old persistence setup is disabled! The new service handles everything.');
-    
-    // Early return to prevent execution - the new service handles everything
-    // This prevents the error "Cannot read properties of undefined (reading 'get')"
-    return;
-    
-    // Code below is disabled - new service handles initialization
-    /*
+    if (!application || typeof application.register !== 'function') {
+      return;
+    }
     application.register('lingolinq:persistence', persistence, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'persistence', 'lingolinq:persistence');
     });
     // Use window.persistence (new service) if available, otherwise use old persistence class
     // Note: The old persistence is a class, not an instance, so we need to use window.persistence
-    var persistenceInstance = window.persistence || persistence;
-    if(persistenceInstance && typeof persistenceInstance.find === 'function') {
+    var persistenceInstance = window.persistence;
+    if (!persistenceInstance || typeof persistenceInstance.find !== 'function') {
+      persistenceInstance = null;
+    }
+    if (persistenceInstance && typeof persistenceInstance.find === 'function') {
       persistenceInstance.find('settings', 'lastSync').then(function(res) {
-        if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+        if (persistenceInstance && typeof persistenceInstance.set === 'function') {
           persistenceInstance.set('last_sync_at', res.last_sync);
           persistenceInstance.set('sync_stamps', res.stamps);
         }
       }, function() { });
     }
-    // Guard: ensure persistence instance is available before registering observers
-    // Note: persistence is a class, not an instance, so we check window.persistence (new service)
-    var persistenceInstance = window.persistence || persistence;
-    if(!persistenceInstance || typeof persistenceInstance.find !== 'function' || typeof persistenceInstance.set !== 'function') {
-      console.warn('Persistence instance not ready, skipping observer registration');
-      // Don't return - continue with observer registration using window.persistence when available
-    }
     try {
-      if(lingoLinqExtras && typeof lingoLinqExtras.addObserver === 'function') {
+      if (lingoLinqExtras && typeof lingoLinqExtras.addObserver === 'function') {
         lingoLinqExtras.addObserver('ready', function() {
-          console.log('[OLD PERSISTENCE OBSERVER] lingoLinqExtras ready observer fired', {
-            persistence: persistence,
-            persistenceType: typeof persistence,
-            hasFind: typeof (persistence && persistence.find),
-            hasSet: typeof (persistence && persistence.set),
-            stack: new Error().stack.split('\n').slice(0, 10).join('\n')
-          });
-          // Guard: ensure persistence is still valid in callback
-          if(!persistence || typeof persistence.find !== 'function' || typeof persistence.set !== 'function') {
-            console.warn('[OLD PERSISTENCE OBSERVER] lingoLinqExtras ready: persistence invalid');
+          var inst = window.persistence || persistenceInstance;
+          if (!inst || typeof inst.find !== 'function' || typeof inst.set !== 'function') {
             return;
           }
-          try {
-            // Use window.persistence (new service) if available, otherwise use old persistence class
-            var persistenceInstance = window.persistence || persistence;
-            if(persistenceInstance && typeof persistenceInstance.find === 'function') {
-              persistenceInstance.find('settings', 'lastSync').then(function(res) {
-                if(persistenceInstance && typeof persistenceInstance.set === 'function') {
-                  persistenceInstance.set('last_sync_at', res.last_sync);
-                  persistenceInstance.set('sync_stamps', res.stamps);
-                }
-              }, function() {
-                if(persistenceInstance && typeof persistenceInstance.set === 'function') {
-                  persistenceInstance.set('last_sync_at', 1);
-                }
-              });
-            }
-          } catch(e) {
-            console.warn('Error in lingoLinqExtras ready observer:', e);
-          }
+          inst.find('settings', 'lastSync').then(function(res) {
+            inst.set('last_sync_at', res.last_sync);
+            inst.set('sync_stamps', res.stamps);
+          }, function() {
+            inst.set('last_sync_at', 1);
+          });
         });
       }
-    } catch(e) {
+    } catch (e) {
       console.warn('Error registering lingoLinqExtras observer:', e);
     }
-    var ignore_big_log_change = false;
-    try {
-      // Use window.stashes (new service instance) if available, otherwise use old stashes class
-      // Note: stashes is a class, not an instance, so we need to use window.stashes
-      var stashesInstance = window.stashes || stashes;
-      if(!stashesInstance || typeof stashesInstance.addObserver !== 'function') {
-        console.warn('Stashes instance not ready, skipping big_logs observer registration');
-        return;
-      }
-      stashesInstance.addObserver('big_logs', function() {
-        // Use window.stashes (new service instance) if available, otherwise use old stashes class
-        var stashesInstance = window.stashes || stashes;
-        console.log('[OLD PERSISTENCE OBSERVER] big_logs observer fired', {
-          this: this,
-          persistence: persistence,
-          stashes: stashesInstance,
-          stack: new Error().stack.split('\n').slice(0, 10).join('\n')
-        });
-        // Guard: ensure all dependencies are valid
-        var persistenceInstance = window.persistence || persistence;
-        if(!persistenceInstance || typeof persistenceInstance.find !== 'function' || typeof persistenceInstance.store !== 'function') {
-          console.warn('[OLD PERSISTENCE OBSERVER] big_logs: persistence invalid');
-          return;
-        }
-        if(!stashesInstance || typeof stashesInstance.get !== 'function' || typeof stashesInstance.set !== 'function') {
-          console.warn('[OLD PERSISTENCE OBSERVER] big_logs: stashes invalid');
-          return;
-        }
-        try {
-          if(lingoLinqExtras && lingoLinqExtras.ready && !ignore_big_log_change) {
-            // Use window.persistence (new service) if available, otherwise use old persistence class
-            var persistenceInstance = window.persistence || persistence;
-            if(!persistenceInstance || typeof persistenceInstance.find !== 'function') {
-              console.warn('[OLD PERSISTENCE OBSERVER] big_logs: persistence instance not available');
-              return;
-            }
-            // Use window.stashes (new service instance) if available
-            var stashesInstance = window.stashes || stashes;
-            if(!stashesInstance || typeof stashesInstance.get !== 'function') {
-              console.warn('[OLD PERSISTENCE OBSERVER] big_logs: stashes instance not available');
-              return;
-            }
-            var rnd_key = (new Date()).getTime() + "_" + Math.random();
-            persistenceInstance.find('settings', 'bigLogs').then(null, function(err) {
-              return RSVP.resvole({});
-            }).then(function(res) {
-              if(!persistenceInstance || !stashesInstance) return;
-              res = res || {};
-              res.logs = res.logs || [];
-              var big_logs = (stashesInstance.get('big_logs') || []);
-              big_logs.forEach(function(log) {
-                res.logs.push(log);
-              });
-              ignore_big_log_change = rnd_key;
-              stashesInstance.set('big_logs', []);
-              runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
-              if(typeof persistenceInstance.store === 'function') {
-                persistenceInstance.store('settings', res, 'bigLogs').then(function(res) {
-                }, function() {
-                  if(!persistenceInstance || !stashesInstance) return;
-                  rnd_key = rnd_key + "2";
-                  var logs = (stashesInstance.get('big_logs') || []).concat(big_logs);
-                  ignore_big_log_change = rnd_key;
-                  stashesInstance.set('big_logs', logs);
-                  runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
-                });
-              }
-            });
-          }
-        } catch(e) {
-          console.warn('Error in stashes big_logs observer:', e);
-        }
-      });
-    } catch(e) {
-      console.warn('Error registering stashes big_logs observer:', e);
-    }
-    // Guard: ensure stashes instance is available and has get method before accessing properties
-    // Use window.stashes (new service instance) if available, otherwise use old stashes class
-    var stashesInstance = window.stashes || stashes;
-    if(stashesInstance && typeof stashesInstance.get === 'function') {
-      if(stashesInstance.get('allow_local_filesystem_request') == false) {
-        capabilities.storage.already_limited_size = true;      
-      }
-      if(stashesInstance.get_object && typeof stashesInstance.get_object === 'function' && stashesInstance.get('auth_settings') && !isTesting()) {
-        if(stashesInstance.get_object('just_logged_in', false)) {
-          stashesInstance.persist_object('just_logged_in', null, false);
-          runLater(function() {
-            // Use window.persistence (new service) if available, otherwise use old persistence class
-            var persistenceInstance = window.persistence || persistence;
-            if(persistenceInstance && typeof persistenceInstance.check_for_needs_sync === 'function') {
-              persistenceInstance.check_for_needs_sync(true);
-            }
-          }, 10 * 1000);
-        }
-      }
-    }
-    // Guard: ensure lingoLinqExtras and advance exist before calling watch
-    if(lingoLinqExtras && lingoLinqExtras.advance && typeof lingoLinqExtras.advance.watch === 'function') {
-      lingoLinqExtras.advance.watch('device', function() {
-        // Use window.persistence (new service) if available, otherwise use old persistence class
-        var persistenceInstance = window.persistence || persistence;
-        if(!persistenceInstance || typeof persistenceInstance.set !== 'function') {
-          console.warn('[OLD PERSISTENCE] advance.watch callback: persistence instance not available');
-          return;
-        }
-        if(!LingoLinq.ignore_filesystem) {
-          capabilities.storage.status().then(function(res) {
-            if(res.available && !res.requires_confirmation) {
-              res.allowed = true;
-            }
-            if(persistenceInstance && typeof persistenceInstance.set === 'function') {
-              persistenceInstance.set('local_system', res);
-            }
-          });
-          runLater(function() {
-            if(persistenceInstance && typeof persistenceInstance.prime_caches === 'function') {
-              persistenceInstance.prime_caches().then(null, function() { });
-            }
-          }, 100);
-          runLater(function() {
-            if(persistenceInstance && typeof persistenceInstance.get === 'function') {
-              if(persistenceInstance.get('local_system.allowed')) {
-                if(typeof persistenceInstance.prime_caches === 'function') {
-                  persistenceInstance.prime_caches(true).then(null, function() { });
-                }
-              }
-            }
-          }, 2000);
-        }
-      });
-    }
-    */
   },
   test: function(method, args) {
     method.apply(this, args).then(function(res) {
@@ -411,9 +304,10 @@ var persistence = EmberObject.extend({
           });
           for(var idx in hash) {
             if(hash[idx] === true) {
-              persistence.known_missing = persistence.known_missing || {};
-              persistence.known_missing[store] = persistence.known_missing[store] || {};
-              persistence.known_missing[store][idx] = true;
+              var root = activePersistenceRoot();
+              root.known_missing = root.known_missing || {};
+              root.known_missing[store] = root.known_missing[store] || {};
+              root.known_missing[store][idx] = true;
             }
           }
           resolve(res);
@@ -426,17 +320,18 @@ var persistence = EmberObject.extend({
     }
   },
   get_important_ids: function() {
-    if(persistence.important_ids) {
-      return RSVP.resolve(persistence.important_ids);
+    var root = activePersistenceRoot();
+    if(root.important_ids) {
+      return RSVP.resolve(root.important_ids);
     } else {
       return lingoLinqExtras.storage.find('settings', 'importantIds').then(function(res) {
-        persistence.important_ids = res.raw.ids || [];
-        return persistence.important_ids;
+        root.important_ids = res.raw.ids || [];
+        return root.important_ids;
       });
     }
   },
   find: function(store, key, wrapped, already_waited) {
-    if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
+    if(!extrasIsReady()) {
       if(already_waited) {
         return RSVP.reject({error: "extras not ready"});
       } else {
@@ -464,7 +359,8 @@ var persistence = EmberObject.extend({
           reject({error: "invalid type: " + store});
           return;
         }
-        if(persistence.known_missing && persistence.known_missing[store] && persistence.known_missing[store][key]) {
+        var root = activePersistenceRoot();
+        if(root.known_missing && root.known_missing[store] && root.known_missing[store][key]) {
   //         console.error('found a known missing!');
           reject({error: 'record known missing: ' + store + ' ' + key});
           return;
@@ -523,15 +419,17 @@ var persistence = EmberObject.extend({
             }
             resolve(result);
           } else {
-            persistence.known_missing = persistence.known_missing || {};
-            persistence.known_missing[store] = persistence.known_missing[store] || {};
-            persistence.known_missing[store][key] = true;
+            var missRoot = activePersistenceRoot();
+            missRoot.known_missing = missRoot.known_missing || {};
+            missRoot.known_missing[store] = missRoot.known_missing[store] || {};
+            missRoot.known_missing[store][key] = true;
             reject({error: "record not found: " + store + ' ' + key});
           }
         }, function(err) {
-          persistence.known_missing = persistence.known_missing || {};
-          persistence.known_missing[store] = persistence.known_missing[store] || {};
-          persistence.known_missing[store][key] = true;
+          var missRoot = activePersistenceRoot();
+          missRoot.known_missing = missRoot.known_missing || {};
+          missRoot.known_missing[store] = missRoot.known_missing[store] || {};
+          missRoot.known_missing[store][key] = true;
           reject(err);
         });
       }, 0);
@@ -623,7 +521,7 @@ var persistence = EmberObject.extend({
     }
   },
   find_changed: function() {
-    if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
+    if(!extrasIsReady()) {
       return RSVP.resolve([]);
     }
     return lingoLinqExtras.storage.find_changed();
@@ -721,10 +619,13 @@ var persistence = EmberObject.extend({
     return RSVP.resolve(obj);
   },
   store_eventually: function(store, obj, key) {
+    if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+      return persistence.store(store, obj, key);
+    }
     persistence.eventual_store = persistence.eventual_store || [];
     persistence.eventual_store.push([store, obj, key, true]);
     if(!persistence.eventual_store_timer) {
-      persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 100);
+      persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, sync_test_delay(100));
     }
     return RSVP.resolve(obj);
   },
@@ -736,7 +637,7 @@ var persistence = EmberObject.extend({
       // when all the records can be looked up in the local store,
       // so I'm using timers for now. Luckily these lookups shouldn't
       // be very involved, especially once the record has been found.
-      if(LingoLinq.Board) {
+      if(!LingoLinq.sync_testing && LingoLinq.Board && LingoLinq.Board.refresh_data_urls) {
         runLater(LingoLinq.Board.refresh_data_urls, 2000);
       }
     }
@@ -744,11 +645,14 @@ var persistence = EmberObject.extend({
   next_eventual_store: function() {
     if(persistence.eventual_store_timer) {
       runCancel(persistence.eventual_store_timer);
+      persistence.eventual_store_timer = null;
     }
+    var keepGoing = false;
     try {
       var args = (persistence.eventual_store || []).shift();
       if(args) {
         persistence.store.apply(persistence, args);
+        keepGoing = persistence.eventual_store && persistence.eventual_store.length > 0;
       } else if(persistence.refresh_after_eventual_stores.waiting) {
         persistence.refresh_after_eventual_stores.waiting = false;
         if(LingoLinq.Board) {
@@ -756,18 +660,25 @@ var persistence = EmberObject.extend({
         }
       }
     } catch(e) { }
-    persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 200);
+    if(LingoLinq.sync_testing) {
+      if(keepGoing) {
+        persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 0);
+      }
+    } else {
+      persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, 200);
+    }
   },
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient
-    persistence.known_missing = persistence.known_missing || {};
-    persistence.known_missing[store] = {};
+    var root = activePersistenceRoot();
+    root.known_missing = root.known_missing || {};
+    root.known_missing[store] = {};
 
     var _this = this;
 
     return new RSVP.Promise(function(resolve, reject) {
-      if(lingoLinqExtras && lingoLinqExtras.ready) {
-        persistence.stores = persistence.stores || [];
+      if(extrasIsReady()) {
+        root.stores = root.stores || [];
         var promises = [];
         var store_method = eventually ? persistence.store_eventually : persistence.store;
         if(valid_stores.indexOf(store) != -1) {
@@ -786,7 +697,7 @@ var persistence = EmberObject.extend({
 
           var store_promise = lingoLinqExtras.storage.store(store, record, key).then(function() {
             if(store == 'user' && key == 'self') {
-              return store_method('settings', {id: record.id}, 'selfUserId').then(function() {
+              return store_method.call(_this, 'settings', {id: record.id}, 'selfUserId').then(function() {
                 return RSVP.resolve(record.raw);
               }, function() {
                 return RSVP.reject({error: "selfUserId not persisted"});
@@ -795,34 +706,32 @@ var persistence = EmberObject.extend({
               return RSVP.resolve(record.raw);
             }
           });
-          store_promise.then(null, function() { });
           promises.push(store_promise);
         }
         if(store == 'board' && obj.images) {
           obj.images.forEach(function(img) {
             // TODO: I don't think we need these anymore
-            promises.push(store_method('image', img, null));
+            promises.push(store_method.call(_this, 'image', img, null));
           });
         }
         if(store == 'board' && obj.sounds) {
           obj.sounds.forEach(function(snd) {
             // TODO: I don't think we need these anymore
-            promises.push(store_method('sound', snd, null));
+            promises.push(store_method.call(_this, 'sound', snd, null));
           });
         }
         RSVP.all(promises).then(function() {
           // Completely clear known_missing for the store when a new
           // record is persisted
-          persistence.known_missing = persistence.known_missing || {};
-          persistence.known_missing[store] = {};
-          persistence.stores.push({object: obj});
-          persistence.log = persistence.log || [];
-          persistence.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
+          root.known_missing = root.known_missing || {};
+          root.known_missing[store] = {};
+          root.stores.push({object: obj});
+          root.log = root.log || [];
+          root.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
         }, function(error) {
-          persistence.errors = persistence.errors || [];
-          persistence.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
+          root.errors = root.errors || [];
+          root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
         });
-        promises.forEach(function(p) { p.then(null, function() { }); });
       }
 
       resolve(obj);
@@ -1167,6 +1076,8 @@ var persistence = EmberObject.extend({
       _this.find_url(url, 'json').then(function(uri) {
         if(uri && uri.json_payload) {
           resolve(uri.json_payload);
+        } else if(Array.isArray(uri)) {
+          resolve(uri);
         } else if(typeof(uri) == 'string' && uri.match(/^data:/)) {
           try {
             persistence.bg_parse_json(decode_data_uri(uri)).then(function(json) {
@@ -1289,12 +1200,16 @@ var persistence = EmberObject.extend({
   },
   find_url: function(url, type) {
     if(!this.primed) {
+      if (isTesting()) {
+        this.primed = true;
+      } else {
       var _this = this;
       return new RSVP.Promise(function(res, rej) {
         runLater(function() {
           _this.find_url(url, type).then(function(r) { res(r); }, function(e) { rej(e); });
         }, 500);
       });
+      }
     }
     url = this.normalize_url(url);
     // Looks like we changed all our images to the CDN without updating
@@ -1575,7 +1490,7 @@ var persistence = EmberObject.extend({
               if(persistence.storing_urls) { persistence.storing_urls(); }
             });
           } else {
-            opts.defer.reject({error: 'sync canceled'});
+            opts.defer.resolve({});
           }
         } else {
           persistence.storing_url_watchers--;
@@ -1783,7 +1698,7 @@ var persistence = EmberObject.extend({
               object.persisted = true;
               object.url = url_id;
             }
-            return persistence.store('dataCache', object, object.url).then(function() {
+            return activePersistenceRoot().store('dataCache', object, object.url).then(function() {
               return object;
             });
           }
@@ -1836,7 +1751,7 @@ var persistence = EmberObject.extend({
                   object.local_url = res;
                   object.persisted = true;
                   object.url = url_id;
-                  write_resolve(persistence.store('dataCache', object, object.url));
+                  write_resolve(activePersistenceRoot().store('dataCache', object, object.url));
                 }, function(err) { write_reject(err); });
               };
               // this is a promise-lite, to it can't handle reframing rejects into resolves
@@ -1849,7 +1764,7 @@ var persistence = EmberObject.extend({
           if(!object.persisted) {
             object.persisted = true;
             object.url = url_id;
-            return persistence.store('dataCache', object, object.url);
+            return activePersistenceRoot().store('dataCache', object, object.url);
           } else {
             return object;
           }
@@ -2054,27 +1969,7 @@ var persistence = EmberObject.extend({
     persistence.log = [];
     persistence.errors = [];
   },
-  time_promise: function(promise, msg, ms) {
-    var promise = new RSVP.Promise(function(resolve, reject) {
-      ms = ms || 30000;
-      var done = false;
-      promise.then(function(res) {
-        done = true;
-        resolve(res);
-      }, function(err) {
-        done = true;
-        reject(err);
-      });
-      setTimeout(function() {
-        if(!done) {
-          LingoLinq.track_error("sync promise took too long:" + msg);
-          reject({error: 'promise timed out:' + msg});
-        }
-      }, ms);  
-    });
-    promise.promise_name = msg;
-    return promise;
-  },
+  time_promise: time_promise,
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
     if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
       return new RSVP.Promise(function(wait_resolve, wait_reject) {
@@ -2105,7 +2000,7 @@ var persistence = EmberObject.extend({
     console.log('syncing for ' + user_id);
     var user_name = user_id;
     var eventuallies = [];
-    if(this.get('online') && !ignore_supervisees && !sync_reason.match(/supervisee/)) {
+    if(this.get('online') && !ignore_supervisees && !sync_reason.match(/supervisee/) && !LingoLinq.sync_testing) {
       eventuallies.push(function() {
         stashes.push_log();
       });
@@ -2175,7 +2070,7 @@ var persistence = EmberObject.extend({
       var prime_caches = check_db;
       if(!ignore_supervisees && !sync_reason.match(/supervisee/)) {
         prime_caches = check_db.then(check_first(function() {
-          return persistence.time_promise(persistence.prime_caches(sync_reason == 'manual_sync').then(null, function() { return RSVP.resolve(); }), "priming caches");
+          return time_promise(persistence.prime_caches(sync_reason == 'manual_sync').then(null, function() { return RSVP.resolve(); }), "priming caches");
         }));
       }
 
@@ -2186,7 +2081,7 @@ var persistence = EmberObject.extend({
             // already reloaded in sync_supervisees
             return user;
           } else {
-            return persistence.time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
+            return time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
               sync_reject({error: "failed to retrieve user details"});
             });
           }
@@ -2196,7 +2091,7 @@ var persistence = EmberObject.extend({
       }));
 
       // cache images used for keyboard spelling to work offline
-      if(!ignore_supervisees && (!LingoLinq.testing || LingoLinq.sync_testing)) {
+      if(!ignore_supervisees && !LingoLinq.sync_testing) {
         eventuallies.push(function() {
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
@@ -2206,7 +2101,7 @@ var persistence = EmberObject.extend({
         });
       }
 
-      if(window.appState && !ignore_supervisees) {
+      if(window.appState && !ignore_supervisees && !LingoLinq.sync_testing) {
         // We only really care about checking free space if we're dealing with
         // a user who has supervisees, because we might need to purge old ones.
         // It's expensive to run so we just skip it for normal users.
@@ -2232,7 +2127,7 @@ var persistence = EmberObject.extend({
       };
       next_eventually();
 
-      var confirm_quota_for_user = persistence.time_promise(find_user.then(check_first(function(user) {
+      var confirm_quota_for_user = time_promise(find_user.then(check_first(function(user) {
         if(user && !ignore_supervisees) {
           safeSet(getPersistence(), 'online', true);
           if(user.get('preferences.skip_supervisee_sync')) {
@@ -2258,7 +2153,7 @@ var persistence = EmberObject.extend({
       })), "confirming quota");
 
       // Ensure the image filename cache is up-to-date
-      var prime_image_cache = persistence.time_promise(confirm_quota_for_user.then(check_first(function(user) {
+      var prime_image_cache = time_promise(confirm_quota_for_user.then(check_first(function(user) {
         if(!ignore_supervisees) {
           return capabilities.storage.list_files('image').then(function(images) {
             persistence.image_filename_cache = {};
@@ -2315,19 +2210,26 @@ var persistence = EmberObject.extend({
 
         var spread_out = function(callback, name) {
           spread_out.delay = (spread_out.delay || 0) + 1500;
-          var delay = spread_out.delay;
+          var delay = sync_test_delay(spread_out.delay);
+          var userLabel = (user && user.get) ? user.get('user_name') : user_name;
           var promise = new RSVP.Promise(function(resolve, reject) {
-            runLater(function() {
-              var p = callback();
-              promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + user.get('user_name');
+            var runStep = function() {
+              var wrapped = check_first(callback);
+              var p = wrapped();
+              promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + userLabel;
               p.then(function(res) {
                 resolve(res);
               }, function(err) {
                 reject(err);
-              })
-            }, delay);
+              });
+            };
+            if (delay === 0) {
+              run(runStep);
+            } else {
+              runLater(runStep, delay);
+            }
           });
-          promise.promise_name = name + " for " + user.get('user_name');
+          promise.promise_name = name + " for " + userLabel;
           sync_promises.push(promise);
         };
 
@@ -2338,7 +2240,7 @@ var persistence = EmberObject.extend({
         // http://www.cs.tufts.edu/~nr/pubs/sync.pdf
         if(safeGet(getPersistence(), 'sync_progress.root_user') == user_id) {
           spread_out(function() {
-            return persistence.time_promise(persistence.sync_changed(), "syncing changed");
+            return time_promise(persistence.sync_changed(), "syncing changed");
           }, "syncing changed");
         }
 
@@ -2349,7 +2251,7 @@ var persistence = EmberObject.extend({
         spread_out(function() {
           // Timed promised cannot call store_url() which gets queued
           // so it calls store_url_now instead
-          return persistence.time_promise(persistence.sync_user(user, importantIds), "sync user data");
+          return time_promise(persistence.sync_user(user, importantIds), "sync user data");
         }, "sync user data");
 
         // Step 3: If online
@@ -2362,9 +2264,13 @@ var persistence = EmberObject.extend({
           if(safeGet(getPersistence(), 'sync_progress') && !safeGet(getPersistence(), 'sync_progress.full_set_revisions')) {
             safeSet(getPersistence(), 'sync_progress.full_set_revisions', res);
           }
-          return persistence.sync_boards(user, importantIds, synced_boards, force);
+          return check_first(function() {
+            return persistence.sync_boards(user, importantIds, synced_boards, force);
+          })();
         }, function() {
-          return persistence.sync_boards(user, importantIds, synced_boards, force);
+          return check_first(function() {
+            return persistence.sync_boards(user, importantIds, synced_boards, force);
+          })();
         });
         get_local_revisions.promise_name = "syncing boards for " + user.get('user_name');
         sync_promises.push(get_local_revisions);
@@ -2382,7 +2288,7 @@ var persistence = EmberObject.extend({
         // Step 5: Cache needed sound files
         if(!ignore_supervisees) {
           spread_out(function() {
-            return persistence.time_promise(speecher.load_beep().then(null, function(err) {
+            return time_promise(speecher.load_beep().then(null, function(err) {
               modal.warning(i18n.t('sound_sync_failed', "Sound effects failed to sync"));
               console.error("sound sync error", err);
               return RSVP.resolve();
@@ -2393,18 +2299,18 @@ var persistence = EmberObject.extend({
         // Step 6: Push stored logs
         if(!ignore_supervisees) {
           spread_out(function() {
-            return persistence.time_promise(persistence.sync_logs(user), "pushing logs");
+            return time_promise(persistence.sync_logs(user), "pushing logs");
           }, "pushing logs");
         }
 
         // Step 7: Sync user tags
         spread_out(function() {
-          return persistence.time_promise(persistence.sync_tags(user), "syncing tags");
+          return time_promise(persistence.sync_tags(user), "syncing tags");
         }, "syncing tags");
 
         // Step 8: Sync contacts
         spread_out(function() {
-          return persistence.time_promise(persistence.sync_contacts(user), "syncing contacts", 2 * 60 * 1000);
+          return time_promise(persistence.sync_contacts(user), "syncing contacts", 2 * 60 * 1000);
         }, "syncing contacts");
 
         // reject on any errors
@@ -2415,7 +2321,9 @@ var persistence = EmberObject.extend({
               return p._state != 1 && p._state != 2;
             }).map(function(p) { return p.promise_name });
             console.log("Sync waiting on", pending);
-            runLater(check_again, 5000);
+            if (!LingoLinq.sync_testing) {
+              runLater(check_again, 5000);
+            }
           }
         };
         RSVP.all_wait(sync_promises).then(function() {
@@ -2424,23 +2332,25 @@ var persistence = EmberObject.extend({
           // store the list ids to settings.importantIds so they don't get expired
           // even after being offline for a long time. Also store lastSync somewhere
           // that's easy to get to (localStorage much?) for use in the interface.
-          persistence.important_ids = importantIds.uniq();
+          persistence.important_ids = Utils.uniq(importantIds, function(i) { return i; });
           persistence.store('settings', {ids: persistence.important_ids}, 'importantIds').then(function(r) {
             persistence.refresh_after_eventual_stores();
             sync_resolve(sync_log);
           }, function() {
             persistence.refresh_after_eventual_stores();
-            sync_reject(arguments);
+            sync_reject.apply(null, arguments);
           });
         }, function() {
           check_again.done = true;
           persistence.refresh_after_eventual_stores();
           sync_reject.apply(null, arguments);
         });
-        runLater(check_again, 5000);
+        if (!LingoLinq.sync_testing) {
+          runLater(check_again, 5000);
+        }
       })).then(null, function() {
         persistence.refresh_after_eventual_stores();
-        sync_reject(null, arguments);
+        sync_reject.apply(null, arguments);
       });
 
     }).then(function() {
@@ -2530,7 +2440,7 @@ var persistence = EmberObject.extend({
           safeSet(getPersistence(), 'sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
         }
         var message = (err && err.error) || "unspecified sync error";
-        var statuses = statuses.uniq(function(s) { return s.id; });
+        statuses = Utils.uniq(statuses, function(s) { return s.id; });
         var log = [].concat(safeGet(getPersistence(), 'sync_log') || []);
         log.push({
           user_id: user_name,
@@ -2576,7 +2486,7 @@ var persistence = EmberObject.extend({
       };
       runLater(next_tag, 500);
     });
-    return persistence.time_promise(queue_tags, "sync tags for " + user.get('user_name')).then(function() {
+    return time_promise(queue_tags, "sync tags for " + user.get('user_name')).then(function() {
       return RSVP.all_wait(store_image_promises).then(null, function(err) {
         return RSVP.resolve([]);
       });
@@ -2585,7 +2495,7 @@ var persistence = EmberObject.extend({
   sync_contacts: function(user) {
     var wait = RSVP.resolve();
     if(user.get('all_connections_promise')) {
-      wait = persistence.time_promise(user.get('all_connections_promise'), "waiting for connections for " + user.get('user_name'));
+      wait = time_promise(user.get('all_connections_promise'), "waiting for connections for " + user.get('user_name'));
     }
     var retrieve_list = wait.then(null, function() { return RSVP.resolve(); }).then(function() {
       var all_store_images = [];
@@ -2601,12 +2511,12 @@ var persistence = EmberObject.extend({
       });
       return all_store_images;
     });
-    return persistence.time_promise(retrieve_list, 'syncing contacts').then(function(list) {
+    return time_promise(retrieve_list, 'syncing contacts').then(function(list) {
       return RSVP.all_wait(list);
     });
   },
   sync_logs: function(user) {
-    return persistence.time_promise(persistence.find('settings', 'bigLogs').then(function(res) {
+    return time_promise(persistence.find('settings', 'bigLogs').then(function(res) {
       res = res || {};
       var fails = [];
       var log_promises = [];
@@ -2667,7 +2577,7 @@ var persistence = EmberObject.extend({
         });
         var reload_supervisee = find_supervisee.then(function(record) {
           if(!record.get('fresh') || force) {
-            return persistence.time_promise(record.reload(), 'reload supervisor', 5000);
+            return time_promise(record.reload(), 'reload supervisor', 5000);
           } else {
             return record;
           }
@@ -2835,7 +2745,7 @@ var persistence = EmberObject.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return persistence.time_promise(record.reload(), "reload board", 5000);
+            return time_promise(record.reload(), "reload board", 5000);
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -2857,32 +2767,52 @@ var persistence = EmberObject.extend({
     });
   },
   queue_sync_action: function(action, sync_id, method) {
-    if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != safeGet(getPersistence(), 'sync_progress.sync_id'))) {
-      return RSVP.reject({error: 'canceled'});
+    var inst = getPersistence() || this;
+    if(!safeGet(inst, 'sync_progress') || safeGet(inst, 'sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != safeGet(inst, 'sync_progress.sync_id'))) {
+      return RSVP.resolve();
     }
     var defer = RSVP.defer();
     defer.callback = method;
     defer.descriptor = action;
     defer.id = (new Date()).getTime() + '-' + Math.random();
-    persistence.sync_actions = persistence.sync_actions || [];
+    inst.sync_actions = inst.sync_actions || [];
     if(capabilities.log_events) {
       console.warn("queueing sync action", defer.descriptor, defer.id);
     }
-    persistence.sync_actions.push(defer);
+    inst.sync_actions.push(defer);
     var threads = capabilities.mobile ? 1 : 4;
 
-    persistence.syncing_action_watchers = persistence.syncing_action_watchers || 0;
-    if(persistence.syncing_action_watchers < threads) {
-      persistence.syncing_action_watchers++;
-      persistence.next_sync_action();
+    inst.syncing_action_watchers = inst.syncing_action_watchers || 0;
+    if(inst.syncing_action_watchers < threads) {
+      inst.syncing_action_watchers++;
+      if(typeof inst.next_sync_action === 'function') {
+        inst.next_sync_action();
+      } else {
+        persistence.next_sync_action();
+      }
     }
     return defer.promise;
   },
   next_sync_action: function() {
-    persistence.sync_actions = persistence.sync_actions || [];
-    var action = persistence.sync_actions.shift();
+    var inst = getPersistence() || this;
+    inst.sync_actions = inst.sync_actions || [];
+    var action = inst.sync_actions.shift();
     var next = function() {
-      runLater(function() { persistence.next_sync_action(); });
+      if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+        if(typeof inst.next_sync_action === 'function') {
+          inst.next_sync_action();
+        } else {
+          persistence.next_sync_action();
+        }
+      } else {
+        runLater(function() {
+          if(typeof inst.next_sync_action === 'function') {
+            inst.next_sync_action();
+          } else {
+            persistence.next_sync_action();
+          }
+        });
+      }
     };
     if(action && action.callback) {
       var start = (new Date()).getTime();
@@ -2896,19 +2826,29 @@ var persistence = EmberObject.extend({
             console.warn(end - start, "done executing sync action", action.descriptor, action.id);
           }
           action.resolve(r);
+          if(inst.syncing_action_watchers) {
+            inst.syncing_action_watchers--;
+          }
           next();
         }, function(e) {
           action.reject(e);
+          if(inst.syncing_action_watchers) {
+            inst.syncing_action_watchers--;
+          }
           next();
         });
       } catch(e) {
         action.reject(e);
+        if(inst.syncing_action_watchers) {
+          inst.syncing_action_watchers--;
+        }
         next();
       }
     } else {
-      if(persistence.syncing_action_watchers) {
-        persistence.syncing_action_watchers--;
+      if(inst.syncing_action_watchers) {
+        inst.syncing_action_watchers--;
       }
+      next();
     }
   },
   sync_boards: function(user, importantIds, synced_boards, force) {
@@ -3007,6 +2947,9 @@ var persistence = EmberObject.extend({
                     if(safeGet(getPersistence(), 'sync_progress')) {
                       safeSet(getPersistence(), 'sync_progress.pre_visited', need_fresh_ids.length - ids_left.length);
                     }
+                    if(list.length === 0) {
+                      next_batch();
+                    } else {
                     list.forEach(function(board_json) {
                       var json_api = { data: {
                         id: board_json.id,
@@ -3023,6 +2966,7 @@ var persistence = EmberObject.extend({
                         next_batch();
                       });
                     });
+                    }
                   }, function(err) {
                     // On error, just stop trying to pre-batch and
                     // fall back to the old way
@@ -3091,6 +3035,15 @@ var persistence = EmberObject.extend({
     var sync_all_boards = get_sounds.then(function() {
       var startBoardSync = function(listData) {
         return new RSVP.Promise(function(resolve, reject) {
+        var persist = getPersistence();
+        if(!persist || persist.isDestroyed || persist.isDestroying || !safeGet(persist, 'sync_progress') || safeGet(persist, 'sync_progress.canceled')) {
+          resolve();
+          return;
+        }
+        if(!user || user.isDestroyed || user.isDestroying || typeof user.get !== 'function') {
+          resolve();
+          return;
+        }
         var to_visit_boards = [];
         var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
         if(user.get('preferences.home_board.id')) {
@@ -3156,7 +3109,7 @@ var persistence = EmberObject.extend({
         function nextBoard(defer) {
           if(dead_thread) { defer.reject({error: "someone else failed"}); return; }
           if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled')) {
-            defer.reject({error: 'canceled'});
+            defer.resolve();
             return;
           }
           var p_for = safeGet(getPersistence(), 'sync_progress.progress_for');
@@ -3177,7 +3130,7 @@ var persistence = EmberObject.extend({
 
             // check if there's a local copy that's already been loaded
             
-            var find_board = persistence.time_promise(persistence.board_lookup(id, safely_cached_boards, fresh_revisions, sync_id, allow_any_cached), 'syncing board:' + id);
+            var find_board = time_promise(persistence.board_lookup(id, safely_cached_boards, fresh_revisions, sync_id, allow_any_cached), 'syncing board:' + id);
 
             find_board.then(function(board) {
               local_full_set_revision = board.get('local_full_set_revision');
@@ -3258,7 +3211,7 @@ var persistence = EmberObject.extend({
                 })
               }
     
-              var image_map = board.map_image_urls(all_image_urls, all_skins.uniq(), symbol_sets.uniq());
+              var image_map = board.map_image_urls(all_image_urls, Utils.uniq(all_skins, function(i) { return i; }), Utils.uniq(symbol_sets, function(i) { return i; }));
               image_map.forEach(function(image) {
                 importantIds.push("image_" + image.id);
                 var keep_big = !!(board.get('grid.rows') < 3 || board.get('grid.columns') < 6);
@@ -3365,7 +3318,7 @@ var persistence = EmberObject.extend({
                               valid = true;
                             }
                           }
-                          if(!valid && !button.image_id.match(/^tmp_/)) {
+                          if(!valid && !String(button.image_id).match(/^tmp_/)) {
                             missing_image_ids.push(button.image_id);
                           }
                         }
@@ -3377,7 +3330,7 @@ var persistence = EmberObject.extend({
                               valid = true;
                             }
                           }
-                          if(!valid && !button.sound_id.match(/^tmp_/)) {
+                          if(!valid && !String(button.sound_id).match(/^tmp_/)) {
                             missing_sound_ids.push(button.sound_id);
                           }
                         }
@@ -3422,13 +3375,9 @@ var persistence = EmberObject.extend({
               }
               RSVP.all_wait(visited_board_promises).then(function() {
                 full_set_revisions[board.get('id')] = board.get('full_set_revision');
-                if(safely_cached && visited_board_promises.length == 0) {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
-                } else {
-                  runLater(function() {
-                    nextBoard(defer);
-                  }, 75);  
-                }
+                }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
               }, function(err) {
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
@@ -3440,7 +3389,7 @@ var persistence = EmberObject.extend({
                    msg = msg + ", linked from " + source;
                 }
                 board_errors.push({error: msg, board_id: id, board_key: key});
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               });
@@ -3449,7 +3398,7 @@ var persistence = EmberObject.extend({
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
                 // Prolly, since they won't be using that board anyway without an edit.
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               } else {
@@ -3462,7 +3411,7 @@ var persistence = EmberObject.extend({
                 } else {
                   board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
                 }
-                runLater(function() {
+                schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               }
@@ -3473,18 +3422,18 @@ var persistence = EmberObject.extend({
             // and only resolve when *all* the promises are waiting.
             defer.resolve();
           } else {
-            runLater(function() {
+            schedule_sync_board_step(function() {
               nextBoard(defer);
             }, 50);
           }
         }
         // Threaded lookups with a global limit to prevent
         // people with lots of supervisees from getting bogged down
-        var n_threads = capabilities.mobile ? 6 : 10;
+        var n_threads = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 1 : (capabilities.mobile ? 6 : 10);
         var add_thread = function(defer) {
           defer = defer || RSVP.defer();
           if(persistence.active_board_threads > n_threads) {
-            runLater(function() {
+            schedule_sync_board_step(function() {
               add_thread(defer);
             }, 1000);
           } else {
@@ -3505,6 +3454,17 @@ var persistence = EmberObject.extend({
           add_thread();
         }
         RSVP.all_wait(board_load_promises).then(function() {
+          if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
+            persistence.urls_to_store = [];
+            persistence.storing_url_watchers = 0;
+            persistence.storing_urls = null;
+            persistence.active_board_threads = 0;
+            if (persistence.eventual_store_timer) {
+              try { runCancel(persistence.eventual_store_timer); } catch (e) { /* torn down */ }
+              persistence.eventual_store_timer = null;
+            }
+            persistence.eventual_store = [];
+          }
           resolve(full_set_revisions);
         }, function(err) {
           dead_thread = true;
@@ -3537,7 +3497,7 @@ var persistence = EmberObject.extend({
   sync_user: function(user, importantIds) {
     return new RSVP.Promise(function(resolve, reject) {
       importantIds.push('user_' + user.get('id'));
-      var lookup = persistence.time_promise(user.get('fresh') ? RSVP.resolve(user) : user.reload(), "getting latest user details", 5000);
+      var lookup = time_promise(user.get('fresh') ? RSVP.resolve(user) : user.reload(), "getting latest user details", 5000);
       var find_user = lookup.then(function(u) {
         if(safeGet(getPersistence(), 'sync_progress.root_user') == u.get('id')) {
           safeSet(getPersistence(), 'sync_progress.last_sync_stamp', u.get('sync_stamp'));
@@ -3632,7 +3592,7 @@ var persistence = EmberObject.extend({
               if(!record.get('id') && (item.store == 'image' || item.store == 'sound')) {
                 record.set('data_url', object.data_url);
                 return contentGrabbers.save_record(record).then(function() {
-                  return persistence.time_promise(record.reload(), "reload changed record", 10000);
+                  return time_promise(record.reload(), "reload changed record", 10000);
                 });
               } else {
                 return record.save();
@@ -3662,10 +3622,14 @@ var persistence = EmberObject.extend({
               var item = update[0];
               var record = update[1];
               if(item.store == 'board') {
-                var buttons = record.get('buttons');
-                if(buttons) {
-                  for(var idx = 0; idx < buttons.length; idx++) {
-                    var button = buttons[idx];
+                var sourceButtons = record.get('buttons');
+                if(sourceButtons) {
+                  var buttons = [];
+                  for(var idx = 0; idx < sourceButtons.length; idx++) {
+                    var button = Object.assign({}, sourceButtons[idx]);
+                    if(button.load_board) {
+                      button.load_board = Object.assign({}, button.load_board);
+                    }
                     if(tmp_id_map[button.image_id]) {
                       button.image_id = tmp_id_map[button.image_id].get('id');
                     }
@@ -3679,10 +3643,10 @@ var persistence = EmberObject.extend({
                         key: board.get('key')
                       };
                     }
-                    buttons[idx] = button;
+                    buttons.push(button);
                   }
+                  record.set('buttons', buttons);
                 }
-                record.set('buttons', buttons);
               } else {
                 debugger;
               }
@@ -3729,6 +3693,9 @@ var persistence = EmberObject.extend({
   },
   meta: function(store, obj) {
     if(obj) {
+      if (obj.meta) {
+        return obj.meta;
+      }
       // store.query() returns a RecordArray; .get() is deprecated on array-like results (ED 4+).
       if(Array.isArray(obj) && obj.modelName) {
         return obj.meta || null;
@@ -3947,6 +3914,122 @@ var persistence = EmberObject.extend({
       });
     } else {
       return RSVP.reject({offline: true, error: "not online", short_circuit: true});
+    }
+  },
+  on_connect: observer('online', function() {
+    if(!this || typeof this !== 'object' || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) {
+      return;
+    }
+    var _this = this;
+    try {
+      var stashesRef = _this.stashes || getStashes();
+      if(stashesRef && typeof stashesRef.set === 'function') {
+        stashesRef.set('online', _this.get('online'));
+      }
+      if(_this.get('online') && (!LingoLinq.testing || LingoLinq.sync_testing)) {
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          var stash = _this.stashes || getStashes();
+          if(stash && typeof stash.get === 'function' && stash.get('auth_settings')) {
+            if(typeof _this.check_for_needs_sync === 'function') {
+              _this.check_for_needs_sync(true);
+            }
+          }
+          if(typeof _this.getBrowserToken === 'function') {
+            _this.tokens = {};
+            if(LingoLinq.session) {
+              LingoLinq.session.restore(!_this.getBrowserToken());
+            }
+          }
+        }, sync_test_delay(500));
+      }
+    } catch(e) {
+      console.warn('Error in on_connect observer:', e);
+    }
+  }),
+  check_for_needs_sync: function(force) {
+    try {
+      var _this = this;
+      if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+        _this = getPersistence();
+        if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+          return false;
+        }
+      }
+      force = (force === true);
+      var stashesRef = _this.stashes || getStashes();
+      if(!stashesRef || typeof stashesRef.get !== 'function') {
+        return false;
+      }
+
+      if(stashesRef.get('auth_settings') && extrasIsReady()) {
+        var synced = _this.get('last_sync_at') || 0;
+        var syncable = _this.get('online') && !isTesting() && !_this.get('syncing');
+        var interval = _this.get('last_sync_stamp_interval') || (5 * 60 * 1000);
+        interval = interval + (0.2 * interval * Math.random());
+        if(_this.get('last_sync_event_at')) {
+          syncable = syncable && (_this.get('last_sync_event_at') < ((new Date()).getTime() - interval));
+        }
+        var now = (new Date()).getTime() / 1000;
+        if(!isTesting() && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
+          return false;
+        } else if(_this.get('auto_sync') === false || _this.get('auto_sync') == null) {
+          return false;
+        } else if(synced > 0 && (now - synced) > (48 * 60 * 60) && syncable) {
+          console.debug('syncing because it has been more than 48 hours');
+          _this.sync('self', null, null, 'long_time_since_sync:' + synced + ":" + now).then(null, function() { });
+          return true;
+        } else if(force || (syncable && _this.get('last_sync_stamp'))) {
+          var last_check = _this.get('last_sync_stamp_check');
+          if(force || !last_check || (last_check < (new Date()).getTime() - interval)) {
+            _this.set('last_sync_stamp_check', (new Date()).getTime());
+            _this.ajax('/api/v1/users/self/sync_stamp', {type: 'GET'}).then(function(res) {
+              if(_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(!_this.get('last_sync_stamp') || res.sync_stamp != _this.get('last_sync_stamp')) {
+                var not_still_changing = false;
+                var cutoff = window.moment && window.moment(res.sync_stamp).add(5, 'minutes');
+                var now_m = window.moment && window.moment();
+                if(now_m && now_m.toISOString().substring(0, 10) != res.sync_stamp.substring(0, 10)) {
+                  not_still_changing = true;
+                } else if(cutoff) {
+                  not_still_changing = cutoff < window.moment();
+                } else {
+                  not_still_changing = true;
+                }
+                if(not_still_changing) {
+                  console.debug('syncing because sync_stamp has changed');
+                  _this.sync('self', null, null, 'sync_stamp_changed:' + res.sync_stamp + ":" + _this.get('last_sync_stamp')).then(null, function() { });
+                }
+              }
+              if(window.app_state && window.app_state.get('currentUser')) {
+                window.app_state.set('currentUser.last_sync_stamp_check', (new Date()).getTime());
+                if(res.unread_messages != null) {
+                  window.app_state.set('currentUser.unread_messages', res.unread_messages);
+                }
+                if(res.unread_alerts != null) {
+                  window.app_state.set('currentUser.unread_alerts', res.unread_alerts);
+                }
+              }
+            }, function(err) {
+              if(_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(err && err.result && err.result.invalid_token) {
+                if(stashesRef.get('auth_settings') && !isTesting()) {
+                  if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
+                    LingoLinq.session.check_token(false);
+                  }
+                }
+              }
+            });
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch(e) {
+      console.warn('Error in check_for_needs_sync:', e);
+      return false;
     }
   },
   // TEMPORARILY DISABLED: Old persistence observers disabled during migration to new service
@@ -4338,12 +4421,12 @@ persistence.DSExtend = {
             });
           } else {
             if(skip_db) {
-              return find_reject(persistence.offline_reject());
+              return find_reject({offline: true, error: "not online"});
             } else {
               if(local_data) {
                 return local_processed(local_data)
               } else {
-                return find_reject(persistence.offline_reject());
+                return find_reject({offline: true, error: "not online"});
               }
             }
           }

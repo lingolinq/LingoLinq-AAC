@@ -18,20 +18,18 @@ export default Component.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
 
-  actions: {
-    toggleSidebar() {
-      var stashes = this.get('stashes');
-      if (stashes) {
-        stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
-      }
-    },
-    toggleSidebarTeaseKeydown(event) {
-      var key = event && event.key;
-      var code = event && event.keyCode;
-      if (key === 'Enter' || key === ' ' || code === 13 || code === 32) {
-        if (event && event.preventDefault) { event.preventDefault(); }
-        this.send('toggleSidebar');
-      }
+  toggleSidebar() {
+    var stashes = this.get('stashes');
+    if (stashes) {
+      stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
+    }
+  },
+  toggleSidebarTeaseKeydown(event) {
+    var key = event && event.key;
+    var code = event && event.keyCode;
+    if (key === 'Enter' || key === ' ' || code === 13 || code === 32) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      this.toggleSidebar();
     }
   }
 });

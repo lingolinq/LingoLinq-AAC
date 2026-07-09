@@ -1,16 +1,16 @@
-{{#opening-observer opening=(action "opening") closing=(action "closing")}}
-{{#touch-listener release=(action "select_release")}}
-  <div class="highlight" style={{this.model.top_style}} {{action "close"}}>
+{{#opening-observer opening=this.onOpening closing=this.onClosing}}
+{{#touch-listener release=this.onSelectRelease}}
+  <div class="highlight" style={{this.model.top_style}} {{on "click" (this.ctrlAction "close")}}>
   </div>
-  <div class="highlight" style={{this.model.left_style}} {{action "close"}}>
+  <div class="highlight" style={{this.model.left_style}} {{on "click" (this.ctrlAction "close")}}>
   </div>
-  <div class="highlight" style={{this.model.right_style}} {{action "close"}}>
+  <div class="highlight" style={{this.model.right_style}} {{on "click" (this.ctrlAction "close")}}>
   </div>
-  <div class="highlight" style={{this.model.bottom_style}} {{action "close"}}>
+  <div class="highlight" style={{this.model.bottom_style}} {{on "click" (this.ctrlAction "close")}}>
   </div>
-  <div class={{this.highlight_class}} style={{this.model.highlight_style}} {{action "select"}}>
+  <div class={{this.highlight_class}} style={{this.model.highlight_style}} {{on "click" (this.ctrlAction "select")}}>
   </div>
-  <div class={{this.highlight_inner_class}} id='highlight_box' style={{this.model.inner_highlight_style}} {{action "select"}}>
+  <div class={{this.highlight_inner_class}} id='highlight_box' style={{this.model.inner_highlight_style}} {{on "click" (this.ctrlAction "select")}}>
     {{#if this.model.icon_class}}
       <span class={{this.model.icon_class}} style={{this.model.icon_style}}></span>
     {{/if}}

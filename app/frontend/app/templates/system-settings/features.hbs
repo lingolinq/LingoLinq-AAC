@@ -13,7 +13,7 @@
     </label>
     <label class="la-system-settings__filter">
       <span class="la-system-settings__label-text">{{t "Category" key="system_settings_category_label"}}</span>
-      <select class="form-control" onchange={{action (mut this.categoryFilter) value="target.value"}}>
+      <select class="form-control" {{on "change" (this.ctrlActionMut "categoryFilter" "value")}}>
         {{#each this.categoryOptions as |opt|}}
           <option value={{opt.id}} selected={{is-equal opt.id this.categoryFilter}}>{{opt.label}}</option>
         {{/each}}
@@ -28,7 +28,7 @@
       {{#each this.filteredFeatures as |feature|}}
         <li class="la-system-settings__feature-item">
           <label class="la-system-settings__feature-label">
-            <Input @type="checkbox" @checked={{get this.pendingToggles feature.key}} @disabled={{feature.env_locked}} {{action "toggleFeature" feature.key on="change"}} />
+            <Input @type="checkbox" @checked={{get this.pendingToggles feature.key}} @disabled={{feature.env_locked}} {{on "change" (this.ctrlAction "toggleFeature" feature.key)}} />
             <span class="la-system-settings__feature-name">{{feature.name}}</span>
             <span class="la-system-settings__feature-key">{{feature.key}}</span>
           </label>
@@ -47,7 +47,7 @@
   {{/if}}
 
   <div class="la-system-settings__actions">
-    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{action "saveFeatures"}}>{{t "Save" key="save"}}</button>
-    <button type="button" class="btn btn-default" disabled={{this.saving}} {{action "resetFeatures"}}>{{this.resetButtonLabel}}</button>
+    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveFeatures")}}>{{t "Save" key="save"}}</button>
+    <button type="button" class="btn btn-default" disabled={{this.saving}} {{on "click" (this.ctrlAction "resetFeatures")}}>{{this.resetButtonLabel}}</button>
   </div>
 {{/if}}

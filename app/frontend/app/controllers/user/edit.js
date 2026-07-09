@@ -12,6 +12,29 @@ import { computed } from '@ember/object';
 
 export default Controller.extend({
   router: service('router'),
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.onSaveProfile = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('saveProfile');
+    };
+    this.onRegistrationTypeChange = function(value) {
+      self.set('model.preferences.registration_type', value);
+    };
+    this.onExternalAccessMethodChange = function(value) {
+      self.set('external_access_method', value);
+    };
+  },
+
   registration_types: LingoLinq.registrationTypes,
   allow_shares_options: [
     {name: i18n.t('email_shares', "Email"), id: 'email'},

@@ -1,21 +1,98 @@
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import Service from '@ember/service';
+import { run, later } from '@ember/runloop';
 import { module, test } from 'qunit';
-import { setupTest } from 'ember-qunit';
-import CopyingBoardController from 'frontend/controllers/copying-board';
+import { setupTest } from '../../helpers';
 import BoardHierarchy from 'frontend/utils/board_hierarchy';
 import editManager from 'frontend/utils/edit_manager';
 import modal from 'frontend/utils/modal';
+import { stubPersistenceAjax } from '../../helpers/persistence-stub';
+
+// copy_hierarchy_loader uses runloop later(); native setTimeout does not advance
+// those timers or flush Ember async in tests. settled()/waitUntil() hang when
+// hung buttonset stubs leave orphan RSVP promises — poll with run.later instead.
+function pollUntil(condition, timeoutMs) {
+  timeoutMs = timeoutMs || 10000;
+  return new RSVP.Promise(function(resolve, reject) {
+    var start = Date.now();
+    function tick() {
+      if (condition()) {
+        resolve();
+        return;
+      }
+      if (Date.now() - start >= timeoutMs) {
+        reject(new Error('pollUntil timed out after ' + timeoutMs + 'ms'));
+        return;
+      }
+      later(tick, 10);
+    }
+    run(tick);
+  });
+}
+
+function openCopyModal(controller, attrs) {
+  run(function() {
+    Object.keys(attrs).forEach(function(key) {
+      controller.set(key, attrs[key]);
+    });
+    controller.opening();
+  });
+}
+
+function waitForCopyModalReady(controller, timeoutMs) {
+  return pollUntil(function() {
+    return controller.isDestroyed || controller.get('loading') === false;
+  }, timeoutMs);
+}
+
+function liveLinksHierarchy(childIds) {
+  return EmberObject.create({
+    root: EmberObject.create({
+      children: (childIds || ['child-board']).map(function(id) {
+        return EmberObject.create({ id: id });
+      })
+    }),
+    selected_board_ids: function() { return childIds || ['child-board']; }
+  });
+}
+
+function hangButtonsetLoader(testContext) {
+  return function() {
+    return new RSVP.Promise(function(_resolve, reject) {
+      testContext._rejectHungButtonset = reject;
+    });
+  };
+}
 
 module('Unit | Controller | copying-board', function(hooks) {
   setupTest(hooks);
 
+  hooks.beforeEach(function() {
+    this._rejectHungButtonset = null;
+    this._restorePersistenceAjax = stubPersistenceAjax(function() {
+      return RSVP.reject({ error: 'offline in test' });
+    });
+  });
+
+  hooks.afterEach(function() {
+    if(this._restorePersistenceAjax) {
+      this._restorePersistenceAjax();
+    }
+    if(this._rejectHungButtonset) {
+      run(function() {
+        this._rejectHungButtonset(new Error('test cleanup'));
+      }.bind(this));
+      this._rejectHungButtonset = null;
+    }
+  });
+
   test('users can select live linked boards when hierarchy loading fails', async function(assert) {
     assert.expect(7);
 
-    const controller = CopyingBoardController.create();
+    const controller = this.owner.factoryFor('controller:copying-board').create();
     const originalLoader = BoardHierarchy.load_with_button_set;
+    const originalLiveLinks = BoardHierarchy.load_from_live_links;
     const board = EmberObject.create({
       id: 'root-board',
       global_id: 'root-board',
@@ -28,19 +105,22 @@ module('Unit | Controller | copying-board', function(hooks) {
     BoardHierarchy.load_with_button_set = function() {
       return RSVP.reject('Failed loading board links for copying');
     };
+    BoardHierarchy.load_from_live_links = function() {
+      return RSVP.resolve(liveLinksHierarchy(['child-board']));
+    };
     controller.start_copying = function() {
       controller.set('copyAllStarted', true);
     };
 
     try {
-      controller.set('model', {
-        action: 'links_copy',
-        board: board
+      openCopyModal(controller, {
+        earlyLiveLinksDelayMs: 0,
+        model: {
+          action: 'links_copy',
+          board: board
+        }
       });
-      controller.opening();
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 0);
-      });
+      await waitForCopyModalReady(controller);
 
       assert.false(controller.get('loading'), 'stops loading after hierarchy failure');
       assert.false(controller.get('hierarchyLoadFailed'), 'does not show the hard error state when live links are available');
@@ -54,6 +134,7 @@ module('Unit | Controller | copying-board', function(hooks) {
       assert.true(controller.get('copyAllStarted'), 'starts the full-board-set copy fallback');
     } finally {
       BoardHierarchy.load_with_button_set = originalLoader;
+      BoardHierarchy.load_from_live_links = originalLiveLinks;
       controller.destroy();
     }
   });
@@ -61,7 +142,7 @@ module('Unit | Controller | copying-board', function(hooks) {
   test('falls back to live links after the early-fire delay when buttonset hangs', async function(assert) {
     assert.expect(5);
 
-    const controller = CopyingBoardController.create();
+    const controller = this.owner.factoryFor('controller:copying-board').create();
     const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
     const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
     const board = EmberObject.create({
@@ -75,34 +156,24 @@ module('Unit | Controller | copying-board', function(hooks) {
 
     let buttonsetSettled = false;
     let liveLinksCalled = false;
-    BoardHierarchy.load_with_button_set = function() {
-      return new RSVP.Promise(function() {
-        // never settles - simulates the buttonset master timeout case
-      });
-    };
+    BoardHierarchy.load_with_button_set = hangButtonsetLoader(this);
     BoardHierarchy.load_from_live_links = function() {
       liveLinksCalled = true;
-      return RSVP.resolve(EmberObject.create({
-        root: EmberObject.create({
-          children: [EmberObject.create({ id: 'child-board' })]
-        }),
-        selected_board_ids: function() { return ['child-board']; }
-      }));
+      return RSVP.resolve(liveLinksHierarchy(['child-board']));
     };
     controller.start_copying = function() {
       controller.set('startCopyingCalled', true);
     };
 
     try {
-      controller.set('earlyLiveLinksDelayMs', 5);
-      controller.set('model', {
-        action: 'links_copy',
-        board: board
+      openCopyModal(controller, {
+        earlyLiveLinksDelayMs: 5,
+        model: {
+          action: 'links_copy',
+          board: board
+        }
       });
-      controller.opening();
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 30);
-      });
+      await waitForCopyModalReady(controller);
 
       assert.true(liveLinksCalled, 'live-links fallback is invoked after the early-fire delay');
       assert.false(controller.get('loading'), 'loading flag clears once live-links resolves');
@@ -119,7 +190,7 @@ module('Unit | Controller | copying-board', function(hooks) {
   test('uses buttonset hierarchy when it returns before the early-fire delay', async function(assert) {
     assert.expect(4);
 
-    const controller = CopyingBoardController.create();
+    const controller = this.owner.factoryFor('controller:copying-board').create();
     const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
     const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
     const board = EmberObject.create({
@@ -152,15 +223,14 @@ module('Unit | Controller | copying-board', function(hooks) {
     };
 
     try {
-      controller.set('earlyLiveLinksDelayMs', 200);
-      controller.set('model', {
-        action: 'links_copy',
-        board: board
+      openCopyModal(controller, {
+        earlyLiveLinksDelayMs: 200,
+        model: {
+          action: 'links_copy',
+          board: board
+        }
       });
-      controller.opening();
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 0);
-      });
+      await waitForCopyModalReady(controller);
 
       assert.false(controller.get('loading'), 'stops loading after buttonset resolves');
       assert.strictEqual(controller.get('hierarchy.root.children.length'), 2, 'shows the full buttonset hierarchy');
@@ -189,19 +259,10 @@ module('Unit | Controller | copying-board', function(hooks) {
     let liveLinksCalled = false;
     let component = null;
 
-    BoardHierarchy.load_with_button_set = function() {
-      return new RSVP.Promise(function() {
-        // never settles - simulates the buttonset master timeout case
-      });
-    };
+    BoardHierarchy.load_with_button_set = hangButtonsetLoader(this);
     BoardHierarchy.load_from_live_links = function() {
       liveLinksCalled = true;
-      return RSVP.resolve(EmberObject.create({
-        root: EmberObject.create({
-          children: [EmberObject.create({ id: 'child-board' })]
-        }),
-        selected_board_ids: function() { return ['child-board']; }
-      }));
+      return RSVP.resolve(liveLinksHierarchy(['child-board']));
     };
 
     try {
@@ -217,16 +278,16 @@ module('Unit | Controller | copying-board', function(hooks) {
       this.owner.register('service:app-state', Service.extend({
         jump_to_board() {}
       }));
-      component = this.owner.factoryFor('component:copying-board').create({
-        earlyLiveLinksDelayMs: 5,
-        model: {
-          action: 'links_copy',
-          board: board
-        }
-      });
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 30);
-      });
+      run(function() {
+        component = this.owner.factoryFor('component:copying-board').create({
+          earlyLiveLinksDelayMs: 5,
+          model: {
+            action: 'links_copy',
+            board: board
+          }
+        });
+      }.bind(this));
+      await waitForCopyModalReady(component);
 
       assert.true(liveLinksCalled, 'component invokes live-links fallback after the early-fire delay');
       assert.false(component.get('loading'), 'component clears loading once live-links resolves');
@@ -244,7 +305,7 @@ module('Unit | Controller | copying-board', function(hooks) {
   test('shows the timeout error when both buttonset and live-links fail', async function(assert) {
     assert.expect(4);
 
-    const controller = CopyingBoardController.create();
+    const controller = this.owner.factoryFor('controller:copying-board').create();
     const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
     const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
     const board = EmberObject.create({
@@ -264,15 +325,14 @@ module('Unit | Controller | copying-board', function(hooks) {
     };
 
     try {
-      controller.set('earlyLiveLinksDelayMs', 200);
-      controller.set('model', {
-        action: 'links_copy',
-        board: board
+      openCopyModal(controller, {
+        earlyLiveLinksDelayMs: 200,
+        model: {
+          action: 'links_copy',
+          board: board
+        }
       });
-      controller.opening();
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 10);
-      });
+      await waitForCopyModalReady(controller);
 
       assert.false(controller.get('loading'), 'stops loading after both paths fail');
       assert.true(controller.get('hierarchyLoadFailed'), 'shows the hard-error UI state');
@@ -339,19 +399,22 @@ module('Unit | Controller | copying-board', function(hooks) {
           assert.ok(false, 'closed copying modal should not force navigation');
         }
       }));
-      const component = this.owner.factoryFor('component:copying-board').create({
-        model: {
-          action: 'keep_links',
-          board: board,
-          user: EmberObject.create({ id: 'self' }),
-          symbol_library: 'original'
-        }
-      });
-      component.destroy();
-      resolveCopy(copiedBoard);
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 0);
-      });
+      let component;
+      run(function() {
+        component = this.owner.factoryFor('component:copying-board').create({
+          model: {
+            action: 'keep_links',
+            board: board,
+            user: EmberObject.create({ id: 'self' }),
+            symbol_library: 'original'
+          }
+        });
+        component.destroy();
+        resolveCopy(copiedBoard);
+      }.bind(this));
+      await pollUntil(function() {
+        return notice !== null;
+      }, 2000);
 
       assert.strictEqual(error, null, 'copy completion does not surface an error');
       assert.ok(notice, 'completion notice is shown after close');
@@ -410,22 +473,25 @@ module('Unit | Controller | copying-board', function(hooks) {
       this.owner.register('service:app-state', Service.extend({
         jump_to_board() {}
       }));
-      const component = this.owner.factoryFor('component:copying-board').create({
-        model: {
-          action: 'keep_links',
-          board: board,
-          user: EmberObject.create({ id: 'self' }),
-          symbol_library: 'original',
-          copy_finished(copied) {
-            completedBoard = copied;
+      let component;
+      run(function() {
+        component = this.owner.factoryFor('component:copying-board').create({
+          model: {
+            action: 'keep_links',
+            board: board,
+            user: EmberObject.create({ id: 'self' }),
+            symbol_library: 'original',
+            copy_finished(copied) {
+              completedBoard = copied;
+            }
           }
-        }
-      });
-      component.destroy();
-      resolveCopy(copiedBoard);
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 0);
-      });
+        });
+        component.destroy();
+        resolveCopy(copiedBoard);
+      }.bind(this));
+      await pollUntil(function() {
+        return completedBoard !== null;
+      }, 2000);
 
       assert.strictEqual(completedBoard, copiedBoard, 'completion callback receives copied board');
       assert.false(noticeShown, 'copy-and-edit callback replaces generic notice');

@@ -135,13 +135,6 @@ export function registerTemplateHelpers(i18n) {
         pieces[0] = Math.round(pieces[0] * 100) / 100;
       }
       return i18n.t('n_million', '%{num}M', {num: pieces.join(',')});
-    } else if(pieces.length > 1 && type != 'full') {
-      var dec = parseInt(pieces.pop(), 10);
-      if(pieces.length == 1 && pieces[0] < 10) {
-        pieces[0] = parseInt(pieces[0], 10) + (dec / 1000);
-        pieces[0] = Math.round(pieces[0] * 10) / 10;
-      }
-      return i18n.t('n_thousand', '%{num}k', {num: pieces.join(',')});
     } else {
       return pieces.join(',');
     }
@@ -210,9 +203,10 @@ export function registerTemplateHelpers(i18n) {
     } else {
       var hours = Math.round(seconds / 3600 * 10) / 10;
       if(distance != 'long' || hours < 24) {
-        if(hours > 999) {
+        if(hours > 999 && distance == 'brief') {
           hours = templateHelpers.delimit(hours) + ' ';
-          distance = 'brief';
+        } else if(hours > 999) {
+          hours = templateHelpers.delimit(hours, 'full');
         }
         if(distance == 'brief') {
           return i18n.t('brief_hours_ago', '%{n}hr', {hash: {n: hours, number: true}});

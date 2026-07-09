@@ -31,6 +31,9 @@ describe('UserIndexController', 'controller:user-index', function() {
 
     controller.set('store', {
       query: function(type, args) {
+        if (type === 'goal' || type === 'badge') {
+          return RSVP.resolve([]);
+        }
         queryArgs = args;
         expect(type).toEqual('board');
         return RSVP.resolve([]);
@@ -51,7 +54,7 @@ describe('UserIndexController', 'controller:user-index', function() {
 
     waitsFor(function() { return queryArgs; });
     runs(function() {
-      expect(queryArgs).toEqual({q: '', locale: 'en', sort: 'popularity'});
+      expect(queryArgs).toEqual({ q: '', locale: 'en', sort: 'popularity', per_page: 50 });
     });
   });
 
@@ -71,13 +74,17 @@ describe('UserIndexController', 'controller:user-index', function() {
    */
   describe('board_list Mine-tab sort', function() {
     function makeBoard(props) {
+      props = props || {};
+      if (props.id == null) {
+        props.id = props.key || ('board-' + Math.random().toString(36).slice(2));
+      }
       return EmberObject.create(props);
     }
 
     function stubAppState(controller, userName, opts) {
       opts = opts || {};
       var ownerDedup = opts.boards_page_owner_dedup !== false;
-      controller.set('appState', EmberObject.create({
+      var stub = EmberObject.create({
         currentUser: EmberObject.create({ user_name: userName || 'melis' }),
         feature_flags: { boards_page_owner_dedup: ownerDedup },
         get: function(key) {
@@ -85,7 +92,23 @@ describe('UserIndexController', 'controller:user-index', function() {
           if (key === 'feature_flags.boards_page_owner_dedup') { return this.feature_flags.boards_page_owner_dedup; }
           return EmberObject.prototype.get.call(this, key);
         }
-      }));
+      });
+      // board_list reads appState via service injection — override the getter.
+      Object.defineProperty(controller, 'appState', {
+        configurable: true,
+        get: function() { return stub; }
+      });
+    }
+
+    function stubPersistenceOffline(controller) {
+      var stub = EmberObject.create({
+        online: false,
+        meta: function() { return null; }
+      });
+      Object.defineProperty(controller, 'persistence', {
+        configurable: true,
+        get: function() { return stub; }
+      });
     }
 
     function setupModel(controller, my_boards, homeKey) {
@@ -102,13 +125,15 @@ describe('UserIndexController', 'controller:user-index', function() {
       var home    = makeBoard({ key: 'larry/zzz-home', name: 'Z Home', starred_for_current_user: false });
       var apple   = makeBoard({ key: 'larry/apple',     name: 'Apple',  starred_for_current_user: false });
       var banana  = makeBoard({ key: 'larry/banana',    name: 'Banana', starred_for_current_user: false });
-      setupModel(controller, [{ board: apple }, { board: banana }, { board: home }], 'larry/zzz-home');
+      setupModel(controller, [apple, banana, home], 'larry/zzz-home');
+      stubAppState(controller, 'larry');
       controller.set('selected', 'mine');
+      controller.set('parent_object', null);
 
       var list = controller.get('board_list');
 
-      expect(list.results.length).toEqual(3);
-      expect(list.results[0].board.get('key')).toEqual('larry/zzz-home');
+      expect(list.filtered_results.length).toEqual(3);
+      expect(list.filtered_results[0].board.get('key')).toEqual('larry/zzz-home');
     });
 
     it('puts starred (favorite) boards before non-starred, alphabetical within each group', function() {
@@ -117,18 +142,20 @@ describe('UserIndexController', 'controller:user-index', function() {
       var liked_a    = makeBoard({ key: 'larry/a', name: 'Apple', starred_for_current_user: true  });
       var plain_b    = makeBoard({ key: 'larry/b', name: 'Bread', starred_for_current_user: false });
       var plain_y    = makeBoard({ key: 'larry/y', name: 'Yellow',starred_for_current_user: false });
-      setupModel(controller, [{ board: plain_b }, { board: liked_z }, { board: plain_y }, { board: liked_a }], null);
+      setupModel(controller, [plain_b, liked_z, plain_y, liked_a], null);
+      stubAppState(controller, 'larry');
       controller.set('selected', 'mine');
+      controller.set('parent_object', null);
 
       var list = controller.get('board_list');
 
-      expect(list.results.length).toEqual(4);
+      expect(list.filtered_results.length).toEqual(4);
       // Starred first, alpha
-      expect(list.results[0].board.get('name')).toEqual('Apple');
-      expect(list.results[1].board.get('name')).toEqual('Zoo');
+      expect(list.filtered_results[0].board.get('name')).toEqual('Apple');
+      expect(list.filtered_results[1].board.get('name')).toEqual('Zoo');
       // Then non-starred, alpha
-      expect(list.results[2].board.get('name')).toEqual('Bread');
-      expect(list.results[3].board.get('name')).toEqual('Yellow');
+      expect(list.filtered_results[2].board.get('name')).toEqual('Bread');
+      expect(list.filtered_results[3].board.get('name')).toEqual('Yellow');
     });
 
     it('home board wins even when it would lose the favorite/alpha tiebreaker', function() {
@@ -136,13 +163,15 @@ describe('UserIndexController', 'controller:user-index', function() {
       // home is non-starred and named "Z" — would normally sort LAST.
       var home  = makeBoard({ key: 'larry/home',  name: 'Z',     starred_for_current_user: false });
       var liked = makeBoard({ key: 'larry/liked', name: 'A',     starred_for_current_user: true  });
-      setupModel(controller, [{ board: liked }, { board: home }], 'larry/home');
+      setupModel(controller, [liked, home], 'larry/home');
+      stubAppState(controller, 'larry');
       controller.set('selected', 'mine');
+      controller.set('parent_object', null);
 
       var list = controller.get('board_list');
 
-      expect(list.results[0].board.get('key')).toEqual('larry/home');
-      expect(list.results[1].board.get('key')).toEqual('larry/liked');
+      expect(list.filtered_results[0].board.get('key')).toEqual('larry/home');
+      expect(list.filtered_results[1].board.get('key')).toEqual('larry/liked');
     });
 
     it('does not apply Mine-tab sort on Public tab — server order preserved', function() {
@@ -389,14 +418,14 @@ describe('UserIndexController', 'controller:user-index', function() {
     it('ignores live filter while drilled into a folder so the grid shows folder boards only', function() {
       var controller = testOwner.lookup('controller:user/index');
       var folderBoard = makeBoard({
-        id: 'folder-root',
-        global_id: 'folder-root',
+        id: '42',
+        global_id: '#1_42',
         name: 'Work Root',
         key: 'larry/work-root',
         search_string: 'Work Root larry work-root'
       });
       var holidayBoard = makeBoard({
-        id: 'holiday-board',
+        id: '99',
         name: 'Holiday Board',
         key: 'larry/holiday',
         search_string: 'Holiday Board larry holiday'
@@ -404,17 +433,27 @@ describe('UserIndexController', 'controller:user-index', function() {
       controller.set('model', EmberObject.create({
         id: 'larry',
         my_boards: [folderBoard, holidayBoard],
-        board_tag_map: { Work: ['folder-root'] },
+        board_tag_map: { Work: ['#1_42'] },
         preferences: { home_board: {} },
-        permissions: { edit: true }
+        permissions: { edit: true },
+        goals: [{}],
+        badges: [{}]
       }));
+      controller.set('store', {
+        query: function() { return RSVP.resolve([]); }
+      });
+      stubPersistenceOffline(controller);
       stubAppState(controller, 'melis');
       controller.set('selected', 'mine');
       controller.set('parent_object', null);
       controller.set('filterStringDebounced', 'holiday');
       controller.set('mineTagFolderDrillIn', 'Work');
 
-      var folderKeys = (controller.get('board_list').filtered_results || []).map(function(row) {
+      var bl = controller.get('board_list');
+      controller.set('last_filtered_results_key', bl.filtered_results_key);
+      controller.set('filtered_results', bl.filtered_results);
+
+      var folderKeys = (bl.filtered_results || []).map(function(row) {
         return row.board.get('key');
       });
       expect(folderKeys).toEqual(['larry/work-root']);

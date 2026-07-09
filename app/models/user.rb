@@ -2335,12 +2335,21 @@ class User < ApplicationRecord
   def self.dedupe_resolved_sidebar_boards(boards)
     seen = {}
     boards.each_with_object([]) do |entry, result|
-      slug = sidebar_board_slug(entry)
-      if slug == SystemBoardSources::CRISIS_VOCABULARY_SLUG
-        next if seen[slug]
-        seen[slug] = true
-      end
+      identity = resolved_sidebar_board_identity(entry)
+      next if identity && seen[identity]
+      seen[identity] = true if identity
       result << entry
+    end
+  end
+
+  # Identity for deduping sidebar entries after resolve_sidebar_entry has run.
+  # Stored system keys and user copy keys can both resolve to the same final key.
+  def self.resolved_sidebar_board_identity(entry)
+    return nil unless entry.is_a?(Hash)
+    if entry['special']
+      entry['alert'].to_s + "_" + entry['action'].to_s + "_" + entry['arg'].to_s
+    else
+      entry['key']
     end
   end
 

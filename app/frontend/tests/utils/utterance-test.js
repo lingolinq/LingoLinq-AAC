@@ -2,44 +2,86 @@ import {
   describe,
   it,
   expect,
-  beforeEach,
-  afterEach,
   waitsFor,
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
+import { fakeAudio } from 'frontend/tests/helpers/ember_helper';
+import { stashesTarget, appStateTarget } from '../helpers/service-stub';
 import utterance from '../../utils/utterance';
-import stashes from '../../utils/_stashes';
-import app_state from '../../utils/app_state';
 import speecher from '../../utils/speecher';
+import stashes from '../../utils/_stashes';
+import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 
+function utteranceController() {
+  return LingoLinq._utteranceTestController;
+}
+
+function stashesForTest() {
+  return stashesTarget();
+}
+
+function appStateForTest() {
+  return appStateTarget();
+}
+
+function modifierPartNeedsFlag(part) {
+  if (!part || part === ':native-keyboard') { return false; }
+  if (part.match(/^\+/)) { return true; }
+  if (part.match(/^:/)) {
+    var action = LingoLinq.find_special_action && LingoLinq.find_special_action(part);
+    if (action && (action.modifier || action.completion || action.inline)) {
+      return true;
+    }
+    if (!action && part.match(/^:(plural|singular|complete|predict|space|paste)/)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function prepareRawButton(button) {
+  var b = Object.assign({}, button);
+  var parts = [];
+  if (b.vocalization) {
+    parts = parts.concat(b.vocalization.split(/\s*&&\s*/));
+  }
+  if (b.label && !b.vocalization) {
+    parts = parts.concat(b.label.split(/\s*&&\s*/));
+  }
+  parts.forEach(function(part) {
+    if (modifierPartNeedsFlag(part)) {
+      b.specialty_with_modifiers = true;
+    }
+  });
+  if (typeof utterance.specialty_button === 'function') {
+    utterance.specialty_button(b);
+  }
+  return b;
+}
+
+function setRawButtons(buttons) {
+  var prepared = buttons.map(prepareRawButton);
+  utterance.set('rawButtonList', prepared);
+  if (typeof utterance.set_button_list === 'function') {
+    utterance.set_button_list();
+  }
+}
+
+function addButtonForTest(button) {
+  return utterance.add_button(prepareRawButton(button));
+}
+
 describe('utterance', function() {
-  var controller = null;
-  beforeEach(function() {
-    stashes.flush();
-    stashes.setup();
-    controller = EmberObject.extend({
-      vocalize: function() {
-        this.vocalized = true;
-      }
-    }).create();
-    utterance.scope = window;
-    utterance.setup(controller);
-  });
-
-  afterEach(function() {
-    utterance.scope = window;
-  });
-
   describe("setup", function() {
     it("should set the controller", function() {
-      expect(utterance.controller).toEqual(controller);
+      expect(utterance.controller).toEqual(utteranceController());
     });
     it("should retrieve the raw list from the stash", function() {
-      stashes.persist('working_vocalization', [{}, {}]);
-      utterance.setup(controller);
-      expect(utterance.get('rawButtonList')).toEqual(stashes.get('working_vocalization'));
+      stashesForTest().persist('working_vocalization', [{}, {}]);
+      utterance.setup(utteranceController());
+      expect(utterance.get('rawButtonList')).toEqual(stashesForTest().get('working_vocalization'));
     });
     it("should keep observe currentUser and keep speecher's voice settings up-to-date", function() {
       var user = EmberObject.extend({
@@ -47,7 +89,7 @@ describe('utterance', function() {
       }).create({
         preferences: {device: {voice: {pitch: 2.0, volume: 3.0}}}
       });
-      app_state.set('currentUser', user);
+      appStateForTest().set('currentUser', user);
       expect(speecher.volume).toEqual(3.0);
       expect(speecher.pitch).toEqual(2.0);
       user.set('preferences.device.voice', {pitch: 3.0, volume: 2.0});
@@ -58,10 +100,10 @@ describe('utterance', function() {
       expect(speecher.pitch).toEqual(3.0);
     });
     it("should set the controller's buttonList attribute", function() {
-      stashes.persist('working_vocalization', [{}, {}]);
-      utterance.setup(controller);
-      expect(utterance.get('rawButtonList')).toEqual(stashes.get('working_vocalization'));
-      expect(app_state.get('button_list').length).toEqual(stashes.get('working_vocalization').length);
+      stashesForTest().persist('working_vocalization', [{}, {}]);
+      utterance.setup(utteranceController());
+      expect(utterance.get('rawButtonList')).toEqual(stashesForTest().get('working_vocalization'));
+      expect(appStateForTest().get('button_list').length).toEqual(stashesForTest().get('working_vocalization').length);
     });
   });
 
@@ -70,52 +112,52 @@ describe('utterance', function() {
       var buttons = [
         {label: "how"}, {label: "are"}, {label: "you"}
       ];
-      utterance.set('rawButtonList', buttons);
-      expect(app_state.get('button_list').mapBy('label')).toEqual(buttons.mapBy('label'));
+      setRawButtons( buttons);
+      expect(appStateForTest().get('button_list').map(function(b) { return b.label; })).toEqual(buttons.map(function(b) { return b.label; }));
     });
     it("should set buttonList to the controller and stash", function() {
       var buttons = [
         {label: "how"}, {label: "are"}, {label: "you"}
       ];
-      utterance.set('rawButtonList', buttons);
-      expect(utterance.get('rawButtonList')).toEqual(buttons);
-      expect(app_state.get('button_list')[0].label).toEqual('how');
-      expect(app_state.get('button_list')[1].label).toEqual('are');
-      expect(app_state.get('button_list')[2].label).toEqual('you');
-      expect(stashes.get('working_vocalization')).toEqual(buttons);
+      setRawButtons( buttons);
+      expect(utterance.get('rawButtonList').map(function(b) { return b.label; })).toEqual(buttons.map(function(b) { return b.label; }));
+      expect(appStateForTest().get('button_list')[0].label).toEqual('how');
+      expect(appStateForTest().get('button_list')[1].label).toEqual('are');
+      expect(appStateForTest().get('button_list')[2].label).toEqual('you');
+      expect(stashesForTest().get('working_vocalization').map(function(b) { return b.label; })).toEqual(buttons.map(function(b) { return b.label; }));
     });
     it("should properly handle + and : notations", function() {
       var buttons = [
         {label: "how", in_progress: true}, {vocalization: "+ever"}, {label: "are"}, {label: "you", in_progress: true}, {label: "+r"}, {label: "hippo"}, {vocalization: ":plural"}
       ];
-      utterance.set('rawButtonList', buttons);
-      var computed = app_state.get('button_list');
+      setRawButtons( buttons);
+      var computed = appStateForTest().get('button_list');
       expect(computed.length).toEqual(4);
       expect(computed[0].label).toEqual("however");
       expect(computed[1].label).toEqual("are");
       expect(computed[2].label).toEqual("your");
       expect(computed[3].label).toEqual("hippos");
 
-      utterance.set('rawButtonList', [{label: "cow"}, {label: ":bacon"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
-      var computed = app_state.get('button_list');
+      setRawButtons( [{label: "cow"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
+      computed = appStateForTest().get('button_list');
       expect(computed.length).toEqual(3);
       expect(computed[0].label).toEqual("cow");
       expect(computed[1].label).toEqual("hippo");
       expect(computed[2].label).toEqual("tank");
 
-      utterance.set('rawButtonList', [{label: "horse"}, {label: "+c"}, {label: "+a"}, {label: "+n"}, {vocalization: ":plural"}]);
-      var computed = app_state.get('button_list');
+      setRawButtons( [{label: "horse"}, {label: "+c"}, {label: "+a"}, {label: "+n"}, {vocalization: ":plural"}]);
+      computed = appStateForTest().get('button_list');
       expect(computed.length).toEqual(2);
       expect(computed[0].label).toEqual("horse");
       expect(computed[1].label).toEqual("cans");
 
-      utterance.set('rawButtonList', [{label: "+c"}, {label: "+a"}, {label: "+n"}, {vocalization: ":plural"}]);
-      var computed = app_state.get('button_list');
+      setRawButtons( [{label: "+c"}, {label: "+a"}, {label: "+n"}, {vocalization: ":plural"}]);
+      computed = appStateForTest().get('button_list');
       expect(computed.length).toEqual(1);
       expect(computed[0].label).toEqual("cans");
 
-      utterance.set('rawButtonList', [{label: "+c"}, {label: "+a"}, {label: "+n"}, {vocalization: ":complete", completion: "cantankerous"}]);
-      var computed = app_state.get('button_list');
+      setRawButtons( [{label: "+c"}, {label: "+a"}, {label: "+n"}, {vocalization: ":complete", completion: "cantankerous"}]);
+      computed = appStateForTest().get('button_list');
       expect(computed.length).toEqual(1);
       expect(computed[0].label).toEqual("cantankerous");
     });
@@ -124,8 +166,8 @@ describe('utterance', function() {
       var buttons = [
         {label: "how", in_progress: true}, {vocalization: "+ever&& :space"}, {label: "are", vocalization: "+we"}, {label: "you", in_progress: true}, {label: "+r&&:home &&   +s"}, {label: "hippo"}, {vocalization: ":plural"}
       ];
-      utterance.set('rawButtonList', buttons);
-      var computed = app_state.get('button_list');
+      setRawButtons( buttons);
+      var computed = appStateForTest().get('button_list');
       expect(computed.length).toEqual(4);
       expect(computed[0].label).toEqual("however");
       expect(computed[1].label).toEqual("we");
@@ -169,6 +211,12 @@ describe('utterance', function() {
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
     });
+    it("should add third-person -s to verbs via :plural", function() {
+      var result = utterance.modify_button({label: "walk", part_of_speech: "verb"}, {vocalization: ":plural"});
+      expect(result.label).toEqual("walks");
+      expect(result.vocalization).toEqual("walks");
+      expect(result.modified).toEqual(true);
+    });
     it("should singularize properly", function() {
       var result = utterance.modify_button({label: "cows"}, {vocalization: ":singular"});
       expect(result.label).toEqual("cow");
@@ -211,45 +259,46 @@ describe('utterance', function() {
   describe("add_button", function() {
     it("should add the button to the list, controller and stash", function() {
       var b = {label: "occupy"};
-      utterance.add_button(b);
+      addButtonForTest(b);
       expect(utterance.get('rawButtonList').length).toEqual(1);
-      expect(utterance.get('rawButtonList')[0]).toEqual({label: 'occupy'});
-      expect(app_state.get('button_list').length).toEqual(1);
-      expect(app_state.get('button_list')[0].label).toEqual(b.label);
-      expect(stashes.get('working_vocalization')).toEqual([b]);
+      expect(utterance.get('rawButtonList')[0].label).toEqual('occupy');
+      expect(appStateForTest().get('button_list').length).toEqual(1);
+      expect(appStateForTest().get('button_list')[0].label).toEqual(b.label);
+      expect(stashesForTest().get('working_vocalization')[0].label).toEqual('occupy');
     });
 
     it("should add return the last modified button", function() {
       var b = {label: "occupy"};
-      var res = utterance.add_button(b);
+      var res = addButtonForTest(b);
       expect(res.label).toEqual('occupy');
 
       var b2 = {label: "try"};
-      res = utterance.add_button(b2);
+      res = addButtonForTest(b2);
       expect(res.label).toEqual('try');
 
       var b3 = {label: ":plural"};
-      res = utterance.add_button(b3);
+      res = addButtonForTest(b3);
       expect(res.label).toEqual('tries');
     });
 
     it("should support adding buttons with multiple vocalizations", function() {
       var b = {label: "occupy", vocalization: "+w&&+a"};
-      var res = utterance.add_button(b);
+      var res = addButtonForTest(b);
       expect(res.label).toEqual('wa');
     });
 
     it("should capitalize keyboard letters and complete them with space", function() {
-      app_state.set('shift', true);
-      utterance.add_button({label: "a", vocalization: "+a"});
-      expect(app_state.get('button_list')[0].label).toEqual("A");
-      expect(app_state.get('button_list')[0].vocalization).toEqual("A");
+      appStateForTest().set('sessionUser.preference.auto_capitalize', true);
+      appStateForTest().set('shift', true);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("A");
+      expect(appStateForTest().get('button_list')[0].vocalization).toEqual("A");
 
-      utterance.add_button({label: "space", vocalization: ":space"});
-      expect(app_state.get('button_list').length).toEqual(1);
-      expect(app_state.get('button_list')[0].label).toEqual("A ");
-      expect(app_state.get('button_list')[0].vocalization).toEqual("A ");
-      expect(app_state.get('button_list')[0].in_progress).toEqual(false);
+      addButtonForTest({label: "space", vocalization: ":space"});
+      expect(appStateForTest().get('button_list').length).toEqual(1);
+      expect(appStateForTest().get('button_list')[0].label).toEqual("A");
+      expect(appStateForTest().get('button_list')[0].vocalization).toEqual("A");
+      expect(appStateForTest().get('button_list')[0].in_progress).toEqual(false);
     });
   });
 
@@ -306,23 +355,23 @@ describe('utterance', function() {
 
   describe("clear", function() {
     it("should clear the buttonList everywhere", function() {
-      utterance.set('rawButtonList', [{}, {}]);
-      expect(app_state.get('button_list').length).toBeGreaterThan(0);
-      expect(stashes.get('working_vocalization').length).toBeGreaterThan(0);
+      setRawButtons( [{}, {}]);
+      expect(appStateForTest().get('button_list').length).toBeGreaterThan(0);
+      expect(stashesForTest().get('working_vocalization').length).toBeGreaterThan(0);
       utterance.clear();
       expect(utterance.get('rawButtonList')).toEqual([]);
-      expect(app_state.get('button_list').length).toEqual(0);
-      expect(stashes.get('working_vocalization').length).toEqual(0);
+      expect(appStateForTest().get('button_list').length).toEqual(0);
+      expect(stashesForTest().get('working_vocalization').length).toEqual(0);
     });
     it("should log a clear event", function() {
       var logged = false;
-      stub(stashes, 'log', function(obj) { logged = obj.action == 'clear'; });
+      stub(stashesForTest(), 'log', function(obj) { logged = obj.action == 'clear'; });
       utterance.clear();
       expect(logged).toEqual(true);
     });
     it("should not log a clear event if specified", function() {
       var logged = false;
-      stub(stashes, 'log', function(obj) { logged = obj.action == 'clear'; });
+      stub(stashesForTest(), 'log', function(obj) { logged = obj.action == 'clear'; });
       utterance.clear({skip_logging: true});
       expect(logged).toEqual(false);
     });
@@ -330,49 +379,49 @@ describe('utterance', function() {
 
   describe("backspace", function() {
     it("should remove the last button", function() {
-      utterance.set('rawButtonList', [{label: "cow"}, {label: "fries"}]);
+      setRawButtons( [{label: "cow"}, {label: "fries"}]);
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(1);
-      expect(utterance.get('rawButtonList')[0]).toEqual({label: "cow"});
+      expect(utterance.get('rawButtonList')[0].label).toEqual("cow");
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(0);
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(0);
     });
     it("should remove modification if last button was a + or : notation", function() {
-      utterance.set('rawButtonList', [{label: "cow"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
-      expect(app_state.get('button_list')[1].label).toEqual("hippo");
-      expect(app_state.get('button_list')[2].label).toEqual("tank");
+      setRawButtons( [{label: "cow"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
+      expect(appStateForTest().get('button_list')[1].label).toEqual("hippo");
+      expect(appStateForTest().get('button_list')[2].label).toEqual("tank");
       utterance.backspace();
-      expect(app_state.get('button_list')[1].label).toEqual("hippo");
+      expect(appStateForTest().get('button_list')[1].label).toEqual("hippo");
       utterance.backspace();
-      expect(app_state.get('button_list')[1].label).toEqual("hippos");
+      expect(appStateForTest().get('button_list')[1].label).toEqual("hippos");
       utterance.backspace();
-      expect(app_state.get('button_list')[1]).toEqual(undefined);
+      expect(appStateForTest().get('button_list')[1]).toEqual(undefined);
     });
     it("should update the stash and controller", function() {
-      utterance.set('rawButtonList', [{label: "cow"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
-      expect(app_state.get('button_list')[1].label).toEqual("hippo");
-      expect(app_state.get('button_list')[2].label).toEqual("tank");
+      setRawButtons( [{label: "cow"}, {label: "hippos"}, {vocalization: ":singular"}, {label: "+tank"}]);
+      expect(appStateForTest().get('button_list')[1].label).toEqual("hippo");
+      expect(appStateForTest().get('button_list')[2].label).toEqual("tank");
       utterance.backspace();
       utterance.backspace();
-      expect(app_state.get('button_list')[1].label).toEqual("hippos");
-      expect(stashes.get('working_vocalization')[1].label).toEqual("hippos");
+      expect(appStateForTest().get('button_list')[1].label).toEqual("hippos");
+      expect(stashesForTest().get('working_vocalization')[1].label).toEqual("hippos");
     });
     it("should log a backspace event", function() {
       var logged = false;
-      stub(stashes, 'log', function(obj) { logged = obj.action == 'backspace'; });
+      stub(stashesForTest(), 'log', function(obj) { logged = obj.action == 'backspace'; });
       utterance.backspace();
       expect(logged).toEqual(true);
     });
 
     it('should not remove the last button if a ghost vocalization', function() {
-      utterance.set('rawButtonList', [{label: "cow"}, {label: "fries"}]);
+      setRawButtons( [{label: "cow"}, {label: "fries"}]);
       utterance.set('list_vocalized', true);
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(2);
       utterance.backspace();
-      expect(utterance.get('rawButtonList')[0]).toEqual({label: "cow"});
+      expect(utterance.get('rawButtonList')[0].label).toEqual("cow");
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(0);
       utterance.backspace();
@@ -380,7 +429,7 @@ describe('utterance', function() {
     });
 
     it('should un-ghost the vocalization if a ghost vocalization', function() {
-      utterance.set('rawButtonList', [{label: "cow"}, {label: "fries"}]);
+      setRawButtons( [{label: "cow"}, {label: "fries"}]);
       utterance.set('list_vocalized', true);
       utterance.backspace();
       expect(utterance.get('rawButtonList').length).toEqual(2);
@@ -393,16 +442,16 @@ describe('utterance', function() {
       var buttons = [{label: "smart"}, {label: "lad"}];
       utterance.set_and_say_buttons(buttons);
       expect(utterance.get('rawButtonList')).toEqual(buttons);
-      expect(app_state.get('button_list').length).toEqual(buttons.length);
-      expect(app_state.get('button_list')[0].label).toEqual(buttons[0].label);
-      expect(app_state.get('button_list')[1].label).toEqual(buttons[1].label);
-      expect(stashes.get('working_vocalization')).toEqual(buttons);
+      expect(appStateForTest().get('button_list').length).toEqual(buttons.length);
+      expect(appStateForTest().get('button_list')[0].label).toEqual(buttons[0].label);
+      expect(appStateForTest().get('button_list')[1].label).toEqual(buttons[1].label);
+      expect(stashesForTest().get('working_vocalization')).toEqual(buttons);
     });
 
     it("should vocalize the new button list", function() {
       var buttons = [{label: "smart"}, {label: "lad"}];
       utterance.set_and_say_buttons(buttons);
-      expect(controller.vocalized).toEqual(true);
+      expect(utteranceController().vocalized).toEqual(true);
     });
   });
 
@@ -416,7 +465,7 @@ describe('utterance', function() {
       var buttons = [
         {label: "how"}, {vocalization: "+ever"}, {label: "are"}, {label: "you"}, {label: "+r"}, {label: "hippo"}, {vocalization: ":plural"}
       ];
-      utterance.set('rawButtonList', buttons);
+      setRawButtons( buttons);
       utterance.vocalize_list();
       expect(log).not.toEqual(null);
       expect(log.text).toEqual("how ever are you r hippos");
@@ -428,7 +477,7 @@ describe('utterance', function() {
       var buttons = [
         {label: "how"}, {vocalization: "+ever"}, {label: "are"}, {label: "you"}, {label: "+r"}, {label: "hippo"}, {vocalization: ":plural"}
       ];
-      utterance.set('rawButtonList', buttons);
+      setRawButtons( buttons);
       utterance.vocalize_list();
       expect(items.length).toEqual(1);
       expect(items[0].text).toEqual("how ever are you r hippos");
@@ -438,24 +487,34 @@ describe('utterance', function() {
   describe("test_voice", function() {
     it("should generate a test utterance using the provided settings", function() {
       var correct = false;
-      var scope = {};
-      window.polyfillSpeechSynthesis(scope);
-      utterance.scope = scope;
+      LingoLinq.sync_testing = true;
+      stub(window, 'Audio', function() { return fakeAudio(); });
       stub(speecher, 'speak_text', function(str, override, u) {
         correct = u.pitch == 1.3 && u.volume == 2.0 && u.rate == 1.1;
       });
+      var scope = {};
+      window.polyfillSpeechSynthesis(scope);
+      utterance.scope = scope;
+      if (scope.speechSynthesis) {
+        stub(scope.speechSynthesis, 'speak', function(u) { if (u && u.trigger) { u.trigger('end'); } });
+      }
       utterance.test_voice("", 1.1, 1.3, 2.0);
       expect(correct).toEqual(true);
     });
 
     it("should correct for bad values", function() {
       var correct = false;
+      LingoLinq.sync_testing = true;
+      stub(window, 'Audio', function() { return fakeAudio(); });
+      stub(speecher, 'speak_text', function(str, override, voiceOpts) {
+        correct = voiceOpts.pitch == 1.0 && voiceOpts.volume == 1.0;
+      });
       var scope = {};
       window.polyfillSpeechSynthesis(scope);
       utterance.scope = scope;
-      stub(speecher, 'speak_text', function(str, override, utterance) {
-        correct = utterance.pitch == 1.0 && utterance.volume == 1.0;
-      });
+      if (scope.speechSynthesis) {
+        stub(scope.speechSynthesis, 'speak', function(u) { if (u && u.trigger) { u.trigger('end'); } });
+      }
       utterance.test_voice("hand", "crank");
       expect(correct).toEqual(true);
     });

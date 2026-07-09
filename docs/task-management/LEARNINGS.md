@@ -61,6 +61,7 @@ file (see [README.md](README.md)).
 - [Pattern: Every `belongs_to`/`has_one` access in a `JsonApi::*` serializer is a potential N+1 — eager-load it at the list-endpoint controller](#pattern-every-belongs_tohas_one-access-in-a-jsonapi-serializer-is-a-potential-n1--eager-load-it-at-the-list-endpoint-controller)
 - [Pattern: Query-count specs must be verified to FAIL against the broken state — otherwise they're no-ops](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)
 - [Pattern: For component tests in this codebase, use legacy Jasmine — not `setupApplicationTest` + Mirage (which hangs)](#pattern-for-component-tests-in-this-codebase-use-legacy-jasmine--not-setupapplicationtest--mirage-which-hangs)
+- [Pattern: Ember 5 QUnit unit tests — persistence proxy, run loop, and subject shape](#pattern-ember-5-qunit-unit-tests--persistence-proxy-run-loop-and-subject-shape)
 - [Pattern: Canvas component tests use a context-recorder stub, not pixel inspection](#pattern-canvas-component-tests-use-a-context-recorder-stub-not-pixel-inspection)
 - [Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim](#pattern-installing-a-v2-format-ember-addon-on-ember-328-requires-ember-auto-import--a-jquery-externals-shim)
 - [Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence](#pattern-same-named-computeds-defined-across-modelcomponentcontroller-are-widespread-and-often-diverge--gate-visibility-dependent-code-on-dom-presence)
@@ -4003,9 +4004,75 @@ first run and left the file untouched.
 
 **Root cause:** Classic boards wrap the grid in `.advanced_selection`, which blocks native clicks and routes selection only through `raw_events`. board-detail omits that wrapper so Ember `{{action "select_button"}}` works, but symbol cards still carry class `.button`. On **mouse**, `raw_events` `touch_release` → `buttonSelect` runs on `mouseup`, then the native `click` fires the same Ember action — two `utterance.add_button` calls (often one capitalized, one not). On **touch**, `preventDefault` on `touchend` suppresses the synthesized click, so `raw_events` must remain the sole path.
 
-**Fix recipe:** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
+**Fix recipe (pre–Ember 5):** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
 
-**Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; task log `2026-06-09-board-detail-speak-bar-double-add.md`.
+**Ember 5 regression (2026-06-22):** The defer-to-Ember `{{on "click"}}` path silently stopped working — `preventDefault` on `mouseup` cancels the native click, and `dispatchPassThroughClick` does not reach Ember 5 co-located classic component listeners (runtime-verified). **Fix:** Revert defer; always route speak-mode releases through `buttonSelect`. `preventDefault` on `mouseup` still suppresses duplicate native click, so no double speak-bar add.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/components/board-detail-grid.hbs`; task logs `2026-06-09-board-detail-speak-bar-double-add.md`, `2026-06-17-ember5-upgrade.md`.
+
+---
+
+## Pattern: board-detail chrome + speak header — route `controller.send`, not synthetic click
+
+**Surface:** board-detail page chrome (sentence bar tools, options menu, sidebar toggle, local home/back) and application `#speak` header (home, back, clear, backspace, speak options) while `#within_ember` carries `.board-detail-view`.
+
+**Root cause:** Same Ember 5 failure as the grid: `preventDefault` on `mouseup` cancels the browser click, and `dispatchPassThroughClick` does not reach `{{on "click" (fn this.ctrlAction …)}}` on co-located classic templates (runtime-verified: pass-through logs fire, zero `ctrlAction` logs).
+
+**Fix recipe:** In `raw_events.js`, `boardDetailChromeRelease()` maps pointer releases inside `.board-detail-view` (excluding grid `.button` targets) directly to `controller.send`:
+- Application speak header IDs → `appState.controller` (`home`, `clear`, `backspace`, `speakOptions`, …).
+- Board-detail controls → `editManager.controller` via class/id maps for stable chrome (sentence bar, options toggle, sidebar) and `data-bd-action` / `data-bd-arg` on menu/sidebar buttons (100+ `ctrlAction` targets).
+
+Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events paths; raw_events is the sole mouse/touch path in speak mode.
+
+**Ember 5 post-codemod regression (2026-06-23):** After fixing `(fn this.ctrlAction …)` → `(this.ctrlAction …)`, Ember `{{on}}` works again on mouse. `boardDetailChromeRelease` on `mouseup` still runs first, then the native `click` reaches Ember — toggles fire twice (options ⋮ menu opens then immediately closes). **Fix:** mirror grid defer — `defer_board_detail_chrome_click_to_ember` skips `preventDefault` and `boardDetailChromeRelease` for speak-mode mouse on chrome targets; touch/dwell still route through `boardDetailChromeRelease`.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js` (`defer_board_detail_chrome_click_to_ember`), `application.hbs`, `board-detail.hbs`; debug session `bcf18d` (2026-06-22).
+
+---
+
+## Pattern: board-detail edit toolbar — same Ember 5 routing as chrome, plus `ignored_region`
+
+**Surface:** per-button edit toolbar on symbol cards in edit mode (`board-detail-grid` co-located component).
+
+**Root cause:** Toolbar buttons are in `ignored_region` so `touch_release` skips `element_release` and expects native click → co-located `{{on "click"}}`. Ember 5 never delivers that click (same co-located classic component failure as speak chrome). Card body taps still work via `button_select` → `controller.send('buttonSelect')`.
+
+**Fix recipe:** Mark each toolbar control with `data-bd-edit-action="edit_button_settings"` (or `*_by_id` for portal dropdown). In `raw_events.js`, `boardDetailGridEditActionRelease()` resolves the action on pointer release and calls `editManager.controller.send`.
+
+**Evidence:** `raw_events.js`, `board-detail-grid.hbs`, `2026-06-23-board-detail-edit-toolbar-clicks.md`.
+
+---
+
+## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
+
+**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+
+**Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
+
+**Evidence:** `speak-menu.hbs`, `button-settings.hbs`, `raw_events.js`; task logs `2026-06-23-board-detail-edit-toolbar-clicks.md`, `2026-06-26-speak-menu-modal-close-fix.md`.
+
+---
+
+## Pattern: board-detail edit-mode panel chrome never routed (speak-only gap)
+
+**Surface:** Done Editing, Discard, left/right edit panels on `user.board-detail` edit route.
+
+**Root cause:** `boardDetailChromeRelease` and `find_selectable_under_event` chrome wrapping were gated on `speak_mode` only. In `edit_mode`, `element_release` only handled grid symbol cards; panel clicks had no path to `controller.send`. Buttons already had `data-bd-action`; resolver was fine.
+
+**Fix:** Extend chrome detection to `edit_mode`; call `boardDetailChromeRelease` / `boardDetailChromeReleaseFromEvent` from edit-mode release paths; exclude `.modal-content` from chrome routing; `modalDialogClickRelease` pass-through for modal buttons; `dispatchPassThroughClick` fallback for controls without `data-bd-action`.
+
+**Evidence:** `raw_events.js`, `2026-06-23-board-detail-edit-panel-clicks.md`.
+
+---
+
+## Pattern: `EXTEND_PROTOTYPES: false` — Ember Array methods on native arrays
+
+**Surface:** speak mode button taps, speak-bar backspace, any `utterance.add_button` path.
+
+**Root cause:** `config/environment.js` sets `EXTEND_PROTOTYPES: false`. `rawButtonList` / `working_vocalization` are native arrays. Calls like `pushObject`, `insertAt`, `removeAt`, `popObject`, `pushObjects` throw (`… is not a function`), aborting `activate_button` after entry — silent failure (no console error if uncaught in async path). Folder navigation still works because it returns before `activateButton`.
+
+**Fix recipe:** Use native array ops (`push`, `splice`, `pop`, `concat`) and `this.set('rawButtonList', nextList)` so `rawButtonList.[]` observers fire. Same class of bug as `.uniq()` on `board.js` and `pushObjects` on `user/index`.
+
+**Evidence:** `app/frontend/app/utils/utterance.js` (`add_button`, `backspace`); runtime logs `post-fix4` (`add_button done`, `btnListLen` 1→7); task log `2026-06-17-ember5-upgrade.md`.
 
 ---
 
@@ -5477,7 +5544,22 @@ forward; the 2026-06-13 posture report had stale 0/13 + FERPA 8/4 figures that d
 register's 0/16 + FERPA 10/5. Run all three `--check` renders + `citation-check` green before
 committing. Confirmed 2026-06-18.
 
+### Ember 5: classic `extend` callback props need `init()` arrow bindings
+
+On `Controller.extend` / `Component.extend`, methods passed as **callback props** to child components (e.g. `opening-observer` `opening`/`closing`, `@onClose`, yielded `closeDrawer`) lose `this` when the child invokes them. Ember 5 dev asserts if you use `(fn this.method)` with unbound prototype methods. Fix: assign arrow functions in `init()`, and **capture services/locals in closure** — do not reference `this.appState` (or other injected services) inside the arrow body when the callback is passed as a component arg; Ember's `fn` wrapper still asserts on `this.*` access:
+
+```javascript
+init() {
+  this._super(...arguments);
+  var appState = this.appState;
+  this.opening_index = () => { appState.set('index_view', true); };
+}
+```
+
+`{{on "click" this.method}}` on the same component often still works; the issue is specifically **callbacks passed to children**. Store service must re-export `ember-data/store` (not `@ember-data/store`) until full legacy-compat migration. Custom `transforms/raw.js` must use **default** import: `import Transform from '@ember-data/serializer/transform'` — `{ Transform }` is undefined (`Transform.extend` crash on user fetch). See `docs/task-management/2026-06-17-ember5-upgrade.md`.
+
 ---
+
 
 ## Gotcha: the custom `{{and}}` helper is 2-ARG ONLY — extra operands are silently dropped
 
@@ -5671,6 +5753,201 @@ failed save can't wedge the queue, and expose the tail as `_lastSave` for caller
 for persistence to settle (e.g. a reload-on-close). See
 `app/frontend/app/components/sidebar-editor.js#_save`.
 
+
+---
+
+## Pattern: Ember 5 QUnit unit tests — persistence proxy, run loop, and subject shape
+
+**Surface:** `app/frontend/tests/unit/**`, `tests/helpers/persistence-stub.js`, any test
+that stubs `frontend/utils/persistence`, uses `setupTest` / `settled()` / `waitUntil()`,
+or boots a full controller/component to assert on a single method.
+
+**Context:** On `feat/melissa-ember-5-12-upgrade`, CI QUnit failures clustered into a
+few repeatable families (see
+[`2026-06-26-ember5-ci-unit-test-fixes.md`](./2026-06-26-ember5-ci-unit-test-fixes.md)).
+Unit modules listed in [`tests/test-helper.js`](../app/frontend/tests/test-helper.js)
+explicit imports **do** run under `npx ember test`; the older gotcha that the unit
+suite is never loaded is stale for those modules — but most `tests/unit/**` files are
+still not auto-discovered unless added there or pre-loaded by the AMD loop.
+
+### 1. Stub persistence on the service instance, not the module export
+
+`frontend/utils/persistence` re-exports a **Proxy** that forwards method calls to
+`window.persistence` (the running service). Assigning `persistence.ajax = …` on the
+import does nothing at runtime → real ember-ajax 404s in tests.
+
+```js
+import { persistenceTarget, stubPersistenceAjax } from '../../helpers/persistence-stub';
+
+hooks.beforeEach(function() {
+  this._restorePersistenceAjax = stubPersistenceAjax(function() {
+    return RSVP.reject({ error: 'offline in test' });
+  });
+});
+hooks.afterEach(function() {
+  if (this._restorePersistenceAjax) { this._restorePersistenceAjax(); }
+});
+```
+
+Also stub `url_cache` / `url_uncache` on `persistenceTarget()`, not on the module.
+
+### 2. Use the container — not bare `.create()`
+
+`BoardIndexController.create()` (and similar) bypasses injection; Ember 5 asserts when
+computed properties resolve `persistence` / `app-state` without a container.
+
+```js
+// Prefer
+this.owner.factoryFor('controller:copying-board').create();
+
+// Or pass mocks explicitly when testing a method in isolation
+BoardIndexController.create({
+  persistence: EmberObject.create({ … }),
+  appState: EmberObject.create({ … })
+});
+```
+
+### 3. A 60s timeout on a “sync” test is usually async cleanup, not the assertion
+
+**Default fix (2026-06):** import `setupTest` from `frontend/tests/helpers` (or
+`../../helpers`), **not** directly from `ember-qunit`. The wrapper sets
+`waitForSettled: false` by default so `afterEach` does not call `settled()`.
+Jasmine-style tests use the same wrapper via `tests/helpers/jasmine.js`.
+
+Raw `setupTest(hooks)` from `ember-qunit` wires `afterEach` → `teardownContext` →
+**`settled()`**. Booting a heavy object (`controller:user/board-detail`,
+`component:copying-board`, Ember Data records) schedules `runLater`, observers, and
+RSVP chains that never finish in a unit test → `settled()` blocks until QUnit’s 60s cap.
+
+**Symptom:** test body is one or two `assert.equal` calls; browser log is empty;
+runtime ≈ 60000ms exactly.
+
+**Fix ladder (pick the shallowest that fits):**
+
+| Situation | Fix |
+|-----------|-----|
+| Test only calls pure prototype methods (`_resolve_cached_image_url`, `_word_prediction_locale`, …) | Prefer **`Controller.create({ …stubs })`** or **`factoryFor().create()`** with `setupTest` from **`tests/helpers`**. Copying `Controller.prototype.method` onto `EmberObject.create({ … })` often fails — the method may be missing on `.prototype` in the test bundle, so the instance property is `undefined`. For small controllers, bare `.create()` with mocked injections works (see `board-index-word-prediction-locale-test.js`). |
+| Test drives async modal/hierarchy code | `setupTest` from **`tests/helpers`**; poll completion with **`run` + `later`**, not native `setTimeout` or `await settled()`. |
+| Test stubs a loader that never settles (hung buttonset) | Reject the hung RSVP in `afterEach` so orphans don't wedge the next test. |
+| Code under test uses `@ember/runloop` (`opening()`, `init` → `runOpening`) | Wrap the trigger in `run(function() { … })`. |
+
+**Do not** reach for `await settled()` or `@ember/test-helpers` `waitUntil()` when
+orphan RSVP promises exist (never-settling stubs) — `waitUntil` polls with `settled()`
+between attempts and hangs the same way.
+
+### 4. Native `setTimeout` does not flush Ember `later()`
+
+`copy_hierarchy_loader.js` schedules early live-links fallback with `later()`. A
+`pollUntil` loop built on `setTimeout(tick, 10)` never advances those timers → the
+promise never resolves → `loading` stays true → 60s timeout.
+
+```js
+import { run, later } from '@ember/runloop';
+
+function pollUntil(condition, timeoutMs) {
+  timeoutMs = timeoutMs || 10000;
+  return new RSVP.Promise(function(resolve, reject) {
+    var start = Date.now();
+    function tick() {
+      if (condition()) { resolve(); return; }
+      if (Date.now() - start >= timeoutMs) {
+        reject(new Error('pollUntil timed out after ' + timeoutMs + 'ms'));
+        return;
+      }
+      later(tick, 10);
+    }
+    run(tick);
+  });
+}
+```
+
+Contrast: `hide_loading_overlay()` uses `runLater` — poll with `run`/`later` (see
+`loading-overlay-cache-test.js#waitForOverlayHidden`), not `await settled()`, when
+orphan promises may still be pending.
+
+### 5. ember-qunit 8 / Ember 5 component gotchas
+
+- Legacy Jasmine **`this.subject()`** is not wired reliably — use
+  `this.owner.factoryFor('component:audio-browser').create()`.
+- **`element` is read-only** on Ember 5 components — use
+  `Object.defineProperty(component, 'element', { get: () => fakeHost })`, not
+  `component.set('element', …)`.
+- **`clear_user_state`** must not `set('referenced_user', null)` — that property is
+  now a computed derived from `currentUser`.
+
+### 6. Jasmine `describe()` errors poison global state
+
+`tests/helpers/jasmine.js` keeps module-global `names`, `all_befores`, etc. If a
+top-level `describe()` callback throws **before** `names.pop()` (e.g.
+`afterEach is not defined` in `board-preview-canvas-test.js`), the stack stays dirty:
+later suites register **without** `QUnit.module` + `setupTest`, test titles pick up
+the leaked prefix (`BoardPreviewCanvasComponent capabilities …`), and
+`ember_helper`’s `beforeEach` calls `persistence.set` on a **destroyed** service
+from the last torn-down owner.
+
+**Fix recipe:**
+
+- Import every jasmine helper you use (`afterEach`, `waitsFor`, `runs`, …).
+- `jasmine.js` wraps `add_test()` in `try/finally` so `names.pop()` always runs.
+- `ember_helper` resets persistence via `owner.lookup('service:persistence')` when
+  `this.owner` exists, and skips `set` when the target is destroyed.
+
+**Symptom:** hundreds of legacy Jasmine tests fail with
+`calling set on destroyed object: … persistence … online = true`, often with wrong
+test name prefixes. Or `Cannot read properties of undefined (reading 'lookup')` in
+`runs()` / post `afterEach` when `testOwner.lookup` runs after ember-qunit teardown.
+
+**Also:** `afterEach` in `jasmine.js` pushed to `all_afters[length - 1]` (the root bucket)
+while nested describes `unshift` new levels at index 0 — so every nested `afterEach` (e.g.
+`testOwner.lookup` cleanup in `application-test.js`) leaked into **all** tests' post hooks.
+Use `all_afters[0]` to match `beforeEach` / `unshift` symmetry.
+
+**First seen in:** [2026-06-26-ember5-ci-unit-test-fixes.md](./2026-06-26-ember5-ci-unit-test-fixes.md).
+
+**Also:** `restoreStubs()` in `test_wrap` must run **after** inner `waitsFor`/`runs` async
+callbacks (in the outer post-`runs` block), not synchronously after `instance.call()`.
+Early restore clears stubs before promise chains run — symptom: `word_suggestions` gets
+`images/square.svg` instead of stubbed `fallback_url`, persistence stubs ignored, hundreds
+of Jasmine assertion failures.
+
+**ContentGrabbers in Jasmine:** `utils/content_grabbers` is a Proxy to `window.cg`. Do not
+capture `contentGrabbers.videoGrabber` at describe registration time; assign in `beforeEach`
+after `ember_helper` runs `owner.lookup('service:content-grabbers')`.
+
+**Puppeteer localStorage:** use `replaceLocalStorage()` from `ember_helper` — assignment
+`window.localStorage = {…}` throws (getter-only).
+
+**Persistence/app-state stubs:** `utils/persistence` and `utils/app_state` are Proxies whose
+get traps forward to `window.persistence` / `LingoLinq.appState`. Jasmine `stub()` mirrors
+onto the live service when stubbing the util export; QUnit tests should use
+`stubPersistence()` / `persistenceTarget()` instead of assigning `persistence.ajax`.
+**Prime first:** call `primePersistenceService(owner)` (via `setupTest` or
+`ember_helper` beforeEach) before stubbing — otherwise first model `createRecord`
+replaces the placeholder and drops ajax stubs (symptom: ember-ajax 404, ~4650ms
+timeouts in Board/User model tests).
+
+**First seen in:** [2026-06-27-ember-test-ci-failures.md](./2026-06-27-ember-test-ci-failures.md).
+
+### 6. BoardHierarchy / store in copy-modal tests
+
+Monkey-patch `BoardHierarchy.load_with_button_set` and `load_from_live_links` in
+the test **before** calling `opening()`. Never rely on real `load_from_live_links`
+(`LingoLinq.store.findRecord`) in unit tests — it hangs without a populated store.
+Set `earlyLiveLinksDelayMs: 0` (or a small ms value) on the controller/component so
+tests don't wait for the production 6000ms default.
+
+**Reference implementations:**
+
+- `tests/helpers/index.js` — `setupTest` wrapper with default `waitForSettled: false`
+- `tests/unit/controllers/copying-board-test.js` — `pollUntil`, `openCopyModal`, hung-buttonset cleanup
+- `tests/unit/controllers/user-board-detail-image-cache-test.js` — `factoryFor` + `waitForSettled: false`; side-effect `import 'frontend/models/board'` for `LingoLinq.Board.*` statics
+- `tests/unit/controllers/board-index-word-prediction-locale-test.js` — isolated method context
+
+**First seen in:** [`2026-06-26-ember5-ci-unit-test-fixes.md`](./2026-06-26-ember5-ci-unit-test-fixes.md)
+(on `feat/melissa-ember-5-12-upgrade`).
+
+---
+
 ## Adding a new component-based modal (frontend)
 The modal system is component-based. To add a modal named `X`, FIVE wiring points are required —
 miss any one and it silently won't render:
@@ -5810,6 +6087,29 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
 `md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+
+---
+
+## Pattern: Ember 5 CI hang — destroyed-object read in post-teardown callback
+
+**Surface:** Full `ember test` in CI wedges for hours with no pass/fail count; local module
+filters may look fine.
+
+**Cause:** After a test tears down the app, a leaked `observer` / `later()` reads a computed on a
+destroyed service. Ember 3.28 returned `undefined`; **Ember 5 throws**. The throw re-enters
+`window.onerror` / app `Ember.onerror` until stack overflow, corrupting Testem so every later test
+appears to timeout.
+
+**Fix (production):** Guard chokepoints — e.g. `edit_manager.process_for_displaying` bails when
+`appState.isDestroyed` (`a98bd1b7a`). Same pattern on high-traffic observers/timers
+(`app-state` `on_user_change`, `refresh_user`, `check_for_board_readiness`); cancel recurring
+`runLater` in `willDestroy`.
+
+**Fix (harness):** `start({ setupTestIsolationValidation: true, testIsolationValidationDelay: 50 })`;
+lower `QUnit.config.testTimeout` so wedges fail in seconds. Do **not** expect fixing
+`window.onerror` recursion alone to turn red tests green — it only amplifies the underlying error.
+
+See [`2026-06-27-ember5-ci-remaining-test-fixes.md`](./2026-06-27-ember5-ci-remaining-test-fixes.md).
 
 ## Gotcha: the Eval tool renders through the CLASSIC board renderer — re-skin, don't re-route
 
@@ -6098,3 +6398,14 @@ what makes incremental-persistence resume score correctly).
 **Confirm at runtime:** `Object.keys(window.current_assesment.events||{})` on the
 results page — `"undefined"`/`"intro"` keys (or `{}`) = mis-keyed; real section ids
 (`find_target`, …) = correct.
+## Gotcha: `sync_changed` tmp-ID remap must clone `buttons` before `set` — in-place mutation on `attr('raw')` does not dirty
+
+After offline sync uploads tmp boards/images/sounds, `sync_changed` runs a second pass
+(`re_updates`) to rewrite button `image_id` / `sound_id` / `load_board.id` from `tmp_*` to
+permanent ids. Mutating the existing `buttons` array in place and calling
+`record.set('buttons', buttons)` with the same reference does not reliably mark the
+`attr('raw')` attribute dirty in Ember Data 5.x — the follow-up `save()` is skipped and
+CI test 1211 (`persistence-sync` temp-ID links) times out waiting for permanent links.
+Clone each button (and nested `load_board`) into a new array before `set`, matching the
+`[].concat(buttons)` pattern already used in `board.js#add_button`. Touch both
+`app/utils/persistence.js` and `app/services/persistence.js`. (2026-07-08)

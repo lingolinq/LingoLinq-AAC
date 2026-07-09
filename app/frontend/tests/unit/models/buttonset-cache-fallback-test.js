@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { setupTest } from 'ember-qunit';
+import { setupTest } from '../../helpers';
 import RSVP from 'rsvp';
 
 module('Unit | Model | buttonset cache fallback', function(hooks) {

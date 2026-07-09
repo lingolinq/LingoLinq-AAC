@@ -2182,9 +2182,10 @@ var capabilities;
           }
           capabilities.dbman.find_all(getter.store, getter.index, getter.value, function(res) {
             changes = changes.concat(res);
+            var stepDelay = (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.sync_testing) ? 0 : 500;
             setTimeout(function() {
               next_getter();
-            }, 500);
+            }, stepDelay);
           }, function() {
             promise.reject({error: "error retrieving changes from db for " + getter.store});
           });

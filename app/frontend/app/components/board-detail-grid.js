@@ -25,6 +25,34 @@ export default Component.extend({
   init: function() {
     this._super(...arguments);
     var _this = this;
+    this.selfActionNoBubble = function(attrName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        var action = _this.get(attrName);
+        if (action) { action.apply(null, bound); }
+      };
+    };
+    // Parent-passed closures (selectButton, closeColorPicker, …) are only
+    // reliable via this.get() in classic components — bare this.selectButton
+    // in templates is undefined under Ember 5. Speak-mode mouse clicks use
+    // these {{on}} handlers; touch/dwell/keyboard still use raw_events buttonSelect.
+    this.invokeAttr = function(attrName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var action = _this.get(attrName);
+        if (action) {
+          action.apply(null, bound.concat(Array.prototype.slice.call(arguments)));
+        }
+      };
+    };
+    this.invokeAttr0 = function(attrName) {
+      return function() {
+        var action = _this.get(attrName);
+        if (action) { action.apply(null, arguments); }
+      };
+    };
     this._on_resize = function() {
       _this._schedule_fit('resize');
     };

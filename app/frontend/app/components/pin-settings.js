@@ -17,6 +17,14 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.set('ctrlAction', function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    });
     const modalService = this.get('modal');
     const template = 'pin-settings';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -140,5 +148,13 @@ export default Component.extend({
       var el = document.getElementById('speak_mode_pin');
       if(el) { el.focus(); }
     }
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
   }
 });

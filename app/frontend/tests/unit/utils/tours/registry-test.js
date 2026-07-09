@@ -40,9 +40,10 @@ module('Unit | Utility | tours/registry', function() {
     assert.equal(typeof tourBuilderFor('user.board-detail.edit', 'focused', true), 'function');
   });
 
-  test('board-detail tour is absent when NOT in edit mode', function(assert) {
-    assert.equal(tourKeyFor('user.board-detail.index', 'gentle', false), null);
-    assert.equal(tourBuilderFor('user.board-detail.index', 'gentle'), null);
-    assert.equal(tourBuilderFor('user.board-detail.index', 'gentle', false), null);
+  test('board-detail speak tour is available when NOT in edit mode', function(assert) {
+    assert.equal(tourKeyFor('user.board-detail.index', 'gentle', false), 'board_detail_speak_gentle');
+    assert.equal(typeof tourBuilderFor('user.board-detail.index', 'gentle', false), 'function');
+    assert.equal(tourKeyFor('user.board-detail.index', 'gentle'), 'board_detail_speak_gentle');
+    assert.equal(typeof tourBuilderFor('user.board-detail.index', 'gentle'), 'function');
   });
 });

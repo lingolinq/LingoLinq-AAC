@@ -47,6 +47,10 @@
 # Cursor IDE debug session logs (NDJSON)
 .cursor/debug*.log
 
+# Local Cursor MCP config (Forge CRM etc.) — per-developer, not shared
+.cursor/mcp.json
+bin/forgecrm-mcp
+
 # Ignore local Claude Code settings + worktrees, but TRACK the shared audit system.
 # Pattern note: exclude the CONTENTS of /.claude (not the dir itself) so the
 # audit subtree below can be re-included. Re-including a child of a fully-excluded

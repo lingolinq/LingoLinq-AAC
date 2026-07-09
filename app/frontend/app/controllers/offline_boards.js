@@ -1,12 +1,9 @@
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import emergency from '../utils/obf-emergency';
 import { computed, observer, set as emberSet } from '@ember/object';
 
 export default Controller.extend({
-  router: service('router'),
-
   preferred_locale: computed('last_locale', function() {
     if(this.get('last_locale')) { return this.get('last_locale'); }
     return navigator.language.toLowerCase().split(/-|_/)[0];
@@ -57,24 +54,5 @@ export default Controller.extend({
   }),
   toggle_locale: observer('preferred_locale', function() {
 
-  }),
-  actions: {
-    pick: function(board) {
-      window.emergency = emergency;
-      var list = this.get('locales');
-      var boardKey = board.path;
-      list.forEach(function(loc) {
-        loc.boards.forEach(function(b) {
-          console.log(b.id, board.id);
-          emberSet(b, 'chosen', (b == board));
-        });  
-      });
-      this.get('router').transitionTo('demo.speak', {
-        queryParams: {
-          board: boardKey,
-          source: 'offline_boards'
-        }
-      });
-    }
-  }
+  })
 });

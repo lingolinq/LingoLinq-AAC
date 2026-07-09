@@ -511,6 +511,9 @@ var modal = EmberObject.extend({
       }
       return;
     }
+    if(this.route) {
+      this.route.render('flash-message', { into: 'application', outlet: 'flash-message' });
+    }
   },
   fade_flash: function() {
     var flash = document.querySelector('.flash');
