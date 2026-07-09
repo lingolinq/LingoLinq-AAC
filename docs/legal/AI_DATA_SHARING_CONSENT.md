@@ -130,6 +130,22 @@ circumstances contemplated by this phase.
   etc.); prior versions are never edited in place, so a user who consented at an old version can
   still see exactly what they agreed to.
 
+### 4.1 `es` (Spanish) is a hard gate before enforcement, not a loose follow-up
+
+`config/locales` currently has only `en.yml`; there is no `es.yml`. The Ember-side locale JSONs
+(`public/locales/es.json` and 11 others) carry auto-translated `***`-prefixed placeholder text that
+has never been human-reviewed, including for the new keys added by the `privacy.hbs` edit in this
+phase (`feat(02-02.1)`).
+
+**Binding rule:** a machine-translated, unreviewed Spanish disclosure does not meet the "clearly
+understandable" notice standard COPPA requires for a Spanish-speaking parent. Human-reviewed
+Spanish coverage for BOTH the disclosure content (a future `config/locales/es.yml` mirroring the
+`ai_consent_disclosures.v1.*` key structure in `config/locales/en.yml`) AND the `privacy.hbs`
+additions (the 12 new keys in `public/locales/es.json`, currently placeholder-only) is a
+**BLOCKING dependency before any enforcement is turned on for `es`-locale users** (VPC Phase 4 and
+Phase 5 rollout). This is not a "nice to have" tracked loosely; it gates go-live for Spanish-locale
+accounts specifically, the same way Task 02-02.8 legal sign-off gates go-live generally.
+
 ## 5. Revocation semantics
 
 A parent (or the account holder, once old enough) can withdraw AI data-sharing consent at any time.
