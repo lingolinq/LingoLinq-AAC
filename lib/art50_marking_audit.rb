@@ -72,11 +72,16 @@ module Art50MarkingAudit
 
     boards.find_each(batch_size: batch_size) do |board|
       settings = safe_settings(board)
-      if settings.nil?
+      unless settings.is_a?(Hash)
+        # safe_settings returned nil (a decrypt error) OR the board's settings decoded
+        # to an unexpected non-Hash value. A persisted board's settings is always a Hash
+        # (Board#generate_defaults coerces `settings ||= {}` before save), so either case
+        # is an anomaly the audit could not inspect for a marker. Count it as unreadable
+        # so the run cannot report :clean over a board it never actually checked, rather
+        # than silently skipping it.
         unreadable += 1
         next
       end
-      next unless settings.is_a?(Hash)
 
       marker = settings['ai_generated']
       marker_present = marker.is_a?(Hash)

@@ -147,5 +147,17 @@ describe Art50MarkingAudit do
       expect(stats[:unreadable]).to eq(1)
       expect(stats[:status]).to eq(:indeterminate)
     end
+
+    it 'returns :indeterminate for a board whose settings decoded to a non-Hash value' do
+      b = Board.create(user: user)
+      # A malformed, non-raising settings value (e.g. corrupted to an Array) must not be
+      # silently skipped: it is uninspectable and counts as unreadable, not :clean.
+      allow_any_instance_of(Board).to receive(:settings).and_return(['not', 'a', 'hash'])
+
+      stats = audit(b)
+      expect(stats[:unreadable]).to eq(1)
+      expect(stats[:originals][:total]).to eq(0)
+      expect(stats[:status]).to eq(:indeterminate)
+    end
   end
 end
