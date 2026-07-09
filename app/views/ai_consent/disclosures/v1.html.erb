@@ -1,0 +1,90 @@
+<%# AI data-sharing disclosure, version 1 (VPC Phase 2).
+    Rendered without a layout (see AiConsent::DisclosuresController#show) so
+    this fragment can be viewed standalone AND fetched raw by the future
+    Ember consent modal (VPC Phase 3) without pulling in the SPA shell.
+    Long-form prose lives here via standard Rails i18n
+    (config/locales/en.yml, "ai_consent_disclosures.v1.*"); the structured
+    facts it must not contradict (vendor list, retention windows, data
+    categories) come from LingoLinq::AiConsentDisclosures.metadata(1),
+    passed in as @metadata by the controller, so there is exactly one
+    source of truth for those facts. %>
+<div class="ai-consent-disclosure" data-disclosure-version="<%= @metadata['version'] %>" data-content-hash="<%= @metadata['content_hash'] %>" lang="en">
+  <header>
+    <h1><%= t('ai_consent_disclosures.v1.page_title') %></h1>
+    <p><%= t('ai_consent_disclosures.v1.heading') %></p>
+  </header>
+
+  <p><%= t('ai_consent_disclosures.v1.intro') %></p>
+
+  <section aria-labelledby="ai-consent-required-heading">
+    <h2 id="ai-consent-required-heading"><%= t('ai_consent_disclosures.v1.consent_required_heading') %></h2>
+    <p><%= t('ai_consent_disclosures.v1.consent_required_body') %></p>
+  </section>
+
+  <section aria-labelledby="ai-consent-how-heading">
+    <h2 id="ai-consent-how-heading"><%= t('ai_consent_disclosures.v1.how_to_consent_heading') %></h2>
+    <p><%= t('ai_consent_disclosures.v1.how_to_consent_body') %></p>
+  </section>
+
+  <section aria-labelledby="ai-consent-what-heading">
+    <h2 id="ai-consent-what-heading"><%= t('ai_consent_disclosures.v1.what_we_send_heading') %></h2>
+    <p><%= t('ai_consent_disclosures.v1.what_we_send_intro') %></p>
+    <ul>
+      <li><%= t('ai_consent_disclosures.v1.what_we_send_item_board') %></li>
+      <li><%= t('ai_consent_disclosures.v1.what_we_send_item_prediction') %></li>
+      <li><%= t('ai_consent_disclosures.v1.what_we_send_item_eval') %></li>
+    </ul>
+    <h3><%= t('ai_consent_disclosures.v1.scrubbing_heading') %></h3>
+    <p><%= t('ai_consent_disclosures.v1.scrubbing_body') %></p>
+  </section>
+
+  <section aria-labelledby="ai-consent-who-heading">
+    <h2 id="ai-consent-who-heading"><%= t('ai_consent_disclosures.v1.who_we_send_to_heading') %></h2>
+    <p><%= t('ai_consent_disclosures.v1.who_we_send_to_intro') %></p>
+    <ul>
+      <% @metadata['vendors'].each do |vendor| %>
+        <li>
+          <strong><%= vendor['name'] %></strong>
+          (<%= vendor['tier'] %>)
+          &mdash; <%= vendor['models'].join(', ') %>.
+          <%= vendor['trains_on_data'] == false ? t('ai_consent_disclosures.v1.training_confirmed_zdr') : t('ai_consent_disclosures.v1.training_unconfirmed') %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+
+  <section aria-labelledby="ai-consent-retention-heading">
+    <h2 id="ai-consent-retention-heading"><%= t('ai_consent_disclosures.v1.retention_heading') %></h2>
+    <p><%= t('ai_consent_disclosures.v1.retention_vendor_intro') %></p>
+    <p><%= t('ai_consent_disclosures.v1.retention_lingolinq_intro') %></p>
+    <ul>
+      <li><%= t('ai_consent_disclosures.v1.retention_eu') %></li>
+      <li><%= t('ai_consent_disclosures.v1.retention_children') %></li>
+      <li><%= t('ai_consent_disclosures.v1.retention_general') %></li>
+      <li><%= t('ai_consent_disclosures.v1.retention_ip') %></li>
+      <li><%= t('ai_consent_disclosures.v1.retention_account_deletion') %></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="ai-consent-revocation-heading">
+    <h2 id="ai-consent-revocation-heading"><%= t('ai_consent_disclosures.v1.revocation_heading') %></h2>
+    <p><%= t('ai_consent_disclosures.v1.revocation_body') %></p>
+  </section>
+
+  <section aria-labelledby="ai-consent-no-consent-heading">
+    <h2 id="ai-consent-no-consent-heading"><%= t('ai_consent_disclosures.v1.no_consent_heading') %></h2>
+    <p><%= t('ai_consent_disclosures.v1.no_consent_body') %></p>
+  </section>
+
+  <section aria-labelledby="ai-consent-privacy-heading">
+    <h2 id="ai-consent-privacy-heading"><%= t('ai_consent_disclosures.v1.privacy_policy_heading') %></h2>
+    <p>
+      <%= t('ai_consent_disclosures.v1.privacy_policy_intro') %>
+      <%= link_to t('ai_consent_disclosures.v1.privacy_policy_link_text'), '/privacy' %>.
+    </p>
+  </section>
+
+  <footer>
+    <p><%= t('ai_consent_disclosures.v1.version_footer', version: @metadata['version'], effective_date: @metadata['effective_date']) %></p>
+  </footer>
+</div>
