@@ -6337,3 +6337,15 @@ weeks after the program doc was corrected to "pseudonymized". (2026-07-05)
   prefs is that `Ember.set('preferences.progress.x', …)` throws if `preferences.progress` is
   undefined — so vivify the intermediate object first; that's a correctness guard, not a
   dirty-tracking hack. (2026-07-06, adversarial-review triage)
+
+## Gotcha: `sync_changed` tmp-ID remap must clone `buttons` before `set` — in-place mutation on `attr('raw')` does not dirty
+
+After offline sync uploads tmp boards/images/sounds, `sync_changed` runs a second pass
+(`re_updates`) to rewrite button `image_id` / `sound_id` / `load_board.id` from `tmp_*` to
+permanent ids. Mutating the existing `buttons` array in place and calling
+`record.set('buttons', buttons)` with the same reference does not reliably mark the
+`attr('raw')` attribute dirty in Ember Data 5.x — the follow-up `save()` is skipped and
+CI test 1211 (`persistence-sync` temp-ID links) times out waiting for permanent links.
+Clone each button (and nested `load_board`) into a new array before `set`, matching the
+`[].concat(buttons)` pattern already used in `board.js#add_button`. Touch both
+`app/utils/persistence.js` and `app/services/persistence.js`. (2026-07-08)

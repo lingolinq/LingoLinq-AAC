@@ -1756,12 +1756,21 @@ export default Controller.extend({
     } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
       image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.protected_image_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
     }
+    var part_of_speech = (button.get && button.get('part_of_speech')) || button.part_of_speech ||
+      (button.get && button.get('painted_part_of_speech')) || button.painted_part_of_speech ||
+      (button.get && button.get('suggested_part_of_speech')) || button.suggested_part_of_speech;
+    var label = (button.get && button.get('label')) || button.label;
+    var vocalization = (button.get && button.get('vocalization')) || button.vocalization;
+    // Spelling-style "+s" on a dedicated "-s" modifier should inflect (walks), not append "s" (watchs).
+    if((vocalization || '').match(/^\+s$/i) && (label || '').trim().match(/^-?s$/i)) {
+      vocalization = ':plural';
+    }
     var obj = {
-      label: button.label,
-      vocalization: button.vocalization,
+      label: label,
+      vocalization: vocalization,
       image: image_url,
       button_id: button.id,
-      part_of_speech: button.part_of_speech,
+      part_of_speech: part_of_speech,
       sound: (sound && sound.get && sound.get('url')) || button.get('original_sound_url'),
       board: oldState,
       completion: button.completion,

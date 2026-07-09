@@ -1718,11 +1718,18 @@ Button.load_actions = function() {
       action: ':plural',
       modifier: true,
       description: i18n.t('pluralize', "Make the word plural"),
-      types: ['noun'],
+      types: ['noun', 'verb'],
       alter: function(text, prior_text, prior_label, altered, addition) {
         // TODO: first check for inflection_overrides
-        altered.vocalization = i18n.pluralize(prior_text);
-        altered.label = i18n.pluralize(prior_label);
+        // On verb boards the "-s" modifier is third-person present (walks), not plural.
+        var pos = altered.part_of_speech || (addition && addition.part_of_speech);
+        if(pos == 'verb') {
+          altered.vocalization = i18n.tense(prior_text, {simple_present: true});
+          altered.label = i18n.tense(prior_label, {simple_present: true});
+        } else {
+          altered.vocalization = i18n.pluralize(prior_text);
+          altered.label = i18n.pluralize(prior_label);
+        }
         altered.in_progress = false;
       }
     },

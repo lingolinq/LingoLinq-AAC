@@ -211,6 +211,12 @@ describe('utterance', function() {
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
     });
+    it("should add third-person -s to verbs via :plural", function() {
+      var result = utterance.modify_button({label: "walk", part_of_speech: "verb"}, {vocalization: ":plural"});
+      expect(result.label).toEqual("walks");
+      expect(result.vocalization).toEqual("walks");
+      expect(result.modified).toEqual(true);
+    });
     it("should singularize properly", function() {
       var result = utterance.modify_button({label: "cows"}, {vocalization: ":singular"});
       expect(result.label).toEqual("cow");

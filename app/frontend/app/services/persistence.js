@@ -3591,10 +3591,14 @@ var persistence = Service.extend({
               var item = update[0];
               var record = update[1];
               if(item.store == 'board') {
-                var buttons = record.get('buttons');
-                if(buttons) {
-                  for(var idx = 0; idx < buttons.length; idx++) {
-                    var button = buttons[idx];
+                var sourceButtons = record.get('buttons');
+                if(sourceButtons) {
+                  var buttons = [];
+                  for(var idx = 0; idx < sourceButtons.length; idx++) {
+                    var button = Object.assign({}, sourceButtons[idx]);
+                    if(button.load_board) {
+                      button.load_board = Object.assign({}, button.load_board);
+                    }
                     if(tmp_id_map[button.image_id]) {
                       button.image_id = tmp_id_map[button.image_id].get('id');
                     }
@@ -3608,10 +3612,10 @@ var persistence = Service.extend({
                         key: board.get('key')
                       };
                     }
-                    buttons[idx] = button;
+                    buttons.push(button);
                   }
+                  record.set('buttons', buttons);
                 }
-                record.set('buttons', buttons);
               } else {
                 debugger;
               }

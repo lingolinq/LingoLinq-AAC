@@ -108,6 +108,32 @@ function word_predictions_visible(appState) {
   return false;
 }
 
+function utterance_part_of_speech(entry) {
+  if(!entry) { return null; }
+  if(typeof entry.get === 'function') {
+    return entry.get('part_of_speech') || entry.get('painted_part_of_speech') || entry.get('suggested_part_of_speech') || null;
+  }
+  return entry.part_of_speech || entry.painted_part_of_speech || entry.suggested_part_of_speech || null;
+}
+
+// Verb-board "-s" buttons are often stored as vocalization "+s" (append) rather
+// than ":plural"; treat both as the same inflection modifier for previews.
+function inflection_action_for_button(button) {
+  if(!button || !LingoLinq.special_actions) { return null; }
+  var voc = (button.vocalization || '').trim();
+  var act = LingoLinq.special_actions.find(function(a) { return a.action == voc && a.types; });
+  if(act) { return act; }
+  var label = (button.label || '').trim().toLowerCase();
+  if(voc.match(/^\+s$/i) || label === '-s' || label === 's' || label === '+s') {
+    return LingoLinq.special_actions.find(function(a) { return a.action == ':plural'; });
+  }
+  return null;
+}
+
+function is_inflection_modifier_button(button) {
+  return !!inflection_action_for_button(button);
+}
+
 LingoLinq.Board = BaseModel.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
@@ -1422,7 +1448,7 @@ LingoLinq.Board = BaseModel.extend({
       if(button.vocalization == ':suggestion') {
         buttons[button.id.toString()] = button;
         has_suggested_buttons = true;
-      } else if(inflections.indexOf(button.vocalization) != -1) {
+      } else if(inflections.indexOf(button.vocalization) != -1 || is_inflection_modifier_button(button)) {
         inflection_buttons[button.id.toString()] = button;
         has_suggested_buttons = true;
       } else if(button.label && !button.vocalization && !button.load_board) {
@@ -1443,7 +1469,7 @@ LingoLinq.Board = BaseModel.extend({
             suggested_buttons.push(button);
           }
           var infl = inflection_buttons[order[idx][jdx].toString()];
-          if(infl && inflections.indexOf(infl.vocalization) != -1) {
+          if(infl && is_inflection_modifier_button(infl)) {
             inflectors.push(infl);
           }
         }
@@ -1451,10 +1477,15 @@ LingoLinq.Board = BaseModel.extend({
     }
     if(suggested_buttons.length == 0 && inflectors.length == 0) { return null; }
     inflectors.forEach(function(infl) {
-      var act = LingoLinq.special_actions.find(function(act) { return act.action == infl.vocalization; });
+      var act = inflection_action_for_button(infl);
       var last_button = working[working.length - 1];
-      if(last_button && !last_button.modified && act && act.types.indexOf(last_button.part_of_speech) != -1 && act.alter) {
-        var res = {};
+      var last_pos = utterance_part_of_speech(last_button);
+      if(!last_pos && last_button && last_button.button_id != null) {
+        var source_btn = known_buttons.find(function(b) { return b.id == last_button.button_id; });
+        last_pos = utterance_part_of_speech(source_btn);
+      }
+      if(last_button && !last_button.modified && act && last_pos && act.types.indexOf(last_pos) != -1 && act.alter) {
+        var res = {part_of_speech: last_pos};
         act.alter(null, last_button.label, last_button.label, res);
         if(_this.appState.get('shift')) {
           res.label = utterance.capitalize(res.label);
@@ -1507,7 +1538,7 @@ LingoLinq.Board = BaseModel.extend({
     }, function() { });
   },
   _sync_ordered_button_suggestion: function(button, suggestion) {
-    if(!suggestion || suggestion.temporary || !suggestion.word) { return; }
+    if(!suggestion || !suggestion.word) { return; }
     var ctrl = editManager.controller;
     if(!ctrl || !ctrl.get || !ctrl.get('is_board_detail')) { return; }
     var ordered = ctrl.get('ordered_buttons');
@@ -1603,9 +1634,7 @@ LingoLinq.Board = BaseModel.extend({
       }
     }
     _this.set('suggestion_lookups', lookups);
-    if(!suggestion.temporary) {
-      _this._sync_ordered_button_suggestion(button, suggestion);
-    }
+    _this._sync_ordered_button_suggestion(button, suggestion);
 
   },
   add_classes: function() {
