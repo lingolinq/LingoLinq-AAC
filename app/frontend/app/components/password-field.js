@@ -5,6 +5,13 @@ import i18n from '../utils/i18n';
 export default Component.extend({
   tagName: '',
   showPassword: false,
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.togglePasswordVisibility = function() {
+      self.toggleProperty('showPassword');
+    };
+  },
   inputType: computed('showPassword', function() {
     return this.get('showPassword') ? 'text' : 'password';
   }),
@@ -13,8 +20,5 @@ export default Component.extend({
       return i18n.t('hide_password', "Hide password");
     }
     return i18n.t('show_password', "Show password");
-  }),
-  togglePasswordVisibility() {
-    this.toggleProperty('showPassword');
-  }
+  })
 });

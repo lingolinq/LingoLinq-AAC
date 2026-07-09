@@ -4050,6 +4050,8 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 **Evidence:** `speak-menu.hbs`, `button-settings.hbs`, `raw_events.js`; task logs `2026-06-23-board-detail-edit-toolbar-clicks.md`, `2026-06-26-speak-menu-modal-close-fix.md`.
 
+**Classic component methods on `{{on}}`:** `{{on "click" this.foo}}` passes `foo` unbound — at runtime `this` is the DOM element, so `this.toggleProperty` / `this.get` throw. During Ember 5 `{{action}}` → `{{on}}` migrations, either keep `actions: { foo }` + `(this.ctrlAction "foo")`, or bind in `init()` like `preference-box.js` / `password-field.js` (`2026-07-09-password-field-toggle-binding.md`).
+
 ---
 
 ## Pattern: board-detail edit-mode panel chrome never routed (speak-only gap)
