@@ -128,6 +128,22 @@ module JsonApi::Json
     !!(current_domain && current_domain['settings'] && current_domain['settings']['coppa_parental_consent'])
   end
 
+  # Default digital-consent age for the registration parental-consent gate.
+  # US COPPA baseline; used for every non-EU jurisdiction.
+  DEFAULT_COPPA_CONSENT_AGE = 13
+  # EU maximum (GDPR Art. 8). Poland and other EU member states require
+  # verifiable parental consent below this age.
+  EU_COPPA_CONSENT_AGE = 16
+
+  # Resolve the applicable parental-consent age for a jurisdiction signal
+  # (locale/region/country String, User-like object, Hash, or nil). Returns 16
+  # for EU jurisdictions, 13 otherwise. Pure: the feature-flag gate lives at the
+  # delivery point (ApplicationController#coppa_consent_age_injection), so an
+  # unflagged call still resolves the honest age without changing behavior.
+  def self.coppa_consent_age(signal)
+    LingoLinq::Jurisdiction.eu?(signal) ? EU_COPPA_CONSENT_AGE : DEFAULT_COPPA_CONSENT_AGE
+  end
+
   # Truthy: true, 1, yes, on (case-insensitive). Matches typical .env conventions.
   def self.coppa_parental_consent_from_env?
     v = ENV['COPPA_PARENTAL_CONSENT'].to_s.strip.downcase
