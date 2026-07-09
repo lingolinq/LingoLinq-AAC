@@ -89,9 +89,14 @@ Everything in this section is live in the product.
 **AI and PII handling**
 - LingoLinq uses AI for word prediction and communication-board generation. The primary model is
   Anthropic Claude (Haiku 4.5), with a Google (Gemini) fallback.
-- Before any text is sent to an external model, our PII scrubber removes identifiers. This is
-  **pseudonymization (scrubbing)**, and we describe it accurately: the result is scrubbed data that
-  we still treat as personal data. We do not call it de-identified or anonymized.
+- Before text is sent to our external LLM providers for word prediction, board generation, or eval
+  narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
+  describe it accurately: the result is scrubbed data that we still treat as personal data. We do
+  not call it de-identified or anonymized.
+- Text-to-speech is a separate voice/audio feature. To synthesize spoken audio, the text being
+  spoken is sent to the configured TTS provider (Google Text-to-Speech, or Abair for Irish-language
+  voices). This path does not run the LLM PII scrubber, because the text to be spoken is itself the
+  payload.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
 - Every runtime, user-facing AI call (word prediction, board generation, and eval narration) is
