@@ -3415,7 +3415,7 @@
         "GDPR",
         "FERPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/parental_consents_controller.rb",
@@ -3428,12 +3428,12 @@
       "owner": "unassigned",
       "remediation": {
         "options": "On successful grant_parental_consent! completion emit an immutable AuditEvent (mirroring api/users#create school-authorization basis and closed supervisor-consent control LL-46fd4aa824) capturing user global_id, request IP, user-agent, grant timestamp and privacy_policy_version, so verifiable-consent record-keeping is tamper-evident and independent of the mutable user.settings coppa blob.",
-        "timeframe": "15-30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "5ca663ad491c2e337977be44440862e66b740b4a",
+        "verifierNote": "Verified 2026-07-08: User#grant_parental_consent! now emits an immutable AuditEvent (event_type parental_consent_grant) atomically with the consent write inside with_lock(requires_new: true) -- an audit-insert failure rolls back the grant and the token stays retryable, and concurrent grants serialize. Payload carries method, ip, user_agent, privacy_policy_version, the persisted granted_at, and a stable record_id. Specs: spec/models/user_spec.rb (grant + rollback) and spec/controllers/parental_consents_controller_spec.rb. Remediated in #552 (merge 5ca663ad4).",
+        "attestation": "Scot Wahlquist 2026-07-08: attested verified-closed; remediated in #552, mirrors the canonical grant_ai_consent! atomic-audit pattern the finding called for."
       },
       "notes": "Surfaced by privacy finder on 2026-07-08. COPPA 16 CFR 312.5 requires operators to obtain AND maintain records of verifiable parental consent. grant_parental_consent! (user.rb:385-423) records granted_at/policy_version only in the mutable settings JSON and calls self.save with no AuditEvent; the controller complete action writes none either. Codebase deliberately emits immutable AuditEvents for the parallel COPPA school-official exception (user.rb:1332 comment) and supervisor consent (LL-46fd4aa824 verified-closed), so this is an inconsistent gap on the most COPPA-central consent event. Distinct from LL-46fd4aa824 and eval-narrator-no-coppa-consent-gate. NEW. | adversary: confirmed -- no immutable AuditEvent on grant_parental_consent! (user.rb ~385-423) nor ParentalConsentsController#complete; contrast grant_ai_consent!/revoke_ai_consent! (user.rb:540,581) which each emit an AuditEvent. Nuance: User has_paper_trail :only [:settings,:user_name] (user.rb:44) DOES version the settings diff, but as a mutable versions-table row with nil whodunnit (unauthenticated email-link GET), so the no-IMMUTABLE-audit claim holds while no-audit-trail-at-all would overstate it."
     },
@@ -3569,7 +3569,7 @@
       "severity": "high",
       "confidence": "high",
       "frameworks": [],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/button_sets_controller.rb",
@@ -3582,12 +3582,12 @@
       "owner": "unassigned",
       "remediation": {
         "options": "Drop the `backtrace` key from the rendered JSON (keep it only in Rails.logger.error, already logged two lines above); standardize on the same {error: message} shape the rest of the API uses. Also consider gating debug_sync behind an admin check or removing it now that the async Progress path exists.",
-        "timeframe": "advisory"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "5ca663ad491c2e337977be44440862e66b740b4a",
+        "verifierNote": "Verified 2026-07-08: buttonsets#generate debug_sync=1 rescue no longer returns e.backtrace; renders {error: e.message} only (backtrace stays in Rails.logger). Regression spec asserts the 500 body has no backtrace key. Remediated in #552 (merge 5ca663ad4).",
+        "attestation": "Scot Wahlquist 2026-07-08: attested verified-closed; remediated in #552."
       },
       "notes": "Surfaced by api finder on 2026-07-08. New; not present in FINDINGS.json. Error-format break -- also leaks internal file paths/gem versions. Route config/routes.rb:252 (POST buttonsets/:id/generate); no frontend caller passes debug_sync -- undocumented server-only code path reachable by any caller with board view permission. | adversary: confirmed -- backtrace is hand-serialized into the JSON body (Rails prod exception suppression irrelevant); branch reachable via POST buttonsets/:id/generate (routes.rb:252) gated only by require_api_token + allowed?(board,view) + caller-supplied debug_sync==1, no admin/env gate; every other error path in the file uses {error:...} with no backtrace."
     },
