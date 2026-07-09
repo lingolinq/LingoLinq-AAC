@@ -212,6 +212,29 @@ method for the AI-data-sharing gate specifically (distinct from the existing sig
 consent method, which is unaffected). This phase's disclosure copy is deliberately written to be
 compatible with any outcome of that decision.
 
+## 8.1 No-regress guards (binding acceptance criteria for Phase 2 and Phase 4)
+
+Two invariants were already correct on `staging` before this phase, and Phase 2 and Phase 4 work
+must not regress them. Both already have executable RSpec coverage; this phase adds no new
+duplicate tests for them, but records the existing coverage here so it is not accidentally deleted
+or weakened later:
+
+1. **`Api::BoardsController` threads `user:` into `AiBoardGenerator.generate_words`**, so the
+   per-user COPPA gate, org-level `disable_ai_features` opt-out, and `AiApiLog` audit attribution
+   all apply to AI board generation requests. Covered by
+   `spec/controllers/api/boards_controller_spec.rb`, `describe "generate_labels"`, the example
+   "should pass the authenticated user through to the generator" (asserts `captured[:user]` is
+   present and matches the authenticated user).
+2. **`AiApiLog` scrubs BOTH `request_summary` and `response_summary`** via
+   `before_validation :scrub_summary_columns` (`app/models/ai_api_log.rb`), so a vendor response
+   that echoes an identifier from the prompt does not leak into the audit log. Covered extensively
+   by `spec/models/ai_api_log_spec.rb` (email, SSN, and already-redacted-value cases for both
+   columns).
+
+Codex's outside review of an earlier draft of this plan flagged both of these as potential gaps,
+based on a stale `main`-branch read; both are confirmed fixed on `staging` (this phase's branch
+point, commit `c595f6304a545a6a10de80924edd99951eb41aa5`) by direct inspection of the specs above.
+
 ## 9. Attestation
 
 | Field | Value |
