@@ -2795,7 +2795,10 @@ class User < ApplicationRecord
     user_id, hash = token.split(/-/)
     return nil unless user_id && hash
     verifier = GoSecure.sha512("#{user_id}-", 'user_token verifier')[0, 30]
-    return nil unless hash == verifier
+    # Constant-time compare so a timing side-channel can't be used to recover the
+    # verifier byte-by-byte (LL-90045bb29c). Same pattern as find_by_protected_image_token
+    # below; secure_compare returns false on a length mismatch, so behavior is unchanged.
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(hash, verifier)
     User.find_by_global_id(user_id)
   end
 

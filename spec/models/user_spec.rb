@@ -3452,6 +3452,14 @@ describe User, :type => :model do
       expect(User.find_by_token("#{u.global_id}-whatever")).to eq(nil)
       expect(User.find_by_token(nil)).to eq(nil)
     end
+
+    it 'should use a constant-time comparison to guard against timing attacks (LL-90045bb29c)' do
+      u = User.create
+      token = "#{u.global_id}-"
+      token = token + GoSecure.sha512(token, 'user_token verifier')[0, 30]
+      expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
+      expect(User.find_by_token(token)).to eq(u)
+    end
   end
 
   describe "protected_image_token" do
