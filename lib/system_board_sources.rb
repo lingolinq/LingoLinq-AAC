@@ -12,6 +12,14 @@ module SystemBoardSources
   SENNER_BAUD_OBZ_FALLBACK_BUCKET = 'lingolinq-prod-static'.freeze
   SENNER_BAUD_NAME = 'Senner-Baud Social Pages'.freeze
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary senner-baud].freeze
+  # Copied synchronously during signup so VF84 is in the user's library before the API responds.
+  SIGNUP_SYNC_SLUGS = %w[vocal-flair-84].freeze
+  # Utility boards copied async so default sidebar entries can resolve to user-owned copies.
+  SIDEBAR_COPY_SLUGS = %w[yesno inflections].freeze
+  SIGNUP_ASYNC_SLUGS = (
+    SIDEBAR_COPY_SLUGS +
+    (SIGNUP_LIBRARY_SLUGS - SIGNUP_SYNC_SLUGS)
+  ).freeze
   SPANISH_LIBRARY_SLUGS = %w[quick-core-60-es vocal-flair-60-es].freeze
   SPANISH_SOURCE_MAP = {
     'quick-core-60-es' => 'quick-core-60',

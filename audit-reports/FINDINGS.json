@@ -3,9 +3,9 @@
     "schemaVersion": "1.1",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
-    "auditedSha": "445336592ddaf838689df7e578829e94e140890d",
-    "auditedRef": "scot/security/audit-erasure-admin-reads",
-    "auditedDate": "2026-06-19",
+    "auditedSha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1",
+    "auditedRef": "scot/compliance/audit-refresh-2026-07-07",
+    "auditedDate": "2026-07-08",
     "auditedShaPriorNote": "Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff",
@@ -3403,6 +3403,309 @@
         "attestation": ""
       },
       "notes": "Split out of LL-705b10bcd7 (which tracks the GCP rehearsal stack, now live-verified): same root defect, different deploy target and IAM principal. The data-URI fallback keeps prod images rendering (served inline from the DB), so user impact is degraded-not-broken for images; sounds/videos over the size cap are lost (errored_pending_url). Scope details and consumer inventory: ai-company-brain outputs/plans/2026-07-05-s3-private-bucket-read-path-scope.md."
+    },
+    {
+      "id": "LL-47117a3443",
+      "ruleKey": "no-audit-trail-parental-consent-grant",
+      "title": "COPPA verifiable parental consent is granted with no immutable AuditEvent",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/parental_consents_controller.rb",
+        "line": 14,
+        "snippet": "    elsif user && user.grant_parental_consent!(token)",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "On successful grant_parental_consent! completion emit an immutable AuditEvent (mirroring api/users#create school-authorization basis and closed supervisor-consent control LL-46fd4aa824) capturing user global_id, request IP, user-agent, grant timestamp and privacy_policy_version, so verifiable-consent record-keeping is tamper-evident and independent of the mutable user.settings coppa blob.",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "5ca663ad491c2e337977be44440862e66b740b4a",
+        "verifierNote": "Verified 2026-07-08: User#grant_parental_consent! now emits an immutable AuditEvent (event_type parental_consent_grant) atomically with the consent write inside with_lock(requires_new: true) -- an audit-insert failure rolls back the grant and the token stays retryable, and concurrent grants serialize. Payload carries method, ip, user_agent, privacy_policy_version, the persisted granted_at, and a stable record_id. Specs: spec/models/user_spec.rb (grant + rollback) and spec/controllers/parental_consents_controller_spec.rb. Remediated in #552 (merge 5ca663ad4).",
+        "attestation": "Scot Wahlquist 2026-07-08: attested verified-closed; remediated in #552, mirrors the canonical grant_ai_consent! atomic-audit pattern the finding called for."
+      },
+      "notes": "Surfaced by privacy finder on 2026-07-08. COPPA 16 CFR 312.5 requires operators to obtain AND maintain records of verifiable parental consent. grant_parental_consent! (user.rb:385-423) records granted_at/policy_version only in the mutable settings JSON and calls self.save with no AuditEvent; the controller complete action writes none either. Codebase deliberately emits immutable AuditEvents for the parallel COPPA school-official exception (user.rb:1332 comment) and supervisor consent (LL-46fd4aa824 verified-closed), so this is an inconsistent gap on the most COPPA-central consent event. Distinct from LL-46fd4aa824 and eval-narrator-no-coppa-consent-gate. NEW. | adversary: confirmed -- no immutable AuditEvent on grant_parental_consent! (user.rb ~385-423) nor ParentalConsentsController#complete; contrast grant_ai_consent!/revoke_ai_consent! (user.rb:540,581) which each emit an AuditEvent. Nuance: User has_paper_trail :only [:settings,:user_name] (user.rb:44) DOES version the settings diff, but as a mutable versions-table row with nil whodunnit (unauthenticated email-link GET), so the no-IMMUTABLE-audit claim holds while no-audit-trail-at-all would overstate it."
+    },
+    {
+      "id": "LL-d8072299bf",
+      "ruleKey": "retention-enforcement-skips-non-org-users",
+      "title": "Automated retention only runs for org-sponsored users; standalone accounts keep communication logs indefinitely",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/data_policy_enforcer.rb",
+        "line": 22,
+        "snippet": "    Organization.where(\"data_policy_version > 0\").find_each do |org|",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Define a default retention window for communication logs of users not sponsored by any org (individual/consumer and EU self-serve accounts), or document the storage-limitation basis for indefinite retention. Consider a per-user retention preference driving Flusher.flush_record for unsponsored users.",
+        "timeframe": "30-60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-07-08. enforce_retention! iterates only Organizations with data_policy_version > 0 and scopes deletion to org.sponsored_users (lines 22-31). Individual/self-serve accounts (incl. standalone EU data subjects) and users under orgs that never set a policy get NO automated purge; their LogSession history is retained indefinitely (GDPR Art 5(1)(e)). Distinct from LL-1890f6a922 (log_type scope), LL-14edf1a801 (child-org inheritance), LL-de9c94bf36 (cross-org over-purge) which all concern in-scope users; this is the never-in-scope population. Manual flush_user exists, hence low/medium. NEW. | adversary: confirmed -- DataPolicyEnforcer.enforce_retention! (data_policy_enforcer.rb:22-31, wired via scheduler.rake:136-140) is the only age-based log purge and is org+sponsored_users scoped; flusher paths (flush_deleted_users/flush_leftovers/flush_old_versions) do not cover standalone/no-policy users."
+    },
+    {
+      "id": "LL-107c9fb665",
+      "ruleKey": "render-autodeploy-not-gated-on-ci",
+      "title": "Render blueprint auto-deploys web/worker on every push to staging without requiring CI to pass",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "render.yaml",
+        "line": 6,
+        "snippet": "branch: staging",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The web and worker services track branch: staging with no auto-deploy gate, so Render deploys the branch tip on every push independently of the GitHub Actions CI result (ci.yml rspec, build-and-test, secret-detection). A red build or a commit failing the blocking secret-detection gate can still ship. Set the blueprint auto-deploy trigger to deploy only after checks pass (Render autoDeployTrigger, or the dashboard 'Auto-Deploy: After CI Checks Pass'), and/or add branch protection with required status checks on staging. Confirm the live Render auto-deploy setting.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-07-08. CC8 change-management. New. Deploy path decoupled from ci.yml. autoDeployTrigger field name not verified against live Render docs this run (network + Render MCP unavailable to the finder); core gap is deploy-not-gated-on-CI. Distinct from ci-security-gates-non-blocking. | adversary: confirmed -- render.yaml has no autoDeployTrigger/autoDeploy field (web:6, worker:59 both branch:staging); Render default when absent is commit (deploy every push). The opt-in gate autoDeployTrigger:checksPass exists in the blueprint spec but is unused. Field-name uncertainty resolved: correct field is autoDeployTrigger."
+    },
+    {
+      "id": "LL-c226391436",
+      "ruleKey": "csp-report-only-unsafe-inline-eval",
+      "title": "Content-Security-Policy is report-only (nothing blocked) and script-src permits unsafe-inline + unsafe-eval",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "config/initializers/content_security_policy.rb",
+        "line": 114,
+        "snippet": "Rails.application.config.content_security_policy_report_only = true",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The CSP is emitted as Content-Security-Policy-Report-Only, so no directive is enforced; script-src also includes unsafe_inline and unsafe_eval (lines 41-43). Documented as a deliberate phased rollout (docs/security/csp-rollout-plan.md) pending per-request nonces for the Ember 3.28 bootstrap. Track to completion: after the clean-report window, flip report_only to false and replace unsafe-inline/unsafe-eval with per-request nonces. Until then CSP provides no active control.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-07-08. CC6/CC7 hardening. New. Deliberately tracked internally; recorded so the SOC2 register reflects the CSP control is not yet operating (report-only). | adversary: confirmed -- content_security_policy_report_only=true is unconditional (no env guard); script_src includes :unsafe_inline (line 42) and :unsafe_eval (line 43); no separate enforced CSP header exists in config/ or app/."
+    },
+    {
+      "id": "LL-5ae3d7ca2c",
+      "ruleKey": "ci-workflow-no-permissions-block",
+      "title": "ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs (incl. one running downloaded gitleaks)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/ci.yml",
+        "line": 1,
+        "snippet": "name: CI",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "ci.yml (runs on push and pull_request, including a secret-detection job that curls+executes the gitleaks binary using github.token) has no permissions: block, so the workflow GITHUB_TOKEN takes the repository default, which may be read-write. Add a top-level permissions: contents: read and grant per-job elevations only where needed (mirroring deploy-cloudrun.yml, which already sets contents: read). Set the org/repo default workflow token to read-only.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-07-08. CC6 least-privilege. New. Same class as sync-render-secrets-workflow-no-permissions-block (LL-b0bc6880e6) but distinct file (the main CI workflow). | adversary: confirmed -- zero occurrences of permissions: in ci.yml, neither top-level nor per-job across all five jobs; GITHUB_TOKEN inherits repo-default scope on every push/PR."
+    },
+    {
+      "id": "LL-85038c0a7b",
+      "ruleKey": "button-set-generate-debug-sync-backtrace-leak",
+      "title": "buttonsets#generate debug_sync=1 path returns raw exception message and full Ruby backtrace as JSON error body",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/button_sets_controller.rb",
+        "line": 83,
+        "snippet": "          render json: {error: e.message, backtrace: e.backtrace}, status: 500",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Drop the `backtrace` key from the rendered JSON (keep it only in Rails.logger.error, already logged two lines above); standardize on the same {error: message} shape the rest of the API uses. Also consider gating debug_sync behind an admin check or removing it now that the async Progress path exists.",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "5ca663ad491c2e337977be44440862e66b740b4a",
+        "verifierNote": "Verified 2026-07-08: buttonsets#generate debug_sync=1 rescue no longer returns e.backtrace; renders {error: e.message} only (backtrace stays in Rails.logger). Regression spec asserts the 500 body has no backtrace key. Remediated in #552 (merge 5ca663ad4).",
+        "attestation": "Scot Wahlquist 2026-07-08: attested verified-closed; remediated in #552."
+      },
+      "notes": "Surfaced by api finder on 2026-07-08. New; not present in FINDINGS.json. Error-format break -- also leaks internal file paths/gem versions. Route config/routes.rb:252 (POST buttonsets/:id/generate); no frontend caller passes debug_sync -- undocumented server-only code path reachable by any caller with board view permission. | adversary: confirmed -- backtrace is hand-serialized into the JSON body (Rails prod exception suppression irrelevant); branch reachable via POST buttonsets/:id/generate (routes.rb:252) gated only by require_api_token + allowed?(board,view) + caller-supplied debug_sync==1, no admin/env gate; every other error path in the file uses {error:...} with no backtrace."
+    },
+    {
+      "id": "LL-cbaf7afddd",
+      "ruleKey": "log-orphaned-scalar-id-attrs-user-video-goal-notify",
+      "title": "Ember LogSession model declares scalar user_id/video_id/goal_id/notify attrs that JsonApi::Log never emits as top-level keys",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/log.js",
+        "line": 34,
+        "snippet": "  user_id: attr('string'),",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Remove the orphaned attrs (the equivalent data is already nested: log.user.id, log.video summary_hash, log.goal.id), or add matching top-level keys server-side.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-07-08. Same orphaned-attribute pattern as existing open LL-6447a21503 and LL-e76d6378b5. Counterpart lib/json_api/log.rb emits user/goal as nested objects and video as summary_hash; no notify key anywhere. | adversary: confirmed -- json_api/log.rb emits nested json[user]/json[goal]/json[video] (lines 40-62); grep for top-level json[user_id|video_id|goal_id|notify] returns nothing and no .get(user_id) reads found; dead-attr claim holds."
+    },
+    {
+      "id": "LL-0196a680c5",
+      "ruleKey": "goal-orphaned-scalar-id-attrs-user-video-template",
+      "title": "Ember UserGoal model declares scalar user_id/video_id/template_id attrs that JsonApi::Goal never emits as top-level keys",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/goal.js",
+        "line": 19,
+        "snippet": "  user_id: attr('string'),",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Remove user_id/video_id/template_id from goal.js (only next_template_id/template_header_id are ever set server-side; user/video are nested objects), or add a real template_id key to lib/json_api/goal.rb if needed.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-07-08. Same orphaned-attribute pattern as the sibling log.js finding and existing LL-6447a21503/LL-e76d6378b5. lib/json_api/goal.rb emits user/author via JsonApi::User.as_json and video via summary_hash; never a bare template_id. | adversary: confirmed -- json_api/goal.rb (lines 21-45) emits only next_template_id/template_header_id plus nested json[user]/json[video]; scalar user_id/video_id/template_id are never emitted top-level. Finding is precise about template_id vs the adjacent keys."
+    },
+    {
+      "id": "LL-5e7676187f",
+      "ruleKey": "abandoned-indexeddbshim-shipped",
+      "title": "indexeddbshim is pinned to a stale major (^6.1.0, ~10 majors behind latest 16.1.0) in the production bundle",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 70,
+        "snippet": "    \"indexeddbshim\": \"^6.1.0\",",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Bump indexeddbshim from ^6.1.0 to the current major (16.x, published 2025-09-01) and re-test the offline path. The package is actively maintained, so this is a routine dependency upgrade, not a vendor-and-freeze. Bundled to production via ember-cli-build.js:44; the shim is inert on modern browsers (capabilities.js gates __useShim on navigator.standalone AND WebSQL present), so blast radius is limited to legacy standalone-mode webviews.",
+        "timeframe": "60-90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-07-08. Not previously in the register. | adversary: REFUTED AS WRITTEN. Bundled-to-prod is TRUE (ember-cli-build.js:44, unconditional). But the load-bearing premises fail: indexeddbshim is NOT abandoned (npm latest 16.1.0 published 2025-09-01, actively maintained) -- the real defect is a stale major-version pin ^6.1.0 (~10 majors behind), patchable via upgrade, not unpatchable abandonment; and underlies-offline-AAC-sync is overstated (capabilities.js:18 prefers native window.indexedDB; shim __useShim only under navigator.standalone AND WebSQL present, inert on modern browsers). | TRIAGE 2026-07-08 (Scot): DOWNGRADED high->low and RE-SCOPED per the adversary refutation -- reframed from 'abandoned package' to 'stale major-version pin', upgrade-fixable, stays open as a routine dependency bump. ruleKey 'abandoned-indexeddbshim-shipped' retained for finding-ID stability; label is legacy, substance is the stale pin."
+    },
+    {
+      "id": "LL-1bb85a2ef5",
+      "ruleKey": "abandoned-bootstrap-3x-residual",
+      "title": "bootstrap 3.4.1 (EOL, no upstream patches) remains a production dependency; supply-chain exposure beyond the already-fixed XSS",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 36,
+        "snippet": "    \"bootstrap\": \"^3.4.1\",",
+        "sha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1"
+      },
+      "firstSeen": "2026-07-08",
+      "lastSeen": "2026-07-08",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Plan migration off Bootstrap 3.x (EOL 2019) to a supported major or a maintained fork; interim, vendor-pin and document the accepted EOL risk. The reachable-XSS vector was already fixed (LL-d1ea8659c3 verified-closed) but the broader no-more-upstream-patches exposure is unfiled.",
+        "timeframe": "60-90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-07-08. New. The reachable-XSS on bootstrap 3.4.1 was fixed and verified-closed (LL-d1ea8659c3, disposition fixed); that finding's closure note explicitly flags the broader EOL/supply-chain exposure as a separate unfiled concern -- this fills that gap. Distinct id/ruleKey from the closed XSS finding. | adversary: confirmed -- bootstrap ^3.4.1 unconditionally bundled (ember-cli-build.js:40 CSS, :52 JS); actively loaded (caseload.js:417 dropdown plugin, raw_events.js:515, pervasive app.scss classes); 3.4.1 is terminal 3.x (2019-02-13), no upstream patches. Materially distinct from closed XSS LL-d1ea8659c3 (one patched CVE vs standing EOL posture), not a duplicate."
     }
   ]
 }

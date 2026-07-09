@@ -612,6 +612,52 @@ describe User, :type => :model do
       expect(u.settings['privacy_policy_acknowledged']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
     end
 
+    it "grant_parental_consent! writes an immutable AuditEvent atomically, and rolls the grant back if the audit insert fails" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      AuditEvent.delete_all
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_audit',
+        'email' => 'kidaudit@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentaudit@example.com'
+      }, {})
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+
+      # Happy path: one immutable event carrying the persisted grant timestamp.
+      expect { expect(u.grant_parental_consent!(token, ip: '203.0.113.7', user_agent: 'TestAgent/1.0')).to eq(true) }
+        .to change { AuditEvent.where(event_type: 'parental_consent_grant', user_key: u.global_id).count }.by(1)
+      ae = AuditEvent.where(event_type: 'parental_consent_grant', user_key: u.global_id).last
+      expect(ae.record_id).to be_present
+      expect(ae.data['ip']).to eq('203.0.113.7')
+      expect(ae.data['user_agent']).to eq('TestAgent/1.0')
+      expect(ae.data['privacy_policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(ae.data['granted_at']).to eq(u.reload.settings['coppa']['parent_consent_granted_at'])
+
+      # Rollback: a fresh grantable user whose audit insert raises must NOT end up
+      # consented, and the token must remain usable for a retry.
+      u2 = User.new
+      u2.process_params({
+        'name' => 'coppa_kid_rollback',
+        'email' => 'kidrollback@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentrollback@example.com'
+      }, {})
+      u2.save!
+      token2 = u2.settings['coppa']['parent_consent_token']
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        expect { u2.grant_parental_consent!(token2) }.to raise_error(ActiveRecord::RecordInvalid)
+      }.to_not change { AuditEvent.count }
+      u2.reload
+      expect(u2.settings['coppa']['parent_consent_granted_at']).to be_blank
+      expect(u2.settings['coppa']['parent_consent_token']).to eq(token2)
+      expect(u2.coppa_parental_consent_pending?).to eq(true)
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}
@@ -2639,6 +2685,63 @@ describe User, :type => :model do
       keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
       expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
+    end
+
+    it "should resolve default sidebar entries to user-owned copies except keyboard" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      yesno_copy = yesno.copy_for(u)
+      inflections_copy = inflections.copy_for(u)
+      crisis_copy = crisis.copy_for(u)
+
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(yesno_copy.key)
+      expect(keys).to include(inflections_copy.key)
+      expect(keys).to include(crisis_copy.key)
+      expect(keys).to include(SystemBoardSources.board_key('keyboard'))
+      expect(keys).not_to include(yesno.key)
+      expect(keys).not_to include(inflections.key)
+      expect(keys).not_to include(crisis.key)
+    end
+
+    it "should not auto-add crisis when the user's resolved copy key is already stored" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      crisis_copy = crisis.copy_for(u)
+      saved = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }
+      saved << {
+        'name' => 'Crisis Vocabulary',
+        'key' => crisis_copy.key,
+        'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png',
+        'home_lock' => false
+      }
+      u.settings = {'preferences' => {'sidebar_boards' => saved}}
+
+      crisis_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+      end
+      expect(crisis_keys).to eq([crisis_copy.key])
+    end
+
+    it "should dedupe duplicate crisis sidebar entries after resolving to the user copy" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      crisis_copy = crisis.copy_for(u)
+      system_key = SystemBoardSources.board_key('crisis-vocabulary')
+      u.settings = {'preferences' => {'sidebar_boards' => [
+        {'name' => 'Crisis Vocabulary', 'key' => system_key, 'image' => 'https://example.com/crisis.png', 'home_lock' => false},
+        {'name' => 'Crisis Vocabulary', 'key' => crisis_copy.key, 'image' => 'https://example.com/crisis.png', 'home_lock' => false}
+      ]}}
+
+      crisis_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+      end
+      expect(crisis_keys).to eq([crisis_copy.key])
     end
   end
   

@@ -381,44 +381,76 @@ class User < ApplicationRecord
     !!c['pending_parent_consent']
   end
 
-  # Parent completes email link with token. Returns true when consent is newly recorded or already granted.
-  def grant_parental_consent!(token)
+  # Parent completes email link with token. Returns true when consent is newly
+  # recorded. Mirrors grant_ai_consent! (COPPA 16 CFR 312.5 record-keeping): the
+  # settings write, the Privacy Policy acknowledgment, User#save! and an immutable
+  # AuditEvent all run inside one `with_lock(requires_new: true)` (SELECT FOR
+  # UPDATE + SAVEPOINT). Two consequences that a fail-open, post-save audit could
+  # not give: an audit-insert failure rolls back the consent grant - including the
+  # token invalidation, so the parent can simply retry the same link rather than
+  # being left consented-without-a-record; and concurrent token requests against
+  # the same user are serialized, so the second reloads, sees the committed grant
+  # and no-ops instead of double-granting/double-logging. `ip:`/`user_agent:` come
+  # from the request so the immutable record identifies where and with what the
+  # parent completed consent.
+  def grant_parental_consent!(token, ip: nil, user_agent: nil)
     return false if token.blank?
-    self.settings ||= {}
-    c = self.settings['coppa']
-    return false unless c.is_a?(Hash)
-    return false if c['parent_consent_granted_at'].present?
-    return false unless c['pending_parent_consent']
-    stored = c['parent_consent_token'].to_s
-    tok = token.to_s
-    return false if stored.blank?
-    return false if stored.bytesize != tok.bytesize
-    return false unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
-    exp = c['parent_consent_expires_at']
-    if exp.present?
-      begin
-        return false if Time.iso8601(exp) < Time.now.utc
-      rescue ArgumentError
-        return false
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_granted_at'].present?
+      next unless c['pending_parent_consent']
+      stored = c['parent_consent_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      exp = c['parent_consent_expires_at']
+      if exp.present?
+        begin
+          next if Time.iso8601(exp) < Time.now.utc
+        rescue ArgumentError
+          next
+        end
       end
+      granted_at = Time.now.utc.iso8601
+      record_id = SecureRandom.uuid
+      c['parent_consent_granted_at'] = granted_at
+      c.delete('parent_consent_token')
+      c.delete('parent_consent_expires_at')
+      c.delete('pending_parent_consent')
+      self.settings['coppa'] = c
+      # Record the parent's Privacy Policy acknowledgment (on the child's behalf)
+      # at the moment they complete the token flow; deferred from the child's
+      # signup (see process_params).
+      self.settings['privacy_policy_acknowledged'] = {
+        'acknowledged_at' => granted_at,
+        'policy_version' => PRIVACY_POLICY_VERSION,
+        'acknowledged_by' => 'parent'
+      }
+      self.save!
+      # Immutable, tamper-evident grant record independent of the mutable
+      # settings['coppa'] blob. Captures the exact persisted grant timestamp,
+      # the acknowledged policy version, and request provenance.
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_grant',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'privacy_policy_version' => PRIVACY_POLICY_VERSION,
+          'granted_at' => granted_at,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_grant',
+        record_id: record_id
+      )
+      res = true
     end
-    c['parent_consent_granted_at'] = Time.now.utc.iso8601
-    c.delete('parent_consent_token')
-    c.delete('parent_consent_expires_at')
-    c.delete('pending_parent_consent')
-    self.settings['coppa'] = c
-    # Record the parent's Privacy Policy acknowledgment (on the child's behalf)
-    # at the moment they complete the token flow; deferred from the child's
-    # signup (see process_params).
-    self.settings['privacy_policy_acknowledged'] = {
-      'acknowledged_at' => Time.now.utc.iso8601,
-      'policy_version' => PRIVACY_POLICY_VERSION,
-      'acknowledged_by' => 'parent'
-    }
-    res = self.save
-    if res
-      devices.each(&:invalidate_cached_keys)
-    end
+    devices.each(&:invalidate_cached_keys) if res
     res
   end
 
@@ -2160,9 +2192,13 @@ class User < ApplicationRecord
           allowed = true
         end
         if record && allowed
+          stored_key = board['key']
+          if stored_key && stored_key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+            stored_key = SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG)
+          end
           brd = {
             'name' => board['name'] || record.settings['name'] || 'Board',
-            'key' => board['key'],
+            'key' => stored_key,
             'image' => board['image'] || record.settings['image_url'] || '/images/lingolinq-board-icon.png',
             'home_lock' => !!board['home_lock']
           }
@@ -2234,7 +2270,15 @@ class User < ApplicationRecord
       self.settings['sidebar_changed'] = true
       self.settings['preferences'].delete('sidebar_boards')
     else
-      result = result.uniq{|b| b['special'] ? (b['alert'].to_s + "_" + b['action'].to_s + "_" + b['arg'].to_s) : b['key'] }
+      result = result.uniq do |b|
+        if b['special']
+          b['alert'].to_s + "_" + b['action'].to_s + "_" + b['arg'].to_s
+        elsif b['key'] && b['key'].split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+          SystemBoardSources::CRISIS_VOCABULARY_SLUG
+        else
+          b['key']
+        end
+      end
       pre_json = self.settings['preferences']['sidebar_boards'].to_json
       self.settings['sidebar_changed'] = true if pre_json != result.to_json
       self.settings['preferences']['sidebar_boards'] = result
@@ -2246,9 +2290,111 @@ class User < ApplicationRecord
   
   def sidebar_boards
     stored = (self.settings && self.settings['preferences'] && self.settings['preferences']['sidebar_boards']) || []
-    return User.default_active_sidebar_boards if stored.empty?
+    if stored.empty?
+      return User.resolve_sidebar_boards_for(self, User.default_active_sidebar_boards)
+    end
 
-    User.merge_missing_default_sidebar_boards(stored)
+    User.resolve_sidebar_boards_for(self, User.merge_missing_default_sidebar_boards(stored))
+  end
+
+  def self.sidebar_system_keys
+    [SystemBoardSources.board_key('keyboard')].freeze
+  end
+
+  def self.resolve_sidebar_boards_for(user, boards)
+    entries = boards || []
+    system_keys = []
+    entries.each do |entry|
+      next unless entry.is_a?(Hash)
+      next if entry['alert'] || (entry['special'] && entry['alert'])
+      key = entry['key']
+      next unless key
+      next if sidebar_system_keys.include?(key)
+      system_keys << key
+    end
+
+    system_boards_by_key = {}
+    if system_keys.any?
+      Board.find_all_by_path(system_keys.uniq).each do |board|
+        system_boards_by_key[board.key] = board
+      end
+    end
+
+    copies_by_parent_id = {}
+    parent_ids = system_boards_by_key.values.map(&:id).compact
+    if parent_ids.any?
+      user.boards.where(parent_board_id: parent_ids).order('parent_board_id ASC, id DESC').each do |copy|
+        copies_by_parent_id[copy.parent_board_id] ||= copy
+      end
+    end
+
+    resolved = entries.map { |entry| resolve_sidebar_entry(user, entry, system_boards_by_key, copies_by_parent_id) }
+    dedupe_resolved_sidebar_boards(resolved)
+  end
+
+  def self.dedupe_resolved_sidebar_boards(boards)
+    seen = {}
+    boards.each_with_object([]) do |entry, result|
+      slug = sidebar_board_slug(entry)
+      if slug == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+        next if seen[slug]
+        seen[slug] = true
+      end
+      result << entry
+    end
+  end
+
+  def self.sidebar_board_slug(entry)
+    return nil unless entry.is_a?(Hash) && entry['key']
+    entry['key'].split('/').last
+  end
+
+  def self.sidebar_stored_key_present?(stored, key)
+    return false unless key
+    slug = key.split('/').last
+    (stored || []).any? do |entry|
+      next false unless entry.is_a?(Hash)
+      entry['key'] == key || (
+        slug == SystemBoardSources::CRISIS_VOCABULARY_SLUG &&
+        sidebar_board_slug(entry) == slug
+      )
+    end
+  end
+
+  # Default sidebar entries reference public system boards. Resolve to the user's
+  # owned copy when one exists (parent_board lineage), except keyboard which stays
+  # on the shared system board.
+  def self.resolve_sidebar_entry(user, entry, system_boards_by_key = nil, copies_by_parent_id = nil)
+    return entry unless entry.is_a?(Hash)
+    return entry if entry['alert'] || (entry['special'] && entry['alert'])
+
+    key = entry['key']
+    return entry unless key
+    return entry if sidebar_system_keys.include?(key)
+
+    system_board = if system_boards_by_key
+      system_boards_by_key[key]
+    else
+      Board.find_by_path(key)
+    end
+    return entry unless system_board
+
+    # Stored key already references this user's board — do not swap to a lineage copy.
+    return entry if system_board.user_id == user.id
+
+    copy = if copies_by_parent_id
+      copies_by_parent_id[system_board.id]
+    else
+      user.boards.where(parent_board_id: system_board.id).order('id DESC').first
+    end
+    return entry unless copy
+
+    resolved = entry.merge(
+      'key' => copy.key,
+      'name' => copy.settings['name'] || entry['name']
+    )
+    resolved['image'] = copy.settings['image_url'] if copy.settings['image_url'].present?
+    resolved
   end
 
   def self.sidebar_board_identity(board)
@@ -2270,7 +2416,7 @@ class User < ApplicationRecord
 
     return stored unless stored_ids.any? { |id| default_ids.include?(id) }
 
-    missing_auto_add = sidebar_auto_add_keys.reject { |key| stored_ids.include?(key) }
+    missing_auto_add = sidebar_auto_add_keys.reject { |key| sidebar_stored_key_present?(stored, key) }
     return stored if missing_auto_add.empty?
 
     result = stored.dup
