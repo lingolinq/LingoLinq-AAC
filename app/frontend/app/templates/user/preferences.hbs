@@ -4,20 +4,20 @@
     <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#46505F"/></svg>
     <h2 class="md-preferences__title">{{t "General Preferences" key='general_preferences'}}</h2>
   </div>
-  <form class="form-horizontal md-preferences__form" {{action "savePreferences" on="submit"}}>
+  <form class="form-horizontal md-preferences__form" {{on "submit" this.onSavePreferences}}>
   {{#preference-box title="Basics" glyph='glyphicon glyphicon-cog' title_key='basics' open=true}}
     <span style='display: none;'>{{t "Basics" key='basics'}}</span>
     <div class="form-group">
       <label for="role" class="col-sm-3 control-label">{{t "Account Type" key='role'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="role" content=this.dashboardViewList selection=this.pending_preferences.role action=(action (mut this.pending_preferences.role)) }}
+        {{bound-select select_class="form-control" select_id="role" content=this.dashboardViewList selection=this.pending_preferences.role action=(mut this.pending_preferences.role) }}
       </div>
     </div>
     {{#unless this.non_communicator}}
       <div class="form-group">
         <label for="device_role" class="col-sm-3 control-label">{{t "Device Purpose" key='device_purpose'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="device_role" content=this.device_type_list selection=this.pending_preferences.device.role action=(action (mut this.pending_preferences.device.role)) }}
+          {{bound-select select_class="form-control" select_id="device_role" content=this.device_type_list selection=this.pending_preferences.device.role action=(mut this.pending_preferences.device.role) }}
         </div>
       </div>
       <div class="form-group">
@@ -113,7 +113,7 @@
       </div>
       <div class='col-sm-2' style='text-align: right;'>
         {{#if this.pending_preferences.home_board.key}}
-          <button class='btn btn-default' {{action 'clear_home'}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_home')}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
         {{/if}}
       </div>
       {{#unless this.pending_preferences.home_board.key}}
@@ -130,13 +130,13 @@
     <div class="form-group">
       <label for="locale" class="col-sm-3 control-label">{{t "Preferred Language" key='preferred_language'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="locale" content=(readonly this.localeList) selection=this.pending_preferences.locale action=(action (mut this.pending_preferences.locale)) }}
+        {{bound-select select_class="form-control" select_id="locale" content=(readonly this.localeList) selection=this.pending_preferences.locale action=(mut this.pending_preferences.locale) }}
       </div>
     </div>
     <div class="form-group">
       <label for="preferred_symbols" class="col-sm-3 control-label">{{t "Preferred Symbols" key='preferred_symbols'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="preferred_symbols" content=(readonly this.symbolsList) selection=this.pending_preferences.preferred_symbols action=(action (mut this.pending_preferences.preferred_symbols)) }}
+        {{bound-select select_class="form-control" select_id="preferred_symbols" content=(readonly this.symbolsList) selection=this.pending_preferences.preferred_symbols action=(mut this.pending_preferences.preferred_symbols) }}
         {{#if (get this "premium_symbol_library")}}
           {{#if this.app_state.currentUser.subscription.grace_trial_period}}
             <div class='text-danger'>
@@ -163,7 +163,7 @@
             <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style='max-height: 225px; overflow: auto;'>
               {{#each this.skin_options as |option|}}
                 <li role="presentation">
-                  <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose_skin" option.id}}>
+                  <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{on "click" (this.ctrlAction "choose_skin" option.id)}}>
                     <img src={{option.image_url}} >
                     {{option.label}}
                   </a>
@@ -171,7 +171,7 @@
               {{/each}}
             </ul>
           </span>
-          {{#if current_skin.options}}
+          {{#if this.current_skin.options}}
             <div style='margin-left: 15px;'>
               {{#each this.current_skin.options as |option|}}
                 <div>
@@ -195,19 +195,19 @@
     <div class="form-group">
       <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="notification_frequency" content=this.notification_frequency_options selection=this.pending_preferences.notification_frequency action=(action (mut this.pending_preferences.notification_frequency)) }}
+        {{bound-select select_class="form-control" select_id="notification_frequency" content=this.notification_frequency_options selection=this.pending_preferences.notification_frequency action=(mut this.pending_preferences.notification_frequency) }}
       </div>
     </div>
     <div class="form-group">
       <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key="goal_notifications"}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="goal_notifications" content=this.goal_notification_options selection=this.pending_preferences.goal_notifications action=(action (mut this.pending_preferences.goal_notifications)) }}
+        {{bound-select select_class="form-control" select_id="goal_notifications" content=this.goal_notification_options selection=this.pending_preferences.goal_notifications action=(mut this.pending_preferences.goal_notifications) }}
       </div>
     </div>
     <div class="form-group">
       <label for="share_notifications" class="col-sm-3 control-label">{{t "Share Notifications" key="share_notifications"}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="share_notifications" content=this.allow_shares_options selection=this.pending_preferences.share_notifications action=(action (mut this.pending_preferences.share_notifications)) }}
+        {{bound-select select_class="form-control" select_id="share_notifications" content=this.allow_shares_options selection=this.pending_preferences.share_notifications action=(mut this.pending_preferences.share_notifications) }}
       </div>
     </div>
   {{/preference-box}}
@@ -216,13 +216,13 @@
     <div class="form-group">
       <label for="board_background" class="col-sm-3 control-label">{{t "Board Background Color" key='board_background'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="board_background" content=this.buttonBackgroundList selection=this.pending_preferences.board_background action=(action (mut this.pending_preferences.board_background)) }}
+        {{bound-select select_class="form-control" select_id="board_background" content=this.buttonBackgroundList selection=this.pending_preferences.board_background action=(mut this.pending_preferences.board_background) }}
       </div>
     </div>
     <div class="form-group">
       <label for="symbol_background" class="col-sm-3 control-label">{{t "Image Background Color" key='symbol_background'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="symbol_background" content=this.symbolBackgroundList selection=this.pending_preferences.symbol_background action=(action (mut this.pending_preferences.symbol_background)) }}
+        {{bound-select select_class="form-control" select_id="symbol_background" content=this.symbolBackgroundList selection=this.pending_preferences.symbol_background action=(mut this.pending_preferences.symbol_background) }}
       </div>
     </div>
     <div class="form-group">
@@ -231,7 +231,7 @@
         {{#if this.buttons_stretched}}
           <p class='form-control-static'><em>{{t "When \"Stretch Buttons\" is enabled, hidden buttons cannot be shown" key='no_hidden_buttons_when_stretching'}}</em></p>
         {{else}}
-          {{bound-select select_class="form-control" select_id="hidden_buttons" content=this.hiddenButtonsList selection=this.pending_preferences.hidden_buttons action=(action (mut this.pending_preferences.hidden_buttons)) }}
+          {{bound-select select_class="form-control" select_id="hidden_buttons" content=this.hiddenButtonsList selection=this.pending_preferences.hidden_buttons action=(mut this.pending_preferences.hidden_buttons) }}
         {{/if}}
       </div>
       {{#if this.app_state.feature_flags.enable_all_buttons}}
@@ -248,7 +248,7 @@
     <div class="form-group">
       <label for="dim_level" class="col-sm-3 control-label">{{t "Dimmed Button Brightness" key='dim_level'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="dim_level" content=this.dimLevelList selection=this.pending_preferences.dim_level action=(action (mut this.pending_preferences.dim_level)) }}
+        {{bound-select select_class="form-control" select_id="dim_level" content=this.dimLevelList selection=this.pending_preferences.dim_level action=(mut this.pending_preferences.dim_level) }}
       </div>
     </div>
     <div class="form-group">
@@ -273,7 +273,7 @@
         </div>
         {{#if this.pending_preferences.word_suggestions}}
           <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position_short'}}</label>
-          {{bound-select select_class="form-control" select_id="word_suggestion_position" content=this.wordPredictionPositionList selection=this.pending_preferences.word_suggestion_position action=(action (mut this.pending_preferences.word_suggestion_position)) }}
+          {{bound-select select_class="form-control" select_id="word_suggestion_position" content=this.wordPredictionPositionList selection=this.pending_preferences.word_suggestion_position action=(mut this.pending_preferences.word_suggestion_position) }}
         {{/if}}
       </div>
     </div>
@@ -313,7 +313,7 @@
     <div class="form-group" style="display: none;">
       <label for="stretch_buttons" class="col-sm-3 control-label">{{t "Fill Empty Button Spaces" key='stretch_buttons'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="stretch_buttons" content=this.buttonSpaceList selection=this.pending_preferences.stretch_buttons action=(action (mut this.pending_preferences.stretch_buttons)) }}
+        {{bound-select select_class="form-control" select_id="stretch_buttons" content=this.buttonSpaceList selection=this.pending_preferences.stretch_buttons action=(mut this.pending_preferences.stretch_buttons) }}
       </div>
     </div>
     <div class='form-group'>
@@ -374,7 +374,7 @@
       <div class="form-group">
         <label for="highlighted_buttons" class="col-sm-3 control-label">{{t "Selection Highlights" key='highlighted_buttons'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="highlighted_buttons" content=this.highlighted_buttons_list selection=this.pending_preferences.highlighted_buttons action=(action (mut this.pending_preferences.highlighted_buttons)) }}
+          {{bound-select select_class="form-control" select_id="highlighted_buttons" content=this.highlighted_buttons_list selection=this.pending_preferences.highlighted_buttons action=(mut this.pending_preferences.highlighted_buttons) }}
         </div>
       </div>
       {{#if this.some_highlighted_buttons}}
@@ -442,7 +442,7 @@
       <div class="form-group">
         <label for="activation_location" class="col-sm-3 control-label">{{t "Select Based on" key='activation_location'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="activation_location" content=this.activationLocationList selection=this.pending_preferences.activation_location action=(action (mut this.pending_preferences.activation_location)) }}
+          {{bound-select select_class="form-control" select_id="activation_location" content=this.activationLocationList selection=this.pending_preferences.activation_location action=(mut this.pending_preferences.activation_location) }}
         </div>
       </div>
       <div class="form-group">
@@ -450,9 +450,9 @@
         <div class="col-sm-5">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="md-number-picker">
-              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.activation_cutoff"}}>−</button>
+              <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.activation_cutoff")}}>−</button>
               <Input @value={{this.pending_preferences.activation_cutoff}} class="md-number-picker__input" id="activation_cutoff" placeholder="disabled" />
-              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.activation_cutoff"}}>+</button>
+              <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.activation_cutoff")}}>+</button>
             </div>
             <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
           </div>
@@ -463,9 +463,9 @@
         <div class="col-sm-5">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="md-number-picker">
-              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.activation_minimum"}}>−</button>
+              <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.activation_minimum")}}>−</button>
               <Input @value={{this.pending_preferences.activation_minimum}} class="md-number-picker__input" id="activation_minimum" placeholder="disabled" />
-              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.activation_minimum"}}>+</button>
+              <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.activation_minimum")}}>+</button>
             </div>
             <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
           </div>
@@ -477,9 +477,9 @@
       <div class="col-sm-5">
         <div style="display: flex; align-items: center; gap: 10px;">
           <div class="md-number-picker">
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.debounce"}}>−</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.debounce")}}>−</button>
             <Input @value={{this.pending_preferences.debounce}} class="md-number-picker__input" id="debounce" placeholder="100" />
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.debounce"}}>+</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.debounce")}}>+</button>
           </div>
           <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
         </div>
@@ -539,7 +539,7 @@
                 <Input @type="text" @value={{this.logging_code_check}} class="form-control" placeholder="Log PIN" />
               </div>
               <div class='col-sm-2'>
-                <button type='button' {{action 'check_logging_code'}} disabled={{this.pin_status.checking}} class='btn btn-default'>
+                <button type='button' {{on "click" (this.ctrlAction 'check_logging_code')}} disabled={{this.pin_status.checking}} class='btn btn-default'>
                   {{#if this.pin_status.checking}}
                     {{t "Checking PIN..." key='checking_pin'}}
                   {{else if this.pin_status.error}}
@@ -558,7 +558,7 @@
             <label for="logging_cutoff" class="col-sm-3 control-label">{{t "Logging Cutoff" key='logging_cutoff'}}</label>
             <div class='col-sm-5'>
               <div>
-                {{bound-select disabled=this.cant_change_private_logging select_class="form-control" select_id="external_links" content=this.cutoffsList selection=this.pending_preferences.logging_cutoff action=(action (mut this.pending_preferences.logging_cutoff)) }}
+                {{bound-select disabled=this.cant_change_private_logging select_class="form-control" select_id="external_links" content=this.cutoffsList selection=this.pending_preferences.logging_cutoff action=(mut this.pending_preferences.logging_cutoff) }}
               </div>
               {{#if this.cant_change_private_logging}}
                 <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -566,7 +566,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="logging_pin" class="col-sm-3 control-label">{{t "Logging PIN" key='logging_pin"'}}</label>
+            <label for="logging_pin" class="col-sm-3 control-label">{{t "Logging PIN" key='logging_pin'}}</label>
             <div class='col-sm-5'>
               <div class="checkbox big_checkbox">
                 <label>
@@ -639,7 +639,7 @@
               </label>
             </div>
             <div style="margin-top: 10px;">
-              <button type="button" class='btn btn-default' {{action "delete_logs"}}>{{t "Delete all stored logs" key='delete_all_logs'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "delete_logs")}}>{{t "Delete all stored logs" key='delete_all_logs'}}</button>
             </div>
           </div>
         </div>
@@ -659,7 +659,7 @@
     {{#unless this.advanced}}
     <div class="form-group">
       <div class="col-sm-5 col-sm-offset-3">
-        <a href="#" {{action 'toggle_advanced'}}>{{t "more options" key='more_options'}}</a>
+        <a href="#" {{on "click" (this.ctrlAction 'toggle_advanced')}}>{{t "more options" key='more_options'}}</a>
       </div>
     </div>
     {{/unless}}
@@ -853,9 +853,9 @@
       <div class="col-sm-5">
         <div style="display: flex; align-items: center; gap: 10px;">
           <div class="md-number-picker">
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.board_jump_delay"}}>−</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.board_jump_delay")}}>−</button>
             <Input @value={{this.pending_preferences.board_jump_delay}} class="md-number-picker__input" id="board_jump_delay" placeholder="500" />
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.board_jump_delay"}}>+</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.board_jump_delay")}}>+</button>
           </div>
           <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
         </div>
@@ -864,7 +864,7 @@
     <div class="form-group">
       <label for="external_links" class="col-sm-3 control-label">{{t "External Links" key='external_links'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="external_links" content=this.externalLinksList selection=this.pending_preferences.external_links action=(action (mut this.pending_preferences.external_links)) }}
+        {{bound-select select_class="form-control" select_id="external_links" content=this.externalLinksList selection=this.pending_preferences.external_links action=(mut this.pending_preferences.external_links) }}
       </div>
     </div>
     <div class="form-group">
@@ -988,7 +988,7 @@
             {{this.raw_core_word_list}}
           </div>
           <div style='margin-top: 12px;'>
-            <button type='button' {{action 'modify_core'}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
+            <button type='button' {{on "click" (this.ctrlAction 'modify_core')}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
             <span style='padding-left: 12px; font-size: 14px; color: #5a6a85;'>
               {{t "core word" count=this.core_lists.for_user.length}}
               {{t "listed" key='listed'}}
@@ -1002,7 +1002,7 @@
     {{#unless this.advanced}}
       <div class="form-group">
         <div class="col-sm-5 col-sm-offset-3">
-          <a href="#" {{action 'toggle_advanced'}}>{{t "more options" key='more_options'}}</a>
+          <a href="#" {{on "click" (this.ctrlAction 'toggle_advanced')}}>{{t "more options" key='more_options'}}</a>
         </div>
       </div>
     {{else}}
@@ -1029,7 +1029,7 @@
                   <div style='padding-left: 10px; margin-bottom: 4px;'>
                     {{#if phrase.used}}<span class='glyphicon glyphicon-ok'></span>{{/if}}
                     {{phrase.text}}
-                    <a href="#" {{action 'remove_phrase' phrase.text}} style='padding-left: 8px; font-size: 14px;'>{{t "remove" key='remove_lower'}}</a>
+                    <a href="#" {{on "click" (this.ctrlAction "remove_phrase" phrase.text)}} style='padding-left: 8px; font-size: 14px;'>{{t "remove" key='remove_lower'}}</a>
                   </div>
                 {{/each}}
               {{else}}
@@ -1038,7 +1038,7 @@
             </div>
             <div style='display: flex; gap: 10px; margin-top: 12px;'>
               <Input @type="text" class="form-control" @value={{this.new_phrase}} placeholder="request additional phrase" />
-              <button type='button' class='btn btn-default' style='white-space: nowrap;' {{action 'add_phrase'}}>{{t "Add" key='add'}}</button>
+              <button type='button' class='btn btn-default' style='white-space: nowrap;' {{on "click" (this.ctrlAction 'add_phrase')}}>{{t "Add" key='add'}}</button>
             </div>
           </div>
         </div>
@@ -1051,7 +1051,7 @@
           </div>
           <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em></p>
           <div style='margin-top: 12px;'>
-            <button class='btn btn-default' {{action 'phrases'}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction 'phrases')}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
           </div>
         </div>
       </div>
@@ -1121,7 +1121,7 @@
         <div class="col-sm-5">
           {{#unless this.editing_sidebar}}
             <div style='margin-bottom: 12px;'>
-              <button class='btn btn-default' {{action 'edit_sidebar'}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction 'edit_sidebar')}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
             </div>
           {{else}}
             <p class="form-control-static">
@@ -1130,13 +1130,13 @@
             <ul class="list-group">
               {{#each this.active_sidebar_options as |option|}}
                 <li class="list-group-item" style="height: 60px;">
-                  <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{action "sidebar_button_settings" option}}>
+                  <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                   <span style="float: right; margin-top: 5px;">
-                    <button class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{action 'move_sidebar_button' option 'up'}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{action 'move_sidebar_button' option 'down'}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{action 'move_sidebar_button' option 'delete'}}><span class='glyphicon glyphicon-trash'></span></button>
+                    <button class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "up")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                    <button class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "down")}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
+                    <button class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "delete")}}><span class='glyphicon glyphicon-trash'></span></button>
                   </span>
-                  <span style="cursor: pointer; margin-top: 10px; display: inline-block; margin-left: 5px;" {{action "sidebar_button_settings" option}}>
+                  <span style="cursor: pointer; margin-top: 10px; display: inline-block; margin-left: 5px;" {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                     {{#if option.alert}}
                       <span class="glyphicon glyphicon-bullhorn"></span>
                     {{else if option.home_lock}}
@@ -1160,7 +1160,7 @@
                   <li class="list-group-item" style="height: 60px;">
                     <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
-                      <button class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{action 'move_sidebar_button' option 'restore'}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                      <button class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "restore")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
                     </span>
                     <span style="margin-top: 10px; display: inline-block; margin-left: 5px;">
                       {{#if option.alert}}
@@ -1174,20 +1174,20 @@
               </ul>
               {{#if this.pending_preferences.prior_sidebar_boards}}
                 {{#unless this.include_prior_sidebar_buttons}}
-                  <a href="#" {{action 'include_prior_sidebar_buttons'}}>{{t "show prior sidebar links and buttons" key='show_prior_buttons'}}</a>
+                  <a href="#" {{on "click" (this.ctrlAction 'include_prior_sidebar_buttons')}}>{{t "show prior sidebar links and buttons" key='show_prior_buttons'}}</a>
                 {{/unless}}
               {{/if}}
             {{/if}}
             <div>
               <p class="form-control-static" style="margin-top: 0; margin-bottom: 8px; font-size: 1.05rem;">{{t "Pick an action from the list, or type a board path (username/boardkey)." key="sidebar_manual_add_help"}}</p>
               <div style="margin-bottom: 10px;">
-                {{bound-select select_class="form-control" select_id="sidebar_action_picker" content=this.sidebar_action_picker_options prompt=(t "Choose an action..." key="sidebar_action_picker_prompt") action=(action "pick_sidebar_action_code")}}
+                {{bound-select select_class="form-control" select_id="sidebar_action_picker" content=this.sidebar_action_picker_options prompt=(t "Choose an action..." key="sidebar_action_picker_prompt") action=(this.ctrlAction "pick_sidebar_action_code")}}
               </div>
               <span style='display: inline-block; width: calc(100% - 65px);'>
                 <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder={{t "add board key or action code" key="sidebar_add_placeholder"}} aria-label={{t "add board key or action code" key="sidebar_add_placeholder"}} />
               </span>
               <span style='display: inline-block; width: 60px;'>
-                <button class='btn btn-default' {{action 'add_sidebar_board' this.new_sidebar_board}}>{{t "Add" key='add'}}</button>
+                <button class='btn btn-default' {{on "click" (this.ctrlAction "add_sidebar_board" this.new_sidebar_board)}}>{{t "Add" key='add'}}</button>
               </span>
               <p class="form-control-static" style="margin-top: 10px; font-size: 1.05rem;">{{t "You can edit the action code before adding—for example change :timer(30s) to :timer(60s)." key="sidebar_action_picker_edit_help"}}</p>
               <p class="form-control-static" style="margin-top: 4px; font-size: 1.05rem;">{{t "Board example: lingolinq/yesno" key="sidebar_board_key_example"}}</p>
@@ -1206,23 +1206,23 @@
         <div class="col-sm-5">
           <p class='form-control-static' style='margin-bottom: 12px;'>
             {{#if this.pending_preferences.tag_ids}}
-              {{t "tag" count=pending_preferences.tag_ids.length key='n_tags'}} {{t "saved" key='saved'}}
+              {{t "tag" count=this.pending_preferences.tag_ids.length key='n_tags'}} {{t "saved" key='saved'}}
             {{else}}
               <em style='color: var(--md-muted);'>{{t "No tags saved" key='no_tags_saved'}}</em>
             {{/if}}
           </p>
           <div style='display: flex; gap: 10px; flex-wrap: wrap;'>
             {{#if this.can_record_tags}}
-              <button class='btn btn-default' {{action 'program_tag'}}>{{t "Save New Tag" key='save_new_tag'}}</button>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction 'program_tag')}}>{{t "Save New Tag" key='save_new_tag'}}</button>
             {{/if}}
-            <button class='btn btn-default' {{action 'clear_nfc_tags'}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_nfc_tags')}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
           </div>
         </div>
       </div>
     {{else}}
       <div class="form-group">
         <div class="col-sm-5 col-sm-offset-3">
-          <a href="#" {{action 'toggle_advanced'}}>{{t "more options" key='more_options'}}</a>
+          <a href="#" {{on "click" (this.ctrlAction 'toggle_advanced')}}>{{t "more options" key='more_options'}}</a>
         </div>
       </div>
     {{/if}}
@@ -1243,33 +1243,33 @@
     <div class="form-group">
       <label for="vocalization_height" class="col-sm-3 control-label">{{t "Vocalization Box Size" key='vocalization_height'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="vocalization_height" content=this.vocalizationHeightList selection=this.pending_preferences.device.vocalization_height action=(action (mut this.pending_preferences.device.vocalization_height)) }}
+        {{bound-select select_class="form-control" select_id="vocalization_height" content=this.vocalizationHeightList selection=this.pending_preferences.device.vocalization_height action=(mut this.pending_preferences.device.vocalization_height) }}
       </div>
     </div>
     <div class="form-group">
       <label for="button_spacing" class="col-sm-3 control-label">{{t "Button Spacing" key='button_spacing'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_spacing" content=this.buttonSpacingList selection=this.pending_preferences.device.button_spacing action=(action (mut this.pending_preferences.device.button_spacing)) }}
+        {{bound-select select_class="form-control" select_id="button_spacing" content=this.buttonSpacingList selection=this.pending_preferences.device.button_spacing action=(mut this.pending_preferences.device.button_spacing) }}
       </div>
     </div>
     {{#if this.advanced}}
     <div class="form-group">
       <label for="button_border" class="col-sm-3 control-label">{{t "Button Border Size" key='button_border'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_border" content=this.buttonBorderList selection=this.pending_preferences.device.button_border action=(action (mut this.pending_preferences.device.button_border)) }}
+        {{bound-select select_class="form-control" select_id="button_border" content=this.buttonBorderList selection=this.pending_preferences.device.button_border action=(mut this.pending_preferences.device.button_border) }}
       </div>
     </div>
     {{/if}}
     <div class="form-group">
       <label for="button_text" class="col-sm-3 control-label">{{t "Button Text Size" key='button_text'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_text" content=this.buttonTextList selection=this.pending_preferences.device.button_text action=(action (mut this.pending_preferences.device.button_text)) }}
+        {{bound-select select_class="form-control" select_id="button_text" content=this.buttonTextList selection=this.pending_preferences.device.button_text action=(mut this.pending_preferences.device.button_text) }}
       </div>
     </div>
     <div class="form-group">
       <label for="button_text_position" class="col-sm-3 control-label">{{t "Button Text Position" key='button_text_position'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_text_position" content=this.buttonTextPositionList selection=this.pending_preferences.device.button_text_position action=(action (mut this.pending_preferences.device.button_text_position)) }}
+        {{bound-select select_class="form-control" select_id="button_text_position" content=this.buttonTextPositionList selection=this.pending_preferences.device.button_text_position action=(mut this.pending_preferences.device.button_text_position) }}
       </div>
     </div>
     {{#if this.advanced}}
@@ -1301,13 +1301,13 @@
         <div class="form-group">
           <label for="flipped_text" class="col-sm-3 control-label">{{t "Vocalization Box Text Size" key='flipped_text'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="flipped_text" content=this.buttonTextList selection=this.pending_preferences.device.flipped_text action=(action (mut this.pending_preferences.device.flipped_text)) }}
+            {{bound-select select_class="form-control" select_id="flipped_text" content=this.buttonTextList selection=this.pending_preferences.device.flipped_text action=(mut this.pending_preferences.device.flipped_text) }}
           </div>
         </div>
         <div class="form-group">
           <label for="flipped_height" class="col-sm-3 control-label">{{t "Flipped Box Size" key='flipped_height'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="flipped_height" content=this.vocalizationHeightList selection=this.pending_preferences.device.flipped_height action=(action (mut this.pending_preferences.device.flipped_height)) }}
+            {{bound-select select_class="form-control" select_id="flipped_height" content=this.vocalizationHeightList selection=this.pending_preferences.device.flipped_height action=(mut this.pending_preferences.device.flipped_height) }}
           </div>
         </div>
       {{/if}}
@@ -1315,7 +1315,7 @@
         <!-- TODO: shouldn't font be a global preference, not a device preference? -->
         <label for="button_style" class="col-sm-3 control-label">{{t "Button Text Style" key='button_style'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="button_style" content=this.buttonStyleList selection=this.pending_preferences.device.button_style action=(action (mut this.pending_preferences.device.button_style)) }}
+          {{bound-select select_class="form-control" select_id="button_style" content=this.buttonStyleList selection=this.pending_preferences.device.button_style action=(mut this.pending_preferences.device.button_style) }}
           <div class={{this.text_sample_class}} style="margin-left: 20px; margin-top: 5px;">{{t "This is a Text Sample" key='this_is_a_text_sample'}}</div>
         </div>
       </div>
@@ -1361,14 +1361,14 @@
         <div class="form-group">
           <label for="scanning_mode" class="col-sm-3 control-label">{{t "Scanning Mode" key='scanning_mode'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.scanningModeList selection=this.pending_preferences.device.scanning_mode action=(action (mut this.pending_preferences.device.scanning_mode)) }}
+            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.scanningModeList selection=this.pending_preferences.device.scanning_mode action=(mut this.pending_preferences.device.scanning_mode) }}
           </div>
         </div>
         {{#if this.axes_scanning}}
           <div class="form-group">
             <label for="scanning_sweep_speed" class="col-sm-3 control-label">{{t "Scanning Speed" key='scanning_sweep_speed'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="scanning_sweep_speed" content=this.scanningAxisSpeedList selection=this.pending_preferences.device.scanning_sweep_speed action=(action (mut this.pending_preferences.device.scanning_sweep_speed)) }}
+              {{bound-select select_class="form-control" select_id="scanning_sweep_speed" content=this.scanningAxisSpeedList selection=this.pending_preferences.device.scanning_sweep_speed action=(mut this.pending_preferences.device.scanning_sweep_speed) }}
             </div>
           </div>
         {{else}}
@@ -1378,11 +1378,11 @@
               <div class="col-sm-2">
                 <div class="input-group">
                   <span class="input-group-btn">
-                    <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.scanning_region_rows"}}>-</button>
+                    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_rows")}}>-</button>
                   </span>
                   <Input @value={{this.pending_preferences.device.scanning_region_rows}} class="form-control" id="scanning_region_rows" placeholder="rows" />
                   <span class="input-group-btn">
-                    <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.scanning_region_rows"}}>+</button>
+                    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_rows")}}>+</button>
                   </span>
                 </div>
               </div>
@@ -1394,11 +1394,11 @@
               <div class="col-sm-2">
                 <div class="input-group">
                   <span class="input-group-btn">
-                    <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.scanning_region_columns"}}>-</button>
+                    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_columns")}}>-</button>
                   </span>
                   <Input @value={{this.pending_preferences.device.scanning_region_columns}} class="form-control" id="scanning_region_columns" placeholder="cols" />
                   <span class="input-group-btn">
-                    <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.scanning_region_columns"}}>+</button>
+                    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_columns")}}>+</button>
                   </span>
                 </div>
               </div>
@@ -1484,11 +1484,11 @@
             <div class="form-group">
               <div class="col-sm-2">
                 <p class="form-control-static"><label for="scan_left">{{t "Left Half" key='left_half'}}</label></p>
-                {{bound-select select_class="form-control" select_id="scan_left" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_left_screen_action action=(action (mut this.pending_preferences.device.scanning_left_screen_action)) }}
+                {{bound-select select_class="form-control" select_id="scan_left" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_left_screen_action action=(mut this.pending_preferences.device.scanning_left_screen_action) }}
               </div>
               <div class="col-sm-2">
                 <p class="form-control-static"><label for="scan_right">{{t "Right Half" key='right_half'}}</label></p>
-                {{bound-select select_class="form-control" select_id="scan_right" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_right_screen_action action=(action (mut this.pending_preferences.device.scanning_right_screen_action)) }}
+                {{bound-select select_class="form-control" select_id="scan_right" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_right_screen_action action=(mut this.pending_preferences.device.scanning_right_screen_action) }}
               </div>
             </div>
           {{/unless}}
@@ -1498,7 +1498,7 @@
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
                 <div style='width: 60px;'>
-                  {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(action (mut this.pending_preferences.device.scanning_select_keycode)) placeholder='press a key'}}
+                  {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='press a key'}}
                 </div>
                 <span class='form-control-static' style='color: var(--md-muted);'>{{select_keycode_string}}</span>
               </div>
@@ -1587,10 +1587,10 @@
         <div class="form-group">
           <label for="dwell_type" class="col-sm-3 control-label">{{t "Dwell Type" key='dwell_type'}}</label>
           <div class="col-sm-3">
-            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.dwellList selection=this.pending_preferences.device.dwell_type action=(action (mut this.pending_preferences.device.dwell_type)) }}
+            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.dwellList selection=this.pending_preferences.device.dwell_type action=(mut this.pending_preferences.device.dwell_type) }}
           </div>
           <div class="col-sm-2">
-            <button class='btn btn-default' {{action "test_dwell"}} style='width: 100%;'>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_dwell")}} style='width: 100%;'>
               {{#if this.testing_dwell}}
                 {{t "Stop Tracking" key='stop_test_dwell'}}
               {{else}}
@@ -1601,7 +1601,7 @@
           {{#if this.eyegaze_type}}
             {{#if this.calibratable}}
               <div class="col-sm-2">
-                <button class='btn btn-default' {{action "calibrate"}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
+                <button class='btn btn-default' {{on "click" (this.ctrlAction "calibrate")}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
               </div>
             {{/if}}
           {{/if}}
@@ -1653,7 +1653,7 @@
             <div class="form-group">
               <label for="dwell_tilt_sensitivity" class="col-sm-3 control-label">{{t "Dwell Head Sensitivity" key='dwell_tilt_sensitivity'}}</label>
               <div class="col-sm-3">
-                {{bound-select select_class="form-control" select_id="dwell_tilt_sensitivity" content=this.dwellTiltList selection=this.pending_preferences.device.dwell_tilt_sensitivity action=(action (mut this.pending_preferences.device.dwell_tilt_sensitivity)) }}
+                {{bound-select select_class="form-control" select_id="dwell_tilt_sensitivity" content=this.dwellTiltList selection=this.pending_preferences.device.dwell_tilt_sensitivity action=(mut this.pending_preferences.device.dwell_tilt_sensitivity) }}
               </div>
             </div>
 
@@ -1673,7 +1673,7 @@
             <div class="form-group">
               <label for="dwell_arrow_speed" class="col-sm-3 control-label">{{t "Dwell Cursor Speed" key='dwell_arrow_speed'}}</label>
               <div class="col-sm-3">
-                {{bound-select select_class="form-control" select_id="dwell_arrow_speed" content=this.arrowSpeedList selection=this.pending_preferences.device.dwell_arrow_speed action=(action (mut this.pending_preferences.device.dwell_arrow_speed)) }}
+                {{bound-select select_class="form-control" select_id="dwell_arrow_speed" content=this.arrowSpeedList selection=this.pending_preferences.device.dwell_arrow_speed action=(mut this.pending_preferences.device.dwell_arrow_speed) }}
               </div>
             </div>
           {{/unless}}
@@ -1694,7 +1694,7 @@
           <div class="form-group">
             <label for="dwell_icon_option" class="col-sm-3 control-label">{{t "Dwell Cursor Icon" key='dwell_icon'}}</label>
             <div class="col-sm-3">
-              {{bound-select select_class="form-control" select_id="dwell_icon_option" content=this.dwellIconList selection=this.pending_preferences.device.dwell_icon action=(action (mut this.pending_preferences.device.dwell_icon)) }}
+              {{bound-select select_class="form-control" select_id="dwell_icon_option" content=this.dwellIconList selection=this.pending_preferences.device.dwell_icon action=(mut this.pending_preferences.device.dwell_icon) }}
             </div>
             <div class='col-sm-1'>
               <div id='dwell_icon' style='z-index: 1;' class={{this.dwell_icon_class}}></div>
@@ -1704,7 +1704,7 @@
         <div class="form-group">
           <label for="dwell_type" class="col-sm-3 control-label">{{t "Dwell Selection" key='dwell_selection'}}</label>
           <div class="col-sm-3">
-            {{bound-select select_class="form-control" select_id="dwell_selection" content=this.dwellSelectList selection=this.pending_preferences.device.dwell_selection action=(action (mut this.pending_preferences.device.dwell_selection)) }}
+            {{bound-select select_class="form-control" select_id="dwell_selection" content=this.dwellSelectList selection=this.pending_preferences.device.dwell_selection action=(mut this.pending_preferences.device.dwell_selection) }}
           </div>
         </div>
         {{#if this.button_dwell}}
@@ -1712,7 +1712,7 @@
             <label for="scanning_select_keycode" class="col-sm-3 control-label">{{t "Dwell \"Select\" Key" key='dwell_select_keycode'}}</label>
             <div class="col-sm-5">
               <label style="width: 50px;">
-                {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(action (mut this.pending_preferences.device.scanning_select_keycode)) placeholder='hit any key'}}
+                {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='hit any key'}}
               </label>
               &nbsp;{{this.select_keycode_string}}
             </div>
@@ -1721,7 +1721,7 @@
           <div class="form-group">
             <label for="select_expression" class="col-sm-3 control-label">{{t "Dwell Expression" key='select_expression'}}</label>
             <div class="col-sm-3">
-              {{bound-select select_class="form-control" select_id="select_expression" content=this.expressionList selection=this.pending_preferences.device.select_expression action=(action (mut this.pending_preferences.device.select_expression)) }}
+              {{bound-select select_class="form-control" select_id="select_expression" content=this.expressionList selection=this.pending_preferences.device.select_expression action=(mut this.pending_preferences.device.select_expression) }}
             </div>
           </div>
         {{else}}
@@ -1741,9 +1741,9 @@
             <div class="col-sm-5">
               <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="md-number-picker">
-                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.dwell_duration"}}>−</button>
+                  <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.dwell_duration")}}>−</button>
                   <Input @value={{this.pending_preferences.device.dwell_duration}} class="md-number-picker__input" id="dwell_duration" placeholder="1000" />
-                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.dwell_duration"}}>+</button>
+                  <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.dwell_duration")}}>+</button>
                 </div>
                 <span class="form-control-static" style="white-space: nowrap;">{{t "ms to select" key='milliseconds_to_select'}}</span>
               </div>
@@ -1754,9 +1754,9 @@
             <div class="col-sm-5">
               <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="md-number-picker">
-                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.dwell_delay"}}>−</button>
+                  <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.dwell_delay")}}>−</button>
                   <Input @value={{this.pending_preferences.device.dwell_delay}} class="md-number-picker__input" id="dwell_delay" placeholder="100" />
-                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.dwell_delay"}}>+</button>
+                  <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.dwell_delay")}}>+</button>
                 </div>
                 <span class="form-control-static" style="white-space: nowrap;">{{t "ms before new selection" key='milliseconds_delay'}}</span>
               </div>
@@ -1765,7 +1765,7 @@
           <div class="form-group">
             <label for="dwell_release_distance" class="col-sm-3 control-label">{{t "Next Dwell Movement" key='dwell_release'}}</label>
             <div class="col-sm-2">
-              {{bound-select select_class="form-control" select_id="dwell_release_distance" content=this.dwellReleaseDistanceList selection=this.pending_preferences.device.dwell_release_distance action=(action (mut this.pending_preferences.device.dwell_release_distance)) }}
+              {{bound-select select_class="form-control" select_id="dwell_release_distance" content=this.dwellReleaseDistanceList selection=this.pending_preferences.device.dwell_release_distance action=(mut this.pending_preferences.device.dwell_release_distance) }}
             </div>
             <div class="col-sm-3">
               <p class='form-control-static'>{{t "before starting a new selection" key='move_after_select'}}</p>
@@ -1774,7 +1774,7 @@
           <div class="form-group">
             <label for="dwell_targeting" class="col-sm-3 control-label">{{t "Dwell Targeting Style" key='dwell_targeting'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="scanning_mode" content=this.targetingList selection=this.pending_preferences.device.dwell_targeting action=(action (mut this.pending_preferences.device.dwell_targeting)) }}
+              {{bound-select select_class="form-control" select_id="scanning_mode" content=this.targetingList selection=this.pending_preferences.device.dwell_targeting action=(mut this.pending_preferences.device.dwell_targeting) }}
             </div>
           </div>
           <div class="form-group">
@@ -1808,10 +1808,10 @@
       <div class="form-group">
         <label for="voice_pitch" class="col-sm-3 col-xs-12 control-label">{{t "Voice" key='voiceURI'}}</label>
         <div class="col-sm-3 col-xs-7">
-          {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(action (mut this.pending_preferences.device.voice.voice_uri)) }}
+          {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(mut this.pending_preferences.device.voice.voice_uri) }}
         </div>
         <div class="col-sm-2 col-xs-5">
-          <button class='btn btn-default' {{action "premium_voices"}}>{{t "Premium Voices" key='premium_voices'}}</button>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
         </div>
       </div>
       <div class="form-group" style="margin-top: -15px;">
@@ -1827,16 +1827,16 @@
       <div class="col-sm-3 col-xs-7">
         <div class="input-group">
           <span class="input-group-btn">
-            <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.rate"}}>-</button>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.rate")}}>-</button>
           </span>
           <Input @value={{this.pending_preferences.device.voice.rate}} class="form-control" id="voice_rate" placeholder="1.0" />
           <span class="input-group-btn">
-            <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.rate"}}>+</button>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.rate")}}>+</button>
           </span>
         </div>
       </div>
       <div class="col-sm-2 col-xs-5">
-        <button class='btn btn-default' {{action "test_voice"}}>{{t "Test Voice" key='test_voice'}}</button>
+        <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}}>{{t "Test Voice" key='test_voice'}}</button>
       </div>
     </div>
   {{else}}
@@ -1849,9 +1849,9 @@
           <div class="col-sm-5">
             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
               <div style="flex: 1 1 auto; min-width: 180px;">
-                {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(action (mut this.pending_preferences.device.voice.voice_uri)) }}
+                {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(mut this.pending_preferences.device.voice.voice_uri) }}
               </div>
-              <button class='btn btn-default' {{action "premium_voices"}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
             </div>
             {{#if this.ios_app}}
               <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some system voices may not work due to an Apple speech engine issue. Try a Premium Voice or \"System Default Voice\" if needed." key='apple_tts_bug'}}</em></p>
@@ -1867,7 +1867,7 @@
             </p>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{action "premium_voices"}}>{{t "Premium Voices" key='premium_voices'}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
           </div>
         </div>
       {{/if}}
@@ -1875,9 +1875,9 @@
         <label for="voice_rate" class="col-sm-3 col-xs-12 control-label">{{t "Voice Rate" key='voice_rate'}}</label>
         <div class="col-sm-5">
           <div class="md-number-picker">
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.rate"}}>−</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.rate")}}>−</button>
             <Input @value={{this.pending_preferences.device.voice.rate}} class="md-number-picker__input" id="voice_rate" placeholder="1.0" />
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.rate"}}>+</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.rate")}}>+</button>
           </div>
         </div>
       </div>
@@ -1885,9 +1885,9 @@
         <label for="voice_pitch" class="col-sm-3 col-xs-12 control-label">{{t "Voice Pitch" key='voice_pitch'}}</label>
         <div class="col-sm-5">
           <div class="md-number-picker">
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.pitch"}}>−</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.pitch")}}>−</button>
             <Input @value={{this.pending_preferences.device.voice.pitch}} class="md-number-picker__input" id="voice_pitch" placeholder="1.0" />
-            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.pitch"}}>+</button>
+            <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.pitch")}}>+</button>
           </div>
         </div>
       </div>
@@ -1896,11 +1896,11 @@
         <div class="col-sm-5">
           <div style="display: flex; align-items: center; gap: 12px;">
             <div class="md-number-picker">
-              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.volume"}}>−</button>
+              <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.volume")}}>−</button>
               <Input @value={{this.pending_preferences.device.voice.volume}} class="md-number-picker__input" id="voice_volume" placeholder="1.0" />
-              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.volume"}}>+</button>
+              <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.volume")}}>+</button>
             </div>
-            <button class='btn btn-default' {{action "test_voice"}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
           </div>
           <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some voices may not support changing pitch or volume" key='voice_pitch_volume_note'}}</em></p>
         </div>
@@ -1909,8 +1909,8 @@
         <div class="form-group">
           <label for="voice_output" class="col-sm-3 control-label">{{t "Voice & Output" key='voice_output'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="voice_output" content=this.audioOutputList selection=this.pending_preferences.device.voice.target action=(action (mut this.pending_preferences.device.voice.target)) }}
-            {{#if audio_switching_delays.primary}}
+            {{bound-select select_class="form-control" select_id="voice_output" content=this.audioOutputList selection=this.pending_preferences.device.voice.target action=(mut this.pending_preferences.device.voice.target) }}
+            {{#if this.audio_switching_delays.primary}}
               <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
             {{/if}}
           </div>
@@ -1932,7 +1932,7 @@
         {{#if this.user_voice_list}}
           <div class="form-group">
             <div class="col-sm-3 col-xs-7 col-sm-offset-3">
-              {{bound-select select_class="form-control" select_id="alternate_voice_uri" content=this.user_voice_list selection=this.pending_preferences.device.alternate_voice.voice_uri action=(action (mut this.pending_preferences.device.alternate_voice.voice_uri)) }}
+              {{bound-select select_class="form-control" select_id="alternate_voice_uri" content=this.user_voice_list selection=this.pending_preferences.device.alternate_voice.voice_uri action=(mut this.pending_preferences.device.alternate_voice.voice_uri) }}
             </div>
           </div>
         {{/if}}
@@ -1976,11 +1976,11 @@
           <div class="col-sm-3 col-xs-7">
             <div class="input-group">
               <span class="input-group-btn">
-                <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.rate"}}>-</button>
+                <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.rate")}}>-</button>
               </span>
               <Input @value={{this.pending_preferences.device.alternate_voice.rate}} class="form-control" id="alternate_voice_rate" placeholder="1.0" />
               <span class="input-group-btn">
-                <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.rate"}}>+</button>
+                <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.rate")}}>+</button>
               </span>
             </div>
           </div>
@@ -1990,11 +1990,11 @@
           <div class="col-sm-3 col-xs-7">
             <div class="input-group">
               <span class="input-group-btn">
-                <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.pitch"}}>-</button>
+                <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.pitch")}}>-</button>
               </span>
               <Input @value={{this.pending_preferences.device.alternate_voice.pitch}} class="form-control" id="alternate_voice_pitch" placeholder="1.0" />
               <span class="input-group-btn">
-                <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.pitch"}}>+</button>
+                <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.pitch")}}>+</button>
               </span>
             </div>
           </div>
@@ -2004,24 +2004,24 @@
           <div class="col-sm-3 col-xs-7">
             <div class="input-group">
               <span class="input-group-btn">
-                <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.volume"}}>-</button>
+                <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.volume")}}>-</button>
               </span>
               <Input @value={{this.pending_preferences.device.alternate_voice.volume}} class="form-control" id="alternate_voice_volume" placeholder="1.0" />
               <span class="input-group-btn">
-                <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.volume"}}>+</button>
+                <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.volume")}}>+</button>
               </span>
             </div>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{action "test_voice" 'alternate'}}>{{t "Test Voice" key='test_voice'}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice" "alternate")}}>{{t "Test Voice" key='test_voice'}}</button>
           </div>
         </div>
       {{#if this.audio_target_available}}
           <div class="form-group">
             <label for="alternate_voice_output" class="col-sm-3 control-label">{{t "Secondary Voice Output" key='alternate_voice_output'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="alternate_voice_output" content=this.audioOutputList selection=this.pending_preferences.device.alternate_voice.target action=(action (mut this.pending_preferences.device.alternate_voice.target)) }}
-              {{#if audio_switching_delays.alternate}}
+              {{bound-select select_class="form-control" select_id="alternate_voice_output" content=this.audioOutputList selection=this.pending_preferences.device.alternate_voice.target action=(mut this.pending_preferences.device.alternate_voice.target) }}
+              {{#if this.audio_switching_delays.alternate}}
                 <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
               {{/if}}
             </div>
@@ -2047,7 +2047,7 @@
   {{#unless this.advanced}}
     <div class="form-group">
       <div class="col-sm-5 col-sm-offset-3">
-        <a href="#" {{action 'toggle_advanced'}}>{{t "more options" key='more_options'}}</a>
+        <a href="#" {{on "click" (this.ctrlAction 'toggle_advanced')}}>{{t "more options" key='more_options'}}</a>
       </div>
     </div>
   {{/unless}}
@@ -2061,7 +2061,7 @@
         {{t "Save Preferences" key='save_preferences'}}
       {{/if}}
     </button>
-    <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key='cancel'}}</button>
+    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "cancelSave")}}>{{t "Cancel" key='cancel'}}</button>
   </div>
   </form>
 </div>

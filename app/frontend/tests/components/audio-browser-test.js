@@ -1,4 +1,3 @@
-import DS from 'ember-data';
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import {
@@ -11,7 +10,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import 'frontend/tests/helpers/ember_helper';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
@@ -24,7 +23,13 @@ import Button from '../../utils/button';
 describe('audio-browser', function() {
   var component = null;
   beforeEach(function() {
-    component = this.subject('audio-browser');
+    component = this.owner.factoryFor('component:audio-browser').create();
+  });
+  afterEach(function() {
+    if(component && !component.isDestroyed) {
+      component.destroy();
+    }
+    component = null;
   });
 
   it('should have a span tagName', function() {

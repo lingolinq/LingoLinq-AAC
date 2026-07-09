@@ -43,7 +43,7 @@
       <hr class="md-hero--user__divider" aria-hidden="true">
       <div class="md-hero--user__below-divider">
         {{#if this.model.permissions.edit}}
-          <a href="#" {{action "setup"}} class="md-hero--user__wizard-btn">{{t "Launch the Getting Started Wizard Again" key="launch_setup"}}</a>
+          <a href="#" {{on "click" (this.ctrlAction "setup")}} class="md-hero--user__wizard-btn">{{t "Launch the Getting Started Wizard Again" key="launch_setup"}}</a>
         {{/if}}
       </div>
       --}}
@@ -68,15 +68,15 @@
           {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}
         {{/if}}
         <br><br>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "user_approve"}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "user_reject"}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_approve")}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_reject")}}>{{t "Deny Access"}}</button>
       </div>
     {{else if this.model.pending_supervision_org}}
       <div class='alert alert-info'>
         {{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=this.model.pending_supervision_org.name}}
         <br><br>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_approve"}}>{{t "Approve %{org}" org=this.model.pending_supervision_org.name}}</button>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_reject"}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "supervisor_approve")}}>{{t "Approve %{org}" org=this.model.pending_supervision_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "supervisor_reject")}}>{{t "Deny Access"}}</button>
       </div>
     {{else if this.show_welcome_notice}}
       <div class="ll-welcome-notice ll-welcome-notice--long" role="status">
@@ -85,10 +85,10 @@
           {{#if this.resentConfirmation}}
             {{t "Confirmation Email Sent!" key="confirmation_sent"}}
           {{else}}
-            <a href="#" class="ll-welcome-notice__link" {{action "resendConfirmation"}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
+            <a href="#" class="ll-welcome-notice__link" {{on "click" (this.ctrlAction "resendConfirmation")}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
           {{/if}}
         </span>
-        <button type="button" class="ll-welcome-notice__close" {{action "dismiss_welcome_notice"}} aria-label={{t "Dismiss" key="dismiss"}}>
+        <button type="button" class="ll-welcome-notice__close" {{on "click" (this.ctrlAction "dismiss_welcome_notice")}} aria-label={{t "Dismiss" key="dismiss"}}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -108,7 +108,7 @@
     {{#if this.app_state.currentUser.preferences.new_index}}
       <div class='col-sm-3 col-xs-6 big_button_holder'>
         {{#if this.model.external_device}}
-          <a href="#" {{action "external_device"}} class="btn simple_board_icon btn-default">
+          <a href="#" {{on "click" (this.ctrlAction "external_device")}} class="btn simple_board_icon btn-default">
             {{#if this.model.external_device.size}}
               <span style='position: absolute; top: 10px; right: 10px; width: 50px; height: 50px; border-radius: 50px; border: 2px solid #ccc; background: rgba(255, 255, 255, 0.7); color: #777; padding-top: 5px; z-index: 2;'>
                 {{this.model.external_device.size}}
@@ -144,7 +144,7 @@
           </a>
         {{else if this.model.preferences.sync_starred_boards}}
           <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
-          <a href="#" {{action "load_starred"}} class="btn simple_board_icon btn-default">
+          <a href="#" {{on "click" (this.ctrlAction "load_starred")}} class="btn simple_board_icon btn-default">
             <img src="/images/star.svg" onerror="button_broken_image(this);">
             <div class='name' style='font-size: 17px; line-height: 18px;'>
               <div>
@@ -167,7 +167,7 @@
         {{/if}}
       </div>
       <div class='col-sm-3 col-xs-6 big_button_holder'>
-        <button class='btn big_button btn-default secondary_button' {{action "stats"}}>
+        <button class='btn big_button btn-default secondary_button' {{on "click" (this.ctrlAction "stats")}}>
           <img src={{path "images/bar_chart.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
           {{t "Reports" key="reports"}}
         </button>
@@ -179,7 +179,7 @@
         </LinkTo>
       </div>
       <div class='col-sm-3 col-xs-6 big_button_holder'>
-        <button class='btn big_button btn-default lesser_button' {{action "supervision_settings"}}>
+        <button class='btn big_button btn-default lesser_button' {{on "click" (this.ctrlAction "supervision_settings")}}>
           <span class='glyphicon glyphicon-user'></span>
           {{#if this.model.supporter_role}}
             {{t "Supervision" key="supervision"}}
@@ -193,7 +193,7 @@
       {{#if this.model.permissions.supervise}}
         <div class='col-sm-3 col-xs-6 big_button_holder'>
           {{#if this.app_state.feature_flags.profiles}}
-            <button class='btn big_button btn-default' {{action "profile_preview" this.model}} style='height: 100px; padding-top: 0;'>
+            <button class='btn big_button btn-default' {{on "click" (this.ctrlAction "profile_preview" this.model)}} style='height: 100px; padding-top: 0;'>
               <div style='font-size: 14px; margin-top: -3px;'>{{t "Latest Communication Profile:" key="latest_profile"}}</div>
               <div>
                 <div class={{this.model.profile_class}}>
@@ -219,12 +219,12 @@
         {{#unless this.model.supporter_role}}
           {{#if this.model.external_device}}
             <div class='col-sm-3 col-xs-6 big_button_holder'>
-              <button class='btn big_button btn-default secondary_button' {{action "manual_log"}} style='height: 100px;'>
+              <button class='btn big_button btn-default secondary_button' {{on "click" (this.ctrlAction "manual_log")}} style='height: 100px;'>
                 {{t "Manual Log Session" key="manual_log_session"}}
               </button>
             </div>
             <div class='col-sm-3 col-xs-6 big_button_holder'>
-              <button class='btn big_button btn-default alternate_button' {{action "recordNote" "text"}} style='height: 100px;'>
+              <button class='btn big_button btn-default alternate_button' {{on "click" (this.ctrlAction "recordNote" "text")}} style='height: 100px;'>
                 {{t "New Note" key="new_note"}}
               </button>
             </div>
@@ -236,7 +236,7 @@
               {{#unless this.model.permissions.delete}}
                 {{#if this.external_device_or_no_home}}
                   <div class='col-sm-3 col-xs-6 big_button_holder'>
-                    <button class='btn big_button btn-default lesser_button' {{action "external_device"}} style='height: 100px;'>
+                    <button class='btn big_button btn-default lesser_button' {{on "click" (this.ctrlAction "external_device")}} style='height: 100px;'>
                       {{t "Update Device"}}
                     </button>
                   </div>
@@ -254,24 +254,24 @@
                 {{t "Extras" key="extras"}} <span class="caret"></span>
               </button>
               <ul class="dropdown-menu" style='right: 0; left: auto;'>
-                <li><a href="#" {{action "recordNote" "text"}}>New Note</a></li>
-                <li><a href="#" {{action "quick_assessment"}}>Quick Assessment</a></li>
-                <li><a href="#" {{action "run_eval"}}>Run Evaluation</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "recordNote" "text")}}>New Note</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "quick_assessment")}}>Quick Assessment</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "run_eval")}}>Run Evaluation</a></li>
                 {{#if this.model.preferences.remote_modeling}}
                   {{#unless this.model.supporter_role}}
-                    <li><a href="#" {{action "remote_model"}}>{{t "Remote Modeling" key="remote_modeling"}}</a></li>
+                    <li><a href="#" {{on "click" (this.ctrlAction "remote_model")}}>{{t "Remote Modeling" key="remote_modeling"}}</a></li>
                   {{/unless}}
                 {{/if}}
-                <li><a href="#" {{action "view_devices"}}>My Devices</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "view_devices")}}>My Devices</a></li>
                 {{#if this.model.subscription.eval_expires}}
-                  <li><a href="#" {{action "eval_settings"}}>Eval Status</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "eval_settings")}}>Eval Status</a></li>
                 {{/if}}
                 {{#if this.model.permissions.edit}}
                   <!-- allow supervisors to run setup for a supervisee -->
-                  <li><a href="#" {{action "setup"}}>{{t "Getting Started Wizard" key="getting_started_wizard"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "setup")}}>{{t "Getting Started Wizard" key="getting_started_wizard"}}</a></li>
                 {{/if}}
                 {{#if this.model.permissions.support_actions}}
-                  <li><a href="#" {{action "masquerade"}}>{{t "Masquerade as User" key="masquerade_as_user"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "masquerade")}}>{{t "Masquerade as User" key="masquerade_as_user"}}</a></li>
                 {{/if}}
               </ul>
             </div>
@@ -302,8 +302,8 @@
       {{#if this.model.permissions.supervise}}
         <div class="ub-boards-page__stats-row md-user-summary__stats-row md-user-summary__stats-row--supervise">
           <div class="ub-boards-page__stat-card md-user-summary__actions-card">
-            <button class="md-user-summary__action-btn" {{action "recordNote" "text"}}>{{t "New Note" key="text_note"}}</button>
-            <button class="md-user-summary__action-btn" {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+            <button class="md-user-summary__action-btn" {{on "click" (this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="text_note"}}</button>
+            <button class="md-user-summary__action-btn" {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
           </div>
           <div class="ub-boards-page__stat-card">
             <div class="ub-boards-page__stat-label">{{t "My device" key="my_device"}}</div>
@@ -312,7 +312,7 @@
                 {{this.model.current_device_name}}
                 {{#if this.model.multiple_devices}}
                   <div class="md-user-summary__sub-link">
-                    <a href="#" {{action "view_devices"}} class="ub-boards-page__stat-link">{{t "see all %{tally} devices" tally=this.model.device_count key="see_all_devices"}}</a>
+                    <a href="#" {{on "click" (this.ctrlAction "view_devices")}} class="ub-boards-page__stat-link">{{t "see all %{tally} devices" tally=this.model.device_count key="see_all_devices"}}</a>
                   </div>
                 {{/if}}
               {{else}}
@@ -323,7 +323,7 @@
           <div class="ub-boards-page__stat-card">
             <div class="ub-boards-page__stat-label">{{t "My supervisors" key="linked_supervisors"}}</div>
             <div class="ub-boards-page__stat-value">
-              <span {{action "supervision_settings"}} style="cursor: pointer;">
+              <span {{on "click" (this.ctrlAction "supervision_settings")}} style="cursor: pointer;">
                 {{#if this.model.supervisors_or_managing_org}}
                   {{this.model.supervisor_names}}
                 {{else}}
@@ -332,7 +332,7 @@
               </span>
               {{#if this.model.permissions.manage_supervision}}
                 <div class="md-user-summary__sub-link">
-                  <a href="#" {{action "add_supervisor"}} class="ub-boards-page__stat-link">{{t "add supervisor" key="add_supervisor_lower"}}</a>
+                  <a href="#" {{on "click" (this.ctrlAction "add_supervisor")}} class="ub-boards-page__stat-link">{{t "add supervisor" key="add_supervisor_lower"}}</a>
                 </div>
               {{/if}}
             </div>
@@ -340,7 +340,7 @@
           {{#if this.model.supervisees}}
             <div class="ub-boards-page__stat-card">
               <div class="ub-boards-page__stat-label">{{t "People I supervise" key="linked_users"}}</div>
-              <div class="ub-boards-page__stat-value" {{action "supervision_settings"}} style="cursor: pointer;">
+              <div class="ub-boards-page__stat-value" {{on "click" (this.ctrlAction "supervision_settings")}} style="cursor: pointer;">
                 {{this.model.supervisee_names}}
               </div>
             </div>
@@ -437,11 +437,11 @@
             {{#each this.model.badges as |badge|}}
               <div style='float: left; padding: 5px; width: 25%; text-align: center;'>
                 {{#if badge.global}}
-                  <a href="#" {{action "badge_popup" badge}}>
+                  <a href="#" {{on "click" (this.ctrlAction "badge_popup" badge)}}>
                     <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                   </a>
                 {{else}}
-                  <a href="#" {{action "badge_popup" badge}}>
+                  <a href="#" {{on "click" (this.ctrlAction "badge_popup" badge)}}>
                     <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                   </a>
                 {{/if}}
@@ -496,8 +496,8 @@
           <div>
             {{#unless this.password.pw}}
               {{t "Are you sure you want to reset this user's password? They will receive an email notifying them of the reset." key="confirm_reset_password"}}<br>
-              <button class='btn btn-default' {{action "reset_password" true}}>{{t "Reset Password" key="reset_password"}}</button>
-              <button class='btn btn-default' {{action "reset_password" false}}>{{t "Cancel" key="cancel"}}</button>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction "reset_password" true)}}>{{t "Reset Password" key="reset_password"}}</button>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction "reset_password" false)}}>{{t "Cancel" key="cancel"}}</button>
             {{/unless}}
             {{#if this.password.loading}}
               {{t "Setting password to <strong>%{pw}</strong>..." key="setting_password_to" pw=this.password.pw}}
@@ -510,7 +510,7 @@
         {{else if this.new_user_name}}
           <div>
             {{t "Are you sure you want to change the user's user name? They will receive an email notifying them of the change." key="confirm_change"}}<br>
-            <form class="form-horizontal" {{action "nothing"}}>
+            <form class="form-horizontal" {{on "submit" this.onNothing}}>
               <div class="form-group">
                 <label for="old_key" class="col-sm-3 control-label">{{t "Current User Name" key="current_user_name"}}</label>
                 <div class="col-sm-5">
@@ -527,7 +527,7 @@
 
               <div class="form-group">
                 <div class='col-sm-5 col-sm-offset-3'>
-                  <button class='btn btn-default' {{action "rename_user" true}}>
+                  <button class='btn btn-default' {{on "click" (this.ctrlAction "rename_user" true)}}>
                     {{#if this.new_user_name.renaming}}
                       {{t "Changing User Name" key="changing_user_name"}}
                     {{else if this.new_user_name.error}}
@@ -536,14 +536,14 @@
                       {{t "Change User Name" key="change_user_name"}}
                     {{/if}}
                   </button>
-                  <button class='btn btn-default' {{action "rename_user" false}}>{{t "Cancel" key="cancel"}}</button>
+                  <button class='btn btn-default' {{on "click" (this.ctrlAction "rename_user" false)}}>{{t "Cancel" key="cancel"}}</button>
                 </div>
               </div>
             </form>
           </div>
         {{else}}
-          <a href="#" {{action "reset_password"}} class="btn btn-default">{{t "Reset Password" key="reset_password"}}</a>
-          <a href="#" {{action "rename_user"}} class="btn btn-default">{{t "Change User Name" key="change_user_name"}}</a>
+          <a href="#" {{on "click" (this.ctrlAction "reset_password")}} class="btn btn-default">{{t "Reset Password" key="reset_password"}}</a>
+          <a href="#" {{on "click" (this.ctrlAction "rename_user")}} class="btn btn-default">{{t "Change User Name" key="change_user_name"}}</a>
           <LinkTo @route="user.history" @model={{this.model.user_name}} class="btn btn-default">{{t "Edit History" key="edit_history"}}</LinkTo>
         {{/if}}
         {{#if this.model.permissions.admin_support_actions}}
@@ -581,8 +581,8 @@
                   {{this.subscription_settings.error}}
                 {{else}}
                   {{t "Are you sure you want to set this user as a %{type}?" type=this.subscription_settings.type key="confirm_subscription_set"}}<br>
-                  <button class='btn btn-default' {{action "set_subscription" "confirm"}}>{{t "Update Subscription" key="update_subscription"}}</button>
-                  <button class='btn btn-default' {{action "set_subscription" "cancel"}}>{{t "Cancel" key="cancel"}}</button>
+                  <button class='btn btn-default' {{on "click" (this.ctrlAction "set_subscription" "confirm")}}>{{t "Update Subscription" key="update_subscription"}}</button>
+                  <button class='btn btn-default' {{on "click" (this.ctrlAction "set_subscription" "cancel")}}>{{t "Cancel" key="cancel"}}</button>
                 {{/if}}
               </div>
             {{else}}
@@ -591,19 +591,19 @@
                   {{t "Modify Subscription" key="modify_subscription"}} <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu">
-                  <li><a href="#" {{action "set_subscription" "eval"}}>{{t "Set as Eval Account" key="set_as_eval"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "never_expires"}}>{{t "Set as Free Forever" key="set_as_free_forever"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "manual_modeler"}}>{{t "Set as Free Modeler" key="set_as_free_modeler"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "manual_supporter"}}>{{t "Set as Free Supporter" key="set_as_free_supporter"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "communicator_trial"}}>{{t "Set as Free Trial Communicator" key="set_as_free_trial_communicator"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "add_1"}}>{{t "Add 1 Month" key="add_one_month"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "enable_extras"}}>{{t "Enable Premium Symbols" key="enable_premium_symbols"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "supporter_credit"}}>{{t "Add 1 Supporter Credit" key="add_supporter_credit"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "check_remote"}}>{{t "Re-Check Purchase Status" key="recheck_purchase_status"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "restore"}}>{{t "Restore Disabled Purchase" key="restore_disabled_purchase"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "add_voice"}}>{{t "Add Premium Voice" key="add_premium_voice"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "add_5_years"}}>{{t "Add 5 Years" key="add_five_years"}}</a></li>
-                  <li><a href="#" {{action "set_subscription" "force_logout"}}>{{t "Force Logout" key="force_logout"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "eval")}}>{{t "Set as Eval Account" key="set_as_eval"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "never_expires")}}>{{t "Set as Free Forever" key="set_as_free_forever"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "manual_modeler")}}>{{t "Set as Free Modeler" key="set_as_free_modeler"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "manual_supporter")}}>{{t "Set as Free Supporter" key="set_as_free_supporter"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "communicator_trial")}}>{{t "Set as Free Trial Communicator" key="set_as_free_trial_communicator"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "add_1")}}>{{t "Add 1 Month" key="add_one_month"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "enable_extras")}}>{{t "Enable Premium Symbols" key="enable_premium_symbols"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "supporter_credit")}}>{{t "Add 1 Supporter Credit" key="add_supporter_credit"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "check_remote")}}>{{t "Re-Check Purchase Status" key="recheck_purchase_status"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "restore")}}>{{t "Restore Disabled Purchase" key="restore_disabled_purchase"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "add_voice")}}>{{t "Add Premium Voice" key="add_premium_voice"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "add_5_years")}}>{{t "Add 5 Years" key="add_five_years"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_subscription" "force_logout")}}>{{t "Force Logout" key="force_logout"}}</a></li>
                 </ul>
               </div>
             {{/if}}

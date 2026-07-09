@@ -1,0 +1,10 @@
+<span class="la-footer__mobile">
+  <button class="la-topbar-hamburger la-footer__hamburger" type="button" aria-label={{t "Open menu" key="fsa_open_menu"}} aria-expanded={{this.isDrawerOpen}} {{on "click" this.toggleDrawer}}>
+    <span class="la-topbar-hamburger__bar"></span>
+    <span class="la-topbar-hamburger__bar"></span>
+    <span class="la-topbar-hamburger__bar"></span>
+  </button>
+  <LaMobileDrawer @isOpen={{this.isDrawerOpen}} @onClose={{this.closeDrawer}}>
+    {{yield (hash closeDrawer=this.closeDrawer)}}
+  </LaMobileDrawer>
+</span>

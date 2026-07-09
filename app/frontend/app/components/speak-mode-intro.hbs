@@ -1,0 +1,24 @@
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+  <div class="la-support-modal-wrap la-speak-mode-intro-modal-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Welcome to Speak Mode" key="welcome_to_speak_mode"}}</span>
+      <div class="la-support-modal-header-meta">
+        <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>✕</button>
+      </div>
+    </div>
+    <div class="la-support-modal-body">
+      <div class="la-speak-mode-intro__lead">
+        <span class="la-speak-mode-intro__icon" aria-hidden="true">
+          <svg class="la-speak-mode-intro__icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        </span>
+        <div class="la-speak-mode-intro__text">
+          <p class="la-support-intro">{{t "Tap buttons to add words to the sentence bar at the top; tap the microphone button to speak the whole phrase. Use home, backspace, and clear as needed." key="speak_mode_intro_1"}}</p>
+          <p class="la-support-intro">{{t "To leave Speak Mode, open the menu (top right) and choose \"Exit Speak Mode\"." key="speak_mode_intro_2"}}</p>
+        </div>
+      </div>
+      <div class="la-contact-form__actions la-speak-mode-intro-actions">
+        <button type="button" class="la-btn la-btn--primary" {{on "click" (this.ctrlAction "close")}}>{{t "Got It" key="got_it"}}</button>
+      </div>
+    </div>
+  </div>
+{{/modal-dialog}}

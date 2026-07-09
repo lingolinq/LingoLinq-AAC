@@ -1,6 +1,6 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
   <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "Delete this Integration" key="delete_this_integration"}}</h3>
   </div>
   <div class="modal-body">
@@ -13,14 +13,14 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "delete_integration" "delete"}} disabled={{this.model.deleting}}>
+    <button class='btn btn-primary' {{on "click" (this.ctrlAction "delete_integration" "delete")}} disabled={{this.model.deleting}}>
       {{#if this.model.deleting}}
         {{t "Deleting Integration..." key="deleting_integration"}}
       {{else}}
         {{t "Delete Integration" key="delete_integration"}}
       {{/if}}
     </button>
-    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}
 

@@ -350,7 +350,9 @@ export default Route.extend({
       );
     }
 
-    if(!model || model.error) { return; }
+    if(!model || model.error || (model.get && model.get('error')) || typeof model.load_button_set !== 'function') {
+      return;
+    }
 
     // Load button set for find-a-button functionality
     if(model.get('valid_id') && !model.get('integration')) {

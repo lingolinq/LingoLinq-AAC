@@ -593,9 +593,7 @@ var word_suggestions = EmberObject.extend({
           }).slice(0, max_results);
           edits.forEach(function(e) {
             if(result.length < max_results) {
-              if(_passes_filter(e[0], word_in_progress)) {
-                result.push({word: _safe_cap(e[0])});
-              }
+              result.push({word: _safe_cap(e[0])});
             }
           });
         }

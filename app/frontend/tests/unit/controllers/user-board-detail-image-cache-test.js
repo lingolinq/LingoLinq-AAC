@@ -1,66 +1,68 @@
 import { module, test } from 'qunit';
+import { setupTest } from '../../helpers';
 import EmberObject from '@ember/object';
-import BoardDetailController from 'frontend/controllers/user/board-detail';
 import LingoLinq from 'frontend/app';
+import 'frontend/models/board';
+import { persistenceTarget } from '../../helpers/persistence-stub';
 
 module('Unit | Controller | user/board-detail image cache', function(hooks) {
-  var controller;
-  var persistenceSvc;
+  setupTest(hooks);
+
   var url_cache_backup;
   var url_uncache_backup;
 
   hooks.beforeEach(function() {
-    persistenceSvc = window.persistence;
-    if(!persistenceSvc) {
-      persistenceSvc = { url_cache: {}, url_uncache: {}, primed: false };
-      window.persistence = persistenceSvc;
-    }
+    var persistenceSvc = persistenceTarget();
     url_cache_backup = persistenceSvc.url_cache;
     url_uncache_backup = persistenceSvc.url_uncache;
     persistenceSvc.url_cache = {};
     persistenceSvc.url_uncache = {};
-    controller = BoardDetailController.create();
+    this.controller = this.owner.factoryFor('controller:user/board-detail').create();
   });
 
   hooks.afterEach(function() {
+    var persistenceSvc = persistenceTarget();
     if(persistenceSvc) {
       persistenceSvc.url_cache = url_cache_backup;
       persistenceSvc.url_uncache = url_uncache_backup;
     }
-    if(controller) { controller.destroy(); }
+    if(this.controller) {
+      this.controller.destroy();
+      this.controller = null;
+    }
   });
 
   test('_resolve_cached_image_url returns remote URL when cache is empty', function(assert) {
     var remote = 'https://cdn.example.com/symbol.png';
-    assert.equal(controller._resolve_cached_image_url(remote), remote);
+    assert.equal(this.controller._resolve_cached_image_url(remote), remote);
   });
 
   test('_resolve_cached_image_url prefers url_cache entry', function(assert) {
     var remote = 'https://cdn.example.com/symbol.png';
     var local = 'file:///local/symbol.png';
-    persistenceSvc.url_cache[remote] = local;
-    assert.equal(controller._resolve_cached_image_url(remote), local);
+    persistenceTarget().url_cache[remote] = local;
+    assert.equal(this.controller._resolve_cached_image_url(remote), local);
   });
 
   test('_resolve_cached_image_url skips url_uncache entries', function(assert) {
     var remote = 'https://cdn.example.com/symbol.png';
-    persistenceSvc.url_cache[remote] = 'file:///local/symbol.png';
-    persistenceSvc.url_uncache[remote] = true;
-    assert.equal(controller._resolve_cached_image_url(remote), remote);
+    persistenceTarget().url_cache[remote] = 'file:///local/symbol.png';
+    persistenceTarget().url_uncache[remote] = true;
+    assert.equal(this.controller._resolve_cached_image_url(remote), remote);
   });
 
   test('_resolve_cached_image_url keeps skin-tone variant when only base is cached', function(assert) {
     var base = 'https://cdn.example.com/lib/sym.png';
     var skinned = base + '.variant-dark.png';
-    persistenceSvc.url_cache[base] = 'file:///local/sym.png';
-    assert.equal(controller._resolve_cached_image_url(skinned), skinned);
+    persistenceTarget().url_cache[base] = 'file:///local/sym.png';
+    assert.equal(this.controller._resolve_cached_image_url(skinned), skinned);
   });
 
   test('_make_btn uses cached image URL when available', function(assert) {
     var remote = 'https://cdn.example.com/bi1.png';
     var local = 'file:///local/bi1.png';
-    persistenceSvc.url_cache[remote] = local;
-    var btn = controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, { bi1: remote });
+    persistenceTarget().url_cache[remote] = local;
+    var btn = this.controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, { bi1: remote });
     assert.equal(btn.image_url, local);
   });
 
@@ -72,21 +74,22 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
   });
 
   test('_make_btn applies skin tone via skin_image_map for varianted-skin URLs', function(assert) {
-    controller._preferred_symbols = null;
+    this.controller.set('_preferred_symbols', null);
     var base = 'https://cdn.example.com/lib/sym.png.varianted-skin.png';
     var map = LingoLinq.Board.skin_image_map({ bi1: base }, 'medium');
-    var btn = controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, map);
+    var btn = this.controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, map);
     assert.ok(btn.image_url.indexOf('.variant-medium.png') > -1, 'expected medium skin variant URL');
   });
 
   test('_word_prediction_locale uses the visible label locale first', function(assert) {
-    controller.set('app_state', EmberObject.create({
+    this.controller.set('app_state', EmberObject.create({
       label_locale: 'es',
       currentBoardState: { default_locale: 'en' }
     }));
-    controller.set('model', EmberObject.create({ locale: 'en' }));
+    this.controller.set('model', EmberObject.create({ locale: 'en' }));
+    this.controller.set('_last_raw', {});
 
-    assert.equal(controller._word_prediction_locale(), 'es');
+    assert.equal(this.controller._word_prediction_locale(), 'es');
   });
 
   test('_name_matches_translation detects localized board names', function(assert) {
@@ -101,7 +104,7 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
       }
     });
 
-    assert.equal(controller._name_matches_translation(board, 'Vocabulario de Crisis'), true);
-    assert.equal(controller._name_matches_translation(board, 'My Crisis Board'), false);
+    assert.equal(this.controller._name_matches_translation(board, 'Vocabulario de Crisis'), true);
+    assert.equal(this.controller._name_matches_translation(board, 'My Crisis Board'), false);
   });
 });

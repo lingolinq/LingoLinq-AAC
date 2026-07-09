@@ -1,0 +1,35 @@
+<div class='col-sm-6 col-sm-offset-3'>
+  <h4>{{t "Voice Selection" key="voice_selection"}}</h4>
+  <p class='prompt'>{{t "Choose the default voice for button taps and keyboard spelling." key="select_voice"}}
+  {{#if this.setup.setup_user.grace_period}}
+    {{#if this.setup.setup_user.supporter_role}}
+      {{t "Supporter accounts use built-in voices and can download premium voices used by their supervisees." key="supporter_voices_limited"}}
+    {{else}}
+      {{t "During your free trial you can preview any of the available premium voices." key="premium_voices_available"}}
+    {{/if}}
+  {{else if this.setup.setup_user.subscription.premium_supporter}}
+    {{t "Supporter accounts have access to built-in voices and premium voices activated by supervisees. Paid communicator accounts can download from over 90 premium voices." key="supporter_limited_voices"}}
+  {{else if this.setup.setup_user.subscription.modeling_only}}
+    {{t "Modeling-only accounts have access to built-in voices. Upgrade to a paid account for premium voices." key="supporter_modeling_only"}}
+  {{else}}
+    {{t "Paid accounts can download premium voices for mobile and Windows." key="paid_voices"}}
+  {{/if}}
+  </p>
+
+  <div class='setup_setting'>
+    <label>{{t "Select a Voice" key="select_a_voice"}}</label>
+    <div style='max-height: 300px; overflow: auto;'>
+      <div class="btn-group-vertical" style="width: 100%;">
+        {{#each this.setup.user_voice_list as |voice|}}
+          <a href="#" class={{if voice.selected "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{on "click" (this.ctrlAction "set_preference" "device.voice.voice_uri" voice.id target)}}>{{voice.name}}</a>
+        {{/each}}
+      </div>
+    </div>
+    <div style='margin-top: 15px;'>
+      <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "test_voice" target)}}>{{t "Listen to This Voice" key="listen_to_this_voice"}}</button>
+      {{#if this.setup.premium_voices_supported}}
+        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "premium_voices" target)}}>{{t "Browse Premium Voices" key="browse_premium_voices"}}</button>
+      {{/if}}
+    </div>
+  </div>
+</div>

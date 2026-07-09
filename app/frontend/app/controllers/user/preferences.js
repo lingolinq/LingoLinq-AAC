@@ -128,6 +128,23 @@ function mergeMissingDefaultSidebarBoards(stored, defaults) {
 
 export default Controller.extend({
   router: service('router'),
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.onSavePreferences = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('savePreferences');
+    };
+  },
+
   notification_frequency_options: [
     {name: i18n.t('no_notifications', "Don't Email Me Communicator Reports"), id: ''},
     {name: i18n.t('weekly_notifications', "Email Me Weekly Communicator Reports"), id: '1_week'},

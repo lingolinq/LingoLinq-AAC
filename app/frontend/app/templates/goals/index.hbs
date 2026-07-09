@@ -1,7 +1,7 @@
 <h2>{{t "Public Communication Goals" key="public_communication_goals"}}</h2>
 {{#if this.goals}}
   {{#each this.goals as |goal|}}
-    <div class='well goal' {{action "select_goal" goal}}>
+    <div class='well goal' {{on "click" (this.ctrlAction "select_goal" goal)}}>
       <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin: -10px 10px -10px 0; font-size: 40px; text-align: center; line-height: 20px;'>
         {{#if goal.badge_image_url}}
           <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
@@ -42,7 +42,7 @@
   <h2>{{t "Global Goals" key="global_goals"}}</h2>
   {{#if this.global_goals}}
     {{#each this.global_goals as |goal|}}
-      <div class='well goal' {{action "select_goal" goal}}>
+      <div class='well goal' {{on "click" (this.ctrlAction "select_goal" goal)}}>
         <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin: -10px 10px -10px 0; font-size: 40px; text-align: center; line-height: 20px;'>
           {{#if goal.badge_image_url}}
             <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
@@ -81,7 +81,7 @@
 {{/if}}
 
 {{#if this.new_goal}}
-  <form class="form-horizontal" {{action "save_goal" on="submit"}}>
+  <form class="form-horizontal" {{on "submit" (this.ctrlAction "save_goal")}}>
     <div class="form-group">
       <label for="summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
       <div class="col-sm-5">
@@ -173,7 +173,7 @@
       {{/each}}
       <div class="form-group">
         <div class="col-sm-5">
-          <button class='btn btn-default' {{action "add_badge_level"}}>{{t "Add a Badge Level" key="add_a_badge_level"}}</button>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "add_badge_level")}}>{{t "Add a Badge Level" key="add_a_badge_level"}}</button>
         </div>
       </div>
     {{/if}}
@@ -186,7 +186,7 @@
             {{t "Create Goal" key="create_goal"}}
           {{/if}}
         </button>
-        <button type="button" class="btn btn-default" {{action "cancel_new"}}>{{t "Cancel" key="cancel"}}</button>
+        <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "cancel_new")}}>{{t "Cancel" key="cancel"}}</button>
         {{#if this.status.error}}
           <p class='text-danger'>{{t "There was an unexpected error creating the goal" key="error_creating_goal"}}</p>
         {{/if}}
@@ -196,5 +196,5 @@
 {{/if}}
 
 {{#if this.app_state.currentUser.permissions.admin_support_actions}}
-  <button class='btn btn-default' {{action "new_goal"}}>{{t "New Public Goal" key="new_public_goal"}}</button>
+  <button class='btn btn-default' {{on "click" (this.ctrlAction "new_goal")}}>{{t "New Public Goal" key="new_public_goal"}}</button>
 {{/if}}

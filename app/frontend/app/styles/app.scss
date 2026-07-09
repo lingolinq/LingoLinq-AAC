@@ -45852,6 +45852,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: var(--md-ink);
   cursor: pointer;
   transition: background 0.12s ease;
+  text-decoration: none;
 }
 .md-offline-boards__item + .md-offline-boards__item {
   border-top: 1px solid rgba($brand-blue-black, 0.05);
@@ -68161,7 +68162,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex-direction: column;
 }
 .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label {
-  display: none;
+  /* Predictions must always show the word — unlike board buttons, a
+     symbol-only board layout must not render blank prediction tiles. */
+  display: block;
 }
 .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img {
   display: none;
@@ -73027,7 +73030,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: rgba($la-navy, 0.65);
 }
 /* Home-board indicator. Mirrors the Glyphicon-home pattern from
-   `templates/components/board-icon.hbs` so the user's home board
+   `app/components/board-icon.hbs` so the user's home board
    reads consistently across surfaces. Sits between the name and the
    total-buttons pill, with a brand-teal tint so the eye lands on it
    first when scanning the My Boards list (home is always first row,

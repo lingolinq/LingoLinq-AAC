@@ -1,0 +1,88 @@
+{{!-- Combobox trigger — occupies the spot the "Filter Boards" input
+      used to. Looks like the old field (search icon + text + chevron). --}}
+<button
+  type="button"
+  class="ub-search-jump__trigger {{if this.open 'ub-search-jump__trigger--open'}} {{unless this.has_query 'ub-search-jump__trigger--placeholder'}}"
+  {{on "click" (this.ctrlAction "toggle")}}
+  aria-haspopup="listbox"
+  aria-expanded={{if this.open "true" "false"}}
+  aria-label={{t "Find a board" key="search_board_jump_aria"}}>
+  <svg class="ub-search-jump__trigger-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="8"/>
+    <path d="m21 21-4.35-4.35"/>
+  </svg>
+  <span class="ub-search-jump__trigger-label">{{this.trigger_label}}</span>
+  <svg class="ub-search-jump__trigger-chevron {{if this.open 'ub-search-jump__trigger-chevron--open'}}" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+</button>
+
+{{#if this.open}}
+  {{!-- Floating panel. Interior reuses the speak-mode My Board Collection
+        markup so the styling is identical (light base theme here). --}}
+  <div class="ub-search-jump__panel">
+    <div class="md-board-collection">
+      <div class="md-board-collection__header">
+        {{!-- Live search field — THIS is the page's search box. Typing
+              flows to the controller's searchString and re-runs the
+              server search. --}}
+        <div class="md-board-collection__search {{if this.has_query 'md-board-collection__search--active'}}">
+          <svg class="md-board-collection__search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            class="md-board-collection__search-input"
+            placeholder={{t "Find a board…" key="search_board_jump_placeholder"}}
+            aria-label={{t "Find a board…" key="search_board_jump_placeholder"}}
+            value={{this.query}}
+            {{on "input" (this.ctrlAction "update_query")}}
+            {{on "keydown" (this.ctrlAction "key_down")}} />
+          {{#if this.has_query}}
+            <button type="button" class="md-board-collection__search-clear" {{on "click" (this.ctrlAction "clear_query")}} aria-label={{t "Clear search" key="clear_search"}}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          {{/if}}
+        </div>
+      </div>
+
+      <div class="md-board-collection__body">
+        {{#each this.sections as |group|}}
+          <section class="md-board-collection__section">
+            <h3 class="md-board-collection__section-label">{{t group.default_label key=group.label_key}}</h3>
+            {{#if (is_equal group.state "loaded")}}
+              {{#if group.boards.length}}
+                <ul class="md-board-collection__list">
+                  {{#each group.boards as |board|}}
+                    {{#if board.key}}
+                      <li class="md-board-collection__row">
+                        <button type="button" class="md-board-collection__item" {{on "click" (this.ctrlAction "select" board)}}>
+                          <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
+                          <span class="md-board-collection__item-name">{{board.name}}</span>
+                          {{#if (board-language-label board)}}
+                            <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
+                          {{/if}}
+                          {{#if board.grid.rows}}
+                            <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>
+                          {{/if}}
+                        </button>
+                      </li>
+                    {{/if}}
+                  {{/each}}
+                </ul>
+              {{else}}
+                <p class="md-board-collection__empty">{{t "No boards found" key="no_boards_found"}}</p>
+              {{/if}}
+            {{else}}
+              <p class="md-board-collection__loading">{{t "Loading boards…" key="loading_boards"}}</p>
+            {{/if}}
+          </section>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+{{/if}}

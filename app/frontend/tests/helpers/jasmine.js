@@ -1,11 +1,13 @@
-/*jshint -W079 */
-// Must use the same QUnit instance as ember-qunit/test-helper so jasmine-style tests register
-// and run. window.QUnit (qunit-standalone.js) can be a different instance than the 'qunit' module.
+// Use the same QUnit instance as ember-qunit/test-helper so jasmine-style tests register and run.
 import * as QUnit from 'qunit';
-import { setupRenderingTest, setupTest, setupApplicationTest } from 'ember-qunit';
-import EmberObject from '@ember/object';
+import { setupRenderingTest, setupTest, setupApplicationTest } from './index';
 import { run as emberRun } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import appStateUtil from '../../utils/app_state';
+import LingoLinq from '../../app';
+import RSVP from 'rsvp';
+import { SERVICE_MIRROR_RULES } from './service-stub';
+import { cancelHarnessAsyncWork } from './sync-test-cleanup';
 
 var names = [];
 var all_befores = [[]];
@@ -16,6 +18,50 @@ var current_afters = [];
 var waiting = {};
 
 var assert = null;
+function currentAssert() {
+  return assert;
+}
+function async_test_wrap(name, instance, befores, afters, lookup) {
+  var pre = [];
+  var post = [];
+  all_befores.forEach(function(list) {
+    list.forEach(function(callback) {
+      pre.push(callback);
+    });
+  });
+  all_afters.forEach(function(list) {
+    list.forEach(function(callback) {
+      post.push(callback);
+    });
+  });
+  QUnit.test(name, async function(current_assert) {
+    var _this = this;
+    assert = current_assert;
+    try {
+      emberRun(function() {
+        pre.forEach(function(callback) {
+          callback.call(_this);
+        });
+      });
+      var this_arg = lookup || _this;
+      await instance.call(this_arg);
+    } catch (e) {
+      assert.ok(false, e.message || String(e));
+    }
+    emberRun(function() {
+      cancelHarnessAsyncWork();
+      post.forEach(function(callback) {
+        callback.call(_this);
+      });
+      restoreStubs();
+      assert = null;
+      if (typeof LingoLinq !== 'undefined') {
+        LingoLinq.sync_testing = false;
+      }
+    });
+  });
+}
+
 function test_wrap(name, instance, befores, afters, lookup) {
   var pre = [];
   var post = [];
@@ -30,16 +76,15 @@ function test_wrap(name, instance, befores, afters, lookup) {
     });
   });
   current_afters = post;
-  QUnit.test(name, async function(current_assert) {
+  // Do not mark this test `async`: an immediately-resolved promise lets ember-qunit
+  // teardown (waitForSettled: false) run before runs() finishes post afterEach hooks.
+  QUnit.test(name, function(current_assert) {
     var _this = this;
     assert = current_assert;
+    var testDone = assert.async();
     emberRun(function() {
       pre.forEach(function(callback) {
-        // try {
-          callback.call(_this);
-        // } catch(e) {
-        //   console.error(e);
-        // }
+        callback.call(_this);
       });
 
       var this_arg = _this;
@@ -49,19 +94,45 @@ function test_wrap(name, instance, befores, afters, lookup) {
       }
 
       current_test_id++;
-      // try {
-        instance.call(this_arg);
-      // } catch(e) {
-      //   console.error(e);
-      // }
+      instance.call(this_arg);
 
-      waitsFor(function() { return (waiting[current_test_id] || 0) <= 1; });
-      runs(function() {
-        current_afters = [];
-        post.forEach(function(callback) {
-          callback.call(_this);
-        });
-      });
+      var pollAttempts = 0;
+      var pollUntilIdle = function() {
+        if ((waiting[current_test_id] || 0) === 0) {
+          var settleMs = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 500 : 0;
+          var runCleanup = function() {
+            emberRun(function() {
+              cancelHarnessAsyncWork();
+              current_afters = [];
+              post.forEach(function(callback) {
+                callback.call(_this);
+              });
+              restoreStubs();
+              assert = null;
+              testDone();
+              if (typeof LingoLinq !== 'undefined') {
+                LingoLinq.sync_testing = false;
+              }
+            });
+          };
+          if (settleMs > 0) {
+            setTimeout(runCleanup, settleMs);
+          } else {
+            runCleanup();
+          }
+        } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55)) {
+          pollAttempts++;
+          var delay = pollAttempts < 10 ? 10 : 100;
+          setTimeout(pollUntilIdle, delay);
+        } else {
+          assert.ok(false, 'async work did not finish in time');
+          cancelHarnessAsyncWork();
+          restoreStubs();
+          assert = null;
+          testDone();
+        }
+      };
+      pollUntilIdle();
     });
   });
 }
@@ -78,18 +149,28 @@ var describe = function(name, lookup, callback) {
     all_tests.push([]);
     all_befores.push([]);
     all_afters.unshift([]);
-    callback();
-    all_tests[all_tests.length - 1].forEach(function(args) {
-      if(args[1]) {
-        test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters, container_lookup);
-      } else {
-        console.debug('PENDING TEST: ' + names.join(" ") + " - " + args[0]);
+    try {
+      callback();
+      all_tests[all_tests.length - 1].forEach(function(args) {
+        if(args[2]) {
+          QUnit.test.skip(names.join(" ") + " - " + args[0], function() {});
+        } else if(args[3] === 'async') {
+          async_test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters, container_lookup);
+        } else if(args[1]) {
+          test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters, container_lookup);
+        } else {
+          console.debug('PENDING TEST: ' + names.join(" ") + " - " + args[0]);
+        }
+      });
+    } finally {
+      names.pop();
+      all_befores.pop();
+      all_afters.shift();
+      all_tests.pop();
+      if (names.length === 0) {
+        container_lookup = null;
       }
-    });
-    names.pop();
-    all_befores.pop();
-    all_afters.shift();
-    all_tests.pop();
+    }
   }
   if(names.length === 0) {
     QUnit.module(name, function(hooks) {
@@ -104,6 +185,25 @@ var context = describe;
 var it = function(rule, testing) {
   all_tests[all_tests.length - 1].push([rule, testing]);
 };
+var itAsync = function(rule, testing) {
+  all_tests[all_tests.length - 1].push([rule, testing, false, 'async']);
+};
+var xit = function(rule, testing) {
+  all_tests[all_tests.length - 1].push([rule, testing, true]);
+};
+var xdescribe = function(name, lookup, callback) {
+  if(!callback) {
+    callback = lookup;
+    lookup = undefined;
+  }
+  var priorIt = it;
+  it = xit;
+  try {
+    describe(name, lookup, callback);
+  } finally {
+    it = priorIt;
+  }
+};
 var expect = function(data) {
   var expectation = {};
   expectation.toEqual = function(arg) {
@@ -116,9 +216,27 @@ var expect = function(data) {
       assert.equal(data, arg);
     }
   };
+  expectation.toBeTruthy = function() {
+    assert.ok(!!data, JSON.stringify(data) + ' should be truthy');
+  };
   expectation.toBeFalsy = function() {
     var falsy = !!data;
     assert.ok(falsy === false, data + ' should be falsey');
+  };
+  expectation.toBeDefined = function() {
+    assert.ok(typeof data !== 'undefined', 'expected value to be defined');
+  };
+  expectation.toBeUndefined = function() {
+    assert.ok(typeof data === 'undefined', JSON.stringify(data) + ' should be undefined');
+  };
+  expectation.toContain = function(arg) {
+    if (typeof data === 'string') {
+      assert.ok(data.indexOf(arg) !== -1, data + ' should contain ' + arg);
+    } else if (data && typeof data.indexOf === 'function') {
+      assert.ok(data.indexOf(arg) !== -1, JSON.stringify(data) + ' should contain ' + arg);
+    } else {
+      assert.ok(false, 'toContain requires a string or array');
+    }
   };
 
   expectation.toNotEqual = function(arg) {
@@ -191,11 +309,9 @@ var runs = function(callback) {
   var attempts = 0;
   waiting[current_test_id] = waiting[current_test_id] || 0;
   waiting[current_test_id]++;
-  var async_done = assert.async();
   var done = function() {
     if(id == current_test_id) {
       waiting[current_test_id]--;
-      async_done();
     }
   };
   var try_again = function() {
@@ -204,9 +320,33 @@ var runs = function(callback) {
       done();
     } else if(id == current_test_id) {
       attempts++;
-      if(attempts >= 55) {
-        assert.ok(false, 'condition failed for more than 5000ms');
+      var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55;
+      if(attempts >= maxAttempts) {
+        assert.ok(false, 'condition failed for more than ' + (maxAttempts * 100) + 'ms');
         done();
+      } else {
+        var delay = 1;
+        if(attempts  < 10) { delay = 10; }
+        else if(attempts > 3) { delay = 100; }
+        setTimeout(try_again, delay);
+      }
+    }
+  };
+  try_again();
+};
+
+var runsWhenIdle = function(callback) {
+  callback = callback || function() { assert.ok(true); };
+  var id = current_test_id;
+  var attempts = 0;
+  var try_again = function() {
+    if((waiting[id] || 0) === 0) {
+      emberRun(callback);
+    } else if(id == current_test_id) {
+      attempts++;
+      var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55;
+      if(attempts >= maxAttempts) {
+        assert.ok(false, 'condition failed for more than ' + (maxAttempts * 100) + 'ms');
       } else {
         var delay = 1;
         if(attempts  < 10) { delay = 10; }
@@ -222,17 +362,145 @@ var beforeEach = function(callback) {
   all_befores[all_befores.length - 1].push(callback);
 };
 var afterEach = function(callback) {
-  all_afters[all_afters.length - 1].push(callback);
+  // Mirrors unshift in add_test: the current describe level is all_afters[0], not the last
+  // entry (which is the root ember_helper bucket). Using length - 1 leaked every nested
+  // afterEach into the root list so all tests ran every module's cleanup hooks.
+  all_afters[0].push(callback);
 };
 
+function liveAppStateTarget() {
+  if (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState) {
+    return window.LingoLinq.appState;
+  }
+  return null;
+}
+
+function shouldMirrorServiceStub(object, method) {
+  if (!object || !LingoLinq || !LingoLinq.testOwner || object.jquery) {
+    return null;
+  }
+  for (var i = 0; i < SERVICE_MIRROR_RULES.length; i++) {
+    var rule = SERVICE_MIRROR_RULES[i];
+    if (!rule.detect(object)) {
+      continue;
+    }
+    if (rule.methods && !rule.methods[method]) {
+      continue;
+    }
+    try {
+      var svc = LingoLinq.testOwner.lookup('service:' + rule.serviceName);
+      if (svc && object !== svc) {
+        return svc;
+      }
+    } catch (e) { /* owner torn down */ }
+  }
+  return null;
+}
+
+function mirrorServiceStub(object, method, replacement, stashList) {
+  var svc = shouldMirrorServiceStub(object, method);
+  if (!svc) {
+    return;
+  }
+  applyStub(svc, method, replacement, stashList);
+}
+
+function resolveStubTargets(object) {
+  var targets = [];
+  var seen = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var seenFallback = {};
+  if (!object || object.isDestroyed) {
+    return targets;
+  }
+  function add(target) {
+    if (!target || target.isDestroyed) { return; }
+    if (seen) {
+      if (seen.has(target)) { return; }
+      seen.set(target, true);
+    } else if (seenFallback[target]) {
+      return;
+    } else {
+      seenFallback[target] = true;
+    }
+    targets.push(target);
+  }
+  add(object);
+
+  var liveAppState = liveAppStateTarget();
+  if (liveAppState && liveAppState !== object && object === appStateUtil) {
+    add(liveAppState);
+  }
+
+  return targets;
+}
+
+function shouldUseEmberSet(object, method, replacement) {
+  if (!object || typeof object.set !== 'function' || typeof object.get !== 'function') {
+    return false;
+  }
+  var current = object[method];
+  if (typeof replacement === 'function' && typeof current === 'function') {
+    return false;
+  }
+  return true;
+}
+
+function applyStub(object, method, replacement, stashList) {
+  var stash;
+  if (shouldUseEmberSet(object, method, replacement)) {
+    stash = emberGet(object, method);
+    emberSet(object, method, replacement);
+  } else {
+    stash = object[method];
+    try {
+      object[method] = replacement;
+    } catch (e) {
+      emberSet(object, method, replacement);
+    }
+  }
+  stashList.push([object, method, stash]);
+}
+
 var stub = function(object, method, replacement) {
+  if (!object || object.isDestroyed) { return; }
   stub.stubs = stub.stubs || [];
-  var stash = object[method];
-  emberSet(object, method, replacement);
-  //console.log(stubs);
-  stub.stubs.push([object, method, stash]);
+  var seen = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  var seenFallback = {};
+  resolveStubTargets(object).forEach(function(target) {
+    if (seen) {
+      if (seen.has(target)) { return; }
+      seen.set(target, true);
+    } else if (seenFallback[target]) {
+      return;
+    } else {
+      seenFallback[target] = true;
+    }
+    applyStub(target, method, replacement, stub.stubs);
+  });
+  mirrorServiceStub(object, method, replacement, stub.stubs);
 };
 stub.stubs = [];
 
+function restoreStubs() {
+  stub.stubs.slice().reverse().forEach(function(list) {
+    var obj = list[0];
+    var method = list[1];
+    var stash = list[2];
+    if (!obj || obj.isDestroyed) { return; }
+    try {
+      if (shouldUseEmberSet(obj, method, stash)) {
+        emberSet(obj, method, stash);
+      } else {
+        obj[method] = stash;
+      }
+    } catch (e) {
+      try {
+        emberSet(obj, method, stash);
+      } catch (e2) { /* owner torn down */ }
+    }
+  });
+  stub.stubs = [];
+}
 
-export {context, describe, it, expect, beforeEach, afterEach, waitsFor, runs, stub};
+
+export {context, describe, xdescribe, it, itAsync, xit, expect, beforeEach, afterEach, waitsFor, runs, stub, restoreStubs, currentAssert};

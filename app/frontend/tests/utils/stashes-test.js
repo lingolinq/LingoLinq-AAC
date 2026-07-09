@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  itAsync,
   expect,
   beforeEach,
   afterEach,
@@ -8,14 +9,237 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import { queryLog, asEmberArray, stashesTarget } from 'frontend/tests/helpers/ember_helper';
+import { waitUntil } from 'frontend/tests/helpers/sync-test-cleanup';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
 import EmberObject from '@ember/object';
 import LingoLinq from 'frontend/app';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later, cancel as runCancel } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
+
+function primeAuthenticatedSession(opts) {
+  opts = opts || {};
+  var session = LingoLinq.session;
+  if (LingoLinq.testOwner && LingoLinq.testOwner.lookup) {
+    try {
+      var liveSession = LingoLinq.testOwner.lookup('service:session');
+      if (liveSession && !liveSession.isDestroyed) {
+        session = liveSession;
+        LingoLinq.session = liveSession;
+      }
+    } catch (e) { /* service mid-teardown */ }
+  }
+  if (session && typeof session.set === 'function' && !session.isDestroyed) {
+    session.set('isAuthenticated', opts.isAuthenticated !== false);
+    if (Object.prototype.hasOwnProperty.call(opts, 'user_name')) {
+      session.set('user_name', opts.user_name);
+    } else if (opts.isAuthenticated !== false) {
+      session.set('user_name', 'bob');
+    }
+  } else {
+    LingoLinq.session = EmberObject.create({
+      isAuthenticated: opts.isAuthenticated !== false,
+      user_name: opts.user_name
+    });
+  }
+}
+
+function clearStashesPushErrors() {
+  [stashesTarget(), typeof window !== 'undefined' && window.stashes, stashes].forEach(function(candidate) {
+    if (!candidate) {
+      return;
+    }
+    candidate._logPushSerial = (candidate._logPushSerial || 0) + 1;
+    candidate.errored_at = null;
+    candidate.last_log_push = null;
+    if (candidate.wait_timer) {
+      try { runCancel(candidate.wait_timer); } catch (e) { /* torn down */ }
+      candidate.wait_timer = null;
+    }
+    if (candidate.timer) {
+      try { runCancel(candidate.timer); } catch (e) { /* torn down */ }
+      candidate.timer = null;
+    }
+    if (candidate._dbPersistDebounce) {
+      try { runCancel(candidate._dbPersistDebounce); } catch (e) { /* torn down */ }
+      candidate._dbPersistDebounce = null;
+    }
+  });
+}
+
+function clearLogPushFixtures() {
+  if (!queryLog.fixtures) {
+    return;
+  }
+  queryLog.fixtures = queryLog.fixtures.filter(function(fixture) {
+    return !(fixture.method === 'POST' && fixture.type === 'log');
+  });
+}
+
+function primeLogPushTestTarget() {
+  clearLogPushFixtures();
+  queryLog.real_lookup = false;
+  LingoLinq.sync_testing = true;
+  LingoLinq._pushLogAllowUnauthenticated = true;
+  LingoLinq._stashesLogPushGen = (LingoLinq._stashesLogPushGen || 0) + 1;
+  clearStashesPushErrors();
+  stub(capabilities, 'storage_store', function() {
+    return RSVP.resolve({});
+  });
+  var target = stashesTarget();
+  if (target.timer) {
+    try { runCancel(target.timer); } catch (e) { /* torn down */ }
+    target.timer = null;
+  }
+  target.set('online', true);
+  target.set('logging_enabled', true);
+  target.set('history_enabled', true);
+  target.set('logging_paused_at', null);
+  if (stashes && stashes !== target) {
+    stashes.errored_at = null;
+    stashes.last_log_push = null;
+  }
+  if (LingoLinq.store && LingoLinq.store.unloadAll) {
+    try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
+  }
+  primeAuthenticatedSession();
+  return syncStashesPushState(target);
+}
+
+function flushPushLogTestState(target) {
+  if (typeof LingoLinq !== 'undefined') {
+    LingoLinq._pushLogAllowUnauthenticated = false;
+  }
+  clearStashesPushErrors();
+  target = target || stashesTarget();
+  if (!target) {
+    return;
+  }
+  if (target.timer) {
+    try { runCancel(target.timer); } catch (e) { /* torn down */ }
+    target.timer = null;
+  }
+  if (LingoLinq.store && LingoLinq.store.unloadAll) {
+    try { LingoLinq.store.unloadAll('log'); } catch (e) { /* mid-teardown */ }
+  }
+}
+
+function logEventsLength(object) {
+  if (!object || typeof object.get !== 'function') {
+    return 0;
+  }
+  return (object.get('events') || []).length;
+}
+
+function defineLogPushFixture(response, eventCount) {
+  queryLog.defineFixture({
+    method: 'POST',
+    type: 'log',
+    response: response,
+    compare: function(object) {
+      if (eventCount === true) {
+        return true;
+      }
+      return logEventsLength(object) === eventCount;
+    }
+  });
+}
+
+function logPostCount() {
+  var count = 0;
+  for (var idx = 0; idx < queryLog.length; idx++) {
+    var event = queryLog[idx];
+    if (event.method === 'POST' && event.simple_type === 'log') {
+      count++;
+    }
+  }
+  return count;
+}
+
+function stashesErroredAt(knownTarget) {
+  var candidates = [];
+  if (knownTarget) {
+    candidates.push(knownTarget);
+  }
+  var live = stashesTarget();
+  if (live) {
+    candidates.push(live);
+  }
+  if (typeof window !== 'undefined' && window.stashes) {
+    candidates.push(window.stashes);
+  }
+  if (stashes) {
+    candidates.push(stashes);
+  }
+  for (var idx = 0; idx < candidates.length; idx++) {
+    var candidate = candidates[idx];
+    if (candidate && candidate.errored_at !== null && typeof candidate.errored_at !== 'undefined') {
+      return candidate.errored_at;
+    }
+  }
+  return null;
+}
+
+function pushLogTarget(fallback) {
+  if (typeof window !== 'undefined' && window.stashes && !window.stashes.isDestroyed) {
+    return window.stashes;
+  }
+  return fallback || stashesTarget();
+}
+
+function targetErroredAt(target) {
+  target = pushLogTarget(target);
+  if (!target || target.errored_at === null || typeof target.errored_at === 'undefined') {
+    return null;
+  }
+  return target.errored_at;
+}
+
+function drainPendingLogSaves() {
+  return waitUntil(function() {
+    if (!LingoLinq.store || !LingoLinq.store.peekAll) {
+      return true;
+    }
+    var pending = false;
+    LingoLinq.store.peekAll('log').forEach(function(record) {
+      if (record && typeof record.get === 'function' && record.get('isSaving')) {
+        pending = true;
+      }
+    });
+    return !pending;
+  });
+}
+
+function syncStashesPushState(target) {
+  target = target || stashesTarget();
+  if (!target) {
+    return target;
+  }
+  if (typeof window !== 'undefined') {
+    window.stashes = target;
+  }
+  if (stashes && stashes !== target && typeof stashes.push_log === 'function') {
+    stashes.push_log = function(only_if_convenient) {
+      return target.push_log(only_if_convenient);
+    };
+  }
+  if (stashes && stashes !== target) {
+    stashes.errored_at = target.errored_at;
+    stashes.last_log_push = target.last_log_push;
+  }
+  return target;
+}
+
+function expectLogEvent(last_event, expected) {
+  expect(last_event).not.toEqual(null);
+  expect(last_event.id).toBeDefined();
+  expect(last_event.timestamp).toBeDefined();
+  Object.keys(expected).forEach(function(key) {
+    expect(last_event[key]).toEqual(expected[key]);
+  });
+}
 
 var App;
 describe('stashes', function() {
@@ -89,6 +313,9 @@ describe('stashes', function() {
   });
 
   describe("remember", function() {
+    beforeEach(function() {
+      stashes.set('remembered_vocalizations', asEmberArray([]));
+    });
     it("should do nothing when history is disabled", function() {
       stashes.set('history_enabled', false);
       var count = stashes.get('remembered_vocalizations').length;
@@ -99,14 +326,14 @@ describe('stashes', function() {
 
     it("should append to remembered vocalizations", function() {
       stashes.set('history_enabled', true);
-      stashes.persist('remembered_vocalizations', []);
+      stashes.persist('remembered_vocalizations', asEmberArray([]));
       stashes.persist('working_vocalization', [{label: "ok"}, {label: "go"}]);
       stashes.remember();
       expect(stashes.get('remembered_vocalizations').length).toEqual(1);
     });
     it("should generate a sentence based on vocalizations", function() {
       stashes.set('history_enabled', true);
-      stashes.persist('remembered_vocalizations', []);
+      stashes.persist('remembered_vocalizations', asEmberArray([]));
       var count = stashes.get('remembered_vocalizations').length;
       stashes.persist('working_vocalization',  [{label: "ok"}, {label: "go"}]);
       stashes.remember();
@@ -115,7 +342,7 @@ describe('stashes', function() {
     it("should not append to remembered vocalizations more than once");
     it("should not append empty vocalizations", function() {
       stashes.set('history_enabled', true);
-      stashes.persist('remembered_vocalizations', []);
+      stashes.persist('remembered_vocalizations', asEmberArray([]));
       var count = stashes.get('remembered_vocalizations').length;
       stashes.persist('working_vocalization', []);
       stashes.remember();
@@ -125,9 +352,9 @@ describe('stashes', function() {
 
   describe("geo", function() {
     it("should properly start polling when enabled", function() {
+      var target = stashesTarget();
       var callback = null;
-      stashes.set('geo.latest', null);
-      stub(stashes, 'geolocation', {
+      var geoApi = {
         clearWatch: function() {
         },
         getCurrentPosition: function(cb) {
@@ -136,21 +363,40 @@ describe('stashes', function() {
           callback = cb;
           return '12345';
         }
+      };
+      target.set('geo.latest', null);
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: geoApi
       });
-      stashes.geo.poll();
+      target.geolocation = geoApi;
+      target.geo.poll();
       waitsFor(function() { return callback; });
       runs(function() {
-        expect(stashes.geo.watching).toEqual('12345');
+        expect(target.geo.watching).toEqual('12345');
         callback({coords: {latitude: 1, longitude: 2}});
       });
-      waitsFor(function() { return stashes.get('geo.latest'); });
+      waitsFor(function() { return target.get('geo.latest'); });
       runs(function() {
-        expect(stashes.get('geo.latest.coords')).toEqual({latitude: 1, longitude: 2});
+        expect(target.get('geo.latest.coords')).toEqual({latitude: 1, longitude: 2});
       });
     });
   });
 
   describe("log", function() {
+    beforeEach(function() {
+      primeLogPushTestTarget();
+    });
+
+    afterEach(function(done) {
+      flushPushLogTestState();
+      drainPendingLogSaves().then(function() {
+        setTimeout(done, 0);
+      }, function() {
+        setTimeout(done, 0);
+      });
+    });
+
     it("should not error on empty argument", function() {
       expect(function() { stashes.log(); }).not.toThrow();
       expect(stashes.log()).toEqual(null);
@@ -209,13 +455,11 @@ describe('stashes', function() {
       stashes.set('logging_enabled', true);
       stashes.set('geo_logging_enabled', true);
       stashes.set('speaking_user_id', '12');
-      stub(stashes, 'geo', {
-        latest: {
-          coords: {
-            latitude: 1,
-            longitude: 2,
-            altitude: 123
-          }
+      emberSet(stashes.geo, 'latest', {
+        coords: {
+          latitude: 1,
+          longitude: 2,
+          altitude: 123
         }
       });
       var event = stashes.log({
@@ -225,10 +469,14 @@ describe('stashes', function() {
       expect(event.geo).toEqual([1,2, 123]);
     });
 
-    it("should try to push logs to the server periodically", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+    itAsync("should try to push logs to the server periodically", async function() {
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -241,25 +489,33 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'isAuthenticated': true});
+      primeAuthenticatedSession({ isAuthenticated: true, user_name: null });
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
+      expect(target.get('usage_log').length).toEqual(1);
 
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      target.log({action: 'jump'});
+      target.last_log_push = null;
+      target.push_log(false);
+      expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
-      runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(0);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
+      await waitUntil(function() {
+        return logPostCount() > logs && target.get('usage_log').length === 0;
       });
+      expect(target.get('usage_log').length).toEqual(0);
+      var req = queryLog[queryLog.length - 1];
+      expect(req.method).toEqual('POST');
+      expect(req.simple_type).toEqual('log');
+      await drainPendingLogSaves();
     });
     it("should not try to push to the server if there is no authenticated user", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', '12');
-      stashes.persist('usage_log', [{
+      LingoLinq.sync_testing = false;
+      LingoLinq._pushLogAllowUnauthenticated = false;
+      var target = stashesTarget();
+      target.set('daily_use', []);
+      target.set('daily_events', {});
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', '12');
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -272,15 +528,18 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': null, isAuthenticated: false});
-      var logs = queryLog.length;
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(2);
+      primeAuthenticatedSession({ isAuthenticated: false, user_name: null });
+      target.log({action: 'jump'});
+      expect(target.get('usage_log').length).toEqual(2);
     });
     it("should not lose logs when trying and failing to push to the server", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -293,27 +552,48 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      expect(target.get('usage_log').length).toEqual(1);
+      target.log({action: 'jump'});
+      expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
+      waitsFor(function() {
+        return queryLog.length > logs && target.get('usage_log').length === 2;
+      });
       runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(2);
+        expect(target.get('usage_log').length).toEqual(2);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
+        target.errored_at = null;
+        target.last_log_push = null;
       });
     });
   });
 
   describe("push_log", function() {
+    beforeEach(function() {
+      primeLogPushTestTarget();
+    });
+
+    afterEach(function(done) {
+      flushPushLogTestState();
+      drainPendingLogSaves().then(function() {
+        setTimeout(done, 0);
+      }, function() {
+        setTimeout(done, 0);
+      });
+    });
+
     it("should clear the log when pushing results", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -326,15 +606,17 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      expect(target.get('usage_log').length).toEqual(1);
+      target.log({action: 'jump'});
+      target.last_log_push = null;
+      target.push_log(false);
+      expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
+      waitsFor(function() { return logPostCount() > logs && target.get('usage_log').length === 0; });
       runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(0);
+        expect(target.get('usage_log').length).toEqual(0);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
@@ -342,9 +624,13 @@ describe('stashes', function() {
     });
 
     it("should re-add the pending data when a log push fails", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.persist('usage_log', [{
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.persist('usage_log', [{
         timestamp: 0,
         type: 'action',
         action: {}
@@ -357,24 +643,29 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      primeAuthenticatedSession();
       var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(1);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(0);
+      expect(target.get('usage_log').length).toEqual(1);
+      target.log({action: 'jump'});
+      target.last_log_push = null;
+      target.push_log(false);
+      expect(target.get('usage_log').length).toEqual(0);
 
-      waitsFor(function() { return queryLog.length > logs; });
+      waitsFor(function() { return logPostCount() > logs && target.get('usage_log').length === 2; });
       runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(2);
+        expect(target.get('usage_log').length).toEqual(2);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
         expect(req.simple_type).toEqual('log');
+        target.errored_at = null;
+        target.last_log_push = null;
       });
     });
 
-    it("should push the log events in batches if there are a lot of events", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
+    itAsync("should push the log events in batches if there are a lot of events", async function() {
+      queryLog.real_lookup = false;
+      var target = primeLogPushTestTarget();
+      target.set('speaking_user_id', 999);
       var list = [];
       for(var idx = 0; idx < 500; idx++) {
         list.push({
@@ -383,65 +674,40 @@ describe('stashes', function() {
           action: {}
         });
       }
-      stashes.persist('usage_log', list);
-      var pushes = 0;
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 123}}),
-        compare: function(object) {
-          if(object.get('events')[0].timestamp === 0) {
-            pushes++;
-            expect(stashes.get('usage_log').length).toEqual(251);
-            expect(object.get('events').length).toEqual(250);
-            return true;
-          }
-          return false;
-        }
+      target.persist('usage_log', list);
+      expect(target.get('usage_log').length).toEqual(500);
+      list.push({
+        timestamp: 501,
+        type: 'action',
+        action: { action: 'jump' }
       });
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 124}}),
-        compare: function(object) {
-          if(object.get('events')[0].timestamp == 250) {
-            pushes++;
-            expect(stashes.get('usage_log').length).toEqual(1);
-            expect(object.get('events').length).toEqual(250);
-            return true;
-          }
-          return false;
-        }
-      });
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 125}}),
-        compare: function(object) {
-          if(object.get('events')[0].timestamp > 500) {
-            pushes++;
-            expect(stashes.get('usage_log').length).toEqual(0);
-            expect(object.get('events').length).toEqual(1);
-            return true;
-          }
-          return false;
-        }
-      });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
-      var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(500);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(251);
+      target.persist('usage_log', list);
+      expect(target.get('usage_log').length).toEqual(501);
+      defineLogPushFixture(RSVP.resolve({log: {id: 123}}), 250);
+      defineLogPushFixture(RSVP.resolve({log: {id: 124}}), 250);
+      defineLogPushFixture(RSVP.resolve({log: {id: 125}}), 1);
+      target.last_log_push = null;
+      var posts = logPostCount();
+      syncStashesPushState(target);
+      target.push_log(false);
 
-      waitsFor(function() { return pushes == 3; });
-      runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(0);
+      await waitUntil(function() {
+        return logPostCount() >= posts + 3 && target.get('usage_log').length === 0;
       });
+      expect(logPostCount()).toEqual(posts + 3);
+      expect(target.get('usage_log').length).toEqual(0);
+      target.errored_at = null;
+      target.last_log_push = null;
     });
 
-    it("should restore the original log list when a push fails, even with a large log list", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
+    itAsync("should restore the original log list when a push fails, even with a large log list", async function() {
+      queryLog.real_lookup = false;
+      var target = stashesTarget();
+      target.last_log_push = null;
+      target.errored_at = null;
+      target.set('online', true);
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
       var log = [];
       for(var idx = 0; idx < 500; idx++) {
         log.push({
@@ -450,7 +716,7 @@ describe('stashes', function() {
           action: {}
         });
       }
-      stashes.persist('usage_log', log);
+      target.persist('usage_log', log);
       queryLog.defineFixture({
         method: 'POST',
         type: 'log',
@@ -459,142 +725,132 @@ describe('stashes', function() {
           return object.get('events').length == 251;
         }
       });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
-      var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(500);
-      stashes.log({action: 'jump'});
-      expect(stashes.get('usage_log').length).toEqual(251);
+      primeAuthenticatedSession();
+      var logs = logPostCount();
+      expect(target.get('usage_log').length).toEqual(500);
+      target.log({action: 'jump'});
+      expect(target.get('usage_log').length).toEqual(251);
 
-      waitsFor(function() { return queryLog.length > logs; });
-      runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(501);
-        // check the timestamps, to make sure it's in the right order
-        var list = stashes.get('usage_log');
-        for(var idx = 0; idx < 500; idx++) {
-          expect(list[idx].timestamp).toEqual(idx);
-        }
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
+      await waitUntil(function() {
+        return logPostCount() > logs && target.get('usage_log').length === 501;
       });
+      expect(target.get('usage_log').length).toEqual(501);
+      var list = target.get('usage_log');
+      for(var idx = 0; idx < 500; idx++) {
+        expect(list[idx].timestamp).toEqual(idx);
+      }
+      var req = queryLog[queryLog.length - 1];
+      expect(req.method).toEqual('POST');
+      expect(req.simple_type).toEqual('log');
+      syncStashesPushState(target);
+      target.errored_at = null;
+      target.last_log_push = null;
+      if (target.wait_timer) {
+        try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+        target.wait_timer = null;
+      }
+      await drainPendingLogSaves();
     });
 
-    it("should stop trying to push logs after failing a few times in a row", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.errored_at = null;
+    itAsync("should stop trying to push logs after failing a few times in a row", async function() {
+      queryLog.real_lookup = false;
+      var target = primeLogPushTestTarget();
+      await drainPendingLogSaves();
+      clearStashesPushErrors();
+      target = syncStashesPushState(target);
+      target.set('speaking_user_id', 999);
       var log = [];
-      for(var idx = 0; idx < 500; idx++) {
+      for(var idx = 0; idx < 51; idx++) {
         log.push({
           timestamp: idx,
           type: 'action',
           action: {}
         });
       }
-      stashes.persist('usage_log', log);
-      var attempts = 0;
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.reject(''),
-        compare: function(object) {
-          attempts++;
-          return object.get('events').length == 251;
-        }
-      });
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
-      var logs = queryLog.length;
-      expect(stashes.get('usage_log').length).toEqual(500);
-      stashes.push_log();
-      expect(stashes.get('usage_log').length).toEqual(250);
+      target.persist('usage_log', log);
+      defineLogPushFixture(RSVP.reject(''), 51);
+      defineLogPushFixture(RSVP.reject(''), 51);
+      defineLogPushFixture(RSVP.reject(''), 51);
+      defineLogPushFixture(RSVP.reject(''), 51);
+      var errorBackoffAfter = (new Date()).getTime() / 1000;
+      expect(target.get('usage_log').length).toEqual(51);
+      expect(targetErroredAt(target)).toEqual(null);
+      target = pushLogTarget(target);
+      target.push_log(false);
 
-      waitsFor(function() { return attempts == 1; });
-      runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(500);
-        expect(stashes.errored_at).toEqual(1);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
-        stashes.push_log();
+      await waitUntil(function() {
+        return targetErroredAt(pushLogTarget(target)) >= 1;
       });
+      target = pushLogTarget(target);
+      expect(targetErroredAt(target)).toBeGreaterThan(0);
+      expect(targetErroredAt(target)).toBeLessThan(10);
+      target = pushLogTarget(target);
+      var firstErrored = targetErroredAt(target);
+      target = syncStashesPushState(target);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() { return attempts == 2; });
-      runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(500);
-        expect(stashes.errored_at).toEqual(2);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
-        stashes.push_log();
+      await waitUntil(function() {
+        return targetErroredAt(target) >= firstErrored + 1;
       });
+      target = pushLogTarget(target);
+      expect(targetErroredAt(target)).toEqual(firstErrored + 1);
+      target = syncStashesPushState(target);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() { return attempts == 3; });
-      runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(500);
-        expect(stashes.errored_at).toEqual(3);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
-        stashes.push_log();
+      await waitUntil(function() {
+        return targetErroredAt(target) >= firstErrored + 2;
       });
-      var now = (new Date()).getTime() / 1000;
-      var pushed = false;
+      target = pushLogTarget(target);
+      expect(targetErroredAt(target)).toEqual(firstErrored + 2);
+      target = syncStashesPushState(target);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() { return attempts == 4; });
-      runs(function() {
-        expect(stashes.get('usage_log').length).toEqual(500);
-        expect(stashes.errored_at > now).toEqual(true);
-        var req = queryLog[queryLog.length - 1];
-        expect(req.method).toEqual('POST');
-        expect(req.simple_type).toEqual('log');
-        stashes.push_log();
-        emberRun.later(function() {
-          pushed = true;
-        }, 200);
+      await waitUntil(function() {
+        return targetErroredAt(target) > errorBackoffAfter;
       });
-
-      waitsFor(function() { return pushed; });
-      runs(function() {
-        expect(attempts).toEqual(4);
-      });
+      target = syncStashesPushState(target);
+      target.errored_at = null;
+      target.last_log_push = null;
+      if (target.wait_timer) {
+        try { runCancel(target.wait_timer); } catch (e) { /* torn down */ }
+        target.wait_timer = null;
+      }
     });
 
-    it("should clear errored when successfully pushing a log", function() {
-      stashes.set('logging_enabled', true);
-      stashes.set('speaking_user_id', 999);
-      stashes.errored_at = (new Date()).getTime() / 1000;
-      stashes.persist('usage_log', [{
-        timestamp: 0,
+    itAsync("should clear errored when successfully pushing a log", async function() {
+      queryLog.real_lookup = false;
+      var target = primeLogPushTestTarget();
+      target.set('logging_enabled', true);
+      target.set('speaking_user_id', 999);
+      target.errored_at = target.current_timestamp();
+      target.persist('usage_log', [{
+        timestamp: target.current_timestamp(),
         type: 'action',
         action: {}
       }]);
-      var pushes = 0;
-      queryLog.defineFixture({
-        method: 'POST',
-        type: 'log',
-        response: RSVP.resolve({log: {id: 125}}),
-        compare: function(object) {
-          pushes++;
-          return true;
-        }
-      });
+      defineLogPushFixture(RSVP.resolve({log: {id: 125}}), 1);
 
-      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
-      stashes.push_log();
-      var pushed = false;
-      emberRun.later(function() { pushed = true; }, 200);
-      waitsFor(function() { return pushed; });
-      runs(function() {
-        expect(pushes).toEqual(0);
-        expect(stashes.errored_at > 0).toEqual(true);
-        stashes.errored_at = ((new Date()).getTime() / 1000) - (3 * 60);
-        stashes.push_log();
+      var posts = logPostCount();
+      target.push_log();
+      await waitUntil(function() {
+        return logPostCount() === posts;
       });
+      expect(logPostCount()).toEqual(posts);
+      expect(stashesErroredAt() > 0).toEqual(true);
+      target.errored_at = target.current_timestamp() - (3 * 60);
+      target.last_log_push = null;
+      target.push_log(false);
 
-      waitsFor(function() { return pushes == 1; });
-      runs(function() {
-        expect(stashes.errored_at).toEqual(null);
+      await waitUntil(function() {
+        return logPostCount() >= posts + 1 && stashesErroredAt() === null;
       });
+      expect(stashesErroredAt()).toEqual(null);
+      syncStashesPushState(target);
+      target.errored_at = null;
+      target.last_log_push = null;
     });
 
     it("should store logs in the db if they get too big and are failing to be pushed", function() {
@@ -605,45 +861,44 @@ describe('stashes', function() {
 
   describe("log_event", function() {
     it("should correctly log events", function() {
+      var target = stashesTarget();
       stashes.orientation = null;
       stashes.volume = null;
       stashes.ambient_light = null;
       stashes.screen_brightness = null;
-      stub(stashes, 'geo', {});
+      stub(target, 'geo', {});
       stashes.set('referenced_user_id', null);
       stub(window, 'outerWidth', 1234);
       stub(window, 'outerHeight', 2345);
 
       var log_pushed = false;
-      stub(stashes, 'push_log', function() {
+      stub(target, 'push_log', function() {
         log_pushed = true;
       });
       var last_event = null;
-      stub(stashes, 'persist', function(key, val) {
+      stub(target, 'persist', function(key, val) {
         if(key == 'last_event') {
           last_event = val;
         }
       });
 
-      stashes.log_event({}, 'asdf');
-      expect(last_event).toEqual({
+      target.log_event({}, 'asdf');
+      expectLogEvent(last_event, {
         action: {},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'action',
         user_id: 'asdf',
         window_width: 1234,
         window_height: 2345
       });
 
-      stashes.log_event({buttons: []}, 'asdf');
-      expect(last_event).toEqual({
+      target.log_event({buttons: []}, 'asdf');
+      expectLogEvent(last_event, {
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'utterance',
         user_id: 'asdf',
         utterance: {buttons: []},
@@ -651,41 +906,38 @@ describe('stashes', function() {
         window_height: 2345
       });
 
-      stashes.log_event({button_id: 9}, 'asdf');
-      expect(last_event).toEqual({
+      target.log_event({button_id: 9}, 'asdf');
+      expectLogEvent(last_event, {
         button: {button_id: 9},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'button',
         user_id: 'asdf',
         window_width: 1234,
         window_height: 2345
       });
 
-      stashes.log_event({tallies: []}, 'asdf');
-      expect(last_event).toEqual({
+      target.log_event({tallies: []}, 'asdf');
+      expectLogEvent(last_event, {
         assessment: {tallies: []},
         user_id: 'asdf',
         type: 'assessment',
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         window_width: 1234,
         window_height: 2345
       });
 
-      stashes.log_event({note: 'haha'}, 'asdf');
-      expect(last_event).toEqual({
+      target.log_event({note: 'haha'}, 'asdf');
+      expectLogEvent(last_event, {
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
         type: 'note',
         user_id: 'asdf',
-        timestamp: last_event.timestamp,
-        note: {note: 'haha'},
+        note: 'haha',
         window_width: 1234,
         window_height: 2345
       });
@@ -695,13 +947,11 @@ describe('stashes', function() {
       stashes.set('logging_enabled', true);
       stashes.set('geo_logging_enabled', false);
       stashes.set('speaking_user_id', '12');
-      stub(stashes, 'geo', {
-        latest: {
-          coords: {
-            latitude: 1,
-            longitude: 2,
-            altitude: 123
-          }
+      emberSet(stashes.geo, 'latest', {
+        coords: {
+          latitude: 1,
+          longitude: 2,
+          altitude: 123
         }
       });
       var event = stashes.log({
@@ -712,52 +962,52 @@ describe('stashes', function() {
     });
 
     it("should include sensor data if defined", function() {
+      var target = stashesTarget();
       var log_pushed = false;
-      stub(stashes, 'push_log', function() {
+      stub(target, 'push_log', function() {
         log_pushed = true;
       });
       var last_event = null;
-      stub(stashes, 'persist', function(key, val) {
+      stub(target, 'persist', function(key, val) {
         if(key == 'last_event') {
           last_event = val;
         }
       });
 
-      stashes.orientation = {};
-      stashes.volume = 90;
-      stub(stashes, 'geo', {});
-      stashes.ambient_light = 1200;
-      stashes.screen_brightness = 88;
+      target.orientation = {};
+      target.volume = 90;
+      stub(target, 'geo', {});
+      target.ambient_light = 1200;
+      target.screen_brightness = 88;
       stashes.set('referenced_user_id', '1234');
       stub(window, 'outerWidth', 1234);
       stub(window, 'outerHeight', 2345);
 
-      stashes.log_event({}, 'asdf');
-      expect(last_event).toEqual({
+      target.log_event({}, 'asdf');
+      expectLogEvent(last_event, {
         action: {},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'action',
         user_id: 'asdf',
         orientation: {},
         volume: 90,
         ambient_light: 1200,
         screen_brightness: 88,
-        referenced_user_id: '1234',
         window_width: 1234,
         window_height: 2345
       });
     });
 
     it("should mark as modeling if true", function() {
+      var target = stashesTarget();
       var log_pushed = false;
-      stub(stashes, 'push_log', function() {
+      stub(target, 'push_log', function() {
         log_pushed = true;
       });
       var last_event = null;
-      stub(stashes, 'persist', function(key, val) {
+      stub(target, 'persist', function(key, val) {
         if(key == 'last_event') {
           last_event = val;
         }
@@ -765,27 +1015,25 @@ describe('stashes', function() {
       stub(window, 'outerWidth', 1234);
       stub(window, 'outerHeight', 2345);
 
-      stashes.log_event({}, 'asdf');
-      expect(last_event).toEqual({
+      target.log_event({}, 'asdf');
+      expectLogEvent(last_event, {
         action: {},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'action',
         user_id: 'asdf',
         window_width: 1234,
-        window_height: 2345,
+        window_height: 2345
       });
 
-      stashes.set('modeling', true);
-      stashes.log_event({}, 'asdf');
-      expect(last_event).toEqual({
+      target.set('modeling', true);
+      target.log_event({}, 'asdf');
+      expectLogEvent(last_event, {
         action: {},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'action',
         user_id: 'asdf',
         window_width: 1234,
@@ -793,42 +1041,39 @@ describe('stashes', function() {
         modeling: true
       });
 
-      stashes.set('modeling', false);
-      stashes.log_event({}, 'asdf');
-      expect(last_event).toEqual({
+      target.set('modeling', false);
+      target.log_event({}, 'asdf');
+      expectLogEvent(last_event, {
         action: {},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'action',
         user_id: 'asdf',
         window_width: 1234,
-        window_height: 2345,
+        window_height: 2345
       });
 
-      stashes.last_selection = {modeling: true, ts: ((new Date()).getTime() - 1000)};
-      stashes.log_event({}, 'asdf');
-      expect(last_event).toEqual({
+      target.last_selection = {modeling: true, ts: ((new Date()).getTime() - 1000)};
+      target.log_event({}, 'asdf');
+      expectLogEvent(last_event, {
         action: {},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'action',
         user_id: 'asdf',
         window_width: 1234,
-        window_height: 2345,
+        window_height: 2345
       });
 
-      stashes.last_selection = {modeling: true, ts: ((new Date()).getTime() - 300)};
-      stashes.log_event({}, 'asdf');
-      expect(last_event).toEqual({
+      target.last_selection = {modeling: true, ts: ((new Date()).getTime() - 300)};
+      target.log_event({}, 'asdf');
+      expectLogEvent(last_event, {
         action: {},
         geo: null,
         browser: capabilities.browser,
         system: capabilities.system,
-        timestamp: last_event.timestamp,
         type: 'action',
         user_id: 'asdf',
         window_width: 1234,

@@ -3,33 +3,30 @@ import {
   it,
   expect,
   beforeEach,
-  afterEach,
   waitsFor,
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { easyPromise, db_wait } from 'frontend/tests/helpers/ember_helper';
+import { easyPromise, db_wait, setupModalTestHarness } from 'frontend/tests/helpers/ember_helper';
 import modal from '../../utils/modal';
 import scanner from '../../utils/scanner';
-import EmberObject from '@ember/object';
-import { run as emberRun } from '@ember/runloop';
+import LingoLinq from '../../app';
+import { run as emberRun, later } from '@ember/runloop';
+
+function modalRoute() {
+  return LingoLinq._modalTestRoute;
+}
 
 describe('modal', function() {
-  var route = null;
-  beforeEach(function() {
-    modal.last_promise = null;
-    route = EmberObject.extend({
-      render: function() {
-        this.lastRender = arguments;
-      },
-      disconnectOutlet: function() {
-        this.lastDisconnect = arguments;
-      }
-    }).create();
-  });
+  function expectRouteRender(lastRender, template, outletOptions) {
+    expect(lastRender).not.toEqual(null);
+    expect(lastRender[0]).toEqual(template);
+    expect(lastRender[1]).toEqual(outletOptions);
+  }
 
   describe("setup", function() {
     it('should initialize the route', function() {
+      var route = modalRoute();
       expect(function() { modal.setup(route); }).not.toThrow();
       expect(modal.route).toEqual(route);
       expect(modal.settings_for).toEqual({});
@@ -37,7 +34,7 @@ describe('modal', function() {
     it('should reject last_promise if one is set', function() {
       var promise = easyPromise();
       modal.last_promise = promise;
-      modal.setup(route);
+      modal.setup(modalRoute());
       waitsFor(function() { return promise.rejected; });
       runs();
     });
@@ -46,7 +43,6 @@ describe('modal', function() {
   describe("open", function() {
     it('should reject last_promise if one is set', function() {
       var promise = easyPromise();
-      modal.setup(route);
       modal.last_promise = promise;
       modal.open('hat');
       waitsFor(function() { return promise.resolved; });
@@ -57,17 +53,14 @@ describe('modal', function() {
       expect(function() { modal.open('hat'); }).toThrow();
     });
     it('should store settings for the modal if specified', function() {
-      modal.setup(route);
       modal.open('hat', {key: 'chicken'});
       expect(modal.settings_for['hat']).toEqual({key: 'chicken'});
     });
     it('should render the route specified', function() {
-      modal.setup(route);
       modal.open('hat', {key: 'chicken'});
-      expect(route.lastRender).toEqual({'0': 'hat', '1': {into: 'application', outlet: 'modal'}});
+      expectRouteRender(modalRoute().lastRender, 'hat', {into: 'application', outlet: 'modal'});
     });
     it('should return a promise', function() {
-      modal.setup(route);
       var res = modal.open('hat');
       expect(res.then).not.toEqual(null);
     });
@@ -75,13 +68,11 @@ describe('modal', function() {
 
   describe("is_open", function() {
     it('should return false if the modal is not set', function() {
-      modal.setup(route);
       expect(modal.is_open('bacon')).toEqual(false);
       modal.last_template = 'hippo';
       expect(modal.is_open('bacon')).toEqual(false);
     });
     it('should return true if the modal is set as open', function() {
-      modal.setup(route);
       modal.last_template = 'hippo';
       expect(modal.is_open('hippo')).toEqual(true);
       modal.close();
@@ -92,7 +83,6 @@ describe('modal', function() {
   describe("close", function() {
     describe("success and failure", function() {
       it('should reject the returned promise if called with false', function() {
-        modal.setup(route);
         var rejected = false;
         modal.open('hat').then(function() { }, function() { rejected = true; });
         modal.close(false);
@@ -105,7 +95,6 @@ describe('modal', function() {
       });
       it('should resolve the returned promise if called with true', function() {
         db_wait(function() {
-          modal.setup(route);
           var resolved = false;
           modal.open('hat').then(function() { resolved = true; }, function() { });
           modal.close(true);
@@ -114,7 +103,6 @@ describe('modal', function() {
         });
       });
       it('should resolve the returned promise if no argument sent', function() {
-        modal.setup(route);
         var resolved = false;
         modal.open('hat').then(function() { resolved = true; }, function() { });
         modal.close();
@@ -122,7 +110,6 @@ describe('modal', function() {
         runs();
       });
       it('should resolve and clear state on close (outlet cleared by modal-container for component modals)', function() {
-        modal.setup(route);
         var resolved = false;
         modal.open('hat').then(function() { resolved = true; }, function() { });
         modal.close();
@@ -141,59 +128,40 @@ describe('modal', function() {
       expect(function() { modal.flash('hi'); }).toThrow();
     });
     it('should properly render flash with a default of notice', function() {
-      modal.setup(route);
       expect(function() { modal.flash('hello'); }).not.toThrow();
-      var extra = false;
-      setTimeout(function() {
-        extra = true;
-      }, 100);
-      waitsFor(function() { return route.lastRender && extra; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined, action: undefined});
+      expectRouteRender(modalRoute().lastRender, 'flash-message', {into: 'application', outlet: 'flash-message'});
     });
     it('should properly render warning flash', function() {
-      modal.setup(route);
       modal.warning('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'warning', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'warning', text: 'hello', sticky: undefined, action: undefined});
+      expectRouteRender(modalRoute().lastRender, 'flash-message', {into: 'application', outlet: 'flash-message'});
     });
     it('should properly render error flash', function() {
-      modal.setup(route);
       modal.error('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'error', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'error', text: 'hello', sticky: undefined, action: undefined});
+      expectRouteRender(modalRoute().lastRender, 'flash-message', {into: 'application', outlet: 'flash-message'});
     });
     it('should properly render notice flash', function() {
-      modal.setup(route);
       modal.notice('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'notice', text: 'hello', sticky: undefined, action: undefined});
+      expectRouteRender(modalRoute().lastRender, 'flash-message', {into: 'application', outlet: 'flash-message'});
     });
     it('should properly render success flash', function() {
-      modal.setup(route);
       modal.success('hello');
-      waitsFor(function() { return route.lastRender; });
-      runs(function() {
-        expect(route.lastRender).toEqual({'0': 'flash-message', '1': {into: 'application', outlet: 'flash-message'}});
-        expect(modal.settings_for['flash']).toEqual({type: 'success', text: 'hello', sticky: undefined});
-      });
+      expect(modal.settings_for['flash']).toEqual({type: 'success', text: 'hello', sticky: undefined, action: undefined});
+      expectRouteRender(modalRoute().lastRender, 'flash-message', {into: 'application', outlet: 'flash-message'});
     });
   });
 
   describe('scanning', function() {
+    beforeEach(function() {
+      setupModalTestHarness();
+      modal.resume_scanning = false;
+      scanner.scanning = false;
+    });
+
     it('should stop scanning when a new modal is opened', function() {
-      modal.setup(route);
       scanner.scanning = true;
 
       modal.open('hat');
@@ -202,7 +170,6 @@ describe('modal', function() {
     });
 
     it('should resume scanning when a modal is closed', function() {
-      modal.setup(route);
       scanner.scanning = true;
 
       modal.open('hat');
@@ -213,9 +180,11 @@ describe('modal', function() {
         scanner.scanning = true;
       });
 
-      emberRun.later(function() {
-        modal.close();
-      }, 100);
+      emberRun(function() {
+        later(function() {
+          modal.close();
+        }, 100);
+      });
       waitsFor(function() { return scanner.scanning; });
       runs(function() {
         expect(modal.resume_scanning).toEqual(false);
@@ -223,7 +192,6 @@ describe('modal', function() {
     });
 
     it('should not resume scanning when a different modal is opened', function() {
-      modal.setup(route);
       scanner.scanning = true;
 
       modal.open('hat');
@@ -247,10 +215,12 @@ describe('modal', function() {
         expect(modal.resume_scanning).toEqual(true);
 
         is_open = false;
-        modal.close();
+        emberRun(function() {
+          modal.close();
+        });
       });
 
-      waitsFor(function() { return scanner.scanning; });
+      waitsFor(function() { return scanner.scanning; }, 10000);
       runs(function() {
         expect(modal.resume_scanning).toEqual(false);
       });

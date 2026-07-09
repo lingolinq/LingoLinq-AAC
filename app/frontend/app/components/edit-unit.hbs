@@ -1,0 +1,56 @@
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>{{t "Edit Room Details" key="edit_room_details"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <form class="form-horizontal" {{on "submit" (this.ctrlAction "save")}}>
+      {{#unless this.model.curriculum_only}}
+      <div class="form-group">
+        <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
+        <div class="col-sm-7">
+          <Input @value={{this.model.unit.name}} class="form-control" id="name" placeholder="Room Name" />
+        </div>
+      </div>
+      {{else}}
+        <div class="form-group">
+            <div class='col-sm-8 col-sm-offset-3'>
+              <p class='form-control-static'>
+                {{t "Each room can have its own list of assigned cirruclum. These can be links to any topics or material the room is curretly focused on. Any curriculum set will be available to all room communicators." key="curriculum_explainer"}}
+              </p>
+            </div>
+        </div>
+      {{/unless}}
+      <div class="form-group">
+        <label for="name" class="col-sm-3 control-label">{{t "Curriculum" key="curriculum"}}</label>
+        <div class="col-sm-8">
+          {{#each this.model.unit.topics as |row|}}
+            <div class='row' style='margin-top: 5px;'>
+              <div class='col-sm-5'><Input @value={{row.title}} class="form-control" placeholder="topic" /></div>
+              <div class='col-sm-6'><Input @value={{row.url}} class="form-control" placeholder="https://" /></div>
+              <div class='col-sm-1'><a href='#' {{on "click" (this.ctrlAction "remove_curriculum_row" row)}}><span class='glyphicon glyphicon-remove'></span></a></div>
+            </div>
+          {{/each}}
+          <div style='margin-top: 5px;'><button class='btn btn-default btn-sm' {{on "click" (this.ctrlAction "add_curriculum_row")}}>{{t "add row" key="add_row_lower"}}</button></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+          <button class='btn btn-primary' type='submit' disabled={{this.saving}}>
+            {{#if this.saving}}
+              {{t "Updating Room..." key="updating_room"}}
+            {{else}}
+              {{t "Update Room" key="update_room"}}
+            {{/if}}
+          </button>
+          {{#if this.error}}
+            <p class='text-danger'>{{t "There was an unexpected error while updating the room" key="error_updating_room"}}</p>
+          {{/if}}
+        </div>
+      </div>
+    </form>
+  </div>
+{{/modal-dialog}}

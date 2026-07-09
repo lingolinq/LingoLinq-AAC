@@ -73,6 +73,7 @@ export default Controller.extend({
   showSystemSettingsLink: alias('showBetaFeedbackAdminLink'),
 
   landingNavOpen: false,
+
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
   betaFeedbackDrawerOpen: false,
 
@@ -194,6 +195,40 @@ export default Controller.extend({
         configurable: true
       });
     }
+
+    var router = this.router;
+    var self = this;
+    this.support = () => {
+      router.transitionTo('support');
+    };
+    this.language = () => {
+      modal.open('modals/choose-locale');
+    };
+    this.toggleLandingNav = () => {
+      self.set('landingNavOpen', !self.get('landingNavOpen'));
+    };
+    this.closeLandingNav = () => {
+      self.set('landingNavOpen', false);
+    };
+    this.onCloseBetaFeedbackDrawer = () => {
+      self.send('closeBetaFeedbackDrawer');
+    };
+    this.onToggleBetaFeedbackDrawer = () => {
+      self.send('toggleBetaFeedbackDrawer');
+    };
+
+    var _this = this;
+    _this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        _this.send.apply(_this, [actionName].concat(args));
+      };
+    };
   },
   updateTitle: function(str) {
     if(!isTesting()) {
@@ -537,6 +572,7 @@ export default Controller.extend({
     var s = this.get('session.isAuthenticated') ? 'margin-top: -10px; font-size: 14px;' : 'font-size: 14px;';
     return htmlSafe(s);
   }),
+
   actions: {
     toggleEvalPause: function() {
       if(obf.eval && obf.eval.toggle_pause) { obf.eval.toggle_pause(); }
@@ -1708,18 +1744,33 @@ export default Controller.extend({
       key: board.get('key'),
       parent_id: board.get('parent_board_id')
     };
-    var image_url = button.image;
+    var image_url = (button.get && (button.get('local_image_url') || button.get('image_url'))) ||
+      button.local_image_url ||
+      button.image_url ||
+      button.image;
+    if(image && image.get && image.get('best_url') && !image_url) {
+      image_url = image.get('best_url');
+    }
     if(image && image.get('personalized_url') && !button.no_skin) {
       image_url = image.get('personalized_url');
     } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
       image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.protected_image_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
     }
+    var part_of_speech = (button.get && button.get('part_of_speech')) || button.part_of_speech ||
+      (button.get && button.get('painted_part_of_speech')) || button.painted_part_of_speech ||
+      (button.get && button.get('suggested_part_of_speech')) || button.suggested_part_of_speech;
+    var label = (button.get && button.get('label')) || button.label;
+    var vocalization = (button.get && button.get('vocalization')) || button.vocalization;
+    // Spelling-style "+s" on a dedicated "-s" modifier should inflect (walks), not append "s" (watchs).
+    if((vocalization || '').match(/^\+s$/i) && (label || '').trim().match(/^-?s$/i)) {
+      vocalization = ':plural';
+    }
     var obj = {
-      label: button.label,
-      vocalization: button.vocalization,
+      label: label,
+      vocalization: vocalization,
       image: image_url,
       button_id: button.id,
-      part_of_speech: button.part_of_speech,
+      part_of_speech: part_of_speech,
       sound: (sound && sound.get && sound.get('url')) || button.get('original_sound_url'),
       board: oldState,
       completion: button.completion,

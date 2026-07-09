@@ -73,21 +73,25 @@ export default Component.extend({
   /** When true, the mobile drawer (landing-alt nav) is open. */
   isLandingDrawerOpen: false,
 
-  actions: {
-    index() {
-      this.get('application').send('index');
-    },
-    toggleHeroColors() {
-      this.get('application').send('toggleHeroColors');
-    },
-    toggleLandingDrawer() {
-      this.set('isLandingDrawerOpen', !this.get('isLandingDrawerOpen'));
-    },
-    closeLandingDrawer() {
-      this.set('isLandingDrawerOpen', false);
-    },
-    toggleBetaFeedbackDrawer() {
-      this.get('application').send('toggleBetaFeedbackDrawer');
-    },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    var owner = getOwner(this);
+    this.toggleLandingDrawer = () => {
+      self.set('isLandingDrawerOpen', !self.get('isLandingDrawerOpen'));
+    };
+    this.closeLandingDrawer = () => {
+      self.set('isLandingDrawerOpen', false);
+    };
+    this.toggleBetaFeedbackDrawer = () => {
+      owner.lookup('controller:application').send('toggleBetaFeedbackDrawer');
+    };
+  },
+
+  index() {
+    this.get('application').send('index');
+  },
+  toggleHeroColors() {
+    this.get('application').send('toggleHeroColors');
   }
 });

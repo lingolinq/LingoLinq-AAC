@@ -1,0 +1,72 @@
+{{!-- Subtest runner — sequences items, captures correct/incorrect events --}}
+<section class="evq-runner" aria-labelledby="evq-runner-title">
+  <div class="evq-runner__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={{this.subtestProgressPct}} aria-label={{t "Quick Screen progress" key="runner_progress_aria"}}>
+    <div class="evq-runner__progress-fill" style={{safe-style (concat "width:" this.subtestProgressPct "%")}}></div>
+  </div>
+
+  <header class="evq-runner__header">
+    <span class="evq-runner__step">
+      {{t "Step %{n} of %{total}" key="runner_step_of" n=this.subtestNumber total=this.totalSubtests}}
+    </span>
+    <h2 id="evq-runner-title" class="evq-runner__title">{{this.currentSubtestLabel}}</h2>
+    {{#if this.hasItems}}
+      <div class="evq-runner__meta">
+        {{#if this.currentItemKindLabel}}
+          <span class="evq-runner__kind-badge {{if this.isAutoScored 'evq-runner__kind-badge--auto'}}">
+            {{#if this.isAutoScored}}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 12 10 17 19 7"/></svg>
+              {{t "Auto-scored" key="evq_auto_scored"}}
+            {{else}}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+              {{t "Observation" key="evq_observation_score"}}
+            {{/if}}
+            <span class="evq-runner__kind-badge-divider">·</span>
+            {{this.currentItemKindLabel}}
+          </span>
+        {{/if}}
+        <span class="evq-runner__item-count" aria-live="polite">{{this.itemProgressLabel}}</span>
+      </div>
+    {{/if}}
+  </header>
+
+  {{#if this.isWrap}}
+    <div class="evq-runner__wrap">
+      <p class="evq-runner__wrap-message">
+        {{t "All items complete. Generate the recommendation when you're ready." key="runner_wrap_message"}}
+      </p>
+      <div class="evq-runner__actions">
+        <button type="button" class="evq-btn evq-btn--primary" {{on "click" (this.ctrlAction "finishEval")}}>
+          {{t "Generate recommendation" key="runner_generate_recommendation"}}
+        </button>
+      </div>
+    </div>
+  {{else if this.hasItems}}
+    {{!-- Item dispatcher — re-instances per item.id so didInsertElement
+         starts a fresh latency timer. The keyed each-style isn't
+         available with a single child, so we toggle via {{if}} on
+         the item id. --}}
+    {{#if this.currentItem.id}}
+      {{eval-quick-item
+        item=this.currentItem
+        subtest=this.currentSubtest
+        accessMethod=this.session.intake.suspected_access
+        onResponse=(this.ctrlAction "handleItemResponse")
+        onTimeout=(this.ctrlAction "handleItemTimeout")}}
+    {{/if}}
+
+    <div class="evq-runner__actions">
+      <button type="button" class="evq-btn evq-btn--ghost" {{on "click" (this.ctrlAction "finishSubtest")}}>
+        {{t "Skip rest of subtest" key="runner_skip_subtest"}}
+      </button>
+    </div>
+  {{else}}
+    <div class="evq-runner__empty">
+      <p class="evq-runner__empty-message">
+        {{t "No items configured for this subtest yet. Continue to the next step." key="runner_empty"}}
+      </p>
+      <button type="button" class="evq-btn evq-btn--primary" {{on "click" (this.ctrlAction "finishSubtest")}}>
+        {{t "Continue" key="continue"}}
+      </button>
+    </div>
+  {{/if}}
+</section>

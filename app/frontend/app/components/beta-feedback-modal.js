@@ -16,6 +16,35 @@ export default Component.extend({
     this.set('model', options);
   },
 
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() {
+      self.send('close');
+    };
+    this.onOpening = function() {
+      self.send('opening');
+    };
+    this.onClosing = function() {
+      self.send('closing');
+    };
+    this.onSubmitSuccess = function() {
+      self.send('onSubmitSuccess');
+    };
+    this.onCancel = function() {
+      self.send('onCancel');
+    };
+  },
+
+  willDestroyElement() {
+    this._super(...arguments);
+    this.onClose = null;
+    this.onOpening = null;
+    this.onClosing = null;
+    this.onSubmitSuccess = null;
+    this.onCancel = null;
+  },
+
   actions: {
     close() {
       this.get('modal').close();

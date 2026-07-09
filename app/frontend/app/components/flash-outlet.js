@@ -66,6 +66,6 @@ export default Component.extend({
     },
     contact() {
       this.get('appState.controller').router.transitionTo('contact');
-    },
-  },
+    }
+  }
 });

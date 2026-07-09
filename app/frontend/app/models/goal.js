@@ -169,7 +169,7 @@ LingoLinq.Goal = BaseModel.extend({
         reversed_units.push(unit);
       }
     });
-    var max = Math.max.apply(null, units.mapBy('max_statuses'));
+    var max = Math.max.apply(null, units.map(function(unit) { return unit.max_statuses; }));
     reversed_units.max = max;
     return reversed_units;
   }),
@@ -349,7 +349,8 @@ LingoLinq.Goal = BaseModel.extend({
     var fallback = imgs[Math.floor(Math.random() * imgs.length)];
     badge.image_url = badge.image_url || fallback;
     badge.id = Math.random();
-    badges.pushObject(badge);
+    badges = badges.slice();
+    badges.push(badge);
     this.set('badges', badges);
   },
   check_badges: observer('badges', 'badges.length', function() {
@@ -357,17 +358,28 @@ LingoLinq.Goal = BaseModel.extend({
     this.set('badges_enabled', !!(badges.length > 0 && badges[badges.length - 1].level !== 0));
   }),
   set_zero_badge: observer('auto_assessment', 'assessment_badge', function(obj, changed) {
-    if(changed == 'auto_assessment' && this.get('auto_assessment') === false) {
-      this.set('assessment_badge', null);
-    }
-    if(this.get('auto_assessment') || this.get('assessment_badge')) {
-      this.set('auto_assessment', true);
-      if(!this.get('assessment_badge')) {
-        this.set('assessment_badge', {assessment: true});
+    if(this._applyingZeroBadge) { return; }
+    this._applyingZeroBadge = true;
+    try {
+      if(changed === 'auto_assessment' && this.get('auto_assessment') === false) {
+        if(this.get('assessment_badge') != null) {
+          this.set('assessment_badge', null);
+        }
+        return;
       }
-    } else {
-      this.set('auto_assessment', false);
-      this.set('assessment_badge', null);
+      if(this.get('auto_assessment') || this.get('assessment_badge')) {
+        if(!this.get('auto_assessment')) {
+          this.set('auto_assessment', true);
+        }
+        if(!this.get('assessment_badge')) {
+          this.set('assessment_badge', {assessment: true});
+        }
+      } else if(this.get('auto_assessment') !== false || this.get('assessment_badge') != null) {
+        this.set('auto_assessment', false);
+        this.set('assessment_badge', null);
+      }
+    } finally {
+      this._applyingZeroBadge = false;
     }
   })
 });

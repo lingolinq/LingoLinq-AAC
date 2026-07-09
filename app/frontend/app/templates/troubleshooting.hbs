@@ -24,9 +24,9 @@
         {{#unless this.testing}}
           {{#unless this.errors}}
             <div class="la-troubleshooting-actions" style="justify-content: center; margin-top: 1.5rem; display: flex; gap: 12px;">
-              <button type="button" class="la-btn la-btn--primary" {{action "run_default_tests"}}>{{t "Check For Supported Functionality" key="run_tests"}}</button>
+              <button type="button" class="la-btn la-btn--primary" {{on "click" (this.ctrlAction "run_default_tests")}}>{{t "Check For Supported Functionality" key="run_tests"}}</button>
               {{#if this.error_count}}
-                <button type="button" class="la-btn la-btn--ghost" {{action "show_errors"}}>{{t "Error" count=this.error_count key="n_errors"}}</button>
+                <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "show_errors")}}>{{t "Error" count=this.error_count key="n_errors"}}</button>
               {{/if}}
             </div>
           {{/unless}}
@@ -71,7 +71,7 @@
                           {{#if test.tests}}
                             <br>
                             {{#each test.tests as |num|}}
-                              <button type="button" class="la-btn la-btn--ghost" {{action "test_feature" test.key num}}>{{t "Test %{num}" key="test_num" num=num}}</button>
+                              <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "test_feature" test.key num)}}>{{t "Test %{num}" key="test_num" num=num}}</button>
                             {{/each}}
                           {{/if}}
                         {{else}}
@@ -113,7 +113,7 @@
                     <tr>
                       <td colspan="3" class="la-troubleshooting-fail">
                         {{t "After clearing, you should really reload" key="should_reload"}}<br>
-                        <button type="button" class="la-btn la-btn--primary" {{action "reload"}}>{{t "Reload Now" key="reload_now"}}</button>
+                        <button type="button" class="la-btn la-btn--primary" {{on "click" (this.ctrlAction "reload")}}>{{t "Reload Now" key="reload_now"}}</button>
                       </td>
                     </tr>
                   {{/if}}
@@ -130,7 +130,7 @@
                         {{/if}}
                       </td>
                       <td class="la-troubleshooting-cell">
-                        <button type="button" class="la-btn la-btn--ghost" {{action "clear_file_storage"}}>{{t "Clear" key="clear"}}</button>
+                        <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "clear_file_storage")}}>{{t "Clear" key="clear"}}</button>
                       </td>
                     </tr>
                   {{/if}}
@@ -147,7 +147,7 @@
                     </td>
                     <td class="la-troubleshooting-cell">
                       {{#if this.db}}
-                        <button type="button" class="la-btn la-btn--ghost" {{action "clear_databases"}}>{{t "Clear" key="clear"}}</button>
+                        <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "clear_databases")}}>{{t "Clear" key="clear"}}</button>
                       {{/if}}
                     </td>
                   </tr>
@@ -162,7 +162,7 @@
                     </td>
                     <td class="la-troubleshooting-cell">
                       {{#if this.local_storage}}
-                        <button type="button" class="la-btn la-btn--ghost" {{action "clear_local_storage"}}>{{t "Clear" key="clear"}}</button>
+                        <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "clear_local_storage")}}>{{t "Clear" key="clear"}}</button>
                       {{/if}}
                     </td>
                   </tr>
@@ -177,7 +177,7 @@
                   {{#if this.has_debugging}}
                     <tr class="la-troubleshooting-muted">
                       <td>{{t "Debugging" key="debugging"}}</td>
-                      <td colspan="2"><a href="#" {{action "show_debugging"}}>{{t "Available" key="available_cap"}}</a></td>
+                      <td colspan="2"><a href="#" {{on "click" (this.ctrlAction "show_debugging")}}>{{t "Available" key="available_cap"}}</a></td>
                     </tr>
                   {{/if}}
                   <tr>
@@ -192,7 +192,7 @@
                     <td class="la-troubleshooting-cell">
                       {{#if this.local_boards}}
                         {{#if (persistence-online)}}
-                          <button type="button" class="la-btn la-btn--ghost" {{action "push_to_cloud"}}>{{t "Push to Cloud" key="push_to_cloud"}}</button>
+                          <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "push_to_cloud")}}>{{t "Push to Cloud" key="push_to_cloud"}}</button>
                         {{/if}}
                       {{/if}}
                     </td>
@@ -217,17 +217,17 @@
                 <tbody>
                   {{#each this.errors as |error|}}
                     <tr>
-                      <td class="la-troubleshooting-cell la-troubleshooting-cell--narrow"><div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{error.message}}</div></td>
+                      <td class="la-troubleshooting-cell la-troubleshooting-cell--narrow"><div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{this.error.message}}</div></td>
                       <td>{{date error.date}}</td>
                       <td>
-                        <div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{#if error.stack}}{{error.stack}}{{else}}{{error.message}}{{/if}}</div>
+                        <div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{#if this.error.stack}}{{this.error.stack}}{{else}}{{this.error.message}}{{/if}}</div>
                       </td>
                     </tr>
                   {{/each}}
                 </tbody>
               </table>
               <div class="la-troubleshooting-actions" style="justify-content: center; margin-top: 1.5rem; display: flex;">
-                <button type="button" class="la-btn la-btn--primary" {{action "show_errors"}}>{{t "Done With Errors" key="done_with_errors"}}</button>
+                <button type="button" class="la-btn la-btn--primary" {{on "click" (this.ctrlAction "show_errors")}}>{{t "Done With Errors" key="done_with_errors"}}</button>
               </div>
             </div>
           </article>

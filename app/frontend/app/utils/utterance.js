@@ -625,7 +625,7 @@ var utterance = EmberObject.extend({
     var possibly_capitalize = function(b, prior) {
       var prior = prior || {};
       var prior_text = prior.vocalization || prior.label || "";
-      var prior_rendered = rendered_list.find(function(b) { return b.raw_index == prior.raw_index || (b.modifications || []).find(function(m) { return m.raw_index == prior.raw_index; }); });
+      var prior_rendered = (rendered_list || []).find(function(b) { return b.raw_index == prior.raw_index || (b.modifications || []).find(function(m) { return m.raw_index == prior.raw_index; }); });
       if(prior_rendered) { prior_text = prior_rendered.vocalization || prior_rendered.label || prior_text; }
       var do_capitalize = false;
       if(!prior_text) {
@@ -675,14 +675,16 @@ var utterance = EmberObject.extend({
           raw_index = button.modifications[button.modifications.length - 1].raw_index || (raw_index + button.modifications.length);
         }
         possibly_capitalize(b, list[raw_index]);
-        list.insertAt(raw_index + 1, b);
+        var nextList = (list || []).slice();
+        nextList.splice(raw_index + 1, 0, b);
+        this.set('rawButtonList', nextList);
       }
       if(!b.specialty_with_modifiers) {
         appState.set('insertion.index', Math.min(list.length - 1, idx + 1));
       }
     } else {
       possibly_capitalize(b, list[list.length - 1]);
-      list.pushObject(b);
+      this.set('rawButtonList', (list || []).concat([b]));
     }
     appState.set('shift', null);
     this.set('list_vocalized', false);
@@ -935,17 +937,22 @@ var utterance = EmberObject.extend({
               raw_index = button.modifications[button.modifications.length - 1].raw_index || (raw_index + button.modifications.length);
               move_index = false;
             }
-            list.removeAt(raw_index);
+            var nextList = (list || []).slice();
+            nextList.splice(raw_index, 1);
+            this.set('rawButtonList', nextList);
+            list = nextList;
           }
           if(move_index) {
             appState.set('insertion.index', Math.max(-1, idx - 1));
           }
         } else {
-          var popped = list.popObject();
+          var nextList = (list || []).slice();
+          var popped = nextList.length ? nextList.pop() : undefined;
           if(popped && popped.pre_substitution) {
-            popped.pre_substitution[popped.pre_substitution.length - 1].auto_substitute = false
-            list.pushObjects(popped.pre_substitution);
+            popped.pre_substitution[popped.pre_substitution.length - 1].auto_substitute = false;
+            nextList = nextList.concat(popped.pre_substitution);
           }
+          this.set('rawButtonList', nextList);
         }
       }
     } else {

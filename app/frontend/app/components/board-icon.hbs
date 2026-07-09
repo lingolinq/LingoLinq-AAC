@@ -1,0 +1,150 @@
+{{!-- Card root carries the pick_board click action, WCAG button
+     semantics (role + aria-label), and keyboard activation. pick_board
+     fires on click OR Enter/Space (via pickKeydown — Enter/Space on
+     role="button" divs needs explicit JS).
+
+     pick_board MUST live HERE on the OUTER div, not on a nested child.
+     HTML5 native drag does not reliably initiate when the user
+     mousedowns on a child <button> (form-control gesture-capture
+     quirk in Chrome) — and a nested div with role="button" can still
+     interfere with the parent's drag in practice. Putting the click
+     handler at the OUTER level (the same shape as the original
+     pre-WCAG-commit pattern that worked) lets the parent
+     .ub-boards-page__board-item--draggable[draggable=true] reliably
+     take the drag on a mousedown anywhere in the card.
+
+     The sibling .info Preview pill and .board-icon__info chip still
+     capture their own clicks via `bubbles=false` on their actions, so
+     clicking either of those does NOT trigger pick_board. --}}
+{{!-- template-lint-disable-tree no-nested-interactive --}}
+{{!-- no-nested-interactive disabled for the tree below: the outer
+     div is a WCAG role="button" (so screen readers announce the
+     whole tile as a button). The two nested <button>s inside —
+     `.info` Preview pill and `.board-icon__info` "i"+grid chip —
+     are absolute-positioned chrome that floats on top of the card
+     (not part of the card body content), and both use `bubbles=false`
+     on their actions so their clicks do NOT trigger the outer
+     pick_board. Screen-reader users can still focus them via Tab
+     since they're independent focusable elements; the lint rule
+     can't see the absolute positioning so it can't tell that the
+     "nesting" is purely DOM-layout, not semantic. --}}
+<div role="button" tabindex="0"
+     {{on "click" (this.ctrlAction "pick_board" this.board_record)}}
+     {{on "keydown" (this.ctrlAction "pickKeydown")}}
+     class={{this.display_class}}
+     style={{this.cursor_style}}
+     aria-label={{this.tile_aria_label}}>
+
+  {{!-- Translated-language marker — sits above the bottom-center
+       Preview pill. Informational only (aria-hidden + pointer-events
+       none in CSS), so it visually flags translated boards without
+       intercepting the tile's click. Rendered only when
+       translated_language_label resolves (board has multiple locales
+       OR a non-English default locale). --}}
+  {{#if this.translated_language_label}}
+    <span class="board-icon__lang-marker" aria-hidden="true" title={{t "Board language" key="board_language"}}>
+      <svg class="board-icon__lang-marker-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+      <span class="board-icon__lang-marker-text">{{this.translated_language_label}}</span>
+    </span>
+  {{/if}}
+  {{#unless this.noinfo}}
+    <button type="button" {{on "click" (this.ctrlActionNoBubble "board_preview" this.board_record)}} class='info' style="cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
+      {{#if this.override_count}}
+        <span class="label label-default" style='border-radius: 20px;'>
+          {{this.override_count}}
+        </span>
+      {{else}}
+        {{!-- "PREVIEW" label + (when the board is a folder/container)
+             the child-board count, separated by a thin vertical
+             divider so the two pieces of info read as one combined
+             chip. The count only renders when the board actually has
+             children — leaf boards just show "PREVIEW". --}}
+        <span class='info__label'>{{t "Preview" key="preview"}}</span>
+        {{#if this.children.length}}
+          <span class='info__divider' aria-hidden="true"></span>
+          <span class='info__count'>{{t "board" key="n_boards" count=this.children.length}}</span>
+        {{/if}}
+      {{/if}}
+    </button>
+  {{/unless}}
+  {{!-- Info + grid-size chip — top-right of every board tile. The
+       circled "i" glyph sits on the LEFT and the board's grid size
+       (e.g. "12 x 8") on the RIGHT. Whole chip is one button: click
+       opens the same Preview modal as the bottom-center Preview
+       button below. When the board has no grid metadata (rare), the
+       chip falls back to icon-only and the --with-size modifier is
+       not applied so it stays a circle. --}}
+  {{#unless this.noinfo}}
+    <button
+      type="button"
+      class='board-icon__info {{if this.board_record.grid.rows "board-icon__info--with-size"}}'
+      {{on "click" (this.ctrlActionNoBubble "board_preview" this.board_record)}}
+      aria-label={{t "Preview board" key="preview_board"}}
+      title={{t "Preview board" key="preview_board"}}
+    >
+      <svg class='board-icon__info-icon' width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+      {{#if this.board_record.grid.rows}}
+        <span class='board-icon__info-size'>{{this.board_record.grid.rows}} x {{this.board_record.grid.columns}}</span>
+      {{/if}}
+    </button>
+  {{/unless}}
+  {{#if this.flag_home }}
+    {{#if this.board_record.home_board}}
+      <div style='position: absolute; top: 0; left: 5px; color: #888;' aria-label={{t "Home board" key="home_board"}}><span class='glyphicon glyphicon-home' aria-hidden="true"></span></div>
+    {{/if}}
+  {{/if}}
+  {{!-- Card body content: img, optional credit, name, optional author.
+       These are direct children of the outer role="button" div above.
+       draggable="false" on the IMG defers any image-drag intent to
+       the parent .board-item[draggable=true] (images default to
+       being draggable themselves; this disables that). --}}
+  {{#if this.override_count}}
+    <img src={{this.board_record.style.image_url}} onerror="button_broken_image(this);" alt="" draggable="false">
+  {{else}}
+    <img src={{this.board_record.icon_url_with_fallback}} onerror="button_broken_image(this);" alt="" draggable="false">
+  {{/if}}
+  {{#if this.board_record.has_vocab_icon}}
+    {{!-- Attribution under the shipped Quick Core / Vocal Flair /
+         Sequoia tile art. Rendered only when board.has_vocab_icon
+         (same detection as icon_url_with_fallback's override map).
+         License names and the OpenAAC brand aren't translated, but
+         routed through i18n to keep the no-raw-strings convention. --}}
+    <div class="board-icon__credit">{{t "CC-By OpenAAC" key="cc_by_openaac"}}</div>
+  {{/if}}
+  <div class={{if this.noinfo "name compact" "name"}}>
+  {{this.best_name}}
+  </div>
+  {{!-- Author/count line: for folder boards the count now lives
+       inside the Preview pill (PREVIEW · N boards), so the line
+       only renders for leaf boards (showing "by Username"). --}}
+  {{#unless this.children}}
+    <div class='author'>
+      <span class="author__label">{{t "by" key="by"}}</span>
+      <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
+    </div>
+  {{/unless}}
+</div>
+{{!-- Loading overlay — fires when EITHER the corner "i" info button
+     OR the bottom-center Preview button is clicked. Uses the shared
+     `.ll-premium-progress` chrome (same card as the bootstrap
+     skeleton + index-loading template) so this loader is visually
+     continuous with every other "Preparing your workspace" state.
+     position:fixed so the overlay covers the viewport regardless
+     of where this component is rendered. --}}
+{{#if this.loadingPreview}}
+  <div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-premium-progress__card">
+      <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
+      <p class="ll-premium-progress__sub">{{t "Loading Board Preview..." key="loading_board_preview"}}</p>
+      <div class="ll-premium-progress__bar" aria-hidden="true"></div>
+    </div>
+  </div>
+{{/if}}

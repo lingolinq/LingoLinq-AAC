@@ -160,6 +160,18 @@ export default Service.extend({
     }, 0);
   },
 
+  willDestroy() {
+    this._super(...arguments);
+    if (this.refreshing_user) {
+      runCancel(this.refreshing_user);
+      this.refreshing_user = null;
+    }
+    if (this.check_for_board_readiness && this.check_for_board_readiness.timer) {
+      runCancel(this.check_for_board_readiness.timer);
+      this.check_for_board_readiness.timer = null;
+    }
+  },
+
   setup: function() {
     // CRITICAL: Fix stashes injection FIRST, before any code that uses it
     // This prevents "Cannot read properties of undefined (reading 'get')" errors
@@ -609,11 +621,14 @@ export default Service.extend({
   },
   refresh_user: function() {
     var _this = this;
+    if (_this.isDestroyed || _this.isDestroying) { return; }
     runCancel(_this.refreshing_user);
 
     function refresh() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
       runCancel(_this.refreshing_user);
       _this.refreshing_user = runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.refresh_user();
       }, 60000 * 15);
     }
@@ -795,6 +810,7 @@ export default Service.extend({
     this.set('latest_board_id', this.get('currentBoardState.id'));
   }),
   check_for_board_readiness: function(delay) {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.check_for_board_readiness.timer) {
       runCancel(this.check_for_board_readiness.timer);
     }
@@ -1122,9 +1138,12 @@ export default Service.extend({
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
-    runLater(function() {
-      _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
-    });
+    if (!isTesting()) {
+      runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
+      });
+    }
     return !!res;
   }),
   auto_clear_modeling: observer('short_refresh_stamp', 'modeling', function() {
@@ -1991,7 +2010,6 @@ export default Service.extend({
     this.set('currentUser', null);
     this.set('speakModeUser', null);
     this.set('referenced_speak_mode_user', null);
-    this.set('referenced_user', null);
     this.set('modeling_for_self', null);
 
     // Per-user board / navigation state
@@ -2648,6 +2666,7 @@ export default Service.extend({
     }
   },
   on_user_change: observer('currentUser', function() {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.get('currentUser') && LingoLinq.Board) {
       LingoLinq.Board.clear_fast_html();
     }
@@ -2682,6 +2701,7 @@ export default Service.extend({
     'referenced_user.preferences.logging',
     'referenced_user.id',
     function() {
+      if (this.isDestroyed || this.isDestroying) { return; }
       if(this.session.get('isAuthenticated') && !this.get('currentUser.id')) {
         // Don't run handlers on page reload until user is loaded
         return;
@@ -2795,37 +2815,41 @@ export default Service.extend({
               }
             }, function() { });
           }
-        }
-        this.set('eye_gaze', capabilities.eye_gaze);
-        this.set('embedded', !!(LingoLinq.embedded));
-        this.set('full_screen_capable', capabilities.fullscreen_capable());
-        // Eval boards (obf/eval*) require speak mode and enter it as part of the
-        // assessment's own flow, which has its own on-board intro. Suppress the
-        // generic speak-mode-intro / modeling-intro here so they don't interrupt
-        // an eval. speak_mode_intro_done stays unset, so a later normal (non-eval)
-        // speak-mode entry still shows the intro. (Same spirit as the tour guard
-        // below, where the guided tour IS the intro.)
-        if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro') && !this.get('eval_mode')) {
-          var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
-          // Stand down when a board-detail SPEAK tour is pending/handing off (home
-          // tour "start speaking" button, board picker, board-preview overlay): the
-          // guided tour IS the speak-mode intro, so the legacy modal would otherwise
-          // race it and render dimmed behind the tour card. The tour clears the flag
-          // once it opens, after which normal (no-tour) entry shows the modal again.
-          if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
-            if(modal.route && !modal.is_open('speak-mode-intro')) {
-              modal.open('speak-mode-intro');
-            }
-          } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
-            var now = (new Date()).getTime();
-            if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
-            if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
-              if(modal.route && !modal.is_open('modeling-intro')) {
-                modal.open('modeling-intro');
+          // Speak-mode / modeling intros belong with first speak-mode entry only.
+          // speak_mode_handlers also fires on board loads and referenced-user
+          // changes while already in speak mode — showing the intro here on every
+          // fire made board switches re-open the welcome modal.
+          // Eval boards (obf/eval*) require speak mode and enter it as part of the
+          // assessment's own flow, which has its own on-board intro. Suppress the
+          // generic speak-mode-intro / modeling-intro here so they don't interrupt
+          // an eval. speak_mode_intro_done stays unset, so a later normal (non-eval)
+          // speak-mode entry still shows the intro. (Same spirit as the tour guard
+          // below, where the guided tour IS the intro.)
+          if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro') && !this.get('eval_mode')) {
+            var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
+            // Stand down when a board-detail SPEAK tour is pending/handing off (home
+            // tour "start speaking" button, board picker, board-preview overlay): the
+            // guided tour IS the speak-mode intro, so the legacy modal would otherwise
+            // race it and render dimmed behind the tour card. The tour clears the flag
+            // once it opens, after which normal (no-tour) entry shows the modal again.
+            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
+              if(modal.route && !modal.is_open('speak-mode-intro')) {
+                modal.open('speak-mode-intro');
+              }
+            } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
+              var now = (new Date()).getTime();
+              if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
+              if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
+                if(modal.route && !modal.is_open('modeling-intro')) {
+                  modal.open('modeling-intro');
+                }
               }
             }
           }
         }
+        this.set('eye_gaze', capabilities.eye_gaze);
+        this.set('embedded', !!(LingoLinq.embedded));
+        this.set('full_screen_capable', capabilities.fullscreen_capable());
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
         var fullscreenPromise = capabilities.fullscreen(false);
@@ -3006,11 +3030,30 @@ export default Service.extend({
       text_fallback(tag.text.slice(1, tag.text.length - 2));
     }
   },
-  speak_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+  speak_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. As with
+      // edit_mode, the app drives mode via stashes.current_mode and only
+      // tests force speak_mode directly; cache the forced value (it
+      // re-derives from current_mode/currentBoardState on dependency change).
+      return !!value;
+    }
   }),
-  edit_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+  edit_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. The app itself
+      // never assigns edit_mode on app-state (it drives mode via
+      // stashes.current_mode in toggle_edit_mode); only tests force it
+      // directly. Accept and cache the forced value; it re-derives from
+      // current_mode/currentBoardState if a dependency later changes.
+      return !!value;
+    }
   }),
   default_mode: computed('stashes.current_mode', 'currentBoardState', function() {
     return !!(this.stashes.get('current_mode') == 'default' || !this.get('currentBoardState'));
@@ -3359,7 +3402,7 @@ export default Service.extend({
       if(_this.get('nearby_places') && any_places) {
         // set current_place_types to the list of places for the closest-retrieved place
         (_this.get('nearby_places') || []).forEach(function(place) {
-          var d = geolocation.distance(place.latitude, place.longitude, this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'));
+          var d = geolocation.distance(place.latitude, place.longitude, _this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'));
           // anything with 500ft could be a winner
           if(d && d < 500) {
             place.types.forEach(function(type) {
@@ -3384,12 +3427,12 @@ export default Service.extend({
           matches['ssid'] = true;
         }
         var geo_set = false;
-        if(brd.geos && this.stashes.get('geo.latest.coords')) {
+        if(brd.geos && _this.stashes.get('geo.latest.coords')) {
           var geos = brd.geos || [];
           if(geos.split) { geos = geos.split(/;/).map(function(g) { return g.split(/,/).map(function(n) { return parseFloat(n); }); }); }
           brd.geo_distance = -1;
           geos.forEach(function(geo) {
-            var d = geolocation.distance(this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
+            var d = geolocation.distance(_this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
             if(d && d < loose_tolerance && (brd.geo_distance == -1 || d < brd.geo_distance)) {
               brd.geo_distance = d;
               geo_set = true;
@@ -3571,8 +3614,14 @@ export default Service.extend({
       if(LingoLinq.store && user && !user.get('supporter_role') && user.get('currently_premium') && last_check < (now - 600000)) {
         _this.set('last_user_badge_load_for_' + user.get('id'), now);
         runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           _this.set('user_badge_hash', badge_hash);
           LingoLinq.store.query('badge', {user_id: user.get('id'), recent: 1}).then(function(badges) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', badge_hash);
             badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
             var badge = LingoLinq.Badge.best_earned_badge(badges);
@@ -3582,6 +3631,9 @@ export default Service.extend({
             }
             _this.set('user_badge', badge);
           }, function(err) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', old_badge_hash);
           });
         });

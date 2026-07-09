@@ -1,0 +1,35 @@
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Import Board(s)" key="import_board_recipients_title"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#46505f"/>
+          <polyline points="17 8 12 3 7 8" stroke="#2a9d8f"/>
+          <line x1="12" y1="3" x2="12" y2="15" stroke="#2a9d8f"/>
+        </svg>
+      </div>
+    </div>
+    <p class="md-modal-hint">{{t "Choose who should receive this import. Selected users are handled in the order shown: the first checked user runs the main import, and each additional checked user receives a full duplicate of the same board set." key="import_board_recipients_hint"}}</p>
+    <div class="md-modal-field">
+      <p class="md-modal-label">{{t "Import for:" key="import_board_recipients_for_label"}}</p>
+      <div class="md-modal-supervisee-list">
+        {{#each this.recipient_rows as |row|}}
+          <label class="md-modal-checkbox-label">
+            <Input @type="checkbox" @checked={{row.selected}} class="md-modal-checkbox" />
+            <span>{{row.user_name}}{{#if row.is_self}} {{t "(me)" key="import_recipients_me_suffix"}}{{/if}}</span>
+          </label>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+    <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>{{t "Start import" key="import_board_recipients_start"}}</button>
+  </div>
+{{/modal-dialog}}

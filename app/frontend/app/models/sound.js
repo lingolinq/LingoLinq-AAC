@@ -40,6 +40,9 @@ LingoLinq.Sound = BaseModel.extend({
     return this.get('name') + " " + this.get('transcription') + " " + this.get('created');
   }),
   check_transcription: function() {
+    if (this.isDestroyed || this.isDestroying) {
+      return false;
+    }
     if(this.get('transcription')) {
       this.set('transcription_pending', false);
       return true;
@@ -64,16 +67,25 @@ LingoLinq.Sound = BaseModel.extend({
         }
         this.set('transcription_checks', attempts + 1);
         runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           if(persistence.get('online')) {
             _this.reload().then(function(res) {
               _this.check_transcription();
             }, function(err) {
               runLater(function() {
+                if (_this.isDestroyed || _this.isDestroying) {
+                  return;
+                }
                 _this.check_transcription();
               }, 2 * 60 * 1000);
             });
           } else {
             runLater(function() {
+              if (_this.isDestroyed || _this.isDestroying) {
+                return;
+              }
               _this.check_transcription();
             }, 2 * 60 * 1000);
           }

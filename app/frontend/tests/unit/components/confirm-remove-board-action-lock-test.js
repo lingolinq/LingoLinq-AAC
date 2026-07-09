@@ -1,27 +1,27 @@
 import { module, test } from 'qunit';
 import Service from '@ember/service';
-import { setupTest } from 'ember-qunit';
+import { setupTest, stubPersistence, primePersistenceService } from '../../helpers';
 import RSVP from 'rsvp';
-import persistence from 'frontend/utils/persistence';
 import modal from 'frontend/utils/modal';
 import actionLock from 'frontend/utils/action-lock';
 
 module('Unit | Component | confirm remove board action lock', function(hooks) {
   setupTest(hooks);
 
-  var originalAjax;
   var originalClose;
   var originalWarning;
 
   hooks.beforeEach(function() {
     actionLock.reset();
-    originalAjax = persistence.ajax;
+    primePersistenceService(this.owner);
     originalClose = modal.close;
     originalWarning = modal.warning;
   });
 
   hooks.afterEach(function() {
-    persistence.ajax = originalAjax;
+    if (this.restorePersistence) {
+      this.restorePersistence();
+    }
     modal.close = originalClose;
     modal.warning = originalWarning;
     actionLock.reset();
@@ -58,12 +58,14 @@ module('Unit | Component | confirm remove board action lock', function(hooks) {
       }
     }));
 
-    persistence.ajax = function() {
-      ajaxCalls++;
-      return new RSVP.Promise(function(resolve) {
-        resolveAjax = resolve;
-      });
-    };
+    this.restorePersistence = stubPersistence({
+      ajax: function() {
+        ajaxCalls++;
+        return new RSVP.Promise(function(resolve) {
+          resolveAjax = resolve;
+        });
+      }
+    });
     modal.close = function() {};
     modal.warning = function() {
       warnings++;

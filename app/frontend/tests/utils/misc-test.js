@@ -8,7 +8,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { easyPromise, db_wait, result_wrap } from 'frontend/tests/helpers/ember_helper';
+import { easyPromise, db_wait, result_wrap, asEmberArray } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import Utils from '../../utils/misc';
 import modal from '../../utils/modal';
@@ -117,6 +117,9 @@ describe("misc", function() {
               map: function() {
                 return [{id: '1'},{id: '2'}];
               },
+              slice: function() {
+                return [{id: '1'},{id: '2'}];
+              },
               meta: {
                 more: true,
                 per_page: 2,
@@ -129,6 +132,9 @@ describe("misc", function() {
               map: function() {
                 return [{id: '3'},{id: '4'}];
               },
+              slice: function() {
+                return [{id: '3'},{id: '4'}];
+              },
               meta: {
                 more: true,
                 per_page: 2,
@@ -139,6 +145,9 @@ describe("misc", function() {
             expect(opts.offset).toEqual(4);
             return RSVP.resolve(result_wrap({
               map: function() {
+                return [{id: '1'},{id: '2'}];
+              },
+              slice: function() {
                 return [{id: '1'},{id: '2'}];
               },
               meta: {
@@ -173,18 +182,13 @@ describe("misc", function() {
           expect(opts.a).toEqual(1);
           attempt++;
           if(attempt == 1) {
-            return RSVP.resolve({
-              map: function() {
-                return [
-                  {id: '1'},{id: '2'}
-                ];
-              },
-              meta: {
-                more: false,
-                per_page: 2,
-                next_offset: 2
-              }
-            });
+            var page = asEmberArray([{id: '1'}, {id: '2'}]);
+            page.meta = {
+              more: false,
+              per_page: 2,
+              next_offset: 2
+            };
+            return RSVP.resolve(page);
           }
         });
         var list = null;

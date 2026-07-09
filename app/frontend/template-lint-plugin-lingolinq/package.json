@@ -1,0 +1,7 @@
+{
+  "name": "template-lint-plugin-lingolinq",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local ember-template-lint rules for LingoLinq frontend"
+}

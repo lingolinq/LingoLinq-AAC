@@ -100,6 +100,10 @@ jobs:
 
       - name: Run Ember tests (Chrome Headless)
         working-directory: app/frontend
+        # A healthy full run finishes in ~34 min. Cap the step so a wedged
+        # runner (e.g. testem's iframe channel corrupted by a post-teardown
+        # stack overflow) fails fast instead of burning the 6h Actions ceiling.
+        timeout-minutes: 50
         run: npx ember test
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These

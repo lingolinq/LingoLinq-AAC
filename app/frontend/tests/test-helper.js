@@ -6,7 +6,7 @@ import { setup } from 'qunit-dom';
 import { start } from 'ember-qunit';
 import { isTesting } from '@ember/debug';
 
-QUnit.config.testTimeout = 60000;
+QUnit.config.testTimeout = 15000;
 
 // Skip deferred readiness in tests so the app boots immediately instead of waiting
 // for IndexedDB/lang/extras (which can hang in headless Chromium on WSL2).
@@ -70,4 +70,15 @@ import 'frontend/tests/unit/models/buttonset-cache-fallback-test';
 import 'frontend/tests/unit/components/share-board-guard-test';
 
 // loadTests: false — we already pre-loaded all test modules above
-start({ loadTests: false });
+// setupTestIsolationValidation: enable per-module once tests use ember-qunit setupTest
+// and drain async work in afterEach. Legacy jasmine db_wait/waitsFor modules fail
+// isolation checks today (~600ms false positives). Opt in via ?testIsolation=1 when debugging leaks.
+var _enableTestIsolation = false;
+if (typeof window !== 'undefined' && window.location && window.location.search) {
+  _enableTestIsolation = window.location.search.indexOf('testIsolation=1') >= 0;
+}
+start({
+  loadTests: false,
+  setupTestIsolationValidation: _enableTestIsolation,
+  testIsolationValidationDelay: 50
+});
