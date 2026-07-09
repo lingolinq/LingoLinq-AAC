@@ -40,6 +40,19 @@ Notes:
   (`rev-gemini-baa-annual`; section 7).
 - No persistent or autonomous AI agent runs against production user data. Prediction is
   request-scoped and stateless beyond logging.
+- **No Anthropic "Covered Model" is ZDR-eligible; none may ever carry identifiable student or
+  patient data.** Anthropic requires 30-day retention on its designated "Covered Models" for
+  safety review, overriding any org-wide zero-data-retention agreement (confirmed 2026-07-06
+  against Anthropic's own Privacy Center: [Data retention practices for Mythos-class models](https://privacy.claude.com/en/articles/15425996-data-retention-practices-for-mythos-class-models)).
+  The Covered Models designated as of this writing are Fable 5 and Mythos 5, but the category is
+  defined by Anthropic and expands whenever Anthropic designates a new one, so this control is
+  written against the category, not the two current names. It applies specifically to the
+  `EVAL_NARRATOR_MODEL` override in `lib/eval_narrator.rb:102` (default `claude-opus-4-7`,
+  env-overridable) and to any other model-override env var: none may ever be pointed at any
+  Anthropic Covered Model, current or future-designated. Before repointing any model-override
+  env var at a new Anthropic model, confirm it is not a Covered Model against the Privacy Center
+  page above. The current runtime AI inventory (Claude Haiku 4.5, Claude Opus 4.7) is unaffected
+  and remains ZDR-eligible.
 
 ### 2.1 COPPA and under-13 AI training disclosure
 
@@ -183,3 +196,11 @@ attestation (confirmed: `claude-haiku-4-5-20251001`, `gemini-2.5-flash`, `claude
 the `EVAL_NARRATOR_MODEL` override; `PiiScrubber.redact_for_ai` at `lib/ai_word_predictor.rb:55`;
 LL-11db0dc848 and LL-6619cc1811 open). They remain point-in-time and must be re-verified at each
 future publish._
+
+_Amended 2026-07-08: added an Anthropic "Covered Model" ZDR-exclusion guardrail note to section
+2 (model inventory), written against the Covered-Model category (Fable 5 / Mythos 5 today, plus
+any Anthropic later designates) rather than the two current names. This is non-substantive
+preventive-control documentation; it does not alter
+the attested scope, controls, or claims, so no full re-attestation is required per the
+living-document policy in the header. The new code citation (`lib/eval_narrator.rb:102`,
+`EVAL_NARRATOR_MODEL` override) was re-verified against live code on 2026-07-08._
