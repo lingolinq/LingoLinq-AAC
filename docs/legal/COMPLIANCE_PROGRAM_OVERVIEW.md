@@ -1,9 +1,9 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **DRAFT for CEO review and attestation before external release.** As of 2026-07-09.
-> Reflects the current production build. Present tense describes controls that exist in the
-> product today. The "Planned" section describes controls we intend to add and is written in
-> the future tense on purpose. This document deliberately claims only what we actually do.
+> **Attested for external release by Scot Wahlquist (CEO) on 2026-07-09.** Reflects the current
+> production build. Present tense describes controls that exist in the product today. The
+> "Planned" section describes controls we intend to add and is written in the future tense on
+> purpose. This document deliberately claims only what we actually do.
 >
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
@@ -12,8 +12,8 @@
 > district, or a partner. Status of every implemented claim is verifiable against live code and
 > the findings register (`audit-reports/FINDINGS.json`).
 >
-> **Owner:** Scot Wahlquist, CEO. **Not authorized for external sharing** until the CEO attests
-> this specific version.
+> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-07-09 CEO
+> attestation of this version.
 
 ---
 
