@@ -496,6 +496,58 @@ describe AiApiLog, :type => :model do
     end
   end
 
+  describe "purge_old_eu_logs!" do
+    it "should delete EU-jurisdiction records older than 5 years" do
+      old_eu = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      old_eu.update_column(:created_at, 6.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(1)
+      expect(AiApiLog.where(id: old_eu.id)).to be_empty
+    end
+
+    it "should keep EU records newer than 5 years" do
+      recent_eu = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      recent_eu.update_column(:created_at, 4.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(0)
+      expect(recent_eu.reload).to be_present
+    end
+
+    it "should NOT delete non-EU records even when older than 5 years (EU-only scope)" do
+      old_us = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'US')
+      old_unknown = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: nil)
+      old_us.update_column(:created_at, 7.years.ago)
+      old_unknown.update_column(:created_at, 7.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(0)
+      expect(old_us.reload).to be_present
+      expect(old_unknown.reload).to be_present
+    end
+
+    it "should accept a custom years argument" do
+      eu_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      eu_log.update_column(:created_at, 3.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!(years: 2)
+      expect(count).to eq(1)
+      expect(AiApiLog.where(id: eu_log.id)).to be_empty
+    end
+
+    it "should purge multiple eligible EU records in one call" do
+      log1 = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      log2 = AiApiLog.create!(ai_provider: 'gemini', request_type: 'word_suggestion', jurisdiction: 'EU')
+      log1.update_column(:created_at, 6.years.ago)
+      log2.update_column(:created_at, 8.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(2)
+      expect(AiApiLog.where(jurisdiction: 'EU')).to be_empty
+    end
+  end
+
   describe "Article 50 fields via log_ai_call" do
     it "persists jurisdiction, disclosure, marking, and content id when provided" do
       log = AiApiLog.log_ai_call(

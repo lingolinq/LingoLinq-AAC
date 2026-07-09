@@ -144,6 +144,11 @@ task "scheduler:dispatch" => :environment do
       "#{count} AI log IPs redacted"
     end
 
+    run_task.call("purge_old_eu_ai_api_logs") do
+      count = AiApiLog.purge_old_eu_logs!
+      "#{count} EU AI logs purged (5-year retention)"
+    end
+
     run_task.call("expire_stale_supervisor_consent_requests") do
       count = SupervisorConsentExpirationWorker.perform
       "#{count} expired"
