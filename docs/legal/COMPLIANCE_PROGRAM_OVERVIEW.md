@@ -26,11 +26,12 @@ device. A therapist or teacher participates as a *supervisor* on that account. S
 account does not make LingoLinq a healthcare business associate, and it does not transfer ownership
 of the data to a clinic or a school.
 
-One practical consequence drives this whole program: **the account owner (the user or guardian) is
-the party who controls the data and is the only one who can request that it be permanently
-deleted.** We honor that with a hard delete. Because the family holds the relationship in the common
-case, our obligations attach to the real deployment, not to a worst-case assumption that every user
-is a school-owned record or a clinical patient.
+One practical consequence drives this whole program: in the common family-owned case, **the account
+owner (the user or guardian) controls the data and can request that it be permanently deleted**, and
+we honor that with a hard delete. Where a district or clinic is the customer, that institution's
+signed agreement also governs deletion of the records it owns (Section 5). Because the family holds
+the relationship in the common case, our obligations attach to the real deployment, not to a
+worst-case assumption that every user is a school-owned record or a clinical patient.
 
 | Deployment | Who owns the relationship | Primary regime | Consent authority |
 |---|---|---|---|
@@ -79,9 +80,11 @@ Everything in this section is live in the product.
   user progressed, the grid sizes they can navigate, and any consistent access blind spots, so a
   clinician or educator can recommend an appropriate vocabulary set.
 - Eval results are **functional-access and communication-readiness data, not a medical diagnosis**.
-  The product stores no diagnosis, IEP, 504, or condition field. In a school deployment these
-  results are education records under FERPA; in the EU they are sensitive children's data handled
-  under Section 6.
+  The data model has no diagnosis, IEP, 504, or clinical-condition column. The eval's optional
+  intake does record a coarse etiology category (for example developmental, autism, cerebral palsy,
+  acquired, or progressive) to help recommend a starting vocabulary; it is stored with the encrypted
+  eval record and is not a diagnosis. In a school deployment these results are education records
+  under FERPA; in the EU they are sensitive children's data handled under Section 6.
 
 **AI and PII handling**
 - LingoLinq uses AI for word prediction and communication-board generation. The primary model is
@@ -91,13 +94,17 @@ Everything in this section is live in the product.
   we still treat as personal data. We do not call it de-identified or anonymized.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
-- Every AI call is recorded in an audit log (AiApiLog) with the fields needed for AI-governance
-  reporting. IP addresses in that log are automatically redacted on a scheduled 90-day cycle.
+- Every runtime, user-facing AI call (word prediction, board generation, and eval narration) is
+  recorded in an audit log (AiApiLog) with the fields needed for AI-governance reporting. IP
+  addresses in that log are automatically redacted on a scheduled 90-day cycle. (An offline
+  vocabulary-seed generator that sends no user data is the one AI path outside this log.)
 - AI consent is versioned per user. The eval and narration AI paths apply the same COPPA gate, PII
   scrubbing, and logging, and drop client-asserted names.
 - Server-side error monitoring (Sentry) runs with a child-data scrubber that drops children's
-  error, transaction, and breadcrumb events. The frontend ships with no third-party
-  product-analytics SDKs (no Google Analytics, Mixpanel, or similar).
+  error, transaction, and breadcrumb events. The frontend integrates no product-analytics SDK such
+  as Mixpanel or Segment. A legacy Google Analytics tag is present in the web layout but loads only
+  when the analytics environment variables are configured for an environment and the user accepts the
+  cookie-consent prompt; when active it sets IP anonymization.
 
 **Authentication and access**
 - Accounts use a username and password (bcrypt-hashed), with Google sign-in and SAML single
@@ -124,8 +131,8 @@ Everything in this section is live in the product.
   banking so it can be played back on their devices. These recordings are the user's own voice and
   are stored encrypted at rest and in transit so they are available across the user's devices.
 - We do not create voiceprints, perform speaker identification, or use these recordings to train
-  AI. Deletion on request removes them. They are the user's own communication content, not a
-  biometric identifier used for recognition.
+  AI. A user can delete a recording, which removes the stored file. They are the user's own
+  communication content, not a biometric identifier used for recognition.
 
 **Accessibility**
 - As an AAC tool, accessibility is core to the product. We build to Web Content Accessibility
@@ -133,8 +140,10 @@ Everything in this section is live in the product.
 
 **Vendors and subprocessors**
 - We maintain a subprocessor list and sign agreements only with vendors that actually handle our
-  data: AWS (storage, BAA signed), Anthropic (AI, under a DPA), and Google (sign-in and AI
-  fallback). See `docs/legal/SUBPROCESSORS.md`.
+  data: AWS (storage, BAA signed), Anthropic (AI, under a DPA), Google (sign-in and AI fallback),
+  our application host (Render today, moving to Google Cloud at the in-progress migration), and
+  Sentry (error monitoring, configured with the child-data scrubber above). See
+  `docs/legal/SUBPROCESSORS.md`.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
@@ -159,10 +168,10 @@ trustworthy.
 - No native mobile apps yet, so no mobile-hardening claims (certificate pinning, jailbreak
   detection, code obfuscation).
 - Not SOC 2 or HITRUST certified; no completed, published VPAT yet.
-- We store **no diagnosis, disability, health-condition, IEP, 504, or medical field**, and AAC use
-  is not a proxy for disability. The built-in eval (Section 2) produces functional-access
-  assessment results, not a clinical diagnosis, and we do not represent them as medical or
-  diagnostic data.
+- We keep **no dedicated diagnosis, disability, health-condition, IEP, 504, or medical column**, and
+  AAC use is not a proxy for disability. The built-in eval (Section 2) does capture a coarse etiology
+  category in its optional intake and produces functional-access assessment results; we treat that
+  data as sensitive where it applies but do not represent it as a clinical diagnosis.
 
 ---
 
@@ -283,10 +292,12 @@ schools or agencies. GDPR therefore moves from "someday" to near-term. In that m
 
 Special-category note: for EU purposes the primary legal basis is contract (Art. 6(1)(b)).
 Special-category (Art. 9) data arises only from content a user or supervisor stores, from eval
-assessment results in a clinical context, or from a clinical deployment, and is then handled by
-explicit consent (families) or controller instructions (schools). Voice recordings are the user's
-own communication content under consent, not a biometric identifier (we run no voiceprint or speaker
-recognition).
+assessment results (including the coarse etiology category) in a clinical context, or from a clinical
+deployment. For a family-owned account we rely on explicit consent as the Art. 9 condition; in a
+school deployment the school holds its own Art. 9 condition and LingoLinq acts as its processor on
+documented instructions (Art. 28), which is not itself an Art. 9 condition. Voice recordings are the
+user's own communication content under consent, not a biometric identifier (we run no voiceprint or
+speaker recognition).
 
 ---
 
