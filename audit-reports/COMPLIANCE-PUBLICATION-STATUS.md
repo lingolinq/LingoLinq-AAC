@@ -62,7 +62,7 @@
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-07-08. |
 | Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | 2026-06-20 | published | Review date is older than 2026-07-08. |
 | Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-06-18 | approved | Review date is older than 2026-07-08. |
-| Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | 2026-06-18 | approved | Review date is older than 2026-07-08. |
+| Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | 2026-06-18 | draft | Review date is older than 2026-07-08. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-07-08. |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-07-08. |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | 2026-05-27 | approved | Review date is older than 2026-07-08. |
