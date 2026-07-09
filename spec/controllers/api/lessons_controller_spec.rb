@@ -279,16 +279,30 @@ describe Api::LessonsController, :type => :controller do
       assert_not_found('whatever')
     end
 
-    it "should mark as complete for the specified user" do
+    it "should mark as complete for the specified user (legacy permanent-token link still works)" do
       u = User.create
       l = Lesson.create
       id = "#{l.global_id}:#{l.nonce}:#{u.user_token}"
       post 'complete', params: {'lesson_id' => id}
       json = assert_success_json
-      expect(json['lesson']['id']).to eq(id)
+      # The response now echoes a fresh EXPIRING lesson_share_token, not the permanent user_token
+      # that was submitted (LL-90045bb29c option (b)): old permanent-token links self-upgrade.
+      expect(json['lesson']['id']).to start_with("#{l.global_id}:#{l.nonce}:")
+      returned_token = json['lesson']['id'].split(':')[2]
+      expect(User.find_by_lesson_share_token(returned_token)).to eq(u)
       ue = UserExtra.find_by(user: u)
       expect(ue.settings['completed_lessons']).to_not eq(nil)
       expect(ue.settings['completed_lessons'][0]['id']).to eq(l.global_id)
+      expect(l.reload.settings['completions']).to_not eq(nil)
+      expect(l.settings['completions'][0]['user_id']).to eq(u.global_id)
+    end
+
+    it "should mark as complete when the new expiring lesson_share_token is used (LL-90045bb29c option (b))" do
+      u = User.create
+      l = Lesson.create
+      id = "#{l.global_id}:#{l.nonce}:#{u.lesson_share_token}"
+      post 'complete', params: {'lesson_id' => id}
+      assert_success_json
       expect(l.reload.settings['completions']).to_not eq(nil)
       expect(l.settings['completions'][0]['user_id']).to eq(u.global_id)
     end

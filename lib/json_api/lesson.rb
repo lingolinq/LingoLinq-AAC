@@ -72,7 +72,7 @@ module JsonApi::Lesson
       end
     end
     if args[:extra_user]
-      json['id'] = "#{lesson.global_id}:#{lesson.nonce}:#{args[:extra_user].user_token}"
+      json['id'] = "#{lesson.global_id}:#{lesson.nonce}:#{args[:extra_user].lesson_share_token}"
       json['user'] = JsonApi::User.as_json(args[:extra_user], limited_identity: true)
       comp = (lesson.settings['completions'] || []).detect{|c| c['user_id'] == args[:extra_user].global_id }
       json['user']['completion'] = comp if comp
