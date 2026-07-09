@@ -3706,6 +3706,50 @@
         "attestation": ""
       },
       "notes": "Surfaced by dependency finder on 2026-07-08. New. The reachable-XSS on bootstrap 3.4.1 was fixed and verified-closed (LL-d1ea8659c3, disposition fixed); that finding's closure note explicitly flags the broader EOL/supply-chain exposure as a separate unfiled concern -- this fills that gap. Distinct id/ruleKey from the closed XSS finding. | adversary: confirmed -- bootstrap ^3.4.1 unconditionally bundled (ember-cli-build.js:40 CSS, :52 JS); actively loaded (caseload.js:417 dropdown plugin, raw_events.js:515, pervasive app.scss classes); 3.4.1 is terminal 3.x (2019-02-13), no upstream patches. Materially distinct from closed XSS LL-d1ea8659c3 (one patched CVE vs standing EOL posture), not a duplicate."
+    },
+    {
+      "id": "LL-f150e0e828",
+      "ruleKey": "offboarding-no-parental-reconsent-coppa",
+      "title": "District seat reclaim converts an under-13's account to a consumer trial with no parental re-consent or notice (COPPA)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/license.rb",
+        "line": 76,
+        "snippet": "expires_at: 2.months.from_now",
+        "sha": "cdc6ee8252e2a46f2ced0ad23e2362208729c24b"
+      },
+      "firstSeen": "2026-07-09",
+      "lastSeen": "2026-07-09",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "When Organization#remove_user calls License#release_user! (app/models/license.rb:53), a managed minor's account is set to managing_organization_id: nil + expires_at: 2.months.from_now and the org UserLink is removed, but no verifiable parental consent is captured and no parent/guardian notice is sent. District-created minors never had direct parental consent: the COPPA gate at user.rb:1321 is skipped for a validated org (org_authorized) under the FERPA/COPPA school-official exception, with a settings['school_authorization'] stamp standing in. So once the seat is reclaimed and the school authorization ends, continued direct-to-consumer processing of the child's data has no COPPA-valid basis (16 CFR 312.5), and no under-16 basis for EU/Poland. Fix: at release_user!, if the account holder is a minor, set settings['coppa'] pending_parent_consent and email the guardian, reusing the existing grant_parental_consent! token flow in user.rb; gate continued processing on that consent, with export-then-delete if the guardian declines or the token expires. Distinct from the creation-time bypass tightening tracked in outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md.",
+        "timeframe": "high 15-30d (before first real district student ages out or transfers)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 561,
+        "reviewer": "claude-compliance-review",
+        "promotedDate": "2026-07-09"
+      },
+      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the compliance program-overview review (PR #561) and code-verified. Chain: user.rb:1295-1356 skips COPPA parental consent for org_authorized creations (school-official exception); license.rb:53 release_user! offboards to a 2-month trial without capturing consent or notifying the guardian; user.rb:36 grace_period? then treats the account as a live consumer trial. Prod currently has only test accounts, so no live exposure yet; fix before real district offboarding. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding."
     }
   ]
 }
