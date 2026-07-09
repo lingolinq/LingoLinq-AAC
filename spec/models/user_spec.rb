@@ -3460,6 +3460,15 @@ describe User, :type => :model do
       expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
       expect(User.find_by_token(token)).to eq(u)
     end
+
+    it 'should still use the constant-time comparison on the mismatch path, not just the happy path (LL-90045bb29c)' do
+      u = User.create
+      # Correct length (30 hex chars) but wrong verifier: exercises the branch a
+      # timing attack targets, so a future fast-path/early-return on mismatch fails here.
+      wrong_token = "#{u.global_id}-" + ('0' * 30)
+      expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
+      expect(User.find_by_token(wrong_token)).to eq(nil)
+    end
   end
 
   describe "protected_image_token" do
