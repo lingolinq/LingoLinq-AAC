@@ -24,6 +24,14 @@ module LingoLinq
   #   the future consent gate (Phase 4) and the future Ember modal header
   #   (Phase 3).
   #
+  # KNOWN GAP: the vendor names/tiers/models/training_note sentences below
+  # are rendered directly in v1.html.erb and are English-only -- they do
+  # NOT go through config/locales/*.yml or the `t()` helper, unlike the
+  # surrounding prose in the view. A future config/locales/es.yml will
+  # translate the surrounding prose but NOT these sentences. See
+  # docs/legal/AI_DATA_SHARING_CONSENT.md section 4.1 for the plan to
+  # resolve this before `es` enforcement.
+  #
   # Content hash design decision: the plan asks for "a content hash of the
   # rendered disclosure." This module hashes the STRUCTURED METADATA in
   # REGISTRY (vendor list, tiers, data categories, retention windows), not

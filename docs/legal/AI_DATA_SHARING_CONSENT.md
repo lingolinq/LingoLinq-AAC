@@ -146,6 +146,19 @@ additions (the 12 new keys in `public/locales/es.json`, currently placeholder-on
 Phase 5 rollout). This is not a "nice to have" tracked loosely; it gates go-live for Spanish-locale
 accounts specifically, the same way Task 02-02.8 legal sign-off gates go-live generally.
 
+**Architecture note (a real gap, not yet solved):** the vendor names, tiers, model lists, and
+training-posture sentences rendered in `v1.html.erb` come from
+`LingoLinq::AiConsentDisclosures::REGISTRY` (Ruby data), not from `config/locales/en.yml`, and are
+therefore English-only with no i18n routing at all today, distinct from the surrounding prose
+(which does go through `t()` and can be translated). Proper names ("Anthropic," "Claude Haiku 4.5")
+would not be translated regardless, but the full sentences (for example the ZDR `training_note` and
+the Gemini `training_note`) currently would NOT be translated even after a human-reviewed
+`config/locales/es.yml` exists, because they never reach the i18n layer. Resolving this (most likely
+by moving those sentence-level fields into `config/locales/en.yml`/`es.yml` as translatable strings,
+keyed by vendor, and leaving only the proper nouns and structured retention numbers in the Ruby
+module) is unsolved and should be picked up before `es` enforcement, alongside the rest of this
+section.
+
 ## 5. Revocation semantics
 
 A parent (or the account holder, once old enough) can withdraw AI data-sharing consent at any time.
