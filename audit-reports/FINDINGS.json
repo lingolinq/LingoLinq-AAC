@@ -3727,7 +3727,7 @@
       },
       "firstSeen": "2026-07-09",
       "lastSeen": "2026-07-09",
-      "owner": "unassigned",
+      "owner": "Melissa",
       "remediation": {
         "options": "When Organization#remove_user calls License#release_user! (app/models/license.rb:53), a managed minor's account is set to managing_organization_id: nil + expires_at: 2.months.from_now and the org UserLink is removed, but no verifiable parental consent is captured and no parent/guardian notice is sent. District-created minors never had direct parental consent: the COPPA gate at user.rb:1321 is skipped for a validated org (org_authorized) under the FERPA/COPPA school-official exception, with a settings['school_authorization'] stamp standing in. So once the seat is reclaimed and the school authorization ends, continued direct-to-consumer processing of the child's data has no COPPA-valid basis (16 CFR 312.5); and, because the lawful basis then shifts to consent, no Art. 8-compliant under-16 parental-authorization mechanism for EU/Poland. Fix: at release_user!, if the account holder is a minor, set settings['coppa'] pending_parent_consent and email the guardian (school-created accounts often have no guardian email on file, so this likely needs a claim-based re-consent in which the family claims the account first, per outputs/plans/2026-07-09-offboarding-coppa-reconsent-fix-scope.md), reusing the existing grant_parental_consent! token flow in user.rb; gate continued processing on that consent, with export-then-delete if the guardian declines or the token expires. Distinct from the creation-time bypass tightening tracked in outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md.",
         "timeframe": "high 15-30d (before first real district student ages out or transfers)"
@@ -3738,10 +3738,10 @@
         "attestation": ""
       },
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-07-09",
+        "rationale": "Confirmed real COPPA/GDPR gap; accepted, will fix via claim-based parental re-consent at offboarding (see outputs/plans/2026-07-09-offboarding-coppa-reconsent-fix-scope.md). No live exposure yet (prod is test accounts, PR #483); target before the first real district student ages out or transfers."
       },
       "source": {
         "kind": "pr-review",
@@ -3772,7 +3772,7 @@
       },
       "firstSeen": "2026-07-09",
       "lastSeen": "2026-07-09",
-      "owner": "unassigned",
+      "owner": "Melissa",
       "remediation": {
         "options": "Flusher.flush_user_content / flush_user_completely (lib/flusher.rb:363-417) delete the user's Device, Utterance, NfcTag, UserIntegration, UserGoal, UserBadge, Webhook, UserBoardConnection, UserLink, LogSession and boards, but never sweep UserVideo (it appears only in transfer_user_content at line 354, a merge reassignment) or standalone ButtonSound by user_id. Message-bank voice recordings are ButtonSound rows keyed by user_id (button_sound.rb:128) and are removed only when attached to one of the user's own boards under full_flush (flusher.rb:264-276); off-board recordings and all UserVideo rows survive hard delete as orphaned S3-backed rows. The User model declares no has_many/dependent: :destroy for either (user.rb:16-23), so flush_record(user) cannot cascade. Fix: add UserVideo.where(user_id:) and ButtonSound.where(user_id:) sweeps to flush_user_content (deleting the backing S3 objects too), so a user-requested erasure removes the user's own recorded voice and video. Directly contradicts the docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md claim that deletion on request removes voice recordings.",
         "timeframe": "high 15-30d (right-to-erasure correctness; blocks the doc's deletion-removes-voice claim)"
@@ -3783,10 +3783,10 @@
         "attestation": ""
       },
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-07-09",
+        "rationale": "Confirmed real right-to-erasure gap; accepted, will fix by adding UserVideo and off-board ButtonSound sweeps (plus S3 object cleanup) to Flusher.flush_user_content. Small quick-win; no live exposure yet (test accounts only)."
       },
       "source": {
         "kind": "pr-review",
