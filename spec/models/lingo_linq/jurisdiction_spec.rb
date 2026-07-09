@@ -29,6 +29,16 @@ describe LingoLinq::Jurisdiction do
       expect(LingoLinq::Jurisdiction.country_code('de-Latn-DE')).to eq('DE')
     end
 
+    it "does not read a country out of extension or private-use subtags (RFC 5646)" do
+      # Region only occupies its grammatical slot; 2-letter tokens inside a
+      # private-use ('-x-') or extension ('-t-') sequence are opaque, not a
+      # country. Scanning all subtags would wrongly resolve these to EU.
+      expect(LingoLinq::Jurisdiction.country_code('en-x-DE')).to eq(nil)
+      expect(LingoLinq::Jurisdiction.country_code('en-t-fr-FR')).to eq(nil)
+      expect(LingoLinq::Jurisdiction.eu?('en-x-DE')).to eq(false)
+      expect(LingoLinq::Jurisdiction.eu?('en-t-fr-FR')).to eq(false)
+    end
+
     it "treats an explicit 2-letter token as its ISO country by contract" do
       # 'DE' is Delaware as a US state code but Germany as ISO 3166-1; the
       # primitive reads explicit country/region tokens as ISO country codes.

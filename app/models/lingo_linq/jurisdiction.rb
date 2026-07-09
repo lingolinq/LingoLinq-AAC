@@ -84,13 +84,17 @@ module LingoLinq
       return nil if s.empty?
       # Uppercase 2-letter country token ('PL', 'US').
       return s.upcase if s.match?(/\A[A-Z]{2}\z/)
-      # Locale with a region subtag: 'pl-PL', 'de_DE', 'en-US', and script-tagged
-      # BCP-47 like 'sr-Latn-RS' / 'zh-Hant-HK'. The region is the 2-letter
-      # subtag AFTER the language (scripts are 4 letters, so scan past them);
-      # taking split[1] blindly would misread the script subtag ('Latn').
+      # Locale region subtag, read ONLY at its RFC 5646 grammatical position:
+      # immediately after the language and an optional 4-letter script, and
+      # before any singleton (extension '-t-' or private-use '-x-') or variant.
+      # Scanning all subtags for any 2-letter token would misread private-use /
+      # extension data as a country ('en-x-DE' -> 'DE', 'en-t-fr-FR' -> 'fr').
+      # A region is exactly two letters ('pl-PL' -> PL, 'sr-Latn-RS' -> RS).
       subtags = s.split(/[-_]/)
-      region = subtags[1..].find { |t| t.match?(/\A[A-Za-z]{2}\z/) }
-      return region.upcase if region
+      idx = 1
+      idx += 1 if subtags[idx] && subtags[idx].match?(/\A[A-Za-z]{4}\z/) # skip script
+      region = subtags[idx]
+      return region.upcase if region && region.match?(/\A[A-Za-z]{2}\z/)
       # Bare lowercase language subtag ('pl', 'es'): ambiguous -> unknown.
       nil
     end
