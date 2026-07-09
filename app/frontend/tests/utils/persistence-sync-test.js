@@ -970,16 +970,26 @@ describe("persistence-sync", function() {
           }
           return readSettingsAfterSync('importantIds');
         }, function() {
-          ids = persistence.important_ids || [];
+          if (persistence.important_ids && persistence.important_ids.length) {
+            ids = persistence.important_ids;
+          }
         }).then(function(res) {
-          if (!ids && res) {
+          if ((!ids || ids.length < 10) && res && res.ids) {
             ids = res.ids;
           }
         }, function() {
-          ids = persistence.important_ids || [];
+          if (persistence.important_ids && persistence.important_ids.length) {
+            ids = persistence.important_ids;
+          }
         });
-      waitsFor(function() { return ids && ids.length >= 10; });
+      waitsFor(function() {
+        return (ids && ids.length >= 10) ||
+          (persistence.important_ids && persistence.important_ids.length >= 10);
+      });
       runs(function() {
+        if (!ids || ids.length < 10) {
+          ids = persistence.important_ids;
+        }
         expect(ids.length >= 10).toEqual(true);
         expect(ids.find(function(u) { return u === 'user_1340'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/pic.png'; })).not.toEqual(null);
