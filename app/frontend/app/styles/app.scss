@@ -44096,14 +44096,41 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   flex-direction: row;
   align-items: center;
+  /* Wrap is the safety net: on a narrow (half-width) card a long status label
+     drops below the name instead of overflowing the card (there's no
+     overflow:hidden here, and the pill can't shrink). It still reads as an
+     aligned column whenever the card is wide enough. `flex` is intentionally
+     NOT set — the shared .md-room-card__arrow pins right via margin-left:auto
+     and assumes this text does not grow. */
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 4px 0;
   min-width: 0;
 }
+/* Fixed-width name slot so the divider — and therefore every status pill — lines
+   up in a single column down the card, regardless of username length. */
 .md-attention-item__name {
+  position: relative;
+  flex: 0 0 auto;
+  width: 160px;
+  min-width: 0;
   font-weight: 700;
   font-size: 16px;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Modern separator between the name and the status — a thin vertical rule that
+   fades at both ends, matching the caseload cards. A real flex element (not a
+   name pseudo-element) so the name's overflow:hidden ellipsis can't clip it;
+   its side margins set the name↔status gap so every status aligns in a column. */
+.md-attention-item__divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  margin: 0 13px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, transparent 0%, rgba($la-navy, 0.32) 50%, transparent 100%);
 }
 /* Status as a semantic tinted pill — colour encodes meaning so the status is
    recognizable at a glance without reading every label, kept low-saturation
@@ -44114,6 +44141,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-attention-item__status {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 7px;
   padding: 4px 12px;
   border-radius: 999px;
@@ -44191,7 +44219,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     text-align: center !important;
   }
   .md-grid .md-card.md-card--attention .md-attention-item__text {
+    flex-wrap: wrap !important;
     justify-content: center !important;
+    gap: 8px !important;
+  }
+  /* Stacked + centered: the fixed name column and vertical divider don't read
+     cleanly, so collapse to a natural inline name + status. */
+  .md-grid .md-card.md-card--attention .md-attention-item__name {
+    width: auto !important;
+  }
+  .md-grid .md-card.md-card--attention .md-attention-item__divider {
+    display: none !important;
   }
 }
 /* ≤1024px — enlarge the icon + widen the icon→text gap, matching Speak/Extras. */

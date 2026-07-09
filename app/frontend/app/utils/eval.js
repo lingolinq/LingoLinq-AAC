@@ -5,7 +5,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **/
 
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, debounce as runDebounce } from '@ember/runloop';
 import templateHelpers from './template_helpers';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
@@ -171,6 +171,13 @@ var evaluation = {
     assessment.accommodations = settings.accommodations;
     assessment.prompts = settings.prompts;
     assessment.prompts_delay = settings.prompts_delay || 0;
+    // How long the just-selected item stays on screen before advancing to the
+    // next eval board. Kept short so the switch feels responsive (the old 1000ms
+    // read as a hang — users re-tapped, thinking it hadn't registered). The
+    // correct/incorrect ding is fire-and-forget audio, so it still plays across
+    // the board switch. Tunable per-assessment; applies to every interactive
+    // eval type since they all share res.handler below.
+    assessment.advance_delay = settings.advance_delay || 350;
     assessment.chimes = settings.chimes;
     if(settings.for_user && !assessment.saved) {
       if(settings.for_user.user_id == 'self') {
@@ -207,6 +214,9 @@ var evaluation = {
     if(evaluation.persistence.get('online')) {
       evaluation.stashes.push_log();
     }
+    // Concluded + saved — drop the in-progress snapshot so it can't resurrect a
+    // finished eval on the next visit.
+    evaluation.clear_progress();
     // navigate to the results page (should work even if offline and haven't been able to push yet)
     evaluation.appState.controller.router.transitionTo('user.log', assessment.user_name, 'last-eval');
     assessment = {};
@@ -229,6 +239,164 @@ var evaluation = {
     if (userName) {
       evaluation.appState.set('last_assessment_for_uname_' + userName, null);
     }
+  },
+  // --- Incremental persistence -------------------------------------------------
+  // A running eval lives only in memory (module-level `assessment`/`working`)
+  // until persist() saves it at conclusion, so a reload / tab-close / crash
+  // mid-eval loses every answer and leaves last-eval blank. These helpers
+  // snapshot the in-progress assessment to IndexedDB after each response.
+  //
+  // The snapshot is keyed PER communicator — `eval_progress_<user_id>` in the
+  // `settings` store — so the last-eval fallback for user X can only ever load
+  // X's own snapshot (never another communicator's). A tiny `_current` pointer
+  // records which user is mid-eval, since the reload/resume path (a bare
+  // `obf/eval-5-2-1` URL) carries no user id. The pointer lives in sessionStorage
+  // (NOT IndexedDB) so it is PER-TAB: it survives a reload but is isolated between
+  // tabs, so two evals for different users in two tabs never cross-restore.
+  // Everything is best-effort: if the store is unavailable the eval continues.
+  EVAL_PROGRESS_PREFIX: 'eval_progress_',
+  EVAL_PROGRESS_POINTER: 'eval_progress__current',
+  _set_pointer: function(uid) {
+    try { if(window.sessionStorage) { window.sessionStorage.setItem(evaluation.EVAL_PROGRESS_POINTER, String(uid)); } } catch(e) { /* best-effort */ }
+  },
+  _get_pointer: function() {
+    try { return (window.sessionStorage && window.sessionStorage.getItem(evaluation.EVAL_PROGRESS_POINTER)) || ''; } catch(e) { return ''; }
+  },
+  _clear_pointer: function() {
+    try { if(window.sessionStorage) { window.sessionStorage.removeItem(evaluation.EVAL_PROGRESS_POINTER); } } catch(e) { /* best-effort */ }
+  },
+  // Ignore an abandoned in-progress snapshot older than this so a stale eval
+  // doesn't resurface indefinitely on last-eval / auto-resume.
+  EVAL_PROGRESS_MAX_AGE_S: 24 * 60 * 60,
+  // Snapshot schema version. Bump when the assessment/working shape changes so a
+  // snapshot written by an older build is ignored instead of restored into a
+  // shape analyze()/the board builder can't read.
+  EVAL_PROGRESS_VERSION: 1,
+  _json_safe: function(obj) {
+    // Strip functions (e.g. word.action closures on working.ref) so the snapshot
+    // survives structured-clone into IndexedDB. Scored data (events/started) is
+    // plain data and round-trips intact.
+    try { return JSON.parse(JSON.stringify(obj || {})); }
+    catch(e) { return null; }
+  },
+  // The communicator this eval is FOR: assessment.user_id once update() has run,
+  // else the speak-mode/current user (the run_eval launch skips the settings
+  // modal, so assessment.user_id can be unset during early play).
+  _eval_user_id: function() {
+    var id = (assessment && assessment.user_id) ||
+             evaluation.appState.get('currentUser.id') ||
+             evaluation.appState.get('sessionUser.id');
+    return id ? String(id) : '';
+  },
+  save_progress: function() {
+    // Debounced so a burst of taps doesn't hammer the store.
+    runDebounce(evaluation, evaluation._save_progress_now, 500);
+  },
+  _save_progress_now: function() {
+    if(!assessment || !assessment.started || assessment.ended) { return; }
+    var uid = evaluation._eval_user_id();
+    if(!uid) { return; } // no user to key to — skip rather than risk a shared record
+    var snap = evaluation._json_safe(assessment);
+    if(!snap) { return; }
+    snap.working_stash = evaluation._json_safe(working) || {step: 0};
+    snap.in_progress = true;
+    snap.saved_at = (new Date()).getTime() / 1000;
+    snap.user_id = snap.user_id || uid;
+    snap.v = evaluation.EVAL_PROGRESS_VERSION;
+    try {
+      var s = evaluation.persistence.store('settings', snap, evaluation.EVAL_PROGRESS_PREFIX + uid);
+      if(s && s.then) { s.then(null, function() {}); }
+    } catch(e) { /* best-effort */ }
+    // Per-tab pointer (sessionStorage) so a reload of THIS tab resumes THIS eval.
+    evaluation._set_pointer(uid);
+  },
+  _find_snap: function(key) {
+    try {
+      return evaluation.persistence.find('settings', key).then(function(rec) {
+        var snap = rec && (rec.raw || rec);
+        if(!snap || !snap.in_progress) { return null; }
+        // Schema-version guard: ignore a snapshot written by a different build so
+        // a shape change can't crash restore/analyze.
+        if(snap.v !== evaluation.EVAL_PROGRESS_VERSION) { return null; }
+        // Freshness bound: drop an abandoned snapshot past EVAL_PROGRESS_MAX_AGE_S.
+        var age = ((new Date()).getTime() / 1000) - (snap.saved_at || 0);
+        if(snap.saved_at && age > evaluation.EVAL_PROGRESS_MAX_AGE_S) { return null; }
+        return snap;
+      }, function() { return null; });
+    } catch(e) { return Promise.resolve(null); }
+  },
+  // With a uid (last-eval fallback) → load THAT user's snapshot only. Without one
+  // (reload/resume) → resolve the mid-eval user via this tab's sessionStorage
+  // pointer first.
+  load_progress: function(uid) {
+    if(uid) { return evaluation._find_snap(evaluation.EVAL_PROGRESS_PREFIX + String(uid)); }
+    var puid = evaluation._get_pointer();
+    return puid ? evaluation._find_snap(evaluation.EVAL_PROGRESS_PREFIX + String(puid)) : Promise.resolve(null);
+  },
+  clear_progress: function(uid) {
+    evaluation._restore_attempted = true; // a cleared/fresh eval must not re-restore
+    uid = uid || evaluation._eval_user_id();
+    try {
+      if(uid) {
+        var s = evaluation.persistence.remove('settings', {id: evaluation.EVAL_PROGRESS_PREFIX + uid}, evaluation.EVAL_PROGRESS_PREFIX + uid);
+        if(s && s.then) { s.then(null, function() {}); }
+      }
+    } catch(e) { /* best-effort */ }
+    evaluation._clear_pointer();
+  },
+  // Sign-out purge: an in-progress snapshot is partially-answered clinical data,
+  // so it must NOT survive logout on a shared device (clear_user_state keeps the
+  // rest of IndexedDB by design, but this transient assessment is different).
+  // Removes the mid-eval snapshot (via the per-tab pointer) AND the current
+  // in-memory eval's key, clears the pointer, and drops in-memory state. Wired
+  // from services/session.js#invalidate. Best-effort.
+  purge_for_logout: function() {
+    var puid = evaluation._get_pointer();
+    var uid = evaluation._eval_user_id();
+    [puid, uid].forEach(function(id) {
+      if(!id) { return; }
+      try {
+        var p = evaluation.persistence.remove('settings', {id: evaluation.EVAL_PROGRESS_PREFIX + id}, evaluation.EVAL_PROGRESS_PREFIX + id);
+        if(p && p.then) { p.then(null, function() {}); }
+      } catch(e) { /* best-effort */ }
+    });
+    evaluation._clear_pointer();
+    evaluation._restore_attempted = true;
+    assessment = {};
+    working = {};
+  },
+  restore_progress: function() {
+    // Called on re-entry (reload/deep-link) when the live assessment is empty.
+    // Adopt the mid-eval snapshot (via the pointer) and re-render so recovered
+    // answers + timer carry forward. Runs at most once per module load and never
+    // clobbers a session that already has answers.
+    if(evaluation._restore_attempted) { return; }
+    evaluation._restore_attempted = true;
+    // Gate answer recording while the (async) snapshot load is in flight: a tap
+    // landing first would make assessment.events truthy and cause us to skip the
+    // restore, dropping the pre-reload history. The handler checks _restoring and
+    // ignores taps during this ~ms window. Safety timeout so it can never stick
+    // (a hung/absent store must not brick input).
+    evaluation._restoring = true;
+    runLater(function() { evaluation._restoring = false; }, 1500);
+    var done = function() { evaluation._restoring = false; };
+    evaluation.load_progress().then(function(snap) {
+      if(!snap) { return done(); }
+      if(assessment && (assessment.events || assessment.ended)) { return done(); }
+      var stash = snap.working_stash || {step: 0};
+      delete snap.working_stash;
+      delete snap.in_progress;
+      delete snap.saved_at;
+      assessment = snap;
+      working = stash;
+      window.assessment = assessment;
+      window.working = working;
+      var lvl = working.level || 0, stp = working.step || 0;
+      var key = 'obf/eval-' + lvl + '-' + stp + (working.attempts != null ? '-' + working.attempts : '');
+      evaluation.appState.jump_to_board({key: key});
+      evaluation.appState.set_history([]);
+      done();
+    }, done);
   },
   settings: function() {
     evaluation.modal.open('modals/assessment-settings', {assessment: assessment});
@@ -1164,6 +1332,8 @@ evaluation.callback = function(key) {
   var board = null;
   var opts = key.split(/-/);
   if(opts[1] == 'start') {
+    // Fresh eval — drop any stale in-progress snapshot and suppress restore.
+    evaluation.clear_progress();
     assessment = {
       mastery_cutoff: mastery_cutoff,
       non_mastery_cutoff: non_mastery_cutoff,
@@ -1173,6 +1343,7 @@ evaluation.callback = function(key) {
       prompts: true,
       chimes: true,
       prompts_delay: 1500,
+      advance_delay: 350,
       default_library: 'default',
       name: 'Unnamed Eval',
     };
@@ -1190,6 +1361,10 @@ evaluation.callback = function(key) {
     if(_levelArr) {
       working.step = Math.max(0, Math.min(_levelArr.length - 1, working.step));
     }
+    // Re-entry via reload/deep-link: the module `assessment` is fresh ({}), so
+    // recover any in-progress snapshot for this eval (self-guards: once per load,
+    // and only when the live assessment has no answers yet).
+    evaluation.restore_progress();
   } else if(!working || working.step == undefined) {
     board = evaluation.obf.shell(1, 1);
     runLater(function() {
@@ -1221,6 +1396,13 @@ evaluation.callback = function(key) {
   assessment.started = assessment.started || (new Date()).getTime() / 1000;
   var level = levels[working.level];
   var step = level[working.step];
+  // level_id keys every recorded response (assessment.events[level_id]) and is how
+  // analyze() attributes answers to a section. intro_board sets it, but a reload /
+  // deep-link / resume enters a mid-level item step WITHOUT that intro, leaving
+  // level_id stale ('intro') or undefined — so answers mis-key and the report shows
+  // 0 hits / no assessment types despite real answers. Derive it from the current
+  // level's section on every build so scoring survives any entry path.
+  if(level && level[0] && level[0].intro) { working.level_id = level[0].intro; }
   if(working.step == 0) {
     var intro = evaluation.intro_board(level, step, user_id);
     board = intro.board;
@@ -1991,6 +2173,9 @@ evaluation.callback = function(key) {
     var handling = false;
     var original_board = board;
     res.handler = function(button, obj) {
+      // Ignore taps while a reload-restore is loading (see restore_progress): a tap
+      // here would clobber the recovered pre-reload history. The window is a few ms.
+      if(evaluation._restoring) { return {ignore: true, highlight: false, sound: false}; }
       assessment.access_method = assessment.access_method || evaluation.appState.get('currentUser.access_method');
       obj = obj || {};
       var r = -1, c = -1;
@@ -2084,7 +2269,11 @@ evaluation.callback = function(key) {
 
         if(button.id == 'button_correct') {
           working.correct++;
-        } 
+        }
+        // Snapshot the in-progress eval so an interruption after this answer can
+        // be recovered (debounced; reads the settled assessment/working — incl.
+        // any advance below — at fire time).
+        evaluation.save_progress();
         var has_correct_button = true;
         if(step.prompts) {
 
@@ -2238,9 +2427,12 @@ evaluation.callback = function(key) {
         if(!step.prompts || next_step) {
           runLater(function() {
             evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + "-" + working.step + "-" + working.attempts});
-            evaluation.appState.set_history([]);  
+            evaluation.appState.set_history([]);
             evaluation.utterance.clear();
-          }, button.id == 'button_done' ? 200 : 1000);
+            // Default the delay here: the common run_eval launch never opens the
+            // settings modal, so update() (which sets advance_delay) may not have
+            // run. `!= null` (not `||`) so an intentional 0 stays 0 rather than 350.
+          }, button.id == 'button_done' ? 200 : (assessment.advance_delay != null ? assessment.advance_delay : 350));
           return {ignore: true, highlight: false, sound: false};
         }
       } else {

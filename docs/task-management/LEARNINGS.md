@@ -6338,6 +6338,66 @@ weeks after the program doc was corrected to "pseudonymized". (2026-07-05)
   undefined — so vivify the intermediate object first; that's a correctness guard, not a
   dirty-tracking hack. (2026-07-06, adversarial-review triage)
 
+## Full Eval "switch" lag after selecting an answer = one shared advance delay
+**Symptom:** After tapping an answer on a Full-Eval item, the old image lingers
+~1s before the next item loads; users re-tap thinking it didn't register.
+**Root cause:** Every interactive eval board (find-a-word, category, association,
+…) is built by one function in `app/frontend/app/utils/eval.js` and shares
+`res.handler`. On a normal selection it advances via
+`runLater(jump_to_board, button.id == 'button_done' ? 200 : <delay>)` — the delay
+was a hardcoded **1000ms** ("ding, wait, then jump"), and it returns
+`highlight: false`, so there's no feedback during the wait. A `handling` guard
+already ignores re-taps, so it's not functionally broken — just confusing.
+**Fix:** One value governs ALL eval types — don't hunt per-evaluation. Made it
+`assessment.advance_delay` (default 350ms, tunable via settings). The ding is
+fire-and-forget audio and keeps playing across the board switch, so shortening
+the delay doesn't cut the chime. `button_done` stays 200ms.
+
+## Eval progress lives in-memory only — persist incrementally to survive reload
+**Context:** A Full Eval's answers accumulate only in module-level `assessment`/
+`working` (+ `window.assessment` + appState) until `persist()` saves once at
+conclusion. A reload/crash mid-eval wipes it (module reload → `assessment={}`),
+losing all answers, and `last-eval` (which reads in-memory via
+`last_assessment_from_memory`) renders blank (epoch-0 date via
+`analyze`'s `new Date((assessment.started||0)*1000)`).
+**Fix pattern (incremental persistence):** snapshot `{assessment, working_stash}`
+to IndexedDB `settings` store, key `eval_progress`, via
+`persistence.store('settings', obj, key)` (sets `storageId=key`) / `find` / `remove`
+— one eval per browser so a singleton key suffices. Save debounced after each
+answer; restore on the reload/deep-link build branch when the live assessment has
+no `events` (self-guard with a once-per-load flag + re-jump to
+`obf/eval-<lvl>-<stp>-<att>`); clear on `persist()` (concluded) and on fresh
+`start`. `last-eval` gets a durable fallback: an observer async-loads the snapshot
+when in-memory is empty and feeds `processed_assessment`.
+**Gotchas:** `_json_safe` (JSON round-trip) the snapshot to strip `working.ref`
+action closures (structured-clone would throw). Scored data (`events`/`started`)
+is plain and round-trips intact; `working.ref` runtime state re-derives on rebuild.
+All store calls best-effort (catch → no-op) so the eval never breaks if IndexedDB
+is unavailable. RSVP is NOT imported in eval.js — use the persistence promise
+directly + native `Promise` fallback.
+
+## Eval scoring silently zeroes out after reload/resume — level_id keying fragility
+**Symptom:** Eval results show a real Date + Duration + Settings but 0 hits, 0%,
+empty Assessment Types, empty Grid Activations — despite the communicator having
+answered items.
+**Root cause (NOT a broken scoring mechanism):** Every response is recorded as
+`assessment.events[working.level_id]` (`eval.js` `log_response`), and `analyze()`
+attributes each key via `levels.find(l => l[0].intro == key)`. But `working.level_id`
+is assigned ONLY inside `intro_board` (a level's step-0 intro screen). Enter a
+mid-level item step WITHOUT that intro — reload, deep-link (`obf/eval-2-5`), or
+resume — and `level_id` is stale (`'intro'`) or `undefined`, so answers key under a
+section `analyze` can't map → they're silently dropped from the report. The code's
+own comment already flagged `working.level_id` as "unreliable (stays 'intro' after
+Start)". The keying + analyze logic are UNCHANGED from origin/main, so this is a
+latent re-entry bug, not a regression from results-page modernization.
+**Fix:** derive it from the current level on EVERY board build, not just the intro:
+`if(level && level[0] && level[0].intro) { working.level_id = level[0].intro; }`
+placed right after `var level = levels[working.level]`. `level[0].intro` is exactly
+the key `analyze` matches on, so this makes scoring survive any entry path (and is
+what makes incremental-persistence resume score correctly).
+**Confirm at runtime:** `Object.keys(window.current_assesment.events||{})` on the
+results page — `"undefined"`/`"intro"` keys (or `{}`) = mis-keyed; real section ids
+(`find_target`, …) = correct.
 ## Gotcha: `sync_changed` tmp-ID remap must clone `buttons` before `set` — in-place mutation on `attr('raw')` does not dirty
 
 After offline sync uploads tmp boards/images/sounds, `sync_changed` runs a second pass
