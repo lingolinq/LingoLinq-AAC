@@ -100,15 +100,17 @@ Everything in this section is live in the product.
   vocabulary-seed generator that sends no user data is the one AI path outside this log.)
 - AI consent is versioned per user. The eval and narration AI paths apply the same COPPA gate, PII
   scrubbing, and logging, and drop client-asserted names.
-- Server-side error monitoring (Sentry) runs with a child-data scrubber that drops children's
-  error, transaction, and breadcrumb events. The frontend integrates no product-analytics SDK such
+- Server-side error monitoring (Sentry) runs with a child-data scrubber: for children whose
+  parental consent is still pending it strips identifying data from error events and drops their
+  performance-trace (transaction) events entirely, and it scrubs sensitive parameters from
+  breadcrumb URLs for all users. The frontend integrates no product-analytics SDK such
   as Mixpanel or Segment. A legacy Google Analytics tag is present in the web layout but loads only
   when the analytics environment variables are configured for an environment and the user accepts the
   cookie-consent prompt; when active it sets IP anonymization.
 
 **Authentication and access**
-- Accounts use a username and password (bcrypt-hashed), with Google sign-in and SAML single
-  sign-on also supported.
+- Accounts use a username and password (salted and hashed with PBKDF2-HMAC-SHA256 via the GoSecure
+  library), with Google sign-in and SAML single sign-on also supported.
 - Time-based one-time-password (TOTP) two-factor authentication is available.
 - Role-based permissions govern access, using a supervisor and communicator model for therapy
   teams.
@@ -122,8 +124,10 @@ Everything in this section is live in the product.
 **Data lifecycle and deletion**
 - Administrators and parents can request permanent deletion of a user's data, which removes the
   account and its configurations.
-- Right-to-erasure covers associated records, including license records; account merges transfer
-  license records rather than orphaning them.
+- Erasure removes the account, its configurations, and the board, log, and connection records tied
+  to it; account merges transfer license records rather than orphaning them. A residual gap where
+  standalone voice recordings and user videos are not yet swept by the erasure routine is tracked as
+  an open finding (LL-854b1d3853) and remediation is in progress.
 - Organizations can set retention policies, and retention enforcement runs on a schedule.
 
 **Voice recordings**
@@ -135,15 +139,19 @@ Everything in this section is live in the product.
   communication content, not a biometric identifier used for recognition.
 
 **Accessibility**
-- As an AAC tool, accessibility is core to the product. We build to Web Content Accessibility
-  Guidelines (WCAG) 2.1 AA.
+- As an AAC tool, accessibility is core to the product. We target Web Content Accessibility
+  Guidelines (WCAG) 2.1 AA and maintain a draft Accessibility Conformance Report
+  (`docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md`). On the surfaces assessed so far it rates
+  Partially Supports against several criteria; the report is not yet a published, attested
+  conformance statement (see also Section 3).
 
 **Vendors and subprocessors**
 - We maintain a subprocessor list and sign agreements only with vendors that actually handle our
-  data: AWS (storage, BAA signed), Anthropic (AI, under a DPA), Google (sign-in and AI fallback),
-  our application host (Render today, moving to Google Cloud at the in-progress migration), and
-  Sentry (error monitoring, configured with the child-data scrubber above). See
-  `docs/legal/SUBPROCESSORS.md`.
+  data. These include AWS (storage, BAA signed), Anthropic (AI, under a DPA), Google (sign-in and AI
+  fallback), our application host (Render today, moving to Google Cloud at the in-progress
+  migration), Sentry (error monitoring, configured with the child-data scrubber above), and HubSpot
+  (marketing CRM and support, handling customer and prospect records only, no student data).
+  `docs/legal/SUBPROCESSORS.md` is the authoritative and complete list.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
