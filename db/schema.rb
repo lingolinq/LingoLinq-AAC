@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_07_02_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_07_09_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -109,6 +109,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_07_02_120000) do
     t.string "seed_organization_global_id"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.text "ai_generated"
     t.index ["last_applied_at"], name: "index_ai_focus_word_sets_on_last_applied_at"
     t.index ["locale"], name: "index_ai_focus_word_sets_on_locale"
     t.index ["prompt_hash"], name: "index_ai_focus_word_sets_on_prompt_hash", unique: true
