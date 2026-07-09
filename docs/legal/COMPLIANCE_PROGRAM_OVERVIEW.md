@@ -1,6 +1,9 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Attested for external release by Scot Wahlquist (CEO) on 2026-07-09.** Reflects the current
+> **Attested for external release by Scot Wahlquist (CEO) on 2026-07-09 (rev. 2026-07-09-b).**
+> This attestation covers the version corrected after the Codex senior-dev re-review: the Sentry
+> scrubber, password-hashing, right-to-erasure, WCAG, vendor-list, and text-to-speech statements
+> were reconciled with the live code before this attestation. Reflects the current
 > production build. Present tense describes controls that exist in the product today. The
 > "Planned" section describes controls we intend to add and is written in the future tense on
 > purpose. This document deliberately claims only what we actually do.
