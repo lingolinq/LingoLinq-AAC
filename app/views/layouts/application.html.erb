@@ -58,7 +58,7 @@
   <%# window.domain_settings must be defined in <head> so it runs before application.js (deferred or dynamically inserted in boards/index). %>
   <% if @domain_overrides && @domain_overrides['settings'] %>
     <script type="text/javascript">
-      window.domain_settings = <%= (@domain_overrides['settings'] || {}).to_json.html_safe %>;
+      window.domain_settings = <%= (@domain_overrides['settings'] || {}).merge(coppa_consent_age_injection).to_json.html_safe %>;
       window.domain_settings['domain'] = "<%= j((@domain_overrides['domain'].presence || @domain_overrides['host']).to_s) %>";
     </script>
   <% end %>

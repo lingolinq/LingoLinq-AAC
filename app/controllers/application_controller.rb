@@ -35,6 +35,28 @@ class ApplicationController < ActionController::Base
     true
   end
 
+  # EU launch (GDPR Art. 8): per-request jurisdiction-aware parental-consent age,
+  # delivered to the anonymous registration UI via domain_settings. Returns {}
+  # unless the eu_consent_age feature is enabled, so with the flag OFF the
+  # injected domain_settings are byte-identical to today. Callers MUST merge this
+  # into a fresh copy of the settings hash (never mutate @domain_overrides, which
+  # is the cached per-host blob from JsonApi::Json.load_domain).
+  def coppa_consent_age_injection
+    return {} unless FeatureFlags.eu_consent_age_enabled?
+    { 'coppa_consent_age' => JsonApi::Json.coppa_consent_age(jurisdiction_signal_for_request) }
+  end
+  helper_method :coppa_consent_age_injection
+
+  # Best jurisdiction signal available for THIS request, using only signals that
+  # already exist (no IP geolocation). Priority: a configured org/domain country
+  # or region, then locale, then an explicit ?locale= param, then the browser's
+  # Accept-Language header. LingoLinq::Jurisdiction resolves any of these.
+  def jurisdiction_signal_for_request
+    ds = (@domain_overrides && @domain_overrides['settings']) || {}
+    ds['country'] || ds['region'] || ds['locale'] || ds['default_locale'] ||
+      params[:locale].presence || request.headers['Accept-Language'].presence
+  end
+
   def log_api_call
     time = @time ? (Time.now - @time) : nil
     ApiCall.log(@token, @api_user, request, response, time)

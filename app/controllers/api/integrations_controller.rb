@@ -75,7 +75,13 @@ class Api::IntegrationsController < ApplicationController
   end
 
   def domain_settings
-    render json: @domain_overrides.to_json
+    # Merge the per-request jurisdiction-aware consent age into a FRESH copy so
+    # the cached per-host blob (@domain_overrides) is never mutated. With the
+    # eu_consent_age feature OFF the injection is {}, so the payload is
+    # byte-identical to today.
+    overrides = @domain_overrides.dup
+    overrides['settings'] = (overrides['settings'] || {}).merge(coppa_consent_age_injection)
+    render json: overrides.to_json
   end
 
   def focus_usage

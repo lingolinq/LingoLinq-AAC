@@ -29,7 +29,13 @@ module FeatureFlags
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
-              'sentence_bar_editing']
+              'sentence_bar_editing',
+              # EU launch (GDPR Art. 8): make the registration parental-consent
+              # age gate jurisdiction-aware (EU under-16 vs default under-13).
+              # AVAILABLE-only => OFF for everyone by default; with it OFF the
+              # registration flow is identical to today. Add to
+              # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
+              'eu_consent_age']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -142,6 +148,15 @@ module FeatureFlags
     return false unless AI_FEATURES.include?(feature)
     return false unless ai_enabled_for?(user)
     feature_enabled_for?(feature, user)
+  end
+
+  # EU launch (GDPR Art. 8): whether the jurisdiction-aware registration
+  # consent-age gate is globally active. Mirrors how anonymous registration
+  # reads flags (window.enabled_frontend_features = ENABLED_FRONTEND_FEATURES),
+  # since there is no user yet at signup. OFF by default (AVAILABLE-only) so the
+  # registration flow stays identical to today until deliberately enabled.
+  def self.eu_consent_age_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
   end
 
   # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.
