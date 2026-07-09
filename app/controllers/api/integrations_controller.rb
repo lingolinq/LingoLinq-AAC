@@ -79,7 +79,7 @@ class Api::IntegrationsController < ApplicationController
     # the cached per-host blob (@domain_overrides) is never mutated. With the
     # eu_consent_age feature OFF the injection is {}, so the payload is
     # byte-identical to today.
-    overrides = @domain_overrides.dup
+    overrides = (@domain_overrides || {}).dup
     overrides['settings'] = (overrides['settings'] || {}).merge(coppa_consent_age_injection)
     render json: overrides.to_json
   end
