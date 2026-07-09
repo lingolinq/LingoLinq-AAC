@@ -20,3 +20,23 @@ Aws::Rails.add_action_mailer_delivery_method(
   ),
   region: ENV['SES_REGION'] || ENV['AWS_REGION'] || ENV['AWS_DEFAULT_REGION']
 )
+
+# LL-42a24ee911: SES has no configuration set today, so there is no per-message delivery/bounce/
+# complaint record anywhere -- only account-wide 15-minute aggregates, which cannot explain any
+# one message's fate (e.g. the still-unexplained non-delivery to a personal Gmail address). This
+# interceptor tags every outgoing message with the SES-documented X-SES-CONFIGURATION-SET header
+# (SendRawEmail-specific; SES strips it before the message leaves) so sends opt into the
+# lingolinq-transactional configuration set's SNS event destination
+# (scripts/gcp/phase5-ses-config-set-setup.sh provisions that set + SNS/SQS pipeline).
+#
+# Env-gated like WRITE_FREEZE, not a lib/feature_flags.rb entry: this is operator-controlled
+# infra observability, not user-facing product behavior. No-op (message unchanged) if
+# SES_CONFIGURATION_SET is unset, so it is safe to deploy before the configuration set exists.
+class SesConfigurationSetInterceptor
+  def self.delivering_email(message)
+    config_set = ENV['SES_CONFIGURATION_SET']
+    message.header['X-SES-CONFIGURATION-SET'] = config_set if config_set.present?
+  end
+end
+
+ActionMailer::Base.register_interceptor(SesConfigurationSetInterceptor)
