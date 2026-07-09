@@ -1,9 +1,10 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Attested for external release by Scot Wahlquist (CEO) on 2026-07-09 (rev. 2026-07-09-b).**
+> **Attested for external release by Scot Wahlquist (CEO) on 2026-07-09 (rev. 2026-07-09-c).**
 > This attestation covers the version corrected after the Codex senior-dev re-review: the Sentry
 > scrubber, password-hashing, right-to-erasure, WCAG, vendor-list, and text-to-speech statements
-> were reconciled with the live code before this attestation. Reflects the current
+> were reconciled with the live code before this attestation, including the final recording-delete
+> and IP-geolocation processor scoping corrections. Reflects the current
 > production build. Present tense describes controls that exist in the product today. The
 > "Planned" section describes controls we intend to add and is written in the future tense on
 > purpose. This document deliberately claims only what we actually do.
@@ -143,8 +144,9 @@ Everything in this section is live in the product.
   banking so it can be played back on their devices. These recordings are the user's own voice and
   are stored encrypted at rest and in transit so they are available across the user's devices.
 - We do not create voiceprints, perform speaker identification, or use these recordings to train
-  AI. A user can delete a recording, which removes the stored file. They are the user's own
-  communication content, not a biometric identifier used for recognition.
+  AI. Users can delete recordings from the application; a remaining gap in remote stored-file
+  cleanup is tracked with the broader recording-erasure finding (LL-854b1d3853). They are the
+  user's own communication content, not a biometric identifier used for recognition.
 
 **Accessibility**
 - As an AAC tool, accessibility is core to the product. We target Web Content Accessibility
@@ -158,8 +160,10 @@ Everything in this section is live in the product.
   data. These include AWS (storage, BAA signed), Anthropic (AI, under a DPA), Google (sign-in and AI
   fallback), our application host (Render today, moving to Google Cloud at the in-progress
   migration), Sentry (error monitoring, configured with the child-data scrubber above), and HubSpot
-  (marketing CRM and support, handling customer and prospect records only, no student data).
-  `docs/legal/SUBPROCESSORS.md` is the authoritative and complete list.
+  (marketing CRM and support, handling customer and prospect records only, no student data). When IP
+  geolocation is enabled for registration, subscription, or supporter-routing context, iplocate.io
+  receives the IP address for lookup. `docs/legal/SUBPROCESSORS.md` is the authoritative register and
+  is updated as services are enabled or retired.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
