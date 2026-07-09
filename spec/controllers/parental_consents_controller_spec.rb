@@ -39,11 +39,16 @@ describe ParentalConsentsController, :type => :controller do
       tok = u.settings['coppa']['parent_consent_token']
       get :complete, params: {user_id: u.global_id, token: tok}
       expect(response).to be_successful
-      ae = AuditEvent.where(user_key: u.global_id).detect { |e| e.data['type'] == 'parental_consent_granted' }
+      u.reload
+      ae = AuditEvent.where(user_key: u.global_id).detect { |e| e.event_type == 'parental_consent_grant' }
       expect(ae).to be_present
-      expect(ae.data['user_id']).to eq(u.global_id)
       expect(ae.data['method']).to eq('email_token_link')
-      expect(ae.data['granted_at']).to be_present
+      expect(ae.data['privacy_policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(ae.data).to have_key('ip')
+      expect(ae.data).to have_key('user_agent')
+      expect(ae.record_id).to be_present
+      # The event must record the actual persisted grant timestamp, not a re-derived one.
+      expect(ae.data['granted_at']).to eq(u.settings['coppa']['parent_consent_granted_at'])
     end
 
     it "does not record a second consent AuditEvent when consent was already granted" do

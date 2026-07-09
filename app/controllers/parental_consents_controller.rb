@@ -11,19 +11,10 @@ class ParentalConsentsController < ApplicationController
     if user && c.is_a?(Hash) && c['parent_consent_granted_at'].present? && !user.coppa_parental_consent_pending?
       @already_granted = true
       @success = true
-    elsif user && user.grant_parental_consent!(token)
+    elsif user && user.grant_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
+      # grant_parental_consent! writes the immutable COPPA AuditEvent atomically
+      # with the consent grant (see User#grant_parental_consent!).
       @success = true
-      # COPPA accounting: record an immutable, tamper-evident audit row proving
-      # verifiable parental consent was obtained, for whom, when, and from where.
-      # log_command is fail-open (best-effort) so a persistence hiccup can never
-      # block the parent from completing consent; data is secure_serialized.
-      AuditEvent.log_command(user.global_id, {
-        'type' => 'parental_consent_granted',
-        'user_id' => user.global_id,
-        'method' => 'email_token_link',
-        'ip_address' => request.remote_ip,
-        'granted_at' => Time.now.utc.iso8601
-      })
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)
       UserMailer.schedule_delivery(:new_user_registration, user.global_id)
       ExternalTracker.track_new_user(user)
