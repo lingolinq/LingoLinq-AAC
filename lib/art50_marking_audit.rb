@@ -18,6 +18,20 @@ require_relative 'art50_marker'
 # ActiveRecord. It is a full-table scan meant to run off-peak as a periodic
 # compliance job, not on the request path.
 #
+# SCOPE BOUNDARY (state it, do not overclaim). This audit verifies the markers it
+# can SEE: it confirms that every marker-bearing original verifies and that every
+# copy of a validly-marked source stays marked. It CANNOT detect an AI-generated
+# board whose marker is entirely absent -- such a board is indistinguishable from
+# ordinary human-authored content. The marker was the only durable board->
+# generation link, and once it is gone there is no independent server-side pointer
+# to recover it: the marker's content_id -> AiApiLog linkage is transplantable and
+# unreliable by construction (EU_AI_ACT_ARTICLE_50_PLAN.md Sec 8.4, accepted risk),
+# AiApiLog is written at generation time before the board exists, and a raw count of
+# generation events cannot be a denominator because generations are routinely
+# discarded (no board) or retention-deleted. So a `:clean` status means "no marking
+# violation among inspectable boards," NOT "every AI board is marked." AiApiLog, not
+# this audit, is the system of record for what was generated.
+#
 # This replaces the earlier non-runnable DeepSeek scaffold: it reads the marker
 # that actually shipped (`settings['ai_generated']`, verified via Art50Marker,
 # not a plain `ai_metadata` block), guards divide-by-zero in coverage, and audits
@@ -31,8 +45,12 @@ module Art50MarkingAudit
   #     copies:    { total:, valid:, stripped:, stripped_ids: [] },
   #     unreadable: <count of boards whose settings could not be decrypted>,
   #     originals_coverage: <Float pct>, copies_coverage: <Float pct>,
-  #     compliant: <Boolean>
+  #     status: :clean | :violations | :indeterminate
   #   }
+  # status is :violations if any inspected marker is invalid/stripped (worst, a
+  # confirmed marking failure), else :indeterminate if any board was unreadable (the
+  # audit could not vouch for boards it could not decrypt), else :clean. A caller
+  # (e.g. the rake) must treat :indeterminate as a non-pass, not silently as clean.
   # "originals" counts AI-marked boards that are not copies; "copies" counts only
   # copies whose SOURCE is a validly AI-marked board (a copy of a non-AI board has
   # no marker to carry and is correctly ignored).
@@ -95,13 +113,22 @@ module Art50MarkingAudit
       end
     end
 
+    status =
+      if originals[:invalid].positive? || copies[:stripped].positive?
+        :violations
+      elsif unreadable.positive?
+        :indeterminate
+      else
+        :clean
+      end
+
     {
       originals: originals,
       copies: copies,
       unreadable: unreadable,
       originals_coverage: coverage(originals[:valid], originals[:total]),
       copies_coverage: coverage(copies[:valid], copies[:total]),
-      compliant: originals[:invalid].zero? && copies[:stripped].zero?
+      status: status
     }
   end
 

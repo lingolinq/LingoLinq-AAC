@@ -30,7 +30,7 @@ describe Art50MarkingAudit do
       expect(stats[:copies][:total]).to eq(0)
       expect(stats[:originals_coverage]).to eq(100.0)
       expect(stats[:copies_coverage]).to eq(100.0)
-      expect(stats[:compliant]).to eq(true)
+      expect(stats[:status]).to eq(:clean)
     end
   end
 
@@ -45,7 +45,7 @@ describe Art50MarkingAudit do
       expect(stats[:originals][:valid]).to eq(1)
       expect(stats[:originals][:invalid]).to eq(0)
       expect(stats[:originals_coverage]).to eq(100.0)
-      expect(stats[:compliant]).to eq(true)
+      expect(stats[:status]).to eq(:clean)
     end
 
     it 'flags an original whose marker does not verify as invalid and non-compliant' do
@@ -60,14 +60,14 @@ describe Art50MarkingAudit do
       expect(stats[:originals][:valid]).to eq(0)
       expect(stats[:originals][:invalid]).to eq(1)
       expect(stats[:originals][:invalid_ids]).to include(b.global_id)
-      expect(stats[:compliant]).to eq(false)
+      expect(stats[:status]).to eq(:violations)
     end
 
     it 'ignores an unmarked (non-AI) original' do
       b = Board.create(user: user)
       stats = audit(b)
       expect(stats[:originals][:total]).to eq(0)
-      expect(stats[:compliant]).to eq(true)
+      expect(stats[:status]).to eq(:clean)
     end
   end
 
@@ -83,7 +83,7 @@ describe Art50MarkingAudit do
       expect(stats[:copies][:total]).to eq(1)
       expect(stats[:copies][:valid]).to eq(1)
       expect(stats[:copies][:stripped]).to eq(0)
-      expect(stats[:compliant]).to eq(true)
+      expect(stats[:status]).to eq(:clean)
     end
 
     it 'flags a copy whose marker was stripped as stripped and non-compliant' do
@@ -100,7 +100,7 @@ describe Art50MarkingAudit do
       expect(stats[:copies][:valid]).to eq(0)
       expect(stats[:copies][:stripped]).to eq(1)
       expect(stats[:copies][:stripped_ids]).to include(copy.global_id)
-      expect(stats[:compliant]).to eq(false)
+      expect(stats[:status]).to eq(:violations)
     end
 
     it 'does not count a copy of a non-AI board (nothing to carry)' do
@@ -109,7 +109,43 @@ describe Art50MarkingAudit do
 
       stats = audit(src, copy)
       expect(stats[:copies][:total]).to eq(0)
-      expect(stats[:compliant]).to eq(true)
+      expect(stats[:status]).to eq(:clean)
+    end
+  end
+
+  describe 'documented scope boundary (Sec 8.4): an AI board with no marker is invisible' do
+    # This locks in a KNOWN LIMITATION, not desired behavior: once a marker is
+    # entirely absent there is no durable server-side board->generation link to
+    # recover it (the content_id -> AiApiLog linkage is transplantable/unreliable and
+    # AiApiLog is written before the board exists). The audit therefore cannot
+    # distinguish an unmarked AI board from ordinary content. If a future change adds
+    # an independent AI-provenance source, this expectation should be revisited.
+    it 'treats an AI-generated board whose marker was fully stripped as ordinary content' do
+      b = Board.create(user: user)
+      b.settings['ai_generated'] = valid_marker
+      b.save
+      # The marker is removed entirely (not just tampered): no key left to inspect.
+      b.settings.delete('ai_generated')
+      b.save
+
+      stats = audit(b)
+      expect(stats[:originals][:total]).to eq(0)
+      expect(stats[:originals][:invalid]).to eq(0)
+      # :clean here means "no violation among inspectable boards", NOT "fully marked".
+      expect(stats[:status]).to eq(:clean)
+    end
+  end
+
+  describe 'unreadable boards do not pass silently' do
+    it 'returns :indeterminate (not :clean) when a board could not be decrypted' do
+      b = Board.create(user: user)
+      # Simulate a settings blob that raises on decrypt (e.g. a row encrypted under a
+      # rotated key). safe_settings rescues and counts it as unreadable.
+      allow_any_instance_of(Board).to receive(:settings).and_raise(StandardError, 'bad decrypt')
+
+      stats = audit(b)
+      expect(stats[:unreadable]).to eq(1)
+      expect(stats[:status]).to eq(:indeterminate)
     end
   end
 end
