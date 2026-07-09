@@ -3706,6 +3706,51 @@
         "attestation": ""
       },
       "notes": "Surfaced by dependency finder on 2026-07-08. New. The reachable-XSS on bootstrap 3.4.1 was fixed and verified-closed (LL-d1ea8659c3, disposition fixed); that finding's closure note explicitly flags the broader EOL/supply-chain exposure as a separate unfiled concern -- this fills that gap. Distinct id/ruleKey from the closed XSS finding. | adversary: confirmed -- bootstrap ^3.4.1 unconditionally bundled (ember-cli-build.js:40 CSS, :52 JS); actively loaded (caseload.js:417 dropdown plugin, raw_events.js:515, pervasive app.scss classes); 3.4.1 is terminal 3.x (2019-02-13), no upstream patches. Materially distinct from closed XSS LL-d1ea8659c3 (one patched CVE vs standing EOL posture), not a duplicate."
+    },
+    {
+      "id": "LL-a167848115",
+      "ruleKey": "tts-raw-text-to-undisclosed-subprocessors",
+      "title": "Text-to-speech posts raw user text to subprocessors absent from the register (Abair has no DPA; Google TTS flow unrowed) (GDPR Art. 28/44)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/tts.rb",
+        "line": 30,
+        "snippet": "body: { text: text, voice: 'Ulster' },",
+        "sha": "c595f6304a545a6a10de80924edd99951eb41aa5"
+      },
+      "firstSeen": "2026-07-09",
+      "lastSeen": "2026-07-09",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "Three TTS code paths post the text being spoken to an external provider with no PiiScrubber pass: lib/tts.rb#generate_irish (line 29-30) POSTs {text: text} to https://abair.ie/aac_irish (Trinity College Dublin / ADAPT academic endpoint), lib/tts.rb#generate_google (line 56-60) POSTs {input:{text:text}} to Google Cloud Text-to-Speech, and app/controllers/api/search_controller.rb:394-397 POSTs {input:{text:params['text']}} to the same Google endpoint. Board auto-sound generation routes through Tts.generate_audio. The spoken text is AAC utterance content that can contain a user's typed identifiers. Subprocessor gap: docs/legal/SUBPROCESSORS.md lists Google (Gemini API, #5) and Google Workspace (#12) but NO Google Text-to-Speech data flow, and does NOT list Abair/Trinity College Dublin at all -- an undisclosed subprocessor with no DPA on file. Options: (1) add a Google TTS row and an Abair row to SUBPROCESSORS.md with the transfer basis (Google Cloud DPA covers the Google entity; Abair needs its own DPA/SCCs or a documented no-PII basis); (2) execute a DPA with the Abair operator or disable Irish TTS until one exists; (3) assess whether TTS text for COPPA-consent-pending children needs a consent gate or scrub before egress. The program overview's PII-scrubber sentence was scoped away from TTS in the same review (COMPLIANCE_PROGRAM_OVERVIEW.md, branch scot/compliance/right-sized-program-overview), which is disclosure, not remediation of the underlying subprocessor gap.",
+        "timeframe": "medium 30-60d (subprocessor-register + DPA gap; no active hospital tenant, prod is test-accounts only per PR #483)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 561,
+        "reviewer": "claude-compliance-review",
+        "promotedDate": "2026-07-09"
+      },
+      "notes": "Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev re-review pass), code-verified by direct trace at staging tip c595f6304. Not wording-only: TTS is a real external egress path for user utterance text that bypasses the LLM PII scrubber and reaches providers not fully captured in the subprocessor register (Abair undisclosed and DPA-less; Google TTS flow unrowed). Disposition left untriaged for Scot. Filed on branch scot/compliance/tts-undisclosed-subprocessor."
     }
   ]
 }
