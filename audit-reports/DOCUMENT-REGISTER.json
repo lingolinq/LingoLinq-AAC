@@ -66,7 +66,7 @@
           },
           {
             "title": "Subprocessor Register (branded)",
-            "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+            "location": "https://docs.google.com/document/d/1VryWhmYAqp6npacF0WDiIOkiZAZdZ_Pq4xxdEXADiHA/edit"
           },
           {
             "title": "COPPA Final-Rule Verification (branded)",
@@ -384,7 +384,7 @@
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+          "location": "https://docs.google.com/document/d/1VryWhmYAqp6npacF0WDiIOkiZAZdZ_Pq4xxdEXADiHA/edit"
         }
       ],
       "id": "DOC-0387973005"
@@ -1039,23 +1039,20 @@
     },
     {
       "title": "Subprocessor Register (branded)",
-      "description": "Branded subprocessor register; living source is docs/legal/SUBPROCESSORS.md.",
+      "description": "Subprocessor register Drive mirror, 2026-07-06 refresh (supersedes the prior branded doc). NEW doc pending re-branding and customer re-share; living source is docs/legal/SUBPROCESSORS.md.",
       "type": "policy",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "drive",
-      "canonicalLocation": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit",
-      "status": "published",
+      "canonicalLocation": "https://docs.google.com/document/d/1VryWhmYAqp6npacF0WDiIOkiZAZdZ_Pq4xxdEXADiHA/edit",
+      "status": "draft",
       "frameworks": [
         "GDPR",
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-06-19",
+      "lastReviewed": "2026-07-06",
       "nextReviewDue": "2027-06-19",
-      "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-19"
-      },
+      "attestation": {},
       "contentHash": null,
       "bundles": [
         "compliance-records-set-2026-06",
@@ -1067,7 +1064,7 @@
           "location": "docs/legal/SUBPROCESSORS.md"
         }
       ],
-      "id": "DOC-b0cde875f5"
+      "id": "DOC-868df0f0d3"
     },
     {
       "title": "COPPA Final-Rule Verification (branded)",
