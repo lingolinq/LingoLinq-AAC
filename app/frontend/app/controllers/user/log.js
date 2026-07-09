@@ -151,17 +151,62 @@ export default Controller.extend({
     'model.evaluation',
     'model.profile',
     'user.id',
+    'user.user_name',
+    'eval_memory_fallback',
+    'eval_memory_fallback.user_id',
     function() {
       if(this.get('model.type') == 'eval') {
         var assessment = this.get('model.evaluation');
         if(this.get('model.eval_in_memory')) {
           assessment = evaluation.last_assessment_from_memory(this.get('user.id'), this.get('user.user_name')) || {};
+          // In-memory is empty on a fresh load / reload (appState wiped). Fall back
+          // to the durable in-progress snapshot (IndexedDB, loaded by
+          // load_eval_fallback) so the results page recovers the eval instead of
+          // rendering blank. Point-of-use user match: this controller is a
+          // singleton reused across communicators, so never render a fallback that
+          // belongs to a different user (defense on top of the observer's reset).
+          if(!(assessment && (assessment.events || assessment.started)) &&
+             this.get('eval_memory_fallback') &&
+             String(this.get('eval_memory_fallback.user_id')) == String(this.get('user.id'))) {
+            assessment = this.get('eval_memory_fallback');
+          }
         }
         window.current_assesment = assessment;
         return evaluation.analyze(assessment);
       }
+      return null;
     }
   ),
+  // Async-load the durable eval snapshot when the in-memory copy is missing, so
+  // processed_assessment recomputes with recovered data. Only for the last-eval
+  // (eval_in_memory) page, and only when memory is actually empty. Loads the
+  // snapshot keyed to THIS page's user, so it can never surface another
+  // communicator's eval.
+  load_eval_fallback: observer('model.type', 'model.eval_in_memory', 'user.id', function() {
+    var _this = this;
+    if(this.get('model.type') != 'eval' || !this.get('model.eval_in_memory')) { return; }
+    var uid = this.get('user.id');
+    if(!uid) { return; }
+    // Singleton controller: viewing a different communicator must drop the prior
+    // user's fallback + attempt flag, or it would (a) render on the new user's
+    // page and (b) block the new user's own snapshot from loading.
+    if(this.get('_eval_fallback_uid') && this.get('_eval_fallback_uid') != String(uid)) {
+      this.set('eval_memory_fallback', null);
+      this.set('_eval_fallback_attempted', false);
+    }
+    if(this.get('eval_memory_fallback') || this.get('_eval_fallback_attempted')) { return; }
+    var mem = evaluation.last_assessment_from_memory(uid, this.get('user.user_name'));
+    if(mem && (mem.events || mem.started)) { return; }
+    this.set('_eval_fallback_attempted', true);
+    this.set('_eval_fallback_uid', String(uid));
+    evaluation.load_progress(uid).then(function(snap) {
+      // Defensive: only adopt a snapshot that belongs to this user, and only if
+      // we're still viewing that user (guards against a mid-flight navigation).
+      if(snap && (!snap.user_id || String(snap.user_id) == String(uid)) && String(_this.get('user.id')) == String(uid)) {
+        _this.set('eval_memory_fallback', snap);
+      }
+    });
+  }),
   same_author: computed('model.author.id', 'app_state.sessionUser.id', function() {
     return this.get('model.author.id') == app_state.get('sessionUser.id');
   }),
