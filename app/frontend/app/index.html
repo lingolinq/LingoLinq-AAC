@@ -42,6 +42,14 @@
          {{rootURL}} — use HTML comments here, NOT {{!-- --}} (which leaks as text). -->
     <link rel="preload" as="image" href="{{rootURL}}images/speak-circle-simple-dark.webp" type="image/webp" fetchpriority="high" />
 
+    <!-- Preload the My Caseload card illustration. Unlike the Speak hero above
+         (an eager <img>), this one is only a CSS background-image (the big-icon
+         .md-card--caseload variant in app.scss -> images/caseload-light.png), so
+         the browser would otherwise fetch it lazily the instant the card first
+         paints and it pops in. Preloading puts the bytes in cache up front so it
+         paints with the card. -->
+    <link rel="preload" as="image" href="{{rootURL}}images/caseload-light.png" type="image/png" fetchpriority="high" />
+
     <!-- Preload the guided-tour welcome-card map illustrations. These are CSS
          background-images on the tour's welcome step (.md-tour__step--welcome
          .shepherd-text in app.scss: tour-map-dark.png for Focused View,
