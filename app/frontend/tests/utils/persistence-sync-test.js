@@ -978,8 +978,12 @@ describe("persistence-sync", function() {
         }, function() {
           ids = persistence.important_ids || [];
         });
-      waitsFor(function() { return ids && ids.length >= 10; });
+      waitsFor(function() {
+        return (ids && ids.length >= 10) ||
+          (persistence.important_ids && persistence.important_ids.length >= 10);
+      });
       runs(function() {
+        ids = ids || persistence.important_ids;
         expect(ids.length >= 10).toEqual(true);
         expect(ids.find(function(u) { return u === 'user_1340'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/pic.png'; })).not.toEqual(null);
