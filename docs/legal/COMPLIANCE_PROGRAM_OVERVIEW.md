@@ -19,18 +19,18 @@
 
 ## 1. What LingoLinq is, and how obligations attach
 
-LingoLinq is an Augmentative and Alternative Communication (AAC) application that supports
-speech and language development. **Our default model is user and caregiver owned.** The AAC user,
-or an adult caregiver, owns the account, in the same way a family owns a wheelchair or a dedicated
-AAC device. A therapist or teacher participates as a *supervisor* on that account. Supervising an
-account does not make LingoLinq a healthcare business associate, and it does not transfer
-ownership of the data to a clinic or a school.
+LingoLinq is an Augmentative and Alternative Communication (AAC) application that supports speech
+and language development. **Our default model is user and caregiver owned.** The AAC user, or an
+adult caregiver, owns the account, in the same way a family owns a wheelchair or a dedicated AAC
+device. A therapist or teacher participates as a *supervisor* on that account. Supervising an
+account does not make LingoLinq a healthcare business associate, and it does not transfer ownership
+of the data to a clinic or a school.
 
-One practical consequence drives this whole program: **the account owner (the user or guardian)
-is the party who controls the data and is the only one who can request that it be permanently
-deleted.** We honor that with a hard delete. Because the family holds the relationship in the
-common case, our obligations attach to the real deployment, not to a worst-case assumption that
-every user is a school-owned record or a clinical patient.
+One practical consequence drives this whole program: **the account owner (the user or guardian) is
+the party who controls the data and is the only one who can request that it be permanently
+deleted.** We honor that with a hard delete. Because the family holds the relationship in the common
+case, our obligations attach to the real deployment, not to a worst-case assumption that every user
+is a school-owned record or a clinical patient.
 
 | Deployment | Who owns the relationship | Primary regime | Consent authority |
 |---|---|---|---|
@@ -40,8 +40,8 @@ every user is a school-owned record or a clinical patient.
 
 FERPA and HIPAA do not apply simply because a therapist is involved. They attach only in the
 institutional deployments described in the addendums (Sections 5 and 6). We do not require
-therapists to submit professional licenses or NPI numbers to use the product: a license is not
-what triggers HIPAA, and requiring it would add friction without adding protection.
+therapists to submit professional licenses or NPI numbers to use the product: a license is not what
+triggers HIPAA, and requiring it would add friction without adding protection.
 
 ---
 
@@ -58,24 +58,43 @@ Everything in this section is live in the product.
 **Children's privacy (COPPA)**
 - A neutral age gate collects month and year of birth only, with no coercive "you must be 13"
   language.
-- If a user is under 13, standard registration halts and a verifiable parental consent flow
-  begins before the account is activated.
+- If a user is under 13, standard registration halts and a verifiable parental consent flow begins
+  before the account is activated.
 - AI features are hard-blocked at the code level for consent-pending under-13 users.
 - Where a district deploys LingoLinq, the district's institutional authorization covers the
   educational-use consent step (see Section 5).
+
+**Usage data and reports (off by default)**
+- Activity logging, geographic/access logging, and reports are permissioned and **off by default**.
+  A family (family-owned account) or a school administrator (district deployment) can turn them on.
+- When enabled, reports describe how the person communicates: usage frequency, core vs fringe
+  vocabulary use, and an access heat map showing where a user reliably selects and where
+  accessibility issues may exist. These reports are treated as sensitive and follow the account's
+  permission model.
+
+**Assessment (the built-in eval)**
+- LingoLinq includes an optional assessment ("eval") that presents progressive tasks (for example,
+  locating a target symbol as it moves and shrinks, distinguishing symbol types, testing concept
+  understanding, and early reading) and ends after a set number of misses. It records how far the
+  user progressed, the grid sizes they can navigate, and any consistent access blind spots, so a
+  clinician or educator can recommend an appropriate vocabulary set.
+- Eval results are **functional-access and communication-readiness data, not a medical diagnosis**.
+  The product stores no diagnosis, IEP, 504, or condition field. In a school deployment these
+  results are education records under FERPA; in the EU they are sensitive children's data handled
+  under Section 6.
 
 **AI and PII handling**
 - LingoLinq uses AI for word prediction and communication-board generation. The primary model is
   Anthropic Claude (Haiku 4.5), with a Google (Gemini) fallback.
 - Before any text is sent to an external model, our PII scrubber removes identifiers. This is
-  **pseudonymization (scrubbing)**, and we describe it accurately: the result is scrubbed data
-  that we still treat as personal data. We do not call it de-identified or anonymized.
+  **pseudonymization (scrubbing)**, and we describe it accurately: the result is scrubbed data that
+  we still treat as personal data. We do not call it de-identified or anonymized.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
 - Every AI call is recorded in an audit log (AiApiLog) with the fields needed for AI-governance
   reporting. IP addresses in that log are automatically redacted on a scheduled 90-day cycle.
-- AI consent is versioned per user. The eval and narration AI paths apply the same COPPA gate,
-  PII scrubbing, and logging, and drop client-asserted names.
+- AI consent is versioned per user. The eval and narration AI paths apply the same COPPA gate, PII
+  scrubbing, and logging, and drop client-asserted names.
 - Server-side error monitoring (Sentry) runs with a child-data scrubber that drops children's
   error, transaction, and breadcrumb events. The frontend ships with no third-party
   product-analytics SDKs (no Google Analytics, Mixpanel, or similar).
@@ -90,9 +109,8 @@ Everything in this section is live in the product.
   registration, two-factor, SAML, password reset); abusive requests receive HTTP 429.
 
 **Audit trail**
-- We maintain an audit trail (AuditEvent and PaperTrail) over record changes and key
-  administrative actions, including license claim and release, supervisor consent, and password
-  changes.
+- We maintain an audit trail (AuditEvent and PaperTrail) over record changes and key administrative
+  actions, including license claim and release, supervisor consent, and password changes.
 
 **Data lifecycle and deletion**
 - Administrators and parents can request permanent deletion of a user's data, which removes the
@@ -135,16 +153,16 @@ trustworthy.
 - Not passwordless. We use passwords plus SSO.
 - Not a local-first-only architecture. Configuration and some content sync to the cloud.
 - No hardware security modules (HSMs), web application firewall (WAF), or SIEM platform.
-- No contractual zero-data-retention agreement with the AI vendor (the models are eligible; no
-  such contract is signed).
+- No contractual zero-data-retention agreement with the AI vendor (the models are eligible; no such
+  contract is signed).
 - No differential privacy or mathematical anonymization on retained metrics.
 - No native mobile apps yet, so no mobile-hardening claims (certificate pinning, jailbreak
   detection, code obfuscation).
 - Not SOC 2 or HITRUST certified; no completed, published VPAT yet.
-- We do not collect a diagnosis, disability, health-condition, IEP, 504, or medical field. AAC use
-  is not a proxy for disability, so we do not claim to "process health or disability data" as a
-  category. Special-category data arises only from free-text content a user or supervisor chooses
-  to store, or from a clinical deployment, and is handled by consent or controller instructions.
+- We store **no diagnosis, disability, health-condition, IEP, 504, or medical field**, and AAC use
+  is not a proxy for disability. The built-in eval (Section 2) produces functional-access
+  assessment results, not a clinical diagnosis, and we do not represent them as medical or
+  diagnostic data.
 
 ---
 
@@ -159,6 +177,9 @@ requires them, not before.
   profiles with an export-first, delete-later flow.
 - Harden console and privileged-access session auditing so every administrative session is
   attributably logged.
+- Confirm and, if missing, add a clear parent/guardian notice-and-consent step when a
+  school-offboarded child's account continues as a family trial (see Section 5), with
+  export-then-delete if the family declines.
 - Publish an accurate VPAT and complete the EU AI Act Article 50 transparency disclosures for AI
   features (target early August 2026).
 
@@ -181,26 +202,55 @@ centralized security monitoring.
 
 ## 5. Addendum: institutional deployments (schools and clinics)
 
-This addendum applies only when a school district or a clinical institution is the customer. It
-does not change the default family-owned model above.
+This addendum applies only when a school district or a clinical institution is the customer, through
+our organization licence portal. It does not change the default family-owned model above.
 
-**Schools and districts (FERPA).** When a district purchases and deploys LingoLinq, FERPA governs
-and we operate as an authorized "school official" performing a service the district would otherwise
-perform itself, under the district's direct control. The district provides authorization on behalf
-of parents for educational use. We describe this as institutional consent or school authorization,
-never as a "bypass" of parental consent. US districts expect the standard **Student Data Privacy
-Agreement** (the SDPC / A4L National Data Privacy Agreement, NDPA), not a homemade DPA; we offer
-the NDPA form with our exhibits, plus state riders where required.
+**The licence portal and seats.** An organization purchases a block of seats (for example 100) and
+manages them in the org portal. Seat types include student, supervisor, and eval seats. District or
+clinic administrators can create accounts, build and assign vocabulary/page sets (including
+topic-based sets), enroll students to trial, and assign student caseloads to SLPs and teachers.
+Reports and logging stay off until a family or an administrator turns them on (Section 2).
 
-**Clinics and hospitals (HIPAA).** HIPAA applies only when an institution stores protected health
-information on its behalf through us. In that case we execute a Business Associate Agreement. A BAA
-is a business-to-business contract, never a consumer checkbox, and it is the exception rather than
-the rule. We keep a ready-to-sign BAA on the shelf and provide it when an institution requires one
-as a condition of purchase.
+**Three institutional patterns:**
 
-**Hosting note.** The Business Associate obligations above depend on our infrastructure being
-covered. The AWS S3 BAA is signed; the Google Cloud BAA covering Cloud Run, Cloud SQL, and
-Memorystore is executed at the GCP cutover (migration in progress).
+1. **District- or clinic-managed individual accounts.** An administrator sets up an individual AAC
+   user (with the user's or guardian's permission) and may assign clinicians and teachers. This is
+   where FERPA (schools) or a BAA (clinics, on request) applies, and where usage and eval reports
+   may be enabled. The account is personal to that AAC user.
+2. **Shared classroom / UDL account.** A single shared account is used as a language-modeling tool:
+   a teacher displays a page set (for example on a smart board) and pushes it to student devices for
+   modeling, articulation, sentence structure, spelling, and grammar. This account tracks no
+   individual student performance; the only personal data is the roster (which students, teacher, or
+   therapist are associated). This is the lowest-data mode.
+3. **Family-owned account with institutional supervisors.** The family owns the account and a school
+   or clinic simply attaches supervisors. Consumer and COPPA rules apply; FERPA and HIPAA do not
+   attach merely from supervision.
+
+**Data ownership and offboarding (the differentiator).** The AAC user's account and its data are
+not the property of the district or clinic; they belong to the AAC user and family. When a student
+moves or ages out, the district can reclaim the seat, but the account and its personalized setup and
+history stay with the user, who continues on a short complimentary trial so communication is not
+disrupted. The family then decides whether to subscribe, and a future district can reuse the freed
+seat. This is verified in the licence-release code path.
+
+Two points we state honestly so the model holds up under a district's own agreement:
+
+- The data is **not owned** by the institution, but while a student is served on a district seat,
+  the district's signed Data Privacy Agreement governs those education records, including any
+  delete-or-return-on-termination terms the district requires. We honor those DPA terms for the
+  school-collected records. The "stays with the user" transfer is the **family's option** to retain
+  their own account as consumers at offboarding; it is not a claim that a district can never require
+  deletion during the school relationship.
+- Continuing to process a child's data after the school's authorization ends shifts the lawful basis
+  to **parental consent**. The offboarding-to-family transition therefore requires clear parent or
+  guardian notice and consent to continue, with export-then-delete if the family declines (tracked
+  as a near-term control in Section 4).
+
+**Contracts we sign.** In practice districts and hospitals provide their own paper: we sign the
+**district's DPA** and operate under its guidelines, and we provide a **BAA to a clinical
+institution when it requires one**, rather than signing a BAA with every individual therapist. We
+keep our own National Data Privacy Agreement (NDPA) and BAA templates ready for customers who do not
+have their own.
 
 ---
 
@@ -209,13 +259,13 @@ Memorystore is executed at the GCP cutover (migration in progress).
 We are preparing to sell into the EU through a Polish distributor, selling to families and to
 schools or agencies. GDPR therefore moves from "someday" to near-term. In that market:
 
-- **Roles.** LingoLinq is the **controller** for family accounts and a **processor** for schools
-  and agencies, mirroring the family-owned vs institutional split above.
+- **Roles.** LingoLinq is the **controller** for family accounts and a **processor** for schools and
+  agencies, mirroring the family-owned vs institutional split above.
 - **Children's consent.** Poland sets the digital-consent age at 16, so the COPPA under-13 gate is
   not sufficient there. A jurisdiction-aware under-16 parental-consent gate is required before the
   first EU user (Planned, engineering).
-- **EU representative.** We appoint an Article 27 EU representative (a purchased service, not a
-  hire) before going live.
+- **EU representative.** We appoint an Article 27 EU representative (a purchased service, not a hire)
+  before going live.
 - **Transfers.** The EU data-transfer mechanism (Standard Contractual Clauses, and reliance on the
   Data Privacy Framework where applicable) couples to the GCP cutover and to the vendor DPAs.
 - **AI transparency.** EU AI Act Article 50 transparency disclosures for AI features are due
@@ -225,10 +275,11 @@ schools or agencies. GDPR therefore moves from "someday" to near-term. In that m
   the EU-representative name before use.
 
 Special-category note: for EU purposes the primary legal basis is contract (Art. 6(1)(b)).
-Special-category (Art. 9) data arises only from content a user or supervisor stores, or from a
-clinical deployment, and is then handled by explicit consent (families) or controller instructions
-(schools). Voice recordings are the user's own communication content under consent, not a
-biometric identifier (we run no voiceprint or speaker recognition).
+Special-category (Art. 9) data arises only from content a user or supervisor stores, from eval
+assessment results in a clinical context, or from a clinical deployment, and is then handled by
+explicit consent (families) or controller instructions (schools). Voice recordings are the user's
+own communication content under consent, not a biometric identifier (we run no voiceprint or speaker
+recognition).
 
 ---
 
