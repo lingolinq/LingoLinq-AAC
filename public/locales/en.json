@@ -6950,7 +6950,7 @@
   "privacy_security_retention_intro": "We retain personal data only as long as necessary for the purpose it was collected, with category-specific windows that align with our Data Retention Schedule.",
   "privacy_security_retention_active": "Active account data: retained for the life of the account, plus up to 2 years of continuous inactivity, after which the account is soft-deleted and queued for purge.",
   "privacy_security_retention_inactive": "Inactive accounts: accounts inactive for 12 months are flagged for automatic deletion, subject to a 10-day grace period for accidental deletions.",
-  "privacy_security_retention_ai_logs": "AI request logs: the audit record (AiApiLog) is retained for 2 years; IP addresses on those records are redacted at 90 days.",
+  "privacy_security_retention_ai_logs": "AI request logs: the audit record (AiApiLog) is deleted when the account is deleted; IP addresses on those records are redacted at 90 days.",
   "privacy_security_retention_voice": "Voice and audio recordings (button sounds you record): retained for the life of the user account and deleted when the account is deleted.",
   "privacy_security_retention_dwell": "Dwell, eye-gaze, and head-tracking timing data (stored within communication logs): retained for 3 years by default, configurable to a shorter window per user or organization.",
   "privacy_security_retention_tenant": "School and district tenant data: deleted within 90 days after the customer contract ends, unless a shorter window is specified in the data processing addendum.",
