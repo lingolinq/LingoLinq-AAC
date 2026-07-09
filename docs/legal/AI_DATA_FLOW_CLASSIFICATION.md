@@ -34,6 +34,14 @@ Verified directly against the runtime source at the commit this phase branched f
 (`c595f6304a545a6a10de80924edd99951eb41aa5`, `origin/staging`), cross-checked against the CEO-attested
 `docs/legal/AI_GOVERNANCE_MEMO.md` (2026-06-19). Where the two agree, this document cites both.
 
+Also verified: every `OpenAI::Client.new` call site in the codebase (`lib/ai_board_generator.rb`,
+`lib/ai_word_predictor.rb`, and `lib/ai_prediction_generator.rb`) is configured with
+`uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'`, i.e. all three point at
+Google's Gemini endpoint through the OpenAI-compatible client library. None call OpenAI's actual
+API. `lib/ai_prediction_generator.rb` is an offline batch job that builds the static prediction
+dictionary from built-in word lists only (no user or tenant content, per `AI_GOVERNANCE_MEMO.md`
+section 2), so it is out of scope for this disclosure and is not in the table below.
+
 ## 3. Feature classification table
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
@@ -64,6 +72,21 @@ itself). **This must be resolved (Vertex AI migration with a signed DPA, or a co
 Gemini Developer API business tier, or removal of the fallback) before Task 02-02.8 legal sign-off**,
 because a silent production change to `GEMINI_API_KEY` today would make the current disclosure
 under-inclusive with no version bump to force re-consent.
+
+## 4.1 Vendor-truthfulness constraints applied (Task 02-02.3)
+
+Every claim in `lib/lingo_linq/ai_consent_disclosures.rb`, the v1 disclosure view, and the
+`privacy.hbs` edits in this phase was checked against the following binding constraints from the
+plan's `[V2]` validation note before being written:
+
+| Constraint | How it is satisfied |
+|---|---|
+| Confirm Google uses Vertex AI, not the free AI Studio tier, before relying on it for child data | NOT satisfied; this is the open item in section 4 above. The copy does not claim Vertex AI. It names the fallback, states the endpoint is unconfirmed, and points to the open governance item. |
+| Never claim "never trains" unqualified | The copy scopes the no-training claim narrowly to "these two specific models on Anthropic's commercial API," never as a blanket vendor-wide or product-wide claim. Asserted by `spec/lib/lingo_linq/ai_consent_disclosures_spec.rb` ("does not claim unqualified 'never trains'"). |
+| Do not claim "no identifiers are sent" | The copy states LingoLinq "filters out common identifying details it can detect" and explicitly says the filter "is not perfect" and "free-typed text may still contain identifying details." No claim of zero identifiers ever appears. |
+| Anthropic ZDR is not publicly documented as of the 2026-06-26 validation pass; do not claim or disclaim without confirmation | Superseded by a later, dated company-level confirmation (2026-07-06, verified against Anthropic's own Privacy Center documentation) that Claude Haiku 4.5 and Claude Opus 4.7 specifically are ZDR-eligible. The copy states this ZDR confirmation is scoped to these two models only, and does not extend it to any other Anthropic model. |
+| Never say "de-identified" unless the HIPAA Safe Harbor / Expert Determination standard is met (it is not) | The word never appears in the module, the view, or the privacy.hbs additions; asserted by the module spec. Copy uses "scrubbed" / "pseudonymized" and explicitly contrasts that with "the formal legal standard for removing all identifying information." |
+| Named vendors must match the actual runtime payload path, not a speculative list | Verified directly against `lib/ai_board_generator.rb` and `lib/ai_word_predictor.rb` (section 2-4 above) and cross-checked against the attested `AI_GOVERNANCE_MEMO.md` inventory. OpenAI is NOT named (the `openai` gem in this codebase is a transport client aimed at Gemini's OpenAI-compatible endpoint, not an actual call to OpenAI's API; there is no code path that sends data to OpenAI). |
 
 ## 5. Two distinct retention concepts (do not conflate in copy)
 
