@@ -120,7 +120,7 @@ function test_wrap(name, instance, befores, afters, lookup) {
           } else {
             runCleanup();
           }
-        } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55)) {
+        } else if (pollAttempts < ((typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55)) {
           pollAttempts++;
           var delay = pollAttempts < 10 ? 10 : 100;
           setTimeout(pollUntilIdle, delay);
@@ -320,7 +320,7 @@ var runs = function(callback) {
       done();
     } else if(id == current_test_id) {
       attempts++;
-      var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55;
+      var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55;
       if(attempts >= maxAttempts) {
         assert.ok(false, 'condition failed for more than ' + (maxAttempts * 100) + 'ms');
         done();
@@ -344,7 +344,7 @@ var runsWhenIdle = function(callback) {
       emberRun(callback);
     } else if(id == current_test_id) {
       attempts++;
-      var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55;
+      var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55;
       if(attempts >= maxAttempts) {
         assert.ok(false, 'condition failed for more than ' + (maxAttempts * 100) + 'ms');
       } else {

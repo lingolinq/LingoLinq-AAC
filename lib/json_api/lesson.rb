@@ -72,7 +72,13 @@ module JsonApi::Lesson
       end
     end
     if args[:extra_user]
-      json['id'] = "#{lesson.global_id}:#{lesson.nonce}:#{args[:extra_user].user_token}"
+      # ECHO the token the client requested (extra_user_token) so the response's primary id is
+      # identical to the findRecord id the lesson route asked for. Minting a fresh token here would
+      # make the response id differ from the requested one (fresh expires_at/sig), and lessons have
+      # no Ember Data normalizer to reconcile a changed primary id, so the record would be
+      # mis-identified/rejected (LL-90045bb29c option (b)). New share links get their expiring token
+      # from the user serializer / mailer, not from this response, so echoing is safe.
+      json['id'] = "#{lesson.global_id}:#{lesson.nonce}:#{args[:extra_user_token] || args[:extra_user].lesson_share_token}"
       json['user'] = JsonApi::User.as_json(args[:extra_user], limited_identity: true)
       comp = (lesson.settings['completions'] || []).detect{|c| c['user_id'] == args[:extra_user].global_id }
       json['user']['completion'] = comp if comp

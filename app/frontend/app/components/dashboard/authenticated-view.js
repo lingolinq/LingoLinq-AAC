@@ -1760,7 +1760,7 @@ export default Component.extend({
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
-        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.appState.get('sessionUser.user_token'), '_blank');
+        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.appState.get('sessionUser.lesson_share_token'), '_blank');
       }
     },
     launch_rating: function() {
