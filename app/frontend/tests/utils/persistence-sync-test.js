@@ -4799,7 +4799,7 @@ describe("persistence-sync", function() {
       });
 
       var done = false;
-      waitsFor(function() { return stored; }, 10000);
+      waitsFor(function() { return stored; });
       runs(function() {
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
@@ -4855,7 +4855,7 @@ describe("persistence-sync", function() {
           }, function() { done = true; });
         }, 50);
       });
-      waitsFor(function() { return done && tailDone; }, 30000);
+      waitsFor(function() { return done && tailDone; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads).toEqual({
