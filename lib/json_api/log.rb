@@ -1,3 +1,5 @@
+require_relative '../art50_marker'
+
 module JsonApi::Log
   extend JsonApi::Json
   
@@ -85,6 +87,14 @@ module JsonApi::Log
         'slp_notes'         => log.data['slp_notes'],
         'sett'              => log.data['sett'],
         'ai_narrative'      => log.data['ai_narrative'],
+        # EU AI Act Article 50(2): non-secret provenance view of the eval-narration
+        # marker (marked/spec/provider/model), or nil when there is none (template
+        # draft, or a stored blob that fails re-verification). Re-verifies on every
+        # read via Art50Marker -- the raw stored blob is never trusted as-is, exactly
+        # like lib/json_api/board.rb -- so a forged or tampered ai_generated value in
+        # log.data can never read back as marked. Withholds signature + content_id,
+        # matching every other Art50Marker public-view call site.
+        'ai_generated'      => Art50Marker.public_view(log.data['ai_generated']),
         'event_count'       => (log.data['events'] || []).length
       }
       json['duration'] = log.data['duration_s']

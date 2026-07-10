@@ -102,7 +102,7 @@ describe Api::EvalSessionsController, type: :controller do
       captured_user = :unset
       allow(EvalNarrator).to receive(:draft_narrative) do |_payload, user:|
         captured_user = user
-        'drafted'
+        {'narrative' => 'drafted', 'ai_generated' => nil}
       end
       post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
       expect(captured_user).to be_a(User)
@@ -111,10 +111,27 @@ describe Api::EvalSessionsController, type: :controller do
 
     it 'returns the drafted narrative for the supervising user' do
       token_user
-      allow(EvalNarrator).to receive(:draft_narrative).and_return('A drafted narrative.')
+      allow(EvalNarrator).to receive(:draft_narrative).and_return({'narrative' => 'A drafted narrative.', 'ai_generated' => nil})
       post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
       json = assert_success_json
       expect(json['narrative']).to eq('A drafted narrative.')
+    end
+
+    it 'returns the AI-generated marker to the frontend when the narrator mints one' do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-opus-4-7')
+      allow(EvalNarrator).to receive(:draft_narrative).and_return({'narrative' => 'AI drafted.', 'ai_generated' => marker})
+      post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
+      json = assert_success_json
+      expect(json['ai_generated']).to eq(marker)
+    end
+
+    it 'returns a nil ai_generated marker for the deterministic template draft' do
+      token_user
+      allow(EvalNarrator).to receive(:draft_narrative).and_return({'narrative' => 'template draft', 'ai_generated' => nil})
+      post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
+      json = assert_success_json
+      expect(json['ai_generated']).to be_nil
     end
 
     it 'passes the client opt-in flag through to the narrator as a strict boolean' do
@@ -122,7 +139,7 @@ describe Api::EvalSessionsController, type: :controller do
       captured_payload = nil
       allow(EvalNarrator).to receive(:draft_narrative) do |payload, user:|
         captured_payload = payload
-        'drafted'
+        {'narrative' => 'drafted', 'ai_generated' => nil}
       end
       post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id, use_anthropic: true}
       expect(captured_payload['use_anthropic']).to eq(true)
@@ -133,7 +150,7 @@ describe Api::EvalSessionsController, type: :controller do
       captured_payload = nil
       allow(EvalNarrator).to receive(:draft_narrative) do |payload, user:|
         captured_payload = payload
-        'drafted'
+        {'narrative' => 'drafted', 'ai_generated' => nil}
       end
       post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
       expect(captured_payload['use_anthropic']).to eq(false)
@@ -144,7 +161,7 @@ describe Api::EvalSessionsController, type: :controller do
       captured = {}
       allow(EvalNarrator).to receive(:draft_narrative) do |payload, user:|
         captured[payload['use_anthropic']] = true
-        'drafted'
+        {'narrative' => 'drafted', 'ai_generated' => nil}
       end
       ['no', 'off', 'False', '2', 'maybe'].each do |val|
         post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id, use_anthropic: val}
@@ -158,7 +175,7 @@ describe Api::EvalSessionsController, type: :controller do
       captured_user = :unset
       allow(EvalNarrator).to receive(:draft_narrative) do |_payload, user:|
         captured_user = user
-        'template draft'
+        {'narrative' => 'template draft', 'ai_generated' => nil}
       end
       post :narrate, params: {eval_session: eval_payload}
       expect(assert_success_json['narrative']).to eq('template draft')
