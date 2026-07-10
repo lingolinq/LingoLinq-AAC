@@ -48,13 +48,19 @@ class ApplicationController < ActionController::Base
   helper_method :coppa_consent_age_injection
 
   # Best jurisdiction signal available for THIS request, using only signals that
-  # already exist (no IP geolocation). Priority: a configured org/domain country
-  # or region, then locale, then an explicit ?locale= param, then the browser's
-  # Accept-Language header. LingoLinq::Jurisdiction resolves any of these.
+  # already exist (no IP geolocation). This is best-effort BROWSER-LOCALE
+  # detection: an explicit ?locale= param, then the Accept-Language header.
+  #
+  # Deliberately does NOT read a country/region/locale off @domain_overrides:
+  # host_settings carries no such key today (see Organization#process_params
+  # allowlist), so those reads would be dead and misrepresent the signal source.
+  # A region-less locale (bare 'pl') resolves to unknown and preserves the
+  # default age-13 gate. Wiring an AUTHORITATIVE org-configured EU-host country
+  # is a tracked follow-up and is required before eu_consent_age is relied on as
+  # a GDPR Art. 8 control (browser locale under-fires for EU users who send a
+  # bare language subtag).
   def jurisdiction_signal_for_request
-    ds = (@domain_overrides && @domain_overrides['settings']) || {}
-    ds['country'] || ds['region'] || ds['locale'] || ds['default_locale'] ||
-      params[:locale].presence || request.headers['Accept-Language'].presence
+    params[:locale].presence || request.headers['Accept-Language'].presence
   end
 
   def log_api_call
