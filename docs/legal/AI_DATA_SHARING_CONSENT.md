@@ -2,8 +2,9 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-02.4)
-**Status:** DRAFT pending Scot + counsel sign-off (Task 02-02.8 legal review checkpoint, NOT executed
-as part of this commit set -- see section 7)
+**Status:** Attested by Scot Wahlquist, CEO, 2026-07-09 as a provisional, conservative-default
+position (Task 02-02.8). Formal outside counsel review is deferred until the full 5-phase VPC is
+built and ready for real parents -- see section 9. Not yet reviewed by outside counsel.
 **Related:** `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md`, `docs/legal/AI_GOVERNANCE_MEMO.md`,
 `docs/legal/SUBPROCESSORS.md`, `docs/legal/DATA_RETENTION.md`, `app/views/ai_consent/disclosures/v1.html.erb`,
 `lib/lingo_linq/ai_consent_disclosures.rb`, `.planning/phases/02-disclosures-content/PLAN.md`
@@ -81,11 +82,14 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   memo already includes it in the model inventory), but make no unconfirmed claim about its
   data-handling terms. State plainly in the disclosure that the same PiiScrubber filter applies to
   this path and that LingoLinq has not yet confirmed Google's terms for it.
-- **MUST resolve before Task 02-02.8 sign-off:** one of (a) migrate this fallback to Vertex AI with
-  a signed DPA, (b) obtain and confirm a Gemini Developer API business/enterprise tier with adequate
-  data-handling terms, or (c) remove the fallback from the code entirely if it cannot be made
-  compliant. Until resolved, a silent production change to `GEMINI_API_KEY` would make the current
-  disclosure under-inclusive of vendor risk with no version bump forcing re-consent.
+- **Resolved 2026-07-09 (Scot):** option (c). The fallback is disabled in code as of
+  `scot/compliance/disable-gemini-ai-studio-fallback` (PR #570) -- `resolve_api_config` in all
+  three files no longer returns a `:gemini` config, so AI board generation, word prediction, and
+  the offline prediction-dictionary generator all fail closed to Anthropic-only. A Vertex AI
+  fallback with a signed DPA (option a) may replace this in a future change; option (b) was not
+  pursued. Once PR #570 merges, this vendor entry becomes historical (no longer live code) and the
+  disclosure (`app/views/ai_consent/disclosures/v1.html.erb`) should drop the Gemini mention on the
+  next version bump rather than continue naming a vendor with no live call path.
 
 ### 2.3 Vendors NOT used (truthfulness note)
 
@@ -104,8 +108,8 @@ endpoint. There is no code path in this product that sends data to OpenAI's actu
 | Regulated PII | Second-tier verifiable parental consent required |
 | Never send externally | Blocked unless an explicit approved legal + vendor basis exists |
 
-AI board suggestions are classified **Scrubbed-personal** (conservative default, gated pending the
-open counsel question in section 7). AI word prediction and AI evaluation narration are both
+AI board suggestions are classified **Scrubbed-personal** (conservative default, gated -- resolved
+2026-07-09 per section 7, stays gated, no exemption). AI word prediction and AI evaluation narration are both
 classified **Regulated PII** (highest sensitivity: the child's own expressive communication content,
 and clinical evaluation data, respectively) and require the second-tier consent under all
 circumstances contemplated by this phase.
@@ -144,7 +148,8 @@ Spanish coverage for BOTH the disclosure content (a future `config/locales/es.ym
 additions (the 12 new keys in `public/locales/es.json`, currently placeholder-only) is a
 **BLOCKING dependency before any enforcement is turned on for `es`-locale users** (VPC Phase 4 and
 Phase 5 rollout). This is not a "nice to have" tracked loosely; it gates go-live for Spanish-locale
-accounts specifically, the same way Task 02-02.8 legal sign-off gates go-live generally.
+accounts specifically, independent of Task 02-02.8 (resolved, see section 9) -- `es` is its own
+open gate, not covered by the English-language provisional attestation.
 
 **Architecture note (a real gap, not yet solved):** the vendor names, tiers, model lists, and
 training-posture sentences rendered in `v1.html.erb` come from
@@ -187,43 +192,44 @@ requires verifiable parental consent under 16 CFR Part 312, regardless of school
 is a hard boundary: a school cannot authorize a child's data going to an AI vendor on a parent's
 behalf.
 
-## 7. Open counsel questions (block Task 02-02.8 sign-off)
+## 7. Open questions -- resolved 2026-07-09 by Scot's provisional attestation
 
-These two questions are unresolved and are explicitly why the Task 02-02.8 legal review checkpoint
-is NOT executed as part of this commit set. They require Scot + counsel, not an engineering
-decision:
+These two questions blocked Task 02-02.8. Per Scot's 2026-07-09 decision, they are resolved by his
+own business-risk judgment as a **provisional** position, not by outside counsel. Formal counsel
+review, if engaged at all, happens once the full 5-phase VPC is built and ready for real parents
+(see section 9) -- this is consistent with how `AI_GOVERNANCE_MEMO.md`'s open items are already
+tracked and accepted without outside counsel involvement at this stage.
 
 1. **Can scrubbed, neutral AI board generation ever be treated as Non-personal (exempt from the
-   second-tier gate), or must it always stay in the Scrubbed-personal (gated) bucket?** The
-   conservative default in this document and in `AI_DATA_FLOW_CLASSIFICATION.md` is: always gated,
-   no exemption, until counsel confirms otherwise. A parent or SLP can still type identifying detail
-   into a free-text board topic (e.g. "board for Aiden's IEP meeting"), so the code does not
-   structurally prevent personal content from entering this feature.
+   second-tier gate), or must it always stay in the Scrubbed-personal (gated) bucket?**
+   **Resolved (provisional): stays gated, no exemption.** The conservative default in this document
+   and in `AI_DATA_FLOW_CLASSIFICATION.md` holds as Scot's own position -- not deferred pending
+   someone else's confirmation. A parent or SLP can still type identifying detail into a free-text
+   board topic (e.g. "board for Aiden's IEP meeting"), so the code does not structurally prevent
+   personal content from entering this feature; this is exactly why the conservative default is the
+   safe choice to stand on.
 2. **Which verifiable-parental-consent method satisfies COPPA for this specific disclosure (AI
    data sharing to a third party)?** Email-plus / text-plus methods, which the existing
    `parental_consents_controller.rb` flow was modeled on, are explicitly excluded by the amended
-   COPPA Rule for third-party disclosure consent. The gated features need a stronger method (for
-   example: knowledge-based authentication, a credit-card transaction, or a government-ID match).
-   **This phase's copy stays method-agnostic on purpose** ("using the method described in your
-   consent request") and does not imply a one-click email link suffices. See section 8 for the
-   cross-phase escalation this creates for VPC Phase 3.
+   COPPA Rule for third-party disclosure consent.
+   **Resolved: government-ID match.** See section 8.
 
-## 8. Cross-phase escalation: Phase 3 consent-method pre-decision (HIGH priority)
-
-Recorded here, and in this plan's SUMMARY.md, per the Phase 2 task instructions (STATE.md is
-updated centrally by the orchestrator, not by this phase's execution).
+## 8. Phase 3 consent-method decision: government-ID match (resolved 2026-07-09)
 
 **Finding:** VPC Phase 3 ("Parent UX") was modeled on the existing email-link parental-consent flow
 (`parental_consents_controller.rb`). Per the amended COPPA Rule, email-plus and text-plus consent
 methods are **not adequate** to consent to third-party disclosure, which is exactly what granting AI
-data-sharing consent is. Building Phase 3 UX around a one-click email link, without first deciding
-question 2 in section 7 above, risks shipping a consent flow whose grants are legally invalid --
-"a perfect versioned disclosure gating an invalidly-obtained consent protects nothing."
+data-sharing consent is. Building Phase 3 UX around a one-click email link would have risked shipping
+a consent flow whose grants are legally invalid -- "a perfect versioned disclosure gating an
+invalidly-obtained consent protects nothing."
 
-**Action required before VPC Phase 3 begins implementation:** Scot decides the verifiable-consent
-method for the AI-data-sharing gate specifically (distinct from the existing signup-time COPPA
-consent method, which is unaffected). This phase's disclosure copy is deliberately written to be
-compatible with any outcome of that decision.
+**Decision (Scot, 2026-07-09): government-ID match.** Phase 3 builds a verifiable-parental-consent
+flow around a government-issued-ID match for the AI-data-sharing gate specifically (distinct from
+the existing signup-time COPPA consent method, which is unaffected and stays email-based). This
+phase's disclosure copy was deliberately written method-agnostic ("using the method described in
+your consent request") so it needs no further change to remain accurate under this decision. Phase
+3 planning still needs to select and vet a specific ID-verification vendor/integration -- that
+selection is Phase 3 scope, not decided here.
 
 ## 8.1 No-regress guards (binding acceptance criteria for Phase 2 and Phase 4)
 
@@ -253,12 +259,17 @@ point, commit `c595f6304a545a6a10de80924edd99951eb41aa5`) by direct inspection o
 | Field | Value |
 |---|---|
 | Prepared by | Claude Code (GSD plan executor), VPC Phase 2 |
-| Status | DRAFT -- Task 02-02.8 legal review checkpoint NOT executed |
-| Reviewed by | Not yet reviewed |
-| Attested by | **Pending Scot + counsel sign-off** |
-| Attestation date | Not yet attested |
+| Status | Attested (provisional) -- outside counsel review deferred |
+| Reviewed by | gsd-verifier agent (engineering/factual accuracy, 2026-07-09), not legal review |
+| Attested by | **Scot Wahlquist, CEO** |
+| Attestation date | **2026-07-09** |
+| Attestation scope | Provisional business-risk sign-off on the conservative-default position (section 7) and the government-ID-match consent method (section 8). NOT a formal outside-counsel legal opinion. |
+| Deferred to | Formal outside counsel review, once the full 5-phase VPC (Phases 1-5) is built and ready to go live for real parents. |
 
 This document, `AI_DATA_FLOW_CLASSIFICATION.md`, `app/views/ai_consent/disclosures/v1.html.erb`,
-and the `privacy.hbs` edits in this phase are all DRAFT pending the same sign-off. None of them
-should be treated as a final, counsel-approved legal position until Task 02-02.8 is explicitly
-completed by Scot and counsel.
+and the `privacy.hbs` edits in this phase reflect Scot's provisional attestation above and may be
+built upon for Phase 3/4/5 work. They are not yet a formal, counsel-reviewed legal position --
+that review is intentionally deferred (see "Deferred to" above), consistent with how
+`AI_GOVERNANCE_MEMO.md` section 7's open items are already tracked and accepted without blocking
+build. Do not represent this content to a real parent, regulator, or auditor as counsel-reviewed
+until that formal review happens.

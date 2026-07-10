@@ -2,8 +2,8 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** DRAFT pending Scot + counsel sign-off (VPC Phase 2 Task 02-02.8, not executed as part of
-this commit set)
+**Status:** Attested (provisional) by Scot Wahlquist, CEO, 2026-07-09 -- formal outside counsel
+review deferred until the full 5-phase VPC is built. See `AI_DATA_SHARING_CONSENT.md` section 9.
 **Related:** `docs/legal/AI_DATA_SHARING_CONSENT.md`, `docs/legal/AI_GOVERNANCE_MEMO.md` (attested
 2026-06-19, the authoritative live model inventory), `docs/legal/SUBPROCESSORS.md`,
 `docs/legal/DATA_RETENTION.md`, `.planning/phases/02-disclosures-content/PLAN.md`
@@ -46,12 +46,12 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|
-| AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), commercial API. Conditional fallback: Google Gemini 2.5 Flash via the Gemini Developer API OpenAI-compatible endpoint (`generativelanguage.googleapis.com`), used only when `ANTHROPIC_API_KEY` is absent and `GEMINI_API_KEY` is present (see section 4). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | Scrubbed-personal (conservative default). NOT assumed Non-personal even for a neutral-sounding topic, because the free-text prompt field is user-authored and can carry identifying detail (a parent typing "board for Aiden's IEP meeting" is a realistic input the code does not block). | Yes, until counsel confirms a neutral-topic exemption (open counsel question, see `AI_DATA_SHARING_CONSENT.md` section 6). | Names Anthropic (Haiku 4.5); states the topic text is scrubbed, not de-identified; flags that a parent/SLP can still type identifying detail into the topic field. |
+| AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), commercial API. Conditional fallback: Google Gemini 2.5 Flash via the Gemini Developer API OpenAI-compatible endpoint (`generativelanguage.googleapis.com`), used only when `ANTHROPIC_API_KEY` is absent and `GEMINI_API_KEY` is present (see section 4). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | Scrubbed-personal (conservative default). NOT assumed Non-personal even for a neutral-sounding topic, because the free-text prompt field is user-authored and can carry identifying detail (a parent typing "board for Aiden's IEP meeting" is a realistic input the code does not block). | Yes -- resolved 2026-07-09 (Scot's provisional attestation): stays gated, no exemption (see `AI_DATA_SHARING_CONSENT.md` section 7). | Names Anthropic (Haiku 4.5); states the topic text is scrubbed, not de-identified; flags that a parent/SLP can still type identifying detail into the topic field. |
 | AI word / next-word prediction | `lib/ai_word_predictor.rb` | Same vendor/model/tier and same conditional fallback as above. | The communicator's in-progress sentence or utterance text, i.e. the words the AAC user is actively composing, scrubbed via `PiiScrubber.redact_for_ai` before egress. | No, same pattern as above (`user:` threaded for gating/audit only). | Regulated PII. This is the highest-sensitivity runtime AI feature: it is literally the child or patient's own expressive communication content, sent per keystroke-class interaction, not a one-off prompt. Even scrubbed, small-cohort or context-specific phrasing can be re-identifying. | Yes, highest priority. | Must explicitly say that word prediction sends the words/phrases the user is actively typing or selecting, not just a topic. |
 | Comprehensive / targeted / quick-screen AI evaluation narrative drafting | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Anthropic Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`), commercial API. No Gemini fallback in this path (Anthropic-only). | SETT framework fields, intake (age band, etiology, communication profile, suspected access channel), recommendation data (access method, grid size, symbol library, communicator stage, vocabulary band), SLP free-text notes, and dynamic-assessment scores. The free-text student name is structurally dropped from the egress payload before scrubbing (`payload_for_prompt`), and a blocklist seeded with the student's account name(s) plus the SETT free-text name is applied via `PiiScrubber.redact_for_ai`. | No (same client-name-dropped + blocklist pattern; the "name" defense here is stronger than the other two features). | Regulated PII, highest sensitivity. This is clinical evaluation / IEP-adjacent data. Small-cohort re-identification risk is real: a rare etiology or diagnosis combined with an age band and school context can be re-identifying even with the name removed. | Yes, highest priority, plus explicit small-cohort risk flag. | Must name it as clinical evaluation data; note it is opt-in per session (the SLP clicks "Generate AI Narrative," `use_anthropic == true`) and gated on COPPA + org AI opt-out for the STUDENT, not the requesting clinician. |
 | `AiApiLog` (internal audit storage) | `app/models/ai_api_log.rb` | Not a vendor; LingoLinq's own database. | Stores `request_summary` / `response_summary` derived from the payloads above, itself re-scrubbed a second time at write (`before_validation :scrub_summary_columns`), defense in depth against a vendor response echoing an identifier from the prompt. | Yes: `user_global_id` / `organization_global_id` columns, by design (audit trail requirement). | N/A (internal retention artifact, not an external send). | N/A | This is LingoLinq's OWN retention window, distinct from vendor-side retention. See section 5 and `docs/legal/DATA_RETENTION.md`. |
 
-## 4. Vendor-truthfulness finding: the Gemini fallback (open item)
+## 4. Vendor-truthfulness finding: the Gemini fallback (resolved 2026-07-09)
 
 `lib/ai_board_generator.rb` and `lib/ai_word_predictor.rb` both prefer Anthropic and fall back to
 Google Gemini automatically when `ANTHROPIC_API_KEY` is unset and `GEMINI_API_KEY` is set. Per
@@ -68,10 +68,13 @@ with the attested memo, rather than either (a) silently omitting a real code pat
 an unconfirmed Vertex AI / BAA status. The disclosure states the fallback exists, that the same
 PiiScrubber filter applies to it, and that LingoLinq has not yet confirmed Google's data-handling
 terms for that specific path (see `AI_DATA_SHARING_CONSENT.md` section 4 and the disclosure view
-itself). **This must be resolved (Vertex AI migration with a signed DPA, or a confirmed-compliant
-Gemini Developer API business tier, or removal of the fallback) before Task 02-02.8 legal sign-off**,
-because a silent production change to `GEMINI_API_KEY` today would make the current disclosure
-under-inclusive with no version bump to force re-consent.
+itself).
+
+**Resolved 2026-07-09 (Scot):** the fallback is disabled in code
+(`scot/compliance/disable-gemini-ai-studio-fallback`, PR #570) rather than migrated or confirmed --
+`resolve_api_config` in all three files now fails closed to Anthropic-only. A Vertex AI fallback
+with a signed DPA may replace this later. See `AI_DATA_SHARING_CONSENT.md` section 2.2 for the full
+resolution note.
 
 ## 4.1 Vendor-truthfulness constraints applied (Task 02-02.3)
 
@@ -81,7 +84,7 @@ plan's `[V2]` validation note before being written:
 
 | Constraint | How it is satisfied |
 |---|---|
-| Confirm Google uses Vertex AI, not the free AI Studio tier, before relying on it for child data | NOT satisfied; this is the open item in section 4 above. The copy does not claim Vertex AI. It names the fallback, states the endpoint is unconfirmed, and points to the open governance item. |
+| Confirm Google uses Vertex AI, not the free AI Studio tier, before relying on it for child data | Resolved 2026-07-09 by disabling the fallback instead (PR #570) -- see section 4 above. There is no longer a live path to the AI-Studio tier. |
 | Never claim "never trains" unqualified | The copy scopes the no-training claim narrowly to "these two specific models on Anthropic's commercial API," never as a blanket vendor-wide or product-wide claim. Asserted by `spec/lib/lingo_linq/ai_consent_disclosures_spec.rb` ("does not claim unqualified 'never trains'"). |
 | Do not claim "no identifiers are sent" | The copy states LingoLinq "filters out common identifying details it can detect" and explicitly says the filter "is not perfect" and "free-typed text may still contain identifying details." No claim of zero identifiers ever appears. |
 | Anthropic ZDR is not publicly documented as of the 2026-06-26 validation pass; do not claim or disclaim without confirmation | Superseded by a later, dated company-level confirmation (2026-07-06, verified against Anthropic's own Privacy Center documentation) that Claude Haiku 4.5 and Claude Opus 4.7 specifically are ZDR-eligible. The copy states this ZDR confirmation is scoped to these two models only, and does not extend it to any other Anthropic model. |
@@ -90,12 +93,12 @@ plan's `[V2]` validation note before being written:
 
 ## 5. Two distinct retention concepts (do not conflate in copy)
 
-1. **Vendor-side retention**: how long Anthropic (or, for the fallback path, Google) keeps the
-   payload after the API call. For Anthropic Claude Haiku 4.5 and Claude Opus 4.7, LingoLinq
-   operates under Anthropic's zero-data-retention (ZDR) terms for these specific models (confirmed
-   against Anthropic's own data-retention documentation; this does not extend to any other Anthropic
-   model not used in the product). For the Gemini fallback, vendor-side retention terms are the open
-   item in section 4 above.
+1. **Vendor-side retention**: how long Anthropic keeps the payload after the API call. For
+   Anthropic Claude Haiku 4.5 and Claude Opus 4.7, LingoLinq operates under Anthropic's
+   zero-data-retention (ZDR) terms for these specific models (confirmed against Anthropic's own
+   data-retention documentation; this does not extend to any other Anthropic model not used in the
+   product). The Gemini fallback is disabled as of 2026-07-09 (section 4 above); its vendor-side
+   retention terms are no longer a live concern for this product.
 2. **LingoLinq's own `AiApiLog` retention**: the audit record LingoLinq itself keeps of the
    scrubbed request/response summaries, independent of what the vendor does. See section 6.
 
@@ -145,6 +148,11 @@ follow-up.
 - Wiring any of this into an actual consent gate at the AI call sites (VPC Phase 4).
 - Building the general non-EU / children's-data purge jobs described in section 6 (separate ticket,
   tracked in `docs/legal/DATA_RETENTION.md` and this project's `PROJECT.md`).
-- Resolving the Gemini/Vertex AI open item in section 4 (tracked for Task 02-02.8 legal review).
-- Deciding whether scrubbed neutral board-gen can ever move to the Non-personal bucket (open counsel
-  question, see `AI_DATA_SHARING_CONSENT.md`).
+- ~~Resolving the Gemini/Vertex AI open item in section 4~~ -- resolved 2026-07-09 (disabled, PR #570).
+- ~~Deciding whether scrubbed neutral board-gen can ever move to the Non-personal bucket~~ --
+  resolved 2026-07-09 (Scot's provisional attestation: stays gated). See `AI_DATA_SHARING_CONSENT.md`
+  section 7.
+- Selecting and vetting a specific government-ID-verification vendor/integration for Phase 3 (the
+  *method* -- gov-ID match -- is decided; the vendor is not).
+- Formal outside-counsel legal review of this document and the disclosure content (deferred to
+  pre-launch, see `AI_DATA_SHARING_CONSENT.md` section 9).
