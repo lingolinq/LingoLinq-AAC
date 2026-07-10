@@ -279,16 +279,31 @@ describe Api::LessonsController, :type => :controller do
       assert_not_found('whatever')
     end
 
-    it "should mark as complete for the specified user" do
+    it "should mark as complete for the specified user (legacy permanent-token link still works)" do
       u = User.create
       l = Lesson.create
       id = "#{l.global_id}:#{l.nonce}:#{u.user_token}"
       post 'complete', params: {'lesson_id' => id}
       json = assert_success_json
+      # The response id must ECHO the requested id unchanged (Ember Data findRecord id-stability):
+      # minting a fresh token into the response id would break the lesson route, which has no
+      # normalizer to reconcile a changed primary id (LL-90045bb29c option (b)).
       expect(json['lesson']['id']).to eq(id)
+      expect(User.find_by_lesson_share_token(json['lesson']['id'].split(':')[2])).to eq(u)
       ue = UserExtra.find_by(user: u)
       expect(ue.settings['completed_lessons']).to_not eq(nil)
       expect(ue.settings['completed_lessons'][0]['id']).to eq(l.global_id)
+      expect(l.reload.settings['completions']).to_not eq(nil)
+      expect(l.settings['completions'][0]['user_id']).to eq(u.global_id)
+    end
+
+    it "should mark as complete when the new expiring lesson_share_token is used (LL-90045bb29c option (b))" do
+      u = User.create
+      l = Lesson.create
+      id = "#{l.global_id}:#{l.nonce}:#{u.lesson_share_token}"
+      post 'complete', params: {'lesson_id' => id}
+      json = assert_success_json
+      expect(json['lesson']['id']).to eq(id) # id stability: response echoes the requested token
       expect(l.reload.settings['completions']).to_not eq(nil)
       expect(l.settings['completions'][0]['user_id']).to eq(u.global_id)
     end

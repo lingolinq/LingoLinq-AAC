@@ -26,7 +26,7 @@ class User < ApplicationRecord
   # Keep in sync with the "Last Updated" date in the Privacy Policy
   # (app/frontend/app/templates/privacy.hbs). Bump when a material change
   # requires users to re-consent.
-  PRIVACY_POLICY_VERSION = '2026-06-09'
+  PRIVACY_POLICY_VERSION = '2026-07-09'
 
   def current_sponsor
     Organization.find_by(id: self.managing_organization_id)
@@ -457,10 +457,28 @@ class User < ApplicationRecord
   # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
   # consent record exists at the queried disclosures_version. Per D-03: missing
   # settings['ai_consent'] is treated as "not granted", no migration needed.
-  # `disclosures_version:` is required: callers that forget the kwarg get
-  # ArgumentError at boot/test time rather than a silent false (which Phase 4
-  # would interpret as "guard fired, AI suppressed for an actually-consented user").
-  def ai_consent_granted?(disclosures_version:)
+  #
+  # `disclosures_version:` DEFAULTS to LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+  # (VPC Phase 2). D-03 originally made this kwarg required with NO default,
+  # specifically because no canonical version source existed yet: an omitted
+  # kwarg with some accidental implicit value (e.g. nil) would silently return
+  # false, and Phase 4 would misread that as "the gate correctly fired" rather
+  # than "the caller forgot to pass a version" (see the original rationale
+  # preserved below). Phase 2 supplies that canonical source, which removes
+  # the failure mode D-03 was guarding against: the implicit value is no
+  # longer arbitrary, it is the exact version every caller SHOULD be checking
+  # against in the common case. A caller that needs to check a specific
+  # (e.g. stale) version still passes disclosures_version: explicitly; no
+  # caller should ever hardcode a literal version number.
+  #
+  # Original D-03 rationale, still true for why *some* explicit default was
+  # required rather than silently defaulting to nil/0: "callers that forget
+  # the kwarg get ArgumentError at boot/test time rather than a silent false
+  # (which Phase 4 would interpret as 'guard fired, AI suppressed for an
+  # actually-consented user')." Defaulting to CURRENT_VERSION resolves this
+  # the same way ArgumentError did (no silent wrong answer), while also being
+  # useful.
+  def ai_consent_granted?(disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION)
     c = self.settings && self.settings['ai_consent']
     return false unless c.is_a?(Hash)
     return false if c['granted_at'].blank?
@@ -2795,7 +2813,10 @@ class User < ApplicationRecord
     user_id, hash = token.split(/-/)
     return nil unless user_id && hash
     verifier = GoSecure.sha512("#{user_id}-", 'user_token verifier')[0, 30]
-    return nil unless hash == verifier
+    # Constant-time compare so a timing side-channel can't be used to recover the
+    # verifier byte-by-byte (LL-90045bb29c). Same pattern as find_by_protected_image_token
+    # below; secure_compare returns false on a length mismatch, so behavior is unchanged.
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(hash, verifier)
     User.find_by_global_id(user_id)
   end
 
@@ -2829,6 +2850,43 @@ class User < ApplicationRecord
     user_id, expires_at, sig = parts
     return nil unless expires_at.match?(/\A\d+\z/)
     verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(sig, verifier)
+    return nil if expires_at.to_i < Time.now.to_i
+    User.find_by_global_id(user_id)
+  end
+
+  # Purpose-scoped, expiring credential for lesson/board SHARE links (LL-90045bb29c option (b)).
+  # Replaces the permanent user_token that was embedded in navigable /lessons/... URLs, where it
+  # leaked into browser history, access logs, and Referer headers as a non-revocable bearer
+  # credential. Same expiring-HMAC design as protected_image_token above, with its own verifier
+  # purpose string. The MINT is gated by a kill-switch (FeatureFlags.expiring_lesson_share_tokens_enabled?)
+  # so ops can revert construction to the legacy permanent token in one switch; the finder accepts
+  # both formats regardless, so flipping the switch either way never breaks an already-issued link.
+  LESSON_SHARE_TOKEN_LIFESPAN = 30.days
+
+  def lesson_share_token(lifespan=LESSON_SHARE_TOKEN_LIFESPAN)
+    return user_token unless FeatureFlags.expiring_lesson_share_tokens_enabled?(self)
+    expires_at = (Time.now + lifespan).to_i
+    sig = GoSecure.sha512("#{self.global_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+    "#{self.global_id}-#{expires_at}-#{sig}"
+  end
+
+  # Accepts the expiring lesson_share_token format (3 hyphen-separated parts) or falls back to the
+  # legacy permanent user_token format (2 parts), so lesson/board share URLs created before this
+  # format existed keep resolving. The legacy branch is logged (not silently accepted) so the
+  # residual permanent-token exposure can be measured before it is sunset (tracked under
+  # LL-90045bb29c option (c) / LL-310b464be4).
+  def self.find_by_lesson_share_token(token)
+    return nil unless token
+    parts = token.to_s.split(/-/)
+    unless parts.length == 3
+      user = find_by_token(token)
+      Rails.logger.info("[lesson_share_legacy_token] accepted permanent-format token for #{user.global_id}") if user
+      return user
+    end
+    user_id, expires_at, sig = parts
+    return nil unless expires_at.match?(/\A\d+\z/)
+    verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
     return nil unless ActiveSupport::SecurityUtils.secure_compare(sig, verifier)
     return nil if expires_at.to_i < Time.now.to_i
     User.find_by_global_id(user_id)

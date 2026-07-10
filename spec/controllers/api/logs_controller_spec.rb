@@ -499,6 +499,74 @@ describe Api::LogsController, :type => :controller do
       expect(log.data['event_summary']).to eq('cool')
     end
 
+    it "should persist a tiered eval report's data through the real create path" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {
+          :eval_mode => 'comprehensive',
+          :protocol_version => '1.0',
+          :intake => {'age_band' => 'adult'},
+          :recommendation => {'access_method' => 'direct'},
+          # EvalSession#recordEvent (app/frontend/app/utils/eval_session.js) stamps real
+          # events with a 'ts' key in JS milliseconds, NOT 'timestamp' in seconds -- this
+          # matters because LogSession#generate_defaults has an older events-timestamp
+          # derivation (for realtime button-press 'session' logs) keyed on 'timestamp' in
+          # seconds that runs before the eval_mode branch; a real-shape event here proves
+          # that derivation is a no-op for tiered eval and doesn't corrupt started_at/ended_at.
+          :events => [
+            {'ts' => (Time.now.to_i * 1000) - 120_000, 'subtest' => 'stage_probe', 'response' => 'correct'},
+            {'ts' => Time.now.to_i * 1000, 'subtest' => 'access_snapshot', 'response' => 'correct'}
+          ],
+          :duration_s => 42,
+          :slp_notes => 'looked good',
+          :sett => {'student' => 'Jane'},
+          :ai_narrative => 'AI-drafted narrative text'
+        },
+        :user_id => @user.global_id
+      }}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      log = LogSession.last
+      expect(log.log_type).to eq('eval')
+      expect(log.data['eval_mode']).to eq('comprehensive')
+      expect(log.data['recommendation']).to eq({'access_method' => 'direct'})
+      expect(log.data['slp_notes']).to eq('looked good')
+      expect(log.data['sett']).to eq({'student' => 'Jane'})
+      expect(log.data['ai_narrative']).to eq('AI-drafted narrative text')
+      expect(log.data['duration_s'].to_i).to eq(42)
+      # started_at/ended_at must be sane (current era), not derived from the ms-scale
+      # 'ts' event timestamps via the seconds-based legacy events derivation
+      expect(log.ended_at).to be_within(1.minute).of(Time.now)
+      expect(log.started_at).to be_within(1.minute).of(Time.now - 42.seconds)
+      expect(log.data['event_count']).to eq(2)
+      # round-trips through JsonApi::Log's tiered_eval view, not just the raw column
+      expect(json['log']['tiered_eval']['eval_mode']).to eq('comprehensive')
+      expect(json['log']['tiered_eval']['ai_narrative']).to eq('AI-drafted narrative text')
+      expect(json['log']['tiered_eval']['slp_notes']).to eq('looked good')
+      expect(json['log']['tiered_eval']['event_count']).to eq(2)
+    end
+
+    it "should not mutate a tiered eval report's historical started_at/ended_at on a later, unrelated save" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {:eval_mode => 'comprehensive', :events => [], :duration_s => 42, :ai_narrative => 'text'},
+        :user_id => @user.global_id
+      }}
+      log = LogSession.last
+      original_started_at = log.started_at
+      original_ended_at = log.ended_at
+
+      sleep 1 # no Timecop in this codebase; a real elapsed second is enough to detect drift
+      log.highlighted = true
+      log.save!
+      log.reload
+
+      expect(log.started_at).to eq(original_started_at)
+      expect(log.ended_at).to eq(original_ended_at)
+    end
+
     it "should try to extract and canonicalize the ip address" do
       token_user
       request.env['REMOTE_ADDR'] = '8.7.6.5'

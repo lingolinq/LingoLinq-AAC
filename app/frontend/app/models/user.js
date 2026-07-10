@@ -46,6 +46,7 @@ LingoLinq.User = BaseModel.extend({
   },
   user_name: attr('string'),
   user_token: attr('string'),
+  lesson_share_token: attr('string'),
   protected_image_token: attr('string'),
   link: attr('string'),
   joined: attr('date'),

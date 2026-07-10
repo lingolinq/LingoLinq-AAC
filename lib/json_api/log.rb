@@ -151,7 +151,10 @@ module JsonApi::Log
     if json['log']['type'] == 'assessment'
       json['log']['assessment'] = {}.merge(log.data['assessment'] || {})
       json['log']['assessment']['stats'] = log.data['stats']
-    elsif json['log']['type'] == 'eval'
+    elsif json['log']['type'] == 'eval' && json['log']['evaluation']
+      # Legacy singular data['eval'] shape only -- the tiered eval report shape
+      # (data['eval_mode'], surfaced above as json['log']['tiered_eval']) has no
+      # 'evaluation' key and carries its own stats-equivalent fields already.
       json['log']['evaluation']['stats'] = log.data['stats']
     elsif json['log']['type'] == 'profile'
       history = []

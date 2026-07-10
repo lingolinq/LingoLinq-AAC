@@ -5,7 +5,9 @@ require_relative 'pii_scrubber'
 module AiWordPredictor
   # Use fast/cheap models -- predictions need to feel instant
   DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
-  DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+  # GEMINI_API_KEY fallback disabled 2026-07-09 -- see docs/legal/AI_DATA_SHARING_CONSENT.md
+  # section 2.2 (Gemini Developer/AI-Studio endpoint, data-handling terms not adequate for child
+  # data). A Vertex AI fallback may replace this.
 
   # In-memory LRU cache: { "context_key" => { words: [...], ts: Time } }
   CACHE = {}
@@ -73,13 +75,6 @@ module AiWordPredictor
           raw_response = extract_content_anthropic(response)
           tokens_sent = response.usage&.input_tokens if response.respond_to?(:usage)
           tokens_received = response.usage&.output_tokens if response.respond_to?(:usage)
-          success = true
-          parse_words(raw_response, count)
-        when :gemini
-          response = call_gemini(api_config, scrubbed_sentence, locale, count, ctx)
-          raw_response = response.dig('choices', 0, 'message', 'content') || ''
-          tokens_sent = response.dig('usage', 'prompt_tokens')
-          tokens_received = response.dig('usage', 'completion_tokens')
           success = true
           parse_words(raw_response, count)
         else
@@ -161,22 +156,13 @@ module AiWordPredictor
 
     def resolve_api_config
       anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      if anthropic_key.present?
-        return {
-          provider: :claude,
-          api_key: anthropic_key,
-          model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_ANTHROPIC_MODEL)
-        }
-      end
-      gemini_key = ENV['GEMINI_API_KEY'].to_s.strip
-      if gemini_key.present?
-        return {
-          provider: :gemini,
-          api_key: gemini_key,
-          model: ENV.fetch('GEMINI_MODEL', DEFAULT_GEMINI_MODEL)
-        }
-      end
-      nil
+      return nil if anthropic_key.blank?
+
+      {
+        provider: :claude,
+        api_key: anthropic_key,
+        model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_ANTHROPIC_MODEL)
+      }
     end
 
     def call_anthropic(config, sentence, locale, count, context)
@@ -187,25 +173,6 @@ module AiWordPredictor
         max_tokens: 60,
         system: system_prompt(locale, count, context),
         messages: [{ role: 'user', content: sentence }]
-      )
-    end
-
-    def call_gemini(config, sentence, locale, count, context)
-      require 'openai'
-      client = OpenAI::Client.new(
-        access_token: config[:api_key],
-        uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-      )
-      client.chat(
-        parameters: {
-          model: config[:model],
-          messages: [
-            { role: 'system', content: system_prompt(locale, count, context) },
-            { role: 'user', content: sentence }
-          ],
-          max_tokens: 60,
-          temperature: 0.3
-        }
       )
     end
 

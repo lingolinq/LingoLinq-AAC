@@ -98,7 +98,7 @@ class BoardsController < ApplicationController
   def lesson
     @lesson = Lesson.find_by_path(params['lesson_id'])
     @lesson = nil unless @lesson.nonce == params['lesson_code']
-    @user = User.find_by_token(params['user_token'])
+    @user = User.find_by_lesson_share_token(params['user_token'])
     if !@user || !@lesson
       return redirect_to '/404'
     end
