@@ -499,6 +499,39 @@ describe Api::LogsController, :type => :controller do
       expect(log.data['event_summary']).to eq('cool')
     end
 
+    it "should persist a tiered eval report's data through the real create path" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {
+          :eval_mode => 'comprehensive',
+          :protocol_version => '1.0',
+          :intake => {'age_band' => 'adult'},
+          :recommendation => {'access_method' => 'direct'},
+          :events => [],
+          :duration_s => 42,
+          :slp_notes => 'looked good',
+          :sett => {'student' => 'Jane'},
+          :ai_narrative => 'AI-drafted narrative text'
+        },
+        :user_id => @user.global_id
+      }}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      log = LogSession.last
+      expect(log.log_type).to eq('eval')
+      expect(log.data['eval_mode']).to eq('comprehensive')
+      expect(log.data['recommendation']).to eq({'access_method' => 'direct'})
+      expect(log.data['slp_notes']).to eq('looked good')
+      expect(log.data['sett']).to eq({'student' => 'Jane'})
+      expect(log.data['ai_narrative']).to eq('AI-drafted narrative text')
+      expect(log.data['duration_s'].to_i).to eq(42)
+      # round-trips through JsonApi::Log's tiered_eval view, not just the raw column
+      expect(json['log']['tiered_eval']['eval_mode']).to eq('comprehensive')
+      expect(json['log']['tiered_eval']['ai_narrative']).to eq('AI-drafted narrative text')
+      expect(json['log']['tiered_eval']['slp_notes']).to eq('looked good')
+    end
+
     it "should try to extract and canonicalize the ip address" do
       token_user
       request.env['REMOTE_ADDR'] = '8.7.6.5'
