@@ -40,8 +40,9 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
 
 ### 2.1 Anthropic, PBC
 
-- **Models used:** Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) for AI board suggestions and AI
-  word prediction; Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`) for
+- **Models used:** Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) for AI word prediction (also
+  used for AI board suggestions, which are Non-personal and not gated by this consent -- see
+  section 3); Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`) for
   AI evaluation narration.
 - **Access path:** Anthropic's commercial API, not the free consumer Claude.ai product.
 - **Data-processing basis:** DPA via Anthropic's Commercial Terms
@@ -59,7 +60,7 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   plus the ZDR posture above, consistent with `AI_GOVERNANCE_MEMO.md` section 3 ("de-identification,
   not a BAA, is the HIPAA basis for the scrubbed product path").
 
-### 2.2 Google LLC (Gemini Developer API) -- conditional fallback, OPEN ITEM
+### 2.2 Google LLC (Gemini Developer API) -- disabled 2026-07-09, historical record only
 
 - **Model used:** Gemini 2.5 Flash.
 - **Access path:** Confirmed via direct code audit (`.env.example` line 92: `GEMINI_API_KEY` is
@@ -82,14 +83,16 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   memo already includes it in the model inventory), but make no unconfirmed claim about its
   data-handling terms. State plainly in the disclosure that the same PiiScrubber filter applies to
   this path and that LingoLinq has not yet confirmed Google's terms for it.
-- **Resolved 2026-07-09 (Scot):** option (c). The fallback is disabled in code as of
-  `scot/compliance/disable-gemini-ai-studio-fallback` (PR #570) -- `resolve_api_config` in all
+- **Resolved 2026-07-09 (Scot):** option (c). The fallback is disabled in code
+  (`scot/compliance/disable-gemini-ai-studio-fallback`, PR #570) -- `resolve_api_config` in all
   three files no longer returns a `:gemini` config, so AI board generation, word prediction, and
   the offline prediction-dictionary generator all fail closed to Anthropic-only. A Vertex AI
   fallback with a signed DPA (option a) may replace this in a future change; option (b) was not
-  pursued. Once PR #570 merges, this vendor entry becomes historical (no longer live code) and the
-  disclosure (`app/views/ai_consent/disclosures/v1.html.erb`) should drop the Gemini mention on the
-  next version bump rather than continue naming a vendor with no live call path.
+  pursued. **This vendor entry has been removed from `LingoLinq::AiConsentDisclosures::REGISTRY`
+  and `app/views/ai_consent/disclosures/v1.html.erb` in this same commit set** (v1 had not shipped
+  to any real parent yet, so no `CURRENT_VERSION` bump / forced re-consent was needed to make this
+  correction -- see the module's versioning-policy comment in section 4 below for when a bump IS
+  required going forward).
 
 ### 2.3 Vendors NOT used (truthfulness note)
 
@@ -108,11 +111,17 @@ endpoint. There is no code path in this product that sends data to OpenAI's actu
 | Regulated PII | Second-tier verifiable parental consent required |
 | Never send externally | Blocked unless an explicit approved legal + vendor basis exists |
 
-AI board suggestions are classified **Scrubbed-personal** (conservative default, gated -- resolved
-2026-07-09 per section 7, stays gated, no exemption). AI word prediction and AI evaluation narration are both
-classified **Regulated PII** (highest sensitivity: the child's own expressive communication content,
-and clinical evaluation data, respectively) and require the second-tier consent under all
-circumstances contemplated by this phase.
+**AI board suggestions are classified Non-personal (reclassified 2026-07-09, Scot)** -- not gated
+by this consent. Typical usage (a topic prompt like "the zoo") contains no personal information
+about the child, and `PiiScrubber` was hardened with a common first-name gazetteer
+(`PiiScrubber::COMMON_FIRST_NAMES`) specifically to close the residual risk of a name entered into
+that free-text field. Full rationale, the scope of what the hardened scrubber does and does not
+catch, and the residual-risk acceptance are in `AI_DATA_FLOW_CLASSIFICATION.md` section 4.2 -- this
+was the conservative default in the original 2026-06-26 plan validation and stayed that way until
+this reclassification; it is not the plan's original position. AI word prediction and AI evaluation
+narration are both classified **Regulated PII** (highest sensitivity: the child's own expressive
+communication content, and clinical evaluation data, respectively) and require the second-tier
+consent under all circumstances contemplated by this phase.
 
 ## 4. Versioning policy
 
@@ -202,12 +211,21 @@ tracked and accepted without outside counsel involvement at this stage.
 
 1. **Can scrubbed, neutral AI board generation ever be treated as Non-personal (exempt from the
    second-tier gate), or must it always stay in the Scrubbed-personal (gated) bucket?**
-   **Resolved (provisional): stays gated, no exemption.** The conservative default in this document
-   and in `AI_DATA_FLOW_CLASSIFICATION.md` holds as Scot's own position -- not deferred pending
-   someone else's confirmation. A parent or SLP can still type identifying detail into a free-text
-   board topic (e.g. "board for Aiden's IEP meeting"), so the code does not structurally prevent
-   personal content from entering this feature; this is exactly why the conservative default is the
-   safe choice to stand on.
+   **Initially resolved (provisional, same session): stays gated, no exemption**, on the theory
+   that a parent or SLP could still type identifying detail into the free-text board topic (e.g.
+   "board for Aiden's IEP meeting") and the pre-2026-07-09 scrubber could not reliably catch an
+   arbitrary name.
+   **Superseded later the same day: reclassified Non-personal.** Scot's follow-up challenge was
+   direct -- COPPA's trigger is disclosure of personal information, not "AI is used," and typical
+   board-gen usage ("the zoo," "fox in sox") contains no personal information at all, so gating the
+   whole feature regardless of content was broader than the legal trigger requires. Rather than
+   reclassify on the existing scrubber's coverage, `PiiScrubber` was hardened first (a ~1,656-entry
+   common first-name gazetteer, `PiiScrubber::COMMON_FIRST_NAMES`, sourced from public-domain SSA
+   baby-name data, added to the AI-egress path), THEN board generation was reclassified
+   Non-personal. See `AI_DATA_FLOW_CLASSIFICATION.md` section 4.2 for the full rationale, what the
+   hardened scrubber does and does not catch (first names only; not last names, addresses, or
+   school names), and the residual-risk acceptance. This is the CURRENT, final position -- section 3
+   above reflects it.
 2. **Which verifiable-parental-consent method satisfies COPPA for this specific disclosure (AI
    data sharing to a third party)?** Email-plus / text-plus methods, which the existing
    `parental_consents_controller.rb` flow was modeled on, are explicitly excluded by the amended

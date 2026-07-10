@@ -46,7 +46,7 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|
-| AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), commercial API. Conditional fallback: Google Gemini 2.5 Flash via the Gemini Developer API OpenAI-compatible endpoint (`generativelanguage.googleapis.com`), used only when `ANTHROPIC_API_KEY` is absent and `GEMINI_API_KEY` is present (see section 4). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | Scrubbed-personal (conservative default). NOT assumed Non-personal even for a neutral-sounding topic, because the free-text prompt field is user-authored and can carry identifying detail (a parent typing "board for Aiden's IEP meeting" is a realistic input the code does not block). | Yes -- resolved 2026-07-09 (Scot's provisional attestation): stays gated, no exemption (see `AI_DATA_SHARING_CONSENT.md` section 7). | Names Anthropic (Haiku 4.5); states the topic text is scrubbed, not de-identified; flags that a parent/SLP can still type identifying detail into the topic field. |
+| AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), commercial API. Gemini fallback disabled 2026-07-09 (PR #570). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress -- as of 2026-07-09 this includes a common first-name gazetteer pass (`PiiScrubber::COMMON_FIRST_NAMES`, ~1,656 US SSA names), not just the account holder's own name. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | **Non-personal -- reclassified 2026-07-09 (Scot).** Was Scrubbed-personal (conservative default); see section 4.2 for the reclassification rationale and residual-risk acceptance. | **No -- reclassified 2026-07-09.** See section 4.2. | Board generation may be omitted from the second-tier AI-data-sharing disclosure entirely, or listed as a non-gated feature, depending on Phase 2/3 copy conventions -- Anthropic (Haiku 4.5) is still named in the general privacy policy as an AI sub-processor regardless of gating status. |
 | AI word / next-word prediction | `lib/ai_word_predictor.rb` | Same vendor/model/tier and same conditional fallback as above. | The communicator's in-progress sentence or utterance text, i.e. the words the AAC user is actively composing, scrubbed via `PiiScrubber.redact_for_ai` before egress. | No, same pattern as above (`user:` threaded for gating/audit only). | Regulated PII. This is the highest-sensitivity runtime AI feature: it is literally the child or patient's own expressive communication content, sent per keystroke-class interaction, not a one-off prompt. Even scrubbed, small-cohort or context-specific phrasing can be re-identifying. | Yes, highest priority. | Must explicitly say that word prediction sends the words/phrases the user is actively typing or selecting, not just a topic. |
 | Comprehensive / targeted / quick-screen AI evaluation narrative drafting | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Anthropic Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`), commercial API. No Gemini fallback in this path (Anthropic-only). | SETT framework fields, intake (age band, etiology, communication profile, suspected access channel), recommendation data (access method, grid size, symbol library, communicator stage, vocabulary band), SLP free-text notes, and dynamic-assessment scores. The free-text student name is structurally dropped from the egress payload before scrubbing (`payload_for_prompt`), and a blocklist seeded with the student's account name(s) plus the SETT free-text name is applied via `PiiScrubber.redact_for_ai`. | No (same client-name-dropped + blocklist pattern; the "name" defense here is stronger than the other two features). | Regulated PII, highest sensitivity. This is clinical evaluation / IEP-adjacent data. Small-cohort re-identification risk is real: a rare etiology or diagnosis combined with an age band and school context can be re-identifying even with the name removed. | Yes, highest priority, plus explicit small-cohort risk flag. | Must name it as clinical evaluation data; note it is opt-in per session (the SLP clicks "Generate AI Narrative," `use_anthropic == true`) and gated on COPPA + org AI opt-out for the STUDENT, not the requesting clinician. |
 | `AiApiLog` (internal audit storage) | `app/models/ai_api_log.rb` | Not a vendor; LingoLinq's own database. | Stores `request_summary` / `response_summary` derived from the payloads above, itself re-scrubbed a second time at write (`before_validation :scrub_summary_columns`), defense in depth against a vendor response echoing an identifier from the prompt. | Yes: `user_global_id` / `organization_global_id` columns, by design (audit trail requirement). | N/A (internal retention artifact, not an external send). | N/A | This is LingoLinq's OWN retention window, distinct from vendor-side retention. See section 5 and `docs/legal/DATA_RETENTION.md`. |
@@ -90,6 +90,59 @@ plan's `[V2]` validation note before being written:
 | Anthropic ZDR is not publicly documented as of the 2026-06-26 validation pass; do not claim or disclaim without confirmation | Superseded by a later, dated company-level confirmation (2026-07-06, verified against Anthropic's own Privacy Center documentation) that Claude Haiku 4.5 and Claude Opus 4.7 specifically are ZDR-eligible. The copy states this ZDR confirmation is scoped to these two models only, and does not extend it to any other Anthropic model. |
 | Never say "de-identified" unless the HIPAA Safe Harbor / Expert Determination standard is met (it is not) | The word never appears in the module, the view, or the privacy.hbs additions; asserted by the module spec. Copy uses "scrubbed" / "pseudonymized" and explicitly contrasts that with "the formal legal standard for removing all identifying information." |
 | Named vendors must match the actual runtime payload path, not a speculative list | Verified directly against `lib/ai_board_generator.rb` and `lib/ai_word_predictor.rb` (section 2-4 above) and cross-checked against the attested `AI_GOVERNANCE_MEMO.md` inventory. OpenAI is NOT named (the `openai` gem in this codebase is a transport client aimed at Gemini's OpenAI-compatible endpoint, not an actual call to OpenAI's API; there is no code path that sends data to OpenAI). |
+
+## 4.2 AI board generation reclassified to Non-personal (2026-07-09)
+
+**Original conservative default:** Scrubbed-personal, gated, on the theory that the free-text
+topic field is user-authored and could carry identifying detail even though typical usage does
+not (e.g. "make a board about the zoo" contains no information about the child at all).
+
+**Scot's challenge (2026-07-09):** COPPA's VPC trigger is the *disclosure of personal information*
+to a third party, not "AI is used" -- this document has said so since section 1. Typical board-gen
+usage (topic-only prompts) contains no personal information about the child, so gating the entire
+feature regardless of content is broader than the legal trigger actually requires.
+
+**Where the real risk sits:** not "most usage shares PII" (it doesn't) but that the pre-2026-07-09
+scrubber (`PiiScrubber.redact_for_ai`) could not reliably catch the rare case where a parent/SLP
+*does* type a name into the topic field -- it only recognized the account holder's own name (via
+`configure_blocklist`), not an arbitrary child's, sibling's, or classmate's name. COPPA enforcement
+does not care about the 95% case; it cares whether a specific disclosure of personal information
+happened.
+
+**Resolution:** hardened the scrubber first, then reclassified, rather than reclassifying on the
+existing scrubber's coverage:
+
+1. `PiiScrubber::COMMON_FIRST_NAMES` -- a ~1,656-entry gazetteer of common US first names (source:
+   Social Security Administration public-domain baby-name data, names given to at least 1,000
+   babies in a single year, 1880-present) is now scanned against every AI-egress payload
+   (`redact_for_ai` / `scan_for_pii`), in addition to the existing account-holder blocklist. This
+   catches a bare first name typed into free text -- e.g. "Bobby" in "create a board about Bobby
+   Smith who lives in Salt Lake City" -- that the blocklist alone would miss. See
+   `lib/pii_scrubber.rb` and `spec/lib/pii_scrubber_spec.rb`.
+2. With that hardening in place, AI board suggestion + focus refinement (section 3 table, row 1)
+   moves from Scrubbed-personal (gated) to **Non-personal (no second-tier AI-data-sharing consent
+   gate)**.
+
+**Explicit scope of the hardening (residual risk, stated plainly, not overclaimed):**
+- **First names only.** Last names, street addresses, city/school names, and other identifying
+  detail are NOT covered by this pass. In the "Bobby Smith, Salt Lake City" example, "Bobby" is
+  now redacted; "Smith" and "Salt Lake City" are not. A last name alone, or a common city name
+  alone, is a much weaker identifier than a full name, but this is not a claim that every possible
+  identifying detail is caught.
+- **Common-name coverage, not exhaustive.** The gazetteer covers first names common enough to
+  appear at least 1,000 times in a single US birth-year; an unusual or non-US name could still slip
+  through, same limitation the account-holder blocklist always had.
+- **Deliberately biased toward over-redaction.** A common English word that is also a name (e.g.
+  "Grace", "Hope", "Will") is redacted even when used as an ordinary word in a topic prompt. This
+  is the same tradeoff already accepted elsewhere in `pii_scrubber.rb` for the SSN pattern
+  (catching real PII outweighs occasionally over-matching a non-PII token).
+- **Word prediction and eval narration are unaffected and stay Regulated PII.** They are
+  fundamentally different data: word prediction sends the child's own in-progress communication
+  content (not a topic string), and eval narration is inherently clinical/IEP-adjacent data. This
+  reclassification applies ONLY to AI board generation.
+
+This is Scot's own provisional business-risk decision (same status as the rest of this document --
+see `AI_DATA_SHARING_CONSENT.md` section 9), not a counsel-reviewed legal opinion.
 
 ## 5. Two distinct retention concepts (do not conflate in copy)
 

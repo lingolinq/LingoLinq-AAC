@@ -57,37 +57,29 @@ module LingoLinq
           {
             'name' => 'Anthropic, PBC',
             'models' => [
-              'Claude Haiku 4.5 (claude-haiku-4-5-20251001) for board suggestions and word prediction',
+              'Claude Haiku 4.5 (claude-haiku-4-5-20251001) for word prediction',
               'Claude Opus 4.7 (claude-opus-4-7) for AI evaluation narration'
             ],
             'tier' => "Anthropic's commercial API (not the free consumer Claude.ai product)",
-            'features' => ['ai_board_generator', 'ai_word_predictor', 'eval_narrator'],
+            'features' => ['ai_word_predictor', 'eval_narrator'],
             'trains_on_data' => false,
             'training_note' => 'Zero-data-retention (ZDR) is confirmed for these two specific ' \
               "models on Anthropic's commercial API: Anthropic does not use this data to train " \
               'its models and does not retain it beyond what is needed to serve the immediate ' \
               'request. This confirmation is scoped to these two models only.',
             'status' => 'primary'
-          },
-          {
-            'name' => 'Google LLC (Gemini Developer API)',
-            'models' => ['Gemini 2.5 Flash'],
-            'tier' => 'The Gemini Developer API (the aistudio.google.com endpoint), used only ' \
-              'as a conditional automatic fallback',
-            'features' => ['ai_board_generator', 'ai_word_predictor'],
-            'trains_on_data' => nil,
-            'training_note' => 'This fallback activates automatically only if Anthropic is ' \
-              "unavailable. LingoLinq has not yet confirmed Google's data-handling terms for " \
-              'this specific backup path (tracked as an open item in ' \
-              'docs/legal/AI_GOVERNANCE_MEMO.md section 7). The same scrubbing filter described ' \
-              'below is applied before anything is sent through this path. This vendor is never ' \
-              'used for AI evaluation narration.',
-            'status' => 'conditional_fallback_unconfirmed'
           }
         ],
+        # AI board suggestion + focus refinement (lib/ai_board_generator.rb) is deliberately NOT
+        # listed here. Reclassified Non-personal 2026-07-09 (Scot) after hardening
+        # PiiScrubber::COMMON_FIRST_NAMES -- see docs/legal/AI_DATA_FLOW_CLASSIFICATION.md
+        # section 4.2 for the full rationale and residual-risk acceptance. It still uses
+        # Anthropic Claude Haiku 4.5 and is disclosed as such in the general privacy policy
+        # (privacy.hbs), just not gated by THIS second-tier consent. The Google Gemini
+        # Developer API fallback (formerly listed here for board generation and word
+        # prediction) was disabled entirely 2026-07-09 (PR #570) -- see section 2.2 of
+        # docs/legal/AI_DATA_SHARING_CONSENT.md.
         'data_categories' => [
-          'Text describing the board you want (for example, a topic or theme), when using ' \
-            'AI-assisted board creation',
           'The words and sentences a communicator is actively building, when AI word prediction ' \
             'suggests the next word',
           'Clinical evaluation notes and assessment data, only when a speech-language ' \
@@ -104,8 +96,7 @@ module LingoLinq
         'retention' => {
           'vendor_side' => 'For Anthropic (Claude Haiku 4.5 and Claude Opus 4.7), data sent for ' \
             'an AI request is not retained by Anthropic beyond what is needed to process that ' \
-            'request, under a zero-data-retention agreement. Vendor-side retention for the ' \
-            'Google Gemini fallback path is not yet confirmed.',
+            'request, under a zero-data-retention agreement.',
           'lingolinq_general' => {
             'window_months' => 24,
             'enforced' => false,
@@ -135,11 +126,11 @@ module LingoLinq
         },
         'revocation_summary' => 'A parent, or the account holder once old enough, can withdraw ' \
           'AI data-sharing consent at any time. Once withdrawn, LingoLinq stops sending any ' \
-          'further data from that account to Anthropic or any AI vendor for board suggestions, ' \
-          'word prediction, or evaluation narration. Withdrawing consent cannot retract or ' \
-          'delete anything already sent to a vendor before the withdrawal; it only stops future ' \
-          'sending. The rest of LingoLinq (boards, sync, messaging) keeps working normally ' \
-          'without AI features.'
+          'further data from that account to Anthropic for word prediction or evaluation ' \
+          'narration. Withdrawing consent cannot retract or delete anything already sent to a ' \
+          'vendor before the withdrawal; it only stops future sending. AI-assisted board ' \
+          'suggestions are not affected by this consent and keep working either way. The rest of ' \
+          'LingoLinq (boards, sync, messaging) keeps working normally without AI features.'
       }.freeze
     }.freeze
 

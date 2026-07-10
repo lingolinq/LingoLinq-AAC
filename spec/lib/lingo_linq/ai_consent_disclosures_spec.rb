@@ -34,12 +34,11 @@ describe LingoLinq::AiConsentDisclosures do
       expect(models).to include('Claude Opus 4.7')
     end
 
-    it 'flags the Google Gemini fallback as unconfirmed, not a primary vendor' do
+    it 'does not list Google Gemini as a vendor (fallback disabled 2026-07-09, PR #570)' do
       m = described_class.metadata(1)
       gemini = m['vendors'].find { |v| v['name'].include?('Google') }
-      expect(gemini).not_to be_nil
-      expect(gemini['status']).to eq('conditional_fallback_unconfirmed')
-      expect(gemini['trains_on_data']).to be_nil
+      expect(gemini).to be_nil
+      expect(m['vendors'].length).to eq(1)
     end
 
     it 'never uses the word "de-identified" anywhere in the metadata text' do
@@ -69,7 +68,10 @@ describe LingoLinq::AiConsentDisclosures do
     it 'includes data categories and a scrubbing note' do
       m = described_class.metadata(1)
       expect(m['data_categories']).to be_an(Array)
-      expect(m['data_categories'].length).to be >= 3
+      # Word prediction + eval narration only -- AI board generation was reclassified
+      # Non-personal 2026-07-09 (Scot) and is deliberately not gated by this consent.
+      # See docs/legal/AI_DATA_FLOW_CLASSIFICATION.md section 4.2.
+      expect(m['data_categories'].length).to be >= 2
       expect(m['scrubbing_note']).to be_a(String)
     end
 

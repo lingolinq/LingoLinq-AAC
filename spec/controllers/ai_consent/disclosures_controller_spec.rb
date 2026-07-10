@@ -11,7 +11,8 @@ describe AiConsent::DisclosuresController, :type => :controller do
       expect(body).to include('Anthropic')
       expect(body).to include('Claude Haiku 4.5')
       expect(body).to include('Claude Opus 4.7')
-      expect(body).to include('Google')
+      # Google Gemini fallback disabled 2026-07-09 (PR #570) -- no longer a live vendor
+      expect(body).not_to include('Google')
       expect(body).not_to match(/de-identified/i)
       expect(body).not_to match(/never trains/i)
       # Retention: EU / children / general split, not a single blanket number
