@@ -103,9 +103,9 @@ EVENT_DEST_JSON="$(jq -n --arg topicArn "$TOPIC_ARN" '{
   MatchingEventTypes: ["SEND","REJECT","BOUNCE","COMPLAINT","DELIVERY","DELIVERY_DELAY"],
   SnsDestination: {TopicArn: $topicArn}
 }')"
-if aws sesv2 get-configuration-set-event-destinations --configuration-set-name "$CONFIG_SET" \
-    --region "$REGION" --query "EventDestinations[?Name=='${EVENT_DEST_NAME}']" --output text \
-    | grep -q .; then
+EXISTING_DEST="$(aws sesv2 get-configuration-set-event-destinations --configuration-set-name "$CONFIG_SET" \
+    --region "$REGION" --query "EventDestinations[?Name=='${EVENT_DEST_NAME}'] | [0].Name" --output text)"
+if [ -n "$EXISTING_DEST" ] && [ "$EXISTING_DEST" != "None" ]; then
   echo "Event destination $EVENT_DEST_NAME already exists; updating it..."
   aws sesv2 update-configuration-set-event-destination \
     --configuration-set-name "$CONFIG_SET" --event-destination-name "$EVENT_DEST_NAME" \
