@@ -87,6 +87,24 @@ module AiWordPredictor
       end
 
       duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+      # EU AI Act Article 50(2) scope decision: word prediction is NOT content-marked.
+      # Unlike board generation (which mints an Art50Marker onto board.settings), this site
+      # produces a TRANSIENT menu of next-word suggestions (in-memory CACHE only, never
+      # persisted as an artifact). The AAC user then SELECTS a word into their own utterance,
+      # so the only durable output is the user's human-authored communication. Two independent
+      # reasons keep it unmarked, either sufficient:
+      #   1. Assistive-function carve-out: the Commission's Article 50 guidance exempts systems
+      #      that "perform only an assistive function for standard editing" / do not
+      #      substantially alter the input or its semantics. A hand-selected next-word
+      #      suggestion fits.
+      #   2. No markable artifact / false-marking risk: there is no persisted AI output to mark,
+      #      and marking the user's selected words would falsely label human speech (frequently a
+      #      COPPA-covered child's board) as AI-generated -- the OPPOSITE of what 50(2) polices
+      #      (it polices under-marking of AI output, not over-marking of human output).
+      # So ai_content_marked stays false here (accurate: no marker on the output). This
+      # word_prediction AiApiLog row is the audit record that an AI call occurred; request_type
+      # distinguishes it from the in-scope, content-marked sites. See
+      # docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md sec 9.
       log_ai_call(
         provider: provider,
         model: model,

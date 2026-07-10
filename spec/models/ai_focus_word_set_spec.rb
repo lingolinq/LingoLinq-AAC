@@ -76,4 +76,56 @@ describe AiFocusWordSet, type: :model do
       include_core_words: false
     )).to eq(set)
   end
+
+  describe "EU AI Act Article 50(2) marker" do
+    let(:marker) { Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001') }
+
+    def new_set(prompt)
+      AiFocusWordSet.create!(scrubbed_prompt: prompt, locale: 'en', include_core_words: true, words: ['go'])
+    end
+
+    it "persists an AI-generation marker through record_generation! and re-verifies it on read" do
+      set = new_set('marked lesson')
+      set.record_generation!(new_words: ['more'], marker: marker)
+
+      reloaded = AiFocusWordSet.find(set.id)
+      expect(Art50Marker.verify(reloaded.ai_generated_marker)).to eq(true)
+      expect(reloaded.ai_generated_marker['provider']).to eq('claude')
+    end
+
+    it "exposes a non-secret public view that withholds signature and content_id" do
+      set = new_set('public view lesson')
+      set.ai_generated_marker = marker
+      set.save!
+
+      view = set.reload.ai_generated_public_view
+      expect(view['marked']).to eq(true)
+      expect(view['provider']).to eq('claude')
+      expect(view).not_to have_key('signature')
+      expect(view).not_to have_key('content_id')
+    end
+
+    it "reads a forged marker as unmarked (nil), never as verified" do
+      set = new_set('forged lesson')
+      set[:ai_generated] = marker.merge('signature' => 'deadbeef').to_json
+      set.save!
+
+      expect(set.reload.ai_generated_marker).to be_nil
+      expect(set.ai_generated_public_view).to be_nil
+    end
+
+    it "does not wipe an existing marker on a marker-less re-record (cache-hit accretion)" do
+      set = new_set('sticky lesson')
+      set.record_generation!(new_words: ['more'], marker: marker)
+      set.record_generation!(new_words: ['stop'], marker: nil)
+
+      expect(Art50Marker.verify(set.reload.ai_generated_marker)).to eq(true)
+    end
+
+    it "leaves a set with no marker unmarked" do
+      set = new_set('plain lesson')
+      expect(set.ai_generated_marker).to be_nil
+      expect(set.ai_generated_public_view).to be_nil
+    end
+  end
 end

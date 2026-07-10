@@ -389,6 +389,57 @@ describe Api::IntegrationsController, :type => :controller do
       expect(focus_set.generated_count).to eq(1)
     end
 
+    it 'exposes the Article 50(2) marker public view when the generator marks the output' do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      expect(AiBoardGenerator).to receive(:generate_focus_words).and_return(
+        { words: %w[go stop more help read], title: 'Grinch Words', ai_generated: marker, error: nil }
+      )
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['ai_generated']['marked']).to eq(true)
+      expect(json['ai_generated']['provider']).to eq('claude')
+      # Non-secret provenance view: signature + content_id are withheld from the API.
+      expect(json['ai_generated']).not_to have_key('signature')
+      expect(json['ai_generated']).not_to have_key('content_id')
+      # Persisted on the set and verifies server-side.
+      focus_set = AiFocusWordSet.find_by_global_id(json['library_id'])
+      expect(Art50Marker.verify(focus_set.ai_generated_marker)).to eq(true)
+    end
+
+    it 'exposes the stored marker on a cache hit without re-generating' do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      focus_set = AiFocusWordSet.create!(
+        scrubbed_prompt: 'grinch lesson', locale: 'en', include_core_words: true,
+        title: 'Grinch Words', words: %w[go stop more help read]
+      )
+      focus_set.ai_generated_marker = marker
+      focus_set.save!
+      expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['cached']).to eq(true)
+      expect(json['ai_generated']['marked']).to eq(true)
+    end
+
+    it 'returns a nil marker for an unmarked (e.g. curated) library hit' do
+      token_user
+      AiFocusWordSet.create!(
+        scrubbed_prompt: 'grinch lesson', locale: 'en', include_core_words: true,
+        title: 'Grinch Words', words: %w[go stop more help read]
+      )
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['ai_generated']).to be_nil
+    end
+
     it 'should return generator errors using the endpoint error shape' do
       token_user
       expect(AiBoardGenerator).to receive(:generate_focus_words).and_return({ words: nil, error: 'AI service unavailable' })

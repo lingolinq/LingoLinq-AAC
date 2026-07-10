@@ -141,6 +141,30 @@ describe AiBoardGenerator do
       expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(type: 'focus_word_generation', success: true))
     end
 
+    it "marks the AI-generated focus list with a verifiable Article 50 marker and records it in the audit log" do
+      logged = nil
+      allow(AiApiLog).to receive(:log_ai_call) { |**kw| logged = kw }
+      complete = "WORDS: go, stop, more, help, read\nTITLE: Story Time"
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+
+      result = described_class.generate_focus_words(prompt: 'story time', word_count: 5)
+
+      expect(result[:ai_generated]).to be_a(Hash)
+      expect(Art50Marker.verify(result[:ai_generated])).to eq(true)
+      expect(result[:ai_generated]['provider']).to eq('claude')
+      expect(logged[:ai_content_marked]).to eq(true)
+      expect(logged[:ai_generated_content_id]).to eq(result[:ai_generated]['content_id'])
+    end
+
+    it "does not attach a marker to a focus-word shortfall (no AI content delivered)" do
+      short = "WORDS: go, stop\nTITLE: Too Few"
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(short), anthropic_response(short))
+
+      result = described_class.generate_focus_words(prompt: 'story time', word_count: 5)
+
+      expect(result[:ai_generated]).to eq(nil)
+    end
+
     it "clamps requested word count to fifty" do
       words = (1..50).map { |i| "word#{i}" }
       allow(described_class).to receive(:call_anthropic).and_return(anthropic_response("WORDS: #{words.join(', ')}\nTITLE: Big List"))

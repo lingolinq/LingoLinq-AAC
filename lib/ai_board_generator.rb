@@ -322,10 +322,19 @@ module AiBoardGenerator
             }
             log_params[:tokens_sent] = last_response.usage&.input_tokens
             log_params[:tokens_received] = last_response.usage&.output_tokens
+            # EU AI Act Article 50(2): a focus-word list is AI-generated synthetic text
+            # persisted in a durable artifact (AiFocusWordSet), so it IS in content-marking
+            # scope (unlike word prediction; see EU_AI_ACT_ARTICLE_50_PLAN.md sec 9). Mint the
+            # marker here (same provenance-bound Art50Marker as board generation), stamp the
+            # audit row, and return it so the controller can persist it on the set.
+            marker = Art50Marker.build(provider: provider.to_s, model: model)
+            log_params[:ai_content_marked] = true
+            log_params[:ai_generated_content_id] = marker['content_id']
             log_ai_call(**log_params)
             return {
               words: words.first(missing_count),
               title: last_payload[:title].presence,
+              ai_generated: marker,
               error: nil
             }
           end

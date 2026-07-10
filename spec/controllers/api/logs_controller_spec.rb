@@ -547,6 +547,63 @@ describe Api::LogsController, :type => :controller do
       expect(json['log']['tiered_eval']['event_count']).to eq(2)
     end
 
+    it "should persist a valid Article 50(2) eval-narration marker and expose only its public view" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-opus-4-7')
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {
+          :eval_mode => 'comprehensive',
+          :events => [],
+          :duration_s => 42,
+          :ai_narrative => 'AI-drafted narrative text',
+          :ai_generated => marker
+        },
+        :user_id => @user.global_id
+      }}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      log = LogSession.last
+      # Stored value is the re-verified, canonicalized marker (includes signature --
+      # needed so a later read can re-verify it), not whatever shape the client sent.
+      # ('marked' round-trips as the string "true" through the form-encoded test post,
+      # same true/'true' duality Art50Marker.verify already accepts -- see its m['marked']
+      # check -- so this asserts on content, not exact type, across that boundary.)
+      expect(Art50Marker.verify(log.data['ai_generated'])).to eq(true)
+      expect(log.data['ai_generated']['provider']).to eq('claude')
+      expect(log.data['ai_generated']['model']).to eq('claude-opus-4-7')
+      expect(log.data['ai_generated']['content_id']).to eq(marker['content_id'])
+      expect(log.data['ai_generated']['signature']).to eq(marker['signature'])
+      # The API response withholds signature + content_id -- only the public view.
+      expect(json['log']['tiered_eval']['ai_generated']).to eq(
+        'marked' => true, 'spec' => marker['spec'], 'provider' => 'claude',
+        'model' => 'claude-opus-4-7', 'generated_at' => marker['generated_at']
+      )
+      expect(json['log']['tiered_eval']['ai_generated']).not_to have_key('signature')
+      expect(json['log']['tiered_eval']['ai_generated']).not_to have_key('content_id')
+    end
+
+    it "should drop a forged or garbage ai_generated marker to nil rather than storing it as marked" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {
+          :eval_mode => 'comprehensive',
+          :events => [],
+          :duration_s => 42,
+          :ai_generated => {'marked' => true, 'spec' => 'eu-ai-act-art50-2', 'provider' => 'claude',
+                             'model' => 'claude-opus-4-7', 'generated_at' => Time.now.utc.iso8601,
+                             'content_id' => 'fake', 'sig_alg' => 'GoSecure.lite_hmac.v1', 'signature' => 'not-a-real-signature'}
+        },
+        :user_id => @user.global_id
+      }}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      log = LogSession.last
+      expect(log.data['ai_generated']).to be_nil
+      expect(json['log']['tiered_eval']['ai_generated']).to be_nil
+    end
+
     it "should not mutate a tiered eval report's historical started_at/ended_at on a later, unrelated save" do
       token_user
       post :create, params: {:log => {
