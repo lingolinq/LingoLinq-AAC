@@ -54,7 +54,6 @@ var obf = EmberObject.extend({
     board.set('extra_back',  hash['extra_back']);
     board.set('obf_type', hash['obf_type']);
     board.set('grid', hash['grid']);
-    
     board.set('id', id);
     board.set('name', hash['name'] || id);
     board.set('permissions', {view: true});

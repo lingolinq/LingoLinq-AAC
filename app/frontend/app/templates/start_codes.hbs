@@ -1,81 +1,122 @@
-<div style='max-width: 600px; margin: 20px auto 0;'>
+<div class="md-shell">
+<div class="md-start-code">
   {{#if this.result.loading}}
-    <h2>{{t "Loading..." key="loading"}} {{this.code}}</h2>
+    <section class="md-org-section md-start-code__card md-start-code__status">
+      <div class="md-card__loading">
+        <div class="md-spinner" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg>
+        </div>
+        <p class="md-card__loading-text">{{t "Loading start code..." key="loading_start_code"}}</p>
+      </div>
+    </section>
   {{else if this.result.error}}
-    <h2>{{t "Error Loading" key="error_loading"}} {{this.code}}</h2>
+    <section class="md-org-section md-start-code__card md-start-code__status">
+      <p class="md-muted">{{t "There was a problem loading this start code." key="start_code_load_error"}}</p>
+    </section>
   {{else}}
-    {{#if this.result.image_url}}
-      <img src={{this.result.image_url}} style='width: 50px; height: 50px; margin-right: 15px; margin-top: -10px;' class='fit_image' >
-    {{else}}
-      <span class='glyphicon glyphicon-paperclip' style='float: left; font-size: 50px; margin-right: 15px; margin-top: -10px;'></span>
-    {{/if}}
-    <h2>{{t "Start Code - " key="start_code_dash"}} {{this.result.code}}</h2>
-    <div style='clear: both;'></div>
-    <dl class='dl-horizontal'>
-      <dt>{{t "Name:" key="name_colon"}}</dt>
-        <dd>
-          {{#if this.result.organization}}
-            <LinkTo @route="organization" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
-          {{else if this.result.supervisor}}
-            <LinkTo @route="user" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
+    <section class="md-org-section md-start-code__card">
+      <header class="md-start-code__head">
+        <span class="md-start-code__badge">
+          {{#if this.result.image_url}}
+            <img src={{this.result.image_url}} alt="" class="md-start-code__badge-img">
           {{else}}
-            {{this.result.name}}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.5 12.5 6-6"/><path d="m14 6 3 3"/><path d="m17 3 3 3-2.5 2.5-3-3z"/></svg>
           {{/if}}
-          {{#if this.result.disabled}}
-            {{t "(disabled)" key="paren_disabled"}}
-          {{/if}}
-        </dd>
-      <dt>{{t "Type:" key="type_colon"}}</dt>
-        <dd>{{this.result.type}}</dd>
-      {{#if this.result.overrides.home_board_key}}
-        <dt>{{t "Home Board:" key="home_board_colon"}}</dt>
-          <dd>
-            <LinkTo @route="board" @model={{this.result.overrides.home_board_key}}>
-              {{this.result.overrides.home_board_key}}
-            </LinkTo>
-          </dd>
-      {{/if}}
-      {{#if this.result.overrides.locale}}
-        <dt>{{t "Language:" key="language_colon"}}</dt> 
-          <dd>{{this.result.overrides.locale}}</dd>
-      {{/if}}
-      {{#if this.result.overrides.symbol_library}}
-        <dt>{{t "Symbols:" key="symbols_colon"}}</dt> 
-          <dd>{{this.result.overrides.symbol_library}}</dd>
-      {{/if}}
-      {{#if this.result.overrides.premium}}
-        <dt>{{t "Sponsored" key="sponsored"}}</dt>
-          <dd>{{t "yes" key="yes"}}</dd>
-      {{/if}}
-      {{#if this.result.overrides.premium_symbols}}
-        <dt>{{t "Premium Symbols" key="premium_symbols"}}</dt>
-          <dd>{{t "yes" key="yes"}}</dd>
-      {{/if}}
-      {{#if this.result.overrides.supervisors}}
-        <dt>
-          {{t "Supervisors:" key="supervisors_colon"}}
-        </dt>
-          <dd>
-            {{#each this.result.overrides.supervisors as |sup|}}
-              <span style='padding-right: 10px;'>{{sup}}</span>
+        </span>
+        <div class="md-start-code__head-text">
+          <span class="md-start-code__eyebrow">{{t "Start Code" key="start_code"}}</span>
+          <h2 class="md-start-code__code">{{this.result.code}}</h2>
+        </div>
+        {{#if this.result.disabled}}
+          <span class="md-chip md-chip--soft md-start-code__chip">{{t "disabled" key="disabled_lower"}}</span>
+        {{/if}}
+      </header>
+
+      <div class="md-start-code__fields">
+        <div class="md-start-code__field md-start-code__field--wide">
+          <span class="md-start-code__label">{{t "Name" key="name"}}</span>
+          <span class="md-start-code__value">
+            {{#if this.result.organization}}
+              <LinkTo @route="organization" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
+            {{else if this.result.supervisor}}
+              <LinkTo @route="user" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
+            {{else}}
+              {{this.result.name}}
+            {{/if}}
+          </span>
+        </div>
+
+        <div class="md-start-code__field md-start-code__field--wide">
+          <span class="md-start-code__label">{{t "Type" key="type"}}</span>
+          <span class="md-start-code__value">{{this.result.type}}</span>
+        </div>
+
+        {{#if this.result.overrides.locale}}
+          <div class="md-start-code__field">
+            <span class="md-start-code__label">{{t "Language" key="language"}}</span>
+            <span class="md-start-code__value">{{this.result.overrides.locale}}</span>
+          </div>
+        {{/if}}
+
+        {{#if this.result.overrides.symbol_library}}
+          <div class="md-start-code__field">
+            <span class="md-start-code__label">{{t "Symbols" key="symbols"}}</span>
+            <span class="md-start-code__value">{{this.result.overrides.symbol_library}}</span>
+          </div>
+        {{/if}}
+
+        {{#if this.result.overrides.home_board_key}}
+          <div class="md-start-code__field md-start-code__field--wide">
+            <span class="md-start-code__label">{{t "Home Board" key="home_board"}}</span>
+            <span class="md-start-code__value"><LinkTo @route="board" @model={{this.result.overrides.home_board_key}}>{{this.result.overrides.home_board_key}}</LinkTo></span>
+          </div>
+        {{/if}}
+
+        {{#if this.result.overrides.premium}}
+          <div class="md-start-code__field">
+            <span class="md-start-code__label">{{t "Sponsored" key="sponsored"}}</span>
+            <span class="md-start-code__value"><span class="md-chip md-chip--soft">{{t "Yes" key="yes_cap"}}</span></span>
+          </div>
+        {{/if}}
+
+        {{#if this.result.overrides.premium_symbols}}
+          <div class="md-start-code__field">
+            <span class="md-start-code__label">{{t "Premium Symbols" key="premium_symbols"}}</span>
+            <span class="md-start-code__value"><span class="md-chip md-chip--soft">{{t "Yes" key="yes_cap"}}</span></span>
+          </div>
+        {{/if}}
+
+        {{#if this.result.overrides.supervisors}}
+          <div class="md-start-code__field md-start-code__field--wide">
+            <span class="md-start-code__label">{{t "Supervisors" key="supervisors"}}</span>
+            <span class="md-start-code__value md-start-code__chips">
+              {{#each this.result.overrides.supervisors as |sup|}}
+                <span class="md-chip md-chip--soft">{{sup}}</span>
+              {{/each}}
+            </span>
+          </div>
+        {{/if}}
+      </div>
+
+      <div class="md-start-code__section">
+        <div class="md-start-code__section-head">
+          <h3 class="md-start-code__section-title">{{t "Activated Users" key="activated_users"}}</h3>
+          {{#if this.result.users.length}}<span class="md-start-code__count">{{this.result.users.length}}</span>{{/if}}
+        </div>
+        {{#if this.result.users.length}}
+          <div class="md-start-code__users">
+            {{#each this.result.users as |user|}}
+              <LinkTo @route="user" @model={{user.id}} class="md-start-code__user">
+                <img src={{user.avatar_url}} class="md-start-code__user-avatar" alt="">
+                <span class="md-start-code__user-name">{{user.user_name}}</span>
+              </LinkTo>
             {{/each}}
-          </dd>
-      {{/if}}
-    </dl>
-    <h4>{{t "Activated Users" key="activated_users"}}</h4>
-    {{#if this.result.users.length}}
-      <ul class='list-group'>
-      {{#each this.result.users as |user|}}
-        <li class='list-group-item'>
-          <LinkTo @route="user" @model={{this.user.id}}>
-            <img src={{this.user.avatar_url}} style='height: 30px; width: 30px; margin-right: 10px;' class='fit_image' >
-            {{this.user.user_name}}
-          </LinkTo>
-        </li>
-      {{/each}}
-      </ul>
-    {{else}}
-      <p>{{t "None" key="none"}}</p>
-    {{/if}}
+          </div>
+        {{else}}
+          <p class="md-muted">{{t "No users have activated this code yet." key="no_activated_users"}}</p>
+        {{/if}}
+      </div>
+    </section>
   {{/if}}
+</div>
 </div>

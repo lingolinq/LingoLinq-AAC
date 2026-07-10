@@ -7,9 +7,15 @@ import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   advance_options: [
     {name: i18n.t('never', "Never"), id: "none"},

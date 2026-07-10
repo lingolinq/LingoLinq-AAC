@@ -834,9 +834,10 @@ var evaluation = {
         }
         list.forEach(function(i) { i.box_style_props = { width: (Math.floor(1000 / list.length) / 10) + "%" }});
         if(item_key == 'button_sizes') {
-          list = list.sortBy('size').reverse();
+          // Native sort (Ember 5 EXTEND_PROTOTYPES:false removed Array#sortBy).
+          list = list.slice().sort(function(a, b) { return (b.size || 0) - (a.size || 0); });
         } else if(item_key == 'field_sizes') {
-          list = list.sortBy('size');
+          list = list.slice().sort(function(a, b) { return (a.size || 0) - (b.size || 0); });
         } else if(item_key == 'symbol_libraries') {
           // list = list;
         }

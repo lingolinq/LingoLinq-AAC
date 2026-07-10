@@ -231,6 +231,12 @@ export default Component.extend({
     this.onClose = function() { self.send('close'); };
     this.onOpening = function() { self.send('opening'); };
     this.onClosing = function() { self.send('closing'); };
+    // modal.js drives the lifecycle via `controller.opening()`, but this
+    // component exposes `opening` only as an ACTION, so that call no-ops and
+    // `settings` never gets built (stays null from init) → confirm() throws
+    // "object in path 'settings' could not be found". `model` is set in init,
+    // so build settings here on insert.
+    self.send('opening');
 },
 
 });

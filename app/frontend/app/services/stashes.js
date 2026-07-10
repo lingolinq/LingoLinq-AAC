@@ -456,7 +456,7 @@ export default Service.extend({
     };
     obj.sentence = obj.vocalizations.map((v) => v.label).join(" ");
     if(!list.find((v) => v.sentence == obj.sentence)) {
-      list.pushObject(obj);
+      list.push(obj);
     }
     this.persist('remembered_vocalizations', list);
   },

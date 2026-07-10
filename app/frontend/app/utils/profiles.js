@@ -7,7 +7,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 import EmberObject from '@ember/object';
 import { observer } from '@ember/object';
-import { computed } from '@ember/object';
+import { computed, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/template';
 import i18n from './i18n';
@@ -433,7 +433,7 @@ var Profile = EmberObject.extend({
             data.categories.push(score_cat);
           }
         });
-        data.categories = data.categories.sortBy('manuals').reverse();
+        data.categories = data.categories.slice().sort(function(a, b) { var x = emberGet(a, 'manuals'), y = emberGet(b, 'manuals'); return x > y ? -1 : (x < y ? 1 : 0); });
         data.categories.forEach(function(cat) {
           var pct = Math.round(cat.manuals / (max_manuals || 1) * 100);
           cat.bar_style_props['width'] = pct + '%';

@@ -42,7 +42,7 @@ export default modal.ModalController.extend({
   add_tally(correct) {
     var timestamp = Date.now() / 1000;
     var tallies = this.get('tallies');
-    tallies.pushObject({
+    tallies.push({
       timestamp: timestamp,
       correct: correct
     });

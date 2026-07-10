@@ -8,8 +8,11 @@ import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
   update_classes: Subscription.update_classes_observer,
   load_gift: function(gift_id) {
     var _this = this;

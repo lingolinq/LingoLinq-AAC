@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import i18n from '../../utils/i18n';
 import Utils from '../../utils/misc';
 import persistence from '../../utils/persistence';
@@ -11,6 +12,9 @@ import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   first_log: computed('model.logs.data', function() {
     return (this.get('model.logs.data') || [])[0];
@@ -35,7 +39,7 @@ export default Controller.extend({
     });
     var counts = this.get('log_stats.word_count') || [];
     counts.forEach(function(w) {
-      res.get('words_by_frequency').pushObject({text: w.word, count: w.cnt});
+      res.get('words_by_frequency').push({text: w.word, count: w.cnt});
     });
     return res;
   }),
@@ -60,7 +64,7 @@ export default Controller.extend({
       }
     }
     counts.forEach(function(w) {
-      res.get('words_by_frequency').pushObject({text: w.word, count: w.cnt});
+      res.get('words_by_frequency').push({text: w.word, count: w.cnt});
     });
     return res;
   }),

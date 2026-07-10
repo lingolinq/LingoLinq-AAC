@@ -50,7 +50,7 @@ export default Controller.extend({
     return (this.get('logs.data') || [])[0];
   }),
   recent_users: computed('logs.data', function() {
-    return (this.get('logs.data') || []).map(function(e) { return e.user.id; }).uniq().length;
+    return [...new Set((this.get('logs.data') || []).map(function(e) { return e.user.id; }))].length;
   }),
   recent_sessions: computed('logs.data', function() {
     return (this.get('logs.data') || []).length;
