@@ -104,6 +104,7 @@ describe AdminMailer, :type => :mailer do
         'recording_byte_size' => 12345
       })
       mail = AdminMailer.beta_feedback_sent(m.global_id)
+      expect(mail.reply_to).to eq(['betatester@example.com'])
       html = message_body(mail, :html)
       text = mail.text_part.body.decoded
 
