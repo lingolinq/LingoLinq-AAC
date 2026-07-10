@@ -5,10 +5,14 @@ Email: <%= @message.settings['email'] %>
 Short summary: <%= @message.settings['subject'] %>
 <% if @message.settings['feedback_type'].present? %>Feedback type: <%= @message.settings['feedback_type'] %>
 <% end %><% if @message.settings['severity'].present? %>Severity: <%= @message.settings['severity'] %>
+<% end %><% if @message.settings['reaction'].present? %>Reaction: <%= @message.settings['reaction'] %>
 <% end %><% if @message.settings['device_context'].present? %>Device / context: <%= @message.settings['device_context'] %>
-<% end %>
+<% end %>Virtual meeting requested: <%= ActiveModel::Type::Boolean.new.cast(@message.settings['request_virtual_meeting']) ? 'Yes' : 'No' %>
 
-<% if @message.settings['steps_to_reproduce'].present? %>Steps to reproduce:
+<% if @message.settings['workflow_context'].present? %>What they were trying to do:
+<%= @message.settings['workflow_context'] %>
+
+<% end %><% if @message.settings['steps_to_reproduce'].present? %>Steps to reproduce:
 <%= @message.settings['steps_to_reproduce'] %>
 
 <% end %><% if @message.settings['expected_result'].present? %>Expected result:
@@ -28,5 +32,11 @@ Short summary: <%= @message.settings['subject'] %>
 <% if @message.settings['user_id'] %>user id: <%= @message.settings['user_id'] %>
 <% end %><% if @message.settings['screenshot_filename'].present? %>Screenshot attached: <%= @message.settings['screenshot_filename'] %>
 <% end %>
+<% recording = @message.beta_feedback_recording %>
+<% if recording || @message.settings['recording_id'].present? || @message.settings['recording_saved_locally'] %>
+Screen recording: <% if recording || @message.settings['recording_id'].present? %>uploaded<% if @message.settings['recording_byte_size'].present? %> (<%= @message.settings['recording_byte_size'] %> bytes)<% end %><% else %>saved locally by submitter<% end %> — view in admin inbox (video not attached to email).
+<% end %>
+View in beta feedback admin: <%= JsonApi::Json.current_host %>/beta-feedback/admin/entry/<%= @message.global_id %>
+
 Thanks!
 <%= email_signature %>

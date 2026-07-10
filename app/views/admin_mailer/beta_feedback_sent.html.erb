@@ -4,8 +4,11 @@ Email: <%= @message.settings['email'] %><br/>
 Short summary: <%= @message.settings['subject'] %><br/>
 <% if @message.settings['feedback_type'].present? %>Feedback type: <%= @message.settings['feedback_type'] %><br/><% end %>
 <% if @message.settings['severity'].present? %>Severity: <%= @message.settings['severity'] %><br/><% end %>
+<% if @message.settings['reaction'].present? %>Reaction: <%= h(@message.settings['reaction']) %><br/><% end %>
 <% if @message.settings['device_context'].present? %>Device / context: <%= @message.settings['device_context'] %><br/><% end %>
+Virtual meeting requested: <%= ActiveModel::Type::Boolean.new.cast(@message.settings['request_virtual_meeting']) ? 'Yes' : 'No' %><br/>
 <br/>
+<% if @message.settings['workflow_context'].present? %><b>What they were trying to do</b><br/><%= h(@message.settings['workflow_context']).gsub(/\r?\n/, '<br/>').html_safe %><br/><% end %>
 <% if @message.settings['steps_to_reproduce'].present? %><b>Steps to reproduce</b><br/><%= h(@message.settings['steps_to_reproduce']).gsub(/\r?\n/, '<br/>').html_safe %><br/><% end %>
 <% if @message.settings['expected_result'].present? %><b>Expected result</b><br/><%= h(@message.settings['expected_result']).gsub(/\r?\n/, '<br/>').html_safe %><br/><% end %>
 <% if @message.settings['actual_result'].present? %><b>Actual result</b><br/><%= h(@message.settings['actual_result']).gsub(/\r?\n/, '<br/>').html_safe %><br/><% end %>
@@ -19,6 +22,11 @@ Short summary: <%= @message.settings['subject'] %><br/>
 <% if @message.settings['user_id'] %>user id: <%= @message.settings['user_id'] %><br/><% end %>
 </span>
 <% if @message.settings['screenshot_filename'].present? %><br/>Screenshot attached: <%= @message.settings['screenshot_filename'] %><% end %>
+<% recording = @message.beta_feedback_recording %>
+<% if recording || @message.settings['recording_id'].present? || @message.settings['recording_saved_locally'] %>
+<br/>Screen recording: <% if recording || @message.settings['recording_id'].present? %>uploaded<% if @message.settings['recording_byte_size'].present? %> (<%= @message.settings['recording_byte_size'] %> bytes)<% end %><% else %>saved locally by submitter<% end %> — view in admin inbox (video not attached to email).
+<% end %>
 <br/><br/>
+<a href="<%= JsonApi::Json.current_host %>/beta-feedback/admin/entry/<%= @message.global_id %>">View in beta feedback admin</a><br/><br/>
 Thanks!<br/>
 <%= email_signature %>
