@@ -2837,6 +2837,43 @@ class User < ApplicationRecord
     User.find_by_global_id(user_id)
   end
 
+  # Purpose-scoped, expiring credential for lesson/board SHARE links (LL-90045bb29c option (b)).
+  # Replaces the permanent user_token that was embedded in navigable /lessons/... URLs, where it
+  # leaked into browser history, access logs, and Referer headers as a non-revocable bearer
+  # credential. Same expiring-HMAC design as protected_image_token above, with its own verifier
+  # purpose string. The MINT is gated by a kill-switch (FeatureFlags.expiring_lesson_share_tokens_enabled?)
+  # so ops can revert construction to the legacy permanent token in one switch; the finder accepts
+  # both formats regardless, so flipping the switch either way never breaks an already-issued link.
+  LESSON_SHARE_TOKEN_LIFESPAN = 30.days
+
+  def lesson_share_token(lifespan=LESSON_SHARE_TOKEN_LIFESPAN)
+    return user_token unless FeatureFlags.expiring_lesson_share_tokens_enabled?(self)
+    expires_at = (Time.now + lifespan).to_i
+    sig = GoSecure.sha512("#{self.global_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+    "#{self.global_id}-#{expires_at}-#{sig}"
+  end
+
+  # Accepts the expiring lesson_share_token format (3 hyphen-separated parts) or falls back to the
+  # legacy permanent user_token format (2 parts), so lesson/board share URLs created before this
+  # format existed keep resolving. The legacy branch is logged (not silently accepted) so the
+  # residual permanent-token exposure can be measured before it is sunset (tracked under
+  # LL-90045bb29c option (c) / LL-310b464be4).
+  def self.find_by_lesson_share_token(token)
+    return nil unless token
+    parts = token.to_s.split(/-/)
+    unless parts.length == 3
+      user = find_by_token(token)
+      Rails.logger.info("[lesson_share_legacy_token] accepted permanent-format token for #{user.global_id}") if user
+      return user
+    end
+    user_id, expires_at, sig = parts
+    return nil unless expires_at.match?(/\A\d+\z/)
+    verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(sig, verifier)
+    return nil if expires_at.to_i < Time.now.to_i
+    User.find_by_global_id(user_id)
+  end
+
   def notify_on(attributes, notification_type)
     # TODO: ...
   end

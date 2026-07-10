@@ -3548,6 +3548,111 @@ describe User, :type => :model do
     end
   end
 
+  describe "lesson_share_token" do
+    it 'should return a signed token that expires after the default lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + User::LESSON_SHARE_TOKEN_LIFESPAN).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+      expect(u.lesson_share_token).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+
+    it 'should respect a custom lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + 7.days).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+      expect(u.lesson_share_token(7.days)).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+
+    it 'should use its own verifier purpose, distinct from protected_image_token' do
+      u = User.create
+      expect(u.lesson_share_token.split('-')[-1]).to_not eq(u.protected_image_token.split('-')[-1])
+    end
+
+    it 'should mint the legacy permanent user_token when the kill-switch is off (LL-90045bb29c option (b))' do
+      u = User.create
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXPIRING_LESSON_SHARE_TOKENS').and_return('off')
+      expect(u.lesson_share_token).to eq(u.user_token)
+    end
+  end
+
+  describe "find_by_lesson_share_token" do
+    it 'should find the correct user for a valid, unexpired token' do
+      u = User.create
+      expect(User.find_by_lesson_share_token(u.lesson_share_token)).to eq(u)
+    end
+
+    it 'should fall back to the legacy permanent user_token format' do
+      u = User.create
+      expect(User.find_by_lesson_share_token(u.user_token)).to eq(u)
+    end
+
+    it 'should accept both formats regardless of the mint kill-switch' do
+      u = User.create
+      expiring = u.lesson_share_token
+      # even with construction reverted to legacy, the finder still resolves an already-issued expiring token
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXPIRING_LESSON_SHARE_TOKENS').and_return('off')
+      expect(User.find_by_lesson_share_token(expiring)).to eq(u)
+      expect(User.find_by_lesson_share_token(u.user_token)).to eq(u)
+    end
+
+    it 'should log when the legacy permanent-token fallback is used' do
+      u = User.create
+      expect(Rails.logger).to receive(:info).with(/\[lesson_share_legacy_token\] accepted permanent-format token for #{Regexp.escape(u.global_id)}/)
+      User.find_by_lesson_share_token(u.user_token)
+    end
+
+    it 'should not log for the newer expiring token format' do
+      u = User.create
+      expect(Rails.logger).to_not receive(:info).with(/lesson_share_legacy_token/)
+      User.find_by_lesson_share_token(u.lesson_share_token)
+    end
+
+    it 'should return nil for an expired token' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.lesson_share_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      expect(User.find_by_lesson_share_token(token)).to eq(nil)
+    end
+
+    it 'should return nil for a tampered signature' do
+      u = User.create
+      parts = u.lesson_share_token.split('-')
+      parts[-1] = 'a' * 30
+      expect(User.find_by_lesson_share_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should use a constant-time comparison on the signature (LL-90045bb29c)' do
+      u = User.create
+      expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
+      expect(User.find_by_lesson_share_token(u.lesson_share_token)).to eq(u)
+    end
+
+    it 'should return nil for a tampered expiry' do
+      u = User.create
+      parts = u.lesson_share_token.split('-')
+      parts[-2] = (parts[-2].to_i + 100).to_s
+      expect(User.find_by_lesson_share_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil when the expiry segment is not numeric' do
+      u = User.create
+      expect(User.find_by_lesson_share_token("#{u.global_id}-notanumber-#{'a' * 30}")).to eq(nil)
+    end
+
+    it 'should return nil for garbage or missing input' do
+      expect(User.find_by_lesson_share_token('asdf')).to eq(nil)
+      expect(User.find_by_lesson_share_token(nil)).to eq(nil)
+    end
+  end
+
   describe "versions" do
     it "should track versions correctly" do
       PaperTrail.request.whodunnit = 'user:bob'
