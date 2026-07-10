@@ -31,9 +31,18 @@ EVENT_DEST_NAME="lingolinq-ses-sns"
 
 echo "== Region: $REGION =="
 
+# --- 0. Preflight: confirm creds resolve to an identity before touching any AWS resource. Also
+# gives us ACCOUNT_ID up front for the SNS topic policy in step 3. ---
+CALLER_IDENTITY_JSON="$(aws sts get-caller-identity --region "$REGION" --output json)"
+ACCOUNT_ID="$(echo "$CALLER_IDENTITY_JSON" | jq -r '.Account')"
+CALLER_ARN="$(echo "$CALLER_IDENTITY_JSON" | jq -r '.Arn')"
+echo "== Caller: $CALLER_ARN (account $ACCOUNT_ID) =="
+
 # --- 1. SQS queue (diagnostic sink; queryable, unlike an email subscription) ---
+# No stderr redirect here: a real auth/permission failure on this call must be visible, not
+# silently swallowed into the "queue doesn't exist, create it" branch below.
 QUEUE_URL="$(aws sqs get-queue-url --queue-name "$QUEUE_NAME" --region "$REGION" \
-  --query QueueUrl --output text 2>/dev/null || true)"
+  --query QueueUrl --output text || true)"
 if [ -z "$QUEUE_URL" ] || [ "$QUEUE_URL" = "None" ]; then
   echo "Creating SQS queue $QUEUE_NAME..."
   QUEUE_URL="$(aws sqs create-queue --queue-name "$QUEUE_NAME" --region "$REGION" \
@@ -58,7 +67,43 @@ else
 fi
 echo "Topic ARN: $TOPIC_ARN"
 
-# --- 3. Queue policy: allow this specific SNS topic to publish to this queue ---
+# --- 3. Topic policy: allow the SES service principal to publish into this topic. ---
+# This is the actual blocker behind LL-42a24ee911's missing events: SNS denies same-account
+# service-to-service Publish calls by default (the AWS "confused deputy" protection -- a service
+# principal like ses.amazonaws.com has no implicit access to a resource just because it's in the
+# same account; it needs an explicit resource-based policy statement, same as S3->SNS or
+# CloudWatch->SNS notification wiring). Without this statement, SES's Publish call to the topic
+# is silently denied and no event destination traffic ever arrives, no matter how correctly the
+# configuration set (step 6/7) is wired up.
+SES_SOURCE_ARN="arn:aws:ses:${REGION}:${ACCOUNT_ID}:configuration-set/${CONFIG_SET}"
+EXISTING_TOPIC_POLICY="$(aws sns get-topic-attributes --topic-arn "$TOPIC_ARN" --region "$REGION" \
+  --query 'Attributes.Policy' --output text)"
+if echo "$EXISTING_TOPIC_POLICY" | jq -e '.Statement[]? | select(.Sid == "AllowSESPublish")' \
+    >/dev/null 2>&1; then
+  echo "SNS topic policy already grants SES publish access."
+else
+  echo "Granting ses.amazonaws.com sns:Publish on $TOPIC_NAME (scoped to account $ACCOUNT_ID / $SES_SOURCE_ARN)..."
+  SES_STATEMENT="$(jq -n --arg topicArn "$TOPIC_ARN" --arg accountId "$ACCOUNT_ID" \
+      --arg sourceArn "$SES_SOURCE_ARN" '{
+    Sid: "AllowSESPublish",
+    Effect: "Allow",
+    Principal: {Service: "ses.amazonaws.com"},
+    Action: "SNS:Publish",
+    Resource: $topicArn,
+    Condition: {
+      StringEquals: {
+        "AWS:SourceAccount": $accountId,
+        "AWS:SourceArn": $sourceArn
+      }
+    }
+  }')"
+  UPDATED_TOPIC_POLICY="$(echo "$EXISTING_TOPIC_POLICY" | jq --argjson stmt "$SES_STATEMENT" \
+      '.Statement += [$stmt]')"
+  aws sns set-topic-attributes --topic-arn "$TOPIC_ARN" --attribute-name Policy \
+    --attribute-value "$UPDATED_TOPIC_POLICY" --region "$REGION"
+fi
+
+# --- 4. Queue policy: allow this specific SNS topic to publish to this queue ---
 POLICY_JSON="$(jq -n --arg queueArn "$QUEUE_ARN" --arg topicArn "$TOPIC_ARN" '{
   Version: "2012-10-17",
   Statement: [{
@@ -75,7 +120,7 @@ echo "Setting queue policy (allow $TOPIC_NAME to publish)..."
 aws sqs set-queue-attributes --queue-url "$QUEUE_URL" --region "$REGION" \
   --attributes "$ATTRS_JSON"
 
-# --- 4. Subscribe the queue to the topic (idempotent: AWS de-dupes identical subscriptions) ---
+# --- 5. Subscribe the queue to the topic (idempotent: AWS de-dupes identical subscriptions) ---
 EXISTING_SUB="$(aws sns list-subscriptions-by-topic --topic-arn "$TOPIC_ARN" --region "$REGION" \
   --query "Subscriptions[?Endpoint=='${QUEUE_ARN}'].SubscriptionArn | [0]" --output text)"
 if [ -z "$EXISTING_SUB" ] || [ "$EXISTING_SUB" = "None" ]; then
@@ -86,7 +131,7 @@ else
   echo "Subscription already exists: $EXISTING_SUB"
 fi
 
-# --- 5. SES configuration set ---
+# --- 6. SES configuration set ---
 if aws sesv2 get-configuration-set --configuration-set-name "$CONFIG_SET" --region "$REGION" \
     >/dev/null 2>&1; then
   echo "Configuration set $CONFIG_SET already exists."
@@ -95,7 +140,7 @@ else
   aws sesv2 create-configuration-set --configuration-set-name "$CONFIG_SET" --region "$REGION"
 fi
 
-# --- 6. Event destination: SEND/REJECT/BOUNCE/COMPLAINT/DELIVERY/DELIVERY_DELAY to the SNS topic ---
+# --- 7. Event destination: SEND/REJECT/BOUNCE/COMPLAINT/DELIVERY/DELIVERY_DELAY to the SNS topic ---
 # (OPEN/CLICK/SUBSCRIPTION omitted: irrelevant to the non-delivery diagnostic and OPEN/CLICK need
 # tracking-options wiring this script does not set up.)
 EVENT_DEST_JSON="$(jq -n --arg topicArn "$TOPIC_ARN" '{

@@ -40,4 +40,35 @@ describe SesConfigurationSetInterceptor do
     expect(ActionMailer::Base.deliveries.last.header['X-SES-CONFIGURATION-SET'].value)
       .to eq('lingolinq-transactional')
   end
+
+  it 'still delivers via deliver_now when SES_CONFIGURATION_SET is unset (no-op path is not fatal)' do
+    # The interceptor is registered unconditionally; this proves the unset/no-op branch does not
+    # itself break the ActionMailer delivery path (e.g. by raising on a nil header assignment).
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with('SES_CONFIGURATION_SET').and_return(nil)
+    ActionMailer::Base.mail(to: 'a@example.com', from: 'b@example.com', subject: 'hi', body: 'hi').deliver_now
+    expect(ActionMailer::Base.deliveries.last.header['X-SES-CONFIGURATION-SET']).to eq(nil)
+  end
+
+  it 'regression guard: only adds the configuration-set header, never touches to/from/subject/body' do
+    # Guards against a future edit to delivering_email accidentally mutating message content
+    # instead of just the diagnostic header -- the interceptor's whole job is to be invisible to
+    # the mail's actual payload. Stubs the header-setting path (not the no-op) since that's the
+    # branch that actually touches the message object.
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with('SES_CONFIGURATION_SET').and_return('lingolinq-transactional')
+    before = {
+      to: message.to,
+      from: message.from,
+      subject: message.subject,
+      body: message.body.to_s
+    }
+
+    SesConfigurationSetInterceptor.delivering_email(message)
+
+    expect(message.to).to eq(before[:to])
+    expect(message.from).to eq(before[:from])
+    expect(message.subject).to eq(before[:subject])
+    expect(message.body.to_s).to eq(before[:body])
+  end
 end
