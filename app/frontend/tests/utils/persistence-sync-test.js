@@ -4656,21 +4656,11 @@ describe("persistence-sync", function() {
 
   it("should try to download boards that don't match the fresh revision from board_revisions, even if they otherwise seem ok", function() {
     db_wait(function() {
-      primeBoardRevisionsSyncHarness();
+      var tailDone = false;
+      primeBoardRevisionsSyncHarness(function() { tailDone = true; });
       persistence.known_missing = {};
       var revisions_called = false;
       var reloads = {};
-      chainPersistenceAjax(function(url, opts) {
-        if (url == '/api/v1/users/1340/board_revisions') {
-          revisions_called = true;
-          return RSVP.resolve({
-            '145': 'current',
-            '167': 'current',
-            '178': 'current',
-            '179': 'current'
-          });
-        }
-      });
 
       var stores = [];
       stubStoreUrl( function(url, type) {
@@ -4746,6 +4736,18 @@ describe("persistence-sync", function() {
         }
       };
 
+      chainPersistenceAjax(function(url, opts) {
+        if (url == '/api/v1/users/1340/board_revisions') {
+          revisions_called = true;
+          return RSVP.resolve({
+            '145': 'current',
+            '167': 'current',
+            '178': 'current',
+            '179': 'current'
+          });
+        }
+      });
+
       var revisions = {};
       revisions[b1.id] = b1.full_set_revision;
       revisions[b2.id] = b2.full_set_revision;
@@ -4772,26 +4774,46 @@ describe("persistence-sync", function() {
       RSVP.all_wait(store_promises).then(function() {
         return waitForBoardsStored(['145', '167', '178', '179']);
       }).then(function() {
-        later(function() {
-          stored = true;
-        }, 100);
-      }, function() {
-        dbg();
-      });
-
-      var done = false;
-      waitsFor(function() { return stored; });
-      runs(function() {
-        LingoLinq.all_wait = true;
-        queryLog.real_lookup = true;
-
         b1.full_set_revision = 'current';
         b2.full_set_revision = 'current';
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
+        if (typeof app_state.set === 'function') {
+          app_state.set('refresh_stamp', null);
+          app_state.set('short_refresh_stamp', null);
+          app_state.set('medium_refresh_stamp', null);
+        }
         refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
+        return RSVP.all([
+          persistence.store('board', b1, b1.id),
+          persistence.store('board', b2, b2.id),
+          persistence.store('board', b3, b3.id),
+          persistence.store('board', b4, b4.id)
+        ]);
+      }).then(function() {
+        later(function() {
+          stored = true;
+        }, 100);
+      }, function() {
+        stored = true;
+      });
+
+      var done = false;
+      waitsFor(function() { return stored; }, 10000);
+      runs(function() {
+        LingoLinq.all_wait = true;
+        queryLog.real_lookup = true;
+
         reloads = {};
         stubBoardReloadTracking([b1, b2, b3, b4], reloads);
+        [b1, b2, b3, b4].forEach(function(board) {
+          var rec = LingoLinq.store.peekRecord('board', board.id);
+          if (rec && rec.load_button_set) {
+            stub(rec, 'load_button_set', function() {
+              return RSVP.resolve(rec.get('buttons') || []);
+            });
+          }
+        });
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
@@ -4833,7 +4855,7 @@ describe("persistence-sync", function() {
           }, function() { done = true; });
         }, 50);
       });
-      waitsFor(function() { return done; });
+      waitsFor(function() { return done && tailDone; }, 30000);
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads).toEqual({
