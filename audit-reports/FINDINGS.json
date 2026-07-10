@@ -3223,7 +3223,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "remediation-in-progress",
+      "status": "open",
       "evidence": {
         "type": "runtime",
         "source": "Two live Aws::SES::Client#send_email diagnostics against the same lingolinq-prod SES account/region (us-west-2), 2026-07-03/04. First: a direct-API send to a personal scotwahlquist@gmail.com address (PR #516/#521 0a rehearsal follow-up) returned a real SES MessageId but the recipient confirmed it never arrived in Inbox or Spam. Second (this finding): a retest send to the Workspace-internal beta@lingolinq.com alias (subject \"GCP rehearsal SES diag retest (beta@ alias, direct-api)\", MessageId 0101019f2a7d6e11-c08396d5-591f-4c0b-95b3-5a83a49e6d57-000000) landed in scot@lingolinq.com's Inbox (not Spam) within seconds of sending.",
