@@ -35,6 +35,34 @@ class ApplicationController < ActionController::Base
     true
   end
 
+  # EU launch (GDPR Art. 8): per-request jurisdiction-aware parental-consent age,
+  # delivered to the anonymous registration UI via domain_settings. Returns {}
+  # unless the eu_consent_age feature is enabled, so with the flag OFF the
+  # injected domain_settings are byte-identical to today. Callers MUST merge this
+  # into a fresh copy of the settings hash (never mutate @domain_overrides, which
+  # is the cached per-host blob from JsonApi::Json.load_domain).
+  def coppa_consent_age_injection
+    return {} unless FeatureFlags.eu_consent_age_enabled?
+    { 'coppa_consent_age' => JsonApi::Json.coppa_consent_age(jurisdiction_signal_for_request) }
+  end
+  helper_method :coppa_consent_age_injection
+
+  # Best jurisdiction signal available for THIS request, using only signals that
+  # already exist (no IP geolocation). This is best-effort BROWSER-LOCALE
+  # detection: an explicit ?locale= param, then the Accept-Language header.
+  #
+  # Deliberately does NOT read a country/region/locale off @domain_overrides:
+  # host_settings carries no such key today (see Organization#process_params
+  # allowlist), so those reads would be dead and misrepresent the signal source.
+  # A region-less locale (bare 'pl') resolves to unknown and preserves the
+  # default age-13 gate. Wiring an AUTHORITATIVE org-configured EU-host country
+  # is a tracked follow-up and is required before eu_consent_age is relied on as
+  # a GDPR Art. 8 control (browser locale under-fires for EU users who send a
+  # bare language subtag).
+  def jurisdiction_signal_for_request
+    params[:locale].presence || request.headers['Accept-Language'].presence
+  end
+
   def log_api_call
     time = @time ? (Time.now - @time) : nil
     ApiCall.log(@token, @api_user, request, response, time)

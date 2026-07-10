@@ -75,8 +75,8 @@ class Api::LessonsController < ApplicationController
     lesson = Lesson.find_by_path(lesson_id)
     return unless exists?(lesson, lesson_id)
     return unless lesson.nonce == lesson_code || allowed?(lesson, 'view')
-    user = User.find_by_token(user_token)
-    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user, extra_user: user})
+    user = User.find_by_lesson_share_token(user_token)
+    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user, extra_user: user, extra_user_token: user_token})
   end
 
   def update
@@ -96,12 +96,12 @@ class Api::LessonsController < ApplicationController
     if lesson.settings['nonce'] != lesson_code
       return allowed?(lesson, 'never_allow')
     end
-    user = User.find_by_token(user_token)
+    user = User.find_by_lesson_share_token(user_token)
     return unless exists?(user, user_token)
 
     Lesson.complete(lesson, user, params['rating'].to_i, nil, params['duration'].to_i)
 
-    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, extra_user: user, permissions: user})
+    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, extra_user: user, permissions: user, extra_user_token: user_token})
   end
 
   def assign

@@ -433,4 +433,65 @@ describe Api::IntegrationsController, :type => :controller do
       expect(focus_set.applied_count).to eq(1)
     end
   end
+
+  describe "domain_settings coppa_consent_age injection" do
+    it "does not inject coppa_consent_age when the flag is OFF (identical to today)" do
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']).not_to have_key('coppa_consent_age')
+    end
+
+    it "injects 16 for an EU (Poland) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']['coppa_consent_age']).to eq(16)
+    end
+
+    it "injects 13 for a non-EU (US) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'en-US,en;q=0.9'
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']['coppa_consent_age']).to eq(13)
+    end
+
+    it "does not mutate the cached per-host domain blob" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'pl-PL'
+      get 'domain_settings'
+      expect(JsonApi::Json.current_domain['settings']).not_to have_key('coppa_consent_age')
+    end
+  end
+
+  # The layout (app/views/layouts/application.html.erb) injects window.domain_settings
+  # via exactly these helpers; test them directly so the primary (server-render)
+  # delivery path is covered, not only the JSON endpoint.
+  describe "#coppa_consent_age_injection (layout data source)" do
+    before(:each) { controller.instance_variable_set(:@domain_overrides, { 'settings' => {} }) }
+
+    it "is empty when the flag is OFF (layout injection is a no-op)" do
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      expect(controller.send(:coppa_consent_age_injection)).to eq({})
+    end
+
+    it "returns 16 for an EU (Poland) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      expect(controller.send(:coppa_consent_age_injection)).to eq({ 'coppa_consent_age' => 16 })
+    end
+
+    it "returns 13 for a non-EU (US) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'en-US,en;q=0.9'
+      expect(controller.send(:coppa_consent_age_injection)).to eq({ 'coppa_consent_age' => 13 })
+    end
+
+    it "uses the Accept-Language header as the jurisdiction signal (no org/domain signal wired)" do
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      expect(controller.send(:jurisdiction_signal_for_request)).to eq('pl-PL,pl;q=0.9')
+    end
+  end
 end

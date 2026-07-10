@@ -139,13 +139,13 @@ export default Controller.extend({
       }
     },
     launch_lesson: function() {
-      if(this.get('model.lesson') && app_state.get('currentUser.user_token')) {
+      if(this.get('model.lesson') && app_state.get('currentUser.lesson_share_token')) {
         var lesson = this.get('model.lesson');
         var prefix = location.protocol + "//" + location.host;
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
-        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + app_state.get('currentUser.user_token'), '_blank');
+        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + app_state.get('currentUser.lesson_share_token'), '_blank');
       }
 
     },

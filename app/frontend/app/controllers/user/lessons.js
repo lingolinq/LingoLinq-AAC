@@ -65,12 +65,12 @@ export default Controller.extend({
 
   actions: {
     launch: function(lesson) {
-      if(lesson && this.get('model.user_token')) {
+      if(lesson && this.get('model.lesson_share_token')) {
         var prefix = location.protocol + "//" + location.host;
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
-        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.get('model.user_token'), '_blank');
+        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.get('model.lesson_share_token'), '_blank');
       }
 
     }

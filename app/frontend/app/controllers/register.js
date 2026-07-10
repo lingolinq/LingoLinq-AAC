@@ -152,6 +152,19 @@ export default Controller.extend({
     return !!(ds && ds.coppa_parental_consent);
   }),
   coppa_age_group: null,
+  // EU launch (GDPR Art. 8): the age below which registration requires
+  // verifiable parental consent. Gated by the eu_consent_age feature flag; with
+  // the flag OFF this is always 13 and the age gate is identical to today. When
+  // ON, the EU value (16) is computed server-side (LingoLinq::Jurisdiction) and
+  // delivered through domain_settings, so the single source of EU truth stays
+  // on the backend and this stays a dumb number consumer.
+  coppaConsentAge: computed('appState.feature_flags.eu_consent_age', 'appState.domain_settings.coppa_consent_age', function() {
+    var fallback = 13;
+    if(!this.get('appState.feature_flags.eu_consent_age')) { return fallback; }
+    var age = parseInt(this.get('appState.domain_settings.coppa_consent_age'), 10);
+    if(!age || age < 13 || age > 18) { return fallback; }
+    return age;
+  }),
   parent_consent_email: '',
   coppaParentEmailMissing: computed('triedToSave', 'coppa_age_group', 'parent_consent_email', function() {
     if(this.get('coppa_age_group') !== 'under_13') { return false; }
@@ -293,10 +306,15 @@ export default Controller.extend({
     var year = parseInt(this.get('birth_year'), 10);
     if(!month || !year) { return null; }
     var today = new Date();
-    var cutoffYear = today.getFullYear() - 13;
+    // Jurisdiction-aware consent age (13 by default, 16 for EU when the
+    // eu_consent_age flag is on). The returned labels 'under_13'/'over_13' are
+    // semantic ("under/over the applicable threshold"), not literally 13, and
+    // are consumed unchanged by the rest of the flow and the backend
+    // coppa_under_13 gate.
+    var cutoffYear = today.getFullYear() - this.get('coppaConsentAge');
     var cutoffMonth = today.getMonth() + 1;
-    // With month/year only, treat the cutoff month as under 13 until the
-    // exact birthday is known. This keeps Google off the ambiguous edge.
+    // With month/year only, treat the cutoff month as under the threshold until
+    // the exact birthday is known. This keeps Google off the ambiguous edge.
     if(year > cutoffYear || (year === cutoffYear && month >= cutoffMonth)) {
       return 'under_13';
     }

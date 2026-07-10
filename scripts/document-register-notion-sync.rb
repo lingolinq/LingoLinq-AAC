@@ -68,6 +68,17 @@ def rich(text)
   t.empty? ? [] : [{ 'text' => { 'content' => t[0, 1900] } }]
 end
 
+# Like rich, but when the value is an http(s) URL (e.g. a Drive or Notion
+# canonicalLocation) it attaches a Notion link annotation so the cell is
+# clickable in the board. Non-URL values (git repo paths) stay plain text.
+def rich_link(text)
+  t = text.to_s
+  return [] if t.empty?
+  return rich(t) unless t.start_with?('http://', 'https://')
+
+  [{ 'text' => { 'content' => t[0, 1900], 'link' => { 'url' => t } } }]
+end
+
 def cap(s)
   s = s.to_s
   s.empty? ? s : s[0].upcase + s[1..].to_s
@@ -96,7 +107,7 @@ def properties_for(doc)
     'Type'               => { 'select' => { 'name' => doc['type'].to_s } },
     'System'             => { 'select' => { 'name' => cap(doc['canonicalSystem']) } },
     'Owner'              => { 'rich_text' => rich(doc['owner']) },
-    'Canonical location' => { 'rich_text' => rich(doc['canonicalLocation']) },
+    'Canonical location' => { 'rich_text' => rich_link(doc['canonicalLocation']) },
     'Status'             => { 'select' => { 'name' => doc['status'].to_s } },
     'Frameworks'         => { 'multi_select' => (doc['frameworks'] || []).map { |x| { 'name' => x } } },
     'Bundles'            => { 'multi_select' => (doc['bundles'] || []).map { |x| { 'name' => x } } },

@@ -29,7 +29,13 @@ module FeatureFlags
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
-              'sentence_bar_editing']
+              'sentence_bar_editing',
+              # EU launch (GDPR Art. 8): make the registration parental-consent
+              # age gate jurisdiction-aware (EU under-16 vs default under-13).
+              # AVAILABLE-only => OFF for everyone by default; with it OFF the
+              # registration flow is identical to today. Add to
+              # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
+              'eu_consent_age']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -109,6 +115,17 @@ module FeatureFlags
     !!flags[feature]
   end
 
+  # Kill-switch for LL-90045bb29c option (b): whether User#lesson_share_token MINTS the new
+  # expiring token (default) or reverts to the legacy permanent user_token. Accept points
+  # (User.find_by_lesson_share_token) always accept BOTH formats, so this only controls what
+  # NEW lesson/board share URLs embed, never what resolves. Default is ON (the hardening);
+  # set EXPIRING_LESSON_SHARE_TOKENS=off (or 0/false/no) in the environment to revert
+  # construction to the legacy token in one switch, no code deploy.
+  def self.expiring_lesson_share_tokens_enabled?(_user = nil)
+    return false if ENV['EXPIRING_LESSON_SHARE_TOKENS'].to_s =~ /^(0|false|no|off)$/i
+    true
+  end
+
   # Server-side gate for copying default vocab boards into new user libraries.
   def self.signup_default_library_boards_enabled?(_user = nil)
     return true if ENV['SIGNUP_DEFAULT_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
@@ -142,6 +159,22 @@ module FeatureFlags
     return false unless AI_FEATURES.include?(feature)
     return false unless ai_enabled_for?(user)
     feature_enabled_for?(feature, user)
+  end
+
+  # EU launch (GDPR Art. 8): whether the jurisdiction-aware registration
+  # consent-age gate is globally active. Mirrors how anonymous registration
+  # reads flags (window.enabled_frontend_features = ENABLED_FRONTEND_FEATURES),
+  # since there is no user yet at signup. OFF by default (AVAILABLE-only) so the
+  # registration flow stays identical to today until deliberately enabled.
+  #
+  # DEPENDENCY: EU-16 only actually GATES when the host also has
+  # coppa_parental_consent enabled (JsonApi::Json.coppa_parental_consent_enabled?).
+  # With this flag ON but that OFF, the register UI collects a parent email but
+  # the backend does not gate -- a cosmetic prompt. Enable BOTH together on an
+  # EU host. (And note the age gate itself trusts a client boolean; server-side
+  # enforcement is a separate hardening item, see the PR/plan.)
+  def self.eu_consent_age_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
   end
 
   # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.
