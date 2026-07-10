@@ -4050,6 +4050,8 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 **Evidence:** `speak-menu.hbs`, `button-settings.hbs`, `raw_events.js`; task logs `2026-06-23-board-detail-edit-toolbar-clicks.md`, `2026-06-26-speak-menu-modal-close-fix.md`.
 
+**Classic component methods on `{{on}}`:** `{{on "click" this.foo}}` passes `foo` unbound — at runtime `this` is the DOM element, so `this.toggleProperty` / `this.get` throw. During Ember 5 `{{action}}` → `{{on}}` migrations, use `actions: { foo }` + `(this.ctrlAction "foo")` (see `password-field.js`); do not assign per-handler closures on the instance in `init()`.
+
 ---
 
 ## Pattern: board-detail edit-mode panel chrome never routed (speak-only gap)
@@ -6398,6 +6400,11 @@ what makes incremental-persistence resume score correctly).
 **Confirm at runtime:** `Object.keys(window.current_assesment.events||{})` on the
 results page — `"undefined"`/`"intro"` keys (or `{}`) = mis-keyed; real section ids
 (`find_target`, …) = correct.
+
+## Pattern: Beta feedback email was already built — wire `ContactMessage#deliver_message`, don't reinvent
+
+Beta feedback submissions save as `ContactMessage` with `recipient: 'beta_feedback'`. The mailer (`AdminMailer#beta_feedback_sent`), templates, screenshot attachment, and `BETA_FEEDBACK_EMAIL` override already existed; delivery was intentionally skipped in `ContactMessage#deliver_message`. Enabling email is a one-line `AdminMailer.schedule_delivery(:beta_feedback_sent, global_id)` — same Resque priority queue + SES path as Contact Us. Screen recordings stay out of the email (too large); note presence and link to `/beta-feedback/admin/entry/:id` instead. Specs had explicit "do not email" assertions that must be flipped when enabling.
+
 ## Gotcha: `sync_changed` tmp-ID remap must clone `buttons` before `set` — in-place mutation on `attr('raw')` does not dirty
 
 After offline sync uploads tmp boards/images/sounds, `sync_changed` runs a second pass

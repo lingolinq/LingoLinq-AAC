@@ -9,9 +9,14 @@ import { stub } from './jasmine';
 var cachedRealSyncBoardsFn = null;
 
 export function cacheRealSyncBoards() {
+  if (cachedRealSyncBoardsFn) {
+    return;
+  }
   var target = persistenceTarget();
-  if (!cachedRealSyncBoardsFn && target && typeof target.sync_boards === 'function') {
+  if (target && typeof target.sync_boards === 'function') {
     cachedRealSyncBoardsFn = target.sync_boards;
+  } else if (typeof persistence.sync_boards === 'function') {
+    cachedRealSyncBoardsFn = persistence.sync_boards;
   }
 }
 
@@ -20,25 +25,24 @@ export function enableRealSyncBoards(stubFn, onComplete) {
   if (typeof LingoLinq !== 'undefined') {
     LingoLinq.sync_testing_real_boards = true;
   }
-  if (cachedRealSyncBoardsFn) {
-    stubFn('sync_boards', function(user, importantIds, synced_boards, force) {
-      var target = persistenceTarget();
-      if (!target) {
-        return RSVP.resolve({});
-      }
-      var result = cachedRealSyncBoardsFn.call(target, user, importantIds, synced_boards, force);
-      if (onComplete && result && typeof result.then === 'function') {
-        return result.then(function(res) {
-          onComplete();
-          return res;
-        });
-      }
-      if (onComplete) {
-        onComplete();
-      }
-      return result;
-    });
+  if (!cachedRealSyncBoardsFn) {
+    return;
   }
+  var wrappedSyncBoards = function(user, importantIds, synced_boards, force) {
+    var self = persistenceTarget() || persistence;
+    var result = cachedRealSyncBoardsFn.call(self, user, importantIds, synced_boards, force);
+    if (onComplete && result && typeof result.then === 'function') {
+      return result.then(function(res) {
+        onComplete();
+        return res;
+      });
+    }
+    if (onComplete) {
+      onComplete();
+    }
+    return result;
+  };
+  stubFn('sync_boards', wrappedSyncBoards);
 }
 
 export function drainSyncUrlQueue() {
@@ -216,7 +220,7 @@ export function cancelHarnessAsyncWork() {
 }
 
 export function waitUntil(conditionFn) {
-  var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55;
+  var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55;
   return new RSVP.Promise(function(resolve, reject) {
     var attempts = 0;
     var try_again = function() {

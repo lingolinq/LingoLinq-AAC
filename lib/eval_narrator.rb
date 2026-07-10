@@ -1,5 +1,8 @@
 require 'json'
 require_relative 'pii_scrubber'
+# Art50Marker is require_relative'd (not autoloaded) so it is defined even on the
+# Resque-worker path where lib/ autoload is skipped, matching lib/ai_board_generator.rb.
+require_relative 'art50_marker'
 
 module EvalNarrator
   # Drafts an SLP-readable narrative for a Comprehensive Eval. Takes
@@ -22,6 +25,13 @@ module EvalNarrator
 
   class NarrationError < StandardError; end
 
+  # Returns a Hash `{ 'narrative' => String, 'ai_generated' => Hash|nil }`. The
+  # `ai_generated` key is the EU AI Act Article 50(2) machine-readable marker
+  # (see Art50Marker) minted ONLY when the narrative came from the external
+  # model -- the deterministic template draft is not AI-generated output and
+  # is never marked, matching the word-prediction scope decision (Sec 9.1 of
+  # docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md) that marking must never be
+  # applied to content the system did not actually generate.
   def self.draft_narrative(eval_session, user: nil)
     payload = eval_session.is_a?(Hash) ? eval_session : eval_session.to_h
     raise NarrationError, 'eval_session must be a Hash' unless payload.is_a?(Hash)
@@ -34,7 +44,8 @@ module EvalNarrator
     # COPPA/org gate, not a replacement for it.
     if anthropic_configured? && payload['use_anthropic'] == true && ai_allowed_for?(user)
       begin
-        return draft_via_anthropic(payload, user)
+        narrative, marker = draft_via_anthropic(payload, user)
+        return { 'narrative' => narrative, 'ai_generated' => marker }
       rescue => e
         # Soft-fall back to the template draft if the Anthropic SDK
         # call fails so the SLP always gets something to start from.
@@ -42,7 +53,7 @@ module EvalNarrator
       end
     end
 
-    draft_via_template(payload)
+    { 'narrative' => draft_via_template(payload), 'ai_generated' => nil }
   end
 
   # Compliance hard-gate shared with every other AI call site
@@ -110,6 +121,7 @@ module EvalNarrator
 
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     narrative = nil
+    marker = nil
     success = false
     error_message = nil
     tokens_sent = nil
@@ -123,6 +135,12 @@ module EvalNarrator
         tokens_received = response.usage.respond_to?(:output_tokens) ? response.usage.output_tokens : nil
       end
       success = narrative.present?
+      # EU AI Act Article 50(2): mint the marker only for a successful, non-blank
+      # narrative. Minting is unconditional on jurisdiction/feature-flag state (only
+      # the 50(1) disclosure is gated) but conditional on there actually being AI
+      # output to mark -- a blank/failed draft raises NarrationError below and never
+      # reaches the caller, so no marker should be attributed to it either.
+      marker = Art50Marker.build(provider: 'claude', model: model) if success
     rescue => e
       error_message = "#{e.class}: #{e.message}"
       raise
@@ -139,7 +157,9 @@ module EvalNarrator
         pii_detected: pii_detected,
         pii_findings: pii_findings,
         success: success,
-        error_message: error_message
+        error_message: error_message,
+        ai_content_marked: !!marker,
+        ai_generated_content_id: marker && marker['content_id']
       )
       # Clear the thread-local blocklist so a later PiiScrubber caller on
       # this Puma worker thread does not inherit this student's name list.
@@ -147,7 +167,7 @@ module EvalNarrator
     end
 
     raise NarrationError, 'Anthropic returned an empty narrative' if narrative.blank?
-    narrative
+    [narrative, marker]
   end
 
   # Official anthropic gem (~> 1.23) call. Isolated so specs can stub the
@@ -208,7 +228,8 @@ module EvalNarrator
   # into the caller -- a logging failure must not break narration.
   def self.log_ai_call(model:, user:, request_summary:, response_summary:,
                        tokens_sent: nil, tokens_received: nil, duration_ms: nil,
-                       pii_detected: false, pii_findings: [], success: true, error_message: nil)
+                       pii_detected: false, pii_findings: [], success: true, error_message: nil,
+                       ai_content_marked: false, ai_generated_content_id: nil)
     return unless defined?(AiApiLog)
     AiApiLog.log_ai_call(
       provider: 'claude',
@@ -224,7 +245,9 @@ module EvalNarrator
       pii_findings: pii_findings,
       success: success,
       error_message: error_message,
-      feature_flag: 'comprehensive_eval_ai'
+      feature_flag: 'comprehensive_eval_ai',
+      ai_content_marked: ai_content_marked,
+      ai_generated_content_id: ai_generated_content_id
     )
   rescue StandardError => e
     Rails.logger.warn "EvalNarrator: failed to log AI API call: #{e.message}" if defined?(Rails)

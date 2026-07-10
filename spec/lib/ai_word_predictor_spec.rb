@@ -57,6 +57,18 @@ describe AiWordPredictor do
       ))
     end
 
+    it "does not content-mark word-prediction output (Article 50(2) assistive-function carve-out)" do
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('play, go, eat, help'))
+
+      result = described_class.predict(sentence: 'I want to')
+
+      # Word prediction produces transient, human-selected suggestions -- not a persisted AI
+      # artifact -- so it is out of Article 50(2) content-marking scope. The return is a bare
+      # word array (no ai_generated marker), and the audit row never claims content-marking.
+      expect(result).to eq(%w[play go eat help])
+      expect(AiApiLog).not_to have_received(:log_ai_call).with(hash_including(ai_content_marked: true))
+    end
+
     it "preserves non-English letters in predicted words" do
       allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('sí, también, después, más'))
 

@@ -115,6 +115,17 @@ module FeatureFlags
     !!flags[feature]
   end
 
+  # Kill-switch for LL-90045bb29c option (b): whether User#lesson_share_token MINTS the new
+  # expiring token (default) or reverts to the legacy permanent user_token. Accept points
+  # (User.find_by_lesson_share_token) always accept BOTH formats, so this only controls what
+  # NEW lesson/board share URLs embed, never what resolves. Default is ON (the hardening);
+  # set EXPIRING_LESSON_SHARE_TOKENS=off (or 0/false/no) in the environment to revert
+  # construction to the legacy token in one switch, no code deploy.
+  def self.expiring_lesson_share_tokens_enabled?(_user = nil)
+    return false if ENV['EXPIRING_LESSON_SHARE_TOKENS'].to_s =~ /^(0|false|no|off)$/i
+    true
+  end
+
   # Server-side gate for copying default vocab boards into new user libraries.
   def self.signup_default_library_boards_enabled?(_user = nil)
     return true if ENV['SIGNUP_DEFAULT_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i

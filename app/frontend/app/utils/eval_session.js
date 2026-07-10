@@ -198,7 +198,14 @@ const EvalSession = EmberObject.extend({
         duration_s: this.durationSeconds(),
         slp_notes: this.get('slpNotes') || '',
         sett: this.get('sett') || null,
-        ai_narrative: this.get('aiNarrative') || null
+        ai_narrative: this.get('aiNarrative') || null,
+        // EU AI Act Article 50(2): the raw signed marker the /narrate endpoint returned
+        // for the AI-drafted narrative (null for the deterministic template, or when AI
+        // narration was never run). Carried through opaquely -- the server re-verifies it
+        // on save (LogSession#process_params via Art50Marker.normalized) and again on every
+        // read (json_api/log.rb via Art50Marker.public_view), so this client value is never
+        // trusted as-is.
+        ai_generated: this.get('aiGenerated') || null
       }
     };
   },

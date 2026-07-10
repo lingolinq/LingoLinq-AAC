@@ -466,14 +466,39 @@ describe('speecher', function() {
     });
 
     it("should run through the full list of speaks", function() {
-      var audio = fakeAudio();
-      speecher.sounds = {};
-      stub(speecher, 'assert_audio', function() {
-        return { audio: audio, speak_id: 1 };
-      });
       LingoLinq.sync_testing = true;
-      stub(window, 'Audio', function() {
-        return fakeAudio();
+      speecher.speaks = [];
+      speecher.speaking = false;
+      speecher.speaking_from_collection = false;
+      speecher.sounds = {};
+
+      var audioListeners = {};
+      var audio_elem = document.createElement('div');
+      audio_elem.loop = false;
+      audio_elem.currentTime = 0;
+      audio_elem.duration = 10;
+      audio_elem.addEventListener = function(event, callback) {
+        audioListeners[event] = audioListeners[event] || [];
+        audioListeners[event].push(callback);
+      };
+      audio_elem.removeEventListener = function(event, callback) {
+        audioListeners[event] = (audioListeners[event] || []).filter(function(f) { return f !== callback; });
+      };
+      audio_elem.dispatchEvent = function(ev) {
+        (audioListeners[ev.type] || []).forEach(function(cb) { cb(ev); });
+      };
+      audio_elem.pause = function() { audio_elem.pauseCalled = true; };
+      audio_elem.play = function() {
+        audio_elem.playCalled = true;
+        return RSVP.resolve();
+      };
+      audio_elem.cloneNode = function() {
+        return audio_elem;
+      };
+      audio_elem.load = function() { };
+
+      stub(speecher, 'assert_audio', function() {
+        return { audio: audio_elem, speak_id: 1 };
       });
 
       var words = [];
@@ -485,11 +510,12 @@ describe('speecher', function() {
         u.trigger('end');
       });
       speecher.speak_collection([{text: "halo"}, {sound: "http://sounds.com/cookie.mp3"}, {text: "snow"}]);
-      waitsFor(function() { return audio.playCalled; });
+      waitsFor(function() { return audio_elem.playCalled; });
       runs(function() {
         expect(words[0]).toEqual('halo');
-        expect(speecher.audio.text).toEqual(audio);
-        expect(audio.playCalled).toEqual(true);
+        expect(speecher.audio.text).toEqual(audio_elem);
+        expect(audio_elem.playCalled).toEqual(true);
+        audio_elem.dispatchEvent({ type: 'ended' });
       });
       waitsFor(function() { return words.length == 2; });
       runs(function() {

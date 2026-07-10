@@ -50,23 +50,26 @@ describe Api::MessagesController, :type => :controller do
       expect(json['received']).to eq(true)
     end
 
-    it "should persist beta feedback without scheduling email" do
+    it "should persist beta feedback and schedule email delivery" do
       orig = ENV['ALLOW_UNAUTHENTICATED_TICKETS']
-      ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = 'true'
-      expect(AdminMailer).not_to receive(:schedule_delivery).with(:beta_feedback_sent, anything)
-      post :create, params: {:message => {
-        'recipient' => 'beta_feedback',
-        'email' => 'beta@example.com',
-        'subject' => 'Something broke in Speak mode',
-        'feedback_type' => 'speak_mode',
-        'severity' => 'major',
-        'general_feedback' => 'Enough detail for the beta form to validate.',
-        'beta_feedback_hp' => ''
-      }}
-      ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = orig
-      expect(response.successful?).to eq(true)
-      json = JSON.parse(response.body)
-      expect(json['received']).to eq(true)
+      begin
+        ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = 'true'
+        expect(AdminMailer).to receive(:schedule_delivery).with(:beta_feedback_sent, /\d+_\d+/).and_return(true)
+        post :create, params: {:message => {
+          'recipient' => 'beta_feedback',
+          'email' => 'beta@example.com',
+          'subject' => 'Something broke in Speak mode',
+          'feedback_type' => 'speak_mode',
+          'severity' => 'major',
+          'general_feedback' => 'Enough detail for the beta form to validate.',
+          'beta_feedback_hp' => ''
+        }}
+        expect(response.successful?).to eq(true)
+        json = JSON.parse(response.body)
+        expect(json['received']).to eq(true)
+      ensure
+        ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = orig
+      end
     end
 
     it "should not persist beta feedback when honeypot is filled" do
