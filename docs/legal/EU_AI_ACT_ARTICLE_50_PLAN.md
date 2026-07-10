@@ -212,8 +212,8 @@ phrasing in Sec 4.
 | Site | Output shape | 50(2) treatment |
 |---|---|---|
 | Board generation (`AiBoardGenerator.generate_words`) | Persisted synthetic board content (`board.settings`) | CONTENT-MARKED (shipped, PRs #505/#507) |
-| Focus words (`AiBoardGenerator.generate_focus_words` -> `AiFocusWordSet`) | Persisted synthetic word list (shared cache) | CONTENT-MARKED (planned slice) |
-| Eval narration (`EvalNarrator.draft_via_anthropic`) | Persisted synthetic prose (`log.data['ai_narrative']`, AI path only) | CONTENT-MARKED, AI path only (planned slice) |
+| Focus words (`AiBoardGenerator.generate_focus_words` -> `AiFocusWordSet`) | Persisted synthetic word list (shared cache) | CONTENT-MARKED (shipped, this branch, 2026-07-09) |
+| Eval narration (`EvalNarrator.draft_via_anthropic`) | Persisted synthetic prose (`log.data['ai_narrative']`, AI path only) | CONTENT-MARKED, AI path only (shipped, this branch, 2026-07-10) |
 | Word prediction (`AiWordPredictor.predict`) | Transient suggestion menu (in-memory cache), human-selected into the user's own utterance | NOT content-marked; out of 50(2) content-marking scope (this record) |
 
 ### 9.1 Word prediction: out of Article 50(2) content-marking scope (decided, not deferred)
@@ -249,10 +249,20 @@ phrasing in Sec 4.
   (per artificialintelligenceact.eu/transparency-rules-article-50 and Bird & Bird / Covington
   analyses), assistive-function and substantial-alteration carve-outs. Verified 2026-07-09.
 
-### 9.2 Focus words and eval narration remain IN scope (planned slices)
+### 9.2 Focus words and eval narration: in scope, both shipped
 
-Both produce persisted synthetic text and are content-marked with `Art50Marker` in the
-follow-on slices (focus words: a marker on the `AiFocusWordSet`; eval narration: a marker
-returned from the Anthropic path only, never the deterministic local template draft, and stored
-alongside `log.data['ai_narrative']`). Tracked in the task log for
-`scot/compliance/art50-marking-callsites`.
+Both produce persisted synthetic text and are content-marked with `Art50Marker`. Focus words
+(2026-07-09): a marker on the `AiFocusWordSet`, re-minted on each AI accretion, exposed as a
+non-secret public view via `focus_words_response`. Eval narration (2026-07-10): a marker returned
+from the Anthropic path only, never the deterministic local template draft; the frontend carries
+it opaquely from the `/narrate` response into the persisted `LogSession`, which re-verifies it
+(`Art50Marker.normalized`) before storing and again on every read (`json_api/log.rb`), so a
+forged or tampered client value can never read back as marked. Details and verification in the
+task log for `scot/compliance/art50-marking-callsites`
+(`docs/task-management/2026-07-09-art50-marking-remaining-callsites.md`).
+
+With this, all three per-site scope decisions in the table above are closed: word prediction
+(9.1, decided out of scope), focus words and eval narration (this section, shipped). The
+remaining Art. 50 milestone work is Art50-P4 (frontend disclosure modal + persistent badge,
+gated on the VPC Phase 3 modal) and Art50-P5 (feature flag / retention / monitoring / audit
+close) -- see Section 4.

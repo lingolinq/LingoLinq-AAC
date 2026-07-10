@@ -1,3 +1,7 @@
+# Art50Marker is require_relative'd (not autoloaded) so it is defined even on the
+# Resque-worker path where lib/ autoload is skipped, matching app/models/board.rb.
+require_relative '../../lib/art50_marker'
+
 class LogSession < ApplicationRecord
   include Async
   include Processable
@@ -1823,6 +1827,15 @@ class LogSession < ApplicationRecord
         self.data['slp_notes']         = eval_data['slp_notes']
         self.data['sett']              = eval_data['sett']
         self.data['ai_narrative']      = eval_data['ai_narrative']
+        # EU AI Act Article 50(2): store only a RE-VERIFIED marker (Art50Marker.normalized
+        # returns nil for anything that doesn't pass HMAC verification), never the
+        # client-submitted blob as-is. A client cannot forge a valid marker (no server
+        # secret), but this still guards against a malformed/stale/garbage value silently
+        # riding along as if it meant "AI-generated" -- same defense-in-depth as
+        # AiFocusWordSet#ai_generated_marker=. The read-side serializer (json_api/log.rb)
+        # re-verifies again on every read regardless, so this is belt-and-suspenders, not
+        # the only check.
+        self.data['ai_generated']      = Art50Marker.normalized(eval_data['ai_generated'])
         # started_at/ended_at are derived authoritatively from duration_s in the
         # data['eval_mode'] branch of generate_defaults (before_save), not here --
         # see that branch's comment for why.
