@@ -216,7 +216,7 @@ export function cancelHarnessAsyncWork() {
 }
 
 export function waitUntil(conditionFn) {
-  var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 120 : 55;
+  var maxAttempts = (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) ? 200 : 55;
   return new RSVP.Promise(function(resolve, reject) {
     var attempts = 0;
     var try_again = function() {

@@ -61,6 +61,11 @@ module LingoLinq
     end
 
     # An explicit country/region field: trusted as a country case-insensitively.
+    # By contract the token is an ISO 3166-1 alpha-2 COUNTRY code. Note the token
+    # is not validated against the full ISO country list, so a value that is a
+    # US state code colliding with an ISO country (e.g. 'DE' = Delaware vs
+    # Germany) is read as the ISO country. Callers wiring this to a user field
+    # must pass ISO country codes, not subnational region codes.
     def self.trusted_country(val)
       return nil if val.nil?
       token = val.to_s.strip
@@ -79,8 +84,16 @@ module LingoLinq
       return nil if s.empty?
       # Uppercase 2-letter country token ('PL', 'US').
       return s.upcase if s.match?(/\A[A-Z]{2}\z/)
-      # Locale with a region subtag: 'pl-PL', 'de_DE', 'en-US'.
-      region = s.split(/[-_]/)[1]
+      # Locale region subtag, read ONLY at its RFC 5646 grammatical position:
+      # immediately after the language and an optional 4-letter script, and
+      # before any singleton (extension '-t-' or private-use '-x-') or variant.
+      # Scanning all subtags for any 2-letter token would misread private-use /
+      # extension data as a country ('en-x-DE' -> 'DE', 'en-t-fr-FR' -> 'fr').
+      # A region is exactly two letters ('pl-PL' -> PL, 'sr-Latn-RS' -> RS).
+      subtags = s.split(/[-_]/)
+      idx = 1
+      idx += 1 if subtags[idx] && subtags[idx].match?(/\A[A-Za-z]{4}\z/) # skip script
+      region = subtags[idx]
       return region.upcase if region && region.match?(/\A[A-Za-z]{2}\z/)
       # Bare lowercase language subtag ('pl', 'es'): ambiguous -> unknown.
       nil
