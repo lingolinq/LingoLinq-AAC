@@ -279,6 +279,37 @@ class LogSession < ApplicationRecord
         self.data['prior_evals'] = existing_evals
       end
       self.data['duration'] = (self.ended_at - self.started_at).to_i rescue nil
+    elsif self.data['eval_mode']
+      # Tiered eval report (Quick Screen / Targeted / Comprehensive) -- distinct from the
+      # legacy singular data['eval'] shape above.
+      #
+      # started_at/ended_at must be derived idempotently (same result every save), for two
+      # reasons that rule out both a plain ||= and a plain "only set once" guard:
+      #   1. The events-timestamp derivation earlier in this method is designed for
+      #      realtime button-press 'session' logs keyed on event['timestamp'] in SECONDS,
+      #      and runs UNCONDITIONALLY on every save, before this branch. For tiered eval it
+      #      always resolves to nil (first/last['timestamp'] is nil, since
+      #      EvalSession#recordEvent keys real events on 'ts', not 'timestamp' --
+      #      app/frontend/app/utils/eval_session.js) -- so a guard like `if new_record?`
+      #      here is not enough: it would leave started_at/ended_at wiped to nil on every
+      #      LATER save (an admin toggling `highlighted`, attaching a note, any unrelated
+      #      edit), which is worse than the drift it was meant to prevent. And it would
+      #      still be a landmine against a future 'timestamp'-keyed ms event corrupting
+      #      the very first save with a bogus far-future date.
+      #   2. Deriving from Time.now directly (guarded or not) is inherently non-idempotent:
+      #      a historical eval's recorded time must not depend on when it happens to be
+      #      re-saved.
+      # Fix: anchor to a value that is itself stable across saves -- data['completed_at']
+      # (an epoch integer, persisted in the same JSON column,) set via ||= exactly once,
+      # at creation -- then always (re)derive started_at/ended_at from that anchor. This
+      # unconditionally overrides whatever the earlier events derivation produced (fixing
+      # #1) while producing the exact same result on every subsequent save (fixing #2).
+      self.log_type = 'eval'
+      mode_label = { 'targeted' => 'Targeted Feature-Match', 'comprehensive' => 'Comprehensive' }[self.data['eval_mode']] || 'Quick Screen'
+      str = "#{mode_label} Evaluation by #{self.author ? self.author.user_name : 'user'}"
+      self.data['completed_at'] ||= Time.now.to_i
+      self.ended_at = Time.at(self.data['completed_at'])
+      self.started_at = self.ended_at - self.data['duration_s'].to_i.seconds
     elsif self.data['profile']
       self.log_type = 'profile'
       str = "Profile: by #{self.author ? self.author.user_name : 'user'}: "
@@ -1244,6 +1275,14 @@ class LogSession < ApplicationRecord
     elsif params['type'] == 'journal'
       Rails.logger.warn('processing journal creation in client request')
       result = self.process_new(params, non_user_params)
+    elsif params['log_type'] == 'eval' && params['data'].is_a?(Hash) && params['data']['eval_mode']
+      # Tiered eval report (Quick Screen / Targeted / Comprehensive). This is a
+      # single client-authored save, not a stream of realtime button-press
+      # events, so it is processed synchronously like note/assessment rather
+      # than routed through the events-only background-job stash path below
+      # (which requires top-level params['events'] and would otherwise raise).
+      Rails.logger.warn('processing tiered eval creation in client request')
+      result = self.process_new(params, non_user_params)
     else
       stash_params = params
     end
@@ -1766,6 +1805,28 @@ class LogSession < ApplicationRecord
       self.data['assessment'] = params['assessment'] if params['assessment']
       self.data['eval'] = params['eval'] if params['eval']
       self.data['profile'] = params['profile'] if params['profile']
+      if params['log_type'] == 'eval' && params['data'].is_a?(Hash) && params['data']['eval_mode']
+        # Tiered eval report (Quick Screen / Targeted / Comprehensive). Distinct from the
+        # legacy singular data['eval'] shape above -- this carries the full SLP-facing
+        # payload (recommendation, intake, AI narrative, SETT form, ...) that
+        # EvalSession#toLogPayload (app/frontend/app/utils/eval_session.js) submits as a
+        # single client-authored save, not a stream of realtime button-press events.
+        eval_data = params['data']
+        self.log_type = 'eval'
+        self.data['eval_mode']         = eval_data['eval_mode']
+        self.data['protocol_version']  = eval_data['protocol_version']
+        self.data['intake']            = eval_data['intake']
+        self.data['item_bank_profile'] = eval_data['item_bank_profile']
+        self.data['events']            = eval_data['events'] || []
+        self.data['recommendation']    = eval_data['recommendation']
+        self.data['duration_s']        = eval_data['duration_s']
+        self.data['slp_notes']         = eval_data['slp_notes']
+        self.data['sett']              = eval_data['sett']
+        self.data['ai_narrative']      = eval_data['ai_narrative']
+        # started_at/ended_at are derived authoritatively from duration_s in the
+        # data['eval_mode'] branch of generate_defaults (before_save), not here --
+        # see that branch's comment for why.
+      end
       if self.data['assessment']
         if non_user_params[:automatic_assessment]
           self.data['assessment']['manual'] = false
