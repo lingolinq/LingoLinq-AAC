@@ -547,6 +547,26 @@ describe Api::LogsController, :type => :controller do
       expect(json['log']['tiered_eval']['event_count']).to eq(2)
     end
 
+    it "should not mutate a tiered eval report's historical started_at/ended_at on a later, unrelated save" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {:eval_mode => 'comprehensive', :events => [], :duration_s => 42, :ai_narrative => 'text'},
+        :user_id => @user.global_id
+      }}
+      log = LogSession.last
+      original_started_at = log.started_at
+      original_ended_at = log.ended_at
+
+      sleep 1 # no Timecop in this codebase; a real elapsed second is enough to detect drift
+      log.highlighted = true
+      log.save!
+      log.reload
+
+      expect(log.started_at).to eq(original_started_at)
+      expect(log.ended_at).to eq(original_ended_at)
+    end
+
     it "should try to extract and canonicalize the ip address" do
       token_user
       request.env['REMOTE_ADDR'] = '8.7.6.5'

@@ -281,19 +281,34 @@ class LogSession < ApplicationRecord
       self.data['duration'] = (self.ended_at - self.started_at).to_i rescue nil
     elsif self.data['eval_mode']
       # Tiered eval report (Quick Screen / Targeted / Comprehensive) -- distinct from the
-      # legacy singular data['eval'] shape above. Override (not ||=) rather than trust
-      # started_at/ended_at from the events-timestamp derivation earlier in this method:
-      # that code is designed for realtime button-press 'session' logs keyed on
-      # event['timestamp'] in SECONDS, and would silently corrupt these fields with a
-      # bogus far-future date if a tiered-eval event ever carried a 'timestamp' key in JS
-      # milliseconds. EvalSession#recordEvent currently keys events on 'ts', not
-      # 'timestamp' (app/frontend/app/utils/eval_session.js), so that derivation is a
-      # no-op today -- but this branch must not depend on that key-naming accident for
-      # correctness, so it always derives from the authoritative duration_s instead.
+      # legacy singular data['eval'] shape above.
+      #
+      # started_at/ended_at must be derived idempotently (same result every save), for two
+      # reasons that rule out both a plain ||= and a plain "only set once" guard:
+      #   1. The events-timestamp derivation earlier in this method is designed for
+      #      realtime button-press 'session' logs keyed on event['timestamp'] in SECONDS,
+      #      and runs UNCONDITIONALLY on every save, before this branch. For tiered eval it
+      #      always resolves to nil (first/last['timestamp'] is nil, since
+      #      EvalSession#recordEvent keys real events on 'ts', not 'timestamp' --
+      #      app/frontend/app/utils/eval_session.js) -- so a guard like `if new_record?`
+      #      here is not enough: it would leave started_at/ended_at wiped to nil on every
+      #      LATER save (an admin toggling `highlighted`, attaching a note, any unrelated
+      #      edit), which is worse than the drift it was meant to prevent. And it would
+      #      still be a landmine against a future 'timestamp'-keyed ms event corrupting
+      #      the very first save with a bogus far-future date.
+      #   2. Deriving from Time.now directly (guarded or not) is inherently non-idempotent:
+      #      a historical eval's recorded time must not depend on when it happens to be
+      #      re-saved.
+      # Fix: anchor to a value that is itself stable across saves -- data['completed_at']
+      # (an epoch integer, persisted in the same JSON column,) set via ||= exactly once,
+      # at creation -- then always (re)derive started_at/ended_at from that anchor. This
+      # unconditionally overrides whatever the earlier events derivation produced (fixing
+      # #1) while producing the exact same result on every subsequent save (fixing #2).
       self.log_type = 'eval'
       mode_label = { 'targeted' => 'Targeted Feature-Match', 'comprehensive' => 'Comprehensive' }[self.data['eval_mode']] || 'Quick Screen'
       str = "#{mode_label} Evaluation by #{self.author ? self.author.user_name : 'user'}"
-      self.ended_at = Time.now
+      self.data['completed_at'] ||= Time.now.to_i
+      self.ended_at = Time.at(self.data['completed_at'])
       self.started_at = self.ended_at - self.data['duration_s'].to_i.seconds
     elsif self.data['profile']
       self.log_type = 'profile'
