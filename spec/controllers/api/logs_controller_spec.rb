@@ -508,7 +508,16 @@ describe Api::LogsController, :type => :controller do
           :protocol_version => '1.0',
           :intake => {'age_band' => 'adult'},
           :recommendation => {'access_method' => 'direct'},
-          :events => [],
+          # EvalSession#recordEvent (app/frontend/app/utils/eval_session.js) stamps real
+          # events with a 'ts' key in JS milliseconds, NOT 'timestamp' in seconds -- this
+          # matters because LogSession#generate_defaults has an older events-timestamp
+          # derivation (for realtime button-press 'session' logs) keyed on 'timestamp' in
+          # seconds that runs before the eval_mode branch; a real-shape event here proves
+          # that derivation is a no-op for tiered eval and doesn't corrupt started_at/ended_at.
+          :events => [
+            {'ts' => (Time.now.to_i * 1000) - 120_000, 'subtest' => 'stage_probe', 'response' => 'correct'},
+            {'ts' => Time.now.to_i * 1000, 'subtest' => 'access_snapshot', 'response' => 'correct'}
+          ],
           :duration_s => 42,
           :slp_notes => 'looked good',
           :sett => {'student' => 'Jane'},
@@ -526,10 +535,16 @@ describe Api::LogsController, :type => :controller do
       expect(log.data['sett']).to eq({'student' => 'Jane'})
       expect(log.data['ai_narrative']).to eq('AI-drafted narrative text')
       expect(log.data['duration_s'].to_i).to eq(42)
+      # started_at/ended_at must be sane (current era), not derived from the ms-scale
+      # 'ts' event timestamps via the seconds-based legacy events derivation
+      expect(log.ended_at).to be_within(1.minute).of(Time.now)
+      expect(log.started_at).to be_within(1.minute).of(Time.now - 42.seconds)
+      expect(log.data['event_count']).to eq(2)
       # round-trips through JsonApi::Log's tiered_eval view, not just the raw column
       expect(json['log']['tiered_eval']['eval_mode']).to eq('comprehensive')
       expect(json['log']['tiered_eval']['ai_narrative']).to eq('AI-drafted narrative text')
       expect(json['log']['tiered_eval']['slp_notes']).to eq('looked good')
+      expect(json['log']['tiered_eval']['event_count']).to eq(2)
     end
 
     it "should try to extract and canonicalize the ip address" do

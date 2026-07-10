@@ -281,13 +281,20 @@ class LogSession < ApplicationRecord
       self.data['duration'] = (self.ended_at - self.started_at).to_i rescue nil
     elsif self.data['eval_mode']
       # Tiered eval report (Quick Screen / Targeted / Comprehensive) -- distinct from the
-      # legacy singular data['eval'] shape above. started_at/ended_at/duration_s are already
-      # set by process_params, so only fill them here as a defensive fallback (||=).
+      # legacy singular data['eval'] shape above. Override (not ||=) rather than trust
+      # started_at/ended_at from the events-timestamp derivation earlier in this method:
+      # that code is designed for realtime button-press 'session' logs keyed on
+      # event['timestamp'] in SECONDS, and would silently corrupt these fields with a
+      # bogus far-future date if a tiered-eval event ever carried a 'timestamp' key in JS
+      # milliseconds. EvalSession#recordEvent currently keys events on 'ts', not
+      # 'timestamp' (app/frontend/app/utils/eval_session.js), so that derivation is a
+      # no-op today -- but this branch must not depend on that key-naming accident for
+      # correctness, so it always derives from the authoritative duration_s instead.
       self.log_type = 'eval'
       mode_label = { 'targeted' => 'Targeted Feature-Match', 'comprehensive' => 'Comprehensive' }[self.data['eval_mode']] || 'Quick Screen'
       str = "#{mode_label} Evaluation by #{self.author ? self.author.user_name : 'user'}"
-      self.ended_at   ||= Time.now
-      self.started_at ||= self.ended_at
+      self.ended_at = Time.now
+      self.started_at = self.ended_at - self.data['duration_s'].to_i.seconds
     elsif self.data['profile']
       self.log_type = 'profile'
       str = "Profile: by #{self.author ? self.author.user_name : 'user'}: "
@@ -1801,8 +1808,9 @@ class LogSession < ApplicationRecord
         self.data['slp_notes']         = eval_data['slp_notes']
         self.data['sett']              = eval_data['sett']
         self.data['ai_narrative']      = eval_data['ai_narrative']
-        self.ended_at   ||= Time.now
-        self.started_at ||= self.ended_at - eval_data['duration_s'].to_i.seconds
+        # started_at/ended_at are derived authoritatively from duration_s in the
+        # data['eval_mode'] branch of generate_defaults (before_save), not here --
+        # see that branch's comment for why.
       end
       if self.data['assessment']
         if non_user_params[:automatic_assessment]
