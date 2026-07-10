@@ -105,7 +105,7 @@ describe AdminMailer, :type => :mailer do
       })
       mail = AdminMailer.beta_feedback_sent(m.global_id)
       html = message_body(mail, :html)
-      text = message_body(mail, :text)
+      text = mail.text_part.body.decoded
 
       expect(html).to match(/Reaction: frustrating/)
       expect(html).to match(/Virtual meeting requested: Yes/)
@@ -117,7 +117,7 @@ describe AdminMailer, :type => :mailer do
       expect(text).to match(/Virtual meeting requested: Yes/)
       expect(text).to match(/Trying to open Speak Mode/)
       expect(text).to match(/Screen recording: saved locally by submitter/)
-      expect(text).to match(/beta-feedback\/admin\/entry\//)
+      expect(text).to match(%r{beta-feedback/admin/entry/#{m.global_id}})
     end
   end
 
