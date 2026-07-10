@@ -71,4 +71,18 @@ describe SesConfigurationSetInterceptor do
     expect(message.subject).to eq(before[:subject])
     expect(message.body.to_s).to eq(before[:body])
   end
+
+  it 'does not duplicate the header if delivering_email runs twice on the same message' do
+    # message.header[]= appends rather than replaces, so a message re-run through the
+    # interceptor (e.g. a manual delivery retry on the same Mail object) could end up with two
+    # X-SES-CONFIGURATION-SET fields, which is undefined behavior for SES to receive.
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with('SES_CONFIGURATION_SET').and_return('lingolinq-transactional')
+
+    SesConfigurationSetInterceptor.delivering_email(message)
+    SesConfigurationSetInterceptor.delivering_email(message)
+
+    expect(Array(message.header['X-SES-CONFIGURATION-SET']).size).to eq(1)
+    expect(message.header['X-SES-CONFIGURATION-SET'].value).to eq('lingolinq-transactional')
+  end
 end

@@ -35,7 +35,11 @@ Aws::Rails.add_action_mailer_delivery_method(
 class SesConfigurationSetInterceptor
   def self.delivering_email(message)
     config_set = ENV['SES_CONFIGURATION_SET']
-    message.header['X-SES-CONFIGURATION-SET'] = config_set if config_set.present?
+    return if config_set.blank?
+
+    # Mail::Header#[]= appends rather than replaces, so guard against a duplicate header if
+    # this ever runs twice on the same message object (e.g. a manual delivery retry).
+    message.header['X-SES-CONFIGURATION-SET'] = config_set unless message.header['X-SES-CONFIGURATION-SET']
   end
 end
 
