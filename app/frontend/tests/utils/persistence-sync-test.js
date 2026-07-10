@@ -41,12 +41,16 @@ function logById(logs, id) {
 }
 
 function stubOnPersistence(method, replacement) {
-  stub(persistenceTarget(), method, replacement);
+  stub(persistence, method, replacement);
+  var target = persistenceTarget();
+  if (target && target !== persistence) {
+    stub(target, method, replacement);
+  }
 }
 
 function chainPersistenceAjax(overrideFn) {
   var target = persistenceTarget();
-  var priorAjax = target.ajax;
+  var priorAjax = (target && typeof target.ajax === 'function') ? target.ajax : persistence.ajax;
   stubOnPersistence('ajax', function(url, opts) {
     if (typeof url !== 'string') {
       return priorAjax.apply(this, arguments);
@@ -4661,9 +4665,6 @@ describe("persistence-sync", function() {
       persistence.known_missing = {};
       var revisions_called = false;
       var reloads = {};
-      var trackBoardReload = function(boardId) {
-        reloads[String(boardId)] = true;
-      };
       chainPersistenceAjax(function(url, opts) {
         if (url == '/api/v1/users/1340/board_revisions') {
           revisions_called = true;
@@ -4794,6 +4795,8 @@ describe("persistence-sync", function() {
         b3.full_set_revision = 'current';
         b4.full_set_revision = 'current';
         refreshBoardsInStore([b1, b2, b3, b4], { fresh: true });
+        reloads = {};
+        stubBoardReloadTracking([b1, b2, b3, b4], reloads);
         stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
         stub($, 'realAjax', function(options) {
           if(options.url === '/api/v1/users/1340') {
@@ -4804,22 +4807,18 @@ describe("persistence-sync", function() {
               preferences: {home_board: {id: '145'}}
             }});
           } else if(options.url == '/api/v1/boards/145') {
-            trackBoardReload('145');
             return RSVP.resolve({
               board: b1
             });
           } else if(options.url == '/api/v1/boards/167') {
-            trackBoardReload('167');
             return RSVP.resolve({
               board: b2
             });
           } else if(options.url == '/api/v1/boards/178') {
-            trackBoardReload('178');
             return RSVP.resolve({
               board: b3
             });
           } else if(options.url == '/api/v1/boards/179') {
-            trackBoardReload('179');
             return RSVP.resolve({
               board: b4
             });
@@ -4836,10 +4835,11 @@ describe("persistence-sync", function() {
           persistence.set('sync_progress', null);
           persistence.sync(1340).then(function() {
             done = true;
-          }, function() { done = true; });
+            tailDone = true;
+          }, function() { done = true; tailDone = true; });
         }, 50);
       });
-      waitsFor(function() { return done && tailDone; });
+      waitsFor(function() { return done; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads).toEqual({
