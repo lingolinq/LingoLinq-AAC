@@ -4,7 +4,7 @@ Email: <%= @message.settings['email'] %><br/>
 Short summary: <%= @message.settings['subject'] %><br/>
 <% if @message.settings['feedback_type'].present? %>Feedback type: <%= @message.settings['feedback_type'] %><br/><% end %>
 <% if @message.settings['severity'].present? %>Severity: <%= @message.settings['severity'] %><br/><% end %>
-<% if @message.settings['reaction'].present? %>Reaction: <%= @message.settings['reaction'] %><br/><% end %>
+<% if @message.settings['reaction'].present? %>Reaction: <%= h(@message.settings['reaction']) %><br/><% end %>
 <% if @message.settings['device_context'].present? %>Device / context: <%= @message.settings['device_context'] %><br/><% end %>
 Virtual meeting requested: <%= ActiveModel::Type::Boolean.new.cast(@message.settings['request_virtual_meeting']) ? 'Yes' : 'No' %><br/>
 <br/>
