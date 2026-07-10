@@ -87,6 +87,38 @@ describe AdminMailer, :type => :mailer do
       mail = AdminMailer.beta_feedback_sent(m.global_id)
       expect(mail.to).to eq(['custom@example.com'])
     end
+
+    it "should include enhanced beta feedback fields in the message body" do
+      allow(AdminMailer).to receive(:schedule_delivery)
+      m = ContactMessage.process_new({
+        'email' => 'betatester@example.com',
+        'subject' => 'Bug summary',
+        'recipient' => 'beta_feedback',
+        'general_feedback' => 'Enough detail for the message body.',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'reaction' => 'frustrating',
+        'workflow_context' => 'Trying to open Speak Mode',
+        'request_virtual_meeting' => true,
+        'recording_saved_locally' => true,
+        'recording_byte_size' => 12345
+      })
+      mail = AdminMailer.beta_feedback_sent(m.global_id)
+      html = message_body(mail, :html)
+      text = message_body(mail, :text)
+
+      expect(html).to match(/Reaction: frustrating/)
+      expect(html).to match(/Virtual meeting requested: Yes/)
+      expect(html).to match(/Trying to open Speak Mode/)
+      expect(html).to match(/Screen recording: saved locally by submitter/)
+      expect(html).to match(%r{/beta-feedback/admin/entry/#{m.global_id}})
+
+      expect(text).to match(/Reaction: frustrating/)
+      expect(text).to match(/Virtual meeting requested: Yes/)
+      expect(text).to match(/Trying to open Speak Mode/)
+      expect(text).to match(/Screen recording: saved locally by submitter/)
+      expect(text).to match(/beta-feedback\/admin\/entry\//)
+    end
   end
 
   describe "opt_out" do
