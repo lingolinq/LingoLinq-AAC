@@ -7,7 +7,7 @@ PR #568) and Scot's 2026-07-10 decisions; no domain research is needed before pl
 
 ## Phases
 
-- [ ] **Phase 1: Expired-Link UX** - Distinguish "lesson missing" (404) from "token invalid/expired" (graceful message) at both the Rails HTML-shell layer and the Ember Data layer; add i18n string; runtime-verify Ember Data 5.3.x (Ember 5.12) behavior.
+- [x] **Phase 1: Expired-Link UX** - Distinguish "lesson missing" (404) from "token invalid/expired" (graceful message) at both the Rails HTML-shell layer and the Ember Data layer; add i18n string; runtime-verify Ember Data 5.3.x (Ember 5.12) behavior. (completed 2026-07-11)
 
 ## Phase Details
 
@@ -25,7 +25,7 @@ PR #568) and Scot's 2026-07-10 decisions; no domain research is needed before pl
 
 Plans:
 - [x] 01-01: `boards_controller#lesson` boots the Ember shell (not bare 404) when the lesson exists but the share token is unresolved
-- [ ] 01-02: Ember `lesson` route/controller/template surface a reason-agnostic link-expired panel; runtime-verifies Ember Data findRecord behavior on an expired token
+- [x] 01-02: Ember `lesson` route/controller/template surface a reason-agnostic link-expired panel; runtime-verifies Ember Data findRecord behavior on an expired token
 
 ## Progress
 
@@ -34,4 +34,4 @@ Single phase, no parallelism.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Expired-Link UX | 1/2 | In Progress|  |
+| 1. Expired-Link UX | 2/2 | Complete   | 2026-07-11 |

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-07-11T04:54:09.221Z"
+last_updated: "2026-07-11T05:55:01.669Z"
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -19,18 +19,21 @@ progress:
 See: .planning/PROJECT.md (created 2026-07-10)
 
 **Core value:** A person who opens a once-valid, now-expired lesson/board share link gets a clear, recoverable message instead of a bare 404 or an unstyled error page.
-**Current focus:** Phase 1 (Expired-Link UX) — Plan 01-01 complete (backend controller + specs); Plan 01-02 (frontend SPA route) up next.
+**Current focus:** Phase 1 (Expired-Link UX) — Plan 01-01 (backend controller + specs) and Plan 01-02 (Ember route/controller/template + UX-06 runtime finding) both complete. Phase 1 is the only phase in this project; project is functionally complete pending Scot's review/merge.
 
 ## Decisions
 
 - Plan 01-01: no feature flag added for the `boards_controller#lesson` expired-token render change (Scot, confirmed 2026-07-11) — this is error-state polish on an already-broken path (expired tokens currently 404 or throw), not a new user-facing capability, so CLAUDE.md's new-feature-flag rule does not apply.
 - Plan 01-01: retained the now-branch-irrelevant `User.find_by_lesson_share_token` call in `boards_controller#lesson`, documented inline, solely to preserve legacy-token telemetry logging for LL-310b464be4 sunset tracking (adversary-review condition).
 - Plan 01-01: left `Lesson#nonce`'s pre-existing unauthenticated write-on-read untouched (adversary-review finding) — out of scope, separate future hardening item.
+- [Phase 01-expired-link-ux]: Plan 01-02: UX-06 runtime finding - Ember Data 5.3.8 store.findRecord RESOLVES (does not reject) for an id-mismatched, user-less lesson payload; logs warnings instead of throwing. routes/lesson.js handles resolve-with-no-user as the primary path, .catch as a defensive fallback.
+- [Phase 01-expired-link-ux]: Plan 01-02: used setupTest container tests (not setupApplicationTest+visit()) for runtime verification and acceptance coverage, since visit() hangs under Mirage in this repo (documented, already-skipped precedent); satisfies REQUIREMENTS.md UX-06's explicit integration-test alternative.
+- [Phase 01-expired-link-ux]: Plan 01-02: reverted a full 'ruby i18n_generator.rb --generate' run (it reordered/dropped ~190 unrelated en.json keys); added only the 3 new link_expired_* keys by hand to en.json, plus *** placeholders to es.json only.
 
 ## Session
 
-- **Last session:** 2026-07-11T04:49:50Z — Completed 01-01-PLAN.md (`boards_controller#lesson` expired-token render fix + controller specs; commits `d64fef846`, `4ddc6f9c6`).
-- **Resume file:** .planning/phases/01-expired-link-ux/01-02-PLAN.md
+- **Last session:** 2026-07-11T05:55:01.642Z
+- **Resume file:** None
 
 ## Context
 
