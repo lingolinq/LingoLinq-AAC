@@ -41730,11 +41730,12 @@ a.la-footer-bottom-a11y-wcag {
 /* User pages (badges/goals/subscription/etc.) don't get the dashboard's
    `.page-footer` flex-grow rules, so `.md-shell--user`'s own `min-height:100vh`
    mesh is pinned to the viewport as a flex child of the scrolling #content and
-   taller content (e.g. the badges grid) overflows past it. Paint the mesh on
-   the fixed, full-viewport #within_ember instead (same approach the register /
-   login pages use) so it covers the full scroll height, and drop the shell's
-   own background so there's no short-bg seam. */
-#within_ember:has(.md-shell--user) {
+   taller content (e.g. the badges grid) overflows past it, revealing #content's
+   grey (#aaa) base below the shell. #content is the actual scroll container and
+   its background stays behind the full scroll height, so paint the mesh there;
+   the shell is made transparent below so the two meshes don't seam. */
+#content:has(.md-shell--user),
+#within_ember:has(.md-shell--user) .page-footer {
   background:
     radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
     radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
@@ -41742,9 +41743,25 @@ a.la-footer-bottom-a11y-wcag {
     radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
     radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%) !important;
+  /* Pin the mesh to the viewport so #content AND the page-footer below it render
+     the identical mesh with no seam, covering the whole page (the footer renders
+     on every non-board page and is a sibling of #content). */
+  background-attachment: fixed !important;
 }
-.md-shell--user {
+#content:has(.md-shell--user) {
+  /* fill the viewport when the badge grid is short so the mesh isn't cut off */
+  min-height: 100vh !important;
+}
+/* Two-class selector (0,2,0) so this beats the plain `.md-shell` (0,1,0)
+   background rules defined later in the file (e.g. ~L58263/58282) that would
+   otherwise re-apply the shell's own mesh on top of #content's — creating the
+   two-tone "gray band" where the shell ends. With the shell transparent, only
+   #content's single fixed mesh shows across the whole page. */
+.md-shell.md-shell--user {
   background: transparent !important;
+  /* Let #content drive the page height; the shell's own 100vh would double-count
+     against #content's top padding and overflow. */
+  min-height: 0 !important;
 }
 
 .md-workspace {
