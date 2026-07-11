@@ -31,7 +31,7 @@ class ContactMessage < ApplicationRecord
       @deliver_remotely = false
       self.schedule(:deliver_remotely)
     elsif self.settings['recipient'].to_s == 'beta_feedback'
-      # Beta feedback is stored for review via GET /api/v1/beta_feedback; do not email.
+      AdminMailer.schedule_delivery(:beta_feedback_sent, self.global_id)
     else
       AdminMailer.schedule_delivery(:message_sent, self.global_id)
     end

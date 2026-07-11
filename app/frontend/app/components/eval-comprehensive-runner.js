@@ -70,6 +70,13 @@ export default Component.extend({
   aiNarrative: computed('session.aiNarrative', function() {
     return this.get('session.aiNarrative');
   }),
+  // EU AI Act Article 50(2) marker for the current aiNarrative, or null when there
+  // isn't one (no AI narration run yet, or the template fallback was used). Not
+  // rendered directly -- carried through to EvalSession#toLogPayload so it persists
+  // alongside the narrative it attests to.
+  aiGenerated: computed('session.aiGenerated', function() {
+    return this.get('session.aiGenerated');
+  }),
 
   currentSubtest: computed('session.subtestIndex', 'session.state', function() {
     const session = this.get('session');
@@ -360,6 +367,10 @@ export default Component.extend({
           return;
         }
         session.set('aiNarrative', narrative);
+        // EU AI Act Article 50(2): carry the marker the server minted for this
+        // narrative (null for the deterministic template path) so it saves with
+        // the log. See EvalSession#toLogPayload.
+        session.set('aiGenerated', res.ai_generated || null);
         const onEvent = _this.get('onEvent');
         if (onEvent) {
           onEvent({

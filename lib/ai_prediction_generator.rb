@@ -18,13 +18,13 @@ module AiPredictionGenerator
   BATCH_SIZE = 50
 
   # Pause between API calls to stay within rate limits
-  RATE_PAUSE = 4 # seconds (keeps us under 20 req/min for Gemini free tier)
+  RATE_PAUSE = 4 # seconds
 
   class << self
     def generate(batch_size: nil)
       api_config = resolve_api_config
       if api_config.blank?
-        puts "[predictions] ERROR: No ANTHROPIC_API_KEY or GEMINI_API_KEY configured"
+        puts "[predictions] ERROR: No ANTHROPIC_API_KEY configured. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2."
         return
       end
       puts "[predictions] Using provider: #{api_config[:provider]} (#{api_config[:model]})"
@@ -101,24 +101,18 @@ module AiPredictionGenerator
 
     private
 
+    # GEMINI_API_KEY fallback disabled 2026-07-09 -- see docs/legal/AI_DATA_SHARING_CONSENT.md
+    # section 2.2 (Gemini Developer/AI-Studio endpoint, data-handling terms not adequate for child
+    # data). A Vertex AI fallback may replace this.
     def resolve_api_config
       anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      if anthropic_key.present?
-        return {
-          provider: :claude,
-          api_key: anthropic_key,
-          model: ENV.fetch('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001')
-        }
-      end
-      gemini_key = ENV['GEMINI_API_KEY'].to_s.strip
-      if gemini_key.present?
-        return {
-          provider: :gemini,
-          api_key: gemini_key,
-          model: ENV.fetch('GEMINI_MODEL', 'gemini-2.0-flash')
-        }
-      end
-      nil
+      return nil if anthropic_key.blank?
+
+      {
+        provider: :claude,
+        api_key: anthropic_key,
+        model: ENV.fetch('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001')
+      }
     end
 
     def build_starter_list
@@ -183,8 +177,6 @@ module AiPredictionGenerator
         raw = case api_config[:provider]
               when :claude
                 call_anthropic(api_config, prompt)
-              when :gemini
-                call_gemini(api_config, prompt)
               else
                 ''
               end
@@ -240,23 +232,6 @@ module AiPredictionGenerator
         messages: [{ role: 'user', content: prompt }]
       )
       response.dig('content', 0, 'text') || ''
-    end
-
-    def call_gemini(config, prompt)
-      require 'openai'
-      client = OpenAI::Client.new(
-        access_token: config[:api_key],
-        uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-      )
-      response = client.chat(
-        parameters: {
-          model: config[:model],
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 4096,
-          temperature: 0.3
-        }
-      )
-      response.dig('choices', 0, 'message', 'content') || ''
     end
 
     def parse_batch_response(raw, expected_words)

@@ -5,7 +5,9 @@ require_relative 'pii_scrubber'
 module AiWordPredictor
   # Use fast/cheap models -- predictions need to feel instant
   DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
-  DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+  # GEMINI_API_KEY fallback disabled 2026-07-09 -- see docs/legal/AI_DATA_SHARING_CONSENT.md
+  # section 2.2 (Gemini Developer/AI-Studio endpoint, data-handling terms not adequate for child
+  # data). A Vertex AI fallback may replace this.
 
   # In-memory LRU cache: { "context_key" => { words: [...], ts: Time } }
   CACHE = {}
@@ -75,13 +77,6 @@ module AiWordPredictor
           tokens_received = response.usage&.output_tokens if response.respond_to?(:usage)
           success = true
           parse_words(raw_response, count)
-        when :gemini
-          response = call_gemini(api_config, scrubbed_sentence, locale, count, ctx)
-          raw_response = response.dig('choices', 0, 'message', 'content') || ''
-          tokens_sent = response.dig('usage', 'prompt_tokens')
-          tokens_received = response.dig('usage', 'completion_tokens')
-          success = true
-          parse_words(raw_response, count)
         else
           []
         end
@@ -92,6 +87,24 @@ module AiWordPredictor
       end
 
       duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+      # EU AI Act Article 50(2) scope decision: word prediction is NOT content-marked.
+      # Unlike board generation (which mints an Art50Marker onto board.settings), this site
+      # produces a TRANSIENT menu of next-word suggestions (in-memory CACHE only, never
+      # persisted as an artifact). The AAC user then SELECTS a word into their own utterance,
+      # so the only durable output is the user's human-authored communication. Two independent
+      # reasons keep it unmarked, either sufficient:
+      #   1. Assistive-function carve-out: the Commission's Article 50 guidance exempts systems
+      #      that "perform only an assistive function for standard editing" / do not
+      #      substantially alter the input or its semantics. A hand-selected next-word
+      #      suggestion fits.
+      #   2. No markable artifact / false-marking risk: there is no persisted AI output to mark,
+      #      and marking the user's selected words would falsely label human speech (frequently a
+      #      COPPA-covered child's board) as AI-generated -- the OPPOSITE of what 50(2) polices
+      #      (it polices under-marking of AI output, not over-marking of human output).
+      # So ai_content_marked stays false here (accurate: no marker on the output). This
+      # word_prediction AiApiLog row is the audit record that an AI call occurred; request_type
+      # distinguishes it from the in-scope, content-marked sites. See
+      # docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md sec 9.
       log_ai_call(
         provider: provider,
         model: model,
@@ -143,22 +156,13 @@ module AiWordPredictor
 
     def resolve_api_config
       anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      if anthropic_key.present?
-        return {
-          provider: :claude,
-          api_key: anthropic_key,
-          model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_ANTHROPIC_MODEL)
-        }
-      end
-      gemini_key = ENV['GEMINI_API_KEY'].to_s.strip
-      if gemini_key.present?
-        return {
-          provider: :gemini,
-          api_key: gemini_key,
-          model: ENV.fetch('GEMINI_MODEL', DEFAULT_GEMINI_MODEL)
-        }
-      end
-      nil
+      return nil if anthropic_key.blank?
+
+      {
+        provider: :claude,
+        api_key: anthropic_key,
+        model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_ANTHROPIC_MODEL)
+      }
     end
 
     def call_anthropic(config, sentence, locale, count, context)
@@ -169,25 +173,6 @@ module AiWordPredictor
         max_tokens: 60,
         system: system_prompt(locale, count, context),
         messages: [{ role: 'user', content: sentence }]
-      )
-    end
-
-    def call_gemini(config, sentence, locale, count, context)
-      require 'openai'
-      client = OpenAI::Client.new(
-        access_token: config[:api_key],
-        uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-      )
-      client.chat(
-        parameters: {
-          model: config[:model],
-          messages: [
-            { role: 'system', content: system_prompt(locale, count, context) },
-            { role: 'user', content: sentence }
-          ],
-          max_tokens: 60,
-          temperature: 0.3
-        }
       )
     end
 
