@@ -225,10 +225,7 @@ class Api::OrganizationsController < ApplicationController
     sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
     licenses = licenses.order("#{sort_by} #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
     
-    render json: JsonApi::License.paginate(params, licenses, {
-      prefix: "/organizations/#{@org.global_id}/licenses",
-      include_external_reference: @org.allows?(@api_user, 'update_licenses')
-    })
+    render json: JsonApi::License.paginate(params, licenses, {prefix: "/organizations/#{@org.global_id}/licenses"})
   end
 
   def claim_user
