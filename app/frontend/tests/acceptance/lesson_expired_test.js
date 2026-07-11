@@ -109,3 +109,168 @@ module('Acceptance | lesson expired link (UX-06 runtime finding)', function(hook
       'the resolved record has no `user` -- this is the reliable "token unresolved" signal routes/lesson.js must check');
   });
 });
+
+/*
+ * Task 4 -- full behavioral contract for the hardened routes/lesson.js +
+ * controllers/lesson.js (see Task 2's commit) and the lesson.hbs link-expired
+ * panel (see Task 3's commit).
+ *
+ * These are route+controller INTEGRATION tests (`setupTest`, no router, no
+ * `visit()`), not full DOM/rendering acceptance tests. This repo's own
+ * existing precedent for this exact tradeoff is
+ * tests/unit/components/share-board-guard-test.js, whose top comment
+ * explicitly scopes itself to the non-rendered guard logic and defers full
+ * rendering coverage. The same reasoning applies here, compounded by the
+ * documented visit()-hangs-under-Mirage limitation (see the top-of-file
+ * comment above and tests/acceptance/README.md).
+ *
+ * What IS verified here (route/controller behavior, the actual new logic):
+ *   - expired-token and malformed-token requests produce the IDENTICAL
+ *     link_expired outcome (proves UX-05 reason-agnostic behavior at the
+ *     one place that could leak a reason: the model()/setupController()
+ *     code path).
+ *   - a valid token still resolves the real lesson model and still calls
+ *     setup_tracking() (regression guard).
+ *   - a valid -> expired transition on the SAME controller instance leaves
+ *     no stale prior model (adversary-review stale-model guard).
+ *
+ * What is NOT re-verified here (already verified by other means in Task 3):
+ *   - that the template actually hides the iframe / shows the panel + the
+ *     recovery link for link_expired=true. That is a static template
+ *     structure fact, verified by `ember-template-lint` (0 errors) plus the
+ *     grep-based structural checks in Task 3's commit (`{{#if
+ *     this.link_expired}}` gates the iframe out of the expired branch; the
+ *     expired branch contains the link_expired_home LinkTo and no
+ *     reason-revealing text). A true DOM-rendered assertion of that same
+ *     fact would need `visit()`, which hangs in this harness.
+ */
+module('Acceptance | lesson expired link route/controller contract', function(hooks) {
+  setupTest(hooks);
+
+  function stubUnresolvedTokenResponse(store) {
+    var adapter = store.adapterFor('lesson');
+    var original = adapter.findRecord;
+    adapter.findRecord = function() {
+      // Same payload shape for every unresolved-token cause (expired,
+      // malformed, wrong signature) -- api/lessons#show never reveals why.
+      return RSVP.resolve({
+        lesson: { id: '1_777', title: 'Some Lesson', url: 'https://example.com/lesson' }
+      });
+    };
+    return function restore() { adapter.findRecord = original; };
+  }
+
+  function stubValidTokenResponse(store, requestedId) {
+    var adapter = store.adapterFor('lesson');
+    var original = adapter.findRecord;
+    adapter.findRecord = function() {
+      return RSVP.resolve({
+        lesson: {
+          id: requestedId,
+          title: 'A Real Lesson',
+          url: 'https://example.com/real-lesson',
+          user: { id: '1_1', user_name: 'learner' }
+        }
+      });
+    };
+    return function restore() { adapter.findRecord = original; };
+  }
+
+  test('expired token: model() resolves the link_expired sentinel and setupController sets the flag', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const route = this.owner.lookup('route:lesson');
+    const controller = this.owner.lookup('controller:lesson');
+    const restore = stubUnresolvedTokenResponse(store);
+
+    let model;
+    try {
+      model = await route.model({ lesson_id: '1_777', lesson_code: 'abc123', user_token: 'expiredtoken999' });
+    } finally {
+      restore();
+    }
+
+    assert.ok(model && model.link_expired, 'model() resolves the link_expired sentinel for an expired token');
+
+    route.setupController(controller, model);
+    assert.strictEqual(controller.get('link_expired'), true, 'controller.link_expired is true');
+    assert.strictEqual(controller.get('model'), model, 'controller.model is set to the sentinel (not left unset)');
+  });
+
+  test('malformed token: produces the SAME link_expired outcome as an expired token (UX-05 reason-agnostic)', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const route = this.owner.lookup('route:lesson');
+    const controller = this.owner.lookup('controller:lesson');
+    // api/lessons#show returns the identical tolerant shape for a malformed
+    // token as for an expired one -- User.find_by_lesson_share_token(...)
+    // returns nil either way, so the same stub covers both.
+    const restore = stubUnresolvedTokenResponse(store);
+
+    let model;
+    try {
+      model = await route.model({ lesson_id: '1_777', lesson_code: 'abc123', user_token: 'not-even-a-real-token-format' });
+    } finally {
+      restore();
+    }
+
+    assert.ok(model && model.link_expired, 'model() resolves the SAME link_expired sentinel for a malformed token');
+
+    route.setupController(controller, model);
+    assert.strictEqual(controller.get('link_expired'), true, 'controller.link_expired is true (identical to the expired-token case)');
+  });
+
+  test('valid token: model() resolves the real lesson and setup_tracking runs (regression guard)', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const route = this.owner.lookup('route:lesson');
+    const controller = this.owner.lookup('controller:lesson');
+    const requestedId = '1_888:realcode:realtoken777';
+    const restore = stubValidTokenResponse(store, requestedId);
+
+    let model;
+    try {
+      model = await route.model({ lesson_id: '1_888', lesson_code: 'realcode', user_token: 'realtoken777' });
+    } finally {
+      restore();
+    }
+
+    assert.notOk(model && model.link_expired, 'model() does NOT resolve the sentinel for a valid token');
+    assert.ok(model && model.get && model.get('user'), 'the resolved record has a `user` block');
+
+    route.setupController(controller, model);
+    assert.strictEqual(controller.get('link_expired'), false, 'controller.link_expired is false');
+    assert.strictEqual(controller.get('model'), model, 'controller.model is the real lesson record');
+    assert.ok(controller.get('started'), 'setup_tracking() ran (started timestamp set), so the lesson still tracks as before');
+  });
+
+  test('no stale model after a valid -> expired transition on the same controller (adversary-review guard)', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const route = this.owner.lookup('route:lesson');
+    const controller = this.owner.lookup('controller:lesson');
+
+    // 1. Valid lesson first.
+    const validId = '1_999:validcode:validtoken555';
+    const restoreValid = stubValidTokenResponse(store, validId);
+    let validModel;
+    try {
+      validModel = await route.model({ lesson_id: '1_999', lesson_code: 'validcode', user_token: 'validtoken555' });
+    } finally {
+      restoreValid();
+    }
+    route.setupController(controller, validModel);
+    assert.strictEqual(controller.get('link_expired'), false, 'sanity: starts on the valid lesson, not expired');
+    assert.strictEqual(controller.get('model'), validModel, 'sanity: controller.model is the valid lesson record');
+
+    // 2. Same-session transition to an expired-token lesson.
+    const restoreExpired = stubUnresolvedTokenResponse(store);
+    let expiredModel;
+    try {
+      expiredModel = await route.model({ lesson_id: '1_222', lesson_code: 'abc123', user_token: 'expiredtoken999' });
+    } finally {
+      restoreExpired();
+    }
+    route.setupController(controller, expiredModel);
+
+    assert.strictEqual(controller.get('link_expired'), true, 'controller.link_expired flips to true on the expired transition');
+    assert.strictEqual(controller.get('model'), expiredModel, 'controller.model is overwritten with the sentinel -- no stale prior lesson record remains');
+    assert.notStrictEqual(controller.get('model'), validModel, 'the prior valid lesson record is no longer the controller model');
+  });
+});
