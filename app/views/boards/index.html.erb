@@ -2,6 +2,25 @@
 
 <div id="ember-application-root"></div>
 
+<% if @lesson %>
+  <%# Codex review finding on PR for LL-90045bb29c option (b) follow-up:
+      Api::LessonsController#show renders full lesson content (title, url,
+      description) regardless of whether the share token resolved -- it only
+      omits the `user` block. Booting the Ember app unconditionally (so the
+      frontend can show a friendly expired-link message) would otherwise make
+      the browser fetch that full content automatically via findRecord, even
+      for an unresolved/expired token, on this fresh-navigation path. This
+      flag lets routes/lesson.js short-circuit BEFORE calling findRecord at
+      all when boards_controller#lesson already determined server-side that
+      the token didn't resolve, so no content-fetching API call happens for
+      this entry point. (Does not change the pre-existing, separate fact that
+      Api::LessonsController#show is reachable directly by anyone who knows
+      the lesson's nonce, independent of token validity -- that is the
+      lesson_code nonce's own, long-standing content-view gate and is not
+      part of this fix.) %>
+  <script type="text/javascript">window.lesson_share_token_valid = <%= @user ? 'true' : 'false' %>;</script>
+<% end %>
+
 <%# ── Bootstrap loader: modern skeleton + premium progress card ────────
     Renders BEFORE the Ember bundle loads, so all styling is inline.
     The skeleton mirrors the actual dashboard 2-column layout (Caseload +

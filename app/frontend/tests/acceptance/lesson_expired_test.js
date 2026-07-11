@@ -380,4 +380,97 @@ module('Acceptance | lesson expired link route/controller contract', function(ho
     assert.ok(rejection && rejection.fakeXHR && rejection.fakeXHR.status === 500,
       'the original error is preserved so it can surface to the normal error path / error reporting');
   });
+
+  module('server-side token-validity short-circuit (Codex review High finding)', function(hooks2) {
+    // Codex flagged (High): booting the Ember shell unconditionally means the
+    // browser always calls findRecord -> Api::LessonsController#show, which
+    // renders full lesson content (title/url/description) regardless of
+    // token validity -- defeating the "links stop working" promise, since
+    // the content is fetched either way, just hidden by CSS/JS. The fix:
+    // app/views/boards/index.html.erb now embeds
+    // `window.lesson_share_token_valid` (set server-side from the same
+    // User.find_by_lesson_share_token result boards_controller#lesson
+    // already computed) so this route can skip findRecord ENTIRELY when the
+    // token didn't resolve -- no content-fetching API call happens at all.
+    hooks2.afterEach(function() {
+      delete window.lesson_share_token_valid;
+    });
+
+    test('window.lesson_share_token_valid === false: model() never calls findRecord, no content-fetching API call happens', async function(assert) {
+      const store = this.owner.lookup('service:store');
+      const route = this.owner.lookup('route:lesson');
+      const adapter = store.adapterFor('lesson');
+      const originalFindRecord = adapter.findRecord;
+      let findRecordCalled = false;
+      adapter.findRecord = function() {
+        findRecordCalled = true;
+        return RSVP.resolve({ lesson: { id: '1_777', title: 'Some Lesson', url: 'https://example.com/lesson' } });
+      };
+
+      window.lesson_share_token_valid = false;
+      let model;
+      try {
+        model = await route.model({ lesson_id: '1_777', lesson_code: 'abc123', user_token: 'expiredtoken999' });
+      } finally {
+        adapter.findRecord = originalFindRecord;
+      }
+
+      assert.notOk(findRecordCalled, 'findRecord was NEVER called -- no lesson content was fetched from the API for an unresolved token');
+      assert.ok(model && model.link_expired, 'model() resolves the link_expired sentinel immediately from the server-side flag');
+    });
+
+    test('window.lesson_share_token_valid is consumed (one-shot): a later same-session transition falls through to normal findRecord detection', async function(assert) {
+      const store = this.owner.lookup('service:store');
+      const route = this.owner.lookup('route:lesson');
+      const adapter = store.adapterFor('lesson');
+      const originalFindRecord = adapter.findRecord;
+      let findRecordCallCount = 0;
+      adapter.findRecord = function() {
+        findRecordCallCount += 1;
+        return RSVP.resolve({
+          lesson: { id: '1_888:realcode:realtoken777', title: 'A Real Lesson', url: 'https://example.com/real-lesson', user: { id: '1_1', user_name: 'learner' } }
+        });
+      };
+
+      // First transition: server-side flag says the token IS valid (true), so model() must still
+      // proceed to findRecord (the flag only short-circuits the FALSE case).
+      window.lesson_share_token_valid = true;
+      let firstModel;
+      try {
+        firstModel = await route.model({ lesson_id: '1_888', lesson_code: 'realcode', user_token: 'realtoken777' });
+      } finally {
+        adapter.findRecord = originalFindRecord;
+      }
+      assert.strictEqual(findRecordCallCount, 1, 'findRecord IS called when the server-side flag is true');
+      assert.notOk(firstModel && firstModel.link_expired, 'a valid token still resolves the real lesson');
+      assert.strictEqual(window.lesson_share_token_valid, undefined, 'the one-shot flag is consumed (cleared) after the first read');
+
+      // Second, same-session transition: no flag is set anymore (consumed above), so this must
+      // fall through to the normal resolve/reject detection, not be affected by the first
+      // transition's now-stale flag value.
+      const restore = stubUnresolvedTokenResponse(store);
+      let secondModel;
+      try {
+        secondModel = await route.model({ lesson_id: '1_777', lesson_code: 'abc123', user_token: 'expiredtoken999' });
+      } finally {
+        restore();
+      }
+      assert.ok(secondModel && secondModel.link_expired, 'a later transition to an unresolved-token lesson still correctly resolves link_expired via the normal (non-flag) path');
+    });
+
+    test('window.lesson_share_token_valid unset (undefined): falls through to normal findRecord-based detection unaffected', async function(assert) {
+      const store = this.owner.lookup('service:store');
+      const route = this.owner.lookup('route:lesson');
+      const restore = stubUnresolvedTokenResponse(store);
+
+      let model;
+      try {
+        model = await route.model({ lesson_id: '1_777', lesson_code: 'abc123', user_token: 'expiredtoken999' });
+      } finally {
+        restore();
+      }
+
+      assert.ok(model && model.link_expired, 'with no server-side flag set, the existing resolve-with-no-user detection still works');
+    });
+  });
 });

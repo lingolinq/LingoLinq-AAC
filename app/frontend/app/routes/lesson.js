@@ -47,6 +47,37 @@ function isTransientOrServerError(err) {
   return status.charAt(0) === '5';
 }
 
+// Codex review finding (High, dual-reviewer pass, 2026-07-11): booting the
+// Ember shell unconditionally for a valid-lesson/unresolved-token fresh
+// navigation (boards_controller.rb's Task 1 change) means the browser then
+// calls findRecord -> Api::LessonsController#show, which renders full lesson
+// content (title/url/description via lib/json_api/lesson.rb's build_json --
+// only the `user` block is gated by extra_user) regardless of whether the
+// token resolved. That defeats the new copy's "for your security, links stop
+// working" promise: the content is fetched either way, just hidden by CSS/JS.
+// app/views/boards/index.html.erb now embeds `window.lesson_share_token_valid`
+// (set server-side, before Ember boots, from the exact same
+// User.find_by_lesson_share_token result boards_controller#lesson already
+// computed) specifically so this route can skip the findRecord call entirely
+// on the fresh-navigation entry point when the token didn't resolve -- no
+// content-fetching API call happens at all in that case.
+//
+// This flag is a ONE-SHOT signal for the initial page boot only (it reflects
+// whichever lesson was server-rendered at load time). It is read and then
+// immediately cleared so a later same-session client-side transition to a
+// DIFFERENT lesson URL is unaffected and falls through to the normal
+// resolve/reject detection below -- which still relies on the nonce-gated
+// content visibility that predates this phase (Api::LessonsController#show
+// is reachable directly by anyone who knows a lesson's nonce, independent of
+// share-token validity; that is the nonce's own long-standing content-view
+// gate, unrelated to and not fixed by this change -- flagged separately for
+// Scot, out of scope for this UX-polish phase).
+function consumeServerSideTokenValidityFlag() {
+  var flag = window.lesson_share_token_valid;
+  try { delete window.lesson_share_token_valid; } catch (e) { window.lesson_share_token_valid = undefined; }
+  return flag;
+}
+
 export default Route.extend({
   store: service('store'),
   title: "Inflections",
@@ -54,6 +85,10 @@ export default Route.extend({
     this.set('user_token', params.user_token);
     this.set('lesson_code', params.lesson_code);
     var uid = params.user_token && params.user_token.split(/-/)[0]
+    var serverSideValidity = consumeServerSideTokenValidityFlag();
+    if (serverSideValidity === false) {
+      return LINK_EXPIRED_MODEL;
+    }
     return this.store.findRecord('lesson', params.lesson_id + ":" + params.lesson_code + ":" + params.user_token).then(function(model) {
       // A resolved lesson for an unresolved token never has a `user` block
       // (api/lessons#show only sets it when extra_user is present). A
