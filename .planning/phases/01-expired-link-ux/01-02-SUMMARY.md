@@ -189,4 +189,25 @@ status-check convention gave a verified, low-risk hook to key off.
 
 New test (`genuinely missing lesson: a real 404 rejection is NOT relabeled as link_expired`)
 proves the distinction. Full `lesson expired` suite: 6/6 pass (was 5/5). Commit: `41a348841`.
+
+## Second post-review round (adversary review of the shipped diff, 2026-07-11)
+
+A second adversary-review pass (this time against the actual diff, not the plan) found the
+Codex fix above had two gaps of its own:
+
+1. **The fix's own test exercised the wrong error shape.** `isNotFoundError` already checked
+   both `err.errors[0].status` (synthetic JSON:API shape) and `err.fakeXHR.status` (this app's
+   real production shape, from `adapters/application.js`'s custom `ajax` override +
+   `utils/extras.js`'s `$.ajax` wrapper), but the new test only exercised the former --
+   meaning the fix could have silently never fired against a real browser 404 while tests
+   stayed green. Added a `fakeXhrNotFoundError()` test proving the production-accurate path.
+2. **5xx / offline failures were still silently relabeled "link expired."** Misleading for a
+   valid link hitting a transient backend hiccup, and it removed the failure from Ember's
+   normal error path where client-side error reporting hooks in. Added
+   `isTransientOrServerError(err)`, mirroring `persistence.js`'s own existing 5xx/offline
+   detection convention (`.substring(0,1) == '5'`, `fakeXHR.status === 0`), and a 500-error
+   test proving it now bubbles instead of being masked.
+
+Full `lesson expired` suite: 8/8 pass (was 6/6). Full `ember test` regression re-run after all
+fixes: 1708 tests, 1668 pass, 40 skip, 0 fail. Commit: `dfaae338c`.
 - FOUND: 09405ac31 (Task 4 commit)
