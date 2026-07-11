@@ -37,3 +37,10 @@ targetRules = ["generic-api-key"]
 regexes = [
   '''pin_placeholder_4_digit''',
 ]
+
+[[allowlists]]
+description = "i18n translation key 'trends_explainer2' (the second aggregate-research explainer paragraph on the Trends page, referenced from templates/trends.hbs and the locale files) trips generic-api-key's high-entropy heuristic because the literal ends in a digit. It is an Ember i18n key, not a secret. Same narrowest-possible scope as the pin_placeholder_4_digit entry: matched by the exact key string via regexes (so ONLY that literal is exempted, anywhere it appears) and only generic-api-key is relaxed — every other rule still scans everything, and no other value is allowlisted."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''trends_explainer2''',
+]
