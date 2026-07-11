@@ -6,12 +6,23 @@ import RSVP from 'rsvp';
 // of routes/lesson.js: mapping EVERY findRecord rejection to the link_expired
 // sentinel mislabeled a genuinely missing/nonce-mismatched lesson (a real 404
 // from Api::LessonsController#show's `exists?` guard) as "link expired".
-// These two error shapes are verified against this app's own existing
-// error-handling conventions in app/frontend/app/utils/persistence.js
-// (e.g. its existing `err.errors[0].status === 401` / `err.fakeXHR.status`
-// checks), not invented for this test.
+// jsonApiNotFoundError() is the synthetic JSON:API error shape (kept as a
+// second-format regression guard). fakeXhrNotFoundError() is the shape THIS
+// APP actually produces in production: app/frontend/app/adapters/
+// application.js overrides `ajax` to call `$.ajax` directly (bypassing Ember
+// Data's own RESTAdapter error wrapping), and app/frontend/app/utils/
+// extras.js's $.ajax override rejects with a `{ fakeXHR: {...} }` shape, not
+// a JSON:API `errors` array (adversary-review finding: the JSON:API-shape
+// test alone would pass even if the fix never actually fired for a real
+// browser 404, since production never emits that shape).
 function jsonApiNotFoundError() {
   return { errors: [{ status: '404', title: 'Record not found' }] };
+}
+function fakeXhrNotFoundError() {
+  return { fakeXHR: { status: 404 }, message: 'Not Found' };
+}
+function fakeXhrServerError() {
+  return { fakeXHR: { status: 500 }, message: 'Internal Server Error' };
 }
 
 /*
@@ -310,5 +321,63 @@ module('Acceptance | lesson expired link route/controller contract', function(ho
     assert.ok(rejected, 'model() re-throws a genuine 404 instead of masking it as link_expired');
     assert.ok(rejection && rejection.errors && rejection.errors[0].status === '404',
       'the original 404 error shape is preserved so the normal not-found error path can handle it');
+  });
+
+  test('genuinely missing lesson (production fakeXHR error shape): NOT relabeled as link_expired (adversary-review finding)', async function(assert) {
+    // The synthetic JSON:API-errors shape above is a defensive second format,
+    // not what this app actually produces. adapters/application.js's custom
+    // `ajax` override + utils/extras.js's `$.ajax` wrapper reject with a
+    // `{ fakeXHR: {...} }` shape (see persistence.js's own existing
+    // `err.fakeXHR.status` checks for the same convention). This test proves
+    // the fix fires for the shape production actually emits.
+    const store = this.owner.lookup('service:store');
+    const route = this.owner.lookup('route:lesson');
+    const adapter = store.adapterFor('lesson');
+    const originalFindRecord = adapter.findRecord;
+
+    adapter.findRecord = function() {
+      return RSVP.reject(fakeXhrNotFoundError());
+    };
+
+    let rejected = false;
+    let rejection = null;
+    try {
+      await route.model({ lesson_id: '1_nonexistent2', lesson_code: 'abc123', user_token: 'sometoken' });
+    } catch (e) {
+      rejected = true;
+      rejection = e;
+    } finally {
+      adapter.findRecord = originalFindRecord;
+    }
+
+    assert.ok(rejected, 'model() re-throws a genuine 404 in the real production (fakeXHR) error shape');
+    assert.ok(rejection && rejection.fakeXHR && rejection.fakeXHR.status === 404,
+      'the original fakeXHR error shape is preserved');
+  });
+
+  test('transient server error (500): NOT relabeled as link_expired (adversary-review finding)', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const route = this.owner.lookup('route:lesson');
+    const adapter = store.adapterFor('lesson');
+    const originalFindRecord = adapter.findRecord;
+
+    adapter.findRecord = function() {
+      return RSVP.reject(fakeXhrServerError());
+    };
+
+    let rejected = false;
+    let rejection = null;
+    try {
+      await route.model({ lesson_id: '1_500', lesson_code: 'abc123', user_token: 'sometoken' });
+    } catch (e) {
+      rejected = true;
+      rejection = e;
+    } finally {
+      adapter.findRecord = originalFindRecord;
+    }
+
+    assert.ok(rejected, 'model() re-throws a 500 instead of showing "link expired" for a transient backend failure');
+    assert.ok(rejection && rejection.fakeXHR && rejection.fakeXHR.status === 500,
+      'the original error is preserved so it can surface to the normal error path / error reporting');
   });
 });

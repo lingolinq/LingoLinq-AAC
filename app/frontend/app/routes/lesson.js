@@ -28,6 +28,25 @@ function isNotFoundError(err) {
   return false;
 }
 
+// Adversary-review finding (dual-reviewer pass, 2026-07-11): a transient
+// backend/network failure (5xx, timeout, offline) is not "link expired"
+// either -- mislabeling it that way tells a user with a perfectly valid link
+// to go ask for a new one, and (worse) silently removes the failure from
+// Ember's normal error path, where any client-side error reporting hooks in.
+// Status-shape check mirrors this codebase's own existing convention for 5xx
+// / offline detection (app/frontend/app/utils/persistence.js:4338-4346, the
+// `.substring(0, 1) == '5'` and `fakeXHR.status === 0` checks) -- verified
+// against that file, not guessed.
+function isTransientOrServerError(err) {
+  if (!err) { return false; }
+  var status = (err.errors && err.errors[0] && err.errors[0].status);
+  if (status === undefined || status === null) { status = err.fakeXHR && err.fakeXHR.status; }
+  if (status === undefined || status === null) { return false; }
+  status = String(status);
+  if (status === '0') { return true; }
+  return status.charAt(0) === '5';
+}
+
 export default Route.extend({
   store: service('store'),
   title: "Inflections",
@@ -44,10 +63,11 @@ export default Route.extend({
       }
       return model;
     }, function(err) {
-      if (isNotFoundError(err)) {
-        // Genuinely missing/nonce-mismatched lesson -- let this bubble as a
-        // real not-found error (the `error` action below lets it through
-        // too), distinct from an unresolved share token on an existing lesson.
+      if (isNotFoundError(err) || isTransientOrServerError(err)) {
+        // Genuinely missing/nonce-mismatched lesson, or a transient
+        // backend/network failure -- let this bubble as a real error (the
+        // `error` action below lets it through too), distinct from an
+        // unresolved share token on an existing, reachable lesson.
         throw err;
       }
       // Belt-and-suspenders: if a future Ember Data version tightens the
@@ -59,9 +79,10 @@ export default Route.extend({
   },
   actions: {
     error: function(error, transition) {
-      if (isNotFoundError(error)) {
-        // Let a genuine not-found bubble to the generic application error
-        // handler instead of showing the "link expired" message for it.
+      if (isNotFoundError(error) || isTransientOrServerError(error)) {
+        // Let a genuine not-found or transient failure bubble to the
+        // generic application error handler instead of showing the
+        // "link expired" message for it.
         return true;
       }
       // Belt-and-suspenders: catches a rejection that escapes the model()
