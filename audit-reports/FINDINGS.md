@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (57)
+## Open (56)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -59,7 +59,6 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-b0bc6880e6 |  | low | SOC2 | **accepted** | audit-run | sync-render-secrets.yml (holds RENDER_API_KEY + 1Password token) declares no permissions: block, inheriting default write GITHUB_TOKEN | `.github/workflows/sync-render-secrets.yml`:14 |
 | LL-e76d6378b5 |  | low |  | **accepted** | audit-run | Webhook model declares notifications and content_type attrs that Rails never serializes | `app/frontend/app/models/webhook.js`:12 |
 | LL-5d7197fa7d |  | low | HIPAA, FERPA | untriaged | audit-run | PaperTrail versions with unconstantizable item_type are detected but retention disposition is undecided | `lib/flusher.rb`:116 |
-| LL-42a24ee911 |  | low | SOC2 | untriaged | audit-run | A diagnostic SES send to a personal Gmail address never arrived (inbox or spam); a same-account send to a Workspace-internal address arrived immediately | (attestation) |
 | LL-de9c94bf36 |  | low | GDPR | untriaged | audit-run | Org retention policy purges a sponsored user's entire log history, including logs outside that org's context | `lib/data_policy_enforcer.rb`:31 |
 | LL-d8072299bf |  | low | GDPR, COPPA | untriaged | audit-run | Automated retention only runs for org-sponsored users; standalone accounts keep communication logs indefinitely | `lib/data_policy_enforcer.rb`:22 |
 | LL-c226391436 |  | low | SOC2 | untriaged | audit-run | Content-Security-Policy is report-only (nothing blocked) and script-src permits unsafe-inline + unsafe-eval | `config/initializers/content_security_policy.rb`:114 |
@@ -79,7 +78,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-705b10bcd7 |  | high | SOC2 | untriaged | audit-run | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
 | LL-5954bcbbe6 |  | medium | SOC2 | untriaged | audit-run | Pre-existing Resque background-job failures: ImageMagick identify missing in Cloud Run image, stale job_stash lookups, and a call to a removed Board method | (attestation) |
 
-## Verified closed (42)
+## Verified closed (43)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -125,6 +124,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-257c696fe0 |  | low | SOC2 | untriaged | audit-run | eslint 5.16.0 is EOL (v5 end-of-life 2019); dev toolchain running unsupported linter | `app/frontend/package-lock.json`:18085 |
 | LL-a25d930f21 |  | low | SOC2 | untriaged | audit-run | ember-cli-mirage 2.4.0 is abandoned for Ember 3.x (no active maintenance, last meaningful release 2021) | `app/frontend/package-lock.json`:12501 |
 | LL-53ab4ea456 |  | low | SOC2 | untriaged | audit-run | serialize-javascript 4.0.0 vulnerable to CVE-2024-11831 (XSS); dev toolchain only | `app/frontend/package-lock.json`:26437 |
+| LL-42a24ee911 |  | low | SOC2 | untriaged | audit-run | A diagnostic SES send to a personal Gmail address never arrived (inbox or spam); a same-account send to a Workspace-internal address arrived immediately | (attestation) |
 
 ## Accepted risk (3)
 
