@@ -167,4 +167,26 @@ None - no external service configuration required.
 - FOUND: 82105be2c (Task 1 commit)
 - FOUND: 0a8fb3aaa (Task 2 commit)
 - FOUND: e5c55a873 (Task 3 commit)
+
+## Post-review fix (Codex dual-reviewer pass, 2026-07-11)
+
+`/review-pr`'s Codex senior-dev pass flagged (P2/Medium): the `model()` `.catch` mapped
+EVERY `findRecord` rejection to `LINK_EXPIRED_MODEL`, so a genuinely missing or
+nonce-mismatched lesson (a real 404 from `Api::LessonsController#show`'s `exists?` guard)
+would have been mislabeled "this link has expired, request a new one" -- misleading, since
+asking for a new link never helps a deleted/nonexistent lesson.
+
+Fix: added `isNotFoundError(err)`, checking the two error shapes this codebase's own
+`persistence.js` already uses elsewhere for other status codes (`err.errors[0].status`,
+JSON:API/Ember-Data shape; `err.fakeXHR.status`, raw-XHR fallback shape) -- verified against
+`app/frontend/app/utils/persistence.js:4338-4354`, not guessed. A genuine 404 now re-throws
+and bubbles to the normal not-found error path; any other rejection shape still falls back
+to `link_expired` (unchanged defensive behavior for the belt-and-suspenders case). Did NOT
+attempt to trace the full custom `findRecord`/local-persistence-cache wrapper in
+`persistence.js` beyond confirming this specific error-shape convention -- that file is
+large, shared, and offline-sync-critical, and doing so was unnecessary once the existing
+status-check convention gave a verified, low-risk hook to key off.
+
+New test (`genuinely missing lesson: a real 404 rejection is NOT relabeled as link_expired`)
+proves the distinction. Full `lesson expired` suite: 6/6 pass (was 5/5). Commit: `41a348841`.
 - FOUND: 09405ac31 (Task 4 commit)
