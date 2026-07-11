@@ -84,7 +84,6 @@ export default Route.extend({
   model: function(params) {
     this.set('user_token', params.user_token);
     this.set('lesson_code', params.lesson_code);
-    var uid = params.user_token && params.user_token.split(/-/)[0]
     var serverSideValidity = consumeServerSideTokenValidityFlag();
     if (serverSideValidity === false) {
       return LINK_EXPIRED_MODEL;
