@@ -263,3 +263,40 @@ implied "boots the shell, grants no data" covered lesson content -- it didn't), 
 01-02-PLAN.md gets new T-02-06. Full `lesson expired` suite: 11/11 pass (was 8/8). RSpec
 `boards_controller_spec.rb`: 26/26 pass (unchanged -- `render_views` isn't enabled there, so the
 view-rendering path wasn't exercised by that suite either way). Commits: `2738f8358`, `2f6ef07fd`.
+
+## Fourth post-review round (Codex round 2 on PR #580, High, 2026-07-11)
+
+Codex re-reviewed after the round-3 fix landed and correctly found it incomplete: the
+`window.lesson_share_token_valid` flag only closes the fresh-navigation entry point. A
+client-side SPA transition to a DIFFERENT lesson's unresolved-token URL has no server-rendered
+page to carry a flag through, so `findRecord` -> `api/lessons#show` still ran and returned full
+content whenever the nonce matched, with no token check at all (`lesson.nonce == lesson_code ||
+allowed?(lesson, 'view')`).
+
+Scot decided (asked directly, given this touches shared serializer/controller code beyond this
+plan's original locked boundary): extend the fix now for full closure rather than document as a
+residual.
+
+**Fix (T-02-07 in 01-02-PLAN.md, T-01-05 update in 01-01-PLAN.md):** closed at the source instead
+of client-side. `Api::LessonsController#show` computes `independently_authorized` via the model's
+pure `lesson.allows?(@api_user, 'view', api_permission_scopes)` predicate -- verified via the
+`permissable-coughdrop` gem source (`Permissable::InstanceMethods#allows?`) to have NO render
+side effect, unlike the controller's `allowed?` wrapper, which renders a 400 on failure and would
+have double-rendered for the common anonymous nonce-match case. Passes
+`withhold_content: !independently_authorized && !user` to `JsonApi::Lesson.as_json`, which now
+gates `title`/`url`/`original_url`/`description`/`due_at`/`due_ts`/`time_estimate`/`past_cutoff`/
+`badge`/`noframe` (and the youtube-URL rewrite) behind `unless args[:withhold_content]`.
+`id`/`lesson_code`/`required`/`completed_users` stay unconditional (metadata, not content).
+
+Verified every OTHER `JsonApi::Lesson.as_json` call site (grepped): index/paginate, create,
+update, complete, `lib/json_api/user.rb`, `lib/json_api/unit.rb` never pass `withhold_content` --
+defaults falsy, zero behavior change. 3 new RSpec examples added to
+`spec/controllers/api/lessons_controller_spec.rb`: content withheld for anonymous + unresolved
+token; content still shown when the token resolves (regression); content still shown for an
+independently-authorized viewer (e.g. lesson owner) even with no resolved token (the legitimate
+admin-preview case, regression). Full run across `lessons_controller_spec.rb` +
+`lib/json_api/lesson_spec.rb` + `models/lesson_spec.rb` + `boards_controller_spec.rb`: 134
+examples, 0 failures. Commit: `0195c148e`.
+
+This closes the disclosure for both entry points (fresh navigation and client-side transition) --
+no remaining known content-disclosure gap for the unresolved-share-token case.
