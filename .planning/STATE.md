@@ -3,15 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 planned, plan-checker PASS, adversary-review ship-with-conditions (conditions applied to plans); ready for /gsd-execute-phase 1
-last_updated: "2026-07-11T02:27:58.000Z"
-last_activity: 2026-07-10/11 -- bootstrapped single-phase project, planned Phase 1 (2 plans), ran gsd-plan-checker (PASS, 4 non-blocking warnings), ran adversary-review (ship-with-conditions), applied all 3 conditions to the plans. Worktree was unexpectedly deleted mid-session (worktree+branch both gone, cause undetermined -- not the worktree-sweep cron, which only runs Mondays and skips this repo for stash entries) and was recreated from scratch with commit_docs now true to prevent recurrence.
+last_updated: "2026-07-11T04:54:09.221Z"
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 50
 ---
 
 # Project State
@@ -21,7 +19,18 @@ progress:
 See: .planning/PROJECT.md (created 2026-07-10)
 
 **Core value:** A person who opens a once-valid, now-expired lesson/board share link gets a clear, recoverable message instead of a bare 404 or an unstyled error page.
-**Current focus:** Phase 1 (Expired-Link UX) — plans written and reviewed, ready to execute.
+**Current focus:** Phase 1 (Expired-Link UX) — Plan 01-01 complete (backend controller + specs); Plan 01-02 (frontend SPA route) up next.
+
+## Decisions
+
+- Plan 01-01: no feature flag added for the `boards_controller#lesson` expired-token render change (Scot, confirmed 2026-07-11) — this is error-state polish on an already-broken path (expired tokens currently 404 or throw), not a new user-facing capability, so CLAUDE.md's new-feature-flag rule does not apply.
+- Plan 01-01: retained the now-branch-irrelevant `User.find_by_lesson_share_token` call in `boards_controller#lesson`, documented inline, solely to preserve legacy-token telemetry logging for LL-310b464be4 sunset tracking (adversary-review condition).
+- Plan 01-01: left `Lesson#nonce`'s pre-existing unauthenticated write-on-read untouched (adversary-review finding) — out of scope, separate future hardening item.
+
+## Session
+
+- **Last session:** 2026-07-11T04:49:50Z — Completed 01-01-PLAN.md (`boards_controller#lesson` expired-token render fix + controller specs; commits `d64fef846`, `4ddc6f9c6`).
+- **Resume file:** .planning/phases/01-expired-link-ux/01-02-PLAN.md
 
 ## Context
 
@@ -48,6 +57,7 @@ does not, per the known main-vs-staging lag).
   error-state polish on an already-broken path, not a new capability; decision recorded inline
   in 01-01-PLAN.md Task 1; (4) Plan 02 has 4 tasks (context-budget watch, not a
   functional issue).
+
 - **adversary-review (red-team):** Ship-with-conditions, no blockers. 3 conditions applied
   directly to the plans: (1) documented why the retained (but now functionally unused)
   `find_by_lesson_share_token` call in `boards_controller#lesson` must stay — legacy-token

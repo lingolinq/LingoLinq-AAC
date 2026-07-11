@@ -24,7 +24,7 @@ PR #568) and Scot's 2026-07-10 decisions; no domain research is needed before pl
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: `boards_controller#lesson` boots the Ember shell (not bare 404) when the lesson exists but the share token is unresolved
+- [x] 01-01: `boards_controller#lesson` boots the Ember shell (not bare 404) when the lesson exists but the share token is unresolved
 - [ ] 01-02: Ember `lesson` route/controller/template surface a reason-agnostic link-expired panel; runtime-verifies Ember Data findRecord behavior on an expired token
 
 ## Progress
@@ -34,4 +34,4 @@ Single phase, no parallelism.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Expired-Link UX | 0/2 | Not started | - |
+| 1. Expired-Link UX | 1/2 | In Progress|  |
