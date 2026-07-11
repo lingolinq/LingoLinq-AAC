@@ -138,7 +138,6 @@ jobs:
 
   security-scan:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - name: Checkout repository
@@ -181,7 +180,7 @@ jobs:
           npm audit --audit-level=high || true
         continue-on-error: true
 
-  # Blocking gate. Unlike the advisory security-scan job above, a leaked secret
+  # Blocking gate. Unlike the advisory Brakeman/npm steps above, a leaked secret
   # MUST fail CI. To stay safe as a required check we scan only the secrets a PR /
   # push actually INTRODUCES (the commit delta), never the full history: one
   # historical false positive must not block every future merge. Pair this with
