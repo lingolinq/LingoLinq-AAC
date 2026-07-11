@@ -444,7 +444,7 @@ var utterance = EmberObject.extend({
   process_inline_content: function(text, inline_actions) {
     var content = [];
     var loc = 0;
-    inline_actions.sortBy('index').forEach(function(action) {
+    inline_actions.slice().sort(function(a, b) { var x = emberGet(a, 'index'), y = emberGet(b, 'index'); return x < y ? -1 : (x > y ? 1 : 0); }).forEach(function(action) {
       var pre = text.slice(loc, action.index);
       if(pre && !pre.match(/^\s*$/)) {
         content.push({text: pre});

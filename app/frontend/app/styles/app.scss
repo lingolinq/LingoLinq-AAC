@@ -6,6 +6,8 @@
 @use "eval_quick";
 @use "focused-view";
 @use "caseload";
+@use "modern_pages";
+@use "badges";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -4884,114 +4886,156 @@ tr.accuracy_non_mastered {
 }
 
 /* ── Download page ── */
-.md-shell--download {
-  min-height: auto;
+/* Download page — cohesive with the start_codes detail card + home mesh bg.
+   .md-shell paints the mesh; a centered container holds a hero (same eyebrow →
+   title language as start_codes) + a grid of platform cards built on the same
+   md-org-section tile as start_codes / the org pages. */
+.md-download {
+  width: min(960px, 100%);
+  box-sizing: border-box;
+  margin: 72px auto 56px;
+  padding: 0 16px;
 }
-.md-shell--download > .md-workspace {
-  flex: 0 1 auto;
-  min-height: auto;
-  margin-top: 0 !important;
-}
-.md-main--download {
-  padding-bottom: 3rem;
-  max-width: 900px;
-  margin: 0 auto;
-}
-.md-download-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 20px;
-  padding-top: 8px;
-}
-.md-download-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 24px !important;
-}
-.md-download-card .md-card__head {
+.md-download__hero {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
+  margin-bottom: 24px;
+  padding: 0 4px;
 }
-.md-download-card__icon {
-  width: 48px;
-  height: 48px;
+.md-download__hero-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  flex-shrink: 0;
+  background: rgba($brand-dusty-denim, 0.12);
+  color: $brand-dusty-denim-aa;
+}
+.md-download__hero-badge svg {
+  width: 28px;
+  height: 28px;
+}
+.md-download__title {
+  /* override the global `h1 { height: 60px; display: inline-block }` (app.scss
+     ~1735) that otherwise leaves ~30px of dead space below the title text. */
+  display: block;
+  height: auto;
+  margin: 2px 0 0;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-download__sub {
+  margin: 3px 0 0;
+  font-size: 16px;
+  color: var(--md-muted, $la-navy);
+}
+.md-download__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+.md-download__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 0;
+}
+.md-download__card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.md-download__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.05);
+}
+.md-download__icon-img {
+  width: 34px;
+  height: 34px;
   object-fit: contain;
-  flex-shrink: 0;
 }
-.md-download-card__emoji {
-  font-size: 40px;
+.md-download__icon-emoji {
+  font-size: 30px;
   line-height: 1;
-  flex-shrink: 0;
-  width: 48px;
-  text-align: center;
 }
-.md-download-card .md-card__title {
+.md-download__platform {
   margin: 0;
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.2px;
-  color: var(--md-ink, $la-navy);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
 }
-.md-download-card .md-card__sub {
-  margin: 0;
-  font-size: 14px;
-  color: var(--md-muted, $brand-slate-gray);
-}
-.md-download-card__desc {
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--md-ink, $la-navy);
-  margin: 0;
-}
-.md-download-card__link {
-  /* WCAG AA fix — was $brand-verdigris on white = 3.32:1. */
-  color: $brand-verdigris-aa;
+.md-download__devices {
+  margin: 2px 0 0;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.8;
+}
+.md-download__desc {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-download__link {
+  color: $brand-verdigris-aa;
+  font-weight: 700;
   text-decoration: none;
 }
-.md-download-card__link:hover {
+.md-download__link:hover {
   text-decoration: underline;
 }
-.md-download-card__btns {
+.md-download__btns {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: auto;
 }
-.md-download-card__btn {
+.md-download__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 20px;
+  padding: 11px 20px;
   border-radius: 12px;
   font-size: 15px;
   font-weight: 700;
   color: #fff;
-  /* WCAG AA fix (was $brand-blue-grey → $brand-charcoal-blue, 3.16:1 on lightest stop).
-     $la-navy → $brand-charcoal-dark gives 6.5:1+ across the gradient. */
   background: linear-gradient(135deg, $la-navy, $brand-charcoal-dark);
   text-decoration: none;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   box-shadow: 0 2px 8px rgba($brand-charcoal-blue, 0.25);
+  margin-top: auto;
 }
-.md-download-card__btn:hover {
+.md-download__btns .md-download__btn {
+  margin-top: 0;
+}
+.md-download__btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba($brand-charcoal-blue, 0.35);
   color: #fff;
   text-decoration: none;
 }
-.md-download-card__btn--secondary {
-  /* WCAG AA fix (was #a0aec0 → #718096, 2.26:1 on lightest stop — worst in audit).
-     Darker slate gradient gives ~5:1+ across the entire gradient. */
+.md-download__btn--secondary {
   background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-dark);
 }
-@media (max-width: 480px) {
-  .md-download-grid {
+@media (max-width: 640px) {
+  .md-download__grid {
     grid-template-columns: 1fr;
-  }
-  .md-download-card {
-    padding: 18px !important;
   }
 }
 .md-card--home-boards {
@@ -26850,7 +26894,6 @@ header.header--unauthenticated ~ #content .la-topbar {
 .la-wrapper--about,
 .la-wrapper--pricing,
 .la-wrapper--contact,
-.la-wrapper--troubleshooting,
 .la-wrapper--privacy {
   color: $brand-teal;
 }
@@ -26937,7 +26980,6 @@ header.header--unauthenticated ~ #content .la-topbar {
 .la-wrapper.la-wrapper--about,
 .la-wrapper.la-wrapper--pricing,
 .la-wrapper.la-wrapper--contact,
-.la-wrapper.la-wrapper--troubleshooting,
 .la-wrapper.la-wrapper--privacy {
 
   // Glossy glass hero card (replaces dark navy) — keep contained, not full-bleed
@@ -27000,118 +27042,6 @@ header.header--unauthenticated ~ #content .la-topbar {
     border-color: rgba($brand-teal, 0.25);
   }
 
-  // Troubleshooting page: content card and tables
-  .la-troubleshooting-intro {
-    max-width: 640px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .la-troubleshooting-section {
-    padding: 0 2rem 4rem;
-  }
-  .la-troubleshooting-card {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-  .la-troubleshooting-content {
-    color: $brand-charcoal-dark;
-  }
-  .la-troubleshooting-subtitle {
-    margin-top: 2.5rem;
-    margin-bottom: 1rem;
-    font-size: 14px;
-    color: $la-navy;
-  }
-  .la-troubleshooting-table {
-    width: 100%;
-    margin-bottom: 1rem;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 8px;
-    overflow: hidden;
-    th, td {
-      padding: 0.75rem 1rem;
-      border-color: rgba($brand-teal, 0.12);
-    }
-    th {
-      background: rgba($brand-teal, 0.08);
-      color: $indigo;
-      font-weight: 600;
-    }
-    tbody tr:hover td {
-      background: rgba(255, 255, 255, 0.7);
-    }
-  }
-  .la-troubleshooting-table--details {
-    max-width: 500px;
-  }
-  .la-troubleshooting-cell {
-    vertical-align: middle !important;
-  }
-  .la-troubleshooting-cell--narrow {
-    width: 210px;
-  }
-  .la-troubleshooting-pass { color: $brand-stormy-teal; font-weight: 600; }
-  .la-troubleshooting-partial { color: #b8860b; }
-  .la-troubleshooting-fail { color: $brand-danger; }
-  .la-troubleshooting-pending { color: $la-navy; }
-  .la-troubleshooting-muted td {
-    color: $brand-slate-gray;
-  }
-  .la-troubleshooting-pre {
-    white-space: pre-line;
-    max-height: 100px;
-    overflow: auto;
-    font-size: 14px;
-  }
-  .la-troubleshooting-pre--small {
-    max-width: 200px;
-    max-height: 100px;
-    white-space: pre-wrap;
-  }
-  .la-troubleshooting-alpha-demo {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .la-troubleshooting-alpha-box {
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    &.la-troubleshooting-alpha-box--blue {
-      position: relative;
-      width: 20px;
-      height: 20px;
-      margin-right: 5px;
-      background: rgba(0, 0, 255, 1);
-    }
-    &.la-troubleshooting-alpha-box--red {
-      background: rgba(255, 0, 0, 0.5);
-    }
-    &.la-troubleshooting-alpha-box--green {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 10px;
-      height: 20px;
-      background: rgba(0, 255, 0, 0.5);
-    }
-  }
-  .la-troubleshooting-actions {
-    margin-top: 1.5rem;
-  }
-  .la-troubleshooting-content .la-btn--ghost {
-    padding: 0.35rem 0.75rem;
-    font-size: 14px;
-    background: rgba($brand-charcoal-dark, 0.08);
-    color: $brand-charcoal-dark;
-    border: 1px solid rgba($brand-charcoal-dark, 0.2);
-    &:hover {
-      background: rgba($brand-charcoal-dark, 0.14);
-      color: #1f2937;
-    }
-  }
 
   // Glass cards — glossy inner cards
   .la-about-glass-card {
@@ -27265,57 +27195,18 @@ header.header--unauthenticated ~ #content .la-topbar {
   }
 }
 
-/* Troubleshooting page: app-shell fills remaining viewport height */
-.la-wrapper--troubleshooting .app-shell {
-  min-height: calc(100vh - var(--topbar-height));
-  display: flex;
-  flex-direction: column;
-}
-.la-wrapper--troubleshooting .app-shell .la-main {
-  flex: 1;
-}
-
-/* Troubleshooting page: reduce top spacing on first section */
-.la-wrapper--troubleshooting .la-section:first-child {
-  padding-top: 0.5rem;
-}
 
 /* Support, Contact & Troubleshooting page: hero-gradient matches base title size */
 .la-wrapper--support .hero-gradient,
-.la-wrapper--contact .hero-gradient,
-.la-wrapper--troubleshooting .hero-gradient {
+.la-wrapper--contact .hero-gradient {
   font-size: 1em;
 }
 
-/* Troubleshooting page: primary and ghost buttons match support page */
-.la-wrapper--troubleshooting .la-btn.la-btn--primary {
-  background: $brand-charcoal-blue;
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
-}
-.la-wrapper--troubleshooting .la-btn.la-btn--primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-  transform: translateY(-1px);
-  color: #fff;
-}
-.la-wrapper--troubleshooting .la-troubleshooting-actions .la-btn--ghost {
-  background: rgba($brand-charcoal-dark, 0.08);
-  color: $brand-charcoal-dark;
-  border: 1px solid rgba($brand-charcoal-dark, 0.2);
-}
-.la-wrapper--troubleshooting .la-troubleshooting-actions .la-btn--ghost:hover {
-  background: rgba($brand-charcoal-dark, 0.14);
-  color: #1f2937;
-}
 
 // About, Pricing, Contact, Troubleshooting: same space between eyebrow badge and hero header
 .la-wrapper.la-wrapper--about .la-hero-card .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--pricing .la-hero-card .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--contact .la-hero-card .la-section-eyebrow-badge,
-.la-wrapper.la-wrapper--troubleshooting .la-hero-card .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--privacy .la-hero-card .la-section-eyebrow-badge {
   margin-bottom: 2.5rem;
 }
@@ -27323,7 +27214,6 @@ header.header--unauthenticated ~ #content .la-topbar {
 // About, Pricing, Contact, Troubleshooting, Privacy: hero header size (match between pages)
 .la-wrapper.la-wrapper--about .la-hero-title,
 .la-wrapper.la-wrapper--pricing .la-hero-title,
-.la-wrapper.la-wrapper--troubleshooting .la-hero-title,
 .la-wrapper.la-wrapper--privacy .la-hero-title {
   font-size: 35px; // 15% smaller than previous 41px
   @media (max-width: 1366px) { font-size: 27px; }
@@ -31207,7 +31097,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    These overrides flip to dark text on opaque white background on focus.
    Same fix as the Watch Demo button (above), applied to its analogs:
      - .la-cta-section .la-btn--ghost   (Schedule a District Demo, etc.)
-     - .la-wrapper--about, --contact, --pricing, --support, --troubleshooting
+     - .la-wrapper--about, --contact, --pricing, --support
        wrappers' ghost buttons
    ────────────────────────────────────────────────────────────────────────── */
 .la-cta-section .la-btn--ghost:focus-visible,
@@ -31221,9 +31111,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 .la-wrapper--pricing .la-btn--ghost:focus-visible,
 .la-wrapper--pricing .la-btn--ghost:focus,
 .la-wrapper--support .la-btn--ghost:focus-visible,
-.la-wrapper--support .la-btn--ghost:focus,
-.la-wrapper--troubleshooting .la-btn--ghost:focus-visible,
-.la-wrapper--troubleshooting .la-btn--ghost:focus {
+.la-wrapper--support .la-btn--ghost:focus {
   color: $brand-charcoal-dark !important;
   background: rgba(255, 255, 255, 0.96) !important;
   border-color: $brand-charcoal-dark !important;
@@ -38664,22 +38552,6 @@ a.la-footer-bottom-a11y-wcag {
   font-size: $aac-font-size-sm;
 }
 
-.la-support-troubleshooting-link {
-  align-self: center;
-  text-decoration: none;
-
-  &:hover {
-    color: #fff;
-    text-decoration: none;
-  }
-
-  // In support modal, keep sign-in (login-btn) style but fit in the actions row; match Send Message font size
-  &.login-btn {
-    display: inline-block;
-    width: auto;
-    font-size: $aac-font-size-sm;
-  }
-}
 
 .la-support-form-error {
   font-size: 14px;
@@ -41853,6 +41725,43 @@ a.la-footer-bottom-a11y-wcag {
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%) !important;
   color: var(--md-ink) !important;
 
+}
+
+/* User pages (badges/goals/subscription/etc.) don't get the dashboard's
+   `.page-footer` flex-grow rules, so `.md-shell--user`'s own `min-height:100vh`
+   mesh is pinned to the viewport as a flex child of the scrolling #content and
+   taller content (e.g. the badges grid) overflows past it, revealing #content's
+   grey (#aaa) base below the shell. #content is the actual scroll container and
+   its background stays behind the full scroll height, so paint the mesh there;
+   the shell is made transparent below so the two meshes don't seam. */
+#content:has(.md-shell--user),
+#within_ember:has(.md-shell--user) .page-footer {
+  background:
+    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
+    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
+    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
+    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
+    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
+    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%) !important;
+  /* Pin the mesh to the viewport so #content AND the page-footer below it render
+     the identical mesh with no seam, covering the whole page (the footer renders
+     on every non-board page and is a sibling of #content). */
+  background-attachment: fixed !important;
+}
+#content:has(.md-shell--user) {
+  /* fill the viewport when the badge grid is short so the mesh isn't cut off */
+  min-height: 100vh !important;
+}
+/* Two-class selector (0,2,0) so this beats the plain `.md-shell` (0,1,0)
+   background rules defined later in the file (e.g. ~L58263/58282) that would
+   otherwise re-apply the shell's own mesh on top of #content's — creating the
+   two-tone "gray band" where the shell ends. With the shell transparent, only
+   #content's single fixed mesh shows across the whole page. */
+.md-shell.md-shell--user {
+  background: transparent !important;
+  /* Let #content drive the page height; the shell's own 100vh would double-count
+     against #content's top padding and overflow. */
+  min-height: 0 !important;
 }
 
 .md-workspace {
@@ -68065,23 +67974,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     text-align: left;
   }
 }
-/* On screens larger than 1024px, center the hint on the PAGE rather
-   than within its `__text` div: that div is pushed right by the
-   back-button, so flex-centering it lands off-page-center. Position
-   the placeholder absolutely against `.md-board-detail-sentence-bar`
-   (its `position: relative` ancestor, which spans the full sentence
-   row width), centered on both axes — visually page-centered and
-   independent of the back-button offset. Stays pointer-events:none
-   (from the base rule). */
+/* On screens larger than 1024px, keep the hint LEFT-aligned (reading from
+   the bar's left edge, after the back-button) rather than page-centered.
+   It stays VERTICALLY centered in the bar via the in-flow flex `__text`
+   container (`align-items: center`) plus the base `align-self: center`, so
+   no absolute positioning is needed — the hint is centered vertically but
+   not horizontally. Stays pointer-events:none (from the base rule). */
 @media (min-width: 1025px) {
   .md-board-detail-sentence-bar__placeholder {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    flex: none;
-    text-align: center;
-    white-space: nowrap;
+    text-align: left;
   }
 }
 
@@ -83779,6 +83680,198 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 /* Section containers */
+/* Start-code detail page (/start_codes/:id) — modern card styling that reuses
+   the org-section + user-row design language for a professional, consistent look. */
+.md-start-code {
+  width: min(680px, 100%);
+  box-sizing: border-box;
+  /* top margin so the card clears the fixed header + shell padding. Placed on
+     the container (flex child of .md-shell) so it isn't swallowed by
+     parent/first-child margin-collapsing the way a card margin would be. */
+  margin: 72px auto 48px;
+  padding: 0 16px;
+}
+.md-start-code__card {
+  margin-bottom: 0;
+}
+.md-start-code__status {
+  text-align: center;
+}
+.md-start-code__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+}
+.md-start-code__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  flex-shrink: 0;
+  background: rgba($brand-dusty-denim, 0.10);
+  color: $brand-dusty-denim-aa;
+}
+.md-start-code__badge svg {
+  width: 28px;
+  height: 28px;
+}
+.md-start-code__badge-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+.md-start-code__head-text {
+  flex: 1;
+  min-width: 0;
+}
+.md-start-code__eyebrow {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.75;
+}
+.md-start-code__code {
+  margin: 3px 0 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--md-ink, $brand-blue-black);
+  font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  word-break: break-all;
+}
+.md-start-code__chip {
+  align-self: flex-start;
+}
+/* Detail card: responsive grid of label/value field tiles (mirrors the
+   eyebrow → value language of the header for a modern info-panel look). */
+.md-start-code__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+.md-start-code__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.035);
+  border: 1px solid rgba($la-navy, 0.05);
+}
+.md-start-code__field--wide {
+  grid-column: 1 / -1;
+}
+.md-start-code__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.7;
+}
+.md-start-code__value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--md-ink, $brand-blue-black);
+  word-break: break-word;
+}
+.md-start-code__value a {
+  color: $brand-dusty-denim-aa;
+  font-weight: 700;
+}
+.md-start-code__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Activated-users sub-section inside the single detail card, set off with a
+   divider so the whole card reads as one cohesive block of information. */
+.md-start-code__section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba($la-navy, 0.09);
+}
+.md-start-code__section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.md-start-code__section-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-start-code__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba($brand-dusty-denim, 0.12);
+  color: $brand-dusty-denim-aa;
+  font-size: 13px;
+  font-weight: 700;
+}
+/* Activated users: responsive grid of avatar + name tiles. */
+.md-start-code__users {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.md-start-code__user {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.035);
+  border: 1px solid rgba($la-navy, 0.05);
+  text-decoration: none;
+  color: var(--md-ink, $brand-blue-black);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.md-start-code__user:hover {
+  background: rgba($brand-dusty-denim, 0.07);
+  border-color: rgba($brand-dusty-denim, 0.20);
+  color: $brand-dusty-denim-aa;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+.md-start-code__user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.md-start-code__user-name {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 560px) {
+  .md-start-code__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .md-org-section {
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba($la-navy, 0.08);

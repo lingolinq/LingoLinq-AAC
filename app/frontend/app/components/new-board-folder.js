@@ -86,5 +86,9 @@ export default Component.extend({
     var self = this;
     this.onClose = function() { self.send('close'); };
     this.onOpening = function() { self.send('opening'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs. See assessment-settings.
+    self.send('opening');
   },
 });

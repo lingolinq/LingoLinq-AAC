@@ -7,8 +7,12 @@ import Utils from '../../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   load_goals: function() {
     var controller = this;

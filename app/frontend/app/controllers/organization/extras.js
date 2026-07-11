@@ -7,6 +7,9 @@ import { computed } from '@ember/object';
 
 export default Controller.extend({
   router: service('router'),
+  // Ember Data 5.x removed the automatic `store` injection into controllers;
+  // inject it explicitly (used by load_gifts / add_gift).
+  store: service('store'),
   refresh_lists: function() {
     this.load_blocked_emails();
     this.load_gifts();

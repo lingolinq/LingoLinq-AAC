@@ -8,12 +8,15 @@ import app_state from '../../utils/app_state';
 import EmberObject from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { reads } from '@ember/object/computed';
+import { alias, reads } from '@ember/object/computed';
 import LingoLinq from '../../app';
 import evaluation from '../../utils/eval';
 import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   store: service(),
   queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],

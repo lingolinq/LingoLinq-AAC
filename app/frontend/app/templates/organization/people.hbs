@@ -72,17 +72,17 @@
         <div class="md-org-user-list">
           {{#each this.supervisors.data as |user|}}
             <div class="md-org-user-row">
-              <LinkTo @route="user" @model={{this.user.user_name}} class="md-org-user-row__main">
-                <img src={{this.user.avatar_url}} class="md-org-user-row__avatar" alt="">
-                <span class="md-org-user-row__name">{{this.user.user_name}}</span>
-                {{#if this.user.org_supervision_pending}}
+              <LinkTo @route="user" @model={{user.user_name}} class="md-org-user-row__main">
+                <img src={{user.avatar_url}} class="md-org-user-row__avatar" alt="">
+                <span class="md-org-user-row__name">{{user.user_name}}</span>
+                {{#if user.org_supervision_pending}}
                   <span class="md-chip md-chip--soft">{{t "(pending)" key="pending_paren"}}</span>
-                {{else if this.user.org_premium_supervisor}}
+                {{else if user.org_premium_supervisor}}
                   <span class="md-chip md-chip--soft">{{t "(premium)" key="premium_paren"}}</span>
                 {{/if}}
               </LinkTo>
               <div class="md-org-user-row__supervisees">
-                {{#each this.user.org_supervisees as |sup|}}
+                {{#each user.org_supervisees as |sup|}}
                   <LinkTo @route="user" @model={{sup.user_name}} class="md-org-user-row__supervisee-link">{{sup.user_name}}</LinkTo>
                 {{/each}}
               </div>
@@ -125,16 +125,16 @@
         <div class="md-org-user-list">
           {{#each this.users.data as |user|}}
             <div class="md-org-user-row">
-              <LinkTo @route="user" @model={{this.user.user_name}} class="md-org-user-row__main">
-                <img src={{this.user.avatar_url}} class="md-org-user-row__avatar" alt="">
+              <LinkTo @route="user" @model={{user.user_name}} class="md-org-user-row__main">
+                <img src={{user.avatar_url}} class="md-org-user-row__avatar" alt="">
                 <span class="md-org-user-row__name">
-                  {{this.user.user_name}}
-                  {{#if this.model.permissions.manage}}<em class="md-org-user-row__real-name">{{this.user.name}}</em>{{/if}}
+                  {{user.user_name}}
+                  {{#if this.model.permissions.manage}}<em class="md-org-user-row__real-name">{{user.name}}</em>{{/if}}
                 </span>
-                {{#if this.user.org_pending}}
+                {{#if user.org_pending}}
                   <span class="md-chip md-chip--soft">{{t "(pending)" key="pending_paren"}}</span>
                 {{/if}}
-                {{#if this.user.org_sponsored}}
+                {{#if user.org_sponsored}}
                   <span class="md-chip md-chip--soft">{{t "(sponsored)" key="sponsored_paren"}}</span>
                 {{/if}}
               </LinkTo>
@@ -177,10 +177,10 @@
         <div class="md-org-user-list">
           {{#each this.evals.data as |user|}}
             <div class="md-org-user-row">
-              <LinkTo @route="user" @model={{this.user.user_name}} class="md-org-user-row__main">
-                <img src={{this.user.avatar_url}} class="md-org-user-row__avatar" alt="">
-                <span class="md-org-user-row__name">{{this.user.user_name}}</span>
-                {{#if this.user.org_pending}}
+              <LinkTo @route="user" @model={{user.user_name}} class="md-org-user-row__main">
+                <img src={{user.avatar_url}} class="md-org-user-row__avatar" alt="">
+                <span class="md-org-user-row__name">{{user.user_name}}</span>
+                {{#if user.org_pending}}
                   <span class="md-chip md-chip--soft">{{t "(pending)" key="pending_paren"}}</span>
                 {{/if}}
               </LinkTo>
@@ -224,9 +224,9 @@
         <div class="md-org-user-list">
           {{#each this.org_extras.data as |user|}}
             <div class="md-org-user-row">
-              <LinkTo @route="user" @model={{this.user.user_name}} class="md-org-user-row__main">
-                <img src={{this.user.avatar_url}} class="md-org-user-row__avatar" alt="">
-                <span class="md-org-user-row__name">{{this.user.user_name}}</span>
+              <LinkTo @route="user" @model={{user.user_name}} class="md-org-user-row__main">
+                <img src={{user.avatar_url}} class="md-org-user-row__avatar" alt="">
+                <span class="md-org-user-row__name">{{user.user_name}}</span>
               </LinkTo>
               <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "management_action" "remove_extras" user.user_name true)}} aria-label={{t "Remove" key="remove"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

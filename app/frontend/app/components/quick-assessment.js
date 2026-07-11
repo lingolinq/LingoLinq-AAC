@@ -91,7 +91,7 @@ export default Component.extend({
   add_tally(correct) {
     const timestamp = Date.now() / 1000;
     const tallies = this.get('tallies');
-    tallies.pushObject({
+    tallies.push({
       timestamp: timestamp,
       correct: correct
     });

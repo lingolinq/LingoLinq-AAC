@@ -256,7 +256,7 @@ export default Component.extend({
         var ssids = (this.get('model.button.ssids') || '').split(/,/);
         if (ssids.length === 1 && ssids[0] === '') { ssids = []; }
         ssids.push(this.get('appState.current_ssid'));
-        this.set('model.button.ssids', ssids.uniq().join(','));
+        this.set('model.button.ssids', [...new Set(ssids)].join(','));
       }
     },
     add_place() {
@@ -264,7 +264,7 @@ export default Component.extend({
         var places = (this.get('model.button.places') || '').split(/,/);
         if (places.length === 1 && places[0] === '') { places = []; }
         places.push(this.get('place'));
-        this.set('model.button.places', places.uniq().join(','));
+        this.set('model.button.places', [...new Set(places)].join(','));
       }
     },
     add_time() {
@@ -274,7 +274,7 @@ export default Component.extend({
         var times = (this.get('model.button.times') || '').split(/;/);
         if (times.length === 1 && times[0] === '') { times = []; }
         times.push(this.format_time(start) + '-' + this.format_time(end));
-        this.set('model.button.times', times.uniq().join(';'));
+        this.set('model.button.times', [...new Set(times)].join(';'));
       }
     }
   }

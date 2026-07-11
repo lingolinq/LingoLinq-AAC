@@ -50,6 +50,13 @@ export default Controller.extend(prefClasses, {
     }
     return title;
   }),
+  // The template checks `this.board.grid` (and this.board.* throughout), but the
+  // controller only ever had `model` set — `this.board` resolved to undefined,
+  // so any board whose grid isn't reached some other way rendered "Grid not
+  // defined!". Surfaced by the eval (client-built obf boards) after the Ember
+  // 5.12 upgrade removed the implicit-`this` template fallback that used to let
+  // bare `{{board.grid}}` reach the model. Alias it to the current model.
+  board: alias('model'),
   ordered_buttons: null,
   suggestions: null,
   word_prediction_locale: function() {
@@ -1007,7 +1014,7 @@ export default Controller.extend(prefClasses, {
       });
     });
     this.clear_levels_change();
-    return levels.uniq().sort(function(a, b) { return a - b; });
+    return [...new Set(levels)].sort(function(a, b) { return a - b; });
   }),
   clear_levels_change() {
     this.set('levels_change', false);

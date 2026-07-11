@@ -182,14 +182,14 @@ export default Component.extend({
                 if (board.get('key') === _this.get('model.board.key')) {
                   _this.set('sidebar_board', true);
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat([board.get('id')]).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat([board.get('id')]))]);
                 }
               }
               LingoLinq.Buttonset.load_button_set(board.get('id')).then(function(bs) {
                 const board_ids = bs.board_ids_for(board.get('id'));
                 if (_this.get('current_user') === user && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat(board_ids).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat(board_ids))]);
                   if (board_ids.indexOf(_this.get('model.board.id')) >= 0) {
                     _this.set('in_sidebar_set', true);
                   }

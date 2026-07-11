@@ -52,7 +52,7 @@ export default Component.extend({
       title: 'marker'
     });
     marker.setMap(map);
-    markers.pushObject({
+    markers.push({
       lat: lat,
       lng: lng,
       marker: marker,

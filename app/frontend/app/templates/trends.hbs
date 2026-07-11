@@ -3,12 +3,14 @@
   - List of core words with a slider showing what words X% of users have access to
   - List of words sorted by difficulty of access (travel) (prolly needs to factor in frequency of use since if I go to sticky sub-board and hit two buttons, the second will have minimal travel)
 -->
-<div class='row'>
-  <div class='col-sm-8 col-sm-offset-2'>
-    <h2 style='margin-bottom: 30px;'>{{t "%app_name% Aggregate Research" key="app_aggregate_research"}}</h2>
-
-    <p style='margin-bottom: 20px;'>{{t "%app_name% users can opt-in to recording their usage data for personal and team analysis and reference. Whenever someone opts-in to data logging, we also ask if they would be willing to share an anonymized record of their usage data with independent researchers. We collaborate with non-profit research organizations to analyze this data in aggregate to provide better insights into AAC use and to investigate how supports can be improved." key="trends_explainer"}}</p>
-    <p style='margin-bottom: 20px;'>{{t "If you are interested in conducting AAC research, please consider reaching out to us to learn more about this important project. Below are some examples of the types of data that can be collected, anonymously and in aggregate, to help aid AAC research. All word usage information is based on aggregate data only from users who have opted in to anonymized research and reporting." key="trends_explainer2"}}</p>
+<div class="md-shell">
+<div class="md-trends">
+  <header class="md-trends__hero">
+    <h1 class="md-trends__title">{{t "%app_name% Aggregate Research" key="app_aggregate_research"}}</h1>
+    <p class="md-trends__intro">{{t "%app_name% users can opt-in to recording their usage data for personal and team analysis and reference. Whenever someone opts-in to data logging, we also ask if they would be willing to share an anonymized record of their usage data with independent researchers. We collaborate with non-profit research organizations to analyze this data in aggregate to provide better insights into AAC use and to investigate how supports can be improved." key="trends_explainer"}}</p>
+    <p class="md-trends__intro">{{t "If you are interested in conducting AAC research, please consider reaching out to us to learn more about this important project. Below are some examples of the types of data that can be collected, anonymously and in aggregate, to help aid AAC research. All word usage information is based on aggregate data only from users who have opted in to anonymized research and reporting." key="trends_explainer2"}}</p>
+  </header>
+  <div class="row md-trends__body">
     {{#if this.trends.loading}}
       {{t "Loading anonymized snapshot..." key="loading_trends"}}
     {{else if this.trends.error}}
@@ -299,12 +301,12 @@
             <div class="list-group">
               {{#each this.access_methods as |access|}}
                 <span class='list-group-item'>
-                  {{this.access.name}}
+                  {{access.name}}
                   <span class='text-muted'>
                     {{#if this.showing_private_info}}
                       ({{delimit access.total}})
                     {{else}}
-                      ({{this.access.percent}}%)
+                      ({{access.percent}}%)
                     {{/if}}
                   </span>
                 </span>
@@ -324,12 +326,12 @@
               <div class="list-group">
                 {{#each this.voices as |voice|}}
                   <span class='list-group-item'>
-                    {{this.voice.name}}
+                    {{voice.name}}
                     <span class='text-muted'>
                       {{#if this.showing_private_info}}
                         ({{delimit voice.total}})
                       {{else}}
-                        ({{this.voice.percent}}%)
+                        ({{voice.percent}}%)
                       {{/if}}
                     </span>
                   </span>
@@ -515,4 +517,5 @@
       {{t "No data to show." key="no_data_to_show_period"}}
     {{/if}}
   </div>
+</div>
 </div>

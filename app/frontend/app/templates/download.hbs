@@ -1,108 +1,101 @@
-<div class="md-shell md-shell--download">
-  <div class="md-workspace">
-    <div class="md-main md-main--download">
-      <div class="md-hero">
-        <h1 class="md-hero__title">{{t "Download LingoLinq" key="download_app"}}</h1>
-        <p class="md-hero__sub">{{t "Get LingoLinq on your favorite platform" key="download_subtitle"}}</p>
-      </div>
-
-      <div class="md-download-grid">
-        {{#if this.app_state.domain_settings.ios_store_url}}
-          <div class="md-card md-download-card">
-            <div class="md-card__head">
-              <img src={{path "images/ios_app_store.svg"}} alt="iOS App Store" class="md-download-card__icon">
-              <div>
-                <h3 class="md-card__title">{{t "iOS" key="ios"}}</h3>
-                <p class="md-card__sub">{{t "iPhone & iPad" key="ios_devices"}}</p>
-              </div>
-            </div>
-            <p class="md-download-card__desc">{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener" class="md-download-card__link">{{t "listing in the App Store." key="app_store_link"}}</a></p>
-            <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener" class="md-download-card__btn">
-              {{t "Download on the App Store" key="download_ios"}}
-            </a>
-          </div>
-        {{/if}}
-
-        {{#if this.app_state.domain_settings.play_store_url}}
-          <div class="md-card md-download-card">
-            <div class="md-card__head">
-              <img src={{path "images/google_play.png"}} alt="Google Play" class="md-download-card__icon">
-              <div>
-                <h3 class="md-card__title">{{t "Android" key="android"}}</h3>
-                <p class="md-card__sub">{{t "Phones & Tablets" key="android_devices"}}</p>
-              </div>
-            </div>
-            <p class="md-download-card__desc">{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener" class="md-download-card__link">{{t "listing in the Google Play Store." key="google_app_store_link"}}</a></p>
-            <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener" class="md-download-card__btn">
-              {{t "Get it on Google Play" key="download_android"}}
-            </a>
-          </div>
-        {{/if}}
-
-        {{#if this.app_state.domain_settings.kindle_store_url}}
-          <div class="md-card md-download-card">
-            <div class="md-card__head">
-              <img src={{path "images/amazon.png"}} alt="Amazon" class="md-download-card__icon">
-              <div>
-                <h3 class="md-card__title">{{t "Amazon Kindle" key="amazon_kindle"}}</h3>
-                <p class="md-card__sub">{{t "Fire Tablets" key="kindle_devices"}}</p>
-              </div>
-            </div>
-            <p class="md-download-card__desc">{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener" class="md-download-card__link">{{t "listing in the Amazon App Store." key="amazon_app_store_link"}}</a></p>
-            <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener" class="md-download-card__btn">
-              {{t "Get it on Amazon" key="download_kindle"}}
-            </a>
-          </div>
-        {{/if}}
-
-        {{#if this.app_state.domain_settings.windows_64_bit_url}}
-          <div class="md-card md-download-card">
-            <div class="md-card__head">
-              <img src={{path "images/windows.svg"}} alt="Windows" class="md-download-card__icon">
-              <div>
-                <h3 class="md-card__title">{{t "Windows" key="window"}}</h3>
-                <p class="md-card__sub">{{t "Desktop & Tablet" key="windows_devices"}}</p>
-              </div>
-            </div>
-            <p class="md-download-card__desc">{{t "You can install LingoLinq as a Windows desktop app on your computer or Windows device. LingoLinq on Windows has some eye-tracking integrations that will help it work better with more devices. Please make sure to download the right version for your operating system." key="windows_explainer"}}</p>
-            <div class="md-download-card__btns">
-              {{#if this.app_state.domain_settings.windows_64_bit_url}}
-                <a href={{this.app_state.domain_settings.windows_64_bit_url}} class="md-download-card__btn">
-                  {{t "64-Bit Download" key="download_win64"}}
-                </a>
-              {{/if}}
-              {{#if this.app_state.domain_settings.windows_32_bit_url}}
-                <a href={{this.app_state.domain_settings.windows_32_bit_url}} class="md-download-card__btn md-download-card__btn--secondary">
-                  {{t "32-Bit Download" key="download_win32"}}
-                </a>
-              {{/if}}
-            </div>
-          </div>
-        {{/if}}
-
-        <div class="md-card md-download-card">
-          <div class="md-card__head">
-            <span class="md-download-card__emoji" aria-hidden="true">📱</span>
-            <div>
-              <h3 class="md-card__title">{{t "Web App (PWA)" key="pwa_title"}}</h3>
-              <p class="md-card__sub">{{t "Any Device" key="pwa_devices"}}</p>
-            </div>
-          </div>
-          <p class="md-download-card__desc">{{t "LingoLinq can be installed as a Progressive Web App (PWA) directly from your browser. This allows it to work offline and appear on your home screen or taskbar like a regular app." key="pwa_explainer"}}</p>
-          <p class="md-download-card__desc"><strong>{{t "To install:" key="how_to_install"}}</strong> {{t "Look for the \"Install\" or \"Add to Home Screen\" icon in your browser address bar or menu." key="pwa_install_instructions"}}</p>
-        </div>
-
-        <div class="md-card md-download-card">
-          <div class="md-card__head">
-            <img src={{path "images/web_version.svg"}} alt="Web Browser" class="md-download-card__icon">
-            <div>
-              <h3 class="md-card__title">{{t "Web Browser" key="web_browser"}}</h3>
-              <p class="md-card__sub">{{t "Chrome, Firefox, Safari & more" key="browser_list"}}</p>
-            </div>
-          </div>
-          <p class="md-download-card__desc">{{t "LingoLinq is a web-first application, and should work with many modern web browsers. Some browsers may have quirks that prevent certain features from working, if this happens please let us know. Please consider using Chrome as your default browser if you are running into compatibility issues." key="browser_explainer"}}</p>
-        </div>
-      </div>
+<div class="md-shell">
+<div class="md-download">
+  <header class="md-download__hero">
+    <span class="md-download__hero-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+    </span>
+    <div class="md-download__hero-text">
+      <h1 class="md-download__title">{{t "Download LingoLinq" key="download_app"}}</h1>
+      <p class="md-download__sub">{{t "Get LingoLinq on your favorite platform" key="download_subtitle"}}</p>
     </div>
+  </header>
+
+  <div class="md-download__grid">
+    {{#if this.app_state.domain_settings.ios_store_url}}
+      <article class="md-org-section md-download__card">
+        <div class="md-download__card-head">
+          <span class="md-download__icon"><img src={{path "images/ios_app_store.svg"}} alt="iOS App Store" class="md-download__icon-img"></span>
+          <div class="md-download__card-head-text">
+            <h3 class="md-download__platform">{{t "iOS" key="ios"}}</h3>
+            <p class="md-download__devices">{{t "iPhone & iPad" key="ios_devices"}}</p>
+          </div>
+        </div>
+        <p class="md-download__desc">{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener" class="md-download__link">{{t "listing in the App Store." key="app_store_link"}}</a></p>
+        <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener" class="md-download__btn">{{t "Download on the App Store" key="download_ios"}}</a>
+      </article>
+    {{/if}}
+
+    {{#if this.app_state.domain_settings.play_store_url}}
+      <article class="md-org-section md-download__card">
+        <div class="md-download__card-head">
+          <span class="md-download__icon"><img src={{path "images/google_play.png"}} alt="Google Play" class="md-download__icon-img"></span>
+          <div class="md-download__card-head-text">
+            <h3 class="md-download__platform">{{t "Android" key="android"}}</h3>
+            <p class="md-download__devices">{{t "Phones & Tablets" key="android_devices"}}</p>
+          </div>
+        </div>
+        <p class="md-download__desc">{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener" class="md-download__link">{{t "listing in the Google Play Store." key="google_app_store_link"}}</a></p>
+        <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener" class="md-download__btn">{{t "Get it on Google Play" key="download_android"}}</a>
+      </article>
+    {{/if}}
+
+    {{#if this.app_state.domain_settings.kindle_store_url}}
+      <article class="md-org-section md-download__card">
+        <div class="md-download__card-head">
+          <span class="md-download__icon"><img src={{path "images/amazon.png"}} alt="Amazon" class="md-download__icon-img"></span>
+          <div class="md-download__card-head-text">
+            <h3 class="md-download__platform">{{t "Amazon Kindle" key="amazon_kindle"}}</h3>
+            <p class="md-download__devices">{{t "Fire Tablets" key="kindle_devices"}}</p>
+          </div>
+        </div>
+        <p class="md-download__desc">{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener" class="md-download__link">{{t "listing in the Amazon App Store." key="amazon_app_store_link"}}</a></p>
+        <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener" class="md-download__btn">{{t "Get it on Amazon" key="download_kindle"}}</a>
+      </article>
+    {{/if}}
+
+    {{#if this.app_state.domain_settings.windows_64_bit_url}}
+      <article class="md-org-section md-download__card">
+        <div class="md-download__card-head">
+          <span class="md-download__icon"><img src={{path "images/windows.svg"}} alt="Windows" class="md-download__icon-img"></span>
+          <div class="md-download__card-head-text">
+            <h3 class="md-download__platform">{{t "Windows" key="window"}}</h3>
+            <p class="md-download__devices">{{t "Desktop & Tablet" key="windows_devices"}}</p>
+          </div>
+        </div>
+        <p class="md-download__desc">{{t "You can install LingoLinq as a Windows desktop app on your computer or Windows device. LingoLinq on Windows has some eye-tracking integrations that will help it work better with more devices. Please make sure to download the right version for your operating system." key="windows_explainer"}}</p>
+        <div class="md-download__btns">
+          {{#if this.app_state.domain_settings.windows_64_bit_url}}
+            <a href={{this.app_state.domain_settings.windows_64_bit_url}} class="md-download__btn">{{t "64-Bit Download" key="download_win64"}}</a>
+          {{/if}}
+          {{#if this.app_state.domain_settings.windows_32_bit_url}}
+            <a href={{this.app_state.domain_settings.windows_32_bit_url}} class="md-download__btn md-download__btn--secondary">{{t "32-Bit Download" key="download_win32"}}</a>
+          {{/if}}
+        </div>
+      </article>
+    {{/if}}
+
+    <article class="md-org-section md-download__card">
+      <div class="md-download__card-head">
+        <span class="md-download__icon"><span class="md-download__icon-emoji" aria-hidden="true">📱</span></span>
+        <div class="md-download__card-head-text">
+          <h3 class="md-download__platform">{{t "Web App (PWA)" key="pwa_title"}}</h3>
+          <p class="md-download__devices">{{t "Any Device" key="pwa_devices"}}</p>
+        </div>
+      </div>
+      <p class="md-download__desc">{{t "LingoLinq can be installed as a Progressive Web App (PWA) directly from your browser. This allows it to work offline and appear on your home screen or taskbar like a regular app." key="pwa_explainer"}}</p>
+      <p class="md-download__desc"><strong>{{t "To install:" key="how_to_install"}}</strong> {{t "Look for the \"Install\" or \"Add to Home Screen\" icon in your browser address bar or menu." key="pwa_install_instructions"}}</p>
+    </article>
+
+    <article class="md-org-section md-download__card">
+      <div class="md-download__card-head">
+        <span class="md-download__icon"><img src={{path "images/web_version.svg"}} alt="Web Browser" class="md-download__icon-img"></span>
+        <div class="md-download__card-head-text">
+          <h3 class="md-download__platform">{{t "Web Browser" key="web_browser"}}</h3>
+          <p class="md-download__devices">{{t "Chrome, Firefox, Safari & more" key="browser_list"}}</p>
+        </div>
+      </div>
+      <p class="md-download__desc">{{t "LingoLinq is a web-first application, and should work with many modern web browsers. Some browsers may have quirks that prevent certain features from working, if this happens please let us know. Please consider using Chrome as your default browser if you are running into compatibility issues." key="browser_explainer"}}</p>
+    </article>
   </div>
+</div>
 </div>

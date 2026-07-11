@@ -7,11 +7,15 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { debounce } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import progress_tracker from '../utils/progress_tracker';
 import { filterRootBoards, dedupeByName, sortByNameNatural, boardsPagePreferUserNames } from '../utils/board-roots';
 import { groupBoardsByBrand } from '../utils/board-brands';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
 
   title: computed('searchString', function() {

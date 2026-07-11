@@ -4,8 +4,11 @@ import Utils from '../../utils/misc';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
   refresh_units: function() {
     var _this = this;
     this.set('units', {loading: true});

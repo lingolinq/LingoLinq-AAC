@@ -2213,7 +2213,6 @@ export default Controller.extend({
       route === 'beta-feedback' ||
       (route && route.indexOf('beta-feedback-admin') === 0) ||
       route === 'contact' ||
-      route === 'troubleshooting' ||
       route === 'login.device') {
       return true;
     }
