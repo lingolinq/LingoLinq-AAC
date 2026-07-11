@@ -211,3 +211,55 @@ Codex fix above had two gaps of its own:
 Full `lesson expired` suite: 8/8 pass (was 6/6). Full `ember test` regression re-run after all
 fixes: 1708 tests, 1668 pass, 40 skip, 0 fail. Commit: `dfaae338c`.
 - FOUND: 09405ac31 (Task 4 commit)
+
+## Third post-review round (Codex senior-dev pass on PR #580, High + Medium findings, 2026-07-11)
+
+Codex reviewed the actual PR and returned "Request changes" with a High finding neither review
+round above caught: booting the Ember shell unconditionally (Plan 01-01) means `routes/lesson.js`
+always calls `findRecord` -> `Api::LessonsController#show`, which renders full lesson content
+(title, url, description via `lib/json_api/lesson.rb`'s `build_json` -- only the `user` block is
+gated by `extra_user`) regardless of whether the share token resolved. The new copy promises
+"for your security, links stop working," but the content was fetched either way, just hidden by
+`{{#if this.link_expired}}`. An attacker (or anyone inspecting network traffic) could still
+recover the lesson title/description/embed URL from the API response even after "expiry."
+
+**Fix:** `app/views/boards/index.html.erb` now embeds `window.lesson_share_token_valid` (guarded
+by `@lesson`, computed server-side from the same `@user`/`find_by_lesson_share_token` result
+`boards_controller#lesson` already has). Added `consumeServerSideTokenValidityFlag()` to
+`routes/lesson.js`: it reads this ONE-SHOT flag (immediately deleting it so a later same-session
+transition to a different lesson URL isn't affected by a stale value) and, when `false`, resolves
+the `link_expired` sentinel BEFORE calling `findRecord` at all -- no content-fetching API call
+happens for the fresh-navigation entry point.
+
+**Verification approach (documented honestly):** Full Rails view rendering (`render_views`) is not
+feasible in this test environment -- a scratch spec attempt failed on a Sprockets
+`Sprockets::FileNotFound: couldn't find file 'vendor.js'` error from the asset pipeline (this repo
+already avoids `render_views` everywhere except one unrelated spec, for the same reason). Verified
+the ERB snippet's logic instead via an isolated `ERB.new(template).result(binding)` render (not
+through the Rails view pipeline) covering all three cases: `@lesson` + `@user` nil -> emits
+`window.lesson_share_token_valid = false;`; `@lesson` + `@user` present -> emits `= true;`;
+`@lesson` nil (the `board`/`user` controller actions, which share this view) -> emits nothing, so
+no interference with unrelated actions. 3 new frontend tests added, asserting: `findRecord` is
+never invoked when the flag is `false`; the flag is consumed one-shot (a subsequent transition to
+an unresolved-token lesson still correctly resolves `link_expired` via the pre-existing detection,
+unaffected by the first transition's now-cleared flag); and the existing resolve-with-no-user
+detection is unaffected when no flag is present at all (client-side SPA transitions, which never
+had a server-rendered flag to begin with).
+
+Also fixed the accompanying Medium finding: removed a dead unused `uid` variable in
+`routes/lesson.js` that Codex flagged since the route was already being materially edited.
+
+**Explicitly NOT fixed (out of scope, flagged for Scot):** `Api::LessonsController#show`'s guard
+is `lesson.nonce == lesson_code || allowed?(lesson, 'view')` -- token validity has never gated
+that path, in this plan or before it. Anyone who independently knows a lesson's nonce can still
+fetch full content via a direct API call, regardless of share-token validity. That is a separate,
+pre-existing architectural question (should the nonce alone permanently grant content visibility,
+or should token expiry also gate it, which would touch `Api::LessonsController#show` and
+`lib/json_api/lesson.rb` more broadly and needs its own design decision) -- it exceeds this
+UX-polish phase's scope and was not decided unilaterally here.
+
+Threat model updated in both plans: 01-01-PLAN.md's T-01-03 corrected (it originally, incorrectly,
+implied "boots the shell, grants no data" covered lesson content -- it didn't), new T-01-05 added;
+01-02-PLAN.md gets new T-02-06. Full `lesson expired` suite: 11/11 pass (was 8/8). RSpec
+`boards_controller_spec.rb`: 26/26 pass (unchanged -- `render_views` isn't enabled there, so the
+view-rendering path wasn't exercised by that suite either way). Commits: `2738f8358`, `2f6ef07fd`.

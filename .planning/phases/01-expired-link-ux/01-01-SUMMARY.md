@@ -113,3 +113,25 @@ None - no external service configuration required. (The test-DB `encryption_hash
 - FOUND: .planning/phases/01-expired-link-ux/01-01-SUMMARY.md
 - FOUND: d64fef846 (Task 1 commit)
 - FOUND: 4ddc6f9c6 (Task 2 commit)
+
+## Post-review fix (Codex senior-dev pass on the PR, High finding, 2026-07-11)
+
+Codex reviewed PR #580 and found (High, "Request changes"): this plan's own fix (booting the
+Ember shell unconditionally for a valid-lesson/unresolved-token request) means the browser then
+calls `findRecord` -> `Api::LessonsController#show`, which renders full lesson content (title,
+url, description via `lib/json_api/lesson.rb`) regardless of token validity -- only the `user`
+block is gated. The new "for your security, links stop working" copy did not match this reality;
+the content was fetched either way, just hidden client-side.
+
+Fix (shared with Plan 01-02, implemented together since it spans both layers):
+`app/views/boards/index.html.erb` now embeds `window.lesson_share_token_valid` (guarded by
+`@lesson`, set from the same `@user`/`find_by_lesson_share_token` result this action already
+computes) so `routes/lesson.js` can skip `findRecord` entirely -- and thus never fetch lesson
+content -- when the token is known invalid. See `01-02-SUMMARY.md` for the frontend half, the
+verification approach (full view rendering isn't feasible in this test env due to a Sprockets
+asset-pipeline dependency; verified instead via an isolated `ERB.new(...).result` render of just
+the new snippet for all three cases), and the explicitly out-of-scope residual (content remains
+reachable by anyone who knows the lesson's nonce directly, independent of token validity -- a
+separate, pre-existing design question, not fixed here). Threat model updated: T-01-03 corrected,
+new T-01-05 added. Commits: `2738f8358`, `2f6ef07fd` (also removes a Codex Medium finding, a dead
+unused variable).
