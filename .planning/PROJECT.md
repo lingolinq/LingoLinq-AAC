@@ -35,7 +35,7 @@ an unstyled error page.
       `Api::LessonsController#show` already takes today)
 - [ ] New i18n string(s) for the expired-link message, double-quoted, via the standard i18n
       helpers
-- [ ] Runtime-verified (not just unit-tested) confirmation of what Ember Data 5.12 actually does
+- [ ] Runtime-verified (not just unit-tested) confirmation of what Ember Data 5.3.x (Ember 5.12) actually does
       on this exact composite-id `findRecord` call when the token has expired
 
 ### Out of Scope

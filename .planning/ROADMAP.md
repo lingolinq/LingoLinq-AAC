@@ -7,7 +7,7 @@ PR #568) and Scot's 2026-07-10 decisions; no domain research is needed before pl
 
 ## Phases
 
-- [ ] **Phase 1: Expired-Link UX** - Distinguish "lesson missing" (404) from "token invalid/expired" (graceful message) at both the Rails HTML-shell layer and the Ember Data layer; add i18n string; runtime-verify Ember Data 5.12 behavior.
+- [ ] **Phase 1: Expired-Link UX** - Distinguish "lesson missing" (404) from "token invalid/expired" (graceful message) at both the Rails HTML-shell layer and the Ember Data layer; add i18n string; runtime-verify Ember Data 5.3.x (Ember 5.12) behavior.
 
 ## Phase Details
 
@@ -19,7 +19,7 @@ PR #568) and Scot's 2026-07-10 decisions; no domain research is needed before pl
   1. `boards_controller#lesson` renders a distinct expired-link view/state when the lesson exists but the token doesn't resolve, and still hard-404s when the lesson itself is missing or nonce-mismatched
   2. `app/frontend/app/routes/lesson.js` has explicit handling for both a rejected `findRecord` and a resolved-but-user-absent model, both leading to the same "link expired" UI treatment
   3. The expired-link message is a new, double-quoted, i18n-routed string (not raw text), and reads identically whether the token was expired or malformed
-  4. A runtime trace (not just a unit test) confirms which of the two code paths (rejected promise vs. nil-user resolved model) actually fires for a real expired token under Ember Data 5.12, and the implementation covers whichever one it is
+  4. A runtime trace (not just a unit test) confirms which of the two code paths (rejected promise vs. nil-user resolved model) actually fires for a real expired token under Ember Data 5.3.x (Ember 5.12), and the implementation covers whichever one it is
   5. `git diff` against `origin/staging` touches only caller-side files (`boards_controller.rb`, `lesson.js`, its template/controller, locale files) — `app/models/user.rb`, `lib/feature_flags.rb`, and the mailer views are untouched
 **Plans**: 2 plans
 

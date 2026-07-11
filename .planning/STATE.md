@@ -44,8 +44,9 @@ does not, per the known main-vs-staging lag).
   solely in 01-02); (2) ROADMAP's "runtime trace, not just unit test" bar is nominally stronger
   than the stubbed-acceptance-test primary mechanism in 01-02 — accepted, plan requires an
   `ember serve` attempt first and explicit SUMMARY disclosure if not feasible; (3) Plan 01 opts
-  out of a new feature flag for this UX change — flagged for a one-line confirmation from Scot
-  before merge (not before execution); (4) Plan 02 has 4 tasks (context-budget watch, not a
+  out of a new feature flag for this UX change — Scot confirmed 2026-07-11: no flag, this is
+  error-state polish on an already-broken path, not a new capability; decision recorded inline
+  in 01-01-PLAN.md Task 1; (4) Plan 02 has 4 tasks (context-budget watch, not a
   functional issue).
 - **adversary-review (red-team):** Ship-with-conditions, no blockers. 3 conditions applied
   directly to the plans: (1) documented why the retained (but now functionally unused)
