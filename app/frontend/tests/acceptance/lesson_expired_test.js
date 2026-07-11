@@ -2,6 +2,18 @@ import { module, test } from 'qunit';
 import { setupTest } from '../helpers';
 import RSVP from 'rsvp';
 
+// Codex review finding (dual-reviewer pass, 2026-07-11) on the earlier version
+// of routes/lesson.js: mapping EVERY findRecord rejection to the link_expired
+// sentinel mislabeled a genuinely missing/nonce-mismatched lesson (a real 404
+// from Api::LessonsController#show's `exists?` guard) as "link expired".
+// These two error shapes are verified against this app's own existing
+// error-handling conventions in app/frontend/app/utils/persistence.js
+// (e.g. its existing `err.errors[0].status === 401` / `err.fakeXHR.status`
+// checks), not invented for this test.
+function jsonApiNotFoundError() {
+  return { errors: [{ status: '404', title: 'Record not found' }] };
+}
+
 /*
  * UX-06 runtime finding (Task 1 of 01-02-PLAN.md) -- see 01-02-SUMMARY.md for
  * the full writeup.
@@ -272,5 +284,31 @@ module('Acceptance | lesson expired link route/controller contract', function(ho
     assert.strictEqual(controller.get('link_expired'), true, 'controller.link_expired flips to true on the expired transition');
     assert.strictEqual(controller.get('model'), expiredModel, 'controller.model is overwritten with the sentinel -- no stale prior lesson record remains');
     assert.notStrictEqual(controller.get('model'), validModel, 'the prior valid lesson record is no longer the controller model');
+  });
+
+  test('genuinely missing lesson: a real 404 rejection is NOT relabeled as link_expired (Codex review finding)', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const route = this.owner.lookup('route:lesson');
+    const adapter = store.adapterFor('lesson');
+    const originalFindRecord = adapter.findRecord;
+
+    adapter.findRecord = function() {
+      return RSVP.reject(jsonApiNotFoundError());
+    };
+
+    let rejected = false;
+    let rejection = null;
+    try {
+      await route.model({ lesson_id: '1_nonexistent', lesson_code: 'abc123', user_token: 'sometoken' });
+    } catch (e) {
+      rejected = true;
+      rejection = e;
+    } finally {
+      adapter.findRecord = originalFindRecord;
+    }
+
+    assert.ok(rejected, 'model() re-throws a genuine 404 instead of masking it as link_expired');
+    assert.ok(rejection && rejection.errors && rejection.errors[0].status === '404',
+      'the original 404 error shape is preserved so the normal not-found error path can handle it');
   });
 });

@@ -10,6 +10,24 @@ import { inject as service } from '@ember/service';
 // to branch on regardless of which Ember-Data outcome occurs.
 var LINK_EXPIRED_MODEL = { link_expired: true };
 
+// Codex review finding (dual-reviewer pass, 2026-07-11): the original .catch
+// mapped EVERY findRecord rejection to LINK_EXPIRED_MODEL, which mislabeled a
+// genuinely missing/nonce-mismatched lesson (a real 404 from
+// Api::LessonsController#show's `exists?` guard, app/controllers/
+// application_controller.rb:295-304) as "link expired" -- misleading, since
+// asking for a new link never helps if the lesson itself doesn't exist.
+// This checks for a real 404 using the exact two error shapes this app's own
+// error-handling code already checks elsewhere in this file for other status
+// codes (app/frontend/app/utils/persistence.js:4338-4354, e.g. the existing
+// `err.errors[0].status === 401` / `err.fakeXHR.status === 0` checks) --
+// verified against that file, not guessed.
+function isNotFoundError(err) {
+  if (!err) { return false; }
+  if (err.errors && err.errors[0] && String(err.errors[0].status) === '404') { return true; }
+  if (err.fakeXHR && err.fakeXHR.status === 404) { return true; }
+  return false;
+}
+
 export default Route.extend({
   store: service('store'),
   title: "Inflections",
@@ -25,16 +43,27 @@ export default Route.extend({
         return LINK_EXPIRED_MODEL;
       }
       return model;
-    }, function() {
+    }, function(err) {
+      if (isNotFoundError(err)) {
+        // Genuinely missing/nonce-mismatched lesson -- let this bubble as a
+        // real not-found error (the `error` action below lets it through
+        // too), distinct from an unresolved share token on an existing lesson.
+        throw err;
+      }
       // Belt-and-suspenders: if a future Ember Data version tightens the
-      // id-mismatch warning (see UX-06 finding) into a hard rejection,
-      // convert it to the same sentinel instead of bubbling to the
-      // application-level error page.
+      // id-mismatch warning (see UX-06 finding) into a hard rejection with
+      // some other shape, convert it to the same sentinel instead of
+      // bubbling to the application-level error page.
       return LINK_EXPIRED_MODEL;
     });
   },
   actions: {
     error: function(error, transition) {
+      if (isNotFoundError(error)) {
+        // Let a genuine not-found bubble to the generic application error
+        // handler instead of showing the "link expired" message for it.
+        return true;
+      }
       // Belt-and-suspenders: catches a rejection that escapes the model()
       // .catch above (e.g. a beforeModel-phase failure). Stop it here
       // rather than bubbling to the generic application error handler.
