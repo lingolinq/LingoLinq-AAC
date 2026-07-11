@@ -29,15 +29,17 @@ Verified against code at draft time. Re-verify before publishing.
 
 | Use | Model(s) | Where | Sees user data? | Control |
 |---|---|---|---|---|
-| Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), Gemini 2.5 Flash fallback | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. |
-| Offline prediction dictionary generation | Claude Haiku 4.5, Gemini 2.5 Flash | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
+| Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) only -- Gemini fallback disabled 2026-07-09 | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. `ANTHROPIC_API_KEY` is now required; there is no automatic fallback provider. |
+| Offline prediction dictionary generation | Claude Haiku 4.5 only -- Gemini fallback disabled 2026-07-09 | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
 | Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default, `EVAL_NARRATOR_MODEL` override), Anthropic | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress; every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user (client-asserted student name dropped); org opt-out via the `comprehensive_eval_ai` feature flag. Residual consent-binding gap tracked as LL-11db0dc848. Brought under governance by #411/#412; three findings verified-closed in #413. |
 | Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. Intended never to touch a compliance surface, **but see the open discrepancy in section 4 regarding the n8n PR-review bot's DeepSeek pass on register-only diffs.** |
 
 Notes:
-- The runtime path can call **Google Gemini** as a fallback. Gemini API data-handling terms and
-  any Google BAA coverage for that path are tracked on the compliance calendar
-  (`rev-gemini-baa-annual`; section 7).
+- The runtime path's **Google Gemini** fallback was **disabled 2026-07-09** (`GEMINI_API_KEY`
+  fallback removed from `lib/ai_word_predictor.rb`, `lib/ai_prediction_generator.rb`, and
+  `lib/ai_board_generator.rb`; historical record in `docs/legal/AI_DATA_SHARING_CONSENT.md`
+  section 2.2). `rev-gemini-baa-annual` on the compliance calendar is retained as a reactivation
+  gate, not a live runtime concern (section 7).
 - No persistent or autonomous AI agent runs against production user data. Prediction is
   request-scoped and stateless beyond logging.
 - **No Anthropic "Covered Model" is ZDR-eligible; none may ever carry identifiable student or
@@ -78,11 +80,18 @@ The governing rule is simple and enforced in code, not just in policy:
 
 - **`lib/pii_scrubber.rb`** redacts identity keys and applies a blocklist before any external
   model call. The runtime predictor invokes it on the user sentence prior to the API request.
-- **De-identification, not a BAA, is the HIPAA basis for the scrubbed product path.** Because
-  identifiers are removed before the call, the defensible position for hospital data is
-  de-identification (HIPAA Safe Harbor style), with the scrubber as the enforced control. Where
-  a BAA exists (AWS, on file 2026-02), it adds coverage; where one does not, the scrubber is
-  what keeps the path defensible.
+- **Pseudonymization (the scrubber) is a risk-reduction control, not a HIPAA safe harbor -- and
+  no signed BAA currently covers the model-provider egress path.** The scrubber removes direct
+  identifiers before the call, but the result is **pseudonymized, not de-identified**: it does
+  not meet HIPAA Safe Harbor (removal of all 18 identifier categories) or Expert Determination,
+  and under GDPR/UK-GDPR pseudonymized data is still personal data. The AWS BAA on file
+  (2026-02) covers AWS infrastructure (S3, KMS, RDS) -- it does **not** extend to Anthropic or
+  Google as model providers, and neither currently has a signed BAA with LingoLinq (see
+  `docs/legal/AI_DATA_SHARING_CONSENT.md` section 2). For hospital/PHI data, the scrubber is
+  therefore the only technical control on the model-call path today; a defensible HIPAA position
+  for that path requires either a signed BAA with the actual model provider receiving the call,
+  or no hospital/PHI egress to that provider at all. This is a real open gap, not fully closed
+  by the scrubber alone.
 - **`AiApiLog`** records external model calls for audit. **`AuditEvent`** records privileged
   console access.
 
@@ -165,9 +174,14 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
 
 ## 7. Open governance items (to resolve)
 
-- [ ] Confirm Google Gemini API data-handling terms for the runtime fallback path, and whether
-      any Google BAA covers it (`rev-gemini-baa-annual` on the compliance calendar). Until
-      resolved, the PiiScrubber is the controlling backstop.
+- [ ] `rev-gemini-baa-annual` (Google Gemini API data-handling terms/BAA) is now a
+      **reactivation gate** rather than a live runtime item: the Gemini fallback was disabled
+      2026-07-09. Resolve before any future PR re-enables `GEMINI_API_KEY` fallback.
+- [ ] **New, raised by Codex review of PR #579:** no signed BAA currently covers the Anthropic
+      or Google model-provider egress path (the AWS BAA on file covers infrastructure only).
+      Decide whether to pursue a BAA with Anthropic, restrict hospital/PHI accounts from the AI
+      features entirely, or accept the scrubber-only risk-reduction posture as sufficient --
+      Scot's call, do not self-resolve.
 - [ ] Per-feature data-flow documentation for each of the AI-gated features (feature flags
       enumerate the surface; the data-flow docs are the gap).
 - [ ] Vendor terms on file for every model provider in the inventory (Anthropic, Google,
@@ -204,3 +218,17 @@ preventive-control documentation; it does not alter
 the attested scope, controls, or claims, so no full re-attestation is required per the
 living-document policy in the header. The new code citation (`lib/eval_narrator.rb:102`,
 `EVAL_NARRATOR_MODEL` override) was re-verified against live code on 2026-07-08._
+
+_Amended 2026-07-11: corrected two stale claims surfaced by Codex review of PR #579. (1) The
+model inventory (section 2) and its notes no longer list Google Gemini as an active runtime
+fallback -- the `GEMINI_API_KEY` fallback was disabled 2026-07-09 across
+`lib/ai_word_predictor.rb`, `lib/ai_prediction_generator.rb`, and `lib/ai_board_generator.rb`
+(historical record: `docs/legal/AI_DATA_SHARING_CONSENT.md` section 2.2); `rev-gemini-baa-annual`
+is reframed as a reactivation gate in section 7. (2) Section 3's HIPAA-basis wording is
+corrected: the AWS BAA on file covers AWS infrastructure only, not Anthropic or Google as model
+providers, and neither has a signed BAA with LingoLinq today -- the scrubber is a risk-reduction
+control on that path, not a safe harbor and not BAA-backed. **This second correction changes the
+memo's HIPAA-defensibility conclusion for the model-call path and has not yet been re-attested by
+Scot** -- treat section 3 as provisional pending his review, per the same governance the memo
+requires of every other open item (section 6: AI drafts and flags, humans attest and accept
+risk)._
