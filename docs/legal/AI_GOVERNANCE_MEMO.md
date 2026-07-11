@@ -78,11 +78,13 @@ The governing rule is simple and enforced in code, not just in policy:
 
 - **`lib/pii_scrubber.rb`** redacts identity keys and applies a blocklist before any external
   model call. The runtime predictor invokes it on the user sentence prior to the API request.
-- **De-identification, not a BAA, is the HIPAA basis for the scrubbed product path.** Because
-  identifiers are removed before the call, the defensible position for hospital data is
-  de-identification (HIPAA Safe Harbor style), with the scrubber as the enforced control. Where
-  a BAA exists (AWS, on file 2026-02), it adds coverage; where one does not, the scrubber is
-  what keeps the path defensible.
+- **Pseudonymization (the scrubber), plus a BAA where one exists, is what keeps the scrubbed
+  product path defensible.** The scrubber removes direct identifiers before the call, but the
+  result is **pseudonymized, not de-identified**: it does not meet HIPAA Safe Harbor (removal of
+  all 18 identifier categories) or Expert Determination, and under GDPR/UK-GDPR pseudonymized
+  data is still personal data. For hospital data the defensible position is therefore a **BAA**
+  (AWS, on file 2026-02) combined with the scrubber as a technical control; the scrubber alone
+  is a risk-reduction measure, not a de-identification safe harbor.
 - **`AiApiLog`** records external model calls for audit. **`AuditEvent`** records privileged
   console access.
 
