@@ -2,8 +2,8 @@
 #
 # regenerate-register.sh - one command to regenerate every derived compliance
 # artifact after editing FINDINGS.json (or DOCUMENT-REGISTER.json / the
-# compliance calendar JSON), then re-run the exact --check verifications that
-# CI's audit-artifacts-integrity job runs.
+# compliance calendar JSON), then re-run CI's audit-artifacts-integrity --check
+# verifications PLUS a stricter local citation-check evidence gate.
 #
 # WHY THIS EXISTS
 #   The findings register (audit-reports/FINDINGS.json) and the document
@@ -27,8 +27,10 @@
 #   5. compliance-notion-publish          - rebuild the LOCAL Notion mirror render
 #                                           (audit-reports/notion/compliance-audit-page.md).
 #   6. compliance-publication-status      - rebuild the publication status report.
-#   7. Re-verify: citation-check (validate) + the four CI --check commands, so a
-#      green run here means a green audit-artifacts-integrity in CI.
+#   7. Re-verify: the four CI artifact --check commands (== audit-artifacts-integrity)
+#      PLUS a citation-check evidence gate. citation-check is intentionally NOT a CI
+#      job (see ci.yml); running it here is a stricter local gate. Green here means a
+#      green audit-artifacts-integrity in CI.
 #
 # WHAT IT DELIBERATELY DOES NOT DO
 #   It never PUSHES to Notion or Drive. The Notion sync scripts
@@ -83,9 +85,12 @@ step() {  # step "label" cmd args...
   fi
 }
 
-# --- verification bundle (exactly what CI's audit-artifacts-integrity runs) ----
+# --- verification bundle: the four CI artifact --check commands (these ARE
+# audit-artifacts-integrity) plus a citation-check evidence gate. citation-check
+# is intentionally NOT part of the CI integrity job (ci.yml); gating on it locally
+# is a stricter, correct pre-render safeguard. ---------------------------------
 verify_all() {
-  step "verify: citation-check (evidence resolves)" \
+  step "verify: citation-check (evidence resolves; stricter-than-CI local gate)" \
     ruby scripts/citation-check.rb "$FINDINGS"
   step "verify: compliance calendar render matches JSON" \
     ruby scripts/compliance-calendar-render.rb --check
@@ -100,7 +105,7 @@ verify_all() {
 if [ "$MODE" = "check" ]; then
   echo "regenerate-register: --check (verify only, no writes)"
   if verify_all; then
-    printf '\n\033[32mAll integrity checks passed.\033[0m CI audit-artifacts-integrity would be green.\n'
+    printf '\n\033[32mAll checks passed.\033[0m CI audit-artifacts-integrity would be green (plus a stricter local citation gate).\n'
     exit 0
   else
     printf '\n\033[31mIntegrity checks failed.\033[0m Run without --check to regenerate, then re-verify.\n' >&2
