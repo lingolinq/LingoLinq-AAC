@@ -84,7 +84,7 @@
       "domain": "jurisdiction",
       "claimLanguage": "The platform can determine whether an account context is in the EU.",
       "antiClaim": "The EU jurisdiction primitive currently gates ONLY the (not-yet-built) Art. 50(1) disclosure modal; it does not by itself drive an under-16 AI block.",
-      "currentEvidence": { "file": "app/models/lingo_linq/jurisdiction.rb", "line": 1, "snippet": "module LingoLinq" },
+      "currentEvidence": { "file": "app/models/lingo_linq/jurisdiction.rb", "line": 58, "snippet": "def self.eu?(signal)" },
       "introducedEvidence": { "note": "lib/eu_jurisdiction.rb (module EuJurisdiction, line 12); PRs #556/#560" },
       "frameworks": ["GDPR"],
       "notes": "lib/eu_jurisdiction.rb states it is used ONLY to gate the Art. 50(1) disclosure modal; fail-safe (only an authoritative non-EU result suppresses the modal).",
@@ -92,15 +92,15 @@
     },
     {
       "id": "art50-2-output-marking",
-      "capability": "EU AI Act Article 50(2) machine-readable AI-output content marking",
-      "status": "built",
+      "capability": "EU AI Act Article 50(2) machine-readable output marking -- board-generation slice only",
+      "status": "partial",
       "domain": "eu-ai-act",
-      "claimLanguage": "AI-generated outputs are marked in a machine-readable, server-verifiable way (Art. 50(2)).",
-      "antiClaim": "This is Art. 50(2) output marking, NOT the Art. 50(1) user-facing disclosure modal (see cap art50-1-disclosure-modal).",
-      "currentEvidence": { "file": "lib/art50_marker.rb", "line": 37, "snippet": "module Art50Marker" },
-      "introducedEvidence": { "note": "PR #573" },
+      "claimLanguage": "AI board-generation output is marked in a machine-readable, server-verifiable way (Art. 50(2)).",
+      "antiClaim": "The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal).",
+      "currentEvidence": { "file": "lib/ai_board_generator.rb", "line": 123, "snippet": "# EU AI Act Article 50(2): mark the board-generation output. The marking" },
+      "introducedEvidence": { "note": "lib/art50_marker.rb (module Art50Marker); PR #573" },
       "frameworks": ["EU-AI-Act"],
-      "notes": "Marking is unconditional (jurisdiction-independent) by design.",
+      "notes": "Board-gen marking is unconditional (jurisdiction-independent). Remaining surfaces + durable persistence tracked as follow-up (see boards_controller#generate_labels).",
       "lastVerified": "2026-07-12"
     },
     {
@@ -128,15 +128,16 @@
       "lastVerified": "2026-07-12"
     },
     {
-      "id": "ai-features-claude-gemini",
-      "capability": "AI board generation + word prediction via Anthropic Claude (primary) and Google Gemini (fallback)",
+      "id": "ai-features-anthropic",
+      "capability": "AI board generation + word prediction via Anthropic Claude (Anthropic-only runtime)",
       "status": "built",
       "domain": "ai-features",
-      "claimLanguage": "AI features (board generation and word prediction) use Anthropic Claude with a Google Gemini fallback.",
-      "antiClaim": "Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization); no ZDR contractual guarantee (see cap no-zdr-contractual).",
-      "currentEvidence": { "file": "lib/ai_word_predictor.rb", "line": 37, "snippet": "return [] if FeatureFlags.coppa_blocks_ai_for?(user)" },
+      "claimLanguage": "AI features (board generation and word prediction) use Anthropic Claude.",
+      "antiClaim": "The prior Google Gemini fallback was DISABLED 2026-07-09 (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data); there is no runtime Gemini path today. A Vertex AI fallback may replace it later. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization).",
+      "currentEvidence": { "file": "lib/ai_word_predictor.rb", "line": 158, "snippet": "anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip" },
+      "introducedEvidence": { "note": "Gemini fallback removal recorded in docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2 and docs/legal/AI_GOVERNANCE_MEMO.md" },
       "frameworks": ["GDPR", "EU-AI-Act"],
-      "notes": "Subprocessors listed in docs/legal/SUBPROCESSORS.md.",
+      "notes": "Subprocessors listed in docs/legal/SUBPROCESSORS.md; that register's Gemini row may need a runtime-status update to reflect the 2026-07-09 disable (flagged separately, not fixed here).",
       "lastVerified": "2026-07-12"
     },
     {
@@ -208,22 +209,16 @@
       "lastVerified": "2026-07-12"
     },
     {
-      "id": "no-zdr-contractual",
-      "capability": "Zero Data Retention contractual guarantee with AI subprocessors",
-      "status": "deliberately-not-done",
+      "id": "zdr-anthropic-active-models",
+      "capability": "Zero-data-retention (ZDR) confirmed for the two active Anthropic models",
+      "status": "built",
       "domain": "ai-privacy",
-      "claimLanguage": null,
-      "antiClaim": "We do NOT have a ZDR contractual guarantee. Only pseudonymized data is sent; retention follows vendor standard DPA terms.",
-      "negativeEvidence": {
-        "grepScopes": ["app/**/*.rb", "lib/**/*.rb"],
-        "patterns": ["zero_data_retention", "\\bzdr\\b"],
-        "excludedPaths": ["spec/**", "docs/**"],
-        "reviewedSurfaces": ["docs/legal/SUBPROCESSORS.md (DPA-standard-terms rows)"],
-        "expectedMatches": 0,
-        "reviewTriggers": "any signed ZDR addendum with a model provider"
-      },
-      "frameworks": ["GDPR"],
-      "notes": "Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and are never used for identifiable payloads.",
+      "claimLanguage": "The Anthropic models used at runtime (Claude Haiku 4.5 for board suggestions/prediction, Claude Opus 4.7 for eval narration) are ZDR-confirmed per Anthropic's data-retention documentation (verified 2026-07-06).",
+      "antiClaim": "ZDR is confirmed ONLY for these two specific models; it does NOT extend to any other/future Anthropic model outside the ZDR-eligible tier, and NOT to any non-Anthropic provider. ZDR is NOT a substitute for a HIPAA BAA (see cap no-model-provider-baa). Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and never receive identifiable payloads.",
+      "currentEvidence": { "file": "docs/legal/AI_DATA_SHARING_CONSENT.md", "line": 50, "snippet": "Zero-data-retention (ZDR) status:" },
+      "evidenceType": "attestation",
+      "frameworks": ["GDPR", "HIPAA"],
+      "notes": "Confirmed against Anthropic Privacy Center data-retention documentation, not a bespoke signed ZDR addendum. Reverify on any runtime model change.",
       "lastVerified": "2026-07-12"
     },
     {
