@@ -121,16 +121,38 @@ for this reason, cite a different (cleaner) line of the same issue, or paraphras
 line; do not fight the gate. This in-script gate is redundant with the n8n bot's upstream
 pre-scrub, so conservative is correct.
 
-## Step 5: Validate + render
+## Step 5: Validate + regenerate all derived artifacts
+
+Promoting a finding can change severity counts and bundle membership, so it is not enough to
+rebuild `FINDINGS.md` alone — the Notion mirror, compliance calendar, document register, and
+publication-status report all derive from the register and CI's `audit-artifacts-integrity` job
+fails the merge if any drifts. Regenerate them all in one governed, ordered step:
 
 ```
-ruby scripts/citation-check.rb audit-reports/FINDINGS.json          # expect exit 0
-ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json # rebuild FINDINGS.md
+scripts/regenerate-register.sh          # gate on citation-check, render all artifacts, re-verify
 ```
+
+This gates on `citation-check` first (refuses to render onto a register whose evidence does not
+resolve), renders every derived artifact in dependency order, then re-runs the exact `--check`
+verifications CI uses, so a green run here means a green `audit-artifacts-integrity`. It writes
+local artifacts only and never pushes to Notion/Drive (those sync in their own CI workflows).
+Run `scripts/regenerate-register.sh --check` to verify without writing (mirror CI locally).
 
 If citation-check is red, a promoted snippet does not resolve at its sha (usually the sha is not
 fetched locally, or the snippet was not copied verbatim). Fix the evidence and re-run; do not
 commit a red register.
+
+<details><summary>Underlying commands (if you need to run one render in isolation)</summary>
+
+```
+ruby scripts/citation-check.rb audit-reports/FINDINGS.json          # validate evidence (exit 0)
+ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json # rebuild FINDINGS.md
+ruby scripts/document-register-render.rb                            # DOCUMENT-REGISTER.md + JSON hashes
+ruby scripts/compliance-calendar-render.rb                          # compliance-calendar.md
+ruby scripts/compliance-notion-publish.rb                          # local Notion mirror render
+ruby scripts/compliance-publication-status.rb                      # publication status report
+```
+</details>
 
 ## Step 6: Report to Scot (he owns triage)
 
