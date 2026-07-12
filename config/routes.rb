@@ -40,6 +40,7 @@ LingoLinq::Application.routes.draw do
   get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/parental_consent/complete' => 'parental_consents#complete'
+  get '/parental_consent/revoke' => 'parental_consents#revoke'
   get '/ai_consent/disclosures/:version' => 'ai_consent/disclosures#show'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'

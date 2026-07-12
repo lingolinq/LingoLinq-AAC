@@ -658,6 +658,50 @@ describe User, :type => :model do
       expect(u2.coppa_parental_consent_pending?).to eq(true)
     end
 
+    it "stores a revoke token when parental consent is granted" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_revoke_token',
+        'email' => 'kidrevoketok@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentrevoketok@example.com'
+      }, {})
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(token)).to eq(true)
+      expect(u.settings['coppa']['parent_consent_revoke_token']).to be_present
+      expect(u.coppa_parental_consent_active?).to eq(true)
+    end
+
+    it "revoke_parental_consent! records an immutable AuditEvent and blocks access" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      AuditEvent.delete_all
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_revoke',
+        'email' => 'kidrevoke@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentrevoke@example.com'
+      }, {})
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(token)).to eq(true)
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect {
+        expect(u.revoke_parental_consent!(revoke_tok, ip: '203.0.113.8', user_agent: 'TestAgent/2.0')).to eq(true)
+      }.to change { AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).count }.by(1)
+      u.reload
+      expect(u.coppa_parental_consent_revoked?).to eq(true)
+      expect(u.coppa_parental_consent_blocks_access?).to eq(true)
+      expect(u.coppa_parental_consent_active?).to eq(false)
+      ae = AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).last
+      expect(ae.data['ip']).to eq('203.0.113.8')
+      expect(ae.data['user_agent']).to eq('TestAgent/2.0')
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}

@@ -52,6 +52,25 @@ The mailer method is `UserMailer#parental_consent_request` in `app/mailers/user_
 - The email contains a **one-time** URL: `GET /parental_consent/complete?user_id=<global_id>&token=<secret>`.
 - **Referrer-Policy: no-referrer** is set on that response to reduce token leakage via Referer headers (aligned with supervisor consent patterns).
 - After consent, the minor’s account receives the normal **welcome / confirm registration** email so they can finish email confirmation.
+- The parent receives a **confirmation email** (`UserMailer#parental_consent_confirmation`) acknowledging the approval, summarizing the account, and including a **revoke-anytime** link.
+
+## Confirmation email (COPPA email-plus)
+
+| Piece | Location |
+|--------|-----------|
+| Subject / body | `config/locales/en.yml` → `parental_consent_confirmation_mailer.*` |
+| HTML / text layout | `app/views/user_mailer/parental_consent_confirmation.html.erb`, `.text.erb` |
+| Mailer | `UserMailer#parental_consent_confirmation` |
+| Admin overrides | System Settings → Emails → **Parental consent confirmation** |
+
+The confirmation email includes:
+
+- Acknowledgment that consent was recorded (timestamp + child username)
+- Link to the Privacy Policy
+- Explicit revoke-anytime notice
+- Revoke URL: `GET /parental_consent/revoke?user_id=<global_id>&token=<revoke_secret>`
+
+After a successful revoke, the parent receives `UserMailer#parental_consent_revoked` and the child account is blocked from login until consent is given again.
 
 ## Legal checklist (for counsel)
 
@@ -70,6 +89,6 @@ This is **not** because the parent address is wrong: `UserMailer#parental_consen
 
 ## Changelog
 
-- **2026-06-09** — Admin-editable copy via System Settings (Message content tab) and branding via App defaults / org settings.
+- **2026-07-10** — Added post-approval parent confirmation email and tokenized revoke flow (COPPA email-plus).
 - **2026-04-13** — Initial engineering defaults added with COPPA parental consent feature.
 - **2026-04-14** — Documented Resque + SES and `INLINE_PARENTAL_CONSENT_EMAIL` for local testing.

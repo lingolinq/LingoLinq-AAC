@@ -100,8 +100,11 @@ class Api::SystemEmailTemplatesController < ApplicationController
     html_template = html_custom || SystemEmailTemplates.default_body(@entry[:key], 'html') || ''
     text_template = text_custom || SystemEmailTemplates.default_body(@entry[:key], 'text') || ''
     sample_consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{user.global_id}&token=sample-token"
+    sample_revoke_url = "#{JsonApi::Json.current_host}/parental_consent/revoke?user_id=#{user.global_id}&token=sample-revoke-token"
+    sample_granted_at = Time.now.utc
+    sample_revoked_at = Time.now.utc
 
-    preview_binding = preview_binding_for(user, branding, preview_i18n, sample_consent_url)
+    preview_binding = preview_binding_for(user, branding, preview_i18n, sample_consent_url, sample_revoke_url, sample_granted_at, sample_revoked_at)
     html = SystemEmailTemplates.render_string(html_template, preview_binding, validate: !!html_custom)
     text = SystemEmailTemplates.render_string(text_template, preview_binding, validate: !!text_custom)
 
@@ -152,7 +155,7 @@ class Api::SystemEmailTemplatesController < ApplicationController
     end
   end
 
-  def preview_binding_for(user, branding, preview_i18n, sample_consent_url)
+  def preview_binding_for(user, branding, preview_i18n, sample_consent_url, sample_revoke_url = nil, sample_granted_at = nil, sample_revoked_at = nil)
     entry = @entry
     template_key = "#{entry[:mailer]}/#{entry[:action]}"
     helper = Object.new.extend(MailerHelper)
@@ -170,6 +173,14 @@ class Api::SystemEmailTemplatesController < ApplicationController
     end
     helper.instance_variable_set(:@user, user)
     helper.instance_variable_set(:@consent_url, sample_consent_url)
+    helper.instance_variable_set(:@revoke_url, sample_revoke_url)
+    helper.instance_variable_set(:@privacy_url, "#{JsonApi::Json.current_host}/privacy")
+    helper.instance_variable_set(:@contact_url, "#{JsonApi::Json.current_host}/contact")
+    helper.instance_variable_set(:@child_name, user.settings['name'])
+    helper.instance_variable_set(:@child_username, user.display_user_name)
+    helper.instance_variable_set(:@parent_email, (user.settings['coppa'] || {})['parent_email'] || 'parent@example.com')
+    helper.instance_variable_set(:@granted_at, sample_granted_at)
+    helper.instance_variable_set(:@revoked_at, sample_revoked_at)
     helper.instance_eval { binding }
   end
 

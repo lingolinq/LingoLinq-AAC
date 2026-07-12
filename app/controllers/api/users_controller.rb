@@ -750,7 +750,7 @@ class Api::UsersController < ApplicationController
     if params['resend']
       sent = false
       if user.settings['pending'] != false
-        if user.coppa_parental_consent_pending?
+        if user.coppa_parental_consent_pending? || user.coppa_parental_consent_revoked?
           sent = false
         else
           sent = true
@@ -761,6 +761,9 @@ class Api::UsersController < ApplicationController
     else
       confirmed = !!(user && !user.settings['pending'])
       if params['code'] && user && params['code'] == user.registration_code
+        if user.coppa_parental_consent_revoked?
+          return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
+        end
         if user.coppa_parental_consent_pending?
           return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
         end
