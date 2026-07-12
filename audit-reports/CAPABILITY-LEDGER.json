@@ -1,0 +1,287 @@
+{
+  "meta": {
+    "title": "LingoLinq Capability Ledger",
+    "purpose": "Code-cited, present-tense source of truth for what the product actually does today, so compliance docs (and reviewers) ground claims against verified capabilities instead of re-deriving them by hand. citation-check.rb is to findings as capability-check.rb (Phase B) is to this ledger.",
+    "status": "provisional-non-canonical",
+    "canonicalWhen": "Phase B (scripts/capability-check.rb) enforces currentEvidence resolution at HEAD and negativeEvidence grep scoping in CI. Until then, rows are code-verified best-effort and MUST NOT be treated as authoritative or mirrored to any external tool (e.g. Codex AGENTS.md).",
+    "schemaVersion": "0.1.0",
+    "generatedDate": "2026-07-12",
+    "verifiedAgainstBranch": "staging",
+    "evidenceSemantics": {
+      "currentEvidence": "file:line:snippet that MUST resolve at HEAD (the current checkout), not a pinned SHA. Proves the capability is STILL true today. Required for status built/partial.",
+      "introducedEvidence": "optional provenance only (when/where a capability landed); NOT validated; may reference a historical SHA.",
+      "negativeEvidence": "scoped proof of absence for deliberately-not-done rows: grep scopes, patterns, excluded paths, reviewed surfaces, expectedMatches, and a re-review trigger. Phase B re-runs the greps at HEAD and fails if the match count diverges from expectedMatches.",
+      "statusValues": ["built", "partial", "planned", "deliberately-not-done"],
+      "framing": "deliberately-not-done rows describe out-of-scope-by-design choices, never known-gaps-shipped-without."
+    }
+  },
+  "capabilities": [
+    {
+      "id": "auth-passwords",
+      "capability": "Password authentication (bcrypt-hashed, via the passwords concern / GoSecure)",
+      "status": "built",
+      "domain": "auth",
+      "claimLanguage": "Accounts are protected by password authentication with hashed credentials.",
+      "antiClaim": "NOT passwordless / device-JWT-only.",
+      "currentEvidence": { "file": "app/models/user.rb", "line": 98, "snippet": "emails = emails.select{|u| u.valid_password?(password)}" },
+      "frameworks": ["SOC2"],
+      "notes": "Password verification lives in app/models/concerns/passwords.rb; Google OAuth and SAML SSO also exist as alternative sign-in paths.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "auth-2fa-optional",
+      "capability": "TOTP two-factor authentication (ROTP), currently OPTIONAL",
+      "status": "partial",
+      "domain": "auth",
+      "claimLanguage": "Two-factor authentication (TOTP) is available to users.",
+      "antiClaim": "NOT mandatory; do not claim enforced MFA for all users or admins.",
+      "currentEvidence": { "file": "app/models/concerns/passwords.rb", "line": 95, "snippet": "totp = ROTP::TOTP.new(secret, issuer: \"LingoLinq\")" },
+      "frameworks": ["SOC2"],
+      "notes": "Open item: make admin/staff 2FA mandatory (tracked separately). Optional today.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "encryption-at-rest-serverside",
+      "capability": "Server-side at-rest encryption of sensitive fields (secure_serialize / SECURE_ENCRYPTION_KEY)",
+      "status": "built",
+      "domain": "encryption",
+      "claimLanguage": "Sensitive fields are encrypted at rest server-side.",
+      "antiClaim": "NOT end-to-end encryption; LingoLinq holds the keys. Do not claim 'zero readable keys' or E2EE.",
+      "currentEvidence": { "file": "app/models/concerns/secure_serialize.rb", "line": 1, "snippet": "module SecureSerialize" },
+      "frameworks": ["GDPR", "HIPAA"],
+      "notes": "Encryption keys are held by the application. This is server-side encryption, distinct from E2EE (see cap no-e2ee).",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "pii-scrubber-pseudonymization",
+      "capability": "PiiScrubber pseudonymizes (scrubs direct identifiers from) payloads before AI egress",
+      "status": "built",
+      "domain": "ai-privacy",
+      "claimLanguage": "Only pseudonymized (scrubbed) data is sent to AI subprocessors; it remains personal data under GDPR/UK-GDPR.",
+      "antiClaim": "NOT de-identified or anonymized. Pseudonymized data is still personal data; does not meet HIPAA Safe Harbor.",
+      "currentEvidence": { "file": "lib/pii_scrubber.rb", "line": 215, "snippet": "def redact_for_ai(payload)" },
+      "frameworks": ["GDPR", "FERPA", "COPPA"],
+      "notes": "Scrubber removes known direct identifiers (patterns + configured blocklist). NER coverage is an open limitation; free-hand third-party names can evade it.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "coppa-under13-ai-gate",
+      "capability": "COPPA hard-gate blocks AI generation for under-13 users awaiting parental consent",
+      "status": "built",
+      "domain": "childrens-privacy",
+      "claimLanguage": "AI features are blocked for under-13 users until verifiable parental consent is captured.",
+      "antiClaim": "This is an under-13 (COPPA) gate; it does NOT itself enforce an EU under-16 (GDPR Art. 8) block on the AI path (see cap eu-under16-ai-block).",
+      "currentEvidence": { "file": "lib/ai_board_generator.rb", "line": 40, "snippet": "if FeatureFlags.coppa_blocks_ai_for?(user)" },
+      "introducedEvidence": { "note": "also enforced in lib/ai_word_predictor.rb:37" },
+      "frameworks": ["COPPA"],
+      "notes": "Gate is FeatureFlags.coppa_blocks_ai_for?(user); enforced at both AI generator call sites.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "jurisdiction-primitive",
+      "capability": "Jurisdiction detection primitive (EU vs non-EU) exists",
+      "status": "built",
+      "domain": "jurisdiction",
+      "claimLanguage": "The platform can determine whether an account context is in the EU.",
+      "antiClaim": "The EU jurisdiction primitive currently gates ONLY the (not-yet-built) Art. 50(1) disclosure modal; it does not by itself drive an under-16 AI block.",
+      "currentEvidence": { "file": "app/models/lingo_linq/jurisdiction.rb", "line": 1, "snippet": "module LingoLinq" },
+      "introducedEvidence": { "note": "lib/eu_jurisdiction.rb (module EuJurisdiction, line 12); PRs #556/#560" },
+      "frameworks": ["GDPR"],
+      "notes": "lib/eu_jurisdiction.rb states it is used ONLY to gate the Art. 50(1) disclosure modal; fail-safe (only an authoritative non-EU result suppresses the modal).",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "art50-2-output-marking",
+      "capability": "EU AI Act Article 50(2) machine-readable AI-output content marking",
+      "status": "built",
+      "domain": "eu-ai-act",
+      "claimLanguage": "AI-generated outputs are marked in a machine-readable, server-verifiable way (Art. 50(2)).",
+      "antiClaim": "This is Art. 50(2) output marking, NOT the Art. 50(1) user-facing disclosure modal (see cap art50-1-disclosure-modal).",
+      "currentEvidence": { "file": "lib/art50_marker.rb", "line": 37, "snippet": "module Art50Marker" },
+      "introducedEvidence": { "note": "PR #573" },
+      "frameworks": ["EU-AI-Act"],
+      "notes": "Marking is unconditional (jurisdiction-independent) by design.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "hard-delete-on-request",
+      "capability": "Full hard-delete of a user on request (flush_user_completely)",
+      "status": "built",
+      "domain": "retention",
+      "claimLanguage": "Accounts can be permanently deleted on request.",
+      "antiClaim": "There is no automatic time-based wipe (no 48h/180d purge); deletion is on request / policy-driven.",
+      "currentEvidence": { "file": "lib/flusher.rb", "line": 401, "snippet": "def self.flush_user_completely(user_id, user_name)" },
+      "frameworks": ["GDPR", "FERPA"],
+      "notes": "Org-configurable retention exists via DataPolicyEnforcer; no NIST destruction certificates.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "aiapilog-audit-ip-redaction",
+      "capability": "AiApiLog audit trail with scrubbed summary columns / IP redaction",
+      "status": "built",
+      "domain": "ai-governance",
+      "claimLanguage": "AI API calls are logged with an audit trail and redacted of direct identifiers.",
+      "antiClaim": "Redaction is pseudonymization of the log record, not anonymization.",
+      "currentEvidence": { "file": "app/models/ai_api_log.rb", "line": 30, "snippet": "result = PiiScrubber.redact_for_ai(value)" },
+      "frameworks": ["GDPR", "EU-AI-Act"],
+      "notes": "90-day IP redaction runs as a scheduled job; EU AI Act fields present in schema.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "ai-features-claude-gemini",
+      "capability": "AI board generation + word prediction via Anthropic Claude (primary) and Google Gemini (fallback)",
+      "status": "built",
+      "domain": "ai-features",
+      "claimLanguage": "AI features (board generation and word prediction) use Anthropic Claude with a Google Gemini fallback.",
+      "antiClaim": "Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization); no ZDR contractual guarantee (see cap no-zdr-contractual).",
+      "currentEvidence": { "file": "lib/ai_word_predictor.rb", "line": 37, "snippet": "return [] if FeatureFlags.coppa_blocks_ai_for?(user)" },
+      "frameworks": ["GDPR", "EU-AI-Act"],
+      "notes": "Subprocessors listed in docs/legal/SUBPROCESSORS.md.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "message-banking-own-voice",
+      "capability": "Message banking retains the user's OWN voice recordings for playback",
+      "status": "built",
+      "domain": "voice",
+      "claimLanguage": "Message banking stores a user's own recorded messages for playback.",
+      "antiClaim": "These are the user's own communication recordings, NOT voiceprints/speaker-ID/biometrics (see cap no-voiceprints).",
+      "currentEvidence": { "file": "app/models/button_sound.rb", "line": 11, "snippet": "has_many :board_button_sounds" },
+      "frameworks": ["GDPR", "HIPAA"],
+      "notes": "Most sensitive data category (health-adjacent, ALS use). A temp WAV made only for auto-transcribing a text label is deleted; the banked recording is retained by design.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "aws-s3-baa",
+      "capability": "Signed AWS S3 Business Associate Agreement (storage)",
+      "status": "built",
+      "domain": "vendor-contracts",
+      "claimLanguage": "A signed BAA is in place with AWS covering S3 storage.",
+      "antiClaim": "The AWS BAA covers storage infrastructure; it does NOT cover the AI model-provider egress path (see cap no-model-provider-baa).",
+      "currentEvidence": { "file": "docs/legal/AWS_BAA_ACCEPTED.md", "line": 1, "snippet": "attestation" },
+      "evidenceType": "attestation",
+      "frameworks": ["HIPAA"],
+      "notes": "Signed 2026-02-07. Attestation-type evidence (document, not code).",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "art50-1-disclosure-modal",
+      "capability": "EU AI Act Article 50(1) user-facing AI-interaction disclosure modal",
+      "status": "planned",
+      "domain": "eu-ai-act",
+      "claimLanguage": null,
+      "antiClaim": "The disclosure CONTENT exists (VPC Phase 2), but the user-facing modal (Phase 3) and consent enforcement (Phase 4) are NOT built. Do not claim a live Art. 50(1) disclosure.",
+      "currentEvidence": { "file": "lib/lingo_linq/ai_consent_disclosures.rb", "line": 5, "snippet": "# Canonical version source for the AI data-sharing disclosure (VPC Phase 2)." },
+      "frameworks": ["EU-AI-Act"],
+      "notes": "Phase 3 (Ember modal) planned; Phase 4 (consent gate) depends on the GCP/VPC cutover. EU clock 2026-08-02.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "eu-under16-ai-block",
+      "capability": "Jurisdiction-aware under-16 (EU GDPR Art. 8) block on the AI generation path",
+      "status": "planned",
+      "domain": "childrens-privacy",
+      "claimLanguage": null,
+      "antiClaim": "The AI generators enforce only the under-13 COPPA gate today; an EU under-16 block on the AI path is NOT confirmed built. Do not claim an under-16 gate is in place on AI features.",
+      "currentEvidence": { "file": "lib/ai_board_generator.rb", "line": 40, "snippet": "if FeatureFlags.coppa_blocks_ai_for?(user)" },
+      "frameworks": ["GDPR", "COPPA"],
+      "notes": "Gap-check pending. Signup age gate merged (#556/#560); the AI-generator path still gates on under-13 only.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "no-e2ee",
+      "capability": "End-to-end encryption / zero-readable-keys",
+      "status": "deliberately-not-done",
+      "domain": "encryption",
+      "claimLanguage": null,
+      "antiClaim": "We do NOT do E2EE. Encryption is server-side with LingoLinq holding keys (see cap encryption-at-rest-serverside).",
+      "negativeEvidence": {
+        "grepScopes": ["app/**/*.rb", "lib/**/*.rb"],
+        "patterns": ["end_to_end", "e2ee", "zero_knowledge", "client_side_encrypt"],
+        "excludedPaths": ["spec/**", "docs/**", "app/frontend/**"],
+        "reviewedSurfaces": ["app/models/concerns/secure_serialize.rb (server-side keys)"],
+        "expectedMatches": 0,
+        "reviewTriggers": "any new client-side/key-custody encryption module"
+      },
+      "frameworks": ["GDPR", "HIPAA"],
+      "notes": "The #1 recurring over-claim in Gemini-drafted docs.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "no-zdr-contractual",
+      "capability": "Zero Data Retention contractual guarantee with AI subprocessors",
+      "status": "deliberately-not-done",
+      "domain": "ai-privacy",
+      "claimLanguage": null,
+      "antiClaim": "We do NOT have a ZDR contractual guarantee. Only pseudonymized data is sent; retention follows vendor standard DPA terms.",
+      "negativeEvidence": {
+        "grepScopes": ["app/**/*.rb", "lib/**/*.rb"],
+        "patterns": ["zero_data_retention", "\\bzdr\\b"],
+        "excludedPaths": ["spec/**", "docs/**"],
+        "reviewedSurfaces": ["docs/legal/SUBPROCESSORS.md (DPA-standard-terms rows)"],
+        "expectedMatches": 0,
+        "reviewTriggers": "any signed ZDR addendum with a model provider"
+      },
+      "frameworks": ["GDPR"],
+      "notes": "Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and are never used for identifiable payloads.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "no-voiceprints",
+      "capability": "Voiceprints / speaker-identification / voice-cloning of training audio",
+      "status": "deliberately-not-done",
+      "domain": "biometrics",
+      "claimLanguage": null,
+      "antiClaim": "We do NOT process biometric voiceprints or perform speaker-ID. Message banking stores the user's own recordings (see cap message-banking-own-voice).",
+      "negativeEvidence": {
+        "grepScopes": ["app/**/*.rb", "lib/**/*.rb"],
+        "patterns": ["voiceprint", "speaker_id", "speaker_recognition", "voice_clone"],
+        "excludedPaths": ["spec/**", "docs/**", "app/frontend/**"],
+        "reviewedSurfaces": ["app/models/button_sound.rb"],
+        "expectedMatches": 0,
+        "reviewTriggers": "any change under app/models/button_sound.rb adding audio identity/cloning, or a new speaker_* column"
+      },
+      "frameworks": ["GDPR", "BIPA"],
+      "notes": "Voice cloning is import-only (built externally, finished voice imported) per 2026-06-24 decision; no training recordings handled.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "no-health-disability-data",
+      "capability": "Diagnosis / disability / IEP / 504 / medical-condition data fields",
+      "status": "deliberately-not-done",
+      "domain": "special-category",
+      "claimLanguage": null,
+      "antiClaim": "We do NOT collect diagnosis/disability/IEP/504/medical fields. AAC use is not a disability proxy (UDL/special-ed/gen-ed/ESL all use AAC).",
+      "negativeEvidence": {
+        "grepScopes": ["db/schema.rb"],
+        "patterns": ["disabilit", "diagnos", "\\biep\\b", "\\b504\\b", "impair", "medical_condition"],
+        "excludedPaths": [],
+        "reviewedSurfaces": ["db/schema.rb (no such columns)"],
+        "expectedMatches": 0,
+        "reviewTriggers": "any migration adding a health/disability/diagnosis/IEP column"
+      },
+      "frameworks": ["GDPR", "FERPA", "HIPAA"],
+      "notes": "Art. 9 special-category data arises only from free-text content a user/supervisor stores, not from a structured field.",
+      "lastVerified": "2026-07-12"
+    },
+    {
+      "id": "no-model-provider-baa",
+      "capability": "Signed BAA covering the AI model-provider (Anthropic/Google) egress path",
+      "status": "deliberately-not-done",
+      "domain": "vendor-contracts",
+      "claimLanguage": null,
+      "antiClaim": "No signed BAA currently covers the model-provider AI egress path (the AWS BAA is storage infrastructure only). HIPAA posture on the AI path is provisional pending CEO review.",
+      "negativeEvidence": {
+        "grepScopes": ["docs/legal/**"],
+        "patterns": ["model.provider BAA", "Anthropic BAA", "Gemini BAA executed"],
+        "excludedPaths": [],
+        "reviewedSurfaces": ["docs/legal/ (no model-provider BAA artifact)", "docs/legal/AI_GOVERNANCE_MEMO.md (HIPAA conclusion marked provisional)"],
+        "expectedMatches": 0,
+        "reviewTriggers": "an executed model-provider BAA landing in docs/legal/"
+      },
+      "frameworks": ["HIPAA"],
+      "notes": "Decision surface for Scot: pursue a model-provider BAA, keep PHI accounts off AI, or accept scrubber-only posture.",
+      "lastVerified": "2026-07-12"
+    }
+  ]
+}
