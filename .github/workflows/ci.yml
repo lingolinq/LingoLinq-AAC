@@ -136,6 +136,9 @@ jobs:
       - name: Verify compliance publication status report
         run: ruby scripts/compliance-publication-status.rb --check
 
+      - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
+        run: ruby scripts/capability-check.rb --check
+
   security-scan:
     runs-on: ubuntu-latest
 

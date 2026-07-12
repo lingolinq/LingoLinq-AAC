@@ -100,6 +100,8 @@ verify_all() {
     ruby scripts/document-register-render.rb --check
   step "verify: compliance publication status report" \
     ruby scripts/compliance-publication-status.rb --check
+  step "verify: capability ledger (currentEvidence at HEAD + negativeEvidence)" \
+    ruby scripts/capability-check.rb --check
 }
 
 if [ "$MODE" = "check" ]; then
@@ -139,6 +141,8 @@ step "render: Notion compliance page (local mirror only, no push)" \
   ruby scripts/compliance-notion-publish.rb
 step "render: compliance publication status report" \
   ruby scripts/compliance-publication-status.rb
+step "render: capability ledger (validate at HEAD + write .md)" \
+  ruby scripts/capability-check.rb
 
 # The Notion mirror embeds a wall-clock "Page generated:" line that --check
 # ignores by design. Rendering rewrites it every run, so a substantively
