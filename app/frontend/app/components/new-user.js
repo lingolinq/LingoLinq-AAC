@@ -1,12 +1,58 @@
 import LingoLinq from '../app';
 import RSVP from 'rsvp';
+import Component from '@ember/component';
+import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 
-export default modal.ModalController.extend({
-  opening: function() {
-    var user = LingoLinq.store.createRecord('user', {
+/**
+ * New User modal (org portal People tab).
+ *
+ * Converted from the legacy outlet-era controller/template pair to the
+ * component-based modal system so it renders via modal-container. Mirrors
+ * components/add-supervisor.js: init() reads the options passed to
+ * modal.open('new-user', {...}) into `model`, and the old `opening()`
+ * lifecycle work now runs in didInsertElement().
+ */
+export default Component.extend({
+  modal: service('modal'),
+  store: service('store'),
+  tagName: '',
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
+    const modalService = this.get('modal');
+    const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor('new-user')) ||
+                    this.get('model') || {};
+    this.set('model', options);
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var user = this.get('store').createRecord('user', {
       preferences: {
         registration_type: 'manually-added-org-user',
         preferred_symbols: this.get('model.org.preferred_symbols') || 'original'
@@ -141,7 +187,7 @@ export default modal.ModalController.extend({
   }),
   set_unsponsored_action(type) {
     if(type == 'supervisor') {
-      this.set('model.user.org_management_action', 'add_supervisor');      
+      this.set('model.user.org_management_action', 'add_supervisor');
     } else {
       this.set('model.user.org_management_action', 'add_unsponsored_user');
     }
@@ -149,32 +195,13 @@ export default modal.ModalController.extend({
   linking_or_exists: computed('linking', 'model.user.user_name_check.exists', function() {
     return this.get('linking') || this.get('model.user.user_name_check.exists');
   }),
-  init() {
-    this._super(...arguments);
-    var self = this;
-    this.ctrlAction = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        var args = bound.concat(Array.prototype.slice.call(arguments));
-        var evt = args[args.length - 1];
-        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-          if (evt.preventDefault) { evt.preventDefault(); }
-          args.pop();
-        }
-        self.send.apply(self, [actionName].concat(args));
-      };
-    };
-    this.ctrlActionNoBubble = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function(event) {
-        if (event && event.stopPropagation) { event.stopPropagation(); }
-        if (event && event.preventDefault) { event.preventDefault(); }
-        self.send.apply(self, [actionName].concat(bound));
-      };
-    };
-  },
 
   actions: {
+    close() {
+      this.get('modal').close();
+    },
+    opening() {},
+    closing() {},
     set_device: function(device) {
       this.set('external_device', device.name);
     },
