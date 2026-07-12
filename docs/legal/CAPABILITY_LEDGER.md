@@ -1,59 +1,53 @@
 # LingoLinq Capability Ledger
 
-> **PROVISIONAL -- NON-CANONICAL (Phase A).** Generated 2026-07-12, verified against `staging`.
-> This is the code-cited, present-tense record of what the product actually does today, so
-> compliance docs ground claims against verified capabilities instead of re-deriving them.
-> **Not yet authoritative:** it becomes canonical only when Phase B (`scripts/capability-check.rb`)
-> enforces `currentEvidence` resolution **at HEAD** and `negativeEvidence` grep scoping in CI. Until
-> then, do not treat rows as attested and do not mirror this file into any external tool (e.g. Codex
-> `AGENTS.md`). Source of truth is `audit-reports/CAPABILITY-LEDGER.json`; this render is
-> hand-maintained until the Phase B renderer lands.
+> Generated from `audit-reports/CAPABILITY-LEDGER.json` by `scripts/capability-check.rb --render`.
+> Do not hand-edit; edit the JSON (the source of truth) and re-render.
 >
-> Evidence semantics: `built`/`partial` rows carry `currentEvidence` (must resolve at HEAD, not a
-> pinned SHA -- this is the key difference from the findings register). `deliberately-not-done` rows
-> carry scoped `negativeEvidence` (grep scopes + expected zero matches). See the JSON for full fields.
+> **Status: canonical.** `built`/`partial` rows' `currentEvidence` is
+> validated to resolve at HEAD, and `deliberately-not-done` rows' `negativeEvidence` is
+> enforced, by `scripts/capability-check.rb --check` in CI (audit-artifacts-integrity). A
+> capability is a present-tense claim: if the backing code is removed, the check goes red.
+> Verified against `staging`; generated 2026-07-12.
 
 ## Built (11)
 
-| Capability | Evidence (HEAD) | Anti-claim it kills |
+| Capability | Evidence (HEAD) | Anti-claim / note |
 |---|---|---|
-| Password authentication (hashed) | `app/models/user.rb:98` | passwordless / device-JWT-only |
-| Server-side at-rest encryption | `app/models/concerns/secure_serialize.rb:1` | E2EE / zero-readable-keys |
-| PiiScrubber pseudonymization before AI egress | `lib/pii_scrubber.rb:215` | de-identified / anonymized |
-| COPPA under-13 AI hard-gate | `lib/ai_board_generator.rb:40` | (also note: not an EU under-16 gate) |
-| Jurisdiction primitive (EU vs non-EU) | `app/models/lingo_linq/jurisdiction.rb:58` | gates only the Art. 50(1) modal, nothing else yet |
-| AI board-gen + word-prediction (Anthropic Claude, **Anthropic-only**) | `lib/ai_word_predictor.rb:158` | Gemini fallback (disabled 2026-07-09) |
-| ZDR confirmed for the 2 active Anthropic models | `docs/legal/AI_DATA_SHARING_CONSENT.md:50` | ZDR for other/future models or non-Anthropic; a HIPAA BAA |
-| Hard-delete on request | `lib/flusher.rb:401` | automatic time-based wipe (there is none) |
-| AiApiLog audit trail + IP redaction | `app/models/ai_api_log.rb:30` | log anonymization (it's pseudonymization) |
-| Message banking retains user's OWN voice | `app/models/button_sound.rb:11` | voiceprint / speaker-ID |
-| AWS S3 BAA (storage) | `docs/legal/AWS_BAA_ACCEPTED.md` (attestation) | model-provider BAA (that's separate) |
+| Password authentication (bcrypt-hashed, via the passwords concern / GoSecure) | `app/models/user.rb:98` | NOT passwordless / device-JWT-only. |
+| Server-side at-rest encryption of sensitive fields (secure_serialize / SECURE_ENCRYPTION_KEY) | `app/models/concerns/secure_serialize.rb:1` | NOT end-to-end encryption; LingoLinq holds the keys. Do not claim 'zero readable keys' or E2EE. |
+| PiiScrubber pseudonymizes (scrubs direct identifiers from) payloads before AI egress | `lib/pii_scrubber.rb:215` | NOT de-identified or anonymized. Pseudonymized data is still personal data; does not meet HIPAA Safe Harbor. |
+| COPPA hard-gate blocks AI generation for under-13 users awaiting parental consent | `lib/ai_board_generator.rb:40` | This is an under-13 (COPPA) gate; it does NOT itself enforce an EU under-16 (GDPR Art. 8) block on the AI path (see cap eu-under16-ai-block). |
+| Jurisdiction detection primitive (EU vs non-EU) exists | `app/models/lingo_linq/jurisdiction.rb:58` | The EU jurisdiction primitive currently gates ONLY the (not-yet-built) Art. 50(1) disclosure modal; it does not by itself drive an under-16 AI block. |
+| Full hard-delete of a user on request (flush_user_completely) | `lib/flusher.rb:401` | There is no automatic time-based wipe (no 48h/180d purge); deletion is on request / policy-driven. |
+| AiApiLog audit trail with scrubbed summary columns / IP redaction | `app/models/ai_api_log.rb:30` | Redaction is pseudonymization of the log record, not anonymization. |
+| AI board generation + word prediction via Anthropic Claude (Anthropic-only runtime) | `lib/ai_word_predictor.rb:158` | The prior Google Gemini fallback was DISABLED 2026-07-09 (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data); there is no runtime Gemini path today. A Vertex AI fallback may replace it later. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization). |
+| Message banking retains the user's OWN voice recordings for playback | `app/models/button_sound.rb:11` | These are the user's own communication recordings, NOT voiceprints/speaker-ID/biometrics (see cap no-voiceprints). |
+| Signed AWS S3 Business Associate Agreement (storage) | `docs/legal/AWS_BAA_ACCEPTED.md:1` | The AWS BAA covers storage infrastructure; it does NOT cover the AI model-provider egress path (see cap no-model-provider-baa). |
+| Zero-data-retention (ZDR) confirmed for the two active Anthropic models | `docs/legal/AI_DATA_SHARING_CONSENT.md:50` | ZDR is confirmed ONLY for these two specific models; it does NOT extend to any other/future Anthropic model outside the ZDR-eligible tier, and NOT to any non-Anthropic provider. ZDR is NOT a substitute for a HIPAA BAA (see cap no-model-provider-baa). Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and never receive identifiable payloads. |
 
 ## Partial (2)
 
-| Capability | Evidence (HEAD) | Scope / note |
+| Capability | Evidence (HEAD) | Anti-claim / note |
 |---|---|---|
-| TOTP 2FA (ROTP) | `app/models/concerns/passwords.rb:95` | exists but **optional**; admin/staff mandatory 2FA is an open item |
-| EU AI Act Art. 50(2) output marking | `lib/ai_board_generator.rb:123` | **board-generation output only**; other AI surfaces + durable marker persistence are follow-up. Obligation NOT closed |
+| TOTP two-factor authentication (ROTP), currently OPTIONAL | `app/models/concerns/passwords.rb:95` | NOT mandatory; do not claim enforced MFA for all users or admins. |
+| EU AI Act Article 50(2) machine-readable output marking -- board-generation slice only | `lib/ai_board_generator.rb:123` | The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal). |
 
 ## Planned (2)
 
-| Capability | Anchor | Status |
+| Capability | Evidence (HEAD) | Anti-claim / note |
 |---|---|---|
-| EU AI Act Art. 50(1) user disclosure modal | `lib/lingo_linq/ai_consent_disclosures.rb:5` | content merged (Phase 2); modal (Phase 3) + consent gate (Phase 4) not built. EU clock 2026-08-02 |
-| Under-16 (EU GDPR Art. 8) block on AI path | `lib/ai_board_generator.rb:40` | AI path still gates on under-13 only; gap-check pending |
+| EU AI Act Article 50(1) user-facing AI-interaction disclosure modal | `lib/lingo_linq/ai_consent_disclosures.rb:5` | The disclosure CONTENT exists (VPC Phase 2), but the user-facing modal (Phase 3) and consent enforcement (Phase 4) are NOT built. Do not claim a live Art. 50(1) disclosure. |
+| Jurisdiction-aware under-16 (EU GDPR Art. 8) block on the AI generation path | `lib/ai_board_generator.rb:40` | The AI generators enforce only the under-13 COPPA gate today; an EU under-16 block on the AI path is NOT confirmed built. Do not claim an under-16 gate is in place on AI features. |
 
-## Deliberately not done (4) -- out-of-scope by design
+## Deliberately not done -- out-of-scope by design (4)
 
 | Capability | Negative-evidence scope | Expected |
 |---|---|---|
-| End-to-end encryption | `app/**`,`lib/**` for `end_to_end`/`e2ee`/`zero_knowledge` | 0 matches |
-| Voiceprints / speaker-ID / voice-cloning | `app/**`,`lib/**` for `voiceprint`/`speaker_id`/`voice_clone` | 0 matches |
-| Diagnosis / disability / IEP / 504 fields | `db/schema.rb` for `disabilit`/`diagnos`/`iep`/`504`/`impair` | 0 matches |
-| Model-provider (Anthropic/Google) BAA | `docs/legal/**` for an executed model-provider BAA | 0 matches (HIPAA on AI path provisional) |
+| End-to-end encryption / zero-readable-keys | app/**/*.rb, lib/**/*.rb for end_to_end/e2ee/zero_knowledge/client_side_encrypt | 0 matches |
+| Voiceprints / speaker-identification / voice-cloning of training audio | app/**/*.rb, lib/**/*.rb for voiceprint/speaker_id/speaker_recognition/voice_clone | 0 matches |
+| Diagnosis / disability / IEP / 504 / medical-condition data fields | db/schema.rb for disabilit/diagnos/\biep\b/\b504\b/impair/medical_condition | 0 matches |
+| Signed BAA covering the AI model-provider (Anthropic/Google) egress path | absent files: docs/legal/*anthropic*baa*, docs/legal/*gemini*baa*, docs/legal/*model*provider*baa* | 0 matches |
 
 ---
 
-*Framing note: "deliberately not done" means out-of-scope by design, never a known gap shipped without. These rows exist to stop over-claims, mirroring the "Deliberately not claimed" section of `COMPLIANCE_PROGRAM_OVERVIEW.md`.*
-
-*Note on ZDR vs BAA: the two active Anthropic runtime models are ZDR-confirmed (a retention posture), but no signed BAA covers the model-provider egress path (a HIPAA contract). Those are different instruments; the ledger tracks both separately.*
+*Framing: "deliberately not done" means out-of-scope by design, never a known gap shipped without. These rows exist to stop over-claims, mirroring the "Deliberately not claimed" section of `COMPLIANCE_PROGRAM_OVERVIEW.md`.*

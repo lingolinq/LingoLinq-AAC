@@ -2,8 +2,8 @@
   "meta": {
     "title": "LingoLinq Capability Ledger",
     "purpose": "Code-cited, present-tense source of truth for what the product actually does today, so compliance docs (and reviewers) ground claims against verified capabilities instead of re-deriving them by hand. citation-check.rb is to findings as capability-check.rb (Phase B) is to this ledger.",
-    "status": "provisional-non-canonical",
-    "canonicalWhen": "Phase B (scripts/capability-check.rb) enforces currentEvidence resolution at HEAD and negativeEvidence grep scoping in CI. Until then, rows are code-verified best-effort and MUST NOT be treated as authoritative or mirrored to any external tool (e.g. Codex AGENTS.md).",
+    "status": "canonical",
+    "canonicalWhen": "Enforced as of Phase B: scripts/capability-check.rb validates every built/partial row's currentEvidence at HEAD and every deliberately-not-done row's negativeEvidence in CI (audit-artifacts-integrity). Mirroring to external tools (e.g. Codex AGENTS.md) is now permissible for these code-cited, identifier-free rows.",
     "schemaVersion": "0.1.0",
     "generatedDate": "2026-07-12",
     "verifiedAgainstBranch": "staging",
@@ -159,7 +159,7 @@
       "domain": "vendor-contracts",
       "claimLanguage": "A signed BAA is in place with AWS covering S3 storage.",
       "antiClaim": "The AWS BAA covers storage infrastructure; it does NOT cover the AI model-provider egress path (see cap no-model-provider-baa).",
-      "currentEvidence": { "file": "docs/legal/AWS_BAA_ACCEPTED.md", "line": 1, "snippet": "attestation" },
+      "currentEvidence": { "file": "docs/legal/AWS_BAA_ACCEPTED.md", "line": 1, "snippet": "AWS Business Associate Addendum (BAA) - ACCEPTED" },
       "evidenceType": "attestation",
       "frameworks": ["HIPAA"],
       "notes": "Signed 2026-02-07. Attestation-type evidence (document, not code).",
@@ -267,12 +267,10 @@
       "claimLanguage": null,
       "antiClaim": "No signed BAA currently covers the model-provider AI egress path (the AWS BAA is storage infrastructure only). HIPAA posture on the AI path is provisional pending CEO review.",
       "negativeEvidence": {
-        "grepScopes": ["docs/legal/**"],
-        "patterns": ["model.provider BAA", "Anthropic BAA", "Gemini BAA executed"],
-        "excludedPaths": [],
-        "reviewedSurfaces": ["docs/legal/ (no model-provider BAA artifact)", "docs/legal/AI_GOVERNANCE_MEMO.md (HIPAA conclusion marked provisional)"],
+        "absentFileGlobs": ["docs/legal/*anthropic*baa*", "docs/legal/*gemini*baa*", "docs/legal/*model*provider*baa*"],
+        "reviewedSurfaces": ["docs/legal/ (no model-provider BAA artifact; AWS_BAA is storage only)", "docs/legal/AI_GOVERNANCE_MEMO.md (HIPAA conclusion marked provisional)"],
         "expectedMatches": 0,
-        "reviewTriggers": "an executed model-provider BAA landing in docs/legal/"
+        "reviewTriggers": "an executed Anthropic/Google model-provider BAA file landing in docs/legal/"
       },
       "frameworks": ["HIPAA"],
       "notes": "Decision surface for Scot: pursue a model-provider BAA, keep PHI accounts off AI, or accept scrubber-only posture.",
