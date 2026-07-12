@@ -1,12 +1,58 @@
 import LingoLinq from '../app';
 import RSVP from 'rsvp';
+import Component from '@ember/component';
+import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 
-export default modal.ModalController.extend({
-  opening: function() {
-    var user = LingoLinq.store.createRecord('user', {
+/**
+ * New User modal (org portal People tab).
+ *
+ * Converted from the legacy outlet-era controller/template pair to the
+ * component-based modal system so it renders via modal-container. Mirrors
+ * components/add-supervisor.js: init() reads the options passed to
+ * modal.open('new-user', {...}) into `model`, and the old `opening()`
+ * lifecycle work now runs in didInsertElement().
+ */
+export default Component.extend({
+  modal: service('modal'),
+  store: service('store'),
+  tagName: '',
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
+    const modalService = this.get('modal');
+    const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor('new-user')) ||
+                    this.get('model') || {};
+    this.set('model', options);
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var user = this.get('store').createRecord('user', {
       preferences: {
         registration_type: 'manually-added-org-user',
         preferred_symbols: this.get('model.org.preferred_symbols') || 'original'
@@ -24,15 +70,19 @@ export default modal.ModalController.extend({
     user.set('watch_user_name_and_cookies', true);
     this.set('model.user', user);
     this.set('model.user.org_management_action', this.get('model.default_org_management_action'));
+    this.apply_license_downgrade();
   },
-  user_types: computed('model.no_licenses', 'model.no_supervisor_licenses', 'model.no_eval_licenses', function() {
+  // NOTE: this getter is pure -- it only builds the option list and marks
+  // license-exhausted types `disabled`. The auto-downgrade of a disabled
+  // default selection lives in apply_license_downgrade() (called from
+  // didInsertElement), NOT here: mutating model.user.org_management_action
+  // from inside the getter that the template's bound-select consumes trips
+  // Ember 5's backtracking-rerender assertion.
+  user_types: computed('model.no_licenses', 'model.no_supervisor_licenses', 'model.no_eval_licenses', 'model.premium', function() {
     var res = [];
     res.push({id: '', name: i18n.t('select_user_type', "[ Add This User As ]")});
     if(this.get('model.no_licenses')) {
       res.push({id: 'add_user', disabled: true, name: i18n.t('add_sponsored_used', "Add this User As a Sponsored Communicator")});
-      if(this.get('model.user.org_management_action') == 'add_user') {
-        this.set_unsponsored_action();
-      }
     } else {
       res.push({id: 'add_user', name: i18n.t('add_sponsored_used', "Add this User As a Sponsored Communicator")});
     }
@@ -42,9 +92,6 @@ export default modal.ModalController.extend({
     }
     if(this.get('model.no_supervisor_licenses')) {
       res.push({id: 'add_premium_supervisor', disabled: true, name: i18n.t('add_as_premium_supervisor', "Add this User As a Premium Supervisor")});
-      if(this.get('model.user.org_management_action') == 'add_premium_supervisor') {
-        this.set_unsponsored_action('supervisor');
-      }
     } else {
       res.push({id: 'add_premium_supervisor', name: i18n.t('add_as_premium_supervisor', "Add this User As a Premium Supervisor")});
     }
@@ -53,14 +100,25 @@ export default modal.ModalController.extend({
     res.push({id: 'add_assistant', name: i18n.t('add_as_assistant', "Add this User As a Management Assistant")});
     if(this.get('model.no_eval_licenses')) {
       res.push({id: 'add_eval', disabled: true, name: i18n.t('add_paid_eval', "Add this User As a Paid Eval Account")});
-      if(this.get('model.user.org_management_action') == 'add_eval') {
-        this.set_unsponsored_action();
-      }
     } else {
       res.push({id: 'add_eval', name: i18n.t('add_paid_eval', "Add this User As a Paid Eval Account")});
     }
     return res;
   }),
+  // Downgrade a default selection that lands on a license-exhausted (disabled)
+  // type, e.g. clicking "New User" under Communicators when the org has no
+  // sponsored-communicator licenses. Run once from didInsertElement instead of
+  // during render. Mirrors the branches that previously lived in user_types.
+  apply_license_downgrade() {
+    var action = this.get('model.user.org_management_action');
+    if(this.get('model.no_licenses') && action == 'add_user') {
+      this.set_unsponsored_action();
+    } else if(this.get('model.no_supervisor_licenses') && action == 'add_premium_supervisor') {
+      this.set_unsponsored_action('supervisor');
+    } else if(this.get('model.no_eval_licenses') && action == 'add_eval') {
+      this.set_unsponsored_action();
+    }
+  },
   locale_list: computed(function() {
     var list = i18n.get('locales');
     var res = [{name: i18n.t('english_default', "English (default)"), id: 'en'}];
@@ -141,7 +199,7 @@ export default modal.ModalController.extend({
   }),
   set_unsponsored_action(type) {
     if(type == 'supervisor') {
-      this.set('model.user.org_management_action', 'add_supervisor');      
+      this.set('model.user.org_management_action', 'add_supervisor');
     } else {
       this.set('model.user.org_management_action', 'add_unsponsored_user');
     }
@@ -149,32 +207,13 @@ export default modal.ModalController.extend({
   linking_or_exists: computed('linking', 'model.user.user_name_check.exists', function() {
     return this.get('linking') || this.get('model.user.user_name_check.exists');
   }),
-  init() {
-    this._super(...arguments);
-    var self = this;
-    this.ctrlAction = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        var args = bound.concat(Array.prototype.slice.call(arguments));
-        var evt = args[args.length - 1];
-        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-          if (evt.preventDefault) { evt.preventDefault(); }
-          args.pop();
-        }
-        self.send.apply(self, [actionName].concat(args));
-      };
-    };
-    this.ctrlActionNoBubble = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function(event) {
-        if (event && event.stopPropagation) { event.stopPropagation(); }
-        if (event && event.preventDefault) { event.preventDefault(); }
-        self.send.apply(self, [actionName].concat(bound));
-      };
-    };
-  },
 
   actions: {
+    close() {
+      this.get('modal').close();
+    },
+    opening() {},
+    closing() {},
     set_device: function(device) {
       this.set('external_device', device.name);
     },
