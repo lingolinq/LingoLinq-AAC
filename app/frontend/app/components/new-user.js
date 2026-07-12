@@ -70,15 +70,19 @@ export default Component.extend({
     user.set('watch_user_name_and_cookies', true);
     this.set('model.user', user);
     this.set('model.user.org_management_action', this.get('model.default_org_management_action'));
+    this.apply_license_downgrade();
   },
-  user_types: computed('model.no_licenses', 'model.no_supervisor_licenses', 'model.no_eval_licenses', function() {
+  // NOTE: this getter is pure -- it only builds the option list and marks
+  // license-exhausted types `disabled`. The auto-downgrade of a disabled
+  // default selection lives in apply_license_downgrade() (called from
+  // didInsertElement), NOT here: mutating model.user.org_management_action
+  // from inside the getter that the template's bound-select consumes trips
+  // Ember 5's backtracking-rerender assertion.
+  user_types: computed('model.no_licenses', 'model.no_supervisor_licenses', 'model.no_eval_licenses', 'model.premium', function() {
     var res = [];
     res.push({id: '', name: i18n.t('select_user_type', "[ Add This User As ]")});
     if(this.get('model.no_licenses')) {
       res.push({id: 'add_user', disabled: true, name: i18n.t('add_sponsored_used', "Add this User As a Sponsored Communicator")});
-      if(this.get('model.user.org_management_action') == 'add_user') {
-        this.set_unsponsored_action();
-      }
     } else {
       res.push({id: 'add_user', name: i18n.t('add_sponsored_used', "Add this User As a Sponsored Communicator")});
     }
@@ -88,9 +92,6 @@ export default Component.extend({
     }
     if(this.get('model.no_supervisor_licenses')) {
       res.push({id: 'add_premium_supervisor', disabled: true, name: i18n.t('add_as_premium_supervisor', "Add this User As a Premium Supervisor")});
-      if(this.get('model.user.org_management_action') == 'add_premium_supervisor') {
-        this.set_unsponsored_action('supervisor');
-      }
     } else {
       res.push({id: 'add_premium_supervisor', name: i18n.t('add_as_premium_supervisor', "Add this User As a Premium Supervisor")});
     }
@@ -99,14 +100,25 @@ export default Component.extend({
     res.push({id: 'add_assistant', name: i18n.t('add_as_assistant', "Add this User As a Management Assistant")});
     if(this.get('model.no_eval_licenses')) {
       res.push({id: 'add_eval', disabled: true, name: i18n.t('add_paid_eval', "Add this User As a Paid Eval Account")});
-      if(this.get('model.user.org_management_action') == 'add_eval') {
-        this.set_unsponsored_action();
-      }
     } else {
       res.push({id: 'add_eval', name: i18n.t('add_paid_eval', "Add this User As a Paid Eval Account")});
     }
     return res;
   }),
+  // Downgrade a default selection that lands on a license-exhausted (disabled)
+  // type, e.g. clicking "New User" under Communicators when the org has no
+  // sponsored-communicator licenses. Run once from didInsertElement instead of
+  // during render. Mirrors the branches that previously lived in user_types.
+  apply_license_downgrade() {
+    var action = this.get('model.user.org_management_action');
+    if(this.get('model.no_licenses') && action == 'add_user') {
+      this.set_unsponsored_action();
+    } else if(this.get('model.no_supervisor_licenses') && action == 'add_premium_supervisor') {
+      this.set_unsponsored_action('supervisor');
+    } else if(this.get('model.no_eval_licenses') && action == 'add_eval') {
+      this.set_unsponsored_action();
+    }
+  },
   locale_list: computed(function() {
     var list = i18n.get('locales');
     var res = [{name: i18n.t('english_default', "English (default)"), id: 'en'}];
