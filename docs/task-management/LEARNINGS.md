@@ -6431,7 +6431,7 @@ duplicating logic: compute server-side and deliver via `domain_settings`
 CACHED per-host `@domain_overrides` blob -> always `.merge` a fresh copy, never
 mutate). Anonymous registration reads feature flags from
 `window.enabled_frontend_features` (= `ENABLED_FRONTEND_FEATURES`), NOT from
-`currentUser.feature_flags` (there is no user yet) -- so an `AVAILABLE_`-only
+`currentUser.feature_flags` (there is no user yet), so an `AVAILABLE_`-only
 flag is OFF for signup by default. See `LingoLinq::Jurisdiction` (PR #556).
 
 ## Fresh worktree frontend node_modules breaks on sqlite3 native build (2026-07-08)
