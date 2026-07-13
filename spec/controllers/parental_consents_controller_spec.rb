@@ -57,8 +57,31 @@ describe ParentalConsentsController, :type => :controller do
       }, {:pending => true})
       tok = u.settings['coppa']['parent_consent_token']
       get :complete, params: {user_id: u.global_id, token: tok}
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
       expect(UserMailer).not_to receive(:schedule_delivery)
       get :complete, params: {user_id: u.global_id, token: tok}
+    end
+
+    it "does not reveal grant status when the token is missing or wrong" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.process_new({
+        'name' => 'minor_pc_probe',
+        'email' => 'minor_pc_probe@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'guardian_pc_probe@example.com'
+      }, {:pending => true})
+      tok = u.settings['coppa']['parent_consent_token']
+      get :complete, params: {user_id: u.global_id, token: tok}
+      u.reload
+      get :complete, params: {user_id: u.global_id}
+      expect(response).to be_successful
+      expect(response.body).to include(I18n.t('parental_consent.invalid_title'))
+      expect(response.body).not_to include(I18n.t('parental_consent.already_title'))
+      get :complete, params: {user_id: u.global_id, token: 'wrong-token'}
+      expect(response.body).to include(I18n.t('parental_consent.invalid_title'))
+      expect(response.body).not_to include(I18n.t('parental_consent.already_title'))
     end
 
     it "writes an immutable AuditEvent recording the consent grant" do
@@ -144,6 +167,20 @@ describe ParentalConsentsController, :type => :controller do
       expect {
         get :revoke, params: {user_id: u.global_id, token: revoke_tok}
       }.to_not change { AuditEvent.where(user_key: u.global_id, event_type: 'parental_consent_revoke').count }
+    end
+
+    it "does not reveal revoke status when the token is missing or wrong" do
+      u = create_granted_minor!('probe')
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      get :revoke, params: {user_id: u.global_id, token: revoke_tok}
+      u.reload
+      get :revoke, params: {user_id: u.global_id}
+      expect(response).to be_successful
+      expect(response.body).to include(I18n.t('parental_consent.revoke_invalid_title'))
+      expect(response.body).not_to include(I18n.t('parental_consent.revoke_already_title'))
+      get :revoke, params: {user_id: u.global_id, token: 'wrong-token'}
+      expect(response.body).to include(I18n.t('parental_consent.revoke_invalid_title'))
+      expect(response.body).not_to include(I18n.t('parental_consent.revoke_already_title'))
     end
   end
 end

@@ -673,6 +673,7 @@ describe User, :type => :model do
       expect(u.grant_parental_consent!(token)).to eq(true)
       expect(u.settings['coppa']['parent_consent_revoke_token']).to be_present
       expect(u.coppa_parental_consent_active?).to eq(true)
+      expect(u.valid_parent_consent_grant_link_token?(token)).to eq(true)
     end
 
     it "revoke_parental_consent! records an immutable AuditEvent and blocks access" do
@@ -690,6 +691,8 @@ describe User, :type => :model do
       token = u.settings['coppa']['parent_consent_token']
       expect(u.grant_parental_consent!(token)).to eq(true)
       revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect(u.valid_parent_consent_revoke_link_token?(revoke_tok)).to eq(true)
+      expect(u.valid_parent_consent_revoke_link_token?('wrong')).to eq(false)
       expect {
         expect(u.revoke_parental_consent!(revoke_tok, ip: '203.0.113.8', user_agent: 'TestAgent/2.0')).to eq(true)
       }.to change { AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).count }.by(1)
@@ -697,6 +700,7 @@ describe User, :type => :model do
       expect(u.coppa_parental_consent_revoked?).to eq(true)
       expect(u.coppa_parental_consent_blocks_access?).to eq(true)
       expect(u.coppa_parental_consent_active?).to eq(false)
+      expect(u.valid_parent_consent_revoke_link_token?(revoke_tok)).to eq(true)
       ae = AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).last
       expect(ae.data['ip']).to eq('203.0.113.8')
       expect(ae.data['user_agent']).to eq('TestAgent/2.0')

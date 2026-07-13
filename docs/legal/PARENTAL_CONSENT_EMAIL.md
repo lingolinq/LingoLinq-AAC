@@ -2,6 +2,8 @@
 
 This document describes the **parent-facing email** sent when a new account is created with “under 13” selected. The COPPA parental-consent flow is **enabled by default**; set `COPPA_PARENTAL_CONSENT=0` (or `false` / `no` / `off`) in the environment to disable it, or override per org via `domain_settings.coppa_parental_consent`.
 
+**Rollout note:** This default is intentional for compliance. Deployments that previously relied on the old opt-in behavior (`COPPA_PARENTAL_CONSENT=1`) need no env change. To keep COPPA off on a specific host, set `COPPA_PARENTAL_CONSENT=false` before deploy.
+
 ## Editing copy (preferred: System Settings)
 
 Admins with **System Settings** access can edit this email without a deploy:
