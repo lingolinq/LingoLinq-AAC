@@ -38,9 +38,11 @@ RUN apt-get update -qq && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (needed for Rails asset pipeline)
+# npm is pinned to the v10 major because newer npm releases can require a
+# Node major beyond 20, which would break this build without warning.
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
-    npm install -g npm@latest
+    npm install -g npm@10
 
 # Set environment
 ENV RAILS_ENV="production" \
