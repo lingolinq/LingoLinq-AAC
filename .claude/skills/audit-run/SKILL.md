@@ -178,13 +178,14 @@ never published here; it stays DRAFT until Scot signs.
 **Critical/High** finding from a `/review-pr` / `/adversary-review` pass or the n8n PR bot into this
 same register, use the **`/promote-finding`** skill (`.claude/skills/promote-finding/`). It is the
 manual, Claude-operated counterpart to this orchestrator (same deterministic-merge + only-Scot
-governance via `scripts/promote-finding.rb`), kept manual on purpose: the register is Claude-only,
-and a human is the false-positive triage gate. See `audit-reports/README.md` ("Bridging PR-time
+governance via `scripts/promote-finding.rb`), kept manual on purpose: a human is the
+false-positive triage gate and the n8n bot is never given write access to the register (which is
+PII-free, Tier 2 content -- a reviewer *seeing* it is fine; the concern is automated *writes*). See `audit-reports/README.md` ("Bridging PR-time
 review findings").
 
 ## Guardrails (always)
 - Read-only auditors; the register is the single source of truth; no student/patient data in
-  findings (snippets are code only); compliance content is Claude-only, never Codex/DeepSeek.
+  findings (snippets are code only); compliance content is Tier 2 (PII-free), reviewable by any approved reviewer, gated by the data-bearing-path guard.
 - This runbook never closes a finding and never edits application code. If a fix is warranted,
   that is a separate, normal (non-audit) change on its own branch.
 - Disposition (triage) is Scot-only: the adding scripts only ever write disposition `untriaged`.

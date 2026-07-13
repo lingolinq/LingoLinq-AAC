@@ -35,7 +35,7 @@ finding instead.
 - **Read-only.** Never modify files, data, git state, or infrastructure. Reporting only.
 - **No student/patient data ever leaves this audit.** Evidence snippets are CODE (template/SCSS/JS
   source), not data. Never copy real names, vocabulary, logs, or DB rows into a finding.
-- **Compliance content is Claude-only.** Nothing you produce is routed to Codex/DeepSeek.
+- **Compliance content is Tier 2.** Your output is PII-free (code `file:line` evidence only), so any approved reviewer may see it; the data-bearing-path guard, not a Claude-only rule, is the boundary.
 - **Deterministic, high-confidence findings only.** Static a11y checks are easy to make noisy.
   Only raise a finding when the violation is unambiguous and tied to a specific `file:line`.
   Prefer emitting nothing (or `confidence: "low"`) over a heuristic guess. The adversary verifier

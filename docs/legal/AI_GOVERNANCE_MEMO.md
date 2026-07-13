@@ -5,12 +5,17 @@
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
 > point-in-time and were re-verified against live code on 2026-06-19 prior to attestation (see the
 > note at section 8). Drafted by the compliance-officer; adversary-reviewed; attested by the CEO.
-> One governance item (the DeepSeek-vs-compliance-surface discrepancy, section 4.1) remains open
-> and is attested as documented-open, not resolved.
+> One governance item (the DeepSeek-vs-compliance-surface discrepancy, section 4.1) was
+> documented-open at the 2026-06-19 attestation and was RESOLVED on 2026-07-12 by Scot's
+> ratified two-tier AI data-routing policy (see section 4.1: the bot already skips DeepSeek on
+> compliance-path diffs; the policy reframes that skip as a permitted confidentiality preference,
+> not a hard mandate). This resolution post-dates the attestation and should be re-attested
+> (section 8) at the next memo refresh.
 >
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
-> and attested 2026-06-19. Operative reference: NIST AI RMF plus the Generative AI Profile
+> and attested 2026-06-19. Refreshed 2026-07-12 (section 4.1 discrepancy resolved via Scot's
+> ratified two-tier AI data-routing policy; re-attestation pending). Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 
@@ -32,7 +37,7 @@ Verified against code at draft time. Re-verify before publishing.
 | Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) only -- Gemini fallback disabled 2026-07-09 | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. `ANTHROPIC_API_KEY` is now required; there is no automatic fallback provider. |
 | Offline prediction dictionary generation | Claude Haiku 4.5 only -- Gemini fallback disabled 2026-07-09 | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
 | Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default, `EVAL_NARRATOR_MODEL` override), Anthropic | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress; every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user (client-asserted student name dropped); org opt-out via the `comprehensive_eval_ai` feature flag. Residual consent-binding gap tracked as LL-11db0dc848. Brought under governance by #411/#412; three findings verified-closed in #413. |
-| Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. Intended never to touch a compliance surface, **but see the open discrepancy in section 4 regarding the n8n PR-review bot's DeepSeek pass on register-only diffs.** |
+| Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. PII-free compliance *documents* (the audit register: status/severity/IDs, code/path evidence) are **Tier 2** and may be reviewed; the boundary is data-bearing content (fixtures/seeds/cassettes/etc.), enforced by `codex-review-guard.sh`, not the compliance-surface label. See section 4.1 (resolved 2026-07-12). |
 
 Notes:
 - The runtime path's **Google Gemini** fallback was **disabled 2026-07-09** (`GEMINI_API_KEY`
@@ -107,30 +112,46 @@ The stance LingoLinq takes, and that this memo records:
   cadence and after every key rotation (compliance calendar item `rev-zdr-reverify-on-rotation`),
   and it is **never** the only thing standing between user data and an external model. The
   no-PHI-in-diffs rule, and for the product path the PiiScrubber, are the real controls.
-- This is why the developer reviewer is restricted to sanitized diffs and is barred from every
-  audit and compliance surface.
+- This is why the developer reviewer is restricted to sanitized diffs and is barred from
+  identifiable and data-bearing content. PII-free compliance *documents* (the audit register)
+  are Tier 2 and may be reviewed; the boundary is data-bearing content, enforced by
+  `codex-review-guard.sh` (see section 4.1, resolved 2026-07-12).
 
-### 4.1 Open discrepancy: DeepSeek and the audit register (Scot to resolve)
+### 4.1 RESOLVED (2026-07-12): DeepSeek and the audit register
 
-This memo states that the DeepSeek/OpenRouter reviewer is "never used on any compliance surface."
-The n8n PR-review bot (workflow `lbyA52atQjQ8MCqy`) runs a DeepSeek adversary pass on **every** PR
+**Status: RESOLVED 2026-07-12 by Scot's ratified two-tier AI data-routing policy. This resolution
+post-dates the 2026-06-19 attestation and should be re-attested (section 8) at the next memo
+refresh.**
+
+**Historical discrepancy** (documented-open at the 2026-06-19 attestation): this memo stated that
+the DeepSeek/OpenRouter reviewer is "never used on any compliance surface," but at that time the
+n8n PR-review bot (workflow `lbyA52atQjQ8MCqy`) ran a DeepSeek adversary pass on **every** PR
 diff, and recent compliance PRs (#413 register reconcile, #415 register re-stamp) were
 register-only diffs. The register carries no student or patient data and the diffs were code and
-JSON only, so no PHI or student data left the boundary. The issue is narrower: a register-only
-diff **is** a compliance surface, so as worded the policy and the running automation disagree.
+JSON only, so no PHI or student data left the boundary, but a register-only diff **is** a
+compliance surface, so as worded the policy and the running automation disagreed.
 
-Two ways to reconcile, Scot's call (do not self-resolve):
+**Current behavior** (as of this memo refresh): the n8n PR-review bot now **skips** the DeepSeek
+adversary pass when a PR touches `docs/legal/**` or `audit-reports/**`; only the Claude senior-dev
+pass reviews the change. (This PR, #593, is an example: its sticky bot comment records the
+DeepSeek pass skipped as a compliance-path diff.) So the running automation no longer sends
+compliance-path diffs to the no-BAA OpenRouter endpoint. This implemented the old "fix the bot"
+option.
 
-1. **Fix the bot.** Have the PR-review workflow skip the DeepSeek pass when a PR touches only
-   `audit-reports/**` or `docs/legal/**` (Claude-only review on compliance-surface diffs). Keeps
-   the memo's wording true and tightens the control.
-2. **Revise the memo.** Narrow the claim to "no student or patient data, and no finding evidence
-   snippets, are ever routed to DeepSeek" and explicitly permit DeepSeek to see register
-   *structure* (status/severity/IDs, no PII) on register-only diffs. Documents the real behavior
-   without changing the automation.
+**New policy** (the two-tier model): the canonical two-tier AI data-routing policy
+(`instructions/shared/compliance.md` in the ai-company-brain) makes routing turn on whether user
+data can be in the stream, not on the compliance-surface label. Tier 1 (runtime / user-data
+paths) stays on BAA/ZDR-verified models. Tier 2 (code diffs, CI output, and PII-free compliance
+documents) **permits** any approved reviewer -- a DeepSeek or Codex pass included -- but does
+**not require** one. The hard boundary (no identifiable or data-bearing content on a no-BAA
+route) is enforced by `scripts/codex-review-guard.sh`, which blocks fixtures / seeds / factories /
+migrations / cassettes / data dumps, NOT `audit-reports/**` or `docs/legal/**`.
 
-Tracked in section 7 and in the task log for this refresh. Until resolved, treat the section 2
-wording as the intended policy and this note as the known exception.
+**Net effect:** the current bot skip on compliance-path diffs is now a permitted **confidentiality
+preference**, not a policy requirement. Either running or skipping an approved reviewer on a
+PII-free compliance document is compliant. (Follow-up, out of scope for this memo: the bot's
+skip-reason comment still frames the skip as a hard "Claude-only" rule; it could be reworded to
+"confidentiality preference" to match this policy.)
 
 ## 5. EU AI Act classification memo
 
@@ -191,9 +212,9 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
 - [ ] Resolve the eval-narration consent-binding residual (LL-11db0dc848): bind the COPPA/consent
       gate subject to the eval content actually egressed, via server-side eval persistence
       (migration follow-up Phase 1B). Until then the control gates on a caller-asserted user_id.
-- [ ] Resolve the DeepSeek-vs-compliance-surface discrepancy in section 4.1: either exclude
-      `audit-reports/**` and `docs/legal/**` diffs from the PR-review bot's DeepSeek pass, or
-      revise this memo's wording to match the running automation. Scot decides.
+- [x] Resolve the DeepSeek-vs-compliance-surface discrepancy in section 4.1: RESOLVED 2026-07-12
+      via Scot's ratified two-tier policy (Option 2 -- PII-free compliance documents are Tier 2).
+      Follow-up: re-attest the memo (section 8) to cover this post-attestation resolution.
 
 ## 8. Attestation
 
