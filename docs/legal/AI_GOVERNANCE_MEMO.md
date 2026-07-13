@@ -1,21 +1,21 @@
 # LingoLinq AAC AI Governance Memo
 
-> **ATTESTED 2026-06-19 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-13 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
 > LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
-> point-in-time and were re-verified against live code on 2026-06-19 prior to attestation (see the
-> note at section 8). Drafted by the compliance-officer; adversary-reviewed; attested by the CEO.
+> point-in-time and were re-verified against live code on 2026-06-19 prior to original attestation
+> (see the note at section 8). Drafted by the compliance-officer; adversary-reviewed; attested by
+> the CEO.
 > One governance item (the DeepSeek-vs-compliance-surface discrepancy, section 4.1) was
 > documented-open at the 2026-06-19 attestation and was RESOLVED on 2026-07-12 by Scot's
 > ratified two-tier AI data-routing policy (see section 4.1: the bot already skips DeepSeek on
 > compliance-path diffs; the policy reframes that skip as a permitted confidentiality preference,
-> not a hard mandate). This resolution post-dates the attestation and should be re-attested
-> (section 8) at the next memo refresh.
+> not a hard mandate). This resolution is covered by the 2026-07-13 re-attestation in section 8.
 >
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
 > and attested 2026-06-19. Refreshed 2026-07-12 (section 4.1 discrepancy resolved via Scot's
-> ratified two-tier AI data-routing policy; re-attestation pending). Operative reference: NIST AI RMF plus the Generative AI Profile
+> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 
@@ -120,8 +120,7 @@ The stance LingoLinq takes, and that this memo records:
 ### 4.1 RESOLVED (2026-07-12): DeepSeek and the audit register
 
 **Status: RESOLVED 2026-07-12 by Scot's ratified two-tier AI data-routing policy. This resolution
-post-dates the 2026-06-19 attestation and should be re-attested (section 8) at the next memo
-refresh.**
+is covered by Scot's 2026-07-13 re-attestation in section 8.**
 
 **Historical discrepancy** (documented-open at the 2026-06-19 attestation): this memo stated that
 the DeepSeek/OpenRouter reviewer is "never used on any compliance surface," but at that time the
@@ -214,7 +213,7 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
       (migration follow-up Phase 1B). Until then the control gates on a caller-asserted user_id.
 - [x] Resolve the DeepSeek-vs-compliance-surface discrepancy in section 4.1: RESOLVED 2026-07-12
       via Scot's ratified two-tier policy (Option 2 -- PII-free compliance documents are Tier 2).
-      Follow-up: re-attest the memo (section 8) to cover this post-attestation resolution.
+      Covered by Scot's 2026-07-13 re-attestation in section 8.
 
 ## 8. Attestation
 
@@ -223,7 +222,8 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
 | Prepared by | compliance-officer agent (draft) |
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
-| Attestation date | **2026-06-19** |
+| Original attestation date | **2026-06-19** |
+| Latest re-attestation date | **2026-07-13** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -249,7 +249,11 @@ is reframed as a reactivation gate in section 7. (2) Section 3's HIPAA-basis wor
 corrected: the AWS BAA on file covers AWS infrastructure only, not Anthropic or Google as model
 providers, and neither has a signed BAA with LingoLinq today -- the scrubber is a risk-reduction
 control on that path, not a safe harbor and not BAA-backed. **This second correction changes the
-memo's HIPAA-defensibility conclusion for the model-call path and has not yet been re-attested by
-Scot** -- treat section 3 as provisional pending his review, per the same governance the memo
-requires of every other open item (section 6: AI drafts and flags, humans attest and accept
-risk)._
+memo's HIPAA-defensibility conclusion for the model-call path and is covered by Scot's 2026-07-13
+re-attestation**; section 3 is the current attested position, per the same governance the memo
+requires of every other open item (section 6: AI drafts and flags, humans attest and accept risk)._
+
+_Re-attested 2026-07-13 by Scot Wahlquist, CEO: covers the 2026-07-11 HIPAA-basis correction in
+section 3 and the 2026-07-12 DeepSeek-vs-compliance-surface resolution in section 4.1. The original
+2026-06-19 attestation remains the Phase 3 baseline; this re-attestation accepts the post-baseline
+corrections and resolves the pending markers above._
