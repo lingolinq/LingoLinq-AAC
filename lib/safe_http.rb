@@ -279,12 +279,13 @@ module SafeHttp
     end
 
     def failed_response(message = 'blocked or invalid URL')
+      msg = message.to_s
       OpenStruct.new(
         success?: false,
         code: 0,
-        body: message,
+        body: msg,
         headers: {},
-        return_message: message
+        return_message: msg
       )
     end
 

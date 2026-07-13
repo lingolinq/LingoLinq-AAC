@@ -44,7 +44,8 @@ module Converters::ApiJsonBundle
       end
     end
 
-    fetch_url = Uploader.signed_internal_url(sanitized)
+    fetch_url = Uploader.signed_internal_url(sanitized).presence || sanitized
+    raise Progress::ProgressError, "invalid bundle URL" unless fetch_url.present?
 
     head = SafeHttp.head(fetch_url)
     if head.success?
