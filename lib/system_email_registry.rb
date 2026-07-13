@@ -18,6 +18,46 @@ module SystemEmailRegistry
     { name: '@parent_email', description: 'Parent or guardian email address the message is sent to.' }
   ].freeze
 
+  PARENTAL_CONSENT_CONFIRMATION_I18N_BLOCKS = [
+    { key: 'parental_consent_confirmation_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
+    { key: 'parental_consent_confirmation_mailer.greeting', label: 'Greeting' },
+    { key: 'parental_consent_confirmation_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
+    { key: 'parental_consent_confirmation_mailer.details', label: 'Account details', placeholders: ['child_name', 'child_username', 'granted_at'] },
+    { key: 'parental_consent_confirmation_mailer.privacy_notice', label: 'Privacy notice' },
+    { key: 'parental_consent_confirmation_mailer.revoke_notice', label: 'Revoke-anytime notice' },
+    { key: 'parental_consent_confirmation_mailer.revoke_prompt', label: 'Revoke link prompt' },
+    { key: 'parental_consent_confirmation_mailer.footer', label: 'Footer', placeholders: ['contact_url'] }
+  ].freeze
+
+  PARENTAL_CONSENT_CONFIRMATION_DYNAMIC_VARS = [
+    { name: '@revoke_url', description: 'Link for the parent to withdraw consent at any time.' },
+    { name: '@privacy_url', description: 'Link to the Privacy Policy.' },
+    { name: '@contact_url', description: 'Link to contact support.' },
+    { name: '@user', description: 'The child user account.' },
+    { name: '@child_name', description: 'Display name of the child user.' },
+    { name: '@child_username', description: 'Username of the child account.' },
+    { name: '@granted_at', description: 'Timestamp when consent was recorded.' },
+    { name: '@parent_email', description: 'Parent or guardian email address.' }
+  ].freeze
+
+  PARENTAL_CONSENT_REVOKED_I18N_BLOCKS = [
+    { key: 'parental_consent_revoked_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
+    { key: 'parental_consent_revoked_mailer.greeting', label: 'Greeting' },
+    { key: 'parental_consent_revoked_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
+    { key: 'parental_consent_revoked_mailer.details', label: 'Account details', placeholders: ['child_name', 'child_username', 'revoked_at'] },
+    { key: 'parental_consent_revoked_mailer.footer', label: 'Footer', placeholders: ['contact_url'] }
+  ].freeze
+
+  PARENTAL_CONSENT_REVOKED_DYNAMIC_VARS = [
+    { name: '@privacy_url', description: 'Link to the Privacy Policy.' },
+    { name: '@contact_url', description: 'Link to contact support.' },
+    { name: '@user', description: 'The child user account.' },
+    { name: '@child_name', description: 'Display name of the child user.' },
+    { name: '@child_username', description: 'Username of the child account.' },
+    { name: '@revoked_at', description: 'Timestamp when consent was withdrawn.' },
+    { name: '@parent_email', description: 'Parent or guardian email address.' }
+  ].freeze
+
   ENTRIES = [
     { mailer: 'user_mailer', action: 'confirm_registration', name: 'Welcome / confirm registration', category: 'Account', recipient_type: 'user', default_subject: 'Welcome!', variables: COMMON_VARS + ['@user'] },
     { mailer: 'user_mailer', action: 'forgot_password', name: 'Forgot password', category: 'Account', recipient_type: 'user', default_subject: 'Forgot Password Confirmation', variables: COMMON_VARS + ['@user', '@users'] },
@@ -35,6 +75,30 @@ module SystemEmailRegistry
       variables: COMMON_VARS + ['@consent_url', '@privacy_url', '@user', '@child_name', '@parent_email'],
       i18n_blocks: PARENTAL_CONSENT_I18N_BLOCKS,
       dynamic_variables: PARENTAL_CONSENT_DYNAMIC_VARS,
+      uses_i18n_subject: true
+    },
+    {
+      mailer: 'user_mailer',
+      action: 'parental_consent_confirmation',
+      name: 'Parental consent confirmation',
+      category: 'Account',
+      recipient_type: 'parent',
+      default_subject: 'Parental Consent Confirmed',
+      variables: COMMON_VARS + ['@revoke_url', '@privacy_url', '@contact_url', '@user', '@child_name', '@child_username', '@granted_at', '@parent_email'],
+      i18n_blocks: PARENTAL_CONSENT_CONFIRMATION_I18N_BLOCKS,
+      dynamic_variables: PARENTAL_CONSENT_CONFIRMATION_DYNAMIC_VARS,
+      uses_i18n_subject: true
+    },
+    {
+      mailer: 'user_mailer',
+      action: 'parental_consent_revoked',
+      name: 'Parental consent withdrawn',
+      category: 'Account',
+      recipient_type: 'parent',
+      default_subject: 'Parental Consent Withdrawn',
+      variables: COMMON_VARS + ['@privacy_url', '@contact_url', '@user', '@child_name', '@child_username', '@revoked_at', '@parent_email'],
+      i18n_blocks: PARENTAL_CONSENT_REVOKED_I18N_BLOCKS,
+      dynamic_variables: PARENTAL_CONSENT_REVOKED_DYNAMIC_VARS,
       uses_i18n_subject: true
     },
     { mailer: 'user_mailer', action: 'badge_awarded', name: 'Badge awarded', category: 'Reports & engagement', recipient_type: 'user', default_subject: 'Badge Awarded', variables: COMMON_VARS + ['@recipient', '@user', '@badge', '@goal', '@for_self'] },

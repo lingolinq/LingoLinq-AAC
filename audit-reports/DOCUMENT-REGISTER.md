@@ -40,7 +40,7 @@
 | Compliance & Security Program v1.0 (Attested) | Drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | published | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-20 | 2026-09-20 | 2026-06-20 | `a81f72f13bef` | school-dpa-package |
 | Compliance Posture Report (branded) | Drive | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
-| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-07-06 | `d602b713da04` | compliance-records-set-2026-06 |
+| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-07-06 | `bf8179b6fd45` | compliance-records-set-2026-06 |
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 
 ### evidence (6)
@@ -48,7 +48,7 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | approved | HIPAA | Scot Wahlquist | 2026-05-11 | 2027-05-11 | 2026-06-21 | `dc6a2ba9fa16` |  |
-| COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | approved | COPPA | Scot Wahlquist | 2026-04-26 | 2026-07-26 | 2026-06-21 | `86da72955ba2` | school-dpa-package |
+| COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | approved | COPPA | Scot Wahlquist | 2026-04-26 | 2026-07-26 | 2026-06-21 | `b826e9beeec3` | school-dpa-package |
 | COPPA Final-Rule Verification (branded) | Drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-05-27 | 2026-08-27 | 2026-06-21 | `e4e7c0b98d3f` | soc2-evidence |
 | Incident Log (branded) | Drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | published | HIPAA, GDPR | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
@@ -89,7 +89,7 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Parental Consent (COPPA / under-13) (branded) | Drive | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
-| Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | approved | COPPA | Scot Wahlquist | 2026-06-11 | 2027-06-11 | 2026-06-21 | `9f467478159c` | school-dpa-package |
+| Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | approved | COPPA | Scot Wahlquist | 2026-06-11 | 2027-06-11 | 2026-06-21 | `961c4f5a22f5` | school-dpa-package |
 
 ### agent-config (6)
 

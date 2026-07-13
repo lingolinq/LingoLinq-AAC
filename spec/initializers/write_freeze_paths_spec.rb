@@ -71,6 +71,7 @@ describe WriteFreeze do
       expect(WriteFreeze.side_effect_get?('/api/v1/videos/1_2/upload_success')).to eq(true)
       expect(WriteFreeze.side_effect_get?('/goal_status/1_2/abc')).to eq(true)
       expect(WriteFreeze.side_effect_get?('/parental_consent/complete')).to eq(true)
+      expect(WriteFreeze.side_effect_get?('/parental_consent/revoke')).to eq(true)
     end
 
     it 'does not flag ordinary read GETs' do
@@ -127,6 +128,7 @@ describe WriteFreeze do
         expect(WriteFreeze.reject?('GET', '/api/v1/videos/1_2/upload_success')).to eq(true)
         expect(WriteFreeze.reject?('GET', '/goal_status/1_2/abc')).to eq(true)
         expect(WriteFreeze.reject?('GET', '/parental_consent/complete')).to eq(true)
+        expect(WriteFreeze.reject?('GET', '/parental_consent/revoke')).to eq(true)
       end
 
       it 'still passes ordinary read GETs' do

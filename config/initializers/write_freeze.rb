@@ -73,7 +73,8 @@ module WriteFreeze
   SIDE_EFFECT_GET_PATHS = [
     'upload_success',               # api/{images,sounds,videos}/:id/upload_success -> record.save
     '^/goal_status/',               # boards#log_goal_status -> UserGoal.process_status_from_code (log write)
-    '^/parental_consent/complete'   # parental_consents#complete -> grant_parental_consent! + Device writes (COPPA)
+    '^/parental_consent/complete',   # parental_consents#complete -> grant_parental_consent! + Device writes (COPPA)
+    '^/parental_consent/revoke'      # parental_consents#revoke -> revoke_parental_consent! (COPPA)
   ].freeze
   SIDE_EFFECT_GET_RE = /#{SIDE_EFFECT_GET_PATHS.join('|')}/
 
