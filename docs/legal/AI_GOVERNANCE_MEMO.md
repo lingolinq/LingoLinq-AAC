@@ -7,8 +7,10 @@
 > note at section 8). Drafted by the compliance-officer; adversary-reviewed; attested by the CEO.
 > One governance item (the DeepSeek-vs-compliance-surface discrepancy, section 4.1) was
 > documented-open at the 2026-06-19 attestation and was RESOLVED on 2026-07-12 by Scot's
-> ratified two-tier AI data-routing policy (Option 2 in section 4.1). This resolution post-dates
-> the attestation and should be re-attested (section 8) at the next memo refresh.
+> ratified two-tier AI data-routing policy (see section 4.1: the bot already skips DeepSeek on
+> compliance-path diffs; the policy reframes that skip as a permitted confidentiality preference,
+> not a hard mandate). This resolution post-dates the attestation and should be re-attested
+> (section 8) at the next memo refresh.
 >
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
@@ -117,36 +119,39 @@ The stance LingoLinq takes, and that this memo records:
 
 ### 4.1 RESOLVED (2026-07-12): DeepSeek and the audit register
 
-**Status: RESOLVED 2026-07-12 by Scot's ratified two-tier AI data-routing policy (Option 2
-below). This resolution post-dates the 2026-06-19 attestation and should be re-attested
-(section 8) at the next memo refresh.**
+**Status: RESOLVED 2026-07-12 by Scot's ratified two-tier AI data-routing policy. This resolution
+post-dates the 2026-06-19 attestation and should be re-attested (section 8) at the next memo
+refresh.**
 
-Background (the discrepancy, as documented-open at the 2026-06-19 attestation): this memo stated
-that the DeepSeek/OpenRouter reviewer is "never used on any compliance surface," but the n8n
-PR-review bot (workflow `lbyA52atQjQ8MCqy`) runs a DeepSeek adversary pass on **every** PR diff,
-and recent compliance PRs (#413 register reconcile, #415 register re-stamp) were register-only
-diffs. The register carries no student or patient data and the diffs were code and JSON only, so
-no PHI or student data left the boundary. The issue was narrower: a register-only diff **is** a
+**Historical discrepancy** (documented-open at the 2026-06-19 attestation): this memo stated that
+the DeepSeek/OpenRouter reviewer is "never used on any compliance surface," but at that time the
+n8n PR-review bot (workflow `lbyA52atQjQ8MCqy`) ran a DeepSeek adversary pass on **every** PR
+diff, and recent compliance PRs (#413 register reconcile, #415 register re-stamp) were
+register-only diffs. The register carries no student or patient data and the diffs were code and
+JSON only, so no PHI or student data left the boundary, but a register-only diff **is** a
 compliance surface, so as worded the policy and the running automation disagreed.
 
-The two options were:
+**Current behavior** (as of this memo refresh): the n8n PR-review bot now **skips** the DeepSeek
+adversary pass when a PR touches `docs/legal/**` or `audit-reports/**`; only the Claude senior-dev
+pass reviews the change. (This PR, #593, is an example: its sticky bot comment records the
+DeepSeek pass skipped as a compliance-path diff.) So the running automation no longer sends
+compliance-path diffs to the no-BAA OpenRouter endpoint. This implemented the old "fix the bot"
+option.
 
-1. **Fix the bot.** Skip the DeepSeek pass when a PR touches only `audit-reports/**` or
-   `docs/legal/**`. Keeps a strict Claude-only posture on compliance surfaces.
-2. **Revise the policy.** Recognize that a PII-free compliance *document* (register structure:
-   status/severity/IDs, code/path evidence, no PII) is Tier 2 dev-loop review, and explicitly
-   permit an approved reviewer to see it; the boundary is data-bearing content, not the
-   compliance-surface label.
-
-**Resolution: Scot chose Option 2.** The canonical two-tier AI data-routing policy
+**New policy** (the two-tier model): the canonical two-tier AI data-routing policy
 (`instructions/shared/compliance.md` in the ai-company-brain) makes routing turn on whether user
 data can be in the stream, not on the compliance-surface label. Tier 1 (runtime / user-data
-paths) stays on BAA/ZDR-verified models; Tier 2 (code diffs, CI output, and PII-free compliance
-documents) permits any approved reviewer, including the DeepSeek adversary pass and Codex. The
-hard boundary -- no identifiable or data-bearing content on a no-BAA route -- is enforced by
-`scripts/codex-review-guard.sh`, which blocks fixtures / seeds / factories / migrations /
-cassettes / data dumps, NOT `audit-reports/**` or `docs/legal/**`. No bot change is required; the
-running automation was already inside the Tier 2 boundary.
+paths) stays on BAA/ZDR-verified models. Tier 2 (code diffs, CI output, and PII-free compliance
+documents) **permits** any approved reviewer -- a DeepSeek or Codex pass included -- but does
+**not require** one. The hard boundary (no identifiable or data-bearing content on a no-BAA
+route) is enforced by `scripts/codex-review-guard.sh`, which blocks fixtures / seeds / factories /
+migrations / cassettes / data dumps, NOT `audit-reports/**` or `docs/legal/**`.
+
+**Net effect:** the current bot skip on compliance-path diffs is now a permitted **confidentiality
+preference**, not a policy requirement. Either running or skipping an approved reviewer on a
+PII-free compliance document is compliant. (Follow-up, out of scope for this memo: the bot's
+skip-reason comment still frames the skip as a hard "Claude-only" rule; it could be reworded to
+"confidentiality preference" to match this policy.)
 
 ## 5. EU AI Act classification memo
 
