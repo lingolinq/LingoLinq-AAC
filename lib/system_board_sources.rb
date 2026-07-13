@@ -12,8 +12,13 @@ module SystemBoardSources
   SENNER_BAUD_OBZ_FALLBACK_BUCKET = 'lingolinq-prod-static'.freeze
   SENNER_BAUD_NAME = 'Senner-Baud Social Pages'.freeze
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary senner-baud].freeze
-  # Copied synchronously during signup so VF84 is in the user's library before the API responds.
-  SIGNUP_SYNC_SLUGS = %w[vocal-flair-84].freeze
+  # No signup board is copied synchronously. vocal-flair-84 used to live here so it was in the
+  # user's library before the API responded, but copying its linked board set inline overran the
+  # 15s Rack::Timeout on POST /api/v1/users (Sentry LINGOLINQ-RAILS-16), returning 500 after the
+  # account was already created. Every signup board now copies via the async schedule path below.
+  # This list is intentionally kept (empty) so a genuinely small board could opt back into a
+  # synchronous copy in the future without restructuring provision_for.
+  SIGNUP_SYNC_SLUGS = [].freeze
   # Utility boards copied async so default sidebar entries can resolve to user-owned copies.
   SIDEBAR_COPY_SLUGS = %w[yesno inflections].freeze
   SIGNUP_ASYNC_SLUGS = (
