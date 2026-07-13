@@ -1,9 +1,11 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { later as runLater } from '@ember/runloop';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
-import { dedupeByName } from '../utils/board-roots';
+import { filterRootBoards, dedupeByName, boardsPagePreferUserNames } from '../utils/board-roots';
+import { filterBrandRoots } from '../utils/board-brands';
 /* Brand families (CommuniKate / Quick Core / Sequoia / Vocal Flair) — the
    `query`/`root_re`/`test` metadata now lives in the shared util so the
    Find Boards grid grouping and this panel classify brands identically.
@@ -138,17 +140,17 @@ export default Component.extend({
           the account has many sub-board copies in the same page.
 
        2. `?user_id=X` returns owned boards INCLUDING every sub-board
-          copy in a copied set. Client-side `filterRootBoards` works
-          but is sensitive to which records landed on the first
-          page. The boards page sidesteps both by paginating through
-          `meta.more` / `meta.next_offset` and accumulating.
+          copy in a copied set. The server `root: true` param is NOT a
+          reliable filter — its real copy_id clustering has been
+          commented out since 2020 (boards_controller.rb:299, replaced
+          with a `search_string ILIKE '%root%'` text match that leaks
+          sub-boards and drops real roots). So we do the clustering
+          client-side with `filterRootBoards` instead.
 
-       Simpler approach: ask the server to return ROOTS ONLY via
-       `root: true` (same param the boards page's "Root" tab uses).
-       That eliminates the need for client-side clustering AND keeps
-       the page count tiny — a user with 8 root tiles fits in one
-       page regardless of how many sub-board copies they have. We
-       still paginate to be safe against extreme cases. */
+       `filterRootBoards` is first-page-sensitive, so we paginate
+       through `meta.more` / `meta.next_offset` and accumulate the FULL
+       owned set before clustering (see `_sortMyBoards`) — the same
+       approach the boards page uses. */
     var _this = this;
     var userId = _this._subjectUserId();
     if (!userId) {
@@ -160,7 +162,7 @@ export default Component.extend({
 
   _loadMyBoardsPage: function(userId, offset, accumulated) {
     var _this = this;
-    var args = { user_id: userId, root: true, sort: 'home_popularity', per_page: 50 };
+    var args = { user_id: userId, sort: 'home_popularity', per_page: 50 };
     if (offset != null) { args.offset = offset; }
     LingoLinq.store.query('board', args).then(function(data) {
       if (_this.isDestroyed || _this.isDestroying) { return; }
@@ -208,6 +210,15 @@ export default Component.extend({
      so users who organize via the heart icon there get the same
      prioritization here automatically. */
   _sortMyBoards: function(boards) {
+    /* Cluster to root tiles first — the `?user_id=X` query returns the
+       full owned library including sub-board copies (the server `root`
+       param is broken; see `_loadMyBoards`). Applied to the FULLY
+       accumulated set so it isn't first-page-sensitive.
+       filterRootBoards keys on copy_id; brand-family page copies (e.g.
+       CommuniKate "alcohol") often have NO copy_id, so filterBrandRoots
+       drops those by key-pattern too — the same roots-only classifier the
+       Find Boards grouping + brand sections below use. */
+    boards = filterBrandRoots(filterRootBoards(boards || [], this._subjectUserId()));
     var homeKey = this._subjectHomeKey();
     var home = null;
     var starred = [];
@@ -256,7 +267,7 @@ export default Component.extend({
            AFTER dedup so the final order is name-A→Z but the chosen
            representative is the popular one. Empty / missing names
            pass through unchanged (each gets its own row). */
-        _this._setBrandResult(family.id, { state: 'loaded', boards: _alphaByName(dedupeByName(matched)) });
+        _this._setBrandResult(family.id, { state: 'loaded', boards: _alphaByName(dedupeByName(matched, { preferUserNames: boardsPagePreferUserNames(_this.get('appState')) })) });
       }).catch(function() {
         _this._setBrandResult(family.id, { state: 'error' });
       });
@@ -303,7 +314,7 @@ export default Component.extend({
   /* The board key (`<owner>/<slug>`) the subject treats as their home
      board. Surfaced to the template so each row can compare its own
      key and render the home indicator (glyphicon-home, matching the
-     pattern in `templates/components/board-icon.hbs`). Returns '' when
+     pattern in `app/components/board-icon.hbs`). Returns '' when
      no home board is set; the template's `(is_equal board.key '')` then
      never matches a real row. */
   home_key: computed(
@@ -353,7 +364,56 @@ export default Component.extend({
          controller's action also does the actual `router.transitionTo`
          so any navigation policy lives in one place. */
       var fn = this.get('onSelect');
-      if (typeof fn === 'function' && board) { fn(board); }
+      if (typeof fn !== 'function' || !board) { return; }
+      /* Dim the panel with an in-place loading overlay while the chosen
+         board loads on the left (the collection stays pinned open). The
+         controller returns the route Transition; clear when it settles.
+         Safety timeout covers the fallback path that returns nothing. */
+      var _this = this;
+      this.set('board_loading', true);
+      this.set('loading_board_name', (board.get && board.get('name')) || board.name || null);
+      var done = function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('board_loading', false);
+        _this.set('loading_board_name', null);
+      };
+      var ret = fn(board);
+      if (ret && typeof ret.then === 'function') {
+        ret.then(done, done);
+      }
+      runLater(_this, done, 8000);
     }
-  }
+  },
+
+  init() {
+    this._super(...arguments);
+var self = this;
+this.ctrlAction = function(actionName) {
+  var bound = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    var args = bound.concat(Array.prototype.slice.call(arguments));
+    var evt = args[args.length - 1];
+    if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+      if (evt.preventDefault) { evt.preventDefault(); }
+      args.pop();
+    }
+    self.send.apply(self, [actionName].concat(args));
+  };
+};
+this.ctrlActionNoBubble = function(actionName) {
+  var bound = Array.prototype.slice.call(arguments, 1);
+  return function(event) {
+    if (event && event.stopPropagation) { event.stopPropagation(); }
+    if (event && event.preventDefault) { event.preventDefault(); }
+    self.send.apply(self, [actionName].concat(bound));
+  };
+};
+this.ctrlActionEventValue = function(actionName, targetProp) {
+  return function(event) {
+    var value = event && event.target ? event.target[targetProp] : undefined;
+    self.send(actionName, value);
+  };
+};
+  },
+
 });

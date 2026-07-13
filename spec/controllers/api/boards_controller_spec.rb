@@ -1353,15 +1353,85 @@ describe Api::BoardsController, :type => :controller do
     end
   end
 
+  describe "create (Art.50(2) marker persistence)" do
+    it "verifies and persists a valid AI-generated marker onto the saved board" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: {board: {name: 'AI board', ai_generated: marker}}.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      # full signed marker is persisted server-side (verifiable on re-save)
+      expect(board.settings['ai_generated']).to eq(marker)
+      expect(Art50Marker.verify(board.settings['ai_generated'])).to eq(true)
+      # but the create response exposes only the non-secret provenance view
+      expect(json['board']['ai_generated']['marked']).to eq(true)
+      expect(json['board']['ai_generated']['provider']).to eq(marker['provider'])
+      expect(json['board']['ai_generated']).not_to have_key('signature')
+    end
+
+    it "verifies and persists a valid marker via the form-encoded param path (string 'true' + string values)" do
+      # The JSON-body path sends marked:true (boolean); the Rails form-param path arrives
+      # with every value stringified, so marked becomes "true". Art50Marker.verify accepts
+      # both. This exercises that path + indifferent-access key handling end to end.
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      post :create, params: {board: {name: 'AI board', ai_generated: marker}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      expect(Art50Marker.verify(board.settings['ai_generated'])).to eq(true)
+    end
+
+    it "silently drops a forged marker but still saves the board" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'm')
+      forged = marker.merge('provider' => 'evil-corp')
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: {board: {name: 'b', ai_generated: forged}}.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      expect(board.settings['ai_generated']).to be_nil
+    end
+  end
+
   describe "generate_labels" do
     it "should reject non-object JSON body" do
       token_user
-      expect(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
       request.headers['Content-Type'] = 'application/json'
       post :generate_labels, params: {}, body: '[]'
       expect(response).to have_http_status(:bad_request)
       json = JSON.parse(response.body)
       expect(json['error']).to eq('JSON body must be an object')
+    end
+
+    it "should pass the authenticated user through to the generator" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      captured = nil
+      allow(AiBoardGenerator).to receive(:generate_words) do |**kw|
+        captured = kw
+        { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+      end
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      expect(response).to be_successful
+      expect(captured[:user]).to be_present
+      expect(captured[:user].global_id).to eq(@user.global_id)
+    end
+
+    it "should return 403 and skip generation when AI is disabled for the org" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(false)
+      expect(AiBoardGenerator).not_to receive(:generate_words)
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Feature not available')
     end
   end
   
@@ -2204,6 +2274,55 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['remote_upload']).to_not eq(nil)
       expect(json['remote_upload']['upload_url']).to_not eq(nil)
+    end
+  end
+
+  describe "from_json_bundle" do
+    it "should require api token" do
+      post :from_json_bundle, params: { url: 'https://www.example.com/bundle.json' }
+      assert_missing_token
+    end
+
+    it "should require the paste_html_import feature flag" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(false)
+      post :from_json_bundle, params: { url: 'https://www.example.com/bundle.json' }
+      expect(response.status).to eq(403)
+    end
+
+    it "should reject bundle URLs outside the importer upload prefix" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      post :from_json_bundle, params: { url: 'https://www.example.com/imports/boards/evil/bundle-abc.json' }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid import bundle URL')
+    end
+
+    it "should report invalid URL when sanitization fails" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      post :from_json_bundle, params: { url: 'file:///tmp/bundle.json' }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid URL')
+    end
+
+    it "should schedule processing for a valid bundle upload URL" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{@user.global_id}/bundle-abc123.json"
+      p = Progress.create
+      expect(Progress).to receive(:schedule).with(Board, :import_json_bundle, @user.global_id, url, {}, for_user: @user).and_return(p)
+      post :from_json_bundle, params: { url: url }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['progress']['id']).to eq(p.global_id)
     end
   end
   

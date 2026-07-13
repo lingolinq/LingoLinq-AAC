@@ -11,7 +11,9 @@ class ParentalConsentsController < ApplicationController
     if user && c.is_a?(Hash) && c['parent_consent_granted_at'].present? && !user.coppa_parental_consent_pending?
       @already_granted = true
       @success = true
-    elsif user && user.grant_parental_consent!(token)
+    elsif user && user.grant_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
+      # grant_parental_consent! writes the immutable COPPA AuditEvent atomically
+      # with the consent grant (see User#grant_parental_consent!).
       @success = true
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)
       UserMailer.schedule_delivery(:new_user_registration, user.global_id)

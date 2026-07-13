@@ -29,6 +29,7 @@
 # Ember build output — copied (not symlinked) into Rails asset paths during build
 /app/assets/javascripts/frontend.js
 /app/assets/javascripts/vendor.js
+/app/assets/javascripts/auto-import-app.js
 /app/assets/stylesheets/frontend.css
 /app/assets/stylesheets/vendor.css
 
@@ -46,8 +47,45 @@
 # Cursor IDE debug session logs (NDJSON)
 .cursor/debug*.log
 
-# Ignore local settings for claude
-/.claude
+# Local Cursor MCP config (Forge CRM etc.) — per-developer, not shared
+.cursor/mcp.json
+bin/forgecrm-mcp
+
+# Ignore local Claude Code settings + worktrees, but TRACK the shared audit system.
+# Pattern note: exclude the CONTENTS of /.claude (not the dir itself) so the
+# audit subtree below can be re-included. Re-including a child of a fully-excluded
+# directory is impossible in git, hence /.claude/* rather than /.claude.
+/.claude/*
+# Shared, version-controlled audit/compliance system (Phase 2 agent migration).
+# Re-include ONLY the specific tracked file types, not whole directories, so future local junk
+# dropped under these dirs (scratch logs, finder temp JSON, editor swap files) stays ignored.
+# Idiom: re-include dir, re-exclude its contents, re-include the wanted files.
+!/.claude/agents/
+/.claude/agents/*
+!/.claude/agents/*.md
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/*/
+/.claude/skills/*/*
+!/.claude/skills/*/SKILL.md
+!/.claude/hooks/
+/.claude/hooks/*
+!/.claude/hooks/*.sh
+!/.claude/settings.json
+# GSD toolkit (locally-installed planning/workflow tooling) is NOT part of the
+# product — keep its agent + hook definitions out of the repo. These re-exclude
+# patterns come AFTER the broad *.md / *.sh re-includes above, so they win and
+# only the gsd-* subset is ignored (the audit/compliance agents + hooks stay tracked).
+/.claude/agents/gsd-*.md
+/.claude/hooks/gsd-*.sh
+# Everything else under /.claude stays local and ignored: settings.local.json, worktrees/,
+# and agent-memory/ (finder `memory: project` accrues per-machine; not shared to avoid pulling
+# unrelated local agents' memory into git).
+
+# Audit run-log (Phase 4): per-tool examination detail is LOCAL telemetry (large/churny,
+# machine-specific). Only the per-run summary (runs.jsonl) and the README are tracked.
+/audit-reports/run-log/examined-*.jsonl
+/audit-reports/run-log/logger-errors.jsonl
 
 # Python bytecode
 __pycache__/
@@ -107,3 +145,22 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 # YYYY-MM-DD-*.md file anywhere in the tree.
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md
 .cursor/rules/melissa-branch-workflow.mdc
+
+# One-off generated artifacts (NotebookLM scripts, infographic/visual prompts,
+# loose compliance journals/summaries). These are scratch for video/visual asset
+# generation and belong in ~/ai-company-brain/outputs/, not the repo root. The
+# durable, code-anchored compliance records live in docs/legal/ and audit-reports/
+# (indexed by audit-reports/DOCUMENT-REGISTER.json).
+/notebooklm-*
+/*-prompt.txt
+/*-prompt.md
+/GET-STARTED-NOTEBOOKLM.md
+/README-COMPLIANCE-VISUALS.md
+/simple-text-visuals.md
+/visual-creation-guide.md
+/compliance-visuals-summary.md
+/compliance-journal-*.md
+/compliance-summary-*.md
+
+# Playwright MCP session scratch
+.playwright-mcp/

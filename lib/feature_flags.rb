@@ -28,7 +28,14 @@ module FeatureFlags
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
-              'dashboard_drag_layout']
+              'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
+              'sentence_bar_editing',
+              # EU launch (GDPR Art. 8): make the registration parental-consent
+              # age gate jurisdiction-aware (EU under-16 vs default under-13).
+              # AVAILABLE-only => OFF for everyone by default; with it OFF the
+              # registration flow is identical to today. Add to
+              # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
+              'eu_consent_age']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -39,12 +46,14 @@ module FeatureFlags
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
               'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
-              'customize_menu', # TEMPORARY: ON for everyone during testing — remove from this list when moving to beta-opt-in (see comment above AVAILABLE_FRONTEND_FEATURES)
+              'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
-              'portrait_orientation_overlay', # TEMPORARY (2026-05-29): ON for everyone so Traci can view the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
+              'portrait_orientation_overlay', # TEMPORARY (2026-05-29): forced ON for everyone to validate the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'background_board_prefetch',
               'signup_default_library_boards', 'english_first_board_generation',
-              'dashboard_drag_layout'] # TEMPORARY (2026-06-09): ON for everyone pre-production so the Getting Started drag-to-swap home layout can be validated. REMOVE from this list before production — canonical state is AVAILABLE-only (beta opt-in per user).
+              'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'sentence_bar_editing'] # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -75,7 +84,7 @@ module FeatureFlags
     'multi_user_board_import' => 'May 15, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
-                   ai_symbol_search ai_compliance_logging].freeze
+                   ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze
   def self.frontend_flags_for(user)
     flags = {}
     enabled_list = SystemFeatureSettings.effective_enabled_for(user)
@@ -104,6 +113,17 @@ module FeatureFlags
   def self.feature_enabled_for?(feature, user)
     flags = frontend_flags_for(user)
     !!flags[feature]
+  end
+
+  # Kill-switch for LL-90045bb29c option (b): whether User#lesson_share_token MINTS the new
+  # expiring token (default) or reverts to the legacy permanent user_token. Accept points
+  # (User.find_by_lesson_share_token) always accept BOTH formats, so this only controls what
+  # NEW lesson/board share URLs embed, never what resolves. Default is ON (the hardening);
+  # set EXPIRING_LESSON_SHARE_TOKENS=off (or 0/false/no) in the environment to revert
+  # construction to the legacy token in one switch, no code deploy.
+  def self.expiring_lesson_share_tokens_enabled?(_user = nil)
+    return false if ENV['EXPIRING_LESSON_SHARE_TOKENS'].to_s =~ /^(0|false|no|off)$/i
+    true
   end
 
   # Server-side gate for copying default vocab boards into new user libraries.
@@ -139,6 +159,22 @@ module FeatureFlags
     return false unless AI_FEATURES.include?(feature)
     return false unless ai_enabled_for?(user)
     feature_enabled_for?(feature, user)
+  end
+
+  # EU launch (GDPR Art. 8): whether the jurisdiction-aware registration
+  # consent-age gate is globally active. Mirrors how anonymous registration
+  # reads flags (window.enabled_frontend_features = ENABLED_FRONTEND_FEATURES),
+  # since there is no user yet at signup. OFF by default (AVAILABLE-only) so the
+  # registration flow stays identical to today until deliberately enabled.
+  #
+  # DEPENDENCY: EU-16 only actually GATES when the host also has
+  # coppa_parental_consent enabled (JsonApi::Json.coppa_parental_consent_enabled?).
+  # With this flag ON but that OFF, the register UI collects a parent email but
+  # the backend does not gate -- a cosmetic prompt. Enable BOTH together on an
+  # EU host. (And note the age gate itself trusts a client boolean; server-side
+  # enforcement is a separate hardening item, see the PR/plan.)
+  def self.eu_consent_age_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
   end
 
   # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.

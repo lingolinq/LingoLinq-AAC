@@ -1,18 +1,20 @@
 # frozen_string_literal: true
 
 require 'anthropic'
-require 'openai'
 require 'set'
 require_relative 'pii_scrubber'
+require_relative 'art50_marker'
 
 module AiBoardGenerator
   # Default model for board generation — Haiku is fast and cheap for structured output
   DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
-  GEMINI_MODEL = 'gemini-2.5-flash'
 
   class << self
-    # Generates word labels, suggested name, and description for an AAC board using Claude or Gemini.
-    # Prefers ANTHROPIC_API_KEY; falls back to GEMINI_API_KEY if Anthropic is not configured.
+    # Generates word labels, suggested name, and description for an AAC board using Claude.
+    # Requires ANTHROPIC_API_KEY. The prior GEMINI_API_KEY fallback (Gemini Developer/AI-Studio
+    # endpoint) was disabled 2026-07-09 -- its data-handling terms could not be confirmed adequate
+    # for child data (see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2). A Vertex AI fallback
+    # may replace this in a future change.
     # Returns { words: [...], name: "...", description: "...", error: nil } on success,
     # or { words: nil, name: nil, description: nil, error: "..." } on failure.
     # include_core_words: when true, mix 40-60% core vocabulary with topic-specific; when false, topic-specific only.
@@ -22,7 +24,7 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY or GEMINI_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails.'))
+          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -93,19 +95,10 @@ module AiBoardGenerator
 
         2.times do |attempt|
           prompt_turn = attempt.zero? ? user_prompt : "#{user_prompt}#{board_retry_nudge(cell_count)}"
-          last_response = if provider == :claude
-            call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
-                           user_prompt: prompt_turn, cell_count: cell_count)
-          else
-            call_gemini(api_key: api_key, model: model, system_prompt: system_prompt,
-                        user_prompt: prompt_turn, cell_count: cell_count)
-          end
+          last_response = call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
+                                         user_prompt: prompt_turn, cell_count: cell_count)
 
-          raw = if provider == :claude
-            extract_content_anthropic(last_response)
-          else
-            extract_content_openai(last_response)
-          end
+          raw = extract_content_anthropic(last_response)
           raw = raw.to_s.delete("\uFEFF").strip  # Strip BOM and normalize
           raw = strip_markdown_code_fence(raw)   # Claude may wrap in ``` blocks
           last_raw = raw
@@ -125,18 +118,30 @@ module AiBoardGenerator
               pii_findings: scrub_result[:findings],
               success: true
             }
-            if provider == :claude
-              log_params[:tokens_sent] = last_response.usage&.input_tokens
-              log_params[:tokens_received] = last_response.usage&.output_tokens
-            else
-              log_params[:tokens_sent] = last_response.dig('usage', 'prompt_tokens')
-              log_params[:tokens_received] = last_response.dig('usage', 'completion_tokens')
-            end
+            log_params[:tokens_sent] = last_response.usage&.input_tokens
+            log_params[:tokens_received] = last_response.usage&.output_tokens
+            # EU AI Act Article 50(2): mark the board-generation output. The marking
+            # is NOT feature-flag-gated (only the Article 50(1) disclosure is); within
+            # this path every successful AI output is marked. SCOPE: this slice marks
+            # board generation only. Other AI-output surfaces are NOT yet marked and are
+            # tracked follow-up: generate_focus_words (below; persists via AiFocusWordSet
+            # cache), AiWordPredictor.predict, eval narration, AiPredictionGenerator.
+            # Durable persistence of this marker (board.settings + relinking copy_for)
+            # is also follow-up; see boards_controller#generate_labels. Until those land,
+            # do not record the Article 50(2) obligation as closed.
+            # ai_generated_content_id is a best-effort link to this output's AiApiLog
+            # row; under alert-but-continue an audit-write failure is alerted (loud) but
+            # the marker is still returned, so a valid marker does not by itself prove a
+            # persisted audit row.
+            marker = Art50Marker.build(provider: provider.to_s, model: model)
+            log_params[:ai_content_marked] = true
+            log_params[:ai_generated_content_id] = marker['content_id']
             log_ai_call(**log_params)
             return {
               words: words.first(cell_count),
               name: last_payload[:name].presence,
               description: last_payload[:description].presence,
+              ai_generated: marker,
               error: nil
             }
           end
@@ -159,13 +164,8 @@ module AiBoardGenerator
           success: false
         }
         if last_response
-          if provider == :claude
-            log_params[:tokens_sent] = last_response.usage&.input_tokens
-            log_params[:tokens_received] = last_response.usage&.output_tokens
-          else
-            log_params[:tokens_sent] = last_response.dig('usage', 'prompt_tokens')
-            log_params[:tokens_received] = last_response.dig('usage', 'completion_tokens')
-          end
+          log_params[:tokens_sent] = last_response.usage&.input_tokens
+          log_params[:tokens_received] = last_response.usage&.output_tokens
         end
         log_ai_call(**log_params)
 
@@ -195,9 +195,9 @@ module AiBoardGenerator
           pii_detected: pii_detected, pii_findings: scrub_result[:findings],
           success: false, error_message: e.message
         )
-        Rails.logger.error "AiBoardGenerator Gemini API error: #{e.message}"
+        Rails.logger.error "AiBoardGenerator API HTTP error: #{e.message}"
         api_error_response('AI service unavailable. Please try again later.', e,
-          kind: :gemini_http, provider: provider, model: model)
+          kind: :api_http, provider: provider, model: model)
       rescue StandardError => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
@@ -226,7 +226,7 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, title: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY or GEMINI_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails.'))
+          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -296,19 +296,10 @@ module AiBoardGenerator
 
         2.times do |attempt|
           prompt_turn = attempt.zero? ? user_prompt : "#{user_prompt}#{focus_retry_nudge(missing_count)}"
-          last_response = if provider == :claude
-            call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
-                           user_prompt: prompt_turn, cell_count: missing_count)
-          else
-            call_gemini(api_key: api_key, model: model, system_prompt: system_prompt,
-                        user_prompt: prompt_turn, cell_count: missing_count)
-          end
+          last_response = call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
+                                         user_prompt: prompt_turn, cell_count: missing_count)
 
-          raw = if provider == :claude
-            extract_content_anthropic(last_response)
-          else
-            extract_content_openai(last_response)
-          end
+          raw = extract_content_anthropic(last_response)
           raw = raw.to_s.delete("\uFEFF").strip
           raw = strip_markdown_code_fence(raw)
           last_raw = raw
@@ -329,17 +320,21 @@ module AiBoardGenerator
               success: true,
               request_type: 'focus_word_generation'
             }
-            if provider == :claude
-              log_params[:tokens_sent] = last_response.usage&.input_tokens
-              log_params[:tokens_received] = last_response.usage&.output_tokens
-            else
-              log_params[:tokens_sent] = last_response.dig('usage', 'prompt_tokens')
-              log_params[:tokens_received] = last_response.dig('usage', 'completion_tokens')
-            end
+            log_params[:tokens_sent] = last_response.usage&.input_tokens
+            log_params[:tokens_received] = last_response.usage&.output_tokens
+            # EU AI Act Article 50(2): a focus-word list is AI-generated synthetic text
+            # persisted in a durable artifact (AiFocusWordSet), so it IS in content-marking
+            # scope (unlike word prediction; see EU_AI_ACT_ARTICLE_50_PLAN.md sec 9). Mint the
+            # marker here (same provenance-bound Art50Marker as board generation), stamp the
+            # audit row, and return it so the controller can persist it on the set.
+            marker = Art50Marker.build(provider: provider.to_s, model: model)
+            log_params[:ai_content_marked] = true
+            log_params[:ai_generated_content_id] = marker['content_id']
             log_ai_call(**log_params)
             return {
               words: words.first(missing_count),
               title: last_payload[:title].presence,
+              ai_generated: marker,
               error: nil
             }
           end
@@ -363,13 +358,8 @@ module AiBoardGenerator
           request_type: 'focus_word_generation'
         }
         if last_response
-          if provider == :claude
-            log_params[:tokens_sent] = last_response.usage&.input_tokens
-            log_params[:tokens_received] = last_response.usage&.output_tokens
-          else
-            log_params[:tokens_sent] = last_response.dig('usage', 'prompt_tokens')
-            log_params[:tokens_received] = last_response.dig('usage', 'completion_tokens')
-          end
+          log_params[:tokens_sent] = last_response.usage&.input_tokens
+          log_params[:tokens_received] = last_response.usage&.output_tokens
         end
         log_ai_call(**log_params)
 
@@ -402,9 +392,9 @@ module AiBoardGenerator
           pii_detected: pii_detected, pii_findings: scrub_result[:findings],
           success: false, error_message: e.message, request_type: 'focus_word_generation'
         )
-        Rails.logger.error "AiBoardGenerator Gemini focus API error: #{e.message}"
+        Rails.logger.error "AiBoardGenerator focus API HTTP error: #{e.message}"
         api_error_response('AI service unavailable. Please try again later.', e,
-          kind: :gemini_http, provider: provider, model: model).merge(title: nil)
+          kind: :api_http, provider: provider, model: model).merge(title: nil)
       rescue StandardError => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
@@ -514,24 +504,19 @@ module AiBoardGenerator
       NUDGE
     end
 
+    # GEMINI_API_KEY fallback disabled 2026-07-09 -- it pointed at the Gemini Developer/AI-Studio
+    # endpoint (generativelanguage.googleapis.com), not Vertex AI, and that endpoint's data-handling
+    # terms could not be confirmed adequate for child data. See
+    # docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2. A Vertex AI fallback may replace this.
     def resolve_api_config
       anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      if anthropic_key.present?
-        return {
-          provider: :claude,
-          api_key: anthropic_key,
-          model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL)
-        }
-      end
-      gemini_key = ENV['GEMINI_API_KEY'].to_s.strip
-      if gemini_key.present?
-        return {
-          provider: :gemini,
-          api_key: gemini_key,
-          model: ENV.fetch('GEMINI_MODEL', GEMINI_MODEL)
-        }
-      end
-      nil
+      return nil if anthropic_key.blank?
+
+      {
+        provider: :claude,
+        api_key: anthropic_key,
+        model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL)
+      }
     end
 
     def call_anthropic(api_key:, model:, system_prompt:, user_prompt:, cell_count:)
@@ -544,34 +529,10 @@ module AiBoardGenerator
       )
     end
 
-    def call_gemini(api_key:, model:, system_prompt:, user_prompt:, cell_count:)
-      client = OpenAI::Client.new(
-        access_token: api_key,
-        uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-      )
-      client.chat(
-        parameters: {
-          model: model,
-          messages: [
-            { role: 'system', content: system_prompt },
-            { role: 'user', content: user_prompt }
-          ],
-          max_tokens: completion_max_tokens(cell_count),
-          temperature: 0.5
-        }
-      )
-    end
-
     def extract_content_anthropic(response)
       return '' unless response&.content&.is_a?(Array)
       text_blocks = response.content.select { |block| block.type.to_s == 'text' }
       text_blocks.map { |b| b.respond_to?(:text) ? b.text : b.to_s }.join("\n").strip
-    end
-
-    def extract_content_openai(response)
-      return '' unless response.is_a?(Hash)
-      msg = response.dig('choices', 0, 'message', 'content')
-      msg.to_s.strip
     end
 
     def parse_words(raw, expected_count)
@@ -658,15 +619,21 @@ module AiBoardGenerator
     def log_ai_call(provider:, model:, user:, request_summary:, response_summary:,
                     tokens_sent: nil, tokens_received: nil, duration_ms: nil,
                     pii_detected: false, pii_findings: [], success: true, error_message: nil,
-                    request_type: 'board_generation')
+                    request_type: 'board_generation',
+                    ai_content_marked: false, ai_generated_content_id: nil)
       return unless defined?(AiApiLog)
+      # Scrub the model OUTPUT before it reaches AiApiLog. Generated board names/descriptions
+      # can echo user-supplied sensitive context, so the raw response must never be persisted
+      # unredacted (request_summary is already scrubbed upstream). nil passes through untouched
+      # for the API-error paths that log no response body.
+      safe_response_summary = response_summary.nil? ? nil : PiiScrubber.redact_for_ai(response_summary)[:payload]
       AiApiLog.log_ai_call(
         provider: provider,
         model: model,
         type: request_type,
         user: user,
         request_summary: request_summary,
-        response_summary: response_summary,
+        response_summary: safe_response_summary,
         tokens_sent: tokens_sent,
         tokens_received: tokens_received,
         duration_ms: duration_ms,
@@ -674,7 +641,11 @@ module AiBoardGenerator
         pii_findings: pii_findings,
         success: success,
         error_message: error_message,
-        feature_flag: 'ai_board_generation'
+        feature_flag: 'ai_board_generation',
+        # EU AI Act Article 50(2): record that the output was machine-readable marked
+        # and link this audit row to the marked content via its content_id.
+        ai_content_marked: ai_content_marked,
+        ai_generated_content_id: ai_generated_content_id
       )
     rescue StandardError => e
       Rails.logger.warn "AiBoardGenerator: failed to log AI API call: #{e.message}"

@@ -4,6 +4,7 @@ import { computed } from '@ember/object';
 import { observer } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { htmlSafe } from '@ember/template';
 import RSVP from 'rsvp';
 import { later as runLater, cancel as runCancel, next, scheduleOnce } from '@ember/runloop';
 import $ from 'jquery';
@@ -123,7 +124,9 @@ export default Controller.extend(prefClasses, {
   persistence: service('persistence'),
 
   is_board_detail: true,
-  folder_display_style: 'default',
+  // folder_display_style is initialized by the route, which resolves the user's
+  // saved preference first and falls back to 'default' for legacy users with no
+  // stored value (new users get it at registration server-side).
   // When true, folder card faces are painted with the button's Fitzgerald
   // color (var(--btn-bg)) regardless of which folder display style is
   // selected. Toggled via the checkmark item at the bottom of the folder
@@ -313,8 +316,8 @@ export default Controller.extend(prefClasses, {
      the options menu itself closes so a fresh open lands on the
      normal menu. */
   board_collection_open: false,
+  sidebar_editor_open: false,
   show_paint_dropdown: false,
-  button_menu_id: null,
   show_options_menu: false,
   share_dropdown_open: false,
   details_dropdown_open: false,
@@ -326,7 +329,10 @@ export default Controller.extend(prefClasses, {
   display_prefs_skin_dropdown_open: false,
   pending_display_prefs: null,
   original_display_prefs: null,
-  dark_mode: true,
+  // Boards open LIGHT by default; dark only when the user turns it on (persisted
+  // to preferences.board_dark_mode). The route resets this per board entry from
+  // that preference; this is the pre-setup fallback.
+  dark_mode: false,
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
@@ -368,12 +374,20 @@ export default Controller.extend(prefClasses, {
     if(!cell) { return; }
     var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
     var cardRect = card.getBoundingClientRect();
-    var cellRect = cell.getBoundingClientRect();
     if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
     var grid = document.querySelector('.md-board-detail-grid');
     var gridStyle = grid ? window.getComputedStyle(grid) : null;
     var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
     var rowGap = gridStyle ? (parseFloat(gridStyle.rowGap) || 0) : 0;
+    // Make the rail read as another board column: stack its tiles with the board's
+    // ROW gap (tiles line up with board rows — the tile height already equals the
+    // board card height) and space it from the board by the board's COLUMN gap.
+    // The user's grid-gap preference lives in --bd-button-gap on the GRID element,
+    // which the rail (a sibling) can't inherit, so publish the measured gaps as
+    // vars on .md-board-detail-main that the rail CSS reads. Set BEFORE the width
+    // calc below so it reads the updated (column-gap) left margin.
+    main.style.setProperty('--prediction-tile-gap', rowGap + 'px');
+    main.style.setProperty('--prediction-rail-gap-left', colGap + 'px');
     // WIDTH. The rail is a fixed-width sibling of the FLEXIBLE board grid, so
     // setting the rail to the measured card width is circular: the rail steals
     // that width back from the grid, the cards resize, and the two stay one step
@@ -396,12 +410,10 @@ export default Controller.extend(prefClasses, {
       var w = (shared - (cols - 1) * colGap - railMarginLeft) / (cols + 1);
       if(w > 1) { tileW = Math.round(w); }
     }
-    main.style.setProperty('--prediction-tile-w', tileW + 'px');
+    // Trim 4px off the computed width (per design) so the rail tiles sit just
+    // inside the board column width rather than flush to it.
+    main.style.setProperty('--prediction-tile-w', Math.max(0, tileW - 4) + 'px');
     main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
-    // Match the board's vertical RHYTHM so rail tiles line up with board rows:
-    // board row pitch = cellHeight + rowGap; rail pitch = tileHeight + railGap.
-    // Tile height = card height, so the rail gap absorbs the difference.
-    main.style.setProperty('--prediction-tile-gap', Math.max(0, Math.round(cellRect.height + rowGap - cardRect.height)) + 'px');
     // Align the first rail tile's top with the first board row. The rail is a
     // flex child of grid-sidebar-wrap (align-items:flex-start), so it naturally
     // starts at the wrap's content top; pad it down to the first card. Measured
@@ -432,11 +444,29 @@ export default Controller.extend(prefClasses, {
     var grid = document.querySelector('.md-board-detail-grid');
     if(grid) { this._predictionGridRO.observe(grid); }
   },
+  /* Keep the inline speak-sidebar EXACTLY as tall as the center board grid so it
+     never extends past the bottom of the board; its content scrolls internally
+     instead. The grid's height is JS-driven (board/index computeHeight) and this
+     nested flex chain doesn't resolve a definite height for a pure-CSS cap, so we
+     mirror the measured grid height directly onto the shell. The absolutely-
+     positioned __scroll layer then has a definite height to scroll within. Synced
+     from the same triggers as the prediction rail (grid ResizeObserver + window
+     resize + board/grid-shape changes), so it tracks every relayout. */
+  _sync_inline_sidebar_height: function() {
+    if(typeof document === 'undefined') { return; }
+    var sidebar = document.querySelector('.md-board-detail-inline-sidebar');
+    if(!sidebar) { return; }
+    var board = document.querySelector('.md-board-detail-grid-fade') ||
+                document.querySelector('.md-board-detail-grid');
+    var h = board ? board.getBoundingClientRect().height : 0;
+    sidebar.style.height = (h && h > 1) ? (Math.round(h) + 'px') : '';
+  },
   _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', function() {
     var _this = this;
     runLater(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       _this._sync_prediction_tile_size();
+      _this._sync_inline_sidebar_height();
       _this._observe_prediction_grid();
     }, 160);
   }),
@@ -456,6 +486,50 @@ export default Controller.extend(prefClasses, {
     this.set('weekly_goals', []);
     this.set('todays_schedule', []);
     var _this = this;
+    _this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        _this.send.apply(_this, [actionName].concat(args));
+      };
+    };
+    _this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        _this.send.apply(_this, [actionName].concat(bound));
+      };
+    };
+    _this.onUpdateCustomPaintColor = function(event) {
+      var value = event && event.target && event.target.value;
+      _this.send('update_custom_paint_color', value);
+    };
+    _this.onFilterDisplayFonts = function(event) {
+      var value = event && event.target && event.target.value;
+      _this.send('filter_display_fonts', value);
+    };
+    _this.onFontDropdownKeydown = function(event) {
+      _this.send('font_dropdown_keydown', event);
+    };
+    _this.onToggleSkinSuboption = function(option) {
+      return function(event) {
+        _this.send('toggle_skin_suboption', option, event);
+      };
+    };
+    _this.onCloseBoardCollection = function() {
+      _this.send('close_board_collection');
+    };
+    _this.onCloseSidebarEditor = function() {
+      _this.send('close_sidebar_editor');
+    };
+    _this.onSelectBoardFromCollection = function(board) {
+      _this.send('select_board_from_collection', board);
+    };
     this._closeDropdownsHandler = function(e) {
       if(_this.get('details_dropdown_open') && !e.target.closest('.md-board-detail-details-dropdown-wrap')) {
         _this.set('details_dropdown_open', false);
@@ -468,14 +542,6 @@ export default Controller.extend(prefClasses, {
       }
       if(_this.get('folder_dropdown_open') && !e.target.closest('.md-board-detail-edit-toolbar__dropdown-wrap--folder')) {
         _this.set('folder_dropdown_open', false);
-      }
-      // Per-button edit menu (portal-rendered). Close it when the click lands
-      // outside both the dropdown itself AND the trigger (the three-dots
-      // button) that opened it.
-      if(_this.get('button_menu_id') &&
-         !e.target.closest('#button-edit-dropdown') &&
-         !e.target.closest('.md-board-detail-symbol-card__edit-menu-trigger')) {
-        _this.set('button_menu_id', null);
       }
       // Immersive quick-actions popover (mic/backspace/clear) — close on
       // any click outside both the popover and its chevron trigger.
@@ -535,6 +601,7 @@ export default Controller.extend(prefClasses, {
         _this._predictionTileResizeTimer = runLater(function() {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           _this._sync_prediction_tile_size();
+          _this._sync_inline_sidebar_height();
         }, 120);
       };
       window.addEventListener('resize', this._predictionTileResizeHandler);
@@ -542,6 +609,7 @@ export default Controller.extend(prefClasses, {
       runLater(function() {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this._sync_prediction_tile_size();
+        _this._sync_inline_sidebar_height();
       }, 300);
       // A window-resize / fixed timer only catches viewport changes — NOT the
       // board re-laying-out (square-shape collapse, board switch, font/gap/shape
@@ -556,6 +624,7 @@ export default Controller.extend(prefClasses, {
           _this._predictionTileResizeTimer = runLater(function() {
             if(_this.isDestroyed || _this.isDestroying) { return; }
             _this._sync_prediction_tile_size();
+            _this._sync_inline_sidebar_height();
           }, 120);
         });
         runLater(function() {
@@ -812,8 +881,22 @@ export default Controller.extend(prefClasses, {
     return list;
   },
 
+  // Cache key for a carried-forward chip image. Board buttons key by their stable
+  // button_id so two same-label buttons with DIFFERENT symbols can't cross-
+  // contaminate; typed/predicted words (no real button_id → 'utt-N') fall back to
+  // the label (same word → same image, which is correct).
+  _chip_image_key: function(id, label) {
+    return (id && String(id).indexOf('utt-') !== 0) ? ('b:' + id) : ('l:' + (label || '').toLowerCase());
+  },
   _apply_sentence_chip_image: function(part, img) {
     if(!part || !img) { return false; }
+    // Carry this resolved image forward across rebuilds/reorders (raw_index isn't
+    // stable). Keyed by button_id when present so it can't leak to a different
+    // same-label button.
+    if(part.label) {
+      if(!this._resolved_label_images) { this._resolved_label_images = {}; }
+      this._resolved_label_images[this._chip_image_key(part.id, part.label)] = img;
+    }
     var current = (this.get('sentence_parts') || []).slice();
     var idx = current.findIndex(function(p) {
       return p && ((part.raw_index != null && p.raw_index === part.raw_index) ||
@@ -827,16 +910,126 @@ export default Controller.extend(prefClasses, {
     return false;
   },
 
+  // ----- Speak-bar active edit (feature: sentence_bar_editing) -----
+  // Which chip currently shows its edit controls (visual index; null = none).
+  selected_chip_index: null,
+  // Which chip is "held" for a swap/replace (visual index; null = none). While
+  // set, tapping ANOTHER chip swaps positions and tapping a board grid button
+  // replaces the held chip (see select_button).
+  swap_source_index: null,
+  // Bound to an aria-live region — set to announce the result of each edit.
+  sentence_edit_announcement: '',
+  // Whether the labeled edit menu is shown for the selected chip. It opens only
+  // after a deliberate 2s press-and-hold on the chip (the hold is detected in the
+  // sentence-bar-chip component, so a short/accidental tap never opens it), or via
+  // keyboard Enter. selected_chip_index + chip_menu_open are set together.
+  chip_menu_open: false,
+  // Measured horizontal offsets (px, relative to the sentence bar) that place the
+  // below-chip menu + its caret under the selected chip. Set by _position_chip_menu.
+  chip_menu_left: 0,
+  chip_menu_caret_left: 20,
+
+  // Gate: edit controls only in SPEAK mode (never while editing the board) and
+  // only when the feature flag is on.
+  sentence_bar_editing_enabled: computed('app_state.feature_flags.sentence_bar_editing', 'edit_mode', function() {
+    return !this.get('edit_mode') && !!this.get('app_state.feature_flags.sentence_bar_editing');
+  }),
+  // True while a chip is held for swap/replace.
+  chip_swap_active: computed('swap_source_index', function() {
+    return this.get('swap_source_index') != null;
+  }),
+  // If editing turns off (e.g. entering board edit mode), tear down any open chip
+  // menu / dwell timer so a stale highlight+menu can't linger into the next mode.
+  _close_chip_menu_when_disabled: observer('sentence_bar_editing_enabled', function() {
+    if(!this.get('sentence_bar_editing_enabled')) { this._deselect_chip(); }
+  }),
+  // ----- Below-chip labeled menu (bound in board-detail.hbs) -----
+  selected_chip_word: computed('selected_chip_index', 'sentence_parts.@each.label', function() {
+    return this._chip_label(this.get('selected_chip_index'));
+  }),
+  selected_chip_can_move_left: computed('selected_chip_index', function() {
+    var idx = this.get('selected_chip_index');
+    return idx != null && idx > 0;
+  }),
+  selected_chip_can_move_right: computed('selected_chip_index', 'sentence_parts.length', function() {
+    var idx = this.get('selected_chip_index');
+    return idx != null && idx < ((this.get('sentence_parts') || []).length - 1);
+  }),
+  // Switch button reflects whether THIS chip is currently the held swap source.
+  selected_chip_swapping: computed('selected_chip_index', 'swap_source_index', function() {
+    return this.get('selected_chip_index') != null && this.get('selected_chip_index') === this.get('swap_source_index');
+  }),
+  chip_menu_style: computed('chip_menu_left', function() {
+    return htmlSafe('left: ' + (this.get('chip_menu_left') || 0) + 'px;');
+  }),
+  chip_menu_caret_style: computed('chip_menu_caret_left', function() {
+    return htmlSafe('left: ' + (this.get('chip_menu_caret_left') || 20) + 'px;');
+  }),
+
+  _chip_label: function(index) {
+    var parts = this.get('sentence_parts') || [];
+    return (index != null && parts[index] && parts[index].label) || '';
+  },
+  _deselect_chip: function() {
+    this.set('chip_menu_open', false);
+    this.set('selected_chip_index', null);
+    this.set('swap_source_index', null);
+  },
+  // Measure the selected chip against the sentence bar and place the labeled menu
+  // (and its caret) centered under it, clamped to stay inside the bar. Rendered as
+  // a child of the bar (not the overflow-clipped chip scroller) so it can drop
+  // below. Synchronous: callers run it once BEFORE the menu renders (provisional
+  // width) to avoid a first-frame flash at left:0, then again on afterRender (exact
+  // width once the buttons are laid out).
+  _position_chip_menu: function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var bar = document.querySelector('#speak .md-board-detail-sentence-bar');
+    var idx = this.get('selected_chip_index');
+    if(!bar || idx == null) { return; }
+    var chip = bar.querySelector('.md-board-detail-sentence-bar__chip[data-chip-index="' + idx + '"]');
+    if(!chip) { return; }
+    var menu = bar.querySelector('.md-board-detail-sentence-bar__chip-menu');
+    // Fall back to a typical width when the menu hasn't rendered yet (provisional pass).
+    var menu_w = (menu && menu.offsetWidth) || 240;
+    var bar_rect = bar.getBoundingClientRect();
+    var chip_rect = chip.getBoundingClientRect();
+    var chip_center = (chip_rect.left + chip_rect.width / 2) - bar_rect.left;
+    var left = chip_center - (menu_w / 2);
+    var max_left = Math.max(8, bar_rect.width - menu_w - 8);
+    left = Math.max(8, Math.min(left, max_left));
+    var caret = Math.max(16, Math.min(chip_center - left, menu_w - 16));
+    this.set('chip_menu_left', Math.round(left));
+    this.set('chip_menu_caret_left', Math.round(caret));
+  },
+  _announce_sentence_edit: function(msg) {
+    // Toggle a trailing (regular) space so a repeated IDENTICAL message still
+    // re-triggers the aria-live region. A plain trailing space changes the text
+    // node (so the region re-announces) but is NOT read aloud, unlike a U+00A0;
+    // most messages already differ (word + position), so this is a rare-case
+    // belt-and-suspenders.
+    this._announce_flip = !this._announce_flip;
+    this.set('sentence_edit_announcement', (msg || '') + (this._announce_flip ? '' : ' '));
+  },
+
+  // FULL MIRROR of app_state.button_list → sentence_parts. Rebuilt in global
+  // order every sync so REMOVE / REORDER / SWAP / REPLACE on the global utterance
+  // (the source of truth) are reflected faithfully — order and membership both
+  // mirror the global list (the previous additive, raw_index-keyed merge could
+  // not survive a reorder, since set_button_list reassigns raw_index). Resolved
+  // images are carried forward via a label-keyed cache so a reorder/swap (which
+  // changes raw_index) never drops or re-fetches an already-resolved symbol.
   sync_sentence_from_button_list: function() {
     var _this = this;
     var global_list = this.get('app_state.button_list') || [];
-    if(!global_list.length) { return; }
-    var parts = (this.get('sentence_parts') || []).slice();
-    var by_raw = {};
-    parts.forEach(function(p, idx) {
-      if(p && p.raw_index != null) { by_raw[p.raw_index] = idx; }
+    var old_parts = this.get('sentence_parts') || [];
+    if(!this._resolved_label_images) { this._resolved_label_images = {}; }
+    var label_images = this._resolved_label_images;
+    old_parts.forEach(function(p) {
+      if(p && p.label && p.image_url && !p.in_progress) {
+        label_images[_this._chip_image_key(p.id, p.label)] = p.image_url;
+      }
     });
-    var changed = false;
+    var parts = [];
     global_list.forEach(function(b, list_idx) {
       if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { return; }
       var raw_index = emberGet(b, 'raw_index');
@@ -864,31 +1057,43 @@ export default Controller.extend(prefClasses, {
            typeof raw_image === 'string' && wordSuggestionsModule.is_placeholder_image(raw_image)) {
           image_url = raw_image;
         }
+        // Carry forward a previously-resolved image (async lookup, or a value
+        // resolved before a reorder/swap shuffled raw_index) so it doesn't flicker.
+        if(!image_url) {
+          image_url = label_images[_this._chip_image_key(emberGet(b, 'button_id'), label)] || null;
+        }
       }
-      var chip = {
+      parts.push({
         id: emberGet(b, 'button_id') || ('utt-' + raw_index),
         raw_index: raw_index,
         label: label,
         in_progress: in_progress,
         image_url: image_url
-      };
-      if(by_raw[raw_index] != null) {
-        var existing = parts[by_raw[raw_index]];
-        if(existing.label !== chip.label || existing.image_url !== chip.image_url ||
-          !!existing.in_progress !== in_progress) {
-          parts[by_raw[raw_index]] = Object.assign({}, existing, chip);
-          changed = true;
-        }
-      } else {
-        parts.push(chip);
-        by_raw[raw_index] = parts.length - 1;
-        changed = true;
-      }
+      });
     });
-    if(changed) {
+    if(!_this._sentence_parts_equal(old_parts, parts)) {
       this.set('sentence_parts', parts);
     }
+    // If the list shrank (e.g. async button_list churn — image/suggestion
+    // resolution, a condense rule, a modeling session) a held/selected chip index
+    // can dangle past the end; clear it so an edit can't act on a stale index.
+    var n = parts.length;
+    if(this.get('selected_chip_index') != null && this.get('selected_chip_index') >= n) { this._deselect_chip(); }
+    if(this.get('swap_source_index') != null && this.get('swap_source_index') >= n) { this.set('swap_source_index', null); }
     this._resolve_missing_sentence_images();
+  },
+
+  // Shallow value-equality for the chip mirror, so a no-op sync doesn't churn
+  // sentence_parts (which would re-render and could interrupt an in-flight drag).
+  _sentence_parts_equal: function(a, b) {
+    a = a || []; b = b || [];
+    if(a.length !== b.length) { return false; }
+    for(var i = 0; i < a.length; i++) {
+      var x = a[i] || {}, y = b[i] || {};
+      if(x.raw_index !== y.raw_index || x.label !== y.label || x.id !== y.id ||
+         x.image_url !== y.image_url || !!x.in_progress !== !!y.in_progress) { return false; }
+    }
+    return true;
   },
 
   _resolve_missing_sentence_images: function() {
@@ -1920,24 +2125,26 @@ export default Controller.extend(prefClasses, {
   // Word suggestions
   suggestions: null,
   show_word_suggestions: computed('edit_mode', 'app_state.referenced_user.preferences.word_suggestions', function() {
-    // Global user preference gates word prediction in speak mode. Default is
-    // OFF: only an explicit `true` shows it (undefined/null/false = off). Never
-    // shown in edit mode.
+    // Global user preference gates word prediction in speak mode. NEW users get
+    // it ON at registration (user.rb generate_defaults, new_record? only); for
+    // everyone else only an explicit `true` shows it (null/undefined = off), so
+    // existing users are never silently enabled. Never shown in edit mode.
     if(this.get('edit_mode')) { return false; }
     return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
   }),
-  // On/off state of word prediction (default OFF — only explicit true is on),
+  // On/off state of word prediction (only an explicit `true` is on; null = off),
   // used by the BOARD SETTINGS → Word Prediction toggle — independent of
   // edit_mode, unlike show_word_suggestions which is always false while editing.
   word_suggestions_enabled: computed('app_state.referenced_user.preferences.word_suggestions', function() {
     return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
   }),
   // Where word prediction renders in speak mode (user pref). 'speak_bar' /
-  // 'side_rail' pin a layout at all widths via a shell class; 'auto' (default,
-  // empty class) keeps the responsive in-bar/rail switch. See app.scss
-  // ".md-shell--wordpred-*" rules.
+  // 'side_rail' pin a layout at all widths via a shell class; 'auto' keeps the
+  // responsive in-bar/rail switch (empty class). Default (unset) is 'side_rail'
+  // — a vertical rail just left of the sidebar — matching user.rb
+  // preference_defaults. See app.scss ".md-shell--wordpred-*" rules.
   word_suggestion_position_class: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position');
+    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
     if(pos === 'speak_bar') { return 'md-shell--wordpred-speak-bar'; }
     if(pos === 'side_rail') { return 'md-shell--wordpred-side-rail'; }
     return '';
@@ -1948,7 +2155,7 @@ export default Controller.extend(prefClasses, {
   // size dropdown's bindings in the same panel.
   word_prediction_position_dropdown_open: false,
   word_suggestion_position_value: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'auto';
+    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
   }),
   word_prediction_position_options: computed(function() {
     return [
@@ -2041,7 +2248,8 @@ export default Controller.extend(prefClasses, {
       };
     });
     if(result && result.length > 0) {
-      _this.set('suggestions', { ready: true, list: _this._decorate_suggestion_images(result) });
+      var decorated = _this._decorate_suggestion_images(result);
+      _this.set('suggestions', { ready: true, list: decorated });
       return;
     }
     if(!sentence) {
@@ -2117,7 +2325,7 @@ export default Controller.extend(prefClasses, {
     'model.locale',
     function() {
       // Skip the lookup entirely when in edit mode or word prediction is off
-      // (default OFF — only an explicit `true` enables it).
+      // (only an explicit `true` enables it; null/undefined = off).
       if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
         this.set('suggestions', null);
         return;
@@ -2460,7 +2668,9 @@ export default Controller.extend(prefClasses, {
       (row || []).forEach(function(btn) {
         if(!btn) { return; }
         total += 1;
-        var mods = btn.get('level_modifications');
+        // Buttons in ordered_buttons can be plain objects (not Ember objects),
+        // so guard .get — a bare btn.get('…') throws "btn.get is not a function".
+        var mods = btn.get ? btn.get('level_modifications') : btn.level_modifications;
         if(mods && Object.keys(mods).length > 0) {
           with_rules += 1;
         }
@@ -4255,6 +4465,16 @@ export default Controller.extend(prefClasses, {
     return appController;
   },
 
+  _sidebar_board_by_key: function(key) {
+    if(!key) { return null; }
+    var boards = this.get('app_state.sidebar_boards') || [];
+    for(var idx = 0; idx < boards.length; idx++) {
+      var b = boards[idx];
+      if(b && b.key === key) { return b; }
+    }
+    return { key: key };
+  },
+
   _maybeCloseInlineSidebarAfterAction: function() {
     var prefs = this.get('app_state.currentUser.preferences') || {};
     if(prefs.disable_quick_sidebar) { return; }
@@ -4270,7 +4490,9 @@ export default Controller.extend(prefClasses, {
       this.set('inlineSidebarOpen', false);
       return;
     }
-    if(prefs.quick_sidebar && !this.get('edit_mode')) {
+    // effective_quick_sidebar treats an UNSET preference as show, so the sidebar is
+    // open by default until the user collapses it (which persists quick_sidebar=false).
+    if(this.get('app_state.effective_quick_sidebar') && !this.get('edit_mode')) {
       this.set('inlineSidebarOpen', true);
     }
   },
@@ -4555,7 +4777,44 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  /* Persist the board light/dark viewing choice to the logged-in user's
+     preferences so it's remembered across sessions and shared with the
+     create-board-new preview (both read `preferences.board_dark_mode`). Uses
+     the same `device.updated` dirty-flag trick as the display-prefs save above,
+     since Ember Data doesn't reliably mark the `preferences` raw blob dirty when
+     only a sub-key changes. Best-effort — a failed save just leaves the prior
+     remembered value. */
+  _persist_board_dark_mode: function(val) {
+    var user = this.get('app_state.currentUser');
+    // Skip the save when the stored value already matches (e.g. clicking the
+    // already-active side of the segmented toggle) — avoids redundant writes and
+    // the last-write-wins race on rapid toggles. Normalized so unset (light) vs
+    // an explicit false doesn't trigger a pointless write.
+    //
+    // NOTE (security review — LOW, accepted): this skip removes the local/redundant
+    // races, but two TABS (or otherwise concurrent saves) can still last-write-wins
+    // on the prefs blob. That's inherent to every client preference in the app —
+    // there's no server-side version/lock on `preferences` — and it isn't introduced
+    // here. Worst case is a single stale boolean (light vs dark) that self-corrects on
+    // the next toggle; no data corruption. A true fix is optimistic concurrency
+    // (etag/version) on the user-prefs endpoint — a system-wide change, out of scope.
+    if(user && user.set && !!user.get('preferences.board_dark_mode') !== !!val) {
+      user.set('preferences.board_dark_mode', !!val);
+      user.set('preferences.device.updated', true);
+      if(user.save) { user.save().then(null, function() {}); }
+    }
+  },
+
   actions: {
+    re_transition: function() {
+      this.set('retrying', true);
+      this.router.refresh();
+    },
+
+    exitBoards: function() {
+      this.app_state.return_to_index();
+    },
+
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
       this.toggleProperty('show_options_menu');
@@ -4565,6 +4824,28 @@ export default Controller.extend(prefClasses, {
          collection, clicked the backdrop, then reopened the menu
          would see the collection still mid-render. */
       this.set('board_collection_open', false);
+      /* Communicator accounts (no supporter_role) get the Buttons section
+         expanded by default the first time the menu opens — Find a Button /
+         Focus Words / Show Hidden are their primary actions, so they
+         shouldn't have to dig. Supporters keep it collapsed. Guarded by a
+         one-time flag so a user's later manual collapse is respected on
+         subsequent opens.
+
+         NOTE (security review false-positive): `buttons_submenu_open` is NOT a
+         permission gate — it only controls whether an accordion section is
+         visually EXPANDED (`aria-expanded` + an `{{#if}}` in board-detail.hbs).
+         The items inside (Find a Button, etc.) are already rendered/usable to
+         anyone who can open this menu and carry their own access checks; the
+         `supporter_role` branch here only decides the initial expand state, so a
+         non-binary role (admin/supervisor) at worst sees the section pre-opened
+         or not — purely cosmetic, no boundary is crossed. The one-time instance
+         flag is intentionally per-session (a UX default, nothing to persist). */
+      if (!was_open && !this._buttons_submenu_defaulted) {
+        this._buttons_submenu_defaulted = true;
+        if (!this.get('app_state.currentUser.supporter_role')) {
+          this.set('buttons_submenu_open', true);
+        }
+      }
       // When opening, move keyboard focus into the menu's first item so
       // arrow-key / Tab navigation can begin there. When closing, return
       // focus to the trigger button so the user lands back where they
@@ -4675,71 +4956,16 @@ export default Controller.extend(prefClasses, {
       }
     },
 
-    // Arrow Up/Down for the per-button Edit/Color/Stash/Word Data/Clear dropdown
-    button_dropdown_keydown: function(btn_id, event) {
-      if(!event) { return; }
-      var key = event.key || event.keyCode;
-      var items = Array.prototype.slice.call(
-        document.querySelectorAll('#button-edit-dropdown .md-board-detail-symbol-card__edit-dropdown-item')
-      ).filter(function(el) { return el.offsetParent !== null; });
-      if(!items.length) { return; }
-      var idx = items.indexOf(document.activeElement);
-      var _this = this;
-
-      if(key === 'ArrowDown' || key === 40) {
-        event.preventDefault();
-        event.stopPropagation();
-        items[(idx + 1) % items.length].focus();
-      } else if(key === 'ArrowUp' || key === 38) {
-        event.preventDefault();
-        event.stopPropagation();
-        items[(idx - 1 + items.length) % items.length].focus();
-      } else if(key === 'Escape' || key === 'Esc' || key === 27) {
-        event.preventDefault();
-        event.stopPropagation();
-        // Close and return focus to the trigger that opened this menu
-        var trigger = document.querySelector('.md-board-detail-symbol-card[data-id="' + btn_id + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-        _this.set('button_menu_id', null);
-        if(trigger) { trigger.focus(); }
-      } else if(key === 'Tab' || key === 9) {
-        event.preventDefault();
-        event.stopPropagation();
-        // Close dropdown, find the next board button's label input
-        var currentBtnId = btn_id;
-        _this.set('button_menu_id', null);
-        // Get all button IDs from ordered_buttons in grid order
-        var ordered = _this.get('ordered_buttons') || [];
-        var allIds = [];
-        for(var r = 0; r < ordered.length; r++) {
-          var row = ordered[r];
-          for(var c = 0; c < row.length; c++) {
-            var b = row[c];
-            var id = b && (b.get ? b.get('id') : b.id);
-            if(id !== undefined && id !== null) { allIds.push(String(id)); }
-          }
-        }
-        var curIdx = allIds.indexOf(String(currentBtnId));
-        // Find the next non-empty button after current
-        runLater(function() {
-          for(var j = curIdx + 1; j < allIds.length; j++) {
-            var nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[j] + '"] .md-board-detail-symbol-card__label-input');
-            if(nextInput) {
-              nextInput.focus();
-              return;
-            }
-          }
-          // Wrap to first if at end
-          for(var k = 0; k < curIdx; k++) {
-            var firstInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[k] + '"] .md-board-detail-symbol-card__label-input');
-            if(firstInput) {
-              firstInput.focus();
-              return;
-            }
-          }
-        }, 50);
-      }
+    // Options-menu "Take a tour" item — start the board-detail SPEAK tour. The
+    // visible runner lives in the hidden {{guided-tour}} host; we trigger it by
+    // setting the same pending flag the post-"Pick this Board" auto-open uses
+    // (scoped to this board's key), which the host's watcher consumes and starts.
+    start_speak_tour: function() {
+      this.set('show_options_menu', false);
+      var app_state = this.get('app_state');
+      var key = app_state && app_state.get('currentBoardState.key');
+      if (key) { app_state.set('board_detail_tour_pending_speak', key); }
     },
-
     enter_edit_mode: function() {
       var _this = this;
       var app_state = this.get('app_state');
@@ -5155,6 +5381,7 @@ export default Controller.extend(prefClasses, {
     toggle_dark_mode: function() {
       this.set('show_options_menu', false);
       this.toggleProperty('dark_mode');
+      this._persist_board_dark_mode(this.get('dark_mode'));
     },
 
     // Explicit setter for the both-options segmented toggle in the
@@ -5162,6 +5389,7 @@ export default Controller.extend(prefClasses, {
     // clicking the already-active side is a harmless no-op.
     set_dark_mode: function(on) {
       this.set('dark_mode', !!on);
+      this._persist_board_dark_mode(!!on);
     },
 
     toggle_modeling: function() {
@@ -5653,7 +5881,7 @@ export default Controller.extend(prefClasses, {
     toggle_word_suggestions: function() {
       var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
       if(!prefUser) { return; }
-      var currentlyOn = prefUser.get('preferences.word_suggestions') !== false;
+      var currentlyOn = prefUser.get('preferences.word_suggestions') === true;
       prefUser.set('preferences.word_suggestions', !currentlyOn);
       if(prefUser.save) {
         prefUser.set('preferences.device.updated', true);
@@ -5809,6 +6037,38 @@ export default Controller.extend(prefClasses, {
       this.set('board_collection_open', false);
     },
 
+    /* Edit Sidebar — opens the inline sidebar-editor drawer (same pinned host as
+       My Board Collection). Triggered by the "Edit Sidebar" button at the top of
+       the inline sidebar. */
+    open_sidebar_editor: function() {
+      var _this = this;
+      var expand = function() {
+        _this.set('show_options_menu', false);
+        _this.set('board_collection_open', false);
+        _this.set('sidebar_editor_open', true);
+      };
+      // Optional PIN gate: when the user has enabled require_sidebar_edit_pin AND
+      // has a PIN configured, require the PIN before expanding the sidebar editor
+      // panel. Reuses the speak-mode-pin entry modal in validate-only 'none' mode
+      // (validates + resolves {correct_pin:true}, no side effect) — same shared
+      // speak_mode_pin value as the speak-mode exit/enter gates.
+      var user = this.get('app_state.currentUser');
+      var pin = user && user.get('preferences.speak_mode_pin');
+      if(user && user.get('preferences.require_sidebar_edit_pin') && pin) {
+        modal.open('speak-mode-pin', {
+          action: 'none',
+          hide_hint: user.get('preferences.hide_pin_hint')
+        }).then(function(res) {
+          if(res && res.correct_pin) { expand(); }
+        }, function() { });
+      } else {
+        expand();
+      }
+    },
+    close_sidebar_editor: function() {
+      this.set('sidebar_editor_open', false);
+    },
+
     /* Row click inside the collection: close the menu + collection
        first (so the dropdown isn't lingering open across the route
        transition) and then route to the chosen board in MODERN view.
@@ -5821,9 +6081,9 @@ export default Controller.extend(prefClasses, {
        `<user_name>/<board_slug>`; split on the FIRST `/` and pass
        both pieces. Anything after the first `/` rejoins so multi-
        segment slugs survive (e.g. `quick-core-112/categories/food`). */
-    select_board_from_collection: function(board) {
-      if(!board) { return; }
-      var key = (board.get && board.get('key')) || board.key;
+    select_board_from_collection: function(boardOrKey) {
+      if(!boardOrKey) { return; }
+      var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
       // Keep the collection PINNED (do NOT clear board_collection_open) so the
       // drawer stays open while the chosen board loads in the grid on the left.
       // board-detail's controller is a singleton across board-detail routes, so
@@ -5831,15 +6091,18 @@ export default Controller.extend(prefClasses, {
       // drawer's back button → close_board_collection) unpins onto whatever board
       // is showing — i.e. the last one selected.
       this.set('show_options_menu', false);
+      // Return the Transition (thenable) so BoardCollection can keep its
+      // in-place loading overlay up until the chosen board has finished
+      // loading on the left, then clear it.
       if(key && this.router) {
         var parts = key.split('/');
         if(parts.length >= 2) {
-          this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          return this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         } else {
           /* Defensive fallback: keys SHOULD always be `<user>/<slug>`,
              but if somehow not, fall back to the classic splat route
              rather than hard-failing the transition. */
-          this.router.transitionTo('board', key);
+          return this.router.transitionTo('board', key);
         }
       }
     },
@@ -5893,6 +6156,28 @@ export default Controller.extend(prefClasses, {
       // Blank buttons: do nothing, keep focus where it is
       var isEmpty = _get(button, 'empty') || !(_get(button, 'label') || _get(button, 'image_id') || _get(button, 'vocalization'));
       if(isEmpty) { return; }
+
+      // Swap mode: a held chip is REPLACED by any tapped board button — handled
+      // synchronously BEFORE folder navigation. On a SUCCESSFUL replace the held
+      // state clears + announces; on failure (button not resolvable / specialty /
+      // a condense-guarded utterance) the held state is KEPT so the user can pick a
+      // different target. Either way the tap is swallowed (never navigates/speaks
+      // mid-swap).
+      if(this.get('sentence_bar_editing_enabled') && this.get('swap_source_index') != null) {
+        var swap_em = editManager.find_button(this._btn_id(button));
+        var swap_src = this.get('swap_source_index');
+        var swap_label = _get(button, 'label') || _get(button, 'vocalization') || '';
+        if(swap_em && swap_em.get && utterance.replace_button(swap_src, swap_em)) {
+          this._deselect_chip();
+          this._announce_sentence_edit(i18n.t('sentence_bar_replaced', "Replaced word with %{word}", {word: swap_label}));
+        } else {
+          // Replace couldn't happen (button not resolvable / specialty / a
+          // condense-guarded utterance) — tell the user so the KEPT held state
+          // isn't a silent no-op; they can pick another word or cancel with ⇄/Esc.
+          this._announce_sentence_edit(i18n.t('sentence_bar_replace_unavailable', "That word can't replace the held one — pick another, or cancel."));
+        }
+        return;
+      }
 
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(button, 'load_board');
@@ -5962,6 +6247,7 @@ export default Controller.extend(prefClasses, {
       var board = _this.get('model');
       var em_button = editManager.find_button(btn_id);
       var has_em = em_button && em_button.get && typeof em_button.get === 'function';
+      // (Swap-mode replace is handled earlier, before folder navigation.)
       if(has_em && appController && appController.activateButton && board) {
         appController.activateButton(em_button, { board: board, trigger_source: 'click' });
       } else {
@@ -6011,7 +6297,6 @@ export default Controller.extend(prefClasses, {
     // ── Color Picker (board-detail specific) ──
 
     open_color_picker: function(button, event) {
-      this.set('button_menu_id', null);
       if(event) { event.stopPropagation(); }
       if(this.get('color_picker_button') === button) {
         this.set('color_picker_button', null);
@@ -6088,21 +6373,96 @@ export default Controller.extend(prefClasses, {
       // Skipping the global clear would leave button_list dirty, so a
       // subsequent activation that grows it would re-sync the stale
       // entries back into sentence_parts via the observer.
+      this._deselect_chip();
       this.set('sentence_parts', []);
       this._sentence_image_lookups = {};
       this._suggestion_image_lookups = {};
+      this._resolved_label_images = {};
       try { utterance.clear(); } catch(e) { }
     },
 
     backspace_sentence: function() {
       // Pop both local and global so the observer's next sync sees a
       // consistent state and does not restore the dropped entry.
+      this._deselect_chip();
       var parts = (this.get('sentence_parts') || []).slice();
       if(parts.length > 0) {
         parts.pop();
         this.set('sentence_parts', parts);
       }
       try { utterance.backspace(); } catch(e) { }
+    },
+
+    // ----- Speak-bar chip active-edit actions (feature: sentence_bar_editing) -----
+    // Open a chip's labeled menu. Fired by the component only after a deliberate
+    // 2s PRESS-AND-HOLD (a short tap never gets here — the hold guard is in the
+    // component), or by keyboard Enter/Space (deliberate). Re-triggering on the
+    // open chip closes it (toggle). (In swap mode a tap is a swap target instead —
+    // handled by chip_swap_target, which the component calls.)
+    select_chip: function(index) {
+      if(this.get('selected_chip_index') === index && this.get('chip_menu_open')) {
+        this._deselect_chip();
+        return;
+      }
+      this.set('swap_source_index', null);
+      this.set('selected_chip_index', index);
+      this._position_chip_menu();          // provisional (chip is rendered; menu isn't yet)
+      this.set('chip_menu_open', true);
+      runLater(this, this._position_chip_menu, 0); // exact, once the menu has laid out
+    },
+    // Tap ✕ — remove the chip (and its raw block) from the utterance.
+    remove_chip: function(index) {
+      var label = this._chip_label(index);
+      var ok = utterance.remove_button(index);
+      this._deselect_chip();
+      if(ok) { this._announce_sentence_edit(i18n.t('sentence_bar_removed', "Removed %{word}", {word: label})); }
+    },
+    // Tap ‹ / › — move the chip one position; selection follows it.
+    move_chip: function(index, direction) {
+      var total = (this.get('sentence_parts') || []).length;
+      var target = index + direction;
+      if(target < 0 || target >= total) { return; }
+      var label = this._chip_label(index);
+      var ok = utterance.move_button(index, direction);
+      if(ok) {
+        this.set('selected_chip_index', target);
+        // The chip moved — re-anchor the open menu under its new position once the
+        // reordered chips have re-rendered.
+        if(this.get('chip_menu_open')) { runLater(this, this._position_chip_menu, 0); }
+        this._announce_sentence_edit(i18n.t('sentence_bar_moved', "Moved %{word} to %{pos} of %{total}", {word: label, pos: target + 1, total: total}));
+      }
+    },
+    // Tap ⇄ — toggle swap/hold mode for this chip.
+    toggle_chip_swap: function(index) {
+      if(this.get('swap_source_index') === index) {
+        this.set('swap_source_index', null);
+        this._announce_sentence_edit(i18n.t('sentence_bar_swap_cancelled', "Cancelled swap"));
+      } else {
+        this.set('selected_chip_index', index);
+        this.set('swap_source_index', index);
+        this._announce_sentence_edit(i18n.t('sentence_bar_swap_holding', "Holding %{word}. Tap another word to swap, or a board button to replace it.", {word: this._chip_label(index)}));
+      }
+    },
+    // In swap mode, tapping another chip swaps the two positions.
+    chip_swap_target: function(index) {
+      var src = this.get('swap_source_index');
+      if(src == null || src === index) { this.set('swap_source_index', null); return; }
+      var a = this._chip_label(src), b = this._chip_label(index);
+      var ok = utterance.swap_buttons(src, index);
+      this._deselect_chip();
+      if(ok) { this._announce_sentence_edit(i18n.t('sentence_bar_swapped', "Swapped %{a} and %{b}", {a: a, b: b})); }
+    },
+    // Drop a dragged chip onto another position (pointer reorder).
+    chip_drag_move: function(from, to) {
+      var total = (this.get('sentence_parts') || []).length;
+      var label = this._chip_label(from);
+      var ok = utterance.move_to_index(from, to);
+      this._deselect_chip();
+      if(ok) { this._announce_sentence_edit(i18n.t('sentence_bar_moved', "Moved %{word} to %{pos} of %{total}", {word: label, pos: to + 1, total: total})); }
+    },
+    // Escape / outside — leave edit/swap mode.
+    cancel_chip_edit: function() {
+      this._deselect_chip();
     },
 
     open_speak_menu: function() {
@@ -6490,7 +6850,8 @@ export default Controller.extend(prefClasses, {
     // gives the new value. lock_quick_sidebar still prevents closing.
     toggleInlineSidebar: function() {
       var prefs = this.get('app_state.currentUser.preferences') || {};
-      if(this.get('inlineSidebarOpen') && prefs.quick_sidebar && prefs.lock_quick_sidebar) {
+      // effective_quick_sidebar so the lock also holds the default-shown sidebar open.
+      if(this.get('inlineSidebarOpen') && this.get('app_state.effective_quick_sidebar') && prefs.lock_quick_sidebar) {
         return;
       }
       var appController = this._sidebarAppController();
@@ -6503,7 +6864,9 @@ export default Controller.extend(prefClasses, {
       }
     },
     sidebar_jump: function(key, board) {
+      if(!key && board && board.key) { key = board.key; }
       if(!key) { return; }
+      board = board || this._sidebar_board_by_key(key);
       this._push_nav_history();
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
@@ -6512,6 +6875,9 @@ export default Controller.extend(prefClasses, {
       this._maybeCloseInlineSidebarAfterAction();
     },
     sidebar_special: function(board) {
+      if(typeof board === 'string') {
+        board = this._sidebar_board_by_key(board);
+      }
       var appController = this._sidebarAppController();
       if(appController && typeof appController.send === 'function') {
         appController.send('special', board);
@@ -6807,147 +7173,12 @@ export default Controller.extend(prefClasses, {
 
     // ── Button Operations ──
 
-    toggle_button_menu: function(btn) {
-      var _controller = this;
-      var btn_id = btn.get ? btn.get('id') : btn.id;
-      if(this.get('button_menu_id') === btn_id) {
-        this.set('button_menu_id', null);
-      } else {
-        this.set('button_menu_id', btn_id);
-        // Position the portal dropdown next to the trigger
-        runLater(function() {
-          var trigger = document.querySelector('.md-board-detail-symbol-card[data-id="' + btn_id + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-          var dropdown = document.getElementById('button-edit-dropdown');
-          if(trigger && dropdown) {
-            var rect = trigger.getBoundingClientRect();
-            var dropW = dropdown.offsetWidth;
-            var dropH = dropdown.offsetHeight;
-            var top = rect.top;
-            var left = rect.left - dropW;
-            if(top + dropH > window.innerHeight) { top = window.innerHeight - dropH - 8; }
-            if(top < 8) { top = 8; }
-            if(left < 8) { left = rect.right + 4; }
-            dropdown.style.top = top + 'px';
-            dropdown.style.left = left + 'px';
-            dropdown.style.visibility = 'visible';
-            // Focus the first menu item for keyboard navigation
-            var firstItem = dropdown.querySelector('.md-board-detail-symbol-card__edit-dropdown-item');
-            if(firstItem) { firstItem.focus(); }
-            // Attach native keydown to each menu item button
-            var menuItems = dropdown.querySelectorAll('.md-board-detail-symbol-card__edit-dropdown-item');
-            menuItems.forEach(function(item) {
-              if(item._keydownBound) { return; }
-              item._keydownBound = true;
-              item.addEventListener('keydown', function(e) {
-                var dd = document.getElementById('button-edit-dropdown');
-                if(!dd) { return; }
-                var btnId = dd.getAttribute('data-btn-id');
-                var items = Array.prototype.slice.call(
-                  dd.querySelectorAll('.md-board-detail-symbol-card__edit-dropdown-item')
-                );
-                var idx = items.indexOf(document.activeElement);
-                if(e.key === 'ArrowDown' || e.keyCode === 40) {
-                  e.preventDefault(); e.stopPropagation();
-                  items[(idx + 1) % items.length].focus();
-                } else if(e.key === 'ArrowUp' || e.keyCode === 38) {
-                  e.preventDefault(); e.stopPropagation();
-                  items[(idx - 1 + items.length) % items.length].focus();
-                } else if(e.key === 'Escape' || e.keyCode === 27) {
-                  e.preventDefault(); e.stopPropagation();
-                  _controller.set('button_menu_id', null);
-                  var trig = document.querySelector('.md-board-detail-symbol-card[data-id="' + btnId + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-                  if(trig) { trig.focus(); }
-                } else if(e.key === 'Tab' || e.keyCode === 9) {
-                  e.preventDefault(); e.stopPropagation();
-                  if(e.shiftKey) {
-                    // Shift+Tab: move to previous item, or exit on first
-                    if(idx <= 0) {
-                      // On first item — close and return to trigger
-                      _controller.set('button_menu_id', null);
-                      var trig2 = document.querySelector('.md-board-detail-symbol-card[data-id="' + btnId + '"] .md-board-detail-symbol-card__edit-menu-trigger');
-                      if(trig2) { trig2.focus(); }
-                    } else {
-                      items[idx - 1].focus();
-                    }
-                  } else {
-                    // Tab: move to next item, or exit on last
-                    if(idx >= items.length - 1) {
-                      // On last item — close and move to next button
-                      var ordered = _controller.get('ordered_buttons') || [];
-                      var allIds = [];
-                      for(var r = 0; r < ordered.length; r++) {
-                        for(var c = 0; c < ordered[r].length; c++) {
-                          var b = ordered[r][c];
-                          var bid = b && (b.get ? b.get('id') : b.id);
-                          if(bid !== undefined && bid !== null) { allIds.push(String(bid)); }
-                        }
-                      }
-                      var curIdx = allIds.indexOf(String(btnId));
-                      var nextInput = null;
-                      for(var j = curIdx + 1; j < allIds.length && !nextInput; j++) {
-                        nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[j] + '"] .md-board-detail-symbol-card__label-input');
-                      }
-                      if(!nextInput) {
-                        for(var k = 0; k < curIdx && !nextInput; k++) {
-                          nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[k] + '"] .md-board-detail-symbol-card__label-input');
-                        }
-                      }
-                      if(nextInput) { nextInput.focus(); }
-                      _controller.set('button_menu_id', null);
-                    } else {
-                      items[idx + 1].focus();
-                    }
-                  }
-                }
-              });
-            });
-          }
-        }, 50);
-      }
-    },
-
-    // Portal dropdown action wrappers — accept a button ID string instead of a button object
-    edit_button_settings_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      if(btn_id) { this._open_button_settings(btn_id, 'general'); }
-    },
-    open_color_picker_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('open_color_picker', button); }
-    },
-    stash_button_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('stash_button', button); }
-    },
-    word_data_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('word_data', button); }
-    },
-    clear_button_by_id: function(btn_id) {
-      this.set('button_menu_id', null);
-      var button = editManager.find_button(btn_id);
-      if(button) { this.send('clear_button', button); }
-    },
-
-    edit_button_settings: function(btn) {
-      this.set('button_menu_id', null);
-      var btn_id = this._btn_id(btn);
-      if(btn_id) {
-        this._open_button_settings(btn_id, 'general');
-      }
-    },
-
     clear_button: function(btn) {
-      this.set('button_menu_id', null);
       var btn_id = this._btn_id(btn);
       if(btn_id) { editManager.clear_button(btn_id); }
     },
 
     stash_button: function(btn) {
-      this.set('button_menu_id', null);
       var btn_id = this._btn_id(btn);
       if(btn_id) {
         editManager.stash_button(btn_id);
@@ -6956,7 +7187,6 @@ export default Controller.extend(prefClasses, {
     },
 
     word_data: function(btn) {
-      this.set('button_menu_id', null);
       if(!btn) { return; }
       var label = btn.get ? btn.get('label') : btn.label;
       var vocalization = btn.get ? btn.get('vocalization') : btn.vocalization;
@@ -6971,6 +7201,14 @@ export default Controller.extend(prefClasses, {
       var board = this.get('model');
       if(!board) { return; }
       modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
+    },
+
+    // Opens the Speak Mode PIN settings modal (Board Actions → PIN). The modal
+    // edits user.preferences.require_speak_mode_pin / speak_mode_pin /
+    // hide_pin_hint and saves each change live.
+    pin_settings: function() {
+      this.set('details_dropdown_open', false);
+      modal.open('pin-settings', {});
     },
 
     // Language → opens the Translate Boards modal. Called from the

@@ -1,4 +1,18 @@
-import DS from 'ember-data';
+import RESTSerializer from '@ember-data/serializer/rest';
+
+var EMBER_DATA_INTERNAL_KEYS = [
+  'currentState', 'isSaving', 'isError', 'isDirty', 'adapterError', 'errors'
+];
+
+function stripEmberDataInternalKeys(hash) {
+  if (!hash || typeof hash !== 'object') {
+    return hash;
+  }
+  EMBER_DATA_INTERNAL_KEYS.forEach(function(key) {
+    delete hash[key];
+  });
+  return hash;
+}
 
 /**
  * Application Serializer
@@ -8,7 +22,14 @@ import DS from 'ember-data';
  * 
  * Models can override this by creating type-specific serializers if needed.
  */
-export default DS.RESTSerializer.extend({
+export default RESTSerializer.extend({
+  normalize(typeClass, hash) {
+    if (hash && typeof hash === 'object') {
+      hash = Object.assign({}, hash);
+      stripEmberDataInternalKeys(hash);
+    }
+    return this._super(typeClass, hash);
+  },
   /**
    * Normalize the response to handle the 'self' user ID mismatch.
    * When requesting 'user' with id 'self', the API returns a user with a different ID.
@@ -38,6 +59,11 @@ export default DS.RESTSerializer.extend({
           payload = Object.assign({}, userData, { id: 'self', _actual_id: actualId });
         }
       }
+    }
+
+    // store.query expects an array; keyed board lookups may return a single object.
+    if (primaryModelClass.modelName === 'board' && requestType === 'query' && payload && payload.board && !Array.isArray(payload.board)) {
+      payload = Object.assign({}, payload, { board: [payload.board] });
     }
 
     // Handle board findRecord when API returns a list (meta + board array) instead of a single board.
@@ -86,6 +112,8 @@ export default DS.RESTSerializer.extend({
     if (primaryModelClass.modelName === 'board' && payload) {
       if (payload.images) { delete payload.images; }
       if (payload.sounds) { delete payload.sounds; }
+      if (payload.image) { delete payload.image; }
+      if (payload.sound) { delete payload.sound; }
     }
 
     // When the server deduplicates an image or sound on createRecord, it may return
@@ -98,16 +126,19 @@ export default DS.RESTSerializer.extend({
       if (mediaData && mediaData.id) {
         var conflictId = String(mediaData.id);
         try {
-          var allRecs = store.peekAll(mediaKey).toArray();
+          // Snapshot before unload — avoid mutating the live RecordArray mid-loop.
+          var allRecs = store.peekAll(mediaKey).slice();
           for (var mi = 0; mi < allRecs.length; mi++) {
             if (String(allRecs[mi].get('id')) === conflictId) {
-              // Force the record out of saving state so it can be unloaded
+              // Roll back in-flight attrs so unload works (ED 5: currentState is not settable via .set())
               try {
-                allRecs[mi].set('currentState.isSaving', false);
-              } catch(eSt) {}
+                if (allRecs[mi].rollbackAttributes) {
+                  allRecs[mi].rollbackAttributes();
+                }
+              } catch (eRoll) {}
               try {
                 store.unloadRecord(allRecs[mi]);
-              } catch(eUn) {}
+              } catch (eUn) {}
             }
           }
         } catch(eAll) {}

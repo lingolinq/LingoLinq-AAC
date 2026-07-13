@@ -97,11 +97,18 @@ class BoardsController < ApplicationController
 
   def lesson
     @lesson = Lesson.find_by_path(params['lesson_id'])
-    @lesson = nil unless @lesson.nonce == params['lesson_code']
-    @user = User.find_by_token(params['user_token'])
-    if !@user || !@lesson
-      return redirect_to '/404'
-    end
+    # Nil-safe guard (intentional in-scope hardening): a genuinely missing lesson must 404,
+    # not raise NoMethodError->500, when calling .nonce on a nil @lesson.
+    @lesson = nil unless @lesson && @lesson.nonce == params['lesson_code']
+    return redirect_to '/404' unless @lesson
+    # @user is intentionally unused below (render :index doesn't branch on it) — kept only so an
+    # accepted legacy permanent-token still logs [lesson_share_legacy_token] for LL-310b464be4
+    # sunset telemetry.
+    @user = User.find_by_lesson_share_token(params['user_token'])
+    # The lesson exists and its nonce matched, so boot the Ember app even when the share token is
+    # missing/expired/invalid, so routes/lesson.js can show the explanatory link-expired state
+    # (LL-90045bb29c follow-up). Do not distinguish expired-vs-invalid here to avoid a
+    # token-validity oracle (UX-05).
     render :index
     #render :lesson, :layout => false
   end

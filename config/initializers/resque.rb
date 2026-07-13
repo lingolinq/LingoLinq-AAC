@@ -7,6 +7,94 @@ module RedisInit
     URI.parse(redis_url)
   end
 
+  # Builds the option hash for Redis.new from a parsed redis URI. Backward
+  # compatible: a redis:// URI yields exactly the historical {host, port,
+  # password} hash with no :ssl key, so the Render environment is unchanged.
+  # A rediss:// URI (GCP Memorystore with AUTH + TLS, SERVER_AUTHENTICATION
+  # mode) additionally enables :ssl and validates the server cert against the
+  # supplied CA. SERVER_AUTHENTICATION presents no client cert.
+  def self.redis_options(uri, extra = {})
+    opts = { :host => uri.host, :port => uri.port, :password => uri.password }
+    if uri.scheme == 'rediss'
+      opts[:ssl] = true
+      ssl_params = redis_ssl_params
+      opts[:ssl_params] = ssl_params unless ssl_params.empty?
+    end
+    opts.merge(extra)
+  end
+
+  # SSL params for a rediss:// (TLS) connection, passed straight to
+  # OpenSSL::SSL::SSLContext#set_params by redis-rb. Prefers a CA file path
+  # (REDIS_CA_FILE), falling back to inline PEM contents (REDIS_CA_CERT) which
+  # suits Cloud Run + Secret Manager where mounting a file is extra work.
+  # Either source may hold multiple concatenated certificates so a Memorystore
+  # CA rotation does not drop the connection. When neither is set the OpenSSL
+  # default trust store is used (verification still on); the Memorystore
+  # per-instance CA is NOT in that store, so one of these env vars must be set
+  # against a live instance.
+  #
+  # REDIS_TLS_VERIFY_HOSTNAME=false additionally turns OFF hostname matching
+  # while leaving CA-chain verification (VERIFY_PEER) ON. This is required for
+  # Memorystore: redis-client sets the TLS SNI hostname to the connection host
+  # (the instance's private IP), and set_params defaults verify_hostname=true,
+  # so the handshake rejects the server cert -- which is issued for the instance,
+  # not the IP -- even with a correct CA. Default (unset) leaves hostname
+  # verification ON, so redis:// (Render) and any DNS-named TLS endpoint are
+  # unchanged.
+  def self.redis_ssl_params
+    require 'openssl'
+
+    params = {}
+
+    ca_file = ENV['REDIS_CA_FILE']
+    ca_cert = ENV['REDIS_CA_CERT']
+    if ca_file && !ca_file.empty?
+      params[:ca_file] = ca_file
+    elsif ca_cert && !ca_cert.empty?
+      store = OpenSSL::X509::Store.new
+      added = 0
+      ca_cert.scan(/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/m).each do |pem|
+        begin
+          store.add_cert(OpenSSL::X509::Certificate.new(pem))
+          added += 1
+        rescue OpenSSL::OpenSSLError
+          # Skip a bad cert rather than crashing boot, which would defeat the
+          # rotation resilience above. Both failure modes descend from
+          # OpenSSLError: a duplicate (old + new blob overlapping during a CA
+          # rotation) raises X509::StoreError ("cert already in hash table"),
+          # and a malformed body inside valid fences raises X509::CertificateError.
+        end
+      end
+      # Name the misconfiguration at boot rather than failing later as an opaque
+      # handshake error: REDIS_CA_CERT was set but produced no usable anchors.
+      raise 'REDIS_CA_CERT set but no valid certificates parsed' if added == 0
+      params[:cert_store] = store
+    end
+
+    if tls_hostname_verification_disabled?
+      # Disabling hostname verification is only safe while the chain is still
+      # pinned to a known CA. With no REDIS_CA_FILE/REDIS_CA_CERT we would fall
+      # back to the system trust store with hostname matching off, which accepts
+      # ANY publicly-trusted cert -- a silent MITM hole. Fail closed instead.
+      if params[:ca_file].nil? && params[:cert_store].nil?
+        raise 'REDIS_TLS_VERIFY_HOSTNAME is off but no REDIS_CA_FILE/REDIS_CA_CERT is set; ' \
+              'refusing to skip hostname verification without a pinned CA'
+      end
+      params[:verify_hostname] = false
+    end
+
+    params
+  end
+
+  # True only when REDIS_TLS_VERIFY_HOSTNAME is explicitly set to a false-y
+  # value (false / 0 / no / off, case-insensitive). Unset, blank, or anything
+  # else leaves hostname verification ON -- secure by default.
+  def self.tls_hostname_verification_disabled?
+    val = ENV['REDIS_TLS_VERIFY_HOSTNAME']
+    return false if val.nil? || val.strip.empty?
+    %w[false 0 no off].include?(val.strip.downcase)
+  end
+
   def self.init
     uri = redis_uri
     return if !uri && ENV['SKIP_VALIDATIONS']
@@ -20,13 +108,30 @@ module RedisInit
     end
     @ns_suffix = ns_suffix
     if defined?(Resque)
-      Resque.redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+      Resque.redis = Redis.new(redis_options(uri))
       Resque.redis.namespace = "lingolinq#{ns_suffix}"
     end
-    @redis_inst = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password, :timeout => 5)
+    @redis_inst = Redis.new(redis_options(uri, :timeout => 5))
     @default = Redis::Namespace.new("lingolinq-stash#{ns_suffix}", :redis => @redis_inst)
     @permissions = Redis::Namespace.new("lingolinq-permissions#{ns_suffix}", :redis => @redis_inst)
-    self.cache_token = 'abc'
+    self.cache_token = resolved_cache_token
+  end
+
+  # The cache_token namespaces the shared permission cache (see Permissable
+  # below), so EVERY web/worker process in a deploy MUST resolve to the SAME
+  # value or they would read/write disjoint permission caches. A static 'abc'
+  # (LL-c6dd65a2aa) was predictable and never rotated. Resolve from env in
+  # preference order, all of which are process-invariant within a deploy:
+  #   CACHE_TOKEN       - explicit operator-set secret (preferred)
+  #   RENDER_GIT_COMMIT - deploy SHA on Render (current platform)
+  #   K_REVISION        - Cloud Run revision name (GCP migration target)
+  # Falling back to 'abc' only in local/dev/test where none are set, preserving
+  # existing behavior there. Deterministic: no per-process randomness.
+  def self.resolved_cache_token
+    ENV['CACHE_TOKEN'].presence ||
+      ENV['RENDER_GIT_COMMIT'].presence ||
+      ENV['K_REVISION'].presence ||
+      'abc'
   end
 
   def self.memory
@@ -57,7 +162,7 @@ module RedisInit
 
   def self.errors
     uri = RedisInit.redis_uri
-    redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+    redis = Redis.new(redis_options(uri))
     key = "lingolinq#{@ns_suffix}:failed"
     redis.type(key)
     len = redis.llen(key)
@@ -107,7 +212,7 @@ module RedisInit
 
   def self.size_check(verbose=false)
     uri = redis_uri
-    redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+    redis = Redis.new(redis_options(uri))
     total =  0
     prefixes = {}
     redis.keys.each do |key|

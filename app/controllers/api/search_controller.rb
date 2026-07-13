@@ -224,16 +224,21 @@ class Api::SearchController < ApplicationController
       end
     end
     
-    # TODO: add timeout for slow requests
-    request = Typhoeus::Request.new(uri.to_s, followlocation: true)
     error = nil
     s3_cache_miss = false
+    fetched_content_type = nil
+    fetched_body = nil
     begin
-      content_type, body = get_url_in_chunks(request)
-      if content_type == 'redirect'
-        uri = URI.parse(body)
-        request = Typhoeus::Request.new(uri.to_s, followlocation: true)
-        content_type, body = get_url_in_chunks(request)
+      request = safe_proxy_request(uri.to_s)
+      redirects = 0
+      loop do
+        fetched_content_type, fetched_body = get_url_in_chunks(request)
+        break unless fetched_content_type == 'redirect'
+
+        redirects += 1
+        raise BadFileError, 'too many redirects' if redirects > SafeHttp::MAX_REDIRECTS
+
+        request = safe_proxy_request(fetched_body)
       end
     rescue BadFileError => e
       error = e.message
@@ -254,22 +259,28 @@ class Api::SearchController < ApplicationController
     if s3_cache_miss && @api_user
       retried = attempt_button_set_regenerate(url)
       if retried
-        content_type, body = retried
+        fetched_content_type, fetched_body = retried
         error = nil
       end
     end
 
     if !error
-      str = "data:" + content_type
-      str += ";base64," + Base64.strict_encode64(body)
+      str = "data:" + fetched_content_type
+      str += ";base64," + Base64.strict_encode64(fetched_body)
       # Rails 7: render json: expects a hash, not a pre-encoded string
-      render json: {content_type: content_type, data: str}
+      render json: {content_type: fetched_content_type, data: str}
     else
       api_error 400, {error: error}
     end
   end
 
   private
+
+  def safe_proxy_request(url)
+    request = SafeHttp.build_typhoeus_request(url)
+    raise BadFileError, 'blocked or invalid URL' unless request
+    request
+  end
 
   def attempt_button_set_regenerate(url)
     match = url.to_s.match(%r{/button_set_cache/([^/]+)/})
@@ -304,7 +315,7 @@ class Api::SearchController < ApplicationController
     return nil unless result && result[:success] && result[:url]
     return nil if result[:url] == url
 
-    retry_request = Typhoeus::Request.new(result[:url], followlocation: true)
+    retry_request = safe_proxy_request(result[:url])
     content_type, body = get_url_in_chunks(retry_request)
     [content_type, body]
   rescue => e

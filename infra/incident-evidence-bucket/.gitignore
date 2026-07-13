@@ -1,0 +1,7 @@
+# Never commit local TF state or filled-in vars (may carry account ARNs / secrets).
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+crash.log

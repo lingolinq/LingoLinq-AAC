@@ -1,5 +1,7 @@
 require 'aws-sdk-s3'
 require 'accessible-books'
+require 'ipaddr'
+require_relative 'safe_http'
 
 module Uploader
   S3_EXPIRATION_TIME=60*60
@@ -77,12 +79,41 @@ module Uploader
   end
 
   def self.sanitize_url(url)
-    uri = URI.parse(url) rescue nil
+    str = url.to_s
+    uri = parse_http_uri(str)
     return nil unless uri
-    return nil if !Rails.env.development? && (uri.host.match(/^127/) || uri.host.match(/localhost/) || uri.host.match(/^0/) || uri.host.to_s == uri.host.to_i.to_s)
+    # Only ever fetch over http(s) — reject file://, gopher://, ftp://, data:, etc.
+    # (also prevents a nil-host crash on schemeless/opaque URIs below).
+    return nil unless ['http', 'https'].include?(uri.scheme)
+    return nil if uri.host.to_s.strip.empty?
+    unless Rails.env.development?
+      return nil if uri.host.match(/^127/) || uri.host.match(/localhost/) || uri.host.match(/^0/) || uri.host.to_s == uri.host.to_i.to_s
+      # Block IP-literal hosts pointing at loopback / link-local / private space —
+      # the SSRF targets the string checks above miss: cloud metadata
+      # 169.254.169.254 (link-local), RFC1918 10.x / 172.16-31.x / 192.168.x
+      # (private), ::1, fe80::, fc00::, and carrier-grade NAT 100.64/10. Only
+      # applies to literal IPs; hostname DNS-to-internal and rebinding are blocked
+      # at fetch time by SafeHttp (resolve + CURLOPT_RESOLVE pin).
+      literal = (IPAddr.new(uri.host.sub(/^\[/, '').sub(/\]$/, '')) rescue nil)
+      return nil if literal && SafeHttp.blocked_address?(literal)
+    end
     port_suffix = ""
     port_suffix = ":#{uri.port}" if (uri.scheme == 'http' && uri.port != 80)
     "#{uri.scheme}://#{uri.host}#{port_suffix}#{uri.path}#{uri.query && "?#{uri.query}"}"
+  end
+
+  # OpenSymbols/Mulberry URLs often include spaces (e.g. "lunch 2.svg").
+  def self.parse_http_uri(str)
+    URI.parse(str)
+  rescue URI::InvalidURIError
+    escaped = URI.escape(str) rescue nil
+    return nil if escaped.blank?
+
+    begin
+      URI.parse(escaped)
+    rescue URI::InvalidURIError
+      nil
+    end
   end
 
   def self.invalidate_cdn(remote_path)
@@ -258,7 +289,40 @@ module Uploader
   rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
     nil
   end
-  
+
+  # Rewrites an uploads-bucket URL to a presigned GET for server-internal HTTP
+  # fetches (extra_data reassembly, OBF export image embedding). The bucket
+  # blocks all public access, so an unsigned GET on the raw URL 403s. Unlike
+  # presigned_url_for_uploads there is no head_object existence check (the
+  # caller already tolerates fetch failure), and any non-bucket URL (CDN,
+  # external, data:) passes through untouched.
+  def self.signed_internal_url(url)
+    remote_path = nil
+    bucket = ENV['UPLOADS_S3_BUCKET']
+    if bucket.present? && url.present?
+      bucket_re = Regexp.escape(bucket)
+      if url.match(/^https:\/\/#{bucket_re}\.s3\.amazonaws\.com\//)
+        remote_path = url.sub(/^https:\/\/#{bucket_re}\.s3\.amazonaws\.com\//, '')
+      elsif url.match(/^https:\/\/s3\.amazonaws\.com\/#{bucket_re}\//)
+        remote_path = url.sub(/^https:\/\/s3\.amazonaws\.com\/#{bucket_re}\//, '')
+      end
+    end
+    # Unlike presigned_url_for_uploads, a leading slash is deliberately KEPT:
+    # legacy extra_data version-0 paths start with '/' (extra_data_remote_paths
+    # prepends it), the object was uploaded under that literal key, and the old
+    # unsigned double-slash URL resolved to the same slash-prefixed key.
+    return url unless remote_path.present?
+
+    config = remote_upload_config
+    return url unless config[:access_key] && config[:secret]
+    presigned_get_url(s3_client(config), bucket, remote_path)
+  rescue StandardError
+    # Graceful pass-through by design: callers (assert_extra_data, OBF
+    # save_image) tolerate a failed fetch but have no rescue around URL
+    # construction, so signing must never raise into them.
+    url
+  end
+
   # SigV4-signed browser POST policy (via Aws::S3::PresignedPost). A hand-signed
   # SigV2 policy (AWSAccessKeyId + HMAC-SHA1) can't satisfy buckets that require
   # SSE-KMS ("Requests specifying Server Side Encryption with AWS KMS managed
@@ -294,8 +358,16 @@ module Uploader
       # remote_remove) -- expects this exact global form, not a regional one.
       # post_url is the actual SigV4 POST target: it MUST be the bucket's real
       # regional endpoint, since the presigned policy's credential scope is
-      # bound to that region and posting cross-region would depend on 307
-      # redirect-following (which Typhoeus/browsers don't reliably do for POST).
+      # bound to that region. Deliberately NOT relying on the global endpoint's
+      # cross-region 307 redirect for this (AWS's own guidance: many HTTP
+      # clients handle non-GET redirects incorrectly, and regions launched
+      # after 2019-03-20 get a hard 400 instead of a redirect at all).
+      # Known limitation: a browser tab with the frontend already loaded before
+      # this field was introduced will still POST to upload_url (global) with a
+      # region-bound signature, which can fail during the deploy window. Not
+      # fixed here: zero real users on any environment as of this writing
+      # (staging-only pre-MVP), and the failure is self-healing on next page
+      # load. Revisit before real users land on a rolling-deploy environment.
       :upload_url => config[:upload_url],
       :post_url => "#{post.url}/",
       :upload_params => post.fields
@@ -344,7 +416,7 @@ module Uploader
   def self.remote_zip(url, &block)
     result = []
     Progress.update_current_progress(0.1, :downloading_file)
-    response = Typhoeus.get(Uploader.sanitize_url(url))
+    response = SafeHttp.get(url)
     Progress.update_current_progress(0.2, :processing_file)
     file = Tempfile.new('stash')
     file.binmode
@@ -413,6 +485,35 @@ module Uploader
     res = url.match(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//)
     res ||= url.match(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//)
     !!res
+  end
+
+  # Remote path for a JSON bundle the user uploaded via from_json_bundle presign
+  # (imports/boards/{global_id}/bundle-*.json), or nil if the URL is not allowed.
+  def self.import_bundle_remote_path(user_global_id, url)
+    return nil if user_global_id.blank? || url.blank?
+
+    path = url.to_s
+    if ENV['UPLOADS_S3_BUCKET'].present?
+      bucket = Regexp.escape(ENV['UPLOADS_S3_BUCKET'].to_s.strip)
+      path = path.sub(%r{\Ahttps://#{bucket}\.s3\.amazonaws\.com/}, '')
+      path = path.sub(%r{\Ahttps://s3\.amazonaws\.com/#{bucket}/}, '')
+    end
+    if ENV['UPLOADS_S3_CDN'].present?
+      cdn = Regexp.escape(ENV['UPLOADS_S3_CDN'].to_s.sub(%r{/+\z}, ''))
+      path = path.sub(%r{\A#{cdn}/}, '')
+    end
+    path = path.sub(%r{\A/+}, '')
+
+    gid = Regexp.escape(user_global_id.to_s)
+    return path if path.match?(%r{\Aimports/boards/#{gid}/bundle-[\w-]+\.json\z}i)
+
+    nil
+  end
+
+  def self.valid_import_bundle_url?(url, user_global_id)
+    return false unless url.to_s.start_with?('https://')
+
+    import_bundle_remote_path(user_global_id, url).present?
   end
   
   def self.lessonpix_credentials(opts)

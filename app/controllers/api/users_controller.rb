@@ -252,6 +252,7 @@ class Api::UsersController < ApplicationController
     end
     user = User.process_new(user_data, {:pending => true, :author => @api_user})
     start_progress = nil
+    start_code_org = nil
     if !user || user.errored?
       return api_error(400, {error: "user creation failed", errors: user && user.processing_errors})
     end
@@ -259,8 +260,71 @@ class Api::UsersController < ApplicationController
       # Process start code actions once the user is fully created (can't add supervisors beforehand)
       res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
+      start_code_org = res[:target] if res.is_a?(Hash) && res[:target].is_a?(Organization)
     end
     UserBoardProvisioner.provision_for(user)
+    # Org-authored (school-official) creation: emit the immutable authorization audit
+    # now that the user is persisted. process_params recorded the basis in settings
+    # but had no global_id to key the event on. This makes every school-authorized
+    # under-13 account creation traceable to the authorizing org and manager.
+    sa = user.settings && user.settings['school_authorization']
+    if sa.is_a?(Hash) && sa['basis'] == 'school_official'
+      begin
+        AuditEvent.create!(
+          user_key: user.global_id,
+          data: {
+            'type' => 'school_authorization',
+            'basis' => sa['basis'],
+            'organization_id' => sa['organization_id'],
+            'authorized_by' => sa['authorized_by'],
+            'record_id' => sa['record_id']
+          },
+          event_type: 'school_authorization',
+          record_id: sa['record_id']
+        )
+      rescue => e
+        # Fail-open: the child account is already persisted, so a failed audit insert
+        # must NOT 500 the request (that would orphan the account and invite a
+        # duplicate-creating retry). Log loudly so a missed accounting-of-disclosure
+        # row is caught. e.message can echo DB input, so PII-scrub it (guarded, the
+        # same way AuditEvent.log_command does) rather than logging the raw message.
+        detail = begin
+          PiiScrubber.scrub_log_line(e.message.to_s).truncate(300)
+        rescue ScriptError, StandardError => scrub_err
+          "[unscrubbable:#{scrub_err.class}]"
+        end
+        Rails.logger.error("school_authorization audit failed to persist for #{user.global_id}: #{e.class} #{detail}")
+      end
+    end
+    # General account-creation audit trail (LL-d35cbdb313): fires for EVERY new account,
+    # regardless of how it was created (self-registration, admin-created, or via an org
+    # start code). This is additive to, not a replacement for, the school_authorization
+    # event above -- that one separately records the specific COPPA authorization basis
+    # for org-authored under-13 accounts. Together: "was any account created" (this event,
+    # always) vs. "was it specifically authorized under the school exception" (that event,
+    # only when applicable).
+    begin
+      AuditEvent.create!(
+        user_key: user.global_id,
+        data: {
+          'type' => 'user_creation',
+          'author' => @api_user && @api_user.global_id,
+          'via_start_code' => !!(user_data && user_data['start_code'].present?),
+          'organization_id' => start_code_org && start_code_org.global_id
+        },
+        event_type: 'user_creation',
+        record_id: start_code_org && start_code_org.global_id
+      )
+    rescue => e
+      # Fail-open, same rationale as school_authorization above: the account is already
+      # persisted, so a failed audit insert must not 500 the request or orphan the account.
+      detail = begin
+        PiiScrubber.scrub_log_line(e.message.to_s).truncate(300)
+      rescue ScriptError, StandardError => scrub_err
+        "[unscrubbable:#{scrub_err.class}]"
+      end
+      Rails.logger.error("user_creation audit failed to persist for #{user.global_id}: #{e.class} #{detail}")
+    end
     coppa_pending = user.coppa_parental_consent_pending?
     unless coppa_pending
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)
@@ -382,9 +446,14 @@ class Api::UsersController < ApplicationController
     return unless allowed?(user, 'delete')
     return api_error(400, {'flushed' => 'false', 'user_name_math' => (user.user_name == params['user_name']), 'user_id_match' => (user.global_id == params['confirm_user_id'])}) unless user.user_name == params['user_name'] && user.global_id == params['confirm_user_id']
     progress = Progress.schedule(Flusher, :flush_user_logs, user.global_id, user.user_name, for_user: @api_user)
+    AuditEvent.log_command(@api_user.global_id, {
+      'type' => 'user_logs_flush_scheduled',
+      'user_id' => user.global_id,
+      'progress_id' => progress.global_id
+    })
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
-  
+
   def flush_user
     user = User.find_by_path(params['user_id'])
     return unless allowed?(user, 'delete')
@@ -394,6 +463,11 @@ class Api::UsersController < ApplicationController
     Purchasing.cancel_other_subscriptions(user, 'all')
     SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
     AdminMailer.schedule_delivery(:opt_out, user.global_id, 'deleted')
+    AuditEvent.log_command(@api_user.global_id, {
+      'type' => 'user_deletion_scheduled',
+      'user_id' => user.global_id,
+      'scheduled_deletion_at' => user.schedule_deletion_at&.iso8601
+    })
     render json: {flushed: 'pending'}
   end
   
@@ -493,6 +567,14 @@ class Api::UsersController < ApplicationController
       user_id = params['user_id']
     end
     return unless exists?(user_id)
+    # Accounting-of-disclosure: admin-support reads of another user's full version
+    # history are timestamped. Self-reads are not logged.
+    if @api_user && user_id != @api_user.global_id
+      AuditEvent.log_command(@api_user.global_id, {
+        'type' => 'admin_support_history_read',
+        'user_id' => user_id
+      })
+    end
     versions = User.user_versions(user_id)
     render json: JsonApi::UserVersion.paginate(params, versions, {:admin => Organization.admin_manager?(@api_user)})
   end
@@ -698,30 +780,16 @@ class Api::UsersController < ApplicationController
     end
     not_disabled_users = users.select{|u| !u.settings['email_disabled'] }
     reset_users = not_disabled_users.select{|u| u.generate_password_reset }
-    if users.length > 0
-      if reset_users.length > 0
-        UserMailer.schedule_delivery(:forgot_password, reset_users.map(&:global_id))
-        if reset_users.length == users.length
-          render json: {email_sent: true, users: users.length}
-        else
-          message = "One or more of the users matching that name or email have had too many password resets, so those links weren't emailed to you. Please wait at least three hours and try again."
-          render json: {email_sent: true, users: users.length, message: message}
-        end
-      else
-        message = "All users matching that name or email have had too many password resets. Please wait at least three hours and try again."
-        message = "The user matching that name or email has had too many password resets. Please wait at least three hours and try again." if users.length == 1
-        message = "The email address for that account has been manually disabled." if not_disabled_users.length == 0
-        api_error 400, {email_sent: false, users: 0, error: message, message: message}
-      end
-    else
-      if params['key'] && params['key'].match(/@/)
-        UserMailer.schedule_delivery(:login_no_user, params['key'])
-        render json: {email_sent: true, users: 0}
-      else
-        message = "No users found with that name or email."
-        api_error 400, {email_sent: false, users: 0, error: message, message: message}
-      end
+    # Send the appropriate email when one is warranted, but always return the
+    # same response shape regardless of whether an account exists, is disabled,
+    # or is throttled. Leaking existence (via a users count, a 400 status, or a
+    # distinguishing message) enabled account enumeration (finding LL-9a3ee852d5).
+    if reset_users.length > 0
+      UserMailer.schedule_delivery(:forgot_password, reset_users.map(&:global_id))
+    elsif users.length == 0 && params['key'] && params['key'].match(/@/)
+      UserMailer.schedule_delivery(:login_no_user, params['key'])
     end
+    render json: {email_sent: true}
   end
 
   # Re-send parental consent email when the child cannot log in until a parent approves (same flow as signup).
@@ -828,6 +896,12 @@ class Api::UsersController < ApplicationController
         api_error 400, {error: 'Not authorized', unauthorized: true}
         return
       end
+      # Accounting-of-disclosure: admin-support reads of another user's daily-use
+      # communication log are timestamped.
+      AuditEvent.log_command(@api_user.global_id, {
+        'type' => 'admin_support_daily_use_read',
+        'user_id' => user.global_id
+      })
     end
     log = LogSession.find_by(:user_id => user.id, :log_type => 'daily_use')
     if log
@@ -868,7 +942,7 @@ class Api::UsersController < ApplicationController
 
   def protected_image
     user = User.find_by_path(params['user_id'])
-    api_user = User.find_by_token(params['user_token'])
+    api_user = User.find_by_protected_image_token(params['user_token'])
     valid_result = nil
     if !api_user
       expires_in 30.minutes, :public => true

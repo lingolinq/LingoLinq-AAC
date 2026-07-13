@@ -1,0 +1,58 @@
+# Gitleaks configuration for LingoLinq-AAC.
+#
+# Extends the full default ruleset and adds ONE narrowly-scoped allowlist for a
+# known false positive: gitleaks' `generic-api-key` rule (a long/high-entropy
+# string heuristic) matches i18n translation keys/values in the locale files
+# (e.g. the `landing_a11y_neurodivergent` accessibility keys), none of which are
+# secrets. The allowlist is intentionally narrow:
+#   - targetRules = ["generic-api-key"]  -> ONLY that one noisy rule is relaxed;
+#     every other rule (AWS keys, private keys, tokens, etc.) STILL scans the
+#     locale files.
+#   - paths = public/locales/*.json      -> ONLY the translation files are
+#     exempted; `generic-api-key` STILL scans the rest of the repository.
+title = "LingoLinq-AAC gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "i18n locale strings trip generic-api-key (translation text, not secrets)"
+targetRules = ["generic-api-key"]
+paths = [
+  '''public/locales/.*\.json''',
+]
+
+[[allowlists]]
+description = "Audit findings register: `ruleKey` values (e.g. cve-braces-2024-4068) are stable finding identifiers, not secrets. The register is mechanically generated and forbids secrets/PII at merge (scripts/audit-merge.rb refuses them; scripts/citation-check.rb keeps it code-only). Same narrow scope as above: only generic-api-key is relaxed, only the generated register artifacts are exempted, every other rule (AWS keys, private keys, tokens) still scans them."
+targetRules = ["generic-api-key"]
+paths = [
+  '''audit-reports/FINDINGS\.json''',
+  '''audit-reports/FINDINGS\.md''',
+  '''audit-reports/run-log/.*\.jsonl''',
+]
+
+[[allowlists]]
+description = "i18n translation key 'pin_placeholder_4_digit' (the Speak Mode PIN field placeholder, referenced from pin-settings.hbs and the locale files) trips generic-api-key's high-entropy heuristic because the literal contains 'pin' + a digit. It is an Ember i18n key, not a secret. Narrowest possible scope: matched by the exact key string via regexes (so ONLY that literal is exempted, anywhere it appears) and only generic-api-key is relaxed — every other rule still scans everything, and no other value is allowlisted."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''pin_placeholder_4_digit''',
+]
+
+[[allowlists]]
+description = "i18n translation key 'trends_explainer2' (the second aggregate-research explainer paragraph on the Trends page, referenced from templates/trends.hbs and the locale files) trips generic-api-key's high-entropy heuristic because the literal ends in a digit. It is an Ember i18n key, not a secret. Same narrowest-possible scope as the pin_placeholder_4_digit entry: matched by the exact key string via regexes (so ONLY that literal is exempted, anywhere it appears) and only generic-api-key is relaxed — every other rule still scans everything, and no other value is allowlisted."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''trends_explainer2''',
+]
+
+# Surfaced by PR #584 (the staging->main release catch-up): the first PR to
+# ever scan the FULL main..staging commit range in one gitleaks pass, since
+# this file doesn't exist on `main` at all. This pre-existing, weeks-old
+# prose line had simply never been diffed against `main` before; it is not
+# new and not related to that PR's actual changes.
+[[allowlists]]
+description = "Prose phrase 'Render/AWS/GCP' in .claude/agents/infra-auditor.md's audit checklist ('no secrets in git history, Render/AWS/GCP ... least-privilege') trips generic-api-key because the word 'secrets' sits next to a slash-delimited capitalized token. Not a credential. Narrowest possible scope: matched by the exact literal via regexes, only generic-api-key relaxed."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''Render/AWS/GCP''',
+]

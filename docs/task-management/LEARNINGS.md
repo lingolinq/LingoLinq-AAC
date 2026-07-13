@@ -20,7 +20,12 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
+- [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
+- [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
+- [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
+- [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
 - [Pattern: remote buttonset reload can wipe generate URL before second load_buttons](#pattern-remote-buttonset-reload-can-wipe-generate-url-before-second-load_buttons)
@@ -45,6 +50,7 @@ file (see [README.md](README.md)).
 - [Pattern: Touch-device parity for hover-only affordances — thread context through the existing modal path](#pattern-touch-device-parity-for-hover-only-affordances--thread-context-through-the-existing-modal-path)
 - [Pattern: Pass-through actions silently truncate args when the wrapper's signature has fewer named params](#pattern-pass-through-actions-silently-truncate-args-when-the-wrappers-signature-has-fewer-named-params)
 - [Pattern: Custom-JS drag works on desktop but not in touch emulation — root cause is `touch-action`, not the JS](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
+- [Pattern: Preview-clone pointer-drag — hit-test by geometry (not elementsFromPoint) and re-wire after every clone rebuild](#pattern-preview-clone-pointer-drag--hit-test-by-geometry-not-elementsfrompoint-and-re-wire-after-every-clone-rebuild)
 - [Pattern: `!supporter_role` is the canonical communicator gate — never invent a `communicator_role` boolean](#pattern-supporter_role-is-the-canonical-communicator-gate--never-invent-a-communicator_role-boolean)
 - [Pattern: Removing a UI feature is incomplete until every coupled site is removed](#pattern-removing-a-ui-feature-is-incomplete-until-every-coupled-site-is-removed)
 - [Pattern: "Silent wrong behavior" is the modal failure mode in this codebase — assume it, probe for it](#pattern-silent-wrong-behavior-is-the-modal-failure-mode-in-this-codebase--assume-it-probe-for-it)
@@ -55,10 +61,13 @@ file (see [README.md](README.md)).
 - [Pattern: Every `belongs_to`/`has_one` access in a `JsonApi::*` serializer is a potential N+1 — eager-load it at the list-endpoint controller](#pattern-every-belongs_tohas_one-access-in-a-jsonapi-serializer-is-a-potential-n1--eager-load-it-at-the-list-endpoint-controller)
 - [Pattern: Query-count specs must be verified to FAIL against the broken state — otherwise they're no-ops](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)
 - [Pattern: For component tests in this codebase, use legacy Jasmine — not `setupApplicationTest` + Mirage (which hangs)](#pattern-for-component-tests-in-this-codebase-use-legacy-jasmine--not-setupapplicationtest--mirage-which-hangs)
+- [Pattern: Ember 5 QUnit unit tests — persistence proxy, run loop, and subject shape](#pattern-ember-5-qunit-unit-tests--persistence-proxy-run-loop-and-subject-shape)
 - [Pattern: Canvas component tests use a context-recorder stub, not pixel inspection](#pattern-canvas-component-tests-use-a-context-recorder-stub-not-pixel-inspection)
 - [Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim](#pattern-installing-a-v2-format-ember-addon-on-ember-328-requires-ember-auto-import--a-jquery-externals-shim)
 - [Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence](#pattern-same-named-computeds-defined-across-modelcomponentcontroller-are-widespread-and-often-diverge--gate-visibility-dependent-code-on-dom-presence)
 - [Pattern: `!important` does not beat source order at equal specificity — bump specificity with a compound selector instead](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead)
+- [Pattern: layout-variant selectors that SWAP a base class have EQUAL specificity — they can't be relocated to a partial](#pattern-layout-variant-selectors-that-swap-a-base-class-have-equal-specificity--they-cant-be-relocated-to-a-partial)
+- [Pattern: app-wide pref→root-class overlays belong in app-state, mirroring `set_fitzgerald_scope`](#pattern-app-wide-prefroot-class-overlays-belong-in-app-state-mirroring-set_fitzgerald_scope)
 - [Pattern: Third-party CSS — import the default first, then override; the structural rules and the decorative ones ship together](#pattern-third-party-css--import-the-default-first-then-override-the-structural-rules-and-the-decorative-ones-ship-together)
 - [Pattern: `session.override()` does a full page reload — in-memory appState set in register flow doesn't survive](#pattern-sessionoverride-does-a-full-page-reload--in-memory-appstate-set-in-register-flow-doesnt-survive)
 - [Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations](#pattern-this-codebase-ships-and-and-or-template-helpers-but-not-not--pre-compute-negations)
@@ -77,9 +86,18 @@ file (see [README.md](README.md)).
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
 - [Pattern: Demo speak `board` query param must alias away from loaded board state](#pattern-demo-speak-board-query-param-must-alias-away-from-loaded-board-state)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
+- [Pattern: Shepherd tour steps for a user-reorderable surface must be built from the LIVE DOM, not a fixed list](#pattern-shepherd-tour-steps-for-a-user-reorderable-surface-must-be-built-from-the-live-dom-not-a-fixed-list)
 - [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
 - [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
 - [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
+- [Gotcha: `ember test` here runs only lint + 3 acceptance tests — the unit suite is NOT wired in](#gotcha-ember-test-here-runs-only-lint--3-acceptance-tests--the-unit-suite-is-not-wired-in)
+- [Pattern: dashboard "fill the row" needs an inline grid-template-columns = visible-item count](#pattern-dashboard-fill-the-row-needs-an-inline-grid-template-columns--visible-item-count)
+- [Fact: the two dashboard layout keys are `focused` + `gentle` (renamed from `balanced`/`dynamic` 2026-06-11)](#fact-the-two-dashboard-layout-keys-are-focused--gentle-renamed-from-balanceddynamic-2026-06-11)
+- [Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state](#gotcha-dashboard-preview-tiles--selection-gates-leak-hidden-but-present-state)
+- [Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`](#gotcha-a-saved-frontend-preference-silently-vanishes-if-its-not-in-userpreference_params)
+- [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
+- [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
+- [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
 
 ---
 
@@ -98,6 +116,10 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: compile `app.scss` standalone with dart-sass to catch SCSS errors without a full ember build](#pattern-compile-appscss-standalone-with-dart-sass-to-catch-scss-errors-without-a-full-ember-build)
 - [Pattern: gate hover motion behind `prefers-reduced-motion: no-preference` instead of an `!important` reduced-motion override](#pattern-gate-hover-motion-behind-prefers-reduced-motion-no-preference-instead-of-an-important-reduced-motion-override)
 - [Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)](#pattern-a-glowhalo-before-that-leaks-to-the-whole-container-at-one-breakpoint--the-host-lost-position-static-re-anchors-the-absolute-pseudo)
+- [Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it](#pattern-a-css-background-image-on-a-shepherd-popover-or-any-lazily-injected-element-flashes-blank-on-first-open--preload-it)
+- [Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition](#pattern-a-guided-tour-auto-open-flag-consumed-at-a-single-afterrender-misses-when-the-gating-state-edit_mode-resolves-on-a-promise-microtask--poll-the-condition)
+- [Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys](#pattern-i18n_generatorrb---merge-does-not-refresh-changed-english-into-existing-locale-placeholders--only-adds-missing-keys)
+- [Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly](#pattern-a-shepherd-popover-anchored-to-an-element-that-gets-removed-mid-transition-is-flung-to-the-top-left-00-by-floating-ui--snap-it-out-instantly)
 - [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
 - [Pattern: a click-to-speak container that holds the inline word-prediction buttons CANNOT be `role="button"`](#pattern-a-click-to-speak-or-click-to-act-container-that-holds-the-inline-word-prediction-buttons-cannot-be-rolebutton)
 - [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
@@ -108,6 +130,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
+- [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -1280,12 +1303,29 @@ must be a literal `key='...'` or `key="..."`.
    in CLAUDE.md / PR description: "if you touch SOME_ITEMS, touch
    the extractor too."
 
+**Same trap in `.js`, via WRAPPER HELPERS — not just `.hbs` bound keys.**
+The generator's `.js` scanner (`i18n_generator.rb:84`) only matches a
+LITERAL `i18n.t(` token. A key passed through a wrapper — e.g.
+`decoratedTitle('home_tour_welcome_title', "Welcome")` in the Shepherd
+tours (`utils/tours/*.js`), where `decoratedTitle` internally calls
+`i18n.t(headingKey, ...)` with a VARIABLE — is invisible to the scanner.
+Result: the key never reaches `en.json` and falls back to its English
+default in every locale, even though it renders fine in English. (Verified
+2026-06-14: `home_tour_welcome_title` / `home_tour_done_title` are absent
+from `en.json` for exactly this reason.) The remedy is identical — a
+`_<feature>_i18n_extractor_no_op()` function in the same file listing each
+wrapped key as a literal `i18n.t('key', "Default")`; see
+[`utils/tours/board-picker.js`](../app/frontend/app/utils/tours/board-picker.js)
+(`_board_picker_tour_i18n_extractor_no_op`). Rule: any key you hand to a
+wrapper that calls `i18n.t` with a non-literal needs an extractor line.
+
 **Diagnostic shortcut:** if a catalog-driven UI works fine in
 English but a non-English locale shows the English default-label
 string instead of the localized one, suspect the dynamic-key
 extraction failure first. Run `ruby i18n_generator.rb` and check
 its output for missing strings — TOTAL MISSING is the parser's
-own count of keys it found but couldn't pair with a string.
+own count of keys it found but couldn't pair with a string. (Or just
+`grep -c your_key public/locales/en.json` — 0 means it wasn't extracted.)
 
 **Important: `ruby i18n_generator.rb` without `--generate` only
 scans and reports; it does NOT modify `en.json`.** To actually
@@ -2082,6 +2122,81 @@ a hard reload is in play.
 
 **First seen in:** post-registration home-tour auto-open work, traci/styling/styling-updates branch (2026-05-27)
 
+## Pattern: carry register attestation across the Google OAuth redirect via the backend, not controller memory
+
+Same hard-reload trap as above, but for a *pre*-auth signal. `continue_with_google`
+does `location.href = '/auth/google/start?…'` — a full navigation — so any
+controller state (e.g. `age_attested`, set when the user checks "I am at least
+13…") is wiped before the user returns to the Google-signup modal. The ONLY
+durable channel across the redirect is the OAuth `state` config the backend
+stores:
+
+- Frontend passes `terms_agree` on the `google_start` URL →
+  `session_controller#google_start` stores `config['terms_agree']` (line ~748) →
+  `google_signup_candidates` echoes it back (line ~898) → `loadGoogleSignup`
+  reads `res.terms_agree` into `googleSignupTerms`.
+- **Gotcha:** `googleSignupSubmitDisabled` also requires `age_attested` when
+  `!showCoppaConsent`, and `age_attested` is a plain controller prop that the
+  redirect reset to `false`. So after the redirect you must **re-derive it**:
+  `this.set('age_attested', !!res.terms_agree)` inside `loadGoogleSignup`.
+  Otherwise Create Account stays disabled with no visible checkbox to fix it.
+- Keep a safety-net `{{#unless this.googleSignupTerms}}` attestation checkbox in
+  the modal so a stale/direct session that arrives without the carried flag
+  isn't permanently stuck.
+
+**First seen in:** register signup-method split (method chooser → Google/email),
+task `2026-07-01-register-signup-method-split.md`.
+
+## Pattern: Shepherd tours must resolve targets at SHOW time, not build time
+
+**Symptom:** A guided-tour step spotlights the wrong place — renders centered
+instead of attached, or the popover flies to a corner — intermittently, and
+"only when deployed" (works locally). Placements/auto-routing "don't translate
+to deployment."
+
+**Root cause (build-time fragility):** the tour builders (`utils/tours/*.js`)
+resolved each step's target ONCE at build time and captured the element ref:
+`var el = visibleEl(cfg.sel); if(!el) return; attachTo:{element: el}`. Two failure
+modes fall out of this:
+1. **Late paint** — under deployment latency the board grid / cards / panels
+   render AFTER the tour is built, so `visibleEl` returns null → the step is
+   dropped or the captured ref is stale (Shepherd centers / mis-places). Fast
+   local render hides it.
+2. **`visibleEl` uses `offsetParent`, which is ALWAYS null for `position:fixed`
+   elements** — so a fixed target (e.g. `.md-tour__trigger`) is reported hidden
+   and the step falls back to centered even though it's on screen.
+
+**Fix (all in `utils/tours/shared.js`, applied across every tour):**
+- `visibleBySelector(sel)` — "first visible match" by `getBoundingClientRect`
+  width/height, NOT `offsetParent`. Works for fixed elements AND skips
+  display:none variants of a multi-markup selector.
+- `liveTarget(sel, fallbackEl)` — returns a FUNCTION for `attachTo.element`.
+  Shepherd v14 re-runs `parseAttachTo` on every `_show()` ("Force resolve … on
+  subsequent shows"), and it supports a function element — so the target is
+  resolved LIVE each show (survives re-render, picks the on-screen variant),
+  falling back to the build-time element so a resolved step never regresses.
+- `waitForElement(sel)` — a bounded (`20×75ms`) `beforeShowPromise` that waits
+  for the target to be visible before positioning, so a late paint is
+  spotlighted instead of centered.
+- Where a target can be fixed, gate inclusion on `visibleBySelector` too (home
+  header items), not `visibleEl`.
+
+Keep the build-time `visibleEl`/`visibleBySelector` call for ORDERING and the
+add/skip decision; only the ATTACH resolution moves to show time.
+
+**Runner note:** `attachTo.element` can now be a function — any code that reads
+it (e.g. `guided-tour.js#_onTourResize`) must resolve function/string/element
+before measuring.
+
+**Not a deploy-pipeline bug:** verified the Render build does NO minify/
+fingerprint (dart-sass, real-file copies, cache clobber), so tour source ships
+byte-identical — the divergence was purely this runtime timing race surfacing
+under production latency.
+
+**First seen in:** home-tour skip-handoff rendering centered (fixed trigger);
+generalized to all tours. Task `2026-07-01` tour work,
+traci/styling/styling-updates.
+
 ## Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations
 
 The codebase has `app/frontend/app/helpers/and.js` and
@@ -2209,6 +2324,66 @@ count," reach for the util — don't re-read `length` off the raw
 query.
 
 **First seen in:** [2026-05-27-home-board-count-roots-only.md](./2026-05-27-home-board-count-roots-only.md)
+
+**Extension (2026-06-11):** It's not just *counts* — any TILE-LIST surface
+leaks sub-boards the same way. Two that did:
+- Home Boards-div preview (`previewBoards` on authenticated-view.js) built
+  its 5 tiles straight off `_fetchedPreviewBoards` (raw `store.query`) with
+  no clustering — only the sibling `boardCount` filtered. Wrap the pool in
+  `filterRootBoards` inside the computed.
+- Board-detail "My Board Collection" (`board-collection.js`) trusted the
+  server `root: true` param.
+
+**Do NOT trust server `root: true`.** In `app/controllers/api/boards_controller.rb`
+(~L299) the real copy_id filter is COMMENTED OUT (since 2020) and replaced
+with `boards.where(['search_string ILIKE ?', "%root%"])` — a text match on
+the word "root", which leaks sub-boards AND drops legit roots. Until that's
+fixed server-side, do client-side clustering: drop the param, paginate the
+full owned set via `meta.more`, then `filterRootBoards` the accumulation
+(it's first-page-sensitive, so cluster the WHOLE set, not page 1).
+
+**First seen in:** [2026-06-11-subboards-leaking-preview-and-collection.md](./2026-06-11-subboards-leaking-preview-and-collection.md)
+
+**Extension (2026-06-12) — the boards-page Public tab:** `board_list`
+(controllers/user/index.js) has its OWN id/copy_id clustering, but it only
+nests a sub-board under its root when the root is in the SAME list. The Public
+tab's source (`model.public_boards`, a public search) returns sub-board copies
+whose root isn't in the list, so they leaked through as top-level tiles — plus
+multiple owners' identically-named copies. Fix: flag the Public branch and run
+the accumulated list through `dedupeByName(filterRootBoards(list, model.id))`
+before the existing grouping/sort (preserve `.done`). `public_boards` is fully
+paginated by `generate_or_append_to_list`, so clustering isn't first-page-
+sensitive here. Mine-tab clustering left untouched. Same primitives search.js
+uses for online results: `sortByNameNatural(dedupeByName(filterRootBoards(...)))`.
+
+**First seen in:** [2026-06-12-public-tab-subboards-leak.md](./2026-06-12-public-tab-subboards-leak.md)
+
+**Extension (2026-06-12) — copy_id-less sub-boards need the BRAND key-pattern, not just `filterRootBoards`:** `filterRootBoards` keys ENTIRELY on `copy_id`. Legacy/un-clustered set copies (e.g. an account's CommuniKate pages) often have **no `copy_id` in the DB** (`relinking.rb#assert_copy_id`/`cluster_related_boards` exist precisely to back-fill it and frequently don't), so the serializer omits it and EVERY sub-board reads as a root — leaking on the boards-page Mine + Public tabs AND the speak-menu My Boards, all of which share that heuristic. The fix that works regardless of copy_id is `utils/board-brands.js#filterBrandRoots`: a board matching a brand family's `test()` (brand marker in key/name) but NOT its `root_re` (`<brand>-<size>` root shape) is a brand sub-board → drop it; non-brand boards pass. This is the same key-pattern classifier the Find Boards grouping + the speak-menu brand sections use. Compose as `filterBrandRoots(filterRootBoards(list, userId))` (+ `dedupeByName` for public search). Applied in `controllers/user/index.js` (board_list Mine+Public, myBoardsRoots) and `components/board-collection.js` (_sortMyBoards). LIMITATION: only the 4 known brands (CommuniKate/Quick Core/Sequoia/Vocal Flair); non-brand sets with nil copy_id still leak — the robust general fix is a server-computed `root` flag (board.rb `!copy_id || copy_id==global_id`, falling back to "no same-user immediately-upstream boards"). The boards-page `root: true` server param is ALSO broken (real filter commented out, replaced by `search_string ILIKE '%root%'` — boards_controller.rb:299).
+
+**First seen in:** [2026-06-12-subboards-brand-root-filter.md](./2026-06-12-subboards-brand-root-filter.md)
+
+---
+
+## Pattern: image drag-drop onto a button — reuse `save_image_preview`, swap the target
+
+**Surface:** board-detail edit mode (`content_grabbers.apply_dropped_image_to_button`) and create-board-new (`components/create-board-new.js`).
+
+The board-detail image-drop pipeline is: global `drop` listener (`services/content-grabbers.js:3050`) → `content_dropped(button_id, dataTransfer)` (bails unless `appState.edit_mode`) → `apply_dropped_image_to_button` = `read_file`→dataURL → `pictureGrabber.save_image_preview(preview)` (uploads, returns a SAVED image record with a hosted `.url`) → `editManager.change_button`. To get the same gesture on a surface WITHOUT a live board/editManager/`.button[data-id]`/edit_mode (e.g. create-board-new, where buttons are plain objects keyed by label in `_label_images`), reuse the two board-agnostic primitives — `content_grabbers.read_file` + `pictureGrabber.save_image_preview` — and write the returned `image.get('url')` into that surface's own button state instead of calling `change_button`. Don't touch the shared service.
+
+Gotchas: (1) Distinguish an external image drag from an internal HTML5 reorder drag by payload — reorder carries only `text/plain`; an image carries a `File`/`Files` type (during dragover files aren't readable yet, so check `dataTransfer.types` includes `Files`) or, cross-tab, `text/uri-list`/`<img>`-in-`text/html`. (2) The tile's own `ondrop`/`ondragover` must `stopPropagation` or the global document drop handler also fires. (3) Only persist a hosted URL (await `save_image_preview`) — never bake a `data:` URL into the saved board. (4) `dragover` must `preventDefault` on the target for `drop` to fire at all; set `dropEffect:'none'` to reject (e.g. blank cells when images are label-keyed).
+
+**Evidence:** task log `2026-06-12-create-board-new-image-drop.md`.
+
+**GOTCHA (do NOT "optimize"):** For create-board-new, bake the image **URL** onto
+`model.buttons[]`, never the saved image's `image_id`. `save_image_preview` creates
+a PRIVATE, unlinked ButtonImage (`license: {type:'private'}`, no `public:true`);
+linking it by `image_id` shows in the create preview but renders BLANK on the board
+page and bypasses caching. The server's `process_client_supplied_images`
+(board.rb:1262) only runs when `image_id` is blank — it creates a fresh
+`public:true`, board-owned ButtonImage from the URL (`process_new`, handles `data:`
+URLs → `ButtonImage.data`) and wires it into the after-save `map_images` cache. The
+"duplicate ButtonImage" from URL-baking is the intended trade-off for correct
+rendering + caching. (Burned once 2026-06-12 by an image_id "efficiency fix"; reverted.)
 
 ---
 
@@ -2399,6 +2574,138 @@ for restyling it (`components/home-tour.js` + the `.shepherd-*` /
   Fix: toggle a `body.md-tour--centered-step` class from the `show` hook
   for intro/outro (no `attachTo`) steps and scope the blur to that class
   — attached steps keep a crisp spotlight (RULE #0.3).
+- **A CENTERED step (welcome/outro, no `attachTo`) tags `<body>` with
+  `.shepherd-target`.** Shepherd uses `target = this.target || document.body`
+  (shepherd.cjs `setupTooltip` ~L2343 + `showStep` ~L4780), so any styling on
+  the `.shepherd-target` class lands on `<body>` for those steps. Our spotlight
+  GLOW is `.shepherd-target { filter: drop-shadow(...) }` — a `filter` on
+  `<body>` BLANKS the whole viewport white on any route whose body has an opaque
+  background (e.g. `/board-picker`): Chrome stops propagating the body
+  background to the canvas and the white body box paints over everything. The
+  home/dashboard route survives only because its body background isn't opaque
+  white — a latent trap that a new route trips. **Durable rule: scope target-only
+  decoration as `.shepherd-target:not(body)`** (the glow on body is invisible
+  anyway — it sits behind the dark modal overlay). Symptom to recognise: tour
+  opens with correct content in the DOM (steps present, `current_route` right),
+  but the page paints pure white and `elementFromPoint(center)` returns only
+  `<html>`. Check `getComputedStyle(document.body).filter` ≠ `none`. First seen:
+  board-picker tour, 2026-06-14 (`2026-06-14-board-picker-tour.md`).
+- **A step attached to a target TALLER than the viewport makes the popover
+  "bounce" + the page "freeze" on scroll.** floating-ui's `flip()` switches the
+  popover between `top`/`bottom` as the scroll changes how much room is above vs.
+  below a near-viewport-height reference — a ~500px jump per flip. The modal
+  overlay also swallows wheel events (the "freeze"). Fix (applied in
+  guided-tour.js `_lockTourScroll`/`_unlockTourScroll`): LOCK page scroll while
+  the tour runs — `overflow:hidden` on `#content` + `body` + `documentElement`,
+  restored on complete/cancel/destroy. A modal tour drives the view itself, and
+  crucially `overflow:hidden` blocks user wheel/scrollbar but NOT programmatic
+  scroll, so Shepherd's per-step `scrollIntoView` still centers each target
+  (verified: scrollIntoView scrolls an overflow:hidden `#content`, 0→712). This
+  is the standard modal-tour behavior and fixes every tour, not just the one with
+  the tall target. First seen: board-picker grid step, 2026-06-14.
+- **Step-to-step "jump" that disorients users = inconsistent placement + instant
+  scroll.** When popovers land on different SIDES per step (bottom→right→top) and
+  the page scroll is `behavior:'auto'` (instant), users lose track of where they
+  are (a tester nearly abandoned the board-picker tour over this). Fix: (a) give
+  every interior step the SAME placement (`on:'bottom'` — popover always directly
+  below the spotlight, tour reads straight down the page); (b) `scrollTo:
+  {behavior:'smooth', ...}` per-step so the spotlight glides — and because
+  floating-ui `autoUpdate` repositions during the animated scroll, the popover
+  GLIDES with it. Uniform placement also KILLS the smooth-scroll flip-flash (the
+  original reason for instant scroll) because a locked placement never flips, so
+  smooth + consistent can coexist. Scope smooth to the one tour via per-step
+  `scrollTo` if other tours rely on instant. Tall targets need `block:'start'`
+  for the below-popover to fit; pair with `el.style.scrollMarginTop = navBottom +
+  gap` (measure the fixed header live) so the scroll doesn't tuck the target under
+  the navbar. First seen: board-picker tour, 2026-06-14.
+- **Smooth scroll re-introduces the flip-FLASH (popover flashes top→bottom);
+  fix = scroll BEFORE show, not after.** Shepherd's `scrollTo` runs AFTER the
+  step shows, so the popover is positioned mid-animation and floating-ui `flip()`
+  re-picks the side each frame as the target moves (low→centered) = visible
+  flash. You CANNOT remove `flip()` via `floatingUIOptions.middleware`: Shepherd
+  merges it with **deepmerge-ts**, which CONCATENATES arrays, so your list
+  appends to `[flip(), shift(), arrow()]` instead of replacing. Instead set the
+  step's `scrollTo:false` and do the scroll in `beforeShowPromise`, resolving
+  once motion settles (poll the target's `getBoundingClientRect().top` until
+  steady). `Tour._updateStateBeforeShow()` hides the previous step before
+  `beforeShowPromise` runs, so during the scroll no popover is positioned and the
+  new one is placed ONCE at the final spot — smooth scroll, zero flash. Detect a
+  flash in tests by sampling the visible `.shepherd-element[data-popper-placement]`
+  every ~30ms across a transition: it should go `none…` (scrolling) → final side,
+  never the opposite side first. First seen: board-picker tabs step, 2026-06-14.
+  PROMOTED to the runner (`guided-tour.js _applySmoothScroll`) so EVERY tour gets
+  scroll-then-show from one place: before `addSteps`, each attached step gets
+  `scrollTo:false` + an injected `beforeShowPromise` (composed with any existing
+  one, e.g. home's dropdown-open) that calls the shared `scrollIntoViewSettled`.
+  That helper has a fast-path (already fully on-screen → resolve now, no dead
+  time) — but a fast-path SKIP means no centering, so a target whose preferred
+  side only fits when centered will flip to the other side. If a tour needs a
+  uniform placement, set `step.scrollBlock` to FORCE the scroll (board-picker sets
+  it on every step for uniform 'bottom'); leave it off (home) to let the fast-path
+  trim motion where placements are mixed anyway.
+- **"Scroll then show" makes the screen FLASH BRIGHT between steps** — fix by
+  keeping the scrim up during the scroll. `Tour.show()` hides the old step first,
+  and `Step.hide()` calls `modal.hide()`, so the dark overlay is gone for the whole
+  `beforeShowPromise` scroll → the page shows at full brightness until the next
+  step re-darkens it. In the injected beforeShowPromise (runs right after the old
+  step hid), re-show a FLAT scrim before scrolling: `modal.closeModalOpening()`
+  (zero the opening) + `modal.show()`; the incoming step's `setupForStep` re-cuts
+  the spotlight on show. Get the modal via a captured `tour.tourObject.modal` —
+  Shepherd invokes `beforeShowPromise` with `this` = the step OPTIONS object, not
+  the Step, so `this.tour` is undefined. Verify by sampling
+  `.shepherd-modal-overlay-container.shepherd-modal-is-visible` (+ opacity>0) every
+  ~30ms across a transition: should be visible 100% of frames, no gap. First seen:
+  2026-06-14.
+- **FINAL tour-transition model (supersedes "scroll then show"): "show then scroll,
+  spotlight visible, popover hidden."** The modern feel users expect = the dimmed
+  page + its spotlight stay VISIBLE and the next item GLIDES into the highlight
+  (page = constant spatial reference). "Scroll then show" (scroll with the spotlight
+  gone, reveal after) is the opposite and feels disorienting. Implement at the
+  runner: (1) `step.scrollTo=false`; do the smooth scroll in the `when.show` hook
+  AFTER the step shows, so Shepherd's translucent overlay + rAF-tracked spotlight
+  follow the target as it scrolls in. (2) Hide ONLY the popover card during that
+  motion via a class — `visibility:hidden; opacity:0; transition:none` (visibility,
+  not just opacity, else Shepherd's opacity transition fades it visible mid-scroll);
+  remove on settle to fade it in. This dodges floating-ui's flip-flash while keeping
+  the page in view. (3) Keep the scrim continuous across hide→show: `beforeShowPromise`
+  calls `modal.show()` (NOT closeModalOpening) before Svelte flushes, so it never
+  blinks bright. Verify: overlay opacity steady; popover visibility:hidden every
+  scrolling frame then visible; cutout path varies (tracking). First seen: 2026-06-14.
+- **A keyframe ENTRANCE animation silently blocks opacity fades (and is the hidden
+  "slide-in").** Symptom: a plain inline `opacity:0` computes to `1`, but
+  `opacity:0 !important` computes to `0`, AND no `!important` rule matches the
+  element. That's an `@keyframes` with `animation-fill-mode: both/forwards` holding
+  the property — animations outrank regular inline styles but lose to `!important`
+  inline. The LingoLinq tour card had `md-tour-step-in` (`opacity 0→1` + `translate`
+  + `scale`, fill:both): the translate/scale was the unwanted slide-in, and the
+  held opacity:1 made fade-out impossible. Fix for "gentle cross-fade, no slide":
+  DELETE the keyframe entrance and drive opacity with transitions only —
+  `.shepherd-element { transition: opacity .45s }`, fade-in by toggling a
+  visibility:hidden→visible "revealing" class on a double-rAF (so opacity:0 paints
+  before transitioning to 1), fade-out by inline opacity on the step `hide` hook.
+  For a slow/visible AAC scroll, replace `scrollIntoView({behavior:'smooth'})`
+  (browser-paced, ~300ms) with a custom eased rAF scroll (~900ms) on the app's
+  scroll pane — detect it by scrollability (scrollHeight>clientHeight), NOT
+  overflow, since the tour locks it to overflow:hidden; respect
+  prefers-reduced-motion (jump instantly). Headless gotcha: puppeteer defaults to
+  prefers-reduced-motion:reduce, so emulate `no-preference` to test animated paths
+  — otherwise fades/scrolls read as instant and look "broken." First seen: 2026-06-14.
+- **Need a LIVE/interactive Ember component inside a tour "card"? Use an app modal,
+  not Shepherd.** Shepherd renders a step's `text` as innerHTML or a detached
+  HTMLElement, and Ember 3.28 has no imperative `renderComponent`, so you can't
+  embed a reactive component in a popover. Instead, the final/interactive step's
+  button does `this.complete(); modal.open('your-modal', {})` — complete FIRST so
+  the Shepherd overlay tears down before the app modal opens (two body-level
+  overlays otherwise collide). App modals here: build a `components/<name>.{js,hbs}`
+  (wrap body in `{{#modal-dialog dialogClass=...}}`, read opts via
+  `modal.getSettingsFor('<name>')`), add a `{{else if (is-equal this.currentTemplate
+  "<name>")}} {{<name>}}` branch in `templates/components/modal-container.hbs`, open
+  with `modal.open('<name>', opts)`. To "carry context across a navigation" (e.g.
+  tour modal → create-board-new), set a one-shot flag on `app-state`
+  (`appState.set('from_tour_board_picker', true)`), read it in the destination
+  component's `init`, and clear it in the destination ROUTE's `deactivate` so it
+  can't leak to a later non-tour visit. First seen: board-picker tour final step,
+  2026-06-14.
 - **CTA contrast (AAC = no compromise):** white text on a premium-looking
   *light* lavender-denim gradient is marginal (~2.8:1) and even deepened
   white-on-denim only reaches AA (~4.77:1 at `#4A6BCB`). Durable rule:
@@ -2744,6 +3051,10 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 **Evidence:** `lib/user_board_provisioner.rb`, `lib/system_board_sources.rb`, `app/models/user.rb`; task log `2026-05-28-signup-default-library-boards.md`.
 
+**Extension (2026-07-06) — VF84 sync + sidebar user copies:** Put `vocal-flair-84` in `SIGNUP_SYNC_SLUGS` and call `copy_board_to_library` inline in `UserBoardProvisioner` before enqueueing `SIGNUP_ASYNC_SLUGS` (yesno/inflections first, then remaining library slugs). Default sidebar still lists system keys in `default_sidebar_boards`, but `User#sidebar_boards` resolves entries to user-owned copies via `parent_board_id` except `keyboard` (`sidebar_system_keys`). Crisis vocabulary copies on signup like other library boards, so the sidebar link should resolve to the user's copy. **Crisis dedup:** auto-add and stored prefs must treat `lingolinq/crisis-vocabulary` and `username/crisis-vocabulary` as the same sidebar slot (match by slug); otherwise merge appends a second crisis entry and resolve turns both into duplicate user-copy links. Home-board pickers should use `findExistingUserCopy` / `links_copy_as_home` (see `assign-vocal-flair-home.js`), not point `preferences.home_board` at the catalog board.
+
+**Evidence:** task log `2026-07-06-signup-boards-sidebar-copies.md`.
+
 ---
 
 ## Pattern: custom lingolinq content boards — commit OBZ + `SystemBoardSources.ensure_*`
@@ -2963,7 +3274,20 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 
 **Footer note:** `.page-footer` is `display:none` everywhere except landing-alt (rules ~378/382) but KEPT in the DOM because the whole shell layout keys off `:has(.page-footer)`. A `display:none` footer still matches `:has()`. Don't remove the element to "hide the footer" — you'll break the scroll layout app-wide.
 
-**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`.
+**Same bug, another surface — the BOARD-PICKER page (2026-06-12):** `/board-picker`
+is a TOP-LEVEL route, so its `#content` is NOT `.index.with_user` and never gets the
+`#content` background (app.scss ~546). The `.md-shell--board-picker` mesh only reaches
+content height inside the scrolling `#content`, so on short content / small screens the
+area below the picker card rendered bare (looked like a purple/empty strip). Same FIX:
+paint the `.md-shell` base mesh on `#within_ember:has(.page-footer):has(.board-picker-page)`
+(compound `:has()` (1,2,0) out-specifies the `:has(.page-footer)` transparent reset at
+~415). **Lesson: when a page bg "doesn't fill to the bottom," don't reach for
+`min-height`/`flex-grow` on the inner shell/workspace — that's the wrong layer (it gets
+pinned/clipped by the `#content` scrollport). Paint the mesh on the fixed full-viewport
+`#within_ember`.** `footer` (controllers/application.js) is true for any non-board route,
+so most app pages ARE `:has(.page-footer)` and can use this.
+
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`.
 
 ---
 
@@ -3073,6 +3397,8 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix:** key off the board KEY convention (same approach as `components/board-picker.js` _loadBrandGroups). Roots are `<brand>-<size>` (`vocal-flair-84`, `quick-core-60`, `sequoia-15`, optionally `-w-keyboard`); sub-boards carry a descriptive suffix (`vocal-flair-84-categories-food`). CommuniKate has no sizes → root is `communikate-home` / bare / `-<size>`. Per-family `root_re = /(^|\/)<slug>-\d+(-w(?:ith)?-keyboard)?$/i` (`(^|\/)` skips the `<owner>/` prefix, `$` rejects descriptive tails). Note the real key suffix is `-w-keyboard`, not board-picker's older `-with-keyboard` — match both with `-w(?:ith)?-keyboard`.
 
 **Evidence:** `app/controllers/api/boards_controller.rb:299-301`; `app/models/board.rb:899`; `app/frontend/app/components/board-collection.js` (BRAND_FAMILIES `root_re` + `_loadAllBrands` filter).
+
+**Boards page (`user/index` `board_list`):** apply the same client-side cleanup to the default grid only — `filterBrandSetRootBoards` + `dedupeBoardRows` on Public tab, and `filterBoardsPageTopLevelRoots` (= `filterRootBoards` then `filterBrandSetRootBoards`) + `dedupeBoardRows` on Mine tab, with `boardsPagePreferUserNames` (signed-in user, then `lingolinq`). Name dedup is case-insensitive. Leave `boards_page_raw_list` untouched so Boards Filter search still returns sub-board matches. Shared helpers live in `utils/board-roots.js`.
 
 ---
 
@@ -3678,12 +4004,486 @@ first run and left the file untouched.
 
 **Root cause:** Classic boards wrap the grid in `.advanced_selection`, which blocks native clicks and routes selection only through `raw_events`. board-detail omits that wrapper so Ember `{{action "select_button"}}` works, but symbol cards still carry class `.button`. On **mouse**, `raw_events` `touch_release` → `buttonSelect` runs on `mouseup`, then the native `click` fires the same Ember action — two `utterance.add_button` calls (often one capitalized, one not). On **touch**, `preventDefault` on `touchend` suppresses the synthesized click, so `raw_events` must remain the sole path.
 
-**Fix recipe:** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
+**Fix recipe (pre–Ember 5):** In `raw_events` `button_select`, skip speak-mode `buttonSelect` for `source === 'click'` on `.md-board-detail-grid` when `lastReleaseEvent.type` is not a touch event. Keep all non-`'click'` sources (`dwell`, `keyboard`, `longpress`, etc.) and scanner's direct `buttonSelect` send unchanged.
 
-**Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; task log `2026-06-09-board-detail-speak-bar-double-add.md`.
+**Ember 5 regression (2026-06-22):** The defer-to-Ember `{{on "click"}}` path silently stopped working — `preventDefault` on `mouseup` cancels the native click, and `dispatchPassThroughClick` does not reach Ember 5 co-located classic component listeners (runtime-verified). **Fix:** Revert defer; always route speak-mode releases through `buttonSelect`. `preventDefault` on `mouseup` still suppresses duplicate native click, so no double speak-bar add.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js`, `app/frontend/app/components/board-detail-grid.hbs`; task logs `2026-06-09-board-detail-speak-bar-double-add.md`, `2026-06-17-ember5-upgrade.md`.
 
 ---
 
+## Pattern: board-detail chrome + speak header — route `controller.send`, not synthetic click
+
+**Surface:** board-detail page chrome (sentence bar tools, options menu, sidebar toggle, local home/back) and application `#speak` header (home, back, clear, backspace, speak options) while `#within_ember` carries `.board-detail-view`.
+
+**Root cause:** Same Ember 5 failure as the grid: `preventDefault` on `mouseup` cancels the browser click, and `dispatchPassThroughClick` does not reach `{{on "click" (fn this.ctrlAction …)}}` on co-located classic templates (runtime-verified: pass-through logs fire, zero `ctrlAction` logs).
+
+**Fix recipe:** In `raw_events.js`, `boardDetailChromeRelease()` maps pointer releases inside `.board-detail-view` (excluding grid `.button` targets) directly to `controller.send`:
+- Application speak header IDs → `appState.controller` (`home`, `clear`, `backspace`, `speakOptions`, …).
+- Board-detail controls → `editManager.controller` via class/id maps for stable chrome (sentence bar, options toggle, sidebar) and `data-bd-action` / `data-bd-arg` on menu/sidebar buttons (100+ `ctrlAction` targets).
+
+Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events paths; raw_events is the sole mouse/touch path in speak mode.
+
+**Ember 5 post-codemod regression (2026-06-23):** After fixing `(fn this.ctrlAction …)` → `(this.ctrlAction …)`, Ember `{{on}}` works again on mouse. `boardDetailChromeRelease` on `mouseup` still runs first, then the native `click` reaches Ember — toggles fire twice (options ⋮ menu opens then immediately closes). **Fix:** mirror grid defer — `defer_board_detail_chrome_click_to_ember` skips `preventDefault` and `boardDetailChromeRelease` for speak-mode mouse on chrome targets; touch/dwell still route through `boardDetailChromeRelease`.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js` (`defer_board_detail_chrome_click_to_ember`), `application.hbs`, `board-detail.hbs`; debug session `bcf18d` (2026-06-22).
+
+---
+
+## Pattern: board-detail edit toolbar — same Ember 5 routing as chrome, plus `ignored_region`
+
+**Surface:** per-button edit toolbar on symbol cards in edit mode (`board-detail-grid` co-located component).
+
+**Root cause:** Toolbar buttons are in `ignored_region` so `touch_release` skips `element_release` and expects native click → co-located `{{on "click"}}`. Ember 5 never delivers that click (same co-located classic component failure as speak chrome). Card body taps still work via `button_select` → `controller.send('buttonSelect')`.
+
+**Fix recipe:** Mark each toolbar control with `data-bd-edit-action="edit_button_settings"` (or `*_by_id` for portal dropdown). In `raw_events.js`, `boardDetailGridEditActionRelease()` resolves the action on pointer release and calls `editManager.controller.send`.
+
+**Evidence:** `raw_events.js`, `board-detail-grid.hbs`, `2026-06-23-board-detail-edit-toolbar-clicks.md`.
+
+---
+
+## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
+
+**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+
+**Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
+
+**Evidence:** `speak-menu.hbs`, `button-settings.hbs`, `raw_events.js`; task logs `2026-06-23-board-detail-edit-toolbar-clicks.md`, `2026-06-26-speak-menu-modal-close-fix.md`.
+
+**Classic component methods on `{{on}}`:** `{{on "click" this.foo}}` passes `foo` unbound — at runtime `this` is the DOM element, so `this.toggleProperty` / `this.get` throw. During Ember 5 `{{action}}` → `{{on}}` migrations, use `actions: { foo }` + `(this.ctrlAction "foo")` (see `password-field.js`); do not assign per-handler closures on the instance in `init()`.
+
+---
+
+## Pattern: board-detail edit-mode panel chrome never routed (speak-only gap)
+
+**Surface:** Done Editing, Discard, left/right edit panels on `user.board-detail` edit route.
+
+**Root cause:** `boardDetailChromeRelease` and `find_selectable_under_event` chrome wrapping were gated on `speak_mode` only. In `edit_mode`, `element_release` only handled grid symbol cards; panel clicks had no path to `controller.send`. Buttons already had `data-bd-action`; resolver was fine.
+
+**Fix:** Extend chrome detection to `edit_mode`; call `boardDetailChromeRelease` / `boardDetailChromeReleaseFromEvent` from edit-mode release paths; exclude `.modal-content` from chrome routing; `modalDialogClickRelease` pass-through for modal buttons; `dispatchPassThroughClick` fallback for controls without `data-bd-action`.
+
+**Evidence:** `raw_events.js`, `2026-06-23-board-detail-edit-panel-clicks.md`.
+
+---
+
+## Pattern: `EXTEND_PROTOTYPES: false` — Ember Array methods on native arrays
+
+**Surface:** speak mode button taps, speak-bar backspace, any `utterance.add_button` path.
+
+**Root cause:** `config/environment.js` sets `EXTEND_PROTOTYPES: false`. `rawButtonList` / `working_vocalization` are native arrays. Calls like `pushObject`, `insertAt`, `removeAt`, `popObject`, `pushObjects` throw (`… is not a function`), aborting `activate_button` after entry — silent failure (no console error if uncaught in async path). Folder navigation still works because it returns before `activateButton`.
+
+**Fix recipe:** Use native array ops (`push`, `splice`, `pop`, `concat`) and `this.set('rawButtonList', nextList)` so `rawButtonList.[]` observers fire. Same class of bug as `.uniq()` on `board.js` and `pushObjects` on `user/index`.
+
+**Evidence:** `app/frontend/app/utils/utterance.js` (`add_button`, `backspace`); runtime logs `post-fix4` (`add_button done`, `btnListLen` 1→7); task log `2026-06-17-ember5-upgrade.md`.
+
+---
+
+## Pattern: triaging PR-review "security findings" — read the real guard, not the flagged line
+
+Automated/LLM PR reviewers flag plausible-but-already-mitigated issues, hedged with
+"may / could / potentially / if the template uses X incorrectly". Each hedge is a tell:
+resolve it against the ACTUAL code path before changing anything (RULE #0 — diagnose with
+evidence; don't apply theatrical fixes that add dead code and risk regressions). In one
+sweep, 5/5 dashboard findings were false positives (`2026-06-10-pr-security-findings-triage.md`):
+
+- **"XSS via interpolated user string"** → the custom i18n `t` helper already HTML-escapes
+  EVERY interpolated value (`escapeHtmlForInterpolation`, `i18n.js:18-22,73,84`), the source
+  computed returns a plain string (not `htmlSafe`), and `{{t}}` auto-escapes. Check the
+  helper's escaping before assuming a raw-input sink.
+- **"Client accepts arbitrary `for_user_id` / no permission check"** → board-creation auth
+  is SERVER-side: `boards_controller.rb:600-606` validates the target exists (400) AND
+  `allowed?(user,'edit')`. The client sentinel (`'self'`) isn't the boundary; the API is.
+  FERPA/data-isolation checks live in Rails, never the Ember form.
+- **"Missing permission lets user bypass restricted view"** → the flagged flag
+  (`caregiverUnlocked`) was a transient, non-persisted DISPLAY toggle (focused↔balanced
+  layout), not an access gate; the "unlocked" view shows the same-or-fewer sections
+  (`sectionVisibility` still runs `availableHomeSections` + forces Extras hidden). A layout
+  toggle on a user's OWN dashboard is not a security boundary.
+- **"Cross-account leak from shared collection"** → `appState.sidebar_boards` is the current
+  user's OWN sidebar state; appending a system board from it touches no other account.
+- **"Race condition in runLater timer"** → already guarded: cancel-existing-before-start in
+  the start handler, cancel+null in the end handler, and `runCancel` in `willDestroyElement`.
+
+**Rule of thumb:** for a flagged finding, locate (a) the escaping/sanitization layer, (b) the
+server-side authorization, and (c) the resource lifecycle (timer/teardown) — the mitigation
+is usually already there. Reply to the PR with file:line evidence instead of patching.
+**Evidence:** task log `2026-06-10-pr-security-findings-triage.md`.
+
+---
+
+## Pattern: removing a dashboard display-layout variant is a coordinated multi-touch change + graceful pref coercion
+
+Removing one `dashboard_layout` variant (e.g. 'focused', 2026-06-10) touches a fixed set of
+layers — miss one and you leave dead code or a broken state:
+
+1. **Layout engine** — `utils/dashboard_sections.js` (`gridLayoutState`, the per-variant
+   transform like `balancedLayout`/`focusedLayout`, any `FOCUSED_*` maps).
+2. **Real render** — `components/dashboard/authenticated-view.js` (the `effectiveLayout`/
+   `*HomeLayout` computeds, body-class observers, lock/exit actions, lifecycle calls) AND
+   its `.hbs` (`{{#if thatLayout}}…{{else}}…{{/if}}` — keep the else as unconditional).
+3. **The "Dashboard Design" modal** — `components/getting-started-tour.js` (the style option
+   card + renumber the survivors, the preview builder branch, validation arrays
+   `['dynamic','focused','balanced']` → `['dynamic','balanced']`, label maps).
+4. **Any dedicated component** — delete `dashboard/focused-home.{js,hbs}` once unreferenced.
+5. **SCSS** — delete the whole `Focused Layout` section + the stray `body.md-home-focused`
+   rule (grep every `md-focused`/`md-home-focused`/`md-main--focused`/`md-back-to-focused`/
+   `md-gst-focused`/`layout-focused` selector).
+6. **Backend** — update the `User.preference_defaults` comment; do NOT migrate the column.
+
+**Graceful coercion is the load-bearing safety net.** Existing users may have the removed
+value stored. Make `effectiveLayout` (real render) AND the modal's `['dynamic','balanced']`
+validation **coerce an unknown/legacy value to the default ('dynamic')** so those users
+silently fall back instead of hitting a now-missing branch. No DB migration required.
+
+**Watch for shared symbols misattributed to the removed variant.** `greetingFirstName` and
+the `focused_talk` i18n key looked focused-only but are used by the BALANCED hero —
+keep them. Always grep each candidate symbol's *callers* before deleting.
+
+**First seen in:** [2026-06-10-dashboard-design-rename-and-focused-removal.md](./2026-06-10-dashboard-design-rename-and-focused-removal.md)
+
+## Gotcha: `grep … | head -N` can hide later usages — verify import/symbol safety with an UNtruncated grep
+
+While removing dead code, a `grep -n "runLater\|runCancel" file.js | head -40` showed only the
+focused-code usage, so the `@ember/runloop` import was removed as "unused" — but `runLater`
+was still used at lines 1295/1372, **past the 40-line truncation**. The broken import was
+caught only by the post-edit residue grep (run without `head`). **Before deleting any import
+or shared symbol, grep for ALL its usages with no `head`/pager truncation** (or `grep -c`),
+then confirm zero remain. Truncated search output is a silent source of "removed something
+still in use" regressions.
+
+**First seen in:** [2026-06-10-dashboard-design-rename-and-focused-removal.md](./2026-06-10-dashboard-design-rename-and-focused-removal.md)
+
+---
+
+## Pattern: replace a combinatorial layout matrix with a packer+overrides engine, proven byte-identical
+
+The dashboard grid (`utils/dashboard_sections.js#dashboardLayout`) was a ~20-branch
+matrix enumerating `grid-template-areas` per visibility combination of 5 cards — it
+doesn't scale to "add more home items." Replaced (2026-06-10) with a **generic 2-column
+packer + a small `LAYOUT_OVERRIDES` table** for the few hand-curated/legacy arrangements
+the packer doesn't reproduce. Adding a card is now a `LAYOUT_PRIORITY` + `AREA` entry
+(the packer places it generically); you only add an override to hand-tune a specific
+combo. Balanced stays a thin transform (`balancedLayout`) over the same engine.
+
+**The safety mechanism that made this shippable without a browser: byte-parity.**
+`grid-template-areas`/`-rows` are deterministic strings → identical strings render
+identically, no visual ambiguity. Proven across all 32 combos by a tiny **node harness**
+([docs/spikes/engine-verify.js](../spikes/engine-verify.js)) that diffs engine vs. the
+verbatim matrix, plus a golden-table unit test
+([tests/unit/utils/dashboard-sections-test.js](../../app/frontend/tests/unit/utils/dashboard-sections-test.js)).
+Approach: dump the matrix's 32 outputs first (the golden table), THEN write the engine to
+reproduce them — don't hand-derive rules and hope.
+
+## Gotcha: verify a transcription against the REAL file, not a hand-retyped copy
+
+While byte-diffing the engine I "found a bug" (matrix emitting `auto auto 0` for 4 rows,
+collapsing the Org row). It was a **typo in my throwaway harness's copy of the matrix** —
+the real `dashboard_sections.js:130` was `auto auto auto 0` (correct). Re-reading the
+actual file before editing (Rule #0.5) caught it before I shipped a false "bug-fix" +
+misleading comment. When a refactor seems to reveal a latent bug in code that's been in
+production, first re-read the real source — suspect your transcription before the original.
+
+## Gotcha: `ember test --filter <substring>` runs only ESLint tests in the headless WSL env
+
+In this repo's headless `ember test --filter X` invocation, the ONLY tests that load are
+the synthetic `ESLint | ...` ones; real QUnit assertion tests are never matched — confirmed
+by filtering an existing known-good test ("it blocks duplicate calls" in
+`action-lock-test.js`) which also returned "No tests matched." So a `--filter` returning
+"No tests matched" does NOT mean your test is broken or missing. Don't burn rebuilds
+chasing it: verify pure-function logic with a node harness, lint the files, and (if needed)
+run the full suite via the proper dev/CI path rather than `--filter`.
+
+## Pattern: adding a NON-grid toggle (the welcome hero) to the dashboard engine
+
+The dashboard visibility system (`dashboard_sections` pref + `sectionHidden`) was built for
+grid CARDS (`HOME_SECTIONS`, placed by the layout engine). To make a NON-grid element (the
+`header.md-hero--dashboard` greeting) toggleable WITHOUT shoving it through the grid packer,
+add a parallel registry `EXTRA_HOME_TOGGLES` (key + cardClass + labelKey + `dynamicOnly`)
+and reuse the SAME persistence: `sectionHidden(user, key)` is generic, so it governs the
+hero with zero new storage. Touch points (all small, all reusing existing seams):
+`dashboard_sections.js` (registry + export), `getting-started-tour.js` (render the extra
+toggle after the card toggles via a shared `toggleItem()` helper; carry its checkbox state
+into the saved map AFTER `sectionsMapFor` since that scopes to grid sections and drops it;
+hide its row on Balanced via a `md-gst-section--dynamic-only` class; seed it in the
+no-checkbox preview branch), `authenticated-view.js` (`heroHideStyle` computed — gate on
+`activeTab !== 'extras'` because that same `<header>` is the Extras page header), and the
+template (`style={{this.heroHideStyle}}`). NOTE the modal preview clones only `.md-grid`
+(`getting-started-tour.js:317`), so a non-grid toggle persists + reflows the REAL page but
+won't animate in the mini-preview — acceptable, not a bug.
+
+## Gotcha: a `<button>` card can render its background unlike an `<a>` card — reset `appearance`
+
+The Account card is a `<LinkTo>` (`<a>`); Create-a-Board / Reports are `<button>`s. All share
+`.md-grid .md-card { background: <gradient> !important }`, yet a native `<button>` without an
+`appearance` reset can have its surface tinted by native chrome (engine-dependent), making
+"same CSS background" look different from the anchor. Fix is hygiene, not a new bg rule
+(Rule #0.7): add `appearance/-webkit-/-moz-appearance: none !important` to the shared
+`.md-card--as-button` base so every button card paints the `.md-card` gradient identically to
+the anchor. Diagnose first: the backgrounds were already CSS-identical (grouped selectors +
+base `.md-card`), so stacking a redundant `background:` on create-board would have been a
+no-op — the real difference was the element type.
+
+## Pattern: full-width (column-spanning) small card → engine-flagged, page-gradient surface
+
+When the packer emits a lone trailing small card as a full-width `'X X'` row, the card spans
+both columns and visually wants to read differently from a half-width button. `gridLayoutState`
+scans the final `areas` for any `'X X'` row that isn't Boards, maps the area token back to its
+section key (reverse `AREA`), and pushes a `md-grid--fullspan-<key>` class. CSS (scoped to the
+>950px two-col width) then gives that card the page (`md-shell`) gradient + a soft white CENTRE
+glow and centres its `.md-card__head` cluster (`justify-content: center`) while the titles keep
+`text-align:left` — so the image-to-text alignment is preserved, just centred as a group. This
+keeps the "spanning card looks intentional" styling data-driven off the engine instead of
+hard-coding which section is wide.
+
+## Pattern: an A/B style toggle that reuses the Dashboard Design modal's save+preview seams
+
+To let users flip every dashboard button between badge IMAGES and former SVG ICONS, the
+cheapest robust design renders BOTH in each card (`<img class="md-card__icon-img">` +
+`<svg class="md-card__icon-glyph">`) and switches with ONE grid class
+(`md-grid--badges-icons`) driven by a pref (`dashboard_badge_style`). Why render-both +
+class-toggle (not `{{if}}`): the Dashboard Design modal preview is a static
+`cloneNode(true)` of `.md-grid`, so a class toggle flips the clone instantly with no
+re-render — same trick the layout/section-hide classes already use. The modal control
+piggybacks every existing seam: render the segmented control in `_dynamicPreviewHtml`
+(toggles page), re-seed it in the show hook's re-seed block, toggle the clone class in
+`syncState` via a `currentBadgeStyle()` that falls back to the saved pref when the control
+isn't on the page (so the read-only display-style page's preview still reflects the pref),
+and persist in `_persistDisplaySelection` next to the layout choice. The home page just
+reads the pref into a `badgeStyleClass` computed bound on the grid. Net: one new pref, one
+CSS mode block, zero new storage/preview plumbing.
+
+## Gotcha: icons-mode "restore the tile box" is a NEW state, not a cascade override
+
+The image cards run their `.md-card__icon` box transparent (4-class `!important` rules). Icons
+mode must put the 46×46 tinted tile back. That's not a Rule #0.7 violation (don't stack a
+competing rule for the same state) — `md-grid--badges-icons` is a genuinely DIFFERENT state,
+so a mode-scoped block is correct. Match the transparent overrides' 4-class specificity and
+place the block AFTER them so it wins on source order; new image-only cards (account/
+create-board/reports) never had icon tints, so define theirs in this block too.
+
+## Pattern: ordered-list reorder model replaces swap + special-case placement
+
+The dashboard drag started as TWO models — small cards did a pairwise swap
+(`_swapPositions`, a closed-permutation `dashboard_positions` map) and Boards had its own
+`side/raised` placement (`applyBoardsPlacement`, gated on a 2-row single-column block via
+`boardsMovable`). Two failures fell out of one earlier change: making Boards FULL-WIDTH set
+`boardsMovable`→false (Boards stopped moving entirely), and a swap model fundamentally can't
+"insert between rows." Both dissolve under a single **ordered list** of section keys
+(`dashboard_order`): `packOrder` lays the visible keys out (smalls two-per-row, Boards a
+full-width row, a lone small spanning full width); dragging INSERTS the dragged key
+before/after the drop target (`reorderInsert` + a `_dropAfter` pointer test). Boards is just
+another block in the order — it moves like any card, for free. The whole `applyPositions` /
+`boardsCells` / `boardsMovable` / `_boardsDropPlacement` / `_displacedKeys` apparatus deleted;
+`gridLayoutState(vis, order, layout)` is the new signature. Lesson: when a feature needs two
+parallel special-case models to express one user intent ("arrange my cards"), the unifying
+data model (here: an order) is usually simpler than patching either model.
+
+## Gotcha: the modal preview only reconciles a FIXED class list — dynamic classes get dropped
+
+`syncState` toggled a hard-coded `STYLE_CLASSES` array onto the preview clone, so the
+engine's DYNAMIC `md-grid--fullspan-<key>` classes never reached the preview (fullspan styling
+silently missing in the modal only). Fix: reconcile by REGEX — strip every
+`md-grid--(boards-full|boards-right|with-*|fullspan-)` class, then add exactly the set
+`gridLayoutState` returned. When an engine can emit an open-ended set of state classes, the
+preview must mirror by pattern, not by a frozen allow-list.
+
+## Decision log: deferring a card that needs ~15 shared-rule touches
+
+Adding an "Edit Dashboard" badge-action card meant threading `md-card--edit-dashboard` into
+~15 grouped CSS rules that account/create-board/reports share (several with descendant
+selectors, so neither `replace_all` nor one consolidated block does it cleanly). Rather than
+rush that at the tail of a large change and risk regressing the existing cards, it was backed
+fully out of the engine (HOME_SECTIONS/AREA/DEFAULT_ORDER/test) so nothing ships half-wired.
+The real fix is a small refactor first: extract a shared `md-card--badge-action` class so the
+4th (and Nth) card is one selector, not fifteen — THEN add Edit Dashboard. Half-adding a card
+to the engine leaves an empty named grid-area (reserved blank space), so it's all-or-nothing.
+
+## i18n_generator.rb workflow: three gotchas that block or silently skip keys
+
+Running `ruby i18n_generator.rb --merge` (which does `--generate` THEN merges into the 12
+non-English locales) to register new keys surfaced three traps:
+
+1. **Duplicate keys hard-block ALL generation.** If any single key maps to two different
+   strings across source, the script prints `DUPLICATE <key> <file>` and writes NOTHING
+   (`TOTAL DUPS > 0` → "FOUND ISSUES, SO NO GENERATION"). So one stray conflict anywhere in
+   the repo blocks your unrelated keys. Run with NO args first (safe dry run — only writes
+   under `--generate`/`--merge`/`--confirm`) and read the `TOTAL DUPS` line. Reusing one key
+   for two strings is the usual cause — e.g. `create_a_board` for both "Create a Board →" and
+   "Create a Board"; fix by moving the trailing arrow into a separate `<span>` so the key's
+   string is identical at both sites (no visual change), or split into two keys.
+
+2. **`--generate` DELETES keys no longer referenced in CURRENT frontend source.** It rebuilds
+   en.json from a fresh scan, so orphaned keys (removed from templates but left in en.json)
+   are dropped — legit cleanup, but a broader diff than "just my keys." Before trusting it,
+   confirm the dropped keys are truly dead: no exact `key="X"` / `i18n.t('X'` in
+   `app/frontend/app/`, AND no dynamic `'prefix_' + var` construction. (Watch out for grep
+   substring false-positives: `allow_cookies` "matched" only because `allow_cookies_checkbox`
+   exists.)
+
+3. **The scanner is LITERAL-ONLY — dynamically-referenced keys land in 0/13 locales.** A key
+   rendered via `i18n.t(someVar.labelKey, someVar.labelDefault)` (e.g. the EXTRA_HOME_TOGGLES
+   registry) is invisible to the parser, so it never reaches the locale files (it still WORKS
+   at runtime via the inline default — it's just untranslatable). Register it with a literal
+   the scanner CAN see — even inside a `//` comment, since the parser reads every line for
+   `i18n.t('...`: `// i18n.t('home_welcome_banner', "Welcome banner")`. Then re-run.
+
+---
+
+## Pattern: Dashboard card icons — color lives in the CHIP, glyph stays monochrome
+
+**Surface:** `templates/components/dashboard/authenticated-view.hbs` `.md-card__icon`
+chips (home-tab cards: Speak, Extras, Account, Create-a-Board, Reports, Edit
+Dashboard, Caseload, Org).
+
+**What read as "juvenile clipart":** each inline SVG glyph baked in 2–3 stroke
+colors (blue #4C86D8 + teal #2A9D8F + slate #46505F) **plus** semi-transparent
+`fill="#..." fill-opacity` rainbow fills. Per current icon practice (Lucide,
+Linear/Geist, designsystems.com) that multicolor+filled look = "an illustration,
+not an icon."
+
+**The fix that works:** keep the tinted gradient chip tiles (already the modern
+Stripe/Untitled-UI "Featured Icon" pattern — `app.scss:47216+`, 47265–47310) and
+redesign each glyph as **single-hue duotone line art** (one hue = the chip's tint).
+Two things both matter — don't skip the second:
+1. **New SHAPE, not just new color.** Recoloring the old shapes was rejected
+   ("you just kept exactly the same shape"). Pick a more distinctive/elegant
+   metaphor: sparkles (extras), area-trend chart (reports), layout tiles (edit
+   dashboard), speech-bubble+waveform (speak), avatar-in-ring (account),
+   board-cells+plus (create), people-pair (caseload), building skyline (org).
+2. **Refined duotone, ONE hue.** The body shape gets a soft same-hue fill
+   (`fill="#hue" fill-opacity="0.10–0.13"`) UNDER a `stroke="#hue"` outline;
+   detail strokes inherit root `fill="none"`. This is the Phosphor/Untitled-UI
+   premium look — depth without the rainbow. The original read as clipart from
+   MULTIPLE clashing hues + baked fills, not from fills per se. Never use a
+   per-path SECOND hue.
+- Keep the set-wide 1.5px stroke + round caps/joins (matches navbar dropdown
+  icons → don't introduce a second stroke weight).
+- Hue map (matches existing chip tints): speak/create-board/caseload → teal
+  #2A9D8F; account/reports/edit/org → blue #4C86D8; extras → coral **#D9573F**
+  (deepened from the chip's #F06A5B so it clears ~3:1 on the light coral tile).
+
+**Gotchas:**
+- Speak & Caseload each render TWO sibling variants (wide-only + narrow-as-button)
+  with duplicated SVG — edit both (replace_all works for the identical caseload pair).
+- The wide-Speak/Caseload svgs are 24px in a 46px base chip and **lack**
+  `.md-card__icon-glyph` (which forces 34px); do NOT add that class to them or they
+  blow up. Only the as-button variants carry it.
+- getting-started-tour clones the live home DOM for its preview, so glyph edits
+  propagate to the Dashboard Design modal for free — no second edit site.
+
+---
+
+## Pattern: Don't use a cross-component Ember observer as a one-shot EVENT bus — register a direct opener
+
+**Surface:** opening a navbar-mounted component's flow (e.g. `getting-started-tour`
+Dashboard Design tour) from a sibling component (the home "Edit Dashboard" card).
+
+**What failed:** the trigger set `appState.open_dashboard_design='display'` and the
+tour component had `observer('appState.open_dashboard_design', …)` to react. The
+observer never reliably fired → button did nothing. Observers-as-events are
+fragile: they won't re-fire for an UNCHANGED value, and registration can race the
+signal. Tell: `home-tour.js` uses the same pattern but bolts on a
+`didInsertElement` + `sessionStorage` fallback ("a route transition raced the
+observer registration") — a sign the team already learned the observer alone
+isn't trustworthy here.
+
+**Reliable fix:** have the receiving component **register a bound opener on the
+shared service** in `init` (`appState.set('dashboard_design_opener',
+this._open.bind(this))`, cleared in `willDestroy`), and have the caller CALL it
+directly (`appState.dashboard_design_opener(arg)`), falling back to the old signal
+only if no opener is registered. The navbar component is always mounted, so the
+opener is present before any click. Deterministic, no observer timing.
+
+**Diagnostic shortcut:** when a NEW trigger "does nothing," `git show HEAD:<file>`
+to check whether the wiring is uncommitted/never-worked (vs a regression). And if
+two entry points share one opener function, a working second entry point (here the
+navbar "Get Started" badge → same `_startGettingStarted`) proves the machinery is
+fine and isolates the bug to the trigger.
+
+**Ember-rule gotcha:** `ember/require-super-in-init` wants `this._super(...arguments)`
+(spread), NOT `this._super.apply(this, arguments)`, specifically in `init`.
+
+## Gotcha: `ember test` here runs only lint + 3 acceptance tests — the unit suite is NOT wired in
+
+A full `ember test` in this repo executes **1402 tests that are all ESLint / TemplateLint
+wrappers + a smoke test + 2 acceptance tests** — **zero** of the `tests/unit/**` QUnit modules
+run (verified 2026-06-11 by grepping the TAP output: 0 lines match `Utility`/any unit module). So
+adding `tests/unit/...-test.js` gives you a lint-checked file that is **never executed** by the
+default command, and `--filter="<module name>"` returns *"No tests matched"* because the module
+never loads. Two consequences: (1) `ember test --filter` matches **test NAMES**, not module names
+(`--filter="dashboard"` only hit lint wrappers whose names contain the filename); (2) for pure
+util logic, verify by **exhaustive manual trace + eslint + `ember build`** (which still compiles
+SCSS/templates/JS), not by trying to run the QUnit file. Still write the `-test.js` — it documents
+intent and will run if/when the unit suite is wired into CI — just don't expect it to gate here.
+
+## Pattern: dashboard "fill the row" needs an inline grid-template-columns = visible-item count
+
+To make N cards in a CSS-grid row **expand to fill** when some are hidden (no empty cells), you
+cannot keep a fixed column count and pad with `.` — and you cannot evenly distribute, say, 3 cards
+across 4 fixed columns (4∤3). The fix in `utils/dashboard_sections.js` `focusedLayout`: set the
+column count to **exactly the number of visible cards** (`cols = max(1, visibleUtilityCount)`),
+express every full-width row as that many repeats of its name (so `grid-template-areas` rows stay
+rectangular — required), and emit `grid-template-columns: repeat(N, 1fr)` **inline** (returned as
+`gridLayoutState().columns`, applied with `!important` in `authenticated-view.gridStyle` AND the
+modal preview `syncState`). Gentle View returns `columns: null` so the stylesheet's 2-col rule
+governs. The ≤1024px flex fallback ignores grid-template entirely, so it's unaffected.
+
+## Fact: the two dashboard layout keys are `focused` + `gentle` (renamed from `balanced`/`dynamic` 2026-06-11)
+
+`preferences.dashboard_layout` is `'focused'` (default) or `'gentle'`. **Both were renamed on
+2026-06-11, no backward-compat (pre-production):** Focused View was `'balanced'` (a separate
+earlier `'focused'` value had been removed), Gentle View was `'dynamic'`. Renamed across the
+persisted value (`user.rb` default), JS (`FOCUSED_DEFAULT_ORDER`, `FOCUSED_ACTION_KEYS`,
+`focusedLayout`, `reorderForFocused`, `_gentlePreviewHtml`, `gentleOnly`, `=== 'focused'`,
+`['gentle','focused']`), CSS (`md-grid--layout-focused`/`-gentle`, `md-shell--layout-focused`,
+`ll-layout-focused`, `md-card--speak-focused*`, `md-gst-section--gentle-only`), `data-gst-layout`,
+and i18n key names (`getting_started_tour_layout_focused*`/`_gentle*`). The engine branches on
+`=== 'focused'` only (everything else → the gentle `dashboardLayout`). **Do not reintroduce
+`'balanced'` or `'dynamic'`.**
+
+**Rename technique — and why the two words differ:** `balanced` is a rare word, so a word-boundary
+blanket `s/\bbalanced\b/focused/g` was safe (it can't touch `unbalanced`). `dynamic` is a COMMON
+word with real false-positives that must be preserved — `dynamic viewport`, `100dvh`,
+a `…dynamic-width-css-fluid-layout` SO URL, "rendered via a **dynamic** i18n.t" (runtime sense),
+"shared helper with **dynamic** keys". So `dynamic`→`gentle` used ONLY explicit-token seds
+(`md-grid--layout-dynamic`, `dynamicOnly`, `_dynamicPreviewHtml`, `getting_started_tour_layout_dynamic`,
+quoted `'dynamic'`/`"dynamic"`, the `Dynamic` layout comments) — NEVER `\bdynamic\b`. Lesson: gauge
+the word's commonness first (`grep -rl <word> | wc -l`); rare → word-boundary blanket ok, common →
+explicit tokens + a hand-audited residual grep.
+
+## Gotcha: dashboard preview tiles + selection gates leak HIDDEN-but-present state
+
+Two distinct bugs, same shape — a computed/gate reading state that's present in the DOM/data but
+not actually applicable:
+
+1. **`filterRootBoards` is first-page-sensitive — cluster the FULL library, not a page.** The
+   dashboard Boards strip (`previewBoards`) showed sub-board copies of a copied set because it ran
+   `filterRootBoards(_fetchedPreviewBoards)` over only the first 20 fetched records. The filter's
+   shallow-root map needs the WHOLE owned library to collapse a set to its root tile (the root and
+   its sub-boards must be in the same list). `boardCount` already used the full `_fetchedBoards`;
+   the strip must too (fall back to the first page until pagination completes). Don't reach for a
+   server `root` param — boards-controller `params['root']` is a `search_string ILIKE '%root%'`
+   text search, NOT a roots filter.
+
+2. **Selection gates must ignore layout-hidden-but-checked toggles.** The Dashboard Design modal's
+   "Nothing to display" overlay + Done/close disabling stopped firing once Focused View became the
+   default: Focused View hides the Extras + Welcome-banner toggles (`applyLayoutSections` sets their
+   row `display:none`) but leaves them CHECKED, so `anyChecked()` over *all* inputs always returned
+   true. Fix: gate on `applicableBoxes()` = inputs whose `.md-gst-section` row isn't `display:none`.
+   General rule: when a layout can hide a control while preserving its value, any "is anything
+   selected?" check must filter to the controls actually applicable to that layout.
+
+## Gotcha: a saved frontend preference silently vanishes if it's not in `User::PREFERENCE_PARAMS`
+
+`User#process_params` only copies preference keys listed in `PREFERENCE_PARAMS` (`app/models/user.rb`,
+iterated ~line 1287) from the request into `settings['preferences']`. Any pref the frontend sends
+that ISN'T whitelisted is silently dropped on save, and the save *response* (which lacks it) resets
+the in-memory model — so the value "works locally, reverts on close/reload." This bit the dashboard
+drag-reorder: the frontend layout engine was migrated from a `dashboard_positions`/`dashboard_boards`
+model to a single ordered list `dashboard_order`, but the whitelist still listed the old two keys
+and not `dashboard_order`. **When you add/rename a persisted user preference on the frontend, add it
+to `PREFERENCE_PARAMS` in the SAME change** (the FE save path and `gridLayoutState` can all be
+correct and it'll still look broken). Quick check: `grep "'<pref_key>'" app/models/user.rb`.
 ## PHI/PII in logs: PiiScrubber and filter_parameters do NOT cover explicit logger calls (2026-06-10)
 
 **Surface:** Cloud Run migration log hygiene (Phase 2.7); any `Rails.logger.*` / `puts` that interpolates user data.
@@ -3725,3 +4525,1911 @@ first run and left the file untouched.
 **Approach:** Repo file templates may keep `<% if %>` (trusted, rendered via normal mailer views). **Stored** `html_body`/`text_body` overrides must pass `SystemEmailTemplateSecurity.validate!` (only `<%= %>` tags; block dangerous expressions). Deliver overrides with `render_string(binding)` then `render html:, layout: 'email'` — not `render html:` alone (drops layout). `normalize_i18n_overrides` must accept `ActionController::Parameters` via `to_unsafe_h` or preview/save drops nested `i18n_overrides`.
 
 **Evidence:** `lib/system_email_template_security.rb`, `app/mailers/concerns/system_email_override.rb`; task log `2026-06-09-system-settings.md`.
+
+
+## Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB
+
+**Symptom:** A spec file fails ~dozens of examples in a full run, all on
+*global* count assertions (`expect(LogSession.count).to eq(2)` -> `got 110`).
+Easy to misread as cross-example state pollution / ordering.
+
+**Reality (log_session_spec.rb, 2026-06-11):** `lingolinq-test` carried ~108
+LogSession + ~95 JobStash + ~171 RemoteAction rows committed days earlier by a
+prior interrupted run. Transactional fixtures were fine (live count held steady
+across full runs = no ongoing leak); the orphans just inflated every unscoped
+count. A counting example fails the *same way in isolation*, which is the tell:
+true order-dependence passes alone, orphan-pollution does not. Examples that
+"pass alone" usually just don't assert a global count.
+
+**Diagnose:** add a throwaway `after(:each)` that logs the count, or
+`DB_USER=scotw RAILS_ENV=test bundle exec rails runner 'puts Model.count'`. If
+count is already nonzero at example #1, it is pre-existing committed data, not a
+leak. Check `Model.order(:id).first.created_at` for an old date.
+
+**Fix:** file-scoped `before(:each)` clearing the affected tables (runs inside
+the example txn, restored on rollback) for a deterministic baseline. Mirror
+`spec_helper`'s `RemoteAction.delete_all` and `log_session_spec`'s
+`JobStash.delete_all`. Keep it file-scoped, NOT global: a global
+`AuditEvent.delete_all` was shown to perturb counts. See
+[[reference_auditevent_escapes_rspec_txn]] and task log
+`2026-06-11-log-session-spec-isolation.md`.
+
+---
+
+## Pattern: client-supplied preferences that drive computed inline styles/classes need write-time shape coercion
+
+**Surface:** `User#process_params` `PREFERENCE_PARAMS` loop, dashboard_* prefs, `components/dashboard/authenticated-view.js`, `utils/dashboard_sections.js`.
+
+**Approach:** `PREFERENCE_PARAMS` assigns whitelisted prefs **verbatim** — no type/shape check. When a pref feeds a computed `htmlSafe` inline style or a CSS class name (the `dashboard_layout`/`dashboard_sections`/`dashboard_order`/`dashboard_positions`/`dashboard_boards` set), validate it server-side against a known-keys whitelist on write (`sanitize_dashboard_preferences!`), dropping invalid values so the client falls back to defaults. The frontend already filters unknown keys (`orderedVisible` keeps only `vis[k]`-truthy keys; `effectiveLayout` whitelists `gentle`/`focused`) and builds styles only from the `AREA` map — so this is defense-in-depth, not the sole guard. Key list source of truth is `dashboard_sections.js`; duplicate it in `User::DASHBOARD_SECTION_KEYS` with a sync comment (Ruby can't import the JS).
+
+**Evidence:** `app/models/user.rb` (`DASHBOARD_SECTION_KEYS`, `sanitize_dashboard_preferences!`); triage of 6 merge findings in task log `2026-06-12-dashboard-merge-security-findings.md`. Note: board enumeration via `user_id` is already blocked by `boards_controller#index` `allowed?(user, 'view_detailed')` — not a gap.
+
+## Pattern: top-level route templates render into `#content` with NO `.ember-view` wrapper (shell/workspace height)
+
+**Surface:** `templates/application.hbs:1458-1459` (`<div id="content">{{ outlet }}</div>`), standalone route templates like `templates/board-picker.hbs`, the `.md-shell` height/flex chain in `app.scss`.
+
+**Gotcha:** A top-level ROUTE template (e.g. `/board-picker`) renders its root element **directly** into `#content` via `{{ outlet }}` — there is NO `.ember-view` / `#index_view` wrapper between `#content` and `.md-shell`. So the real chain is `#content > .md-shell.md-shell--board-picker > .md-workspace`. Dashboard pages are different: they render under `#index_view` (a `.ember-view`), so `#content .ember-view > .md-shell` matches THEM but NOT a standalone route. The base shell rule already encodes this by listing BOTH variants: `#content .ember-view > .md-shell, #content > .md-shell {…}` (app.scss:41168-41169). If you target a standalone shell with an `.ember-view`-based selector, it silently never matches.
+
+**Symptom that surfaced it:** On `/board-picker` ≤950px the glass `.md-workspace` card stopped at content height with the `#within_ember` mesh filling below it ("card ends, shell shows"). The `@media (max-width:950px)` single-column block (app.scss:55596) collapses `.md-shell`→`min-height:auto;flex:0 0 auto` and `.md-shell > .md-workspace`→`flex:0 0 auto;min-height:min-content` — intentional for the dashboard (long board lists must scroll), wrong for a short standalone page.
+
+**Fix:** restore BOTH the shell height AND the workspace grow — they are co-dependent (a prior attempt that only flex-grew the workspace failed: the generic shell rule kept the shell collapsed, so there was no free height to grow into, AND the workspace's (0,2,0) rule lost the source-order tie to the generic `flex:0 0 auto !important`). Scope robustly via `#within_ember:has(.board-picker-page)` (proven to match — same hook the bg fix uses — and indifferent to wrapper structure):
+```scss
+@media (max-width: 950px) {
+  #within_ember:has(.board-picker-page) .md-shell--board-picker { min-height: 100vh !important; }           /* (1,2,0) beats #content > .md-shell (1,1,0) */
+  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace {
+    flex: 1 1 auto !important; min-height: auto !important;                                                  /* (1,3,0) beats .md-shell > .md-workspace (0,2,0) */
+  }
+}
+```
+**Lessons:** (1) Verify the actual DOM wrapper chain before writing shell/workspace selectors on a standalone route — don't assume the dashboard's `.ember-view`/`#index_view` nesting. (2) "Shrink-to-content vs fill-viewport" needs the shell height AND the workspace flex fixed together; fixing only one is a no-op. (3) For a card-not-full-height bug, flex-grow IS the right layer (≠ the `#within_ember` bg-paint fix used for bg-not-filling) — but only once the shell provides a definite tall height.
+
+**Evidence:** task log `2026-06-12-board-picker-workspace-fullheight.md`; contrast `2026-06-12-board-picker-bg-and-tabs.md` (bg fill, different layer).
+
+## Pattern: v2 Ember addons (ember-auto-import code-splitting) break on the Rails-served bundle
+
+**Surface:** `app/frontend/ember-cli-build.js` (`autoImport.webpack`), `app/assets/javascripts/application.js` + `application-test.js` (Sprockets manifests), `bin/render-build.sh`, `lib/tasks/extras.rake` (`extras:assert_js`).
+
+**Symptom:** A feature using a **v2 Ember addon** (e.g. `ember-shepherd` → the Shepherd tours) works under `ember serve` but on the deployed Rails app throws `Could not find module '<pkg>/services/<x>' imported from 'frontend/services/<x>'` and `this.class.create is not a function` (the injected service can't be built).
+
+**Root cause:** A v2 addon's `_app_` re-export is merged into the app (`frontend/services/<x>`) but its real implementation is pulled in by **ember-auto-import**, which by default **code-splits** it into a content-hashed `chunk.<id>.<hash>.js`. Ember's own `index.html` loads those chunk `<script>`s; the **Rails app does NOT use that index.html** — it concatenates only `vendor.js` + `frontend.js` via the Sprockets manifest (`//= require`). So the chunk that DEFINES the module is never on the page. This app's integration (`fingerprint`/`minify` disabled, manual concat) assumes everything lands in `vendor.js`/`frontend.js`; the first runtime auto-import dependency exposes the gap.
+
+**Deploy flow (important):** Render DOES build — `render.yaml` → `bin/render-build.sh`: `extras:assert_js` → `ember build --environment production` → hardcoded `cp -f dist/assets/{frontend,vendor}.{js,css}` onto the Sprockets load path (`app/assets/javascripts|stylesheets`) → `assets:clobber` + `assets:precompile`. Anything not in that `cp` list and not `//= require`d is dropped.
+
+**Fix (4 coordinated changes):**
+1. `ember-cli-build.js` `autoImport.webpack`: `optimization: { splitChunks: false, runtimeChunk: false }` + `output: { filename: 'auto-import-[name].js', chunkFilename: 'auto-import-[name].js' }` → one stable `dist/assets/auto-import-app.js` (runtime + all eager deps), no hashed chunks. (Only safe if the app has no dynamic `import()` — verify with `grep -rE "import\(" app/`; `LingoLinq.Log.import` etc. are method calls, not module imports.)
+2. `application.js` (+ `application-test.js`): `//= require auto-import-app.js` immediately BEFORE `frontend.js` (runtime must load before the app that consumes it).
+3. `bin/render-build.sh`: add `cp -f app/frontend/dist/assets/auto-import-app.js app/assets/javascripts/auto-import-app.js` to the copy block.
+4. `extras:assert_js`: copy it too, and `touch` an empty placeholder when no build exists so precompile never fails on the missing `require`.
+
+**Verify:** after `ember build` there must be ZERO `dist/assets/chunk.*.js` the app needs (only `auto-import-app.js`); after `assets:precompile`, the served `public/assets/application-*.js` must contain the impl (`grep -c Shepherd …` > 0) and define `<pkg>/services/<x>`. Load order: auto-import runtime byte-offset < the `frontend/services/<x>` re-export.
+
+**Lessons:** (1) The Rails app ignores Ember's `index.html` — any ember-auto-import output beyond `vendor.js`/`frontend.js` must be manually wired into the Sprockets manifest AND the render-build copy step. (2) Adding a v2 addon to this app is never just `npm install` — it needs this build-wiring. (3) Diagnose deploy bugs against the ACTUAL build (`render.yaml`/`render-build.sh`), not assumptions about committed assets.
+
+**Evidence:** task log `2026-06-12-shepherd-tours-broken-on-render.md`.
+
+## Pattern: SSRF guard for server-side image/URL fetches lives in `Uploader.sanitize_url`
+
+**Surface:** `lib/uploader.rb#sanitize_url` (called by `valid_remote_url?` + every server-side image fetch: `ButtonImage.process_url`, OBF import, symbol download). Any flow where a CLIENT supplies an image `url` that the server later fetches (symbol search, board-detail image drop, create-board-new drag-drop, OBF import) funnels through here.
+
+**Gotcha:** `sanitize_url` is the single SSRF chokepoint, but its original host checks (`^127`, `localhost`, `^0`, decimal-IP) MISSED link-local `169.254.169.254` (cloud metadata) and RFC1918 private ranges (`10/172.16-31/192.168`) — so an authenticated user could point any image-URL flow at internal services. It also didn't restrict the scheme (so `file://`/`gopher://`/`data:` reached the builder, and a nil-host URI could crash the `uri.host.match` line).
+
+**Fix shape:** two layers — (1) `sanitize_url` for fast string-level checks (scheme, IP literals, encodings); (2) `lib/safe_http.rb` for every user-supplied fetch: resolve hostname via `Addrinfo.getaddrinfo`, reject if **any** A/AAAA answer is in a blocked range, then pin validated IPs into libcurl via `CURLOPT_RESOLVE` (`resolve:` in Typhoeus) so connect-time DNS cannot rebind. Redirects are followed manually (max 5 hops) with full re-validation per hop; `followlocation` is always false. Shared IP classification lives in `SafeHttp.blocked_address?` (also used by `sanitize_url` for literals).
+
+## Ethon 0.15 resolve runtime (2026-06-12 follow-up)
+
+Ethon 0.15 rejects `resolve:` as a Ruby Array at **run** time (`Ethon::Errors::InvalidValue`); Typhoeus::Request.new accepts it but `request.run` fails. Convert pin strings to `Ethon::Curl.slist_append` + `FFI::AutoPointer` before passing to Typhoeus. Specs that mock Typhoeus should expect `kind_of(FFI::AutoPointer)` for `:resolve`, not a string array.
+
+**Proxy controller gotcha:** `ActionController::Metal` delegates `content_type` to `response`. A local assignment like `content_type, body = get_url_in_chunks(...)` inside `proxy` does **not** bind a local — it calls the reader. Use distinct names (e.g. `fetched_content_type`) in controller actions that shadow response helpers.
+
+**Test:** `spec/lib/uploader_spec.rb` "sanitize_url" stays network-free (adversarial string cases). DNS/pin behavior in `spec/lib/safe_http_spec.rb` with stubbed `Addrinfo.getaddrinfo`. Proxy SSRF rejection in `spec/controllers/api/search_controller_spec.rb`.
+
+**Lesson:** before "fixing" a client-side upload finding, trace to the server fetch — the create-board drag-drop "SSRF" finding was really a gap in the shared `sanitize_url`, fixed once at the chokepoint, not in the UI component. Also: client supplied image URLs are baked as `<img src>` (no HTML execution sink), and `data:` URLs are stored, never fetched — so "stored XSS via data: URL" doesn't apply here.
+
+**IPv6 gotcha:** `IPAddr#private?` / `#link_local?` miss IPv4-compatible (`::169.254.169.254`) and non-canonical mapped forms (`::ffff:0:7f00:1`). `SafeHttp#embedded_ipv4` must peel these via raw `hton` bytes — and comparisons must use `.b` literals because `hton` returns ASCII-8BIT while `"\xff\xff"` is UTF-8 in Ruby 3 (`==` fails on encoding even when bytes match). Strip zone index (`fe80::1%eth0`) before parse.
+
+**Evidence:** task logs `2026-06-12-pr-security-review-response.md`, `2026-06-12-ssrf-dns-rebinding-fix.md`, `2026-06-12-safe-http-adversarial-fixes.md`.
+
+## Pattern: ButtonImage content_type is the image-type allowlist chokepoint (stored-XSS defense)
+
+**Surface:** `app/models/button_image.rb#process_params` (~line 190-200) — the single place `content_type` and data: URIs get stored for EVERY image path (symbol search, board-detail drop, create-board drag-drop, OBF import). `process_url` (concerns/uploadable.rb) does NOT set content_type; `Uploader.remote_upload` (uploader.rb:296,318) passes content_type straight onto the S3 object's `Content-Type`.
+
+**Gotcha:** client-supplied `content_type` was stored verbatim — `inferImageContentType` (content-grabbers.js) returns the data: MIME / passed-in type as-is (no allowlist), and `ButtonImage` did `settings['content_type'] = params['content_type']` with no check. So a dropped `data:text/html` or a scriptable SVG could be stored as a "ButtonImage" and re-served inline with that type. Board buttons render via `<img src>` (no script exec), so it's NOT a confirmed app-origin XSS — the real residual is a malicious **SVG** served inline from the CDN origin + arbitrary non-image blobs stored as images.
+
+**Fix (defense-in-depth, at the sink):** coerce any non-`image/*` content_type to `image/png`; drop a `data:` URI whose MIME isn't `image/*` (kills the `data:text/html` payload). SVG (`image/svg+xml`) must PASS — OpenSymbols serves SVG symbols, so rejecting it breaks legit rendering; **`SvgSanitizer`** (`lib/svg_sanitizer.rb`, Loofah XML scrubber) strips `<script>`, event handlers, `foreignObject`, and dangerous URIs at `ButtonImage#process_params` (data: sink) and `Uploadable#upload_to_remote` (HTTP/data_uri → S3). SVG uploads force server-side upload (`requires_server_sanitized_upload?`) so client direct S3 POST cannot bypass sanitization.
+
+**Lesson:** a client-side "unsafe upload" finding usually resolves at a server chokepoint, not in the UI component — same as the SSRF→`sanitize_url` fix. Trace content_type all the way to what the CDN serves before judging exploitability; `<img src>` rendering neutralizes most stored-image XSS, leaving SVG-served-inline as the real residual — address with `SvgSanitizer`, not blanket SVG rejection.
+
+**Evidence:** task logs `2026-06-12-pr-security-review-response.md`, `2026-06-12-svg-upload-sanitization.md`; tests in `spec/lib/svg_sanitizer_spec.rb`, `spec/models/button_image_spec.rb`, `spec/models/concerns/uploadable_spec.rb`.
+
+## Pattern: layout-variant selectors that SWAP a base class have EQUAL specificity — they can't be relocated to a partial
+
+**Surface:** the Focused View overlay rules in `app.scss` (`.md-grid--layout-focused …`, scattered
+~29407, 41313, 46922-47229, 47584-47835, 52753, 56373+). Tried to consolidate them into a
+`_focused-view.scss` partial imported via `@use` (which forces the rules to the TOP of the compiled
+output).
+
+**Gotcha:** a focused selector like `.md-grid--layout-focused .md-card--badge-action.md-card--as-button .md-card__sub`
+does NOT add a class to the gentle base — it SWAPS `.md-grid` → `.md-grid--layout-focused`. Same class
+count → **equal specificity** (0,5,0) to the gentle `.md-grid .md-card--badge-action… .md-card__sub`. So
+the focused rule wins ONLY because it sits LATER in source order. The code documents this in its own
+comments ("Placed AFTER the badge-action text rules so … colours win the equal-specificity source-order
+tie", `app.scss:47582`; "beats … #5C6470 by source order", `:47615`, competitor at `:47564`). Move such a
+rule to the top of the file (or into a `@use`'d partial) and the GENTLE rule wins → silently broken
+focused cards. Rules are HETEROGENEOUS: a few genuinely win by specificity (`.md-grid.md-grid--layout-focused`,
+TWO classes on the grid = 0,6,0, e.g. `:47816`) and ARE relocatable; most are not. A blanket relocation
+can't tell them apart.
+
+**Verification trap:** a pre/post dart-sass **compile diff does NOT catch this** — the declarations are
+byte-identical; only the winning rule flips. Detecting an order-induced regression needs computed-style /
+browser checking, not a CSS text diff. So "the SCSS still compiles" and "the declaration set is unchanged"
+are NOT proof the cascade is unchanged.
+
+**Lesson:** before relocating any variant-scoped CSS (layout/theme/mode overlays), check whether each
+selector ADDS a qualifying class (→ higher specificity, order-independent, safe to move) or SWAPS the base
+class (→ equal specificity, order-dependent, NOT safe to move). If you must consolidate order-dependent
+rules, first convert each source-order win into a specificity win (add a `body.<mode>` ancestor or a
+double-class `.md-grid.md-grid--<mode>`) — a separate, riskier refactor — THEN relocate. For a NEW overlay,
+prefer wiring the runtime body-class globally (see next pattern) + a scoped partial as the home for NEW
+rules, and leave battle-tested inline rules in place. Relates to
+[`!important` does not beat source order at equal specificity](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead).
+
+**Evidence:** task log `2026-06-12-focused-view-global-overlay.md`.
+
+## Pattern: app-wide pref→root-class overlays belong in app-state, mirroring `set_fitzgerald_scope`
+
+**Surface:** the Focused View overlay needs `body.ll-layout-focused` present on EVERY page (gated on
+`preferences.dashboard_layout === 'focused'`, the default). It was originally toggled inside
+`components/dashboard/authenticated-view.js` (`_syncLayoutBodyClass`, added on `didInsertElement`, REMOVED
+on `willDestroyElement`) — so the class only existed while the dashboard was mounted and vanished on
+navigation, making an app-wide overlay impossible.
+
+**Fix shape (the established pattern):** there is already an idiomatic pref→root-class sync to copy —
+`set_fitzgerald_scope`. (1) a `LingoLinq.set_<x>_scope(value)` helper in `app/app.js` toggles the class on
+`document.body`/`documentElement`; (2) a `sync_<x>_scope: observer('sessionUser', 'sessionUser.preferences.<key>', …)`
+in `services/app-state.js` calls it — firing on `sessionUser` change (initial load / login = the per-page-load
+check) AND on the specific pref change. `sessionUser` (the logged-in account holder, set on auth) is the right
+source for chrome prefs, not `currentUser` (which can be a "speak-as" target). Remove the component-local
+toggle so there is a single authority.
+
+**Lesson:** for any "apply X app-wide based on a saved user preference" need, don't add a body-class toggle in
+a page component (dies on navigation) — put it in `app-state` as a `sessionUser`-driven observer mirroring
+`set_fitzgerald_scope`, and keep the variant CSS in an ancestor-scoped partial so the baseline (e.g. Gentle
+View) is untouched. See [layout-variant selectors that SWAP a base class](#pattern-layout-variant-selectors-that-swap-a-base-class-have-equal-specificity--they-cant-be-relocated-to-a-partial)
+for why the EXISTING inline rules can't simply be moved into that partial.
+
+**Evidence:** task log `2026-06-12-focused-view-global-overlay.md`.
+
+---
+
+## Pattern: Preview-clone pointer-drag — hit-test by geometry (not elementsFromPoint) and re-wire after every clone rebuild
+
+**Surface:** the Dashboard Design modal's drag-to-reorder
+(`getting-started-tour.js` `_wirePreviewDrag`), and any pointer-drag built
+over a CSS-`zoom`ed CLONE of a grid where the clone is
+`pointer-events:none` except for per-item drag overlays.
+
+**Symptom:** drag-to-swap "doesn't work every time" — drops miss or land
+on the wrong slot, and (the bigger one) drag stops working entirely after
+the user switches a setting that re-renders the preview. Smoothness also
+suffers. Multiple prior fixes that tweaked the commit/hit-test math did
+not resolve it.
+
+**Two independent root causes — both must be fixed:**
+
+1. **Target detection via `elementsFromPoint` is unreliable here.** The
+   clone forces `pointer-events:none` on everything but the overlays, and
+   the dragged card is pinned `z-index:999` and translated to sit directly
+   under the cursor. So the lookup must peer THROUGH that ghost to find the
+   occluded target overlay — sensitive to stacking, sub-pixel position,
+   overlay border-box vs grid gap, so it intermittently returns no target.
+   **Fix: detect by GEOMETRY.** A CSS `transform` on the dragged item is
+   visual-only and never reflows its siblings, so every OTHER item's
+   `getBoundingClientRect()` is its true on-screen cell. Scan those rects
+   (excluding the dragged item; skip zero-rect = display:none) for the one
+   containing the cursor. Deterministic, independent of stacking/pointer-
+   events/the ghost, valid under CSS `zoom` (rect and `clientX/Y` share
+   screen space on current Chrome), and cheap (no forced hit-test → also
+   fixes per-frame jank). Use the SAME scan at release instead of a cached
+   "last highlighted" target — a cached target goes stale when the final
+   pointermove's rAF frame is cancelled on pointerup.
+
+2. **Drag wired once, but the preview is REBUILT on settings change.** The
+   wiring (`_wirePreviewDrag`) ran a single time on modal-open, but picking
+   a display style calls `_buildPreviewContent`, which REMOVES and re-clones
+   the preview DOM. The fresh items have no overlays/listeners and the old
+   `cards`/closure point at detached nodes → drag silently dead until the
+   modal is reopened. **Fix: wrap the wiring in a function and re-call it
+   after every rebuild.** A per-item `_gstDragWired` expando guards against
+   double-wiring (expandos are NOT copied by `cloneNode`, so fresh clones
+   re-wire correctly).
+
+**General lesson:** when a feature is wired imperatively onto cloned/
+rendered DOM, audit EVERY path that re-renders that DOM and confirm the
+wiring re-runs — "works on open, dead after interaction X" is the tell.
+And prefer geometry (rect containment) over `elementsFromPoint` whenever a
+moving/occluding element sits between the cursor and the target.
+
+**Evidence:** task log `2026-06-12-dashboard-drag-reliability.md` (the
+"deeper" + adversarial-review sections). User-verified working after the
+geometry + re-wire fixes.
+
+**Related:** [Custom-JS drag works on desktop but not in touch-emulation](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
+(touch-action), [Dashboard card order is driven by grid-template-areas](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom).
+
+### JSON bundle import: images missing when S3 upload fails locally
+
+**Symptom:** JSON bundle import creates boards and `image_id` on buttons, but
+buttons show no symbols. `ButtonImage` rows have `pending: true`, `url: nil`,
+`errored_pending_url` set to the CloudFront source URL.
+
+**Root cause:** `upload_to_remote` successfully fetches OpenSymbols /
+CloudFront URLs during import, but when the S3 post fails (common in local dev
+without upload creds) it only recorded `errored_pending_url` for http(s)
+sources — leaving the image stuck pending with nothing displayable.
+
+**Fix:** `Uploadable#store_downloaded_file_fallback!` — on S3 failure after a
+successful fetch, store bytes as a `data_uri` (≤512KB) or keep a trusted
+symbol-CDN URL with `pending: false`. Also normalize synthesized bundle URLs
+in `ApiJsonBundle#coalesce_media` via `encode_import_url`.
+
+**Re-import required** after pulling the fix; existing pending images on a test
+account won't self-heal unless you re-import or run `upload_to_remote` again.
+
+### JSON bundle import: custom photos replaced by OpenSymbols after import
+
+**Symptom:** Imported custom button images (e.g. teacher photos) display
+correctly at first, then swap to stock symbols (e.g. dart for "Miss") minutes
+later or after reload.
+
+**Root cause:** `ButtonImage#ensure_library_url_for_skin!` runs on a slow job
+after board API load when `needs_library_url_enrichment?` is true (S3-hosted
+import copies). It searches OpenSymbols by button label and stores
+`library_alternates`. With `preferred_symbols: opensymbols` (default), the
+client renders the alternate URL, not the imported photo. `Board#swap_images`
+can also replace `image_id` by label lookup (only skips `lingolinq-usercontent`
+URLs).
+
+**Fix:** JSON bundle import sets `ButtonImage#settings['preserve_source_image']`.
+That flag skips skin enrichment, keeps `settings_for` on the original URL, and
+skips `swap_images` replacement. Re-import affected boards after deploying.
+
+**Evidence:** `lib/converters/lingo_linq.rb`, `app/models/button_image.rb`,
+`app/models/board.rb#swap_images`, task log `2026-06-13-json-bundle-import.md`.
+
+---
+
+## Pattern: "Center the cards" on the account page means centering `.row.big_buttons`, not the stat rows — and it must be base-level, not Focused-View-scoped
+
+**Symptom:** Account-page stat cards (`.md-user-summary__stats-row--boards`,
+`--supervise`) render left-aligned on small screens. Repeated attempts to
+center them by adding `justify-content: center` / a flex-column to the stats
+row *itself* (and verified-correct via compiled-CSS cascade) did not move them.
+
+**Root cause (two compounding mistakes):**
+1. **Wrong element.** Those stat rows are nested **inside** `.row.big_buttons`
+   (`app/templates/user/index.hbs`), which at `@media (max-width:768px)` is
+   `display:flex; flex-wrap:wrap` with **no `justify-content`**. The stat rows
+   are flex *items* of that container, so they pack to the left regardless of
+   how their *internal* cards are aligned. Centering the cards inside a row
+   does nothing when the row itself is a left-packed flex item. Fix: center the
+   **container** → `.md-user-summary .row.big_buttons { justify-content:center }`.
+2. **Wrong scope.** Focused View is `body.ll-layout-focused` (toggled in
+   `app.js` only when layout ≠ 'gentle'). A fix scoped to `body.ll-layout-focused`
+   is a no-op in Gentle View. "Center on small screens regardless of view" ⇒ the
+   rule must live at the **base** level (`.md-user-summary …`), not inside the
+   focused-view block.
+
+**Also burned:** generalizing the (wrong) fix to `.md-user-summary__stats-row`
+re-showed the `--boards` row that Focused View hides — because `display:flex`
+(specificity 0,2,1, later in source) beat the `display:none` hide (also 0,2,1).
+Only set `display` on a row you're sure isn't the hidden one; prefer centering
+the parent (no `display`/`width` touched ⇒ the `--boards` hide stays safe).
+
+**Lesson:** When cards "won't center," check whether they're flex/grid *items*
+of a wrapper and center the **wrapper**. And confirm which view-class
+(`body.ll-layout-focused`) actually applies before scoping a rule to it.
+
+---
+
+## Pattern: A divider/hairline in a flex-column container "has space but no line" → flex-shrink collapsed its height
+
+**Symptom:** A `<div>` divider (e.g. `.la-mobile-drawer__divider`, height 1–2px) renders an
+empty GAP where it should be but no visible line — only on tall/overflowing layouts.
+
+**Cause:** The parent is `display: flex; flex-direction: column` with overflow (e.g. the mobile
+drawer panel). When content exceeds the container, flex shrinks items with the default
+`flex-shrink: 1`. A divider has **no content**, so its min-content height is 0 → it collapses to
+0px. Its `margin` is NOT subject to flex-shrink, so the gap remains while the line vanishes.
+
+**Fix:** Pin the divider's size: `flex-shrink: 0;` on the divider rule. (Same fix applies to any
+fixed-size, zero-content flex child — spacers, rules, thin separators.)
+
+**Lesson:** "Gap shows but the element doesn't paint" inside a flex column = suspect flex-shrink
+collapsing a zero-content child before suspecting the background/color.
+
+## Pattern: Shepherd tour steps for a user-reorderable surface must be built from the LIVE DOM, not a fixed list
+
+The Gentle View home dashboard is now a drag-to-reorder + show/hide grid
+(`utils/dashboard_sections.js` → `dashboard_order` / `dashboard_sections`
+prefs). A guided tour with a hard-coded step list + per-card placement sides
+(`speak`→right, `boards`→left, …) breaks the moment a user moves or hides a
+card: the popover points the wrong way and the tour jumps around instead of
+following what the user sees.
+
+**Fix (the position-independent tour, `app/frontend/app/utils/tours/`):**
+1. **Coverage from the shared registry** — iterate `HOME_SECTIONS` (the same
+   source of truth the renderer uses) so tour coverage can't silently drift
+   when cards are added. Per-card tour *copy* lives in a `cardCopy()` switch.
+2. **Skip hidden cards via `offsetParent`** — cards turned off are
+   `display:none !important` but STAY in the DOM, so a bare `querySelector`
+   still finds them and Shepherd spotlights a zero-size box (popover flies to a
+   corner). `visibleEl(sel)` = first match with `offsetParent !== null` skips
+   hidden cards AND picks the visible variant of a dual-markup card
+   (`-wide-only`/`-narrow-only`) without special-casing. (Same failure family
+   as the dual-markup spotlight bug.)
+3. **Order by live geometry** — sort the resolved elements by
+   `getBoundingClientRect()` top, then left, so steps follow the on-screen
+   reading order whatever the saved arrangement is.
+4. **Placement from geometry, not a fixed side** — `placementForElement(el)`:
+   `<=1024px` or near-full-width → `bottom`; left half → `right`; right half →
+   `left`. Recompute on resize for `home_tour_card_*` steps only and re-show the
+   open step.
+5. **Small screens** — the nav step targets whichever control is visible
+   (`.md-pillnav` vs the collapsed `.md-pillnav-dropdown__trigger`, since
+   `.md-pillnav` is `display:none` at `<=$aac-breakpoint-xs`); per-pill steps
+   gate on the pill row's `offsetParent`.
+
+**Two corollaries:**
+- **Page-specific tours need a dispatcher, not one mega-component.** A
+  `tourBuilderFor(route, layout)` registry maps the page to its step-builder;
+  the trigger button hides (`hasTour`) where no tour exists. The home dashboard
+  renders at BOTH `user.index` and `user.home`; home-only navbar affordances
+  (display-style, the tour button) gate on `current_route == "user.home"`.
+- **Don't lose a side-effect when gating the tour.** The post-registration
+  auto-open also hands the user off to the critical-mode setup wizard. When the
+  current layout has no tour yet (default Focused View), still run the handoff —
+  gate the *tour*, not the *handoff*.
+## Pattern: compliance-officer write guard uses a file allowlist, not directory prefixes
+
+**Root cause family:** granting `Write` on broad prefixes (`audit-reports/`, `/tmp`) lets a
+read-mostly agent touch register truth (`FINDINGS.json`) or stage files outside the repo tree.
+
+**Fix pattern:** `compliance-officer-write-scope.sh` resolves paths with `File.realpath` (or
+parent realpath for not-yet-created files), then matches an explicit relative-path allowlist
+(calendar, dated hygiene/regulatory notes, `docs/legal/*.md`). `FINDINGS.json` / `FINDINGS.md`
+are hard-denied. `/tmp` is not allowed. Calendar `.md` is generated by
+`scripts/compliance-calendar-render.rb` with a CI `--check` drift gate.
+
+**Evidence:** `docs/task-management/2026-06-13-pr-review-phase3-fixes.md`; hook at
+`.claude/hooks/compliance-officer-write-scope.sh`.
+
+## Guided tours: handoff-driven outro + unregistered title keys
+
+**Tour-step `title` keys are NOT statically registered by `i18n_generator.rb`.**
+Titles go through `decoratedTitle(headingKey, headingDefault)` (utils/tours/shared.js),
+which calls `i18n.t(key, default)` with *variable* args — the generator only scans
+literal `i18n.t('lit', "lit")` calls, so it never sees them. `home_tour_welcome_title`,
+`home_tour_done_title`, `home_tour_next_title` are absent from `en.json` by design and
+render via the runtime default. Don't "fix" their absence; keep a good English default in
+code. Body/button keys passed straight to `i18n.t` DO get registered.
+
+**Outro variant is driven by the handoff, not by `tourSeen`.** The home tour's final step
+previews "pick your communication board (page-set)" only when `_startTour` got an
+`afterComplete` board-picker handoff (auto-open / first-time flow). Manual replays
+("Take a tour") have no handoff → keep the celebratory "You're all set / Finish" outro.
+Keying the copy off the *actual* navigation avoids promising a board pick we won't deliver.
+Threaded: guided-tour `_startTour` → registry thunk `(options)` →
+`buildHomeSteps(layout, options)` → `doneStep(options.handoff)`.
+Evidence: `docs/task-management/2026-06-14-home-tour-board-picker-handoff.md`.
+
+## Shepherd tours: hub-and-spoke "menu mode" via tour.show()
+
+**Button `action` is bound to the Tour, and `Tour.show(id)` jumps anywhere.**
+In shepherd.js 14.5.1, `action = config.action.bind(step.tour)` (dist/cjs line
+3284), so inside a button `action` callback `this` is the Tour instance —
+`this.show('<step-id>')`, `this.complete()`, `this.cancel()` all work. `Tour.show`
+takes a step id OR index. That makes a non-linear MENU possible over a single
+linear `steps` array: a centered hub step whose footer buttons each
+`this.show(topicId)`, topic steps with a "Back to menu" button
+(`action: () => this.show('home_tour_menu')`), and `type:next` still walks the
+array by index (so topics flow in order into the done step). No need for a
+separate state machine.
+
+**Pattern:** build menu-mode as its own step list (`buildHomeMenuSteps`) chosen by
+an `options.menu` flag threaded component → registry thunk → builder. Decide the
+flag in the component: `menuMode = tourSeen && !afterComplete` (returning user,
+NOT the first-time handoff). Resolve topic spotlight elements from the DOM and
+skip absent ones; if none resolve, return null and fall back to the linear tour.
+Progress dots imply 1..N order, so suppress them in menu mode (detect a
+`home_tour_menu` step in `_renderTourProgress`). Navigation that needs the router
+(e.g. a "go to board picker" link in the outro) can't live in step data (action's
+`this` is the Tour, not the component) — pass an `onPickBoard` callback down from
+the component and call it from the button action after `this.complete()`.
+Evidence: `docs/task-management/2026-06-14-home-tour-board-picker-handoff.md`.
+
+## Shepherd intro title cut off / popover off-screen = flex min-width:auto
+
+A long centered-tour heading (e.g. "Next: pick your communication board
+(page-set)") pushed the intro/outro popover past its `max-width:560px` and off the
+left edge, clipping the title. Cause: `.shepherd-title` is a flex ITEM of
+Shepherd's flex `.shepherd-header`, and flex items default to `min-width:auto`, so
+they won't shrink below their content — a title wider than the cap forces the box
+wider instead of wrapping. Short titles fit under the cap so they never exposed it.
+Two compounding causes — fixing only the first did NOT work:
+1. `.shepherd-title` is a flex ITEM of Shepherd's flex `.shepherd-header` with the
+   default `min-width:auto`, so it won't shrink below content. (`min-width:0` here.)
+2. THE REAL BLOCKER: the heading is `display:inline-block` (in the
+   `prefers-reduced-motion: no-preference` block, app.scss ~92185, for its
+   slide-in animation). inline-block sizes to its content (one line) and never
+   wraps regardless of the parent's `min-width:0` — so the long title still forced
+   the card wider than its `max-width:560px` cap and off-screen.
+Fix that shipped (per user "widen the modal"): give the long-title outro variant
+(it carries a distinct `md-tour__step--next` class) a wider cap clamped to the
+viewport — `max-width: min(720px, 94vw)` — so it fits on one line on desktop and
+can never run off-screen; PLUS `max-width:100%` on the inline-block heading so it
+wraps as a fallback on narrow screens. General rule: a long heading that won't wrap
+inside a max-width'd card — check BOTH flex `min-width:auto` AND a
+`display:inline-block`/`white-space:nowrap` on the heading itself.
+
+## Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent
+The board-preview loading overlay is correctly two-phase (model resolved AND canvas
+images settled — `board-preview.js#_emitCombinedLoading`, overlay gated on
+`preview_loading` in `board-preview-overlay.hbs`). But the canvas has a hard **4s
+safety net** (`board-preview-canvas.js#render_canvas`, the `runLater(..., 4000)`)
+that force-fires `onCanvasReady` even with images still pending — it assumes
+"cached/CDN-warm loads land in well under 1s." Cold, image-heavy public catalog
+boards (e.g. 84-button) cold-fetch dozens of S3/CloudFront symbols past 4s, so the
+overlay lifts while images are still loading → "images pop in after the spinner
+ends." Not a regression; inherent to previewing uncached boards.
+**Fix pattern (prefetch-on-intent):** warm a board on hover/focus/touch of its card,
+NOT eagerly on container open (the board-picker tour loads brand groups of up to
+50 boards ×2 — eager-all is a thundering herd). The warmer (`board_preview_warmer.js`)
+must (1) load the FULL record (list/search queries ship summary rows without
+`image_urls`; reload if `image_urls` missing — mirror board-preview's partial check)
+and (2) `new Image().src = url` for the SAME URLs the canvas requests: reproduce
+`variant_image_urls(skin)` + `[id + '-' + preferred_symbols] || [id]`, with
+preferred = `referenced_user.preferences.preferred_symbols || 'original'`, skin =
+`currentUser.preferences.skin`. This warms the browser HTTP cache so the canvas's
+`resolve_url_sync` remote-URL fallback becomes a cache hit. board-icon is shared
+app-wide, so gate warming behind an opt-in attr (`prefetchPreview`, default false)
+that only the picker passes — never enable hover-prefetch globally.
+**Root fix (not just the accelerator):** the canvas's fixed 4s safety net was the
+actual culprit — it force-fired `onCanvasReady` while images were still loading.
+Replace any "fixed deadline from start" overlay-release timer with a **no-progress
+stall watchdog**: extract a single `do_emit()`, then cancel+reschedule a
+`runLater(do_emit, STALL_MS)` on every unit of progress (each settled image in
+`mark_image_done`). A slow-but-steady load keeps the overlay up until the last item
+lands (pending→0, normal path); the timer fires ONLY on a true wedge (no onload AND
+no onerror ever), so it can't stick forever yet never penalizes a slow device.
+Cancel the timer in `do_emit`, at render start (observer re-render), and in
+`willDestroyElement`, and skip re-arming when `isDestroyed`/`isDestroying`. General
+rule: a loading gate that must wait for N async units should watch PROGRESS, not
+wall-clock — a fixed deadline is correct only when you can guarantee the work
+finishes within it (here, only warm/cached loads did).
+
+## Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page
+`app_state.global_transition` (`app/services/app-state.js`, fired on every Ember
+`routeWillChange` from `routes/application.js`) unconditionally calls `modal.close()`
++ `modal.close_board_preview()`. So a service modal (rendered via the modal service
+into `modal-container.hbs`, outside the route outlet) CANNOT survive a
+`router.transitionTo(...)` — the transition tears it down. Implication for guided
+tours / multi-step flows: do NOT try to keep a modal mounted-but-hidden across a
+route change (it needs an exemption in global_transition + CSS hiding + restore, and
+leaks if any other navigation fires). Two correct patterns instead: (1) stay in the
+modal layer — render the next step as an overlay STACKED on the still-mounted modal
+(how board-preview-overlay stacks on the tour-board-picker modal), so no route change
+happens; or (2) if the modal is STATELESS, accept the transition and RE-OPEN it on
+return — `transitionTo(route)` then open the modal in the transition's `.then`
+(opening AFTER the transition resolves dodges global_transition's close, which fires
+at routeWillChange). Example: `create-board-new#close` re-opens `tour-board-picker`
+on Cancel when `from_tour` is set. Carry the "came from the modal" intent in a local
+component property captured at init (the route's `deactivate` clears the appState
+flag, so reading appState at close-time is too late).
+
+## Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"
+A Shepherd `modal: true` tour does NOT block page interaction. The dark overlay
+(`.shepherd-modal-overlay-container`) is `pointer-events:none` (visual scrim only),
+and `canClickTarget:false` merely sets `pointer-events:none` on the spotlit target —
+which doesn't swallow the click, it makes the target TRANSPARENT to pointer events,
+so the click falls THROUGH to whatever element sits behind it. Concrete bug: the
+board-picker tour spotlights a card's `.info` Preview pill; clicking it fell through
+to the parent board-icon card's `pick_board` action and navigated into the board
+mid-tour. So "disable the target" is NOT enough to make a tour read-only.
+**Fix:** make the whole app inert while a step is showing, with one CSS rule keyed
+on Shepherd's own active-step class — `body:has(.shepherd-element.shepherd-enabled)
+#within_ember { pointer-events: none; }` — plus `.shepherd-element{pointer-events:
+auto}` so the popover stays live. Shepherd portals the popover + overlay to <body>
+OUTSIDE `#within_ember` (the ember app root), so the popover keeps working and only
+the page goes dead. Releases automatically when the tour ends (no enabled step), so
+a subsequent live modal/handoff is unaffected. Applies to EVERY tour on the shared
+runner. Keep `canClickTarget:false` too (defense-in-depth + documented standard).
+
+---
+
+## Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it
+
+**Surface:** any image shown via CSS `background-image: url(...)` on an element
+that is injected into the DOM on demand — Shepherd tour popovers, modals,
+dropdowns. Symptom: the element paints with a blank gap where the image goes,
+then the image pops in a beat later, but only the FIRST time (cached after).
+
+**Root cause:** a browser does not fetch a CSS `background-image` until the
+element is laid out and painted as visible. Shepherd portals its popover into
+`<body>` only at `tour.start()`, so the background fetch begins at show time —
+the card paints blank, then the bytes arrive. (For the guided tours this hit the
+welcome-card map illustration: `tour-map-dark.png`/`tour-map-light.png` on
+`.md-tour__step--welcome .shepherd-text`, app.scss ~92195/92249, shared by all
+three opening tours.)
+
+**Fix:** preload the bytes before the element exists with
+`<link rel="preload" as="image" href="...">` in `app/frontend/app/index.html`.
+This is the codebase's established pattern — the Focused "Let's Communicate"
+hero (`speak-circle-simple-dark.webp`) is preloaded there for the identical
+reason (index.html:36-43). Notes:
+- An `<img>` can also take `decoding="sync"`; a CSS background cannot, so for
+  backgrounds the preload fetch IS the whole fix — decode of a small (≤120px)
+  PNG is sub-frame.
+- index.html is static (only ember-cli tokens like `{{rootURL}}` are processed),
+  so it can't branch on the user's `dashboard_layout` — preload BOTH variants if
+  the image differs per layout. Each tour map is ~30-40KB, so this is cheap.
+- Prefer this over JS `new Image().src` warming on component mount for tours: the
+  auto-open tour (new users) fires immediately after render, so warming wouldn't
+  finish in time for the very case that matters; the index.html preload starts at
+  the top of page load, parallel and high-priority.
+
+**First seen in:** [2026-06-15-tour-welcome-image-blank-flash.md](./2026-06-15-tour-welcome-image-blank-flash.md)
+
+---
+
+## Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition
+
+**Surface:** a cross-page hand-off flag (e.g. `appState.board_detail_tour_pending`)
+set on page A, then consumed by a component that mounts on page B to auto-start
+something (a tour). The consumer checks a condition derived from route state
+(`tourKey` → `appState.edit_mode`) and clears the flag.
+
+**Symptom:** the auto-start silently never fires, even though the flag is set
+correctly and the consumer component mounts.
+
+**Root cause:** the consumer fired ONCE (init → `scheduleOnce('afterRender', …)`)
+and the condition it gated on wasn't true yet at that tick. On the board-detail
+EDIT page, `appState.edit_mode` is a computed on
+`stashes.current_mode == 'edit' && currentBoardState`, and the `.edit` route sets
+`current_mode='edit'` INSIDE `check_for_needing_purchase().then(...)` — a promise
+microtask, not synchronously in setupController (routes/user/board-detail/edit.js).
+So the single afterRender check runs before edit mode settles, sees the condition
+false, and does nothing. For a `tagName: ''` (tagless) component, `didInsertElement`
+never fires, and an observer on the flag/`tourKey` won't fire either when the flag
+was already true (no CHANGE after mount) — so there's no second chance.
+
+**Fix:** poll the gating condition on a bounded schedule (e.g. 20 × 150ms ≈ 3s)
+until it holds, THEN consume the flag once and start — the same pattern
+`_scheduleBoardDetailAutoOpen` already uses to wait for the grid DOM. Funnel all
+entry points (init, observer, didInsertElement) into one guarded consumer
+(`_bdTourConsuming` prevents stacking parallel polls). Leave the flag set on
+timeout so a later legitimate instance can still consume it, and guard every
+deferred tick with `isDestroyed`/`isDestroying` so an instance torn down mid-poll
+(the page-A instance during the route transition) bails instead of consuming the
+flag for the wrong context.
+
+**General rule:** never gate a one-shot afterRender action on route/mode state
+that is established by a PROMISE resolution (purchase checks, async model loads).
+Either await that promise explicitly, or poll the condition. `current_mode='edit'`
+landing on a microtask is the specific gotcha here.
+
+**First seen in:** [2026-06-15-board-detail-edit-tour-not-auto-opening.md](./2026-06-15-board-detail-edit-tour-not-auto-opening.md)
+
+---
+
+## Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys
+
+**Surface:** rewording an EXISTING user-facing string (changing the default in an
+`i18n.t('key', "new text")` call) that already has entries in the non-English
+`public/locales/*.json`.
+
+**Symptom:** after `ruby i18n_generator.rb --generate` (updates en.json from code)
++ `--merge`, en.json shows the NEW text but every other locale still shows the OLD
+text. New keys propagate fine; changed keys silently don't.
+
+**Root cause:** `--merge` builds each locale with
+`new_json[key] = json[key] || "*** #{english_string}"` (i18n_generator.rb ~L319/331)
+— it KEEPS the existing locale value and only falls back to `*** <english>` for
+keys MISSING from that locale. A changed key already exists, so its old value
+(often an untranslated `*** <old english>` placeholder) is preserved as-is.
+
+**Fix:** after `--generate`/`--merge`, refresh the changed keys in the non-English
+locales yourself. If they were untranslated placeholders (value starts with
+`*** `), replace the old-English placeholder with the new-English placeholder
+across all locales (a scoped `sed` over `public/locales/*.json`, skipping en.json)
+so they stay "awaiting translation" but current — matching how `--merge` writes
+brand-new keys. Verify none were actually translated first (grep the key across
+locales; a leading `*** ` means untranslated). Real translation is the separate
+rails-console step (`WordData.translate_locale_batch`). Always re-validate each
+file parses as JSON after a `sed` sweep (`ruby -e "require 'json'; JSON.parse(...)"`).
+Escape `&` as `\&` in the sed replacement.
+
+**First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md)
+
+---
+
+## Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly
+
+**Surface:** a guided-tour step (ember-shepherd) attached to an element that
+DISAPPEARS as the tour advances — classically a dropdown/menu item, where
+advancing to the next step closes the dropdown (e.g. the home tour's account-menu
+walkthrough → setIdentityDropdownOpen(false) on the next step's show hook).
+
+**Symptom:** when leaving that step, the OUTGOING popover (which is still
+mid-cross-fade, kept rendered by the app.scss `[hidden]` rule) briefly flashes at
+the top-left corner of the page before the next step settles. The flashing card
+shows the outgoing step's own text (e.g. "Sign Out").
+
+**Root cause:** the cross-fade keeps the outgoing popover in the DOM and visible
+(opacity transitioning over ~0.45s). floating-ui is still positioning it against
+its anchor. When the dropdown closes, the anchor element becomes display:none
+(zero box), so floating-ui recomputes and places the popover at the fallback 0,0
+— top-left — for the remainder of the fade.
+
+**Fix:** for steps anchored to a disappearing element, snap the outgoing popover
+out INSTANTLY (`transition:none; opacity:0`) on its `hide` event instead of
+cross-fading it, so there is nothing visible left for floating-ui to reposition.
+Detect those steps by id (e.g. ids starting with `home_tour_iddrop_`); every other
+step keeps the gentle cross-fade. Cheaper and more robust than trying to delay the
+dropdown close past the fade or freeze the popover's transform.
+
+**First seen in:** [2026-06-15-tour-signout-flash-top-left.md](./2026-06-15-tour-signout-flash-top-left.md)
+
+---
+
+## Dropdown clipped by a PAGE-level `overflow: hidden` ancestor — z-index can't fix it
+
+**Surface:** an absolutely-positioned in-panel dropdown (e.g. the create-board-new
+Edit Tools rail's `.md-settings-dropdown-menu` for skin tones / fonts) that opens
+but gets cut off, no matter how high its z-index is raised.
+
+**Root cause:** the menu is clipped by an ANCESTOR with `overflow: hidden` (or
+`overflow-y: auto`), not by sibling stacking. On the create-board-new PAGE the
+clippers were page-level wrappers — `.beta-program-access`,
+`.with_user…content--no-top-padding`, and `body`. z-index only resolves
+sibling/stacking order; it NEVER lets content escape an `overflow:hidden` clip box.
+
+**Diagnose, don't guess:** with the dropdown open, run a console ancestor-walk from
+the menu node up to `<html>`, logging each ancestor's computed
+`overflow`/`overflowX`/`overflowY`, `transform`, `clipPath`, `contain`, and bounding
+rect; flag any whose box ends before the menu's edge AND has overflow≠visible. The
+flagged node is the actual clipper.
+
+**Two fixes, by requirement:**
+- *In-panel is OK* → **flow-position** (`position: static; width: 100%` on the menu
+  + `display: block` on the wrap). Simplest; the menu grows the section down the
+  panel and the page scrolls. BUT it's bounded by the panel width — in a narrow
+  rail the labels truncate.
+- *Menu must SPILL OUTSIDE the container* (narrow rail, full labels in view) →
+  **anchored `position: fixed`** (the floating-ui/Popper pattern) is the intended
+  approach, BUT a hand-rolled in-place version for the create-board-new rail did
+  NOT land (inline coords never reliably applied; menu rendered off-screen). It was
+  reverted and the **Skin Tones section hidden** as a stopgap — STATUS: UNRESOLVED.
+  If revisited, do NOT hand-roll fixed positioning in place: PORTAL the menu to
+  `<body>` with Ember's built-in `{{in-element}}` (what ember-basic-dropdown/Popper
+  do) so there is no clipping ancestor at all, then position from the trigger.
+
+**Gotcha:** switching the menu to `position: static` dropped it BELOW the fixed
+close-backdrop (z-index 100), so the backdrop swallowed option clicks (selection
+"stopped working"). A positioned menu (`relative`/`fixed`) with z-index > backdrop
+keeps clicks working.
+
+**First seen in:** create-board-new Edit Tools rail dropdowns (traci/styling).
+See `docs/styling-recurring-problems.md` #1 for both fixes.
+## Pattern: a register-adding script must mirror citation-check's matcher EXACTLY, or it reddens CI
+
+**Root cause family:** any script that ADDS findings to `FINDINGS.json` (`audit-merge.rb`,
+`promote-finding.rb`) gates evidence with its own `snippet_present?`. If that gate is looser than
+`citation-check.rb`'s acceptance test, it accepts evidence that citation-check later rejects,
+turning the register red after the fact.
+
+**Concrete trap:** `citation-check.rb` matches a snippet **per source line**
+(`contents.each_line ... normalize(line).include?(needle)`). A `snippet_present?` that normalizes
+the WHOLE file and does one `include?` will accept a multi-line snippet that no single line
+contains; citation-check then FAILs it. Fix: gate per-line too
+(`content.each_line.any? { |l| norm(l).include?(needle) }`). Verified by reproducing the FAIL.
+
+**Corollary - never re-anchor an existing finding's evidence to an ephemeral sha.** Promoting a
+re-found OPEN finding must NOT move its `evidence.sha` to the PR-branch head sha: that sha can be
+orphaned (rebase/force-push/branch delete) before citation-check runs in CI, reddening a finding
+that was green. Keep the finding's existing durable (merged/audited) sha; only refresh `lastSeen`
++ append a provenance note.
+
+**Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md`;
+`scripts/promote-finding.rb` `snippet_present?` and the reseen branch.
+
+## Pattern: secret pre-scrub should redact-and-proceed for PII but SKIP the call on a real secret
+
+**Context:** the n8n PR bot ships the diff to DeepSeek (OpenRouter, no BAA). Mirroring
+`lib/pii_scrubber.rb` (whose `redact_for_ai` is redact-and-proceed): PII shapes get redacted and
+the review still runs on the scrubbed diff, but a HIGH-CONFIDENCE secret shape (distinctive
+prefixes: AWS `AKIA`, `ghp_`, `xox*-`, `sk-`, `AIza`, `sk_live`, JWT `eyJ.eyJ.`, `scheme://u:p@`)
+trips a skip gate so a credentialed diff is never sent to a no-BAA endpoint even redacted.
+
+**Why not a generic `password=`/`token=` pattern for the SKIP:** it false-trips normal code
+(`token = SecureRandom.hex` matches), which would silently disable the adversary review on many
+PRs. Keep the generic shape for REDACTION (register-side refusal is cheap) but use only
+distinctive-prefix shapes to gate the skip. Test `.replace`-based scrubbers with `.replace`, not
+`.test`, on `/g` regexes - `.test` carries `lastIndex` across calls and gives false misses.
+
+**Evidence:** n8n workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)` / `DeepSeek PII
+Gate`; `scripts/promote-finding.rb` `SECRET_PATTERNS`.
+
+## Pattern: editing a LIVE n8n workflow - share nodes via fan-out, don't rename, verify at runtime
+
+**Context:** extended the PR-bot scrub from one model path to both, and consolidated the
+two-model output (workflow `lbyA52atQjQ8MCqy`).
+
+- **Don't rename a node in a live workflow to "clean up" a now-inaccurate name.** n8n connections
+  and `$('Node Name')` references key on the node NAME; renaming silently breaks every connection
+  and cross-node reference unless every reference is updated in the same atomic op. Keeping a
+  slightly-stale name (`PII Pre-Scrub (DeepSeek)` now scrubs both paths) + a corrected `notes`
+  field is the lower-risk choice. Document the broadened responsibility in notes + the sticky.
+- **Reuse one node via fan-out instead of duplicating logic.** One shared scrub node feeding two
+  IF gates (Claude + DeepSeek), both branching on the same `pii_scrub.secrets_found`, beats two
+  copies of the pattern list (DRY; one place to keep in sync with `lib/pii_scrubber.rb`). A synthetic
+  "Skipped" Code node per gate feeds the SAME Merge input index the real call would, so the
+  downstream reviewer-name lookup is unaffected.
+- **`n8n_validate_workflow` is a heuristic, not a compiler.** It emits false positives on Code
+  nodes: `"Array items must be objects with json property"` fires on a node whose helper functions
+  `return` non-arrays even when the node's actual `return [{ json: ... }]` is correct; `"Invalid $
+  usage"` and `"File system access"` fire on normal `.replace`/`$()` usage. ALWAYS confirm a Code
+  node's real behavior by running its logic standalone in node with stubbed `$input`/`$()` - the
+  runtime output is the source of truth, the validator is advisory.
+- **Consolidating two reviewers' findings:** dedupe by Jaccard token-overlap on finding TITLES
+  (>=0.6), merge to the higher severity + longer detail + union of reviewers, then derive ONE
+  verdict by mapping each model's verdict to a common severity scale and taking the max. Keep the
+  per-model verdicts in a small table so attribution is not lost.
+
+**Evidence:** `docs/task-management/2026-06-14-operationalize-review-findings.md` follow-on section;
+workflow `lbyA52atQjQ8MCqy` nodes `PII Pre-Scrub (DeepSeek)`, `Claude PII Gate`, `Format Output`.
+
+## Pattern: register governance has TWO Scot-owned axes (status AND disposition) - guard both
+
+When schema 1.1 added a `disposition` block (`untriaged`/`accepted`/`fixed`/`dismissed-false-positive`/
+`wontfix`) orthogonal to `status`, every place that protected a Scot decision by checking `status`
+alone silently regressed: a finding can be `status: open` yet `disposition: dismissed-false-positive`,
+and a re-find guarded only on `SCOT_OWNED_CLOSED` statuses sailed through as a routine `reseen`,
+quietly re-validating something Scot dismissed. **Rule:** any "is this Scot's decision?" check on a
+finding must test BOTH `status` (in `SCOT_OWNED_CLOSED`) and `disposition.state` (in
+`SCOT_OWNED_DISPOSITIONS` = every value except `untriaged`). Fixed in both `scripts/promote-finding.rb`
+and `scripts/audit-merge.rb` (the hand-synced sibling - when you fix governance in one, grep the other
+for the same guard). Reproduce a governance gap before fixing: build a register finding in the missed
+state, run the script against a COPY, assert the summary bucket (regressions vs reseen). Evidence:
+2026-06-15 review round 2 in `docs/task-management/2026-06-14-operationalize-review-findings.md`.
+
+## Pattern: refuse/scrub on a DEEP walk of the whole record, never a named-field allowlist
+
+`sensitive_hits` scanned a hand-picked list of fields (`title`, `snippet`, `remediation.options`...),
+so PII in a `remediation` subkey - or any reviewer-added key - bypassed refusal and a student email
+reached the git-tracked register. A code/path-evidence-only or no-PII guarantee that scans a SUBSET of
+a structure is a guarantee in name only: the whole object gets persisted/sent, so the whole object must
+be scanned. Replaced with a recursive `deep_strings(node)` that collects every key AND value, then
+matches the PII/secret patterns against the join. Same principle for the n8n pre-scrub (scrub the
+message content, not a curated slice). Evidence: H2, `scripts/promote-finding.rb#deep_strings`.
+
+## Pattern: redact-and-proceed vs skip on the no-BAA AI path - decide by confidence, not category
+
+The PR-bot scrub (`lbyA52atQjQ8MCqy`) and `promote-finding.rb` are a hand-synced secret/PII pair, but
+their CONSEQUENCE differs and should: distinctive live-credential shapes (AWS `AKIA`, GitHub `ghp_`,
+`Bearer <20+>`, Google `ya29.`) SKIP the model call entirely (a credentialed diff is never sent to a
+no-BAA endpoint even redacted); ambiguous shapes (a `password = "..."` assignment that is usually a
+test fixture) REDACT-and-proceed so the review still runs. The trap to avoid: a broad pattern that
+SKIPS on `token = SecureRandom.hex` disables review on a large fraction of normal PRs. Mitigations that
+worked: require a QUOTED value for generic credential assignments (`["'][^"'\s]{8,}["']`), and require
+20+ token chars after `Bearer`. Always test a new scrub regex for BOTH catch and no-false-trip on
+ordinary code before shipping. Evidence: H4, node `PII Pre-Scrub (DeepSeek)` SECRETS/PII arrays.
+
+---
+
+## Pattern: Modernizing a legacy `la-*`/Bootstrap modal → the `md-modal-*` family
+
+**When:** a modal still uses the old `la-<name>-modal-*` wrapper + Bootstrap
+`form-horizontal`/`col-sm-*` grid (e.g. record-note), while newer modals (quick-assessment)
+use the shared `md-modal-*` system.
+
+**Recipe:**
+- Reuse the shared classes — they're already styled: `modal-header md-modal-header`,
+  `md-modal-icon-circle` (+ a `md-<name>-icon` tint), `md-modal-title`, `la-modal-close`
+  (shared SVG × close — keep it), `modal-body md-modal-body`, `md-modal-form`,
+  `md-modal-field` + `md-modal-label`, `modal-footer md-modal-footer`, `md-modal-btn`
+  (`--cancel`/`--primary`/`--secondary`), `md-modal-check`/`md-modal-check__input/__label`.
+- Add only a small `md-<name>-*` block for the bits unique to that modal; mirror
+  **quick-assessment** (`.md-quick-assess-*`, app.scss ~79839) for the design language
+  (verdigris icon tint `rgba($brand-verdigris,0.14)`, attached-dropdown, flow-anchored
+  `*-list` menu, steppers).
+- **Gotcha:** a `bound-select` / `.bound-select__list` inside the modal clips on the
+  body's `overflow:hidden` → set it `position: static` (flow-positioned) so it pushes
+  the form down (styling-recurring-problems.md #1).
+- **Gotcha:** the goal-status emoji is the `faces.png` sprite, scoped by `.face_button
+  .face` (app.scss ~8748). It only renders if the button keeps the `face_button` class
+  (it comes from the controller's `button_display_class`, which also carries `btn-primary`
+  for the active one — style `.md-<name>-status.btn-primary` for the selected look).
+- **Don't blindly delete** the old `.la-<name>-*` rules: some (e.g.
+  `.la-record-note-cancel-btn`/`-save-btn`) are reused by OTHER modals (assign-lesson).
+  Check usages first; leaving inert rules is safer than a cross-modal regression.
+
+## Image optimization (only ImageMagick available; no pngquant/optipng/pngcrush)
+- This box has **only `convert` (ImageMagick)** for image work — `pngquant`, `optipng`,
+  `pngcrush`, `zopflipng`, `magick` are all absent. Plan optimization around `convert`.
+- **Never use `PNG8:` for icons with soft/anti-aliased edges** — it forces **1-bit
+  (binary) alpha**, so smooth edges go jagged (verified: `-channel A -separate -format %k`
+  dropped to 2 alpha levels). Instead quantize colors WITHOUT the `PNG8:` prefix:
+  `convert in.png -strip -resize 256x256 -colors 256 -define png:compression-level=9 out.png`
+  keeps 8-bit alpha (~32 levels) while still cutting size dramatically (212KB→24KB, ~9×).
+- **Verify quality numerically**, don't guess: alpha richness via
+  `convert f.png -channel A -separate -format "%k" info:` (more = smoother edges) and total
+  colors via `identify -format "%k" f.png`. Then eyeball the result with the Read tool.
+- **Size for the display use, with retina headroom**: an 88px icon → 256px covers ~3×.
+- **Images must live in BOTH trees** to render on Ember and Rails:
+  `app/frontend/public/images/` (Ember source → built into `dist/images/`) AND
+  `public/images/` (Rails). SCSS `url(../images/<name>.png)` resolves against the compiled
+  CSS location in each. `dist/` is a gitignored build artifact — don't hand-edit it.
+- When swapping an asset, **re-check filters tuned for the OLD asset** (e.g. a
+  `filter: brightness(1.15)` added to lift a dull grayscale image will wash out a new
+  vivid color image — remove it rather than carry it over).
+
+## Cloning one dashboard card's styling onto another (e.g. Org card → Rooms card)
+- **Reuse the source card's CSS classes in the new markup** (`.md-card--rooms__top`,
+  `.md-rooms__grid`, `.md-room-card`, `.md-rooms__count`, `.md-rooms__all`) rather than
+  duplicating rules. Global (unscoped) classes work as-is; only the rules **scoped under
+  the source card** (`.md-grid .md-card.md-card--rooms .md-room-card`, …__head, divider,
+  :hover) need the new card's selector appended.
+- **Grid-area names ≠ section keys.** `dashboard_sections.js`'s `AREA` map renames some:
+  `org → org_mgmt`. The card's `grid-area` must match the `AREA` value, or it won't land
+  in the grid. Check `AREA` before assuming the class name equals the area name.
+- **Section background needs (0,3,0) specificity.** The base `.md-grid .md-card { background … !important }`
+  is (0,2,0); a card section rule must be `.md-grid .md-card.md-card--X` (0,3,0) to win
+  (Rooms does this; mirror it for the clone).
+- **Card-as-button → card conversion is low-risk for old CSS:** most legacy rules are
+  `.md-card--<name>.md-card--as-button …`-qualified, so they go **inert automatically**
+  once the element drops `md-card--as-button`. Only remove the rules that match the bare
+  `.md-card--<name>` and conflict (e.g. an old `display/justify/min-height` layout rule).
+- **Match peer buttons, don't assume a shared rule covers them:** Rooms' "View all" uses
+  the *generic* `.md-btn--primary` — Rooms is NOT in the speak/boards/caseload/org
+  denim-pill rule. To match Rooms, drop the clone from that rule rather than add Rooms in.
+
+## Boards strip: dashboard vs boards-page are DIFFERENT components
+- The dashboard Boards card and the actual boards page render board tiles with
+  **different** markup/classes — they do NOT share a component:
+  - Dashboard: `components/dashboard/authenticated-view.hbs` → `.md-strip` / `.md-strip__item`
+    / `.md-strip__home-badge` / `.md-strip__heart` (data from the `previewBoards` computed).
+  - Boards page: `components/available-boards-section.hbs` → `.ub-boards-page__board-item*`
+    / `.ub-boards-page__board-item-home-badge` (nested SCSS `&__board-item-home-badge`
+    ~app.scss:64196, NOT a flat selector — grep the `&__…` fragment, not the full class).
+  - So a "make X on the boards page match the home page" request means editing BOTH
+    selectors, not one shared rule.
+- The dashboard strip's HOME-board tile is flagged by `isHome`; the system Crisis/
+  Emergency tile is appended in `previewBoards` (key ends `crisis-vocabulary`). To target
+  it in CSS, add a flag there (`isEmergency`) + a template class — there's no built-in one.
+- Gentle-vs-Focused board sizing: dashboard rules are `.md-grid--dashboard …` (BOTH
+  layouts). To change Gentle only, add `.md-grid--layout-gentle …` rules AFTER them
+  (equal specificity → source order wins); the supervisor/admin thumb is a (0,4,0)
+  `.md-grid--dashboard.md-grid--with-caseload/--with-org-mgmt` rule, so a Gentle override
+  of the thumb must also be (0,4,0) to win.
+---
+
+## Gotcha: EN 301 549 clause numbers (9.x.x.x) trip the register's IP-address PII scrubber
+
+When the `accessibility-auditor` finder emits a WCAG finding, any four-part dotted number in the
+finding text - notably an EN 301 549 clause like `9.1.4.3` - matches `audit-merge.rb`'s IP regex
+(`\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`) and the ENTIRE finding is REFUSED as `pii:ip` (it
+silently never lands in the register; merge reports `skipped`, citation-check stays green only
+because the finding is absent). WCAG success-criterion numbers (`1.4.3`, `2.4.7`) are at most 3
+dotted groups and are always safe; the EN 301 549 web mapping (`9.1.x.x`) is the one that bites.
+Fix (no Ruby change, scrubber is correct defense-in-depth): the `accessibility-audit` skill + agent
+instruct finders to cite the WCAG SC number in emitted fields and reference EN 301 549 only at the
+3-part parent clause (`9.1.4`) or in prose. Verified 2026-06-15 via a /tmp dry-run: with `9.1.4.3`
+in `notes` -> merge `skipped=1 (refused: pii:ip)`; with `9.1.4` -> merge `new=1`, citation-check
+PASS. Evidence: `scripts/audit-merge.rb` PII_PATTERNS[:ip]; `.claude/skills/accessibility-audit/SKILL.md`.
+
+## Gotcha: `Worker.scheduled?` specs flake repo-wide off BoyBand's stale 30s `sizeof/<queue>` cache
+
+`Worker.scheduled?` -> `BoyBand::WorkerMethods#scheduled_for?` short-circuits with
+`return false if idx > 500`, where `idx = queue_size(queue)` reads a Redis cache
+`sizeof/<queue>` with a **30-second TTL** that only recomputes when the cached value is `0`.
+`Worker.flush_queues` (run in `spec_helper.rb` `before(:each)`) empties the queue LISTS but
+never clears that cache. So one earlier example that pushes `sizeof/default` past 500 makes
+EVERY `Worker.scheduled?` return a FALSE NEGATIVE (`expected true, got false`) for the next 30
+WALL-CLOCK seconds - regardless of the flushed queue. Whether a given spec lands in that window
+varies run-to-run, so it presents as a random "timing" flake that passes on re-run. It is
+repo-wide: 38 spec files / 201 `scheduled?` assertion sites are exposed; `external_tracker_spec:16`
+and `flusher_spec:403` are just the most frequently bitten. Two traps: (1) "force Resque inline"
+is the WRONG fix - these specs assert the job IS queued, and inline runs it and empties the queue,
+failing them deterministically; (2) `config.order = "defined"` + single-process CI + fresh Redis
+rules out order-dependence and cross-process races, so the only nondeterminism is wall-clock vs the
+TTL. Fix (verified): in `before(:each)` after `flush_queues`, also
+`Resque.redis.keys('sizeof/*').each{|k| Resque.redis.del(k)}` and the same for `*_queue_size`
+(`RedisInit#queue_size`'s separate 5-min cache). Deterministic repro:
+`redis-cli set lingolinq-test:sizeof/default 600` then run the two specs -> exact CI failure;
+clearing the cache makes them pass. Evidence: `boy_band-0.1.16/lib/boy_band.rb:43,266`;
+`spec/spec_helper.rb` before(:each); CI run 27601259798.
+
+## Gotcha: local `lingolinq-test` `bad decrypt` at boot from a stale `encryption_hash` sentinel row
+
+Running rspec locally can fail at environment load with
+`OpenSSL::Cipher::CipherError: bad decrypt` in `Setting.get` (config/environment.rb -> spec_helper).
+Cause: the test DB holds a single `settings` row `key='encryption_hash'` (GoSecure's
+key-validation sentinel) encrypted with a SECURE key pair that no longer matches the effective env.
+`spec_helper` loads `.env.op.template` BEFORE `.env`, and dotenv does not override already-set vars,
+so `.env.op.template`'s `SECURE_NONCE_KEY` shadows `.env`'s and breaks the encryption pair. CI never
+hits this because it uses `db:create db:schema:load` (fresh DB, no `encryption_hash` row -> no
+decrypt). Local fix (test DB only, regenerates on boot):
+`psql -U scotw -d lingolinq-test -c "delete from settings where key='encryption_hash'"`. Do not
+"fix" it by editing the dotenv load order in spec_helper.
+
+## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)
+
+The canonical AI egress shape is fixed across call sites (`lib/ai_word_predictor.rb`,
+`lib/ai_board_generator.rb`): (1) `FeatureFlags.ai_feature_enabled_for?(feature, user)` for the
+feature flag + org `disable_ai_features` opt-out, (2) `FeatureFlags.coppa_blocks_ai_for?(user)`
+short-circuit (default-ON via `COPPA_AI_HARD_GATE`) BEFORE any provider call, (3)
+`PiiScrubber.redact_for_ai` on the payload with the user's names + any free-text person name added
+via `PiiScrubber.configure_blocklist`, and (4) an `AiApiLog.log_ai_call(provider: 'claude', ...)`
+row in an `ensure` so success AND failure are audited. `lib/eval_narrator.rb` was the lone exception
+(finding LL-2e4c14d370 et al.); when adding a NEW AI call site, copy this shape exactly rather than
+inventing a new flag. Gate on whoever's data leaves (the evaluated student), not necessarily the
+requesting user. When no data subject can be resolved, refuse the external call and fall back to a
+local/deterministic path rather than sending ungated.
+
+## Gotcha: `ai_feature_enabled_for?` silently returns false unless the flag is in `FeatureFlags::AI_FEATURES`
+
+`FeatureFlags.ai_feature_enabled_for?(feature, user)` first does `return false unless
+AI_FEATURES.include?(feature)` (`feature_flags.rb:139`). A flag can be live in
+`AVAILABLE_FRONTEND_FEATURES`/`ENABLED_FRONTEND_FEATURES` yet still be denied by the AI gate because
+it was never added to the `AI_FEATURES` allowlist (`:77`). Adding a feature to the AI gate means
+registering it in `AI_FEATURES`. `system_feature_registry.rb:80` also derives its `ai_feature:`
+flag from this list, so registering there correctly tags it in the admin registry.
+
+## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
+
+`lib/eval_narrator.rb#draft_via_anthropic` originally used `Anthropic::Client.new(access_token:)` +
+`client.messages(parameters: {...})` + a Hash response (the alexrudall `ruby-anthropic` gem). The
+Gemfile pins official `anthropic ~> 1.23`, whose API is `Anthropic::Client.new(api_key:)` +
+`client.messages.create(...)`, with `response.content` an array of blocks (`#type`/`#text`) and
+`response.usage.input_tokens/output_tokens`. The old call raised and soft-fell-back to the template,
+so the AI path was dead. Match the sibling AI libs' usage; isolate the SDK call behind a
+`call_anthropic` method so specs can stub the network boundary.
+
+## Gotcha: eval `narrate` gates on `user_id` but ships the unbound `eval_session` payload (identity/payload decoupling)
+
+Adversary verification of the #411 COPPA fix found the gate and PII blocklist were bypassable:
+`Api::EvalSessionsController#narrate` resolves the student from `params['user_id']` and runs the
+COPPA consent, org AI opt-out, and supervise checks against THAT user, but the data actually sent
+to Anthropic is the independent free-text `params['eval_session']` payload. Nothing bound the two,
+so a clinician supervising a consented student A could pass `user_id=A` (gate passes) while the
+payload carried a different, non-consented child B's eval data. Lesson: when a compliance gate keys
+on a caller-asserted identity, the egressed data must be DERIVED from that identity, not accepted
+independently from the same request. Hardening applied (`scot/security/eval-narrator-payload-binding`):
+(1) external narration is now OPT-IN (`payload['use_anthropic'] == true`; the controller coerces the
+client flag to a strict boolean and the frontend sends it only on the SLP's explicit "Generate"
+click) so nothing egresses by default; (2) `payload_for_prompt` drops the client-asserted
+`sett.student` name entirely (subject identity comes only from the resolved user record, whose name
+is blocklisted), so a mismatched request cannot leak the payload subject's name via the structured
+field. RESIDUAL (still open, needs a larger follow-up): the consent decision is still keyed to the
+caller-asserted `user_id`; fully binding eval-data provenance to the gated user requires persisting
+the eval server-side against that user rather than trusting a client payload. Arbitrary third-party
+names typed into `slp_notes` free text remain a surface-wide NER limitation, not eval-specific.
+
+## Gotcha: in an EnterWorktree session, Edit/Write to absolute PRIMARY paths hits the primary checkout, not the worktree
+
+When the session is inside an `EnterWorktree` worktree (`.claude/worktrees/...`), `Edit` and `Write`
+calls that pass an absolute path into the primary checkout
+(`/mnt/c/.../LingoLinq-AAC/docs/...`) write to the primary checkout, NOT the worktree, even though
+cwd is the worktree. Relative-path tools (Bash scripts run after `cd`, render scripts) correctly hit
+the worktree, so you end up with a split: some changes in the worktree, some in primary. Symptom:
+`git status` in the worktree shows only the relative-path changes; a `grep` of the worktree file
+shows the edit "missing." Recovery without disturbing other tabs sharing the primary checkout:
+`cp primary/file worktree/file` for each edited file, then `git -C primary checkout HEAD -- <tracked
+files>` and `rm` any stray new files from primary (a path-level restore, not a branch switch, so
+co-tenant tabs are safe). Prevention: once in a worktree, address files by their worktree path
+(`.claude/worktrees/<name>/...`) for Edit/Write, or Read the worktree path first so the harness
+tracks that copy. Confirmed 2026-06-18 during the compliance-docs refresh.
+
+## Pattern: the compliance register is the source of truth; the legal docs and Notion page are renders or hand-anchored drafts
+
+`audit-reports/FINDINGS.json` is the single source of truth for finding status/counts. `FINDINGS.md`,
+`audit-reports/compliance-calendar.md`, and `audit-reports/notion/compliance-audit-page.md` are
+deterministic renders; never hand-edit them. Regenerate via `ruby scripts/citation-check.rb
+<json> --render`, `ruby scripts/compliance-calendar-render.rb <json>`, and `ruby
+scripts/compliance-notion-publish.rb <json>` (the last stamps a fresh `Time.now` so its `--check`
+ignores the timestamp). The `docs/legal/*` artifacts (Posture Report, AI Governance Memo,
+Subprocessors, dated status snapshots) are hand-authored DRAFTS that must (a) read headline counts
+from the register, not from prose, (b) stay DRAFT/unattested until Scot signs, and (c) never close,
+triage, or attest a finding, which is Scot-only. When refreshing them, recompute per-framework
+open/high counts straight from the JSON (a `ruby -rjson` tally) rather than carrying old numbers
+forward; the 2026-06-13 posture report had stale 0/13 + FERPA 8/4 figures that did not match the
+register's 0/16 + FERPA 10/5. Run all three `--check` renders + `citation-check` green before
+committing. Confirmed 2026-06-18.
+
+### Ember 5: classic `extend` callback props need `init()` arrow bindings
+
+On `Controller.extend` / `Component.extend`, methods passed as **callback props** to child components (e.g. `opening-observer` `opening`/`closing`, `@onClose`, yielded `closeDrawer`) lose `this` when the child invokes them. Ember 5 dev asserts if you use `(fn this.method)` with unbound prototype methods. Fix: assign arrow functions in `init()`, and **capture services/locals in closure** — do not reference `this.appState` (or other injected services) inside the arrow body when the callback is passed as a component arg; Ember's `fn` wrapper still asserts on `this.*` access:
+
+```javascript
+init() {
+  this._super(...arguments);
+  var appState = this.appState;
+  this.opening_index = () => { appState.set('index_view', true); };
+}
+```
+
+`{{on "click" this.method}}` on the same component often still works; the issue is specifically **callbacks passed to children**. Store service must re-export `ember-data/store` (not `@ember-data/store`) until full legacy-compat migration. Custom `transforms/raw.js` must use **default** import: `import Transform from '@ember-data/serializer/transform'` — `{ Transform }` is undefined (`Transform.extend` crash on user fetch). See `docs/task-management/2026-06-17-ember5-upgrade.md`.
+
+---
+
+
+## Gotcha: the custom `{{and}}` helper is 2-ARG ONLY — extra operands are silently dropped
+
+`app/frontend/app/helpers/and.js` is `helper(function([a, b]) { return !!a && !!b; })`. It
+destructures exactly the first TWO positional args. A 3-operand `(and a b c)` compiles and runs
+with **no error**, but `c` is never evaluated — the condition collapses to `a && b`. This bit the
+supervisor dashboard hero: `(and supporter_role (is-equal activeTab "home") (is-equal effectiveLayout
+"gentle"))` dropped the layout check, so the Gentle hero leaked onto Focused view.
+
+- **Fix pattern:** nest — `(and a (and b c))` — or add a single combined computed on the component.
+- **Detection:** `grep -rEn '\(and ' app/frontend/app/templates/` then eyeball any call with >2
+  operands (watch for nested `(is-equal …)`/`(or …)` that each count as one operand). There are a few
+  pre-existing 3-operand `(and …)` calls in the tree that are also latent — they only "work" when the
+  dropped operand doesn't change the result.
+- Same caution applies to any other custom boolean helper; check its ar\-ity before passing 3+ args.
+
+## Gotcha: supervisor `currentUser.supervisees` is REFETCHED + overwritten at ≥10 — per-supervisee fields must also live on the `/supervisees` index serializer
+
+Per-supervisee data the dashboard needs (e.g. `org_status` for the "Communicators Need Attention"
+card) is set in `lib/json_api/user.rb`'s self-serialization loop, but that only covers
+`supervisees[0,10]`. When a supervisor has ≥10 communicators, `app/frontend/app/models/user.js:768-771`
+(`load_all_connections`) refetches `/api/v1/users/:id/supervisees` via `Utils.all_pages` and
+**overwrites** `currentUser.supervisees` wholesale. That index endpoint
+(`users_controller.rb` → `JsonApi::User.paginate(..., limited_identity: true, supervisor: user)`)
+must therefore set the SAME per-supervisee fields, or they vanish after the reload and the dependent
+UI silently empties for exactly the largest caseloads.
+
+- **Fix pattern:** set the field inside as_json's shared `limited_identity` + `args[:supervisor]`
+  branch (a single helper like `JsonApi::User.org_status_for`), which feeds BOTH the dashboard payload
+  and the index endpoint — not only in the dashboard loop. Then drop the redundant loop assignment.
+- A frontend merge-on-overwrite can't fully fix it: fields are only sent for the first 10, so
+  supervisees 11+ would still be missing the data. Fix at the serializer.
+- `org_status` shape is ALWAYS a hash `{'state' => '<id>', …}` (because `link['state']['status']`
+  is itself a `{state:…}` hash) — every consumer reads `org_status.state`. Don't "fix" it to a string.
+
+---
+
+## Ember 4.12 deprecation audit — what's still firing in this app (2026-06-22)
+
+After the 3.28 → 4.12 upgrade, the `until: 4.0` deprecations were already cleared (they'd be hard
+breaks otherwise). The `until: 5.0` ones still firing, found by grepping `app/frontend/app`:
+
+- **`routing.transition-methods` — the only broad one (~37 calls, ~30 files).** `Controller#transitionToRoute`
+  and `Route#transitionTo`/`replaceWith`. Fix: `router: service()` + `this.router.transitionTo(...)`.
+  ~76 files already use the router service, so the pattern is established. Breaks at Ember 5.
+- `component.mouseenter-leave-move` — 1 hit (`components/board-icon.js` `mouseEnter:`). Use `{{on "mouseenter"}}`.
+- ember-data `DS.*` namespace — 28 files / 505+ `DS.attr`. Works in 4.12; modernize to `@ember-data/*` later.
+
+Audit gotchas:
+- Grep over-counts `transitionTo`: `router.transitionTo()` (the correct replacement) is FINE — filter out
+  `router` and match `this.transitionTo(` / `this.transitionToRoute(` specifically.
+- `{{action}}` (424 files) is NOT a 4.12 deprecation — normal usage. Only the legacy object-first form
+  `(action someObject "name")` breaks in 4.x (fixed in highlight-outlet; that was the only template using it).
+- All `Ember.*` global matches here are in comments / commented-out code — already cleaned up.
+- `no-implicit-this` is NOT in ember-template-lint 2.21.0's `recommended` set, so templates were never
+  checked for `this-property-fallback`. Enable it to catch stragglers (they silently render nothing in 4.x).
+- The authoritative runtime list needs `ember-cli-deprecation-workflow` (catches implicit-injections +
+  this-property-fallback + ember-data deprecations that static grep can't). Full audit:
+  docs/task-management/2026-06-22-ember-412-deprecations.md
+
+---
+
+## ember-data `DS.*` → `@ember-data/*` migration + deprecation-workflow (2026-06-22)
+
+Resolved the `ember-data:deprecate-legacy-imports` deprecation across 26 files. Import-path map (ember-data 4.12):
+- `DS.Model` / `DS.attr` / `DS.hasMany` / `DS.belongsTo` → `import Model, { attr, hasMany, belongsTo } from '@ember-data/model'`
+- `DS.RESTAdapter` → `import RESTAdapter from '@ember-data/adapter/rest'`
+- `DS.RESTSerializer` → `import RESTSerializer from '@ember-data/serializer/rest'`
+- `DS.Transform` → `import Transform from '@ember-data/serializer/transform'`
+
+Gotchas:
+- `node -e "require.resolve('@ember-data/model')"` FAILS (MODULE_NOT_FOUND) even though the package is installed — these resolve via Ember's addon tree at build time, not Node CJS. Don't trust `require.resolve`; validate import paths with a real `ember build` instead. (Piloted the 4 paths on 5 files + build BEFORE the 21-file bulk.)
+- The `import DS from "ember-data"` grep misses double-quoted imports (`adapters/application.js` used `"`). Match both quote styles.
+- `DS.attr` appearing in COMMENTS (`serializers/user.js`, `controllers/user/board-detail.js`) is not real usage — skip. And `GRID_BANDS.slice()` / `STATUS_IDS.indexOf()` false-match `DS\.` — anchor on real `DS.<member>`.
+
+Runtime deprecation capture: installed `ember-cli-deprecation-workflow` v4. Setup = `app/deprecation-workflow.js` (`import setupDeprecationWorkflow from 'ember-cli-deprecation-workflow'; setupDeprecationWorkflow({throwOnUnhandled:false, workflow:[]})`) guarded on `config.environment !== 'production'`, imported from `app/app.js`. Avoid the README's `@embroider/macros` guard if macros aren't already used in app code (adds boot risk) — the env guard is safer. Capture the list by running the app then `deprecationWorkflow.flushDeprecations()` in the console.
+
+---
+
+## Gotcha: `ember build` success does NOT mean the app boots (classic build + v2-format addons)
+
+`ember-cli-deprecation-workflow` v4 is a v2/Embroider-format addon. In this CLASSIC ember-cli build,
+`ember build` compiled it fine, but at runtime the AMD loader threw
+`Uncaught Error: Could not find module 'ember-cli-deprecation-workflow'` at app-boot → white screen.
+v2-format addons don't expose a classic `addon/` AMD module, so a plain
+`import x from 'the-addon'` has nothing to resolve at runtime even though the build "passed."
+
+- **Lesson:** for ANY change touching addon imports / new dependencies / app.js boot wiring, a green
+  `ember build` is necessary but NOT sufficient — verify the app actually BOOTS (dev server + reload),
+  because module resolution differs between build and runtime.
+- For deprecation-workflow specifically on a classic build, use the **classic v2.x** of the addon
+  (ships a real `addon/` tree the loader resolves), not v4.
+- After uninstalling/installing an addon, RESTART `ember serve` — it doesn't reliably pick up
+  node_modules/package.json changes on a hot rebuild.
+
+## board-detail short-height scroll: speak FILLS, edit SCROLLS (deliberate)
+The board-detail page is a viewport-pinned layout (`.md-board-detail-layout` =
+`calc(100dvh - topbar)`) whose **only** intended scroller is `<main
+class="md-board-detail-main">` (`overflow-y:auto`). The scroll chain is already
+built for small viewports: `.md-board-detail-grid-sidebar-wrap` is `flex:1 0 auto`
+("stays at content height when main is over-constrained", app.scss:69729) and
+`.md-board-detail-grid-fade` is opacity-only (app.scss:2901, no clip). The board
+ONLY fails to scroll because the grid (`grid-template-rows: minmax(0,1fr)`)
+collapses to fit. At `@media (max-height:500px)` the two modes were intentionally
+OPPOSITE: **edit** drops `height:auto` + floors `.md-board-detail-grid__cell {
+min-height:96px }` so it overflows and main scrolls; **speak** flexed the
+grid-fade column to FILL (shrink buttons, no scroll). The board's REAL short/narrow
+mechanism is the square-collapse block (`@media (max-width:1024px)` ~app.scss:72143):
+default boards are `--shape-square` (from `stretch_buttons` pref); it makes cards
+`aspect-ratio:1` and the grid `height:auto` + `align-content:start`, so the `minmax(0,1fr)`
+rows resolve to the squares' aspect height — grid is exactly as tall as the squares (no
+inter-row gaps) and `main` (overflow-y:auto) scrolls. To get scroll on SHORT screens, add a
+`(max-height: …)` arm to THAT media query — do NOT invent a new floor. **Gap trap:** under
+aspect-squared cards, ANY rule that makes a row taller than the square opens an inter-row gap.
+Two wrong tries proved it: (a) `height:auto` + cell `min-height:96px`, (b) grid
+`min-height: calc(--board-rows*104px)` — both forced rows taller than the squares → gaps. The
+only gap-free path is the grid collapsing to the squares' own height. `computeHeight()` is
+EMPTY (board-detail.js:1920) so sizing is pure CSS; `--board-rows` is set by JS (board-detail.js:3044).
+
+## Pattern: white symbol matte and the `ll-symbol-white-matte` filter are mutually exclusive on one element
+
+A symbol image with transparent regions bleeds the button's Fitzgerald fill through its
+face in Colored mode (`symbol_background_clear`). The legacy classic board fixed this with
+an unconditional `.button img.symbol { background:#fff }` (first commit
+`coughdrop.css.scss:573`); that survives today as the `symbol_background_white` mode.
+Colored mode instead uses the `#ll-symbol-white-matte` SVG filter (alpha-only white
+knockout, defined in `app/frontend/app/index.html`). The trap: you cannot add
+`background:#fff` to an element that also carries that filter — CSS `filter` processes the
+element's own background, so the matte filter knocks the white right back out. To restore a
+white matte in Colored mode you must DROP the filter and paint white on a filter-free
+element. In the board-detail grid the symbol `<img>` is content-sized
+(`width/height:auto` + `object-fit:contain`), so a `background:#fff` on the img sits
+exactly behind the rendered image — no wrapper, and it does NOT stretch to the whole image
+band the way a container fill (`.md-board-detail-symbol-card__image`) would. Default for
+new users is `symbol_background = 'clear'` (`lib/json_api/user.rb:89`), so Colored mode is
+the common case. See [`2026-06-23-symbol-transparency-bleed-legacy.md`](./2026-06-23-symbol-transparency-bleed-legacy.md).
+## Gotcha: bootstrap 3 tooltip/popover is XSS-safe only via DOM-node content, not data-content strings
+Bootstrap 3.4.1 (`node_modules/bootstrap/dist/js/bootstrap.js`) `Popover.getContent` reads the
+`data-content` attribute FIRST, then falls back to the `content` option. `Popover.setContent`
+branches `typeof content === 'string' ? 'html' : 'append'` and runs `sanitizeHtml` ONLY on string
+content. So `$(el).attr('data-content', node.innerHTML).popover('show')` round-trips through a
+parsed+sanitized HTML string (safety depends on the EOL sanitizer), whereas passing
+`content: () => domNode` makes bootstrap `.append()` the real node, never parsing HTML at all
+(sanitizer irrelevant). When building popover/tooltip bodies, construct a DOM node with
+`document.createElement` + `.innerText` (escapes) + `img.src` (property, no attr injection) and hand
+bootstrap the NODE via the `content` function; do not set `data-content` to an HTML string. Verified
+in `utils/utterance.js:silent_speak_button` (LL-d1ea8659c3). Note bootstrap JS is also load-bearing
+for `data-toggle="dropdown"` (incl. keyboard a11y in `controllers/caseload.js`) and
+`data-dismiss="alert"`, so the EOL lib cannot simply be dropped without replacing those too.
+
+## Gotcha: bootstrap 3 popover('destroy') is async; home-grown init guards go stale after it
+Bootstrap 3's `Tooltip/Popover.destroy` defers `removeData('bs.popover')` into the `hide()`
+animation callback (~150ms, `animation:true` is the default), so the instance is still present
+synchronously right after `destroy` but gone a moment later. A home-grown "init once" guard keyed
+on a custom attribute (e.g. `if(!$el.attr('data-popover')){ ...popover(opts) }`) does NOT get
+cleared by destroy, so a later `.popover('show')` finds no instance, skips re-init, and bootstrap's
+`Plugin` rebuilds a DEFAULT popover (`html:false`, `content:''`, no `content` fn) -- an empty/blank
+widget that silently drops your configured options. Prefer bootstrap's own idempotency: call
+`$el.popover(opts)` unconditionally before `show` (no-op when an instance exists, re-creates with
+your opts after a destroy). Seen in `utils/utterance.js:silent_speak_button` where
+`services/app-state.js:2336` destroys `#speak_mode`'s popover on leaving a board (LL-d1ea8659c3).
+
+## Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention
+
+When a flow needs the user's existing copy of a public board (pick-as-home, add-to-sidebar),
+it's tempting to look up `username/<original-slug>` and reuse whatever's there — copies DO keep
+the slug under the user's namespace. But that key can also be an UNRELATED board the user
+copied from a different source with the same slug, so reusing on the bare convention can set
+the WRONG board as home — a correctness/safety bug for AAC users. Confirm lineage instead:
+reuse only when `parent_board_id === original.id` (or `parent_board_key === original.key`).
+App-made copies always set `parent_board_id` server-side, and `/show` always serializes it, so
+real copies confirm. Two gotchas: (1) a board cached as a LIST partial may omit
+`parent_board_id`, making a real copy look unconfirmed — use `findRecord(key, {reload:true})`
+so the parent fields are authoritative; (2) an unconfirmed match should fall back to copying
+fresh (a benign duplicate) rather than reuse-on-faith. Single shared helper:
+`app/frontend/app/utils/board-copy.js#findExistingUserCopy` (used by board-preview-overlay +
+sidebar-editor). Don't fork two copies of this logic — divergence is how the slug-trust branch
+crept back in.
+
+## Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"
+
+A UI that persists on every quick interaction (drag-reorder, up/down nudge, toggle) can fire
+several `record.save()` calls in quick succession. Concurrent saves on the SAME Ember Data
+record are unsafe: the network PUTs can complete out of order (the slower/earlier one wins,
+silently dropping a later change), and Ember Data can also throw when a save starts while one is
+already in flight. Fix: keep the optimistic `set()` synchronous (so the UI updates instantly),
+but CHAIN the actual `save()` off a module/instance `_saveChain` promise so saves run one at a
+time — each chained save serializes the model's CURRENT attributes (the latest array), so
+coalescing is safe. Keep the chain alive past a rejection (`prior.then(noop, noop)`) so one
+failed save can't wedge the queue, and expose the tail as `_lastSave` for callers that must wait
+for persistence to settle (e.g. a reload-on-close). See
+`app/frontend/app/components/sidebar-editor.js#_save`.
+
+
+---
+
+## Pattern: Ember 5 QUnit unit tests — persistence proxy, run loop, and subject shape
+
+**Surface:** `app/frontend/tests/unit/**`, `tests/helpers/persistence-stub.js`, any test
+that stubs `frontend/utils/persistence`, uses `setupTest` / `settled()` / `waitUntil()`,
+or boots a full controller/component to assert on a single method.
+
+**Context:** On `feat/melissa-ember-5-12-upgrade`, CI QUnit failures clustered into a
+few repeatable families (see
+[`2026-06-26-ember5-ci-unit-test-fixes.md`](./2026-06-26-ember5-ci-unit-test-fixes.md)).
+Unit modules listed in [`tests/test-helper.js`](../app/frontend/tests/test-helper.js)
+explicit imports **do** run under `npx ember test`; the older gotcha that the unit
+suite is never loaded is stale for those modules — but most `tests/unit/**` files are
+still not auto-discovered unless added there or pre-loaded by the AMD loop.
+
+### 1. Stub persistence on the service instance, not the module export
+
+`frontend/utils/persistence` re-exports a **Proxy** that forwards method calls to
+`window.persistence` (the running service). Assigning `persistence.ajax = …` on the
+import does nothing at runtime → real ember-ajax 404s in tests.
+
+```js
+import { persistenceTarget, stubPersistenceAjax } from '../../helpers/persistence-stub';
+
+hooks.beforeEach(function() {
+  this._restorePersistenceAjax = stubPersistenceAjax(function() {
+    return RSVP.reject({ error: 'offline in test' });
+  });
+});
+hooks.afterEach(function() {
+  if (this._restorePersistenceAjax) { this._restorePersistenceAjax(); }
+});
+```
+
+Also stub `url_cache` / `url_uncache` on `persistenceTarget()`, not on the module.
+
+### 2. Use the container — not bare `.create()`
+
+`BoardIndexController.create()` (and similar) bypasses injection; Ember 5 asserts when
+computed properties resolve `persistence` / `app-state` without a container.
+
+```js
+// Prefer
+this.owner.factoryFor('controller:copying-board').create();
+
+// Or pass mocks explicitly when testing a method in isolation
+BoardIndexController.create({
+  persistence: EmberObject.create({ … }),
+  appState: EmberObject.create({ … })
+});
+```
+
+### 3. A 60s timeout on a “sync” test is usually async cleanup, not the assertion
+
+**Default fix (2026-06):** import `setupTest` from `frontend/tests/helpers` (or
+`../../helpers`), **not** directly from `ember-qunit`. The wrapper sets
+`waitForSettled: false` by default so `afterEach` does not call `settled()`.
+Jasmine-style tests use the same wrapper via `tests/helpers/jasmine.js`.
+
+Raw `setupTest(hooks)` from `ember-qunit` wires `afterEach` → `teardownContext` →
+**`settled()`**. Booting a heavy object (`controller:user/board-detail`,
+`component:copying-board`, Ember Data records) schedules `runLater`, observers, and
+RSVP chains that never finish in a unit test → `settled()` blocks until QUnit’s 60s cap.
+
+**Symptom:** test body is one or two `assert.equal` calls; browser log is empty;
+runtime ≈ 60000ms exactly.
+
+**Fix ladder (pick the shallowest that fits):**
+
+| Situation | Fix |
+|-----------|-----|
+| Test only calls pure prototype methods (`_resolve_cached_image_url`, `_word_prediction_locale`, …) | Prefer **`Controller.create({ …stubs })`** or **`factoryFor().create()`** with `setupTest` from **`tests/helpers`**. Copying `Controller.prototype.method` onto `EmberObject.create({ … })` often fails — the method may be missing on `.prototype` in the test bundle, so the instance property is `undefined`. For small controllers, bare `.create()` with mocked injections works (see `board-index-word-prediction-locale-test.js`). |
+| Test drives async modal/hierarchy code | `setupTest` from **`tests/helpers`**; poll completion with **`run` + `later`**, not native `setTimeout` or `await settled()`. |
+| Test stubs a loader that never settles (hung buttonset) | Reject the hung RSVP in `afterEach` so orphans don't wedge the next test. |
+| Code under test uses `@ember/runloop` (`opening()`, `init` → `runOpening`) | Wrap the trigger in `run(function() { … })`. |
+
+**Do not** reach for `await settled()` or `@ember/test-helpers` `waitUntil()` when
+orphan RSVP promises exist (never-settling stubs) — `waitUntil` polls with `settled()`
+between attempts and hangs the same way.
+
+### 4. Native `setTimeout` does not flush Ember `later()`
+
+`copy_hierarchy_loader.js` schedules early live-links fallback with `later()`. A
+`pollUntil` loop built on `setTimeout(tick, 10)` never advances those timers → the
+promise never resolves → `loading` stays true → 60s timeout.
+
+```js
+import { run, later } from '@ember/runloop';
+
+function pollUntil(condition, timeoutMs) {
+  timeoutMs = timeoutMs || 10000;
+  return new RSVP.Promise(function(resolve, reject) {
+    var start = Date.now();
+    function tick() {
+      if (condition()) { resolve(); return; }
+      if (Date.now() - start >= timeoutMs) {
+        reject(new Error('pollUntil timed out after ' + timeoutMs + 'ms'));
+        return;
+      }
+      later(tick, 10);
+    }
+    run(tick);
+  });
+}
+```
+
+Contrast: `hide_loading_overlay()` uses `runLater` — poll with `run`/`later` (see
+`loading-overlay-cache-test.js#waitForOverlayHidden`), not `await settled()`, when
+orphan promises may still be pending.
+
+### 5. ember-qunit 8 / Ember 5 component gotchas
+
+- Legacy Jasmine **`this.subject()`** is not wired reliably — use
+  `this.owner.factoryFor('component:audio-browser').create()`.
+- **`element` is read-only** on Ember 5 components — use
+  `Object.defineProperty(component, 'element', { get: () => fakeHost })`, not
+  `component.set('element', …)`.
+- **`clear_user_state`** must not `set('referenced_user', null)` — that property is
+  now a computed derived from `currentUser`.
+
+### 6. Jasmine `describe()` errors poison global state
+
+`tests/helpers/jasmine.js` keeps module-global `names`, `all_befores`, etc. If a
+top-level `describe()` callback throws **before** `names.pop()` (e.g.
+`afterEach is not defined` in `board-preview-canvas-test.js`), the stack stays dirty:
+later suites register **without** `QUnit.module` + `setupTest`, test titles pick up
+the leaked prefix (`BoardPreviewCanvasComponent capabilities …`), and
+`ember_helper`’s `beforeEach` calls `persistence.set` on a **destroyed** service
+from the last torn-down owner.
+
+**Fix recipe:**
+
+- Import every jasmine helper you use (`afterEach`, `waitsFor`, `runs`, …).
+- `jasmine.js` wraps `add_test()` in `try/finally` so `names.pop()` always runs.
+- `ember_helper` resets persistence via `owner.lookup('service:persistence')` when
+  `this.owner` exists, and skips `set` when the target is destroyed.
+
+**Symptom:** hundreds of legacy Jasmine tests fail with
+`calling set on destroyed object: … persistence … online = true`, often with wrong
+test name prefixes. Or `Cannot read properties of undefined (reading 'lookup')` in
+`runs()` / post `afterEach` when `testOwner.lookup` runs after ember-qunit teardown.
+
+**Also:** `afterEach` in `jasmine.js` pushed to `all_afters[length - 1]` (the root bucket)
+while nested describes `unshift` new levels at index 0 — so every nested `afterEach` (e.g.
+`testOwner.lookup` cleanup in `application-test.js`) leaked into **all** tests' post hooks.
+Use `all_afters[0]` to match `beforeEach` / `unshift` symmetry.
+
+**First seen in:** [2026-06-26-ember5-ci-unit-test-fixes.md](./2026-06-26-ember5-ci-unit-test-fixes.md).
+
+**Also:** `restoreStubs()` in `test_wrap` must run **after** inner `waitsFor`/`runs` async
+callbacks (in the outer post-`runs` block), not synchronously after `instance.call()`.
+Early restore clears stubs before promise chains run — symptom: `word_suggestions` gets
+`images/square.svg` instead of stubbed `fallback_url`, persistence stubs ignored, hundreds
+of Jasmine assertion failures.
+
+**ContentGrabbers in Jasmine:** `utils/content_grabbers` is a Proxy to `window.cg`. Do not
+capture `contentGrabbers.videoGrabber` at describe registration time; assign in `beforeEach`
+after `ember_helper` runs `owner.lookup('service:content-grabbers')`.
+
+**Puppeteer localStorage:** use `replaceLocalStorage()` from `ember_helper` — assignment
+`window.localStorage = {…}` throws (getter-only).
+
+**Persistence/app-state stubs:** `utils/persistence` and `utils/app_state` are Proxies whose
+get traps forward to `window.persistence` / `LingoLinq.appState`. Jasmine `stub()` mirrors
+onto the live service when stubbing the util export; QUnit tests should use
+`stubPersistence()` / `persistenceTarget()` instead of assigning `persistence.ajax`.
+**Prime first:** call `primePersistenceService(owner)` (via `setupTest` or
+`ember_helper` beforeEach) before stubbing — otherwise first model `createRecord`
+replaces the placeholder and drops ajax stubs (symptom: ember-ajax 404, ~4650ms
+timeouts in Board/User model tests).
+
+**First seen in:** [2026-06-27-ember-test-ci-failures.md](./2026-06-27-ember-test-ci-failures.md).
+
+### 6. BoardHierarchy / store in copy-modal tests
+
+Monkey-patch `BoardHierarchy.load_with_button_set` and `load_from_live_links` in
+the test **before** calling `opening()`. Never rely on real `load_from_live_links`
+(`LingoLinq.store.findRecord`) in unit tests — it hangs without a populated store.
+Set `earlyLiveLinksDelayMs: 0` (or a small ms value) on the controller/component so
+tests don't wait for the production 6000ms default.
+
+**Reference implementations:**
+
+- `tests/helpers/index.js` — `setupTest` wrapper with default `waitForSettled: false`
+- `tests/unit/controllers/copying-board-test.js` — `pollUntil`, `openCopyModal`, hung-buttonset cleanup
+- `tests/unit/controllers/user-board-detail-image-cache-test.js` — `factoryFor` + `waitForSettled: false`; side-effect `import 'frontend/models/board'` for `LingoLinq.Board.*` statics
+- `tests/unit/controllers/board-index-word-prediction-locale-test.js` — isolated method context
+
+**First seen in:** [`2026-06-26-ember5-ci-unit-test-fixes.md`](./2026-06-26-ember5-ci-unit-test-fixes.md)
+(on `feat/melissa-ember-5-12-upgrade`).
+
+---
+
+## Adding a new component-based modal (frontend)
+The modal system is component-based. To add a modal named `X`, FIVE wiring points are required —
+miss any one and it silently won't render:
+1. `app/components/X.js` — `tagName: ''`; `init` reads `modal.getSettingsFor('X')` into `model`;
+   actions `close` (`modal.close()`), `opening` (`modal.setComponent(this)`), `closing`.
+2. `app/templates/components/X.hbs` — wrap body in
+   `{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}`.
+   Modern classes: `md-modal-header` / `la-modal-close` / `md-modal-body` / `md-modal-footer`.
+3. `components/modal-container.js` — add `'X'` to the `convertedModals` array (the gate).
+4. `templates/components/modal-container.hbs` — add `{{else if (is-equal this.currentTemplate "X")}}{{X}}`.
+5. Open it with `modal.open('X', {...opts})` (opts are read back via `getSettingsFor('X')`).
+Live-saving a user preference from a modal: bind a checkbox `@checked` to a `computed({get,set})`
+whose setter does `user.set('preferences.FIELD', v); user.set('preferences.device.updated', true);
+user.save();` — saves immediately on toggle. For text inputs, save on `{{on "change" ...}}` (blur)
+not per keystroke. Example: `app/frontend/app/components/pin-settings.js`. When several settings
+can change in quick succession, SERIALIZE the saves — chain each onto the previous in-flight one
+(`this._save_chain = this._save_chain ? this._save_chain.then(run, run) : run()`) so overlapping
+`user.save()` calls can't drop a write (see "serialize rapid model saves"). For a PIN/credential
+text input, also SANITIZE on change AND on close (`(v||'').replace(/[^0-9]/g,'').slice(0,4)`) so a
+non-numeric/empty value can never be persisted — an empty PIN silently disables whatever it gates.
+
+## Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action
+
+To PIN-gate ANY action (not just exiting Speak Mode), open the existing
+`speak-mode-pin` entry modal in validate-only mode and act on the resolved
+payload — no new modal, no separate PIN value:
+
+```js
+modal.open('speak-mode-pin', {
+  action: 'none',                                   // validate only, no side effect
+  hide_hint: user.get('preferences.hide_pin_hint')
+}).then(function(res) {
+  if (res && res.correct_pin) { doTheGatedThing(); } // res is undefined on cancel
+}, function() {});
+```
+
+The modal resolves `modal.close({correct_pin:true})` on a correct PIN (and plain
+`close()` → `undefined` on cancel), so `modal.open(...).then(res => res && res.correct_pin)`
+is the gate. `action: 'none'` is the same mode the speak-mode ENTRY gate uses
+(`application.js:1094`). Gate only when `require_<x>_pin && speak_mode_pin` both set
+so a missing PIN can never lock the user out. First applied: `require_sidebar_edit_pin`
+gating `open_sidebar_editor` (board-detail.js), 2026-06-26. The PIN value
+(`speak_mode_pin`) is SHARED across all gates — a new gate is just a new boolean
+pref (3-touch) + this `.then` wrapper, NOT a new PIN.
+
+**Do NOT pass the PIN in the modal options** (`actual_pin: ...`). `modal.open`'s options
+are stored in the modal service's in-memory `settingsFor` blob, so putting the plaintext
+PIN there leaks it into shared state. Instead the `speak-mode-pin` component reads it LIVE
+via an `actual_pin` computed off `appState.currentUser.preferences.speak_mode_pin` (used for
+both validation and the Reveal link); callers pass only `action` + `hide_hint`. (Security
+fix, 2026-06-27 — external review flagged plaintext-in-options.)
+
+## Pattern: default a preference ON for NEW users only, never backfilling existing ones
+
+`generate_defaults` (before_save) runs on every save, and the `preference_defaults` bucket
+loop backfills any `nil` field on EVERY existing user's next save. So putting
+`'word_suggestions' => true` in a `preference_defaults` bucket silently turns the feature ON
+for every pre-existing user the next time they save — an unannounced behavior change (an
+external review rated this HIGH).
+
+To default a preference ON for **new** sign-ups only:
+1. Do NOT put it in any `preference_defaults` bucket (those backfill everyone).
+2. In `generate_defaults`, set it under a `new_record?` guard so it's applied once at
+   registration and never on later saves:
+   ```ruby
+   if self.new_record?
+     self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
+   end
+   ```
+   (For a date-cut default, the codebase's existing idiom is
+   `FeatureFlags.user_created_after?(self, 'flag')` — but that needs a flag date marker;
+   `new_record?` is simpler when the cut is "from now on".)
+3. Make the CLIENT read it as `=== true` (treat `nil`/`undefined` as OFF) so existing users
+   with no stored value read as off. A `!== false` read is the trap — it makes `nil` mean ON,
+   re-introducing the silent enablement client-side even after the server stops backfilling.
+Applied to `word_suggestions` / `word_suggestion_position`, 2026-06-27.
+
+**Review-lens note:** correctness / regression / accessibility / cascade passes do NOT catch
+security-or-input-validation gaps (silent default flips, missing PIN validation,
+plaintext-in-options, save races). When a change touches auth/PIN/preferences, run an explicit
+"abuse + input-validation + concurrency" lens as its OWN pass — three internal adversarial
+reviews missed all four of these because none was framed that way.
+
+## Pattern: editing the speak bar must mutate the GLOBAL utterance, not just the display mirror
+
+`utils/utterance.js` `rawButtonList` is the source of truth; `set_button_list` (observer)
+recomputes the VISUAL `app_state.button_list` from it (handling inflections, spelled-letter
+merges, `:complete`/`:space`, capitalization, punctuation). The board-detail controller keeps a
+local `sentence_parts` MIRROR of button_list for the chip UI. Two non-obvious rules:
+
+1. **Edit on rawButtonList, never only the mirror.** If you remove/reorder a chip by mutating
+   `sentence_parts` alone, the spoken/logged/synced sentence (derived from rawButtonList) silently
+   diverges from what's displayed. Add edit methods to utterance.js that re-`set('rawButtonList',
+   …)` and let set_button_list recompute. Each VISUAL chip owns a CONTIGUOUS block of raw entries
+   bounded by consecutive `button_list[i].raw_index` (set_button_list walks raw in order and merges
+   modifiers into the prior visual button). So remove = drop a block, move/swap = reorder blocks,
+   replace = relocate a block. Implemented as `visual_raw_blocks` / `remove_button` /
+   `move_to_index` / `move_button` / `swap_buttons` / `replace_with_last` (2026-06-27).
+   **Make the partition FAIL-SAFE:** if `raw_index` values are missing / out-of-range /
+   non-increasing, return null and have callers no-op — a wrong guess must never corrupt the
+   utterance.
+
+2. **The additive, raw_index-keyed sync CANNOT survive a reorder.** The old
+   `sync_sentence_from_button_list` only appended/updated chips matched by `raw_index` and never
+   removed or reordered. But set_button_list REASSIGNS `raw_index` on every change, so after a
+   reorder the keys no longer line up (you get duplicates / stale order). Rewrite the sync as a
+   FULL MIRROR (rebuild `sentence_parts` in global order, dropping anything no longer present), with
+   a value-equality guard to avoid churn and a **label-keyed image cache** (`_resolved_label_images`)
+   so async-resolved symbols survive a rebuild (object identity and raw_index are both unstable
+   across a reorder; the label is stable).
+
+3. **Replace-with-a-board-button:** don't hand-build a raw entry (you'd miss image/vocalization/
+   sound/content processing). Route the tapped board button through the normal activate pipeline
+   (`appController.activateButton`) so it APPENDS a correct entry, then `replace_with_last(target)`
+   relocates that last block onto the target and drops the old one.
+
+For the accessible reorder UX itself, see the research in
+`docs/task-management/2026-06-27-speak-bar-active-edit.md`: move buttons (‹ ›) are the most
+accessible non-drag path; pair native HTML5 DnD (pointer) with full keyboard (Enter/Space select,
+arrows move, Esc cancel) + an `aria-live` region announcing each result. Don't add a DnD library to
+this Ember 3.28 app — dnd-kit / pragmatic-drag-and-drop are React-first; native DnD + buttons covers it.
+
+## Gotcha: selective board-set copying ALREADY exists — reuse `board_hierarchy`, don't rebuild
+
+Before adding any "choose which sub-boards to copy" UI, know the infra is already there end-to-end:
+- **Frontend:** `utils/board_hierarchy.js` builds the downstream tree with per-board `selected`
+  flags, `selected_board_ids()`, `root_deselected`, `set_downstream(id,'selected',bool)`, `toggle()`.
+  The `{{board-hierarchy selectable=true hierarchy=…}}` component renders the selectable tree
+  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, and the `copying-board` modal).
+  `components/board-hierarchy.js` `select_all(state)` now honors `state` → `select_all false`
+  is Deselect All (existing callers pass no arg, so they still select).
+- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols); the EXECUTION modal is
+  `copying-board`, which loads the hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all
+  selected by default) and passes `hierarchy.selected_board_ids()` as the include list.
+- **Backend:** the copy endpoint already accepts `expand_selected_board_ids` (users_controller →
+  user.rb#2559 → relinking.rb `copy_board_links_for`), so partial copies are supported server-side.
+So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
+existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
+`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+
+---
+
+## Pattern: Ember 5 CI hang — destroyed-object read in post-teardown callback
+
+**Surface:** Full `ember test` in CI wedges for hours with no pass/fail count; local module
+filters may look fine.
+
+**Cause:** After a test tears down the app, a leaked `observer` / `later()` reads a computed on a
+destroyed service. Ember 3.28 returned `undefined`; **Ember 5 throws**. The throw re-enters
+`window.onerror` / app `Ember.onerror` until stack overflow, corrupting Testem so every later test
+appears to timeout.
+
+**Fix (production):** Guard chokepoints — e.g. `edit_manager.process_for_displaying` bails when
+`appState.isDestroyed` (`a98bd1b7a`). Same pattern on high-traffic observers/timers
+(`app-state` `on_user_change`, `refresh_user`, `check_for_board_readiness`); cancel recurring
+`runLater` in `willDestroy`.
+
+**Fix (harness):** `start({ setupTestIsolationValidation: true, testIsolationValidationDelay: 50 })`;
+lower `QUnit.config.testTimeout` so wedges fail in seconds. Do **not** expect fixing
+`window.onerror` recursion alone to turn red tests green — it only amplifies the underlying error.
+
+See [`2026-06-27-ember5-ci-remaining-test-fixes.md`](./2026-06-27-ember5-ci-remaining-test-fixes.md).
+
+## Gotcha: the Eval tool renders through the CLASSIC board renderer — re-skin, don't re-route
+
+The Eval pages (`/obf/eval-start`, `/obf/eval-N-N`) are boards owned by the system user `obf`.
+`routes/board.js` deliberately excludes `^obf/` from the modern board-detail redirect, so eval
+boards ALWAYS render through `templates/board/index.hbs` (classic), never board-detail. The eval
+flow handlers (`button_settings`, `assessment_settings`, `#board_bg` z-index layering, the eval
+header nav) are wired to that classic structure — so the established pattern is to RE-SKIN the
+classic markup, NOT switch renderers (see the `app.scss` "Modern Eval Header" comment ~88932 and
+the `.board.eval_mode` z-index block ~7858).
+
+Scoping hooks (both eval-only, safe to style without touching normal boards):
+- **Header:** `app_state.eval_mode` adds `.md-eval-header` on `<span id="speak">` (application.hbs).
+- **Body:** `display_class` (`controllers/board/index.js:1212`) adds `eval_mode` to the `.board`
+  container only when `app_state.eval_mode` → scope body styling under **`.board.eval_mode`**.
+- Body DOM is classic: `#board_bg` + `.button_row` > `<a class="button">` with `.symbol` + `.button-label`.
+- The button's inline `computed_style` (`utils/button.js:940`) sets position/size + `outline-color`
+  /`--btn-ring-color` ONLY — never the face bg/border/radius — so the card face is pure CSS and a
+  white-glass re-skin works with `!important` to beat base `.button`/`.colored_icons` rules.
+  (2026-06-29: added the "Modern Eval Board Body" block — soft gradient surface + white glass button
+  cards + navy labels — scoped to `.board.eval_mode`, companion to the existing Modern Eval Header.)
+
+## Pattern: the dashboard is role-agnostic by DATA — never fork the edit per role
+
+The home dashboard + its edit (`display-style.js`) are ONE surface driven by the section
+registry in `utils/dashboard_sections.js`. Roles are expressed as data, not code branches:
+- `HOME_SECTIONS[].available(user)` gates each card per role (`availableHomeSections(user)`).
+- Default card order is single-sourced through **`defaultOrderFor(user, layout)`** (2026-07-03):
+  Focused shares one `FOCUSED_DEFAULT_ORDER`; Gentle is role-aware — a supervisor (any of
+  caseload/rooms/attention/org available) gets `SUPERVISOR_DEFAULT_ORDER`, else `DEFAULT_ORDER`.
+  Both the live grid (`dashboardLayout`) and the edit resolve their default from the SAME arrays,
+  so they can't drift. **Never hardcode `(layout==='focused')?FOCUSED_DEFAULT_ORDER:DEFAULT_ORDER`
+  in the edit** — that was the supervisor bug (edit used the communicator order, mismatching the grid).
+- Adding a future role = add sections with `available` predicates (+ maybe a default-order array).
+  The single edit picks it up; do NOT create a per-role edit page (breaks the "grid + preview read
+  the same `dashboard_order` so they never drift" guarantee, and duplicates drag/persist logic).
+
+**The dashboard user is `referenced_user || currentUser`** (the app's idiom, app-state 907/1256).
+Resolve it ONCE per method and use it for BOTH `availableHomeSections()` AND preference read/write —
+never read one identity and write another. Today `referenced_user` is only ever set to `null`
+(app-state.js:1994, never assigned), so it == `currentUser` — which is already masquerade-correct
+(act-as re-resolves `currentUser` to the acted-as user, app-state.js:468-475). Modeling
+(`referenced_speak_mode_user`) is speak-mode-only and never reaches dashboard-edit. So the seam is
+behavior-neutral today and the single wire-in point for a future "supervisor edits a supervisee's
+dashboard" flow: set `referenced_user` and the whole edit routes to that user, no other changes.
+
+- Org access is role-tiered (organization.rb:42-48): manager→view/edit/manage, assistant→view/edit,
+  **supervisor→view ONLY**, communicator→none. EVERY org-management endpoint (managers/users/
+  supervisors/units/stats/admin_reports/settings) gates on `allowed?(@org,'edit')`, so a supervisor
+  loading any of them gets 400 "Not authorized" — not a bug, a permission tier. A supervisor's org
+  link is sponsored-membership (add_supervisor + premium licenses), not admin; their work is the
+  Caseload. UI rule: gate org-management nav links + the home "My Organizations" card behind
+  `permissions.edit` / a manager-type org, and skip edit-gated controller fetches for view-only users
+  — never surface a link to a page whose API the user's role can't call. (2026-06-29)
+
+- eat_events mobile gotcha: any NEW {{action}}-bound <button>/<a> that renders on the CLASSIC board
+  page while speak_mode is active (e.g. the eval intro `.md-eval-intro`) needs a carve-out in BOTH
+  raw_events handlers, not just `click`. The touchstart/mousedown `eat_events` (raw_events.js:~66)
+  preventDefaults on mobile when `eatable` (speak_mode) && capabilities.mobile && !ignored_region —
+  which SUPPRESSES click synthesis on Android/iOS, so a `.closest()` exception added only to the
+  click handler leaves the control dead on touch devices. Add the selector to the eat_events
+  carve-out (alongside `.board-detail-view, .md-board-detail-grid`) too. (2026-06-29, adversarial review)
+- eval.js `intro_header_start` gotcha: `level` is captured as `levels[working.level]` at the top; the
+  level-overflow normalization at the end (`if(!level[working.step]){ working.level++ }`) re-reads that
+  SAME captured `level`. If a branch jumps to a different level (welcome → find-4, which lives in a
+  later level), you must resync `level = levels[working.level]` after setting working.level, or the
+  normalization re-increments past the target. (2026-06-29, adversarial review)
+
+- Below-chip / below-anchor popover inside an overflow-clipped scroller (speak-bar chip edit
+  menu): the sentence-bar chips live in `.md-board-detail-sentence-bar__text--with-symbols`,
+  which is `overflow-y:auto; max-height:86px` — and per spec `overflow-y:auto` FORCES
+  `overflow-x` to auto too, so a menu positioned `top:100%` INSIDE a chip is clipped on BOTH
+  axes. Fix pattern: render the popover as a sibling OUTSIDE the scroller (a child of the
+  `position:relative` bar, which has no overflow), then JS-anchor it under the chip by
+  measuring `chip.getBoundingClientRect()` vs `bar.getBoundingClientRect()`, clamping `left`
+  into the bar, and offsetting a caret. Because the bar has `transform:translateZ(0)` (its own
+  stacking context) and sits BEFORE the board grid in DOM, lift the whole row with
+  `.md-board-detail-sentence-row:has(<the-menu>){position:relative;z-index:20}` so the dropped
+  card paints above the grid. Avoid the first-frame `left:0` flash by positioning twice —
+  provisionally with a fallback width BEFORE the `{{#if}}` renders the menu, then exact via
+  `runLater(this, this._position_chip_menu, 0)` on afterRender. (2026-06-30)
+- AAC accidental-tap guard for an edit menu = PRESS-AND-HOLD, not a post-tap dwell.
+  First attempt used "tap now, reveal menu after a 2s dwell" — but that still opens on a single
+  accidental tap (the timer fires regardless), which the user rejected. Correct pattern: require
+  a deliberate 2s press-and-hold; any shorter press does nothing. Implement the hold in the
+  presentational component with POINTER events (not click): `pointerdown` arms a
+  `runLater(HOLD_DURATION)` + a `--pressing` state; `pointerup`/`pointercancel`/`pointerleave`
+  cancel; `pointermove` past a tolerance (~12px, generous for tremor) cancels as a drag/scroll.
+  On completion fire the open action AND set a `_hold_fired` flag so the trailing synthetic
+  `click` (pointerup → click) is swallowed instead of toggling the just-opened menu shut. A
+  short tap stays useful: no-op when nothing's open, dismiss when THIS item's menu is open,
+  immediate-select in a mode that already committed (e.g. swap-target). Keyboard Enter opens
+  immediately (already deliberate). On the pressable element set `user-select:none` +
+  `-webkit-touch-callout:none` + `touch-action:manipulation` so the long-press doesn't select
+  text / fire the iOS callout / double-tap-zoom, and add a fill animation whose duration EQUALS
+  HOLD_DURATION as a "keep holding" progress cue (static tint under reduced-motion). Cancel the
+  hold timer in `dragStart` and `willDestroy`. (2026-06-30)
+
+- Decorative box-shadow vanishing "on click" = the global focus reset stripping it. app.scss
+  has `#within_ember *:focus:not(:focus-visible) { outline:none !important; box-shadow:none
+  !important; }` (line ~274) to suppress Bootstrap's focus box-shadow on MOUSE clicks. It's
+  `*`-broad, so ANY focusable element whose box-shadow is DECORATIVE (a glass/elevation shadow,
+  not a focus ring) loses that shadow the instant a click focuses it — reads as the element
+  going flat / "actively clicked". Symptom: shadow present at rest + on keyboard focus
+  (`:focus-visible` path), but gone on pointer click (`:focus:not(:focus-visible)` path). Fix:
+  carve the element out of that global rule with `:not(.the-class)` (edit the rule in place,
+  don't stack an `!important` shadow re-assert). Safe because UA browsers only draw the default
+  outline for `:focus-visible`, so excluding it adds no stray outline on click. This bit the
+  speak-bar chip (`.md-board-detail-sentence-bar__chip`, a focusable span[role=button]).
+  (2026-06-30)
+
+- Dead responsive rules = base display swapped flex↔grid, media queries not updated.
+  Symptom: a component's `@media` blocks set `grid-template-columns` / `grid-column: span N`
+  but the layout doesn't respond and the desktop layout looks off (e.g. a centered flex-wrap
+  leaving an awkward 4+2 row). Cause: the BASE rule uses `display: flex` (someone changed it
+  from grid) so every `grid-*` property in the media queries is inert. Fix: switch the base
+  back to `display: grid` with explicit `grid-template-columns` — it both fixes the desktop
+  layout AND reactivates the already-written responsive rules for free. Seen on
+  `.md-org-stats__grid` (org dashboard): base was flex, but 820px/550px media queries + the
+  `--wide` modifier all assumed grid. Check the base display before writing NEW responsive
+  rules — the ones you want may already exist. (2026-07-01)
+
+- The `/setup` route is DUAL-PURPOSE — don't delete it wholesale. It serves (1) first-run
+  ONBOARDING (Getting Started wizard, `mode:'critical'` / `page:'board_category'`) AND (2)
+  BOARD/COMMUNICATOR setup (`board-actions.js:112` symbol-layout editor `page:'symbols'`; and
+  supervisors/org-admins "set up a communicator's board" from caseload/org-people/user-index/
+  switch-communicators). Only #1 is being replaced by the Shepherd home tour + the standalone
+  `board-picker` route (`router.js:140`, decoupled from setup). Full map:
+  docs/task-management/2026-07-02-setup-pages-deprecation-map.md. Two gotchas found: (a) there are
+  TWO terms-agree files — the live modal `components/terms-agree.js:31` ALWAYS routes to setup and
+  ignores the `home_tour` flag, while the stale `controllers/terms-agree.js:25-46` has the correct
+  flag branch (ON → home+tour, OFF → setup); that mismatch is why a terms-needing login lands in the
+  old wizard even with `home_tour` enabled. (b) `progress.setup_done` is written ONLY by the wizard
+  (`getting-started.js:75`) and read only by setup/dashboard/`routes/index.js:104` — so repurposing
+  it for "tour done" means wiring the tour's completion to set it. (2026-07-02)
+
+- Eval stuck repeating a step (no advancement): the adaptive advance decision
+  (`utils/eval.js` ~l.2077) gates entirely on `assessment.mastery_cutoff /
+  non_mastery_cutoff / attempt_minimum / attempt_maximum`. Those are assigned
+  ONLY in the `opts[1] == 'start'` branch (~l.1159); `populate_assessment`
+  (~l.2318) sets device prefs + `populated=true` but NOT the cutoffs. So a
+  resume/deep-link (`eval-<level>-<step>`) or a re-entry after a page refresh
+  (module reload resets `assessment = {}`) leaves them undefined, every
+  comparison is `>= undefined` (false), and `next_step` never fires. Fix:
+  default the four cutoffs from the module constants on every board build
+  (no-op on 'start'). Not dev-only — any real resume hits it. (2026-07-06)
+
+## Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method
+
+**Surface:** any `self.schedule_for(queue, :some_instance_method, ...)` (boy_band async)
+called from a `before_save` / `process_params`-style path where `self` may not be
+persisted yet.
+
+**Symptom:** Resque failures `method not found: <Class>:<method>` that accumulate slowly
+over months, one per record created through that path. The failed payload has
+`"id": null` and targets `<Class>` (the class, not an instance).
+
+**Root cause:** boy_band's `schedule_for` captures `id = self.id` at ENQUEUE time
+(`boy_band.rb:408`). On CREATE, `process_params` runs before the INSERT, so `self.id` is
+nil. At run time, `perform_action` sees no id, leaves `obj = self` (the class), and
+`Class.respond_to?(instance_method)` is false → `raise "method not found: Class:method"`.
+The job can never succeed, so it just piles up in the failed queue.
+
+**Fix:** never enqueue the instance job until `self.id` exists. If create-time work is a
+true no-op, guard the enqueue on `self.id`. If the create payload can already identify
+downstream targets, preserve the request on the model instance and enqueue it from an
+`after_commit` callback on create. `Board#update_privacy` uses the latter approach because a
+new board can contain links to existing boards that still need the requested privacy
+cascade. Also skip payloads that would no-op (e.g. blank privacy). Detection: the failed job
+shows `"id": null` + `method not found`.
+
+**Evidence:** `app/models/board.rb` `schedule_for(:priority, :update_privacy, ...)` ran
+before a new board had an id; ~26 dead `Board:update_privacy` jobs accumulated Mar–Jun
+2026. Fixed by deferring the create-time enqueue until after commit (branch
+`fix/traci-update-privacy-unsaved-board-guard`).
+
+## Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes
+
+Two lessons from a 2026-07-03 over-deletion (a "clear last-two-days failures"
+cleanup deleted 2,674 jobs when ~10 were in scope; full account in
+`docs/task-management/2026-07-03-failed-queue-deletion-incident.md`).
+
+**1. A job's origination is the `chain::` timestamp — not `scheduled`, `run_at`, or `failed_at`.**
+A Resque/boy_band failed-job payload carries a `chain::j<ISO-timestamp>_...` arg
+(the immutable time the chain first started); to slice the failed queue by
+age/origination, parse THAT. The over-delete happened because the cleanup's
+origination helper tried the inner `settings['scheduled']` epoch and then fell
+through to `run_at`/`failed_at` — but never checked `chain::`. Two traps combined:
+(a) not every job has a `scheduled` hash — Progress jobs pass a bare integer id
+(`["Progress","perform_action",3355]`), so there was nothing to read; and
+(b) `run_at`/`failed_at` reflect the LAST attempt, which today's reprocessing had
+set to the current date. So ~2,664 months-old Progress failures resolved to
+`failed_at` = "today" and got swept into a "last two days" delete.
+
+**2. Count-check before any destructive bulk Resque/Redis op.** Before
+`Resque::Failure.remove` / `redis del` on a filtered set, assert the selected
+count against what the prior analysis predicted and abort on a large gap
+(`abort if selected > expected * N`). Analysis said ~10; the delete selected
+2,674 (267×) — an assertion would have caught it. Note there is effectively no
+undo: `Resque::Failure.remove` is irreversible, and the dev Redis has no AOF and
+auto-BGSAVEs on churn, so the pre-delete RDB is overwritten within minutes.
+
+## Pattern: privacy classification language in docs/legal/* is load-bearing and drifts across repos
+
+"De-identified", "anonymous", and "pseudonymized" are legally distinct terms, not synonyms.
+`lib/pii_scrubber.rb` output is **pseudonymized personal data** (GDPR Art. 4(5)): known direct
+identifiers removed by design (a safeguard, not a guarantee — free-hand third-party names can
+evade pattern/blocklist scrubbing), still personal data, all processor obligations apply. Never describe
+scrubbed AI-vendor prompts as "de-identified" or "anonymous" in `docs/legal/*` — a regulator
+or customer DPO reads those words as claims. Also: corrections made in the ai-company-brain
+program docs do NOT auto-propagate to this repo's registers (`docs/legal/SUBPROCESSORS.md`
+etc.); the brain doc explicitly defers to the register as SSOT, so when either side changes
+classification language, grep the other side for the stale term in the same session. Found
+2026-07-05 when a brain-repo audit caught the register still saying "de-identified" three
+weeks after the program doc was corrected to "pseudonymized". (2026-07-05)
+
+- Ember Data "mutating a preferences object in place won't persist" is a FALSE ALARM in this
+  app — don't add ref-reassign dances to force dirtiness. Two facts: (1) `record.save()` always
+  issues a network request (it does NOT skip a pristine record); (2) the User serializer extends
+  `@ember-data/serializer/rest` (`serializers/application.js`), whose `serialize()` walks EVERY
+  attribute via `eachAttribute` regardless of dirty state — so the full `preferences` object
+  (including a nested `set('preferences.progress.x', …)` mutation) is always in the PUT payload.
+  Canonical analog: `components/intro.js` does `user.set('preferences.progress.intro_watched',
+  true); user.save()` with no ref-reassign and persists fine. The ONLY real gotcha with nested
+  prefs is that `Ember.set('preferences.progress.x', …)` throws if `preferences.progress` is
+  undefined — so vivify the intermediate object first; that's a correctness guard, not a
+  dirty-tracking hack. (2026-07-06, adversarial-review triage)
+
+## Full Eval "switch" lag after selecting an answer = one shared advance delay
+**Symptom:** After tapping an answer on a Full-Eval item, the old image lingers
+~1s before the next item loads; users re-tap thinking it didn't register.
+**Root cause:** Every interactive eval board (find-a-word, category, association,
+…) is built by one function in `app/frontend/app/utils/eval.js` and shares
+`res.handler`. On a normal selection it advances via
+`runLater(jump_to_board, button.id == 'button_done' ? 200 : <delay>)` — the delay
+was a hardcoded **1000ms** ("ding, wait, then jump"), and it returns
+`highlight: false`, so there's no feedback during the wait. A `handling` guard
+already ignores re-taps, so it's not functionally broken — just confusing.
+**Fix:** One value governs ALL eval types — don't hunt per-evaluation. Made it
+`assessment.advance_delay` (default 350ms, tunable via settings). The ding is
+fire-and-forget audio and keeps playing across the board switch, so shortening
+the delay doesn't cut the chime. `button_done` stays 200ms.
+
+## Eval progress lives in-memory only — persist incrementally to survive reload
+**Context:** A Full Eval's answers accumulate only in module-level `assessment`/
+`working` (+ `window.assessment` + appState) until `persist()` saves once at
+conclusion. A reload/crash mid-eval wipes it (module reload → `assessment={}`),
+losing all answers, and `last-eval` (which reads in-memory via
+`last_assessment_from_memory`) renders blank (epoch-0 date via
+`analyze`'s `new Date((assessment.started||0)*1000)`).
+**Fix pattern (incremental persistence):** snapshot `{assessment, working_stash}`
+to IndexedDB `settings` store, key `eval_progress`, via
+`persistence.store('settings', obj, key)` (sets `storageId=key`) / `find` / `remove`
+— one eval per browser so a singleton key suffices. Save debounced after each
+answer; restore on the reload/deep-link build branch when the live assessment has
+no `events` (self-guard with a once-per-load flag + re-jump to
+`obf/eval-<lvl>-<stp>-<att>`); clear on `persist()` (concluded) and on fresh
+`start`. `last-eval` gets a durable fallback: an observer async-loads the snapshot
+when in-memory is empty and feeds `processed_assessment`.
+**Gotchas:** `_json_safe` (JSON round-trip) the snapshot to strip `working.ref`
+action closures (structured-clone would throw). Scored data (`events`/`started`)
+is plain and round-trips intact; `working.ref` runtime state re-derives on rebuild.
+All store calls best-effort (catch → no-op) so the eval never breaks if IndexedDB
+is unavailable. RSVP is NOT imported in eval.js — use the persistence promise
+directly + native `Promise` fallback.
+
+## Eval scoring silently zeroes out after reload/resume — level_id keying fragility
+**Symptom:** Eval results show a real Date + Duration + Settings but 0 hits, 0%,
+empty Assessment Types, empty Grid Activations — despite the communicator having
+answered items.
+**Root cause (NOT a broken scoring mechanism):** Every response is recorded as
+`assessment.events[working.level_id]` (`eval.js` `log_response`), and `analyze()`
+attributes each key via `levels.find(l => l[0].intro == key)`. But `working.level_id`
+is assigned ONLY inside `intro_board` (a level's step-0 intro screen). Enter a
+mid-level item step WITHOUT that intro — reload, deep-link (`obf/eval-2-5`), or
+resume — and `level_id` is stale (`'intro'`) or `undefined`, so answers key under a
+section `analyze` can't map → they're silently dropped from the report. The code's
+own comment already flagged `working.level_id` as "unreliable (stays 'intro' after
+Start)". The keying + analyze logic are UNCHANGED from origin/main, so this is a
+latent re-entry bug, not a regression from results-page modernization.
+**Fix:** derive it from the current level on EVERY board build, not just the intro:
+`if(level && level[0] && level[0].intro) { working.level_id = level[0].intro; }`
+placed right after `var level = levels[working.level]`. `level[0].intro` is exactly
+the key `analyze` matches on, so this makes scoring survive any entry path (and is
+what makes incremental-persistence resume score correctly).
+**Confirm at runtime:** `Object.keys(window.current_assesment.events||{})` on the
+results page — `"undefined"`/`"intro"` keys (or `{}`) = mis-keyed; real section ids
+(`find_target`, …) = correct.
+
+## Pattern: Beta feedback email was already built — wire `ContactMessage#deliver_message`, don't reinvent
+
+Beta feedback submissions save as `ContactMessage` with `recipient: 'beta_feedback'`. The mailer (`AdminMailer#beta_feedback_sent`), templates, screenshot attachment, and `BETA_FEEDBACK_EMAIL` override already existed; delivery was intentionally skipped in `ContactMessage#deliver_message`. Enabling email is a one-line `AdminMailer.schedule_delivery(:beta_feedback_sent, global_id)` — same Resque priority queue + SES path as Contact Us. Screen recordings stay out of the email (too large); note presence and link to `/beta-feedback/admin/entry/:id` instead. Specs had explicit "do not email" assertions that must be flipped when enabling.
+
+## Gotcha: `sync_changed` tmp-ID remap must clone `buttons` before `set` — in-place mutation on `attr('raw')` does not dirty
+
+After offline sync uploads tmp boards/images/sounds, `sync_changed` runs a second pass
+(`re_updates`) to rewrite button `image_id` / `sound_id` / `load_board.id` from `tmp_*` to
+permanent ids. Mutating the existing `buttons` array in place and calling
+`record.set('buttons', buttons)` with the same reference does not reliably mark the
+`attr('raw')` attribute dirty in Ember Data 5.x — the follow-up `save()` is skipped and
+CI test 1211 (`persistence-sync` temp-ID links) times out waiting for permanent links.
+Clone each button (and nested `load_board`) into a new array before `set`, matching the
+`[].concat(buttons)` pattern already used in `board.js#add_button`. Touch both
+`app/utils/persistence.js` and `app/services/persistence.js`. (2026-07-08)
+
+## Ember 4.12→5.12 upgrade (staging #490) shipped under-migrated — 4 break classes
+**Context:** staging's Ember 5.12 upgrade left widespread latent breakage (no build/console errors — just wrong/blank UI). Full register: `docs/ember-5.12-migration-findings.md`.
+**The 4 runtime break classes to grep for after any Ember 4→5 upgrade with EXTEND_PROTOTYPES:false:**
+1. **Array prototype extensions on NATIVE arrays** — `.sortBy/.mapBy/.uniq/.compact/.pushObject/.firstObject/@each/[]` throw/undefined on `[]` (but are fine on Ember Data `hasMany` / `A()`). Fix: native equiv or `A()`.
+2. **`@each`/`.[]` + in-place element mutation on native arrays** — silent stale reactivity (a two-way `@checked={{item.prop}}` under `@each.prop` won't fire). Wholesale `set()` is safe. Fix: `A()` at the assignment site.
+3. **Template `this.X` with no backing property** — codemod prefixed `this.` onto (a) `{{#each ... as |X|}}` block params → `this.X` hits controller prop, drop the `this.`; (b) `this.app_state.*` where no `app_state` injection → add `app_state: alias('appState')`. Whole regions render blank/wrong.
+4. **Modal controllers rewritten as tagless components** — `modal-dialog` calls the `opening` closure in its `didRender` BEFORE the child's `didInsertElement` binds `onOpening`, so `opening()` (builds modal state) no-ops → empty modal / thrown action. Fix: `self.send('opening')` in `didInsertElement` or bind `onOpening` in `init()`.
+5. **Ember Data 5.x removed `store` auto-injection into CONTROLLERS** — controllers calling `this.store.query/createRecord/...` without `store: service('store')` get `this.store === null` → route "Failed to load" (`Cannot read properties of null (reading 'query')`). Routes are fine (global `LingoLinq.store` or inherit from `routes/index.js`); components already inject. Fix: add `store: service('store')` to the controller. Grep: `grep -rlE "this\.store\b|_this\.store\b" app/controllers app/components` minus files that inject it.
+**Gotchas:** duplicate modules (`utils/*` ↔ `services/*` for persistence/stashes) and controller/component twins (modeling-ideas, batch-recording, button-set, quick-assessment) — fix BOTH; one twin is often already migrated. Build + template-lint DON'T catch any of these — must exercise the UI path.
+
+**Remediation notes (2026-07-09, all 4 classes fixed — 96 files, `ember build` green):**
+- **Detect dead twins/templates before fixing.** The legacy modal *controllers* (`controllers/modals/{assessment-settings,focus-words,modeling-ideas}.js`) are DEAD — zero refs, no `templates/modals/*.hbs`, and modal.js says "All modals use component-based rendering." Fix the live `components/*` twin instead. Likewise a route with `templateName:'board/index'`/`controllerName:'board.index'` (e.g. `routes/user/board-alt/index.js`) makes its OWN `templates/user/board-alt/index.hbs` dead — don't create a controller for it; it renders through the borrowed controller. Check `templateName`/`controllerName` on the route and whether the file is referenced before "fixing" it.
+- **Class 4 no double-invoke:** modal.js's legacy `if(controller.opening) controller.opening()` (`ModalController` path) only fires for a top-level `opening` *method*; action-only components have `controller.opening === undefined`, so adding `self.send('opening')` in `didInsertElement` is the sole trigger (no duplicate). `save-snapshot` has a top-level `opening()` + an action that delegates to it — still needs the `send`.
+- **Class 2 fix location matters:** `A()` only fixes `@each` when the array is *created at the fix site* (a computed's `return`, or an `init`/`opening` `set`). Wrapping a computed's *output* does NOT fix a dependency keyed on a *model's* raw array (e.g. `org_or_user.start_codes.@each.disabled`) — the dep still points at the raw source. If the mutation is always followed by a wholesale `reload()`/`set()` (fires `.[]`), there's no user-visible bug; skip rather than add an ineffective wrap.
+- **`arr.uniq(fn)` was already identity-dedup:** Ember's `uniq()` takes NO arg — a passed key fn was silently ignored even under 4.12 (prototype extensions). So `[...new Set(arr)]` (identity) *preserves* behavior; a keyed dedupe (`uniqBy`-style) is a behavior CHANGE, not a migration fix. Don't "fix" the latent intent during a migration.
+- **`.compact()` ≠ `.filter(Boolean)`:** compact drops only `null`/`undefined`; use `.filter(x => x != null)` to keep `0`/`''`.

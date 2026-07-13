@@ -1,12 +1,14 @@
 import RSVP from 'rsvp';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
+import rewriteBrokenSymbolUrl from '../utils/symbol-url';
 import i18n from '../utils/i18n';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Image = DS.Model.extend({
+LingoLinq.Image = BaseModel.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
 
@@ -32,27 +34,27 @@ LingoLinq.Image = DS.Model.extend({
       this.set('_display_url_source', url);
     }
   }),
-  url: DS.attr('string'),
-  data_url: DS.attr('string'),
-  fallback: DS.attr('boolean'),
-  content_type: DS.attr('string'),
-  width: DS.attr('number'),
-  height: DS.attr('number'),
-  hc: DS.attr('boolean'),
-  pending: DS.attr('boolean'),
-  avatar: DS.attr('boolean'),
-  badge: DS.attr('boolean'),
-  protected: DS.attr('boolean'),
-  protected_source: DS.attr('string'),
-  suggestion: DS.attr('string'),
-  external_id: DS.attr('string'),
-  search_term: DS.attr('string'),
-  button_label: DS.attr('string'),
-  source_url: DS.attr('string'),
-  license: DS.attr('raw'),
-  alternates: DS.attr('raw'),
-  permissions: DS.attr('raw'),
-  file: DS.attr('boolean'),
+  url: attr('string'),
+  data_url: attr('string'),
+  fallback: attr('boolean'),
+  content_type: attr('string'),
+  width: attr('number'),
+  height: attr('number'),
+  hc: attr('boolean'),
+  pending: attr('boolean'),
+  avatar: attr('boolean'),
+  badge: attr('boolean'),
+  protected: attr('boolean'),
+  protected_source: attr('string'),
+  suggestion: attr('string'),
+  external_id: attr('string'),
+  search_term: attr('string'),
+  button_label: attr('string'),
+  source_url: attr('string'),
+  license: attr('raw'),
+  alternates: attr('raw'),
+  permissions: attr('raw'),
+  file: attr('boolean'),
   filename: computed('url', function() {
     var url = this.get('url') || '';
     if(url.match(/^data/)) {
@@ -108,20 +110,20 @@ LingoLinq.Image = DS.Model.extend({
   personalizing_url: function(skip_alternates) {
     LingoLinq.Image.unskins = LingoLinq.Image.unskins || {};
     var preferred_symbols = this.get('appState.referenced_user.preferences.preferred_symbols') || 'original';
-    var url = this.get('url');
+    var url = rewriteBrokenSymbolUrl(this.get('url'));
     if(skip_alternates) {
       preferred_symbols = 'original';
     }
     if(this.get('alternates') && this.get('alternates').find) {
       var alternate = (this.get('alternates') || []).find(function(a) { return a.library == preferred_symbols; });
-      if(alternate) { url = alternate.url; }
+      if(alternate) { url = rewriteBrokenSymbolUrl(alternate.url); }
     }
-    return LingoLinq.Image.personalize_url(url, this.get('appState.currentUser.user_token'), this.get('appState.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
+    return LingoLinq.Image.personalize_url(url, this.get('appState.currentUser.protected_image_token'), this.get('appState.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
   },
-  personalized_url: computed('url', 'appState.currentUser.user_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
+  personalized_url: computed('url', 'appState.currentUser.protected_image_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
     return this.personalizing_url();
   }),
-  personalized_url_without_preferred_symbols: computed('url', 'appState.currentUser.user_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
+  personalized_url_without_preferred_symbols: computed('url', 'appState.currentUser.protected_image_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
     return this.personalizing_url(true);
   }),
   best_url: computed('personalized_url', 'appState.referenced_user.preferences.preferred_symbols', 'data_url', function() {
@@ -177,26 +179,24 @@ LingoLinq.Image = DS.Model.extend({
   })
 });
 
-LingoLinq.Image.reopenClass({
-  personalize_url: function(url, token, skin, unskin) {
-    url = url || '';
-    var res = url;
-    if(url.match(/api\/v1\//) && url.match(/lessonpix/) && token) {
-      res = url + "?user_token=" + token;
-    }
-    if(skin && skin != 'default') {
-      var which_skin = LingoLinq.Board.which_skinner(skin);
-      res = LingoLinq.Board.skinned_url(url, which_skin, unskin);
-    }
-    return res;
-  },
-  mimic_server_processing: function(record, hash) {
-    if(record.get('data_url')) {
-      hash.image.url = record.get('data_url');
-      hash.image.data_url = hash.image.url;
-    }
-    return hash;
+LingoLinq.Image.personalize_url = function(url, token, skin, unskin) {
+  url = url || '';
+  var res = url;
+  if(url.match(/api\/v1\//) && url.match(/lessonpix/) && token) {
+    res = url + "?user_token=" + token;
   }
-});
+  if(skin && skin != 'default') {
+    var which_skin = LingoLinq.Board.which_skinner(skin);
+    res = LingoLinq.Board.skinned_url(url, which_skin, unskin);
+  }
+  return res;
+};
+LingoLinq.Image.mimic_server_processing = function(record, hash) {
+  if(record.get('data_url')) {
+    hash.image.url = record.get('data_url');
+    hash.image.data_url = hash.image.url;
+  }
+  return hash;
+};
 
 export default LingoLinq.Image;

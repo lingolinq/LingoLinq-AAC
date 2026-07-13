@@ -1315,6 +1315,30 @@ class Organization < ApplicationRecord
     true
   end
 
+  # Length of the share-link verifier ('v') embedded in start-code links. New
+  # links carry a 16-char verifier (~64 bits) instead of the original 5-char
+  # (~20 bits) value, which was brute-forceable on the unauthenticated
+  # start_code lookup (LL-4e243f3e16). The 5-char legacy length is still
+  # accepted on lookup so links already distributed keep working; the lookup
+  # endpoint is also rate-limited (Throttling::PROTECTED_PATHS) so the short
+  # legacy prefix cannot be brute-forced during the transition.
+  START_CODE_VERIFIER_LENGTH = 16
+  START_CODE_VERIFIER_LEGACY_LENGTH = 5
+
+  def self.start_code_verifier(org_or_user, length = START_CODE_VERIFIER_LENGTH)
+    GoSecure.sha512(Webhook.get_record_code(org_or_user), 'start_code_verifier')[0, length]
+  end
+
+  # True when +provided+ matches the current 16-char verifier OR the legacy
+  # 5-char verifier for +org_or_user+ (backward compatibility for already-issued
+  # links). Both lengths are explicit so only those two prefixes validate.
+  def self.valid_start_code_verifier?(org_or_user, provided)
+    return false unless provided.is_a?(String)
+    full = GoSecure.sha512(Webhook.get_record_code(org_or_user), 'start_code_verifier')
+    provided == full[0, START_CODE_VERIFIER_LENGTH] ||
+      provided == full[0, START_CODE_VERIFIER_LEGACY_LENGTH]
+  end
+
   def self.start_codes(org_or_user)
     res = []
     org_or_user.settings['activation_settings'].each do |rnd, opts|
@@ -1327,7 +1351,7 @@ class Organization < ApplicationRecord
       hash[:locale] = opts['locale'] if opts['locale']
       hash[:symbol_library] = opts['symbol_library'] if opts['symbol_library']
       hash[:premium] = opts['premium'] if opts['premium'] != nil
-      hash[:v] = GoSecure.sha512(Webhook.get_record_code(org_or_user), 'start_code_verifier')[0, 5]
+      hash[:v] = Organization.start_code_verifier(org_or_user)
       hash[:premium_symbols] = opts['premium_symbols'] if opts['premium_symbols'] != nil
       hash[:supervisors] = opts['supervisors'] if opts['supervisors']
       hash[:shallow_clone] = true if opts['shallow_clone']

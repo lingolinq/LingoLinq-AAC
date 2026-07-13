@@ -1,18 +1,19 @@
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 
-LingoLinq.Boardversion = DS.Model.extend({
+LingoLinq.Boardversion = BaseModel.extend({
   appState: service('app-state'),
-  modifier: DS.attr('raw'),
-  created: DS.attr('date'),
-  stats: DS.attr('raw'),
-  action: DS.attr('string'),
-  summary: DS.attr('string'),
-  button_labels: DS.attr('raw'),
-  grid: DS.attr('raw'),
-  immediately_upstream_boards: DS.attr('raw'),
+  modifier: attr('raw'),
+  created: attr('date'),
+  stats: attr('raw'),
+  action: attr('string'),
+  summary: attr('string'),
+  button_labels: attr('raw'),
+  grid: attr('raw'),
+  immediately_upstream_boards: attr('raw'),
   recent: computed('appState.refresh_stamp', 'created', function() {
     var past = window.moment().add(-7, 'day');
     return this.get('created') && this.get('created') > past;

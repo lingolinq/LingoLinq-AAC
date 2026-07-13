@@ -5,7 +5,8 @@ import {
 } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
-import DS from 'ember-data';
+import { attr, hasMany } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import modal from '../utils/modal';
@@ -15,7 +16,7 @@ import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
 import boundClasses from '../utils/bound_classes';
 import word_suggestions from '../utils/word_suggestions';
-import ButtonSet from '../models/buttonset';
+import Buttonset from '../models/buttonset';
 import Utils from '../utils/misc';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
@@ -24,6 +25,7 @@ import { set as emberSet } from '@ember/object';
 import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 import { inject as service } from '@ember/service';
+import rewriteBrokenSymbolUrl from '../utils/symbol-url';
 
 // Curated vocab boards (Quick Core / Vocal Flair / Sequoia) ship with our
 // own branded tile art under /images/. The board records still carry the
@@ -106,7 +108,33 @@ function word_predictions_visible(appState) {
   return false;
 }
 
-LingoLinq.Board = DS.Model.extend({
+function utterance_part_of_speech(entry) {
+  if(!entry) { return null; }
+  if(typeof entry.get === 'function') {
+    return entry.get('part_of_speech') || entry.get('painted_part_of_speech') || entry.get('suggested_part_of_speech') || null;
+  }
+  return entry.part_of_speech || entry.painted_part_of_speech || entry.suggested_part_of_speech || null;
+}
+
+// Verb-board "-s" buttons are often stored as vocalization "+s" (append) rather
+// than ":plural"; treat both as the same inflection modifier for previews.
+function inflection_action_for_button(button) {
+  if(!button || !LingoLinq.special_actions) { return null; }
+  var voc = (button.vocalization || '').trim();
+  var act = LingoLinq.special_actions.find(function(a) { return a.action == voc && a.types; });
+  if(act) { return act; }
+  var label = (button.label || '').trim().toLowerCase();
+  if(voc.match(/^\+s$/i) || label === '-s' || label === 's' || label === '+s') {
+    return LingoLinq.special_actions.find(function(a) { return a.action == ':plural'; });
+  }
+  return null;
+}
+
+function is_inflection_modifier_button(button) {
+  return !!inflection_action_for_button(button);
+}
+
+LingoLinq.Board = BaseModel.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   stashes: service('stashes'),
@@ -125,43 +153,46 @@ LingoLinq.Board = DS.Model.extend({
   resetFetchedOnUpdate: observer('retrieved', 'current_revision', function() {
     this.set('fetched', false);
   }),
-  name: DS.attr('string'),
-  key: DS.attr('string'),
-  prefix: DS.attr('string'),
-  description: DS.attr('string'),
-  created: DS.attr('date'),
-  updated: DS.attr('date'),
-  user_name: DS.attr('string'),
-  locale: DS.attr('string'),
-  localized_name: DS.attr('string'),
-  localized_locale: DS.attr('string'),
-  button_locale: DS.attr('string'),
-  translated_locales: DS.attr('raw'),
-  full_set_revision: DS.attr('string'),
-  current_revision: DS.attr('string'),
-  for_user_id: DS.attr('string'),
-  copy_id: DS.attr('string'),
-  sort_score: DS.attr('number'),
-  copy_key: DS.attr('string'),
-  new_owner: DS.attr('boolean'),
-  disconnect: DS.attr('boolean'),
-  dim_header: DS.attr('boolean'),
-  small_header: DS.attr('boolean'),
-  update_visibility_downstream: DS.attr('boolean'),
-  source_id: DS.attr('string'),
-  current_library: DS.attr('string'),
-  image_urls: DS.attr('raw'),
-  sound_urls: DS.attr('raw'),
-  hc_image_ids: DS.attr('raw'),
-  cascade_invalidations: DS.attr('raw'),
-  translations: DS.attr('raw'),
-  intro: DS.attr('raw'),
-  style: DS.attr('raw'),
-  categories: DS.attr('raw'),
-  home_board: DS.attr('boolean'),
-  has_fallbacks: DS.attr('boolean'),
+  name: attr('string'),
+  key: attr('string'),
+  prefix: attr('string'),
+  description: attr('string'),
+  created: attr('date'),
+  updated: attr('date'),
+  user_name: attr('string'),
+  locale: attr('string'),
+  localized_name: attr('string'),
+  localized_locale: attr('string'),
+  button_locale: attr('string'),
+  translated_locales: attr('raw'),
+  full_set_revision: attr('string'),
+  current_revision: attr('string'),
+  for_user_id: attr('string'),
+  copy_id: attr('string'),
+  sort_score: attr('number'),
+  copy_key: attr('string'),
+  new_owner: attr('boolean'),
+  disconnect: attr('boolean'),
+  dim_header: attr('boolean'),
+  small_header: attr('boolean'),
+  update_visibility_downstream: attr('boolean'),
+  source_id: attr('string'),
+  current_library: attr('string'),
+  image_urls: attr('raw'),
+  sound_urls: attr('raw'),
+  hc_image_ids: attr('raw'),
+  cascade_invalidations: attr('raw'),
+  translations: attr('raw'),
+  intro: attr('raw'),
+  style: attr('raw'),
+  categories: attr('raw'),
+  home_board: attr('boolean'),
+  has_fallbacks: attr('boolean'),
+  // EU AI Act Article 50(2) signed provenance marker, set from the AI label-generation
+  // response and round-tripped on save so the server can verify and persist it.
+  ai_generated: attr('raw'),
   /** When loaded by key, the API returns global_id as id; we normalize to key and store backend id here. */
-  _actual_id: DS.attr('string'),
+  _actual_id: attr('string'),
   /** Backend global_id for comparisons (e.g. preferences.home_board.id). Use this when comparing with server ids. */
   global_id: computed('id', '_actual_id', function() {
     return this.get('_actual_id') || this.get('id');
@@ -199,9 +230,9 @@ LingoLinq.Board = DS.Model.extend({
       return this && (this.get('image_data_uri') || this.fallback_image_url) || '';
     }
     if(this.persistence.get('online')) {
-      return this.get('image_data_uri') || this.get('image_url') || this.fallback_image_url;
+      return rewriteBrokenSymbolUrl(this.get('image_data_uri') || this.get('image_url') || this.fallback_image_url);
     } else {
-      return this.get('image_data_uri') || this.fallback_image_url;
+      return rewriteBrokenSymbolUrl(this.get('image_data_uri') || this.fallback_image_url);
     }
   }),
   // True when this board uses one of our shipped vocab tile icons
@@ -338,7 +369,7 @@ LingoLinq.Board = DS.Model.extend({
     var fallbacks = this.get('fallback_images') || [];
     this.get('used_buttons').forEach(function(button) {
       if(button && button.image_id) {
-        var image = images.findBy('id', button.image_id.toString());
+        var image = images.find(function(img) { return img.get('id') === button.image_id.toString(); });
         if(image) {
           if(!image.get('license')) {
             var fb = fallbacks.find(function(i) { return i.url == image.get('url'); });
@@ -394,7 +425,7 @@ LingoLinq.Board = DS.Model.extend({
     var fallbacks = this.get('fallback_sounds') || [];
     this.get('used_buttons').forEach(function(button) {
       if(button && button.sound_id) {
-        var sound = sounds.findBy('id', button.sound_id.toString());
+        var sound = sounds.find(function(snd) { return snd.get('id') === button.sound_id.toString(); });
         if(sound) {
           if(!sound.get('license')) {
             var fb = fallbacks.find(function(i) { return i.url == sound.get('url'); });
@@ -414,7 +445,7 @@ LingoLinq.Board = DS.Model.extend({
         }
       }
     });
-    result = result.uniq();
+    result = Utils.uniq(result, function(r) { return r.get('id'); });
     result.some_missing = missing;
     return result;
   }),
@@ -856,39 +887,39 @@ LingoLinq.Board = DS.Model.extend({
   search_string: computed('name', 'labels', 'user_name', function() {
     return this.get('name') + " " + this.get('user_name') + " " + this.get('labels');
   }),
-  parent_board_id: DS.attr('string'),
-  parent_board_key: DS.attr('string'),
-  link: DS.attr('string'),
-  image_url: DS.attr('string'),
-  background: DS.attr('raw'),
-  hide_empty: DS.attr('boolean'),
-  buttons: DS.attr('raw'),
-  grid: DS.attr('raw'),
-  license: DS.attr('raw'),
-  images: DS.hasMany('image'),
-  permissions: DS.attr('raw'),
-  copy: DS.attr('raw'),
-  copies: DS.attr('number'),
-  original: DS.attr('raw'),
-  word_suggestions: DS.attr('boolean'),
-  public: DS.attr('boolean'),
-  visibility: DS.attr('string'),
-  brand_new: DS.attr('boolean'),
-  protected: DS.attr('boolean'),
-  protected_settings: DS.attr('raw'),
-  non_author_uses: DS.attr('number'),
-  using_user_names: DS.attr('raw'),
-  downstream_boards: DS.attr('number'),
-  downstream_board_ids: DS.attr('raw'),
-  immediately_upstream_boards: DS.attr('number'),
-  unlinked_buttons: DS.attr('number'),
-  button_levels: DS.attr('raw'),
-  forks: DS.attr('number'),
-  total_buttons: DS.attr('number'),
-  shared_users: DS.attr('raw'),
-  sharing_key: DS.attr('string'),
-  starred: DS.attr('boolean'),
-  stars: DS.attr('number'),
+  parent_board_id: attr('string'),
+  parent_board_key: attr('string'),
+  link: attr('string'),
+  image_url: attr('string'),
+  background: attr('raw'),
+  hide_empty: attr('boolean'),
+  buttons: attr('raw'),
+  grid: attr('raw'),
+  license: attr('raw'),
+  images: hasMany('image', { async: true, inverse: null }),
+  permissions: attr('raw'),
+  copy: attr('raw'),
+  copies: attr('number'),
+  original: attr('raw'),
+  word_suggestions: attr('boolean'),
+  public: attr('boolean'),
+  visibility: attr('string'),
+  brand_new: attr('boolean'),
+  protected: attr('boolean'),
+  protected_settings: attr('raw'),
+  non_author_uses: attr('number'),
+  using_user_names: attr('raw'),
+  downstream_boards: attr('number'),
+  downstream_board_ids: attr('raw'),
+  immediately_upstream_boards: attr('number'),
+  unlinked_buttons: attr('number'),
+  button_levels: attr('raw'),
+  forks: attr('number'),
+  total_buttons: attr('number'),
+  shared_users: attr('raw'),
+  sharing_key: attr('string'),
+  starred: attr('boolean'),
+  stars: attr('number'),
   /* `starred` is only populated by the backend on responses that pass
      `:permissions => @api_user` (see lib/json_api/board.rb#starred).
      The boards-index endpoint (used by the dashboard preview, boards
@@ -913,7 +944,7 @@ LingoLinq.Board = DS.Model.extend({
       return !!refs.find(function(ref) { return ref && (ref.id == id || ref.id == this.get('global_id')); }.bind(this));
     }
   ),
-  non_author_starred: DS.attr('boolean'),
+  non_author_starred: attr('boolean'),
   star_or_unstar: function(star) {
     var _this = this;
     this.persistence.ajax('/api/v1/boards/' + this.get('id') + '/stars', {
@@ -972,7 +1003,7 @@ LingoLinq.Board = DS.Model.extend({
     return res;
   }),
   lookup_editable_source: observer('local_only', 'editable_source', 'editable_source_key', function() {
-    if(this.get('local_only')) {
+    if(this.get('local_only') && this.get('obf_type') !== 'emergency') {
       if(this.get('editable_source_key') && this.get('editable_source.key') != this.get('editable_source_key')) {
         var _this = this;
         var key = _this.get('editable_source_key');
@@ -1099,7 +1130,7 @@ LingoLinq.Board = DS.Model.extend({
     // reload or fetch them remotely to get the latest, updated version,
     // which will include the "my copy" information.
     var do_reloads = this.appState.get('board_reloads') || {};
-    LingoLinq.store.peekAll('board').map(function(i) { return i; }).forEach(function(brd) {
+    LingoLinq.store.peekAll('board').forEach(function(brd) {
       if(brd && affected_board_ids && affected_board_ids.indexOf(brd.get('id')) != -1) {
         if(!brd.get('isLoading') && !brd.get('isNew') && !brd.get('isDeleted')) {
           do_reloads[brd.get('id')] = true;
@@ -1305,7 +1336,7 @@ LingoLinq.Board = DS.Model.extend({
     } else {
       var valid_button_set = null;
       // first check if there's a satisfactory higher-level buttonset that can be used instead
-      LingoLinq.store.peekAll('buttonset').map(function(i) { return i; }).forEach(function(bs) {
+      LingoLinq.store.peekAll('buttonset').forEach(function(bs) {
         if(bs && (bs.get('board_ids') || []).indexOf(_this.get('id')) != -1) {
           if((bs.get('buttons') && bs.get('buttons').length) || bs.get('root_url')) {
             if(bs.get('fresh') || !valid_button_set) {
@@ -1321,7 +1352,11 @@ LingoLinq.Board = DS.Model.extend({
         } else{
         }
       }
-      var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision'), skipEmberRecordReload).then(function(button_set) {
+      var buttonset = LingoLinq.Buttonset || Buttonset;
+      if(!buttonset || typeof buttonset.load_button_set !== 'function') {
+        return RSVP.reject({error: 'buttonset module not loaded'});
+      }
+      var res = buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision'), skipEmberRecordReload).then(function(button_set) {
         _this.set('button_set', button_set);
         return sync_buttons_from_set(button_set);
       });
@@ -1413,7 +1448,7 @@ LingoLinq.Board = DS.Model.extend({
       if(button.vocalization == ':suggestion') {
         buttons[button.id.toString()] = button;
         has_suggested_buttons = true;
-      } else if(inflections.indexOf(button.vocalization) != -1) {
+      } else if(inflections.indexOf(button.vocalization) != -1 || is_inflection_modifier_button(button)) {
         inflection_buttons[button.id.toString()] = button;
         has_suggested_buttons = true;
       } else if(button.label && !button.vocalization && !button.load_board) {
@@ -1434,7 +1469,7 @@ LingoLinq.Board = DS.Model.extend({
             suggested_buttons.push(button);
           }
           var infl = inflection_buttons[order[idx][jdx].toString()];
-          if(infl && inflections.indexOf(infl.vocalization) != -1) {
+          if(infl && is_inflection_modifier_button(infl)) {
             inflectors.push(infl);
           }
         }
@@ -1442,10 +1477,15 @@ LingoLinq.Board = DS.Model.extend({
     }
     if(suggested_buttons.length == 0 && inflectors.length == 0) { return null; }
     inflectors.forEach(function(infl) {
-      var act = LingoLinq.special_actions.find(function(act) { return act.action == infl.vocalization; });
+      var act = inflection_action_for_button(infl);
       var last_button = working[working.length - 1];
-      if(last_button && !last_button.modified && act && act.types.indexOf(last_button.part_of_speech) != -1 && act.alter) {
-        var res = {};
+      var last_pos = utterance_part_of_speech(last_button);
+      if(!last_pos && last_button && last_button.button_id != null) {
+        var source_btn = known_buttons.find(function(b) { return b.id == last_button.button_id; });
+        last_pos = utterance_part_of_speech(source_btn);
+      }
+      if(last_button && !last_button.modified && act && last_pos && act.types.indexOf(last_pos) != -1 && act.alter) {
+        var res = {part_of_speech: last_pos};
         act.alter(null, last_button.label, last_button.label, res);
         if(_this.appState.get('shift')) {
           res.label = utterance.capitalize(res.label);
@@ -1467,7 +1507,13 @@ LingoLinq.Board = DS.Model.extend({
         max_results: suggested_buttons.length > 5 ? (suggested_buttons.length + 3) : (suggested_buttons.length * 2)
       }).then(function(result) {
         var unique_result = (result || []).filter(function(sugg) { return sugg.word && !skip_labels[sugg.word.toLowerCase()]; });
-        result = unique_result.concat(result).uniq();
+        var merged = unique_result.concat(result);
+        var seen = new Set();
+        result = merged.filter(function(item) {
+          if (seen.has(item)) { return false; }
+          seen.add(item);
+          return true;
+        });
         (result || []).forEach(function(sugg, idx) {
           if(suggested_buttons[idx]) {
             var suggestion_button = suggested_buttons[idx];
@@ -1492,7 +1538,7 @@ LingoLinq.Board = DS.Model.extend({
     }, function() { });
   },
   _sync_ordered_button_suggestion: function(button, suggestion) {
-    if(!suggestion || suggestion.temporary || !suggestion.word) { return; }
+    if(!suggestion || !suggestion.word) { return; }
     var ctrl = editManager.controller;
     if(!ctrl || !ctrl.get || !ctrl.get('is_board_detail')) { return; }
     var ordered = ctrl.get('ordered_buttons');
@@ -1588,9 +1634,7 @@ LingoLinq.Board = DS.Model.extend({
       }
     }
     _this.set('suggestion_lookups', lookups);
-    if(!suggestion.temporary) {
-      _this._sync_ordered_button_suggestion(button, suggestion);
-    }
+    _this._sync_ordered_button_suggestion(button, suggestion);
 
   },
   add_classes: function() {
@@ -1711,7 +1755,8 @@ LingoLinq.Board = DS.Model.extend({
       var appState = _this.appState || (typeof window !== 'undefined' && window.appState);
       var userForDisplay = (appState && appState.get('speak_mode')) ? appState.get('referenced_user') : appState.get('currentUser');
       if(appState && userForDisplay && !userForDisplay.get('hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
-        res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
+        var symbol_alt = Button.clean_text(opts.label || '').replace(/"/g, '&quot;');
+        res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" alt=\"" + symbol_alt + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
       if(button.sound_id && local_sound_url && local_sound_url != 'none') {
@@ -1855,9 +1900,8 @@ LingoLinq.Board = DS.Model.extend({
   }
 });
 
-LingoLinq.Board.reopenClass({
-  clear_fast_html: function() {
-    var hasUnsavedImages = LingoLinq.store.peekAll('image').any(function(img) {
+LingoLinq.Board.clear_fast_html = function() {
+    var hasUnsavedImages = LingoLinq.store.peekAll('image').some(function(img) {
       return img.get('isSaving');
     });
     if (hasUnsavedImages) {
@@ -1871,8 +1915,8 @@ LingoLinq.Board.reopenClass({
     if(appState && appState.get && appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
       editManager.process_for_displaying();
     }
-  },
-  refresh_data_urls: function() {
+};
+LingoLinq.Board.refresh_data_urls = function() {
     // when you call sync, you're potentially prefetching a bunch of images and
     // sounds that don't have a locally-stored copy yet, so their data-uris will
     // all come up empty. But then if you open one of those boards without
@@ -1882,24 +1926,24 @@ LingoLinq.Board.reopenClass({
     // shortcoming.
     var _this = this;
     runLater(function() {
-      LingoLinq.store.peekAll('board').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('board').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      LingoLinq.store.peekAll('image').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('image').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      LingoLinq.store.peekAll('sound').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('sound').forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
     });
-  },
-  mimic_server_processing: function(record, hash) {
+};
+LingoLinq.Board.mimic_server_processing = function(record, hash) {
     if(hash.board.id.match(/^tmp/)) {
       var splits = (hash.board.key || hash.board.id).split(/\//);
       var key = splits[1] || splits[0];
@@ -1931,8 +1975,7 @@ LingoLinq.Board.reopenClass({
       hash.board.grid.order = hash.board.grid.order.slice(0, hash.board.grid.rows);
     }
     return hash;
-  }
-});
+};
 
 var skin_unis = {
   'light': '1f3fb',

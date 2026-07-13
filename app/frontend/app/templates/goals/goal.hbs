@@ -92,7 +92,7 @@
     {{/if}}
   {{/if}}
   {{#if this.editing}}
-    <form class="form-horizontal" {{action "save" on="submit"}}>
+    <form class="form-horizontal" {{on "submit" (this.ctrlAction "save")}}>
       {{#if this.model.template_header}}
         <div class="form-group">
           <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
@@ -123,7 +123,7 @@
         <div class="form-group">
           <label for="advancement" class="col-sm-2 control-label">{{t "Advances" key="advances"}}</label>
           <div class="col-sm-2">
-            {{bound-select select_class="form-control" select_id="advancement" content=this.advance_options selection=this.model.advance_type action=(action (mut this.model.advance_type)) }}
+            {{bound-select select_class="form-control" select_id="advancement" content=this.advance_options selection=this.model.advance_type action=(mut this.model.advance_type) }}
           </div>
           {{#if this.model.date_advance}}
             <div class='col-sm-3'>
@@ -134,7 +134,7 @@
               <Input type="number" @value={{this.model.goal_duration_number}} class="form-control" id="duration_advance" placeholder="##" />
             </div>
             <div class='col-sm-2'>
-              {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=this.advance_unit_options selection=this.model.goal_duration_unit action=(action (mut this.model.goal_duration_unit)) }}
+              {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=this.advance_unit_options selection=this.model.goal_duration_unit action=(mut this.model.goal_duration_unit) }}
             </div>
           {{/if}}
         </div>
@@ -148,7 +148,7 @@
             {{else if this.status.loading_templates_error}}
               <p class='form-control-static'>{{t "There was an unexpected error loading templates..." key="error_loading_templates2"}}</p>
             {{else}}
-              {{bound-select select_class="form-control" select_id="next_template_id" content=this.template_options selection=this.model.next_template_id action=(action (mut this.model.next_template_id)) }}
+              {{bound-select select_class="form-control" select_id="next_template_id" content=this.template_options selection=this.model.next_template_id action=(mut this.model.next_template_id) }}
             {{/if}}
           </div>
         </div>
@@ -218,7 +218,7 @@
         {{/each}}
         <div class="form-group">
           <div class="col-sm-5">
-            <button class='btn btn-default' {{action "add_badge_level"}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "add_badge_level")}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
           </div>
         </div>
       {{/if}}
@@ -232,7 +232,7 @@
               {{t "Save Goal" key="save_goal"}}
             {{/if}}
           </button>
-          <button type="button" class="btn btn-default" {{action "cancel_save"}}>{{t "Cancel" key="cancel"}}</button>
+          <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "cancel_save")}}>{{t "Cancel" key="cancel"}}</button>
           {{#if this.status.saving_error}}
             <p class='text-danger'>{{t "There was an unexpected error creating the goal" key="error_creating_goal"}}</p>
         {{/if}}
@@ -258,7 +258,7 @@
           {{#each this.mapped_badges as |badge|}}
               <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
                 <span style='display: inline-block; position: relative;'>
-                  <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
+                  <span {{on "click" (this.ctrlAction "badge_popup" badge)}} style={{if badge.user_badge "cursor: pointer;"}}>
                     <img src={{badge.image_url}} style='width: 80px;' >
                     {{#if badge.user_badge.earned}}
                       <div class='sparkle'>&#10022;</div>
@@ -343,7 +343,7 @@
                   </td>
                   <td>
                     {{#unless goal.template_header}}
-                      <a href="#" {{action "delete_goal" goal}}><span class='glyphicon glyphicon-trash'></span></a>
+                      <a href="#" {{on "click" (this.ctrlAction "delete_goal" goal)}}><span class='glyphicon glyphicon-trash'></span></a>
                     {{/unless}}
                   </td>
                 </tr>
@@ -359,12 +359,12 @@
   {{#unless this.editing}}
     {{#if this.model.permissions.edit}}
       <div style='margin-top: 50px;'>
-        <button class='btn btn-default' {{action "edit_goal"}}>{{t "Edit Goal" key="edit_goal"}}</button>
+        <button class='btn btn-default' {{on "click" (this.ctrlAction "edit_goal")}}>{{t "Edit Goal" key="edit_goal"}}</button>
         {{#if this.model.permissions.delete}}
-          <button class='btn btn-default' {{action "delete_goal"}}>{{t "Delete Goal" key="delete_goal"}}</button>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "delete_goal")}}>{{t "Delete Goal" key="delete_goal"}}</button>
         {{/if}}
         {{#if this.model.unit_id}}
-          <button class='btn btn-default' {{action "unlink_goal"}}>{{t "Unlink from Room" key="unlink_from_room"}}</button>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "unlink_goal")}}>{{t "Unlink from Room" key="unlink_from_room"}}</button>
         {{/if}}
       </div>
     {{/if}}

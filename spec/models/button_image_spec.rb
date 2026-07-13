@@ -283,6 +283,69 @@ describe ButtonImage, :type => :model do
       expect(i.settings['url']).to eq(nil)
       expect(i.settings['pending_url']).to eq('http://www.example.com')
     end
+
+    it "should coerce a non-image content_type to image/png" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({ 'content_type' => 'text/html' }, { :user => u })
+      expect(i.settings['content_type']).to eq('image/png')
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'content_type' => 'application/javascript' }, { :user => u })
+      expect(j.settings['content_type']).to eq('image/png')
+    end
+
+    it "should keep legitimate image content_types (incl. svg)" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({ 'content_type' => 'image/svg+xml' }, { :user => u })
+      expect(i.settings['content_type']).to eq('image/svg+xml')
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'content_type' => 'image/jpeg' }, { :user => u })
+      expect(j.settings['content_type']).to eq('image/jpeg')
+    end
+
+    it "should drop a non-image data: URI (e.g. data:text/html) and keep image data: URIs" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({ 'url' => 'data:text/html,<script>alert(1)</script>' }, { :user => u })
+      expect(i.data).to eq(nil)
+      expect(i.settings['data_uri']).to eq(nil)
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'url' => 'data:image/png;base64,iVBORw0KGgo=' }, { :user => u })
+      expect(j.data).to eq('data:image/png;base64,iVBORw0KGgo=')
+      expect(j.settings['data_uri']).to eq('data:image/png;base64,iVBORw0KGgo=')
+    end
+
+    it "should sanitize an SVG data: URI carrying active content but keep a static SVG" do
+      u = User.new
+      raw = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle cx="5" cy="5" r="4"/></svg>'
+      b64 = 'data:image/svg+xml;base64,' + Base64.strict_encode64('<svg onload="alert(1)"><circle cx="5" cy="5" r="4"/></svg>')
+      pct = 'data:image/svg+xml,' + CGI.escape('<svg><foreignObject><body onload="x"></body></foreignObject><circle cx="5" cy="5" r="4"/></svg>')
+      [raw, b64, pct].each do |evil|
+        i = ButtonImage.new(:user_id => 1)
+        i.process_params({ 'url' => evil }, { :user => u })
+        expect(i.data).not_to eq(nil)
+        expect(i.settings['data_uri']).not_to eq(nil)
+        decoded = SvgSanitizer.decode_data_uri_payload(i.data)
+        expect(decoded).not_to include('<script')
+        expect(decoded).not_to match(/onload/i)
+        expect(decoded).not_to include('foreignObject')
+        expect(decoded).to include('<circle')
+      end
+      # A static symbol SVG (no script/handlers) passes through unchanged.
+      good = 'data:image/svg+xml,' + CGI.escape('<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>')
+      j = ButtonImage.new(:user_id => 1)
+      j.process_params({ 'url' => good }, { :user => u })
+      expect(j.data).to eq(good)
+    end
+
+    it "should schedule server-side upload for SVG instead of client S3 upload" do
+      u = User.create
+      data_url = 'data:image/svg+xml,' + CGI.escape('<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>')
+      i = ButtonImage.create(user: u, settings: { 'content_type' => 'image/svg+xml', 'data_uri' => data_url, 'license' => { 'type' => 'private' } })
+      expect(i.settings['pending']).to eq(false)
+      expect(Worker.scheduled?(ButtonImage, 'perform_action', { 'id' => i.id, 'method' => 'upload_to_remote', 'arguments' => [Uploadable::UPLOAD_FROM_STORED_DATA_URI] })).to eq(true)
+    end
   end
    
   it "should securely serialize settings" do
@@ -668,12 +731,14 @@ describe ButtonImage, :type => :model do
       bi.settings = {'a' => 1, 'library_alternates' => {'pcs' => {'url' => '/api/v1/users/asdf/protected_image'}}}
       bi.url = "http://www.example.com/pic.png"
       hash = bi.settings_for(u, nil, nil)
-      expect(hash).to eq({
-        'url' => "/api/v1/users/asdf/protected_image?user_token=#{u.user_token}", 
+      expect(hash['url']).to match(/\A\/api\/v1\/users\/asdf\/protected_image\?user_token=.+\z/)
+      token = hash['url'].split('user_token=').last
+      expect(User.find_by_protected_image_token(token)).to eq(u)
+      expect(hash.except('url')).to eq({
         'used_library' => 'pcs',
         'protected' => true,
         'protected_source' => 'pcs',
-      })      
+      })
     end
 
     it "should fall back to the user preference if none specified" do

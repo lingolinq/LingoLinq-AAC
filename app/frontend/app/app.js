@@ -5,15 +5,13 @@ import { later as RunLater } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import DS from 'ember-data';
-import Resolver from 'ember-resolver';
+import Resolver from 'ember-resolver/index';
 import loadInitializers from 'ember-load-initializers';
 import config from './config/environment';
 import capabilities from './utils/capabilities';
 import i18n from './utils/i18n';
 import persistence from './utils/persistence';
 import lingoLinqExtras from './utils/extras';
-import { computed } from '@ember/object';
 
 window.onerror = function(msg, url, line, col, obj) {
   // Enhanced debugging for persistence service errors (both null and undefined)
@@ -199,51 +197,6 @@ if(capabilities.wait_for_deviceready) {
 
 loadInitializers(LingoLinq, config.modulePrefix);
 
-DS.Model.reopen({
-  reload: function(ignore_local) {
-    if(ignore_local === false) {
-      persistence.force_reload = null;
-    } else {
-      persistence.force_reload = this._internalModel.modelName + "_" + this.get('id');
-    }
-    return this._super();
-  },
-  retrieved: DS.attr('number'),
-  fresh: computed('retrieved', 'app_state.refresh_stamp', function() {
-    var retrieved = this.get('retrieved');
-    var now = (new Date()).getTime();
-    return (now - retrieved) < (5 * 60 * 1000);
-  }),
-  really_fresh: computed('retrieved', 'app_state.short_refresh_stamp', function() {
-    var retrieved = this.get('retrieved');
-    var now = (new Date()).getTime();
-    return (now - retrieved) < (30 * 1000);
-  }),
-  save: function() {
-    // TODO: this causes a difficult constraint, because you need to use the result of the
-    // promise instead of the original record you were saving in any results, just in case
-    // the record object changed. It's not ideal, but we have to do something because DS gets
-    // mad now if the server returns a different id, and we use a temporary id when persisted
-    // locally.
-    if(this.id && this.id.match(/^tmp[_/]/) && persistence.get('online')) {
-      var tmp_id = this.id;
-      var tmp_key = this.get('key');
-      var type = this._internalModel.modelName;
-      var attrs = this._internalModel._attributes;
-      var rec = this.store.createRecord(type, attrs);
-      rec.tmp_key = tmp_key;
-      return rec.save().then(function(result) {
-        return persistence.remove(type, {}, tmp_id).then(function() {
-          return RSVP.resolve(result);
-        }, function() {
-          return RSVP.reject({error: "failed to remove temporary record"});
-        });
-      });
-    }
-    return this._super();
-  }
-});
-
 Route.reopen({
   // Loading and error substates (e.g. `index_loading`) often have no
   // controller. `controllerFor` throws an assertion in that case. Guarding
@@ -356,6 +309,12 @@ LingoLinq.user_statuses = [
   {id: 'calendar'},
   {id: 'apple'},
   {id: 'blackboard'},
+  // Derived (not manually settable) status for the supervisor home's "Communicators
+  // Need Attention" card: a communicator who hasn't set a home board. No `on` flag, so
+  // it stays out of the status pickers (which require s.on && s.label); the label is
+  // here only so the attention card can render a human reason. Kept last so it never
+  // shifts the indices the status-breakdown chart reads.
+  {id: 'no-home-board', label: i18n.t('no_home_board_status', "No home board set")},
 ];
 LingoLinq.access_methods = {
   touch: 'hand-up',
@@ -526,6 +485,25 @@ LingoLinq.keyed_colors = [
     cl.remove('fitzgerald-faded');
     if(symbol_background_id === 'clear_soft') { cl.add('fitzgerald-soft'); }
     _bd_cache = null;
+  };
+
+  // Mirror the user's dashboard_layout pref onto <body> via the
+  // `.ll-layout-focused` class so the Focused View styling overlay can be
+  // scoped app-wide (every page), not just the dashboard. Gentle View is the
+  // untouched baseline (no class) AND the default. Applying at <body> means every
+  // page's chrome and content can opt in via `body.ll-layout-focused .foo`
+  // selectors. The class is present ONLY when the layout is explicitly 'focused';
+  // an unset pref or any legacy/invalid value resolves to the 'gentle' default,
+  // matching the dashboard's effectiveLayout. Driven by sync_layout_scope in
+  // app-state.js.
+  LingoLinq.set_layout_scope = function(layout) {
+    if(typeof document === 'undefined' || !document.body) { return; }
+    // NOTE (security review false-positive — "CSS injection via layout pref"): no
+    // injection vector. The class name is the LITERAL 'll-layout-focused'; `layout`
+    // only flips the boolean. A compromised/garbage dashboard_layout pref can at most
+    // turn the FIXED overlay class on (only an exact 'focused' → focused overlay),
+    // never inject an attacker-chosen class name.
+    document.body.classList.toggle('ll-layout-focused', layout === 'focused');
   };
 })();
 LingoLinq.extra_keyed_colors = [

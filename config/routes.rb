@@ -12,7 +12,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'cough_drop',
-  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval'
+  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval', 'ai_consent'
 ]
 require 'resque/server'
 require 'admin_constraint'
@@ -40,6 +40,7 @@ LingoLinq::Application.routes.draw do
   get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/parental_consent/complete' => 'parental_consents#complete'
+  get '/ai_consent/disclosures/:version' => 'ai_consent/disclosures#show'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'
   get '/inflections/:word_id/:locale' => ember_handler
@@ -164,6 +165,7 @@ LingoLinq::Application.routes.draw do
       get 'simple.obf' => 'boards#simple_obf'
       post 'imports' => 'boards#import', on: :collection
       post 'from_html' => 'boards#from_html', on: :collection
+      post 'from_json_bundle' => 'boards#from_json_bundle', on: :collection
       post 'generate_labels' => 'boards#generate_labels', on: :collection
       post 'unlink' => 'boards#unlink', on: :collection
       post 'bulk' => 'boards#bulk', on: :collection

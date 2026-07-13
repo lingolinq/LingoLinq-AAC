@@ -68,16 +68,16 @@
                   <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenu1">
-                  <li><a href="#" {{action "message" "communicators"}}>{{t "Communicators" key="communicators"}}</a></li>
-                  <li><a href="#" {{action "message" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</a></li>
-                  <li><a href="#" {{action "message" "all"}}>{{t "Everyone" key="everyone"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "message" "communicators")}}>{{t "Communicators" key="communicators"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "message" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "message" "all")}}>{{t "Everyone" key="everyone"}}</a></li>
                 </ul>
               </span>
             {{/if}}
             {{#if this.model.permissions.delete}}
-              <button class='btn btn-default' {{action "add_users"}}>{{t "Add Users" key="add_users"}}</button>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction "add_users")}}>{{t "Add Users" key="add_users"}}</button>
             {{/if}}
-            <button class='btn btn-default' {{action "edit_unit"}}>{{t "Edit Room" key="edit_room"}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "edit_unit")}}>{{t "Edit Room" key="edit_room"}}</button>
           {{/if}}
           {{#if (and this.model.permissions.edit (or this.organization.premium this.model.permissions.delete))}}
           <span class="dropdown">
@@ -87,7 +87,7 @@
             </button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenu1">
               {{#if this.organization.premium}}
-                <li><a href="#" {{action "set_goal"}}>
+                <li><a href="#" {{on "click" (this.ctrlAction "set_goal")}}>
                   {{#if this.model.goal}}
                     {{t "Remove Room-Wide Goal" key="remove_room_wide_goal"}}
                   {{else}}
@@ -96,15 +96,15 @@
                 </a></li>
                 {{#if this.app_state.feature_flags.lessons}}
                   {{#if this.model.lesson}}
-                    <li><a href="#" {{action "remove_lesson"}}>{{t "Remove Training" key="remove_training"}}</a></li>
+                    <li><a href="#" {{on "click" (this.ctrlAction "remove_lesson")}}>{{t "Remove Training" key="remove_training"}}</a></li>
                   {{else}}
-                    <li><a href="#" {{action "set_lesson"}}>{{t "Assign Training" key="assign_training"}}</a></li>
+                    <li><a href="#" {{on "click" (this.ctrlAction "set_lesson")}}>{{t "Assign Training" key="assign_training"}}</a></li>
                   {{/if}}
                 {{/if}}
-                <li><a href="#" {{action "update_curriculum"}}>{{t "Update Curriculum" key="update_curriculum"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "update_curriculum")}}>{{t "Update Curriculum" key="update_curriculum"}}</a></li>
               {{/if}}
               {{#if this.model.permissions.delete}}
-                <li><a href="#" {{action "delete_unit"}}>{{t "Delete Room" key="delete_room"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "delete_unit")}}>{{t "Delete Room" key="delete_room"}}</a></li>
               {{/if}}
             </ul>
           </span>
@@ -145,7 +145,7 @@
                   <div style='text-align: right; margin-top: 10px;'>
                     {{#if this.model.goal}}
                     {{else}}
-                      <a href="#" {{action "set_goal"}} style='font-size: 14px;'>{{t "set goal" key="set_goal"}}</a>
+                      <a href="#" {{on "click" (this.ctrlAction "set_goal")}} style='font-size: 14px;'>{{t "set goal" key="set_goal"}}</a>
                     {{/if}}
                   </div>
                 {{/if}}
@@ -176,7 +176,7 @@
                 {{#if this.app_state.feature_flags.lessons}}
                   {{#if this.model.lesson}}
                     <div style='font-style: italic; margin-top: 10px;'>
-                      <a href="#" {{action "launch_lesson"}}>{{this.model.lesson.title}}</a>
+                      <a href="#" {{on "click" (this.ctrlAction "launch_lesson")}}>{{this.model.lesson.title}}</a>
                       ({{this.lesson_targets}})
                     </div>
                   {{/if}}
@@ -186,7 +186,7 @@
               {{/if}}
               {{#if this.model.permissions.edit}}
                 <div style='text-align: right; margin-top: 10px;'>
-                  <a href="#" {{action "update_curriculum"}}>{{t "update curriculum" key="update_curriculum_lower"}}</a>
+                  <a href="#" {{on "click" (this.ctrlAction "update_curriculum")}}>{{t "update curriculum" key="update_curriculum_lower"}}</a>
                 </div>
               {{/if}}
             </div>
@@ -198,23 +198,23 @@
         {{#if this.model.adding_users}}
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=this.organization.supervisor_options selection=this.model.supervisor_user_name action=(action (mut this.model.supervisor_user_name)) }}
+              {{bound-select select_class="form-control" content=this.organization.supervisor_options selection=this.model.supervisor_user_name action=(mut this.model.supervisor_user_name) }}
             </span>
             <div class="btn-group dropdown">
               <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
                 {{t "Add Supervisor" key="add_supervisor"}} <span class="caret"></span>
               </button>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="#" {{action "add_unit_user" "edit_supervisor"}}>{{t "Add With Edit Permission" key="add_with_edit_permission"}}</a></li>
-                <li><a href="#" {{action "add_unit_user" "supervisor"}}>{{t "Add As View Only" key="add_as_read_only"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "add_unit_user" "edit_supervisor")}}>{{t "Add With Edit Permission" key="add_with_edit_permission"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "add_unit_user" "supervisor")}}>{{t "Add As View Only" key="add_as_read_only"}}</a></li>
               </ul>
             </div>
           </div>
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=this.organization.communicator_options selection=this.model.communicator_user_name action=(action (mut this.model.communicator_user_name)) }}
+              {{bound-select select_class="form-control" content=this.organization.communicator_options selection=this.model.communicator_user_name action=(mut this.model.communicator_user_name) }}
             </span>
-            <button class='btn btn-default' {{action "add_unit_user" "communicator"}}>{{t "Add Communicator" key="add_communicator"}}</button>
+            <button class='btn btn-default' {{on "click" (this.ctrlAction "add_unit_user" "communicator")}}>{{t "Add Communicator" key="add_communicator"}}</button>
           </div>
         {{/if}}
       {{/if}}
@@ -289,7 +289,7 @@
         </li>
       {{/each}}
       </ul>
-    {{else if this.logs.loading}}
+    {{else if this.model.logs.loading}}
       <p>{{t "Loading sessions..." key="loading_sessions"}}</p>
     {{else}}
       <p>{{t "None found" key="none_found"}}</p>

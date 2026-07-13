@@ -1,6 +1,7 @@
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import templateHelpers from '../utils/template_helpers';
 import speecher from '../utils/speecher';
@@ -12,14 +13,14 @@ import Utils from '../utils/misc';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
-import ButtonSet from '../models/buttonset';
+import Buttonset from '../models/buttonset';
 import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 
-LingoLinq.User = DS.Model.extend({
+LingoLinq.User = BaseModel.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   stashes: service('stashes'),
@@ -30,94 +31,108 @@ LingoLinq.User = DS.Model.extend({
     if(this.get('preferences') && !this.get('preferences.stretch_buttons')) {
       this.set('preferences.stretch_buttons', 'none');
     }
+    // Default progress.setup_done = true for everyone. The legacy setup wizard is
+    // being retired in favor of the Shepherd page tours + the standalone
+    // board-picker. setup_done will be re-wired to tour-completion once all page
+    // tours exist, and removed entirely when the setup pages are deleted. Until
+    // then, defaulting it true keeps any remaining setup_done gate (e.g.
+    // routes/index.js) from treating users as "not set up".
+    // See docs/task-management/2026-07-02-setup-pages-deprecation-map.md.
+    if(this.get('preferences') && !this.get('preferences.progress.setup_done')) {
+      var progress = this.get('preferences.progress') || {};
+      this.set('preferences.progress', progress);
+      this.set('preferences.progress.setup_done', true);
+    }
   },
-  user_name: DS.attr('string'),
-  user_token: DS.attr('string'),
-  link: DS.attr('string'),
-  joined: DS.attr('date'),
-  sync_stamp: DS.attr('string'),
-  settings: DS.attr('raw'),
-  is_admin: DS.attr('boolean'),
+  user_name: attr('string'),
+  user_token: attr('string'),
+  lesson_share_token: attr('string'),
+  protected_image_token: attr('string'),
+  link: attr('string'),
+  joined: attr('date'),
+  sync_stamp: attr('string'),
+  settings: attr('raw'),
+  is_admin: attr('boolean'),
   /** True when User#admin? on the server (settings admin or Admin org full manager). */
-  admin: DS.attr('boolean'),
-  authored_organization_id: DS.attr('string'),
-  terms_agree: DS.attr('boolean'),
-  name: DS.attr('string'),
-  email: DS.attr('string'),
-  needs_billing_update: DS.attr('string'),
-  public: DS.attr('boolean'),
-  pending: DS.attr('boolean'),
-  description: DS.attr('string'),
-  details_url: DS.attr('string'),
-  avatar_url: DS.attr('string'),
-  fallback_avatar_url: DS.attr('string'),
-  prior_avatar_urls: DS.attr('raw'),
-  last_profile: DS.attr('raw'),
-  location: DS.attr('string'),
-  home_board_key: DS.attr('string'),
-  permissions: DS.attr('raw'),
-  external_nonce: DS.attr('raw'),
-  state_2fa: DS.attr('raw'),
-  board_tags: DS.attr('raw'),
+  admin: attr('boolean'),
+  authored_organization_id: attr('string'),
+  terms_agree: attr('boolean'),
+  name: attr('string'),
+  email: attr('string'),
+  needs_billing_update: attr('string'),
+  public: attr('boolean'),
+  pending: attr('boolean'),
+  description: attr('string'),
+  details_url: attr('string'),
+  avatar_url: attr('string'),
+  fallback_avatar_url: attr('string'),
+  prior_avatar_urls: attr('raw'),
+  last_profile: attr('raw'),
+  location: attr('string'),
+  home_board_key: attr('string'),
+  permissions: attr('raw'),
+  external_nonce: attr('raw'),
+  state_2fa: attr('raw'),
+  board_tags: attr('raw'),
   /** Tag name -> global_id[] for folder UI (same as server user_extra.board_tags). */
-  board_tag_map: DS.attr('raw'),
-  focus_words: DS.attr('raw'),
-  access_methods: DS.attr('raw'),
-  start_codes: DS.attr('raw'),
-  start_code: DS.attr('string'),
-  coppa_under_13: DS.attr('boolean'),
-  parent_consent_email: DS.attr('string'),
+  board_tag_map: attr('raw'),
+  focus_words: attr('raw'),
+  access_methods: attr('raw'),
+  start_codes: attr('raw'),
+  start_code: attr('string'),
+  coppa_under_13: attr('boolean'),
+  parent_consent_email: attr('string'),
   /** Set by API on create when parental consent is still required (COPPA). */
-  coppa_parental_consent_pending: DS.attr('boolean'),
-  unread_messages: DS.attr('number'),
-  unread_alerts: DS.attr('number'),
-  external_device: DS.attr('raw'),
-  start_progress: DS.attr('raw'),
-  valet_password: DS.attr('string'),
-  valet_login: DS.attr('boolean'),
-  valet_password_set: DS.attr('boolean'),
-  valet_disabled: DS.attr('boolean'),
-  valet_long_term: DS.attr('boolean'),
-  valet_prevent_disable: DS.attr('boolean'),
-  has_logging_code: DS.attr('boolean'),
-  lessons: DS.attr('raw'),
-  topics: DS.attr('raw'),
-  last_message_read: DS.attr('number'),
-  last_alert_access: DS.attr('number'),
-  last_access: DS.attr('date'),
-  membership_type: DS.attr('string'),
-  subscription: DS.attr('raw'),
-  org_assistant: DS.attr('boolean'),
-  org_manager: DS.attr('boolean'),
-  org_supervision_pending: DS.attr('boolean'),
-  organizations: DS.attr('raw'),
-  password: DS.attr('string'),
-  old_password: DS.attr('string'),
-  referrer: DS.attr('string'),
-  ad_referrer: DS.attr('string'),
-  preferences: DS.attr('raw'),
-  global_integrations: DS.attr('raw'),
-  devices: DS.attr('raw'),
-  requested_phrase_changes: DS.attr('raw'),
-  premium_voices: DS.attr('raw'),
-  purchase_duration: DS.attr('number'),
-  feature_flags: DS.attr('raw'),
-  prior_home_boards: DS.attr('raw'),
-  supervisor_key: DS.attr('string'),
-  supervisors: DS.attr('raw'),
-  supervisee_code: DS.attr('string'),
-  supervised_units: DS.attr('raw'),
-  supervisees: DS.attr('raw'),
-  offline_actions: DS.attr('raw'),
-  vocalizations: DS.attr('raw'),
-  contacts: DS.attr('raw'),
-  goal: DS.attr('raw'),
-  pending_board_shares: DS.attr('raw'),
-  pending_supervisor_requests: DS.attr('raw'),
-  edit_permission: DS.attr('boolean'),
-  cell_phone: DS.attr('string'),
-  next_notification_delay: DS.attr('string'),
-  read_notifications: DS.attr('boolean'),
+  coppa_parental_consent_pending: attr('boolean'),
+  unread_messages: attr('number'),
+  unread_alerts: attr('number'),
+  external_device: attr('raw'),
+  start_progress: attr('raw'),
+  valet_password: attr('string'),
+  valet_login: attr('boolean'),
+  valet_password_set: attr('boolean'),
+  valet_disabled: attr('boolean'),
+  valet_long_term: attr('boolean'),
+  valet_prevent_disable: attr('boolean'),
+  has_logging_code: attr('boolean'),
+  lessons: attr('raw'),
+  topics: attr('raw'),
+  last_message_read: attr('number'),
+  last_alert_access: attr('number'),
+  last_access: attr('date'),
+  membership_type: attr('string'),
+  subscription: attr('raw'),
+  org_assistant: attr('boolean'),
+  org_manager: attr('boolean'),
+  org_supervision_pending: attr('boolean'),
+  organizations: attr('raw'),
+  password: attr('string'),
+  old_password: attr('string'),
+  referrer: attr('string'),
+  ad_referrer: attr('string'),
+  preferences: attr('raw'),
+  global_integrations: attr('raw'),
+  devices: attr('raw'),
+  requested_phrase_changes: attr('raw'),
+  premium_voices: attr('raw'),
+  purchase_duration: attr('number'),
+  feature_flags: attr('raw'),
+  prior_home_boards: attr('raw'),
+  supervisor_key: attr('string'),
+  supervisors: attr('raw'),
+  supervisee_code: attr('string'),
+  supervised_units: attr('raw'),
+  supervisees: attr('raw'),
+  offline_actions: attr('raw'),
+  vocalizations: attr('raw'),
+  contacts: attr('raw'),
+  goal: attr('raw'),
+  pending_board_shares: attr('raw'),
+  pending_supervisor_requests: attr('raw'),
+  edit_permission: attr('boolean'),
+  cell_phone: attr('string'),
+  next_notification_delay: attr('string'),
+  read_notifications: attr('boolean'),
   supervisors_or_managing_org: computed('supervisors', 'managing_org', 'managing_supervision_orgs', function() {
     return (this.get('supervisors') || []).length > 0 || this.get('managing_org') || this.get('managing_supervision_orgs.length') > 0;
   }),
@@ -143,7 +158,7 @@ LingoLinq.User = DS.Model.extend({
         res = res.concat(org.home_board_keys);
       }
     })
-    return res.uniq();
+    return Utils.uniq(res);
   }),
   manages_multiple_orgs: computed('managed_orgs', function() {
     return (this.get('managed_orgs') || []).length > 1;
@@ -238,7 +253,7 @@ LingoLinq.User = DS.Model.extend({
     }
     return res;
   }),
-  notifications: DS.attr('raw'),
+  notifications: attr('raw'),
   parsed_notifications: computed('notifications', function() {
     var notifs = this.get('notifications') || [];
     notifs.forEach(function(notif) {
@@ -301,7 +316,7 @@ LingoLinq.User = DS.Model.extend({
       }
     }
   ),
-  stats: DS.attr('raw'),
+  stats: attr('raw'),
   avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', 'fallback_avatar_url', function() {
     var url = this.get('avatar_data_uri') || this.get('avatar_url');
     if(!url) {
@@ -508,14 +523,14 @@ LingoLinq.User = DS.Model.extend({
       }
     });
   }),
-  multiple_devices: computed('devices', function() {
+  multiple_devices: computed('devices', 'devices.[]', function() {
     return (this.get('devices') || []).length > 1;
   }),
-  device_count: computed('devices', function() {
+  device_count: computed('devices', 'devices.[]', function() {
     return (this.get('devices') || []).length;
   }),
-  current_device_name: computed('devices', function() {
-    var device = (this.get('devices') || []).findBy('current_device', true);
+  current_device_name: computed('devices', 'devices.[]', function() {
+    var device = (this.get('devices') || []).find(function(d) { return d && d.current_device === true; });
     return (device && device.name) || "Unknown device";
   }),
   access_method: computed(
@@ -612,6 +627,11 @@ LingoLinq.User = DS.Model.extend({
     var _this = this;
     boards.forEach(function(board) {
       var board_object = EmberObject.create(board);
+      // "Crisis Vocabulary" wraps awkwardly in the narrow sidebar — show the short
+      // "Crisis" label there (the editor reads raw prefs, so it keeps the full name).
+      if(board.key && (/crisis/i).test(board.key)) {
+        board_object.set('name', i18n.t('crisis_short', "Crisis"));
+      }
       _this.persistence.find_url(board.image, 'image').then(function(data_uri) {
         board_object.set('image', data_uri);
       }, function() { });
@@ -811,7 +831,7 @@ LingoLinq.User = DS.Model.extend({
   load_active_goals: function() {
     var _this = this;
     this.store.query('goal', {active: true, user_id: this.get('id')}).then(function(list) {
-      _this.set('active_goals', list.map(function(i) { return i; }).sort(function(a, b) {
+      _this.set('active_goals', list.slice().sort(function(a, b) {
         if(a.get('primary')) {
           return -1;
         } else if(b.get('primary')) {
@@ -862,8 +882,9 @@ LingoLinq.User = DS.Model.extend({
     }
     var promises = [];
     var list = [];
+    var buttonset = LingoLinq.Buttonset || Buttonset;
     ids.forEach(function(id, idx) {
-      promises.push(LingoLinq.Buttonset.load_button_set(id).then(function(bs) {
+      promises.push(buttonset.load_button_set(id).then(function(bs) {
         list[idx] = bs;
       }));
     });

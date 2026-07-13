@@ -1,0 +1,17 @@
+<div style={{this.badge_container_style}} class='badge_earned'>
+  <a href="#" {{on "click" (this.ctrlAction "badge_popup")}}>
+    <span style='position: relative; display: inline-block;'>
+      {{#if this.badge.image_url}}
+        <img src={{this.badge.image_url}} style={{this.image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+      {{else}}
+        <img src={{path "images/badge-fallback.png"}} style={{this.image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+      {{/if}}
+      {{#unless this.inline}}
+        <div class='sparkle'>✦</div>
+      {{/unless}}
+    </span>
+    <span style={{this.text_style}}>
+      {{t "Great Job!" key="great_job"}}
+    </span>
+  </a>
+</div>

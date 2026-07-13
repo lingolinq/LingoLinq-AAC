@@ -75,7 +75,13 @@ class Api::IntegrationsController < ApplicationController
   end
 
   def domain_settings
-    render json: @domain_overrides.to_json
+    # Merge the per-request jurisdiction-aware consent age into a FRESH copy so
+    # the cached per-host blob (@domain_overrides) is never mutated. With the
+    # eu_consent_age feature OFF the injection is {}, so the payload is
+    # byte-identical to today.
+    overrides = (@domain_overrides || {}).dup
+    overrides['settings'] = (overrides['settings'] || {}).merge(coppa_consent_age_injection)
+    render json: overrides.to_json
   end
 
   def focus_usage
@@ -139,7 +145,7 @@ class Api::IntegrationsController < ApplicationController
       locale: locale,
       include_core_words: include_core_words
     )
-    focus_set.record_generation!(new_words: new_words, title: result[:title], user: @api_user)
+    focus_set.record_generation!(new_words: new_words, title: result[:title], user: @api_user, marker: result[:ai_generated])
     render json: focus_words_response(focus_set, requested_count, false)
   end
 
@@ -194,7 +200,11 @@ class Api::IntegrationsController < ApplicationController
       words: focus_set.words.first(requested_count).join(', '),
       title: focus_set.title,
       cached: cached,
-      library_id: focus_set.global_id
+      library_id: focus_set.global_id,
+      # EU AI Act Article 50(2): non-secret provenance view of the marker (marked/spec/
+      # provider/model), or nil for a set with no valid marker. Additive key; withholds
+      # signature + content_id. Cache-hit responses expose the stored set's marker too.
+      ai_generated: focus_set.ai_generated_public_view
     }
   end
 end

@@ -1,62 +1,50 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import i18n from '../utils/i18n';
-import LingoLinq from '../app';
-import modal from '../utils/modal';
+import openRecommendedHomeBoard from '../utils/recommended_home_board';
 
-// Standalone home-board picker. The two actions below are copied from
-// `controllers/setup.js` (`assign_default_home_board` / `create_new_board`) so
-// this page carries no dependency on the setup wizard. Board selection itself
-// is handled inside the reused `board-picker` -> `board-icon` components.
+// Standalone home-board picker. `create_new_board` is copied from
+// `controllers/setup.js` so this page carries no dependency on the setup wizard;
+// the "pick for me" recommendation lives in the shared
+// `utils/recommended_home_board` (also used by the home-tour welcome step).
 export default Controller.extend({
   router: service('router'),
   appState: service('app-state'),
   persistence: service('persistence'),
   assigning_home_board: false,
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
-    // Find the public "Vocal Flair 84" catalog board by name (works whether the
-    // catalog is owned by `lingolinq` in prod or `sampleorganization_user_1` in
-    // dev) and set it as this user's home board, then return to the dashboard.
+    // Open the recommended starter home board's preview — the user reviews it and
+    // confirms with "Pick this Board". Shared with the home-tour "start speaking"
+    // button (utils/recommended_home_board).
     assign_default_home_board: function() {
       var _this = this;
-      var user = this.get('setup_user');
-      if(!user || !user.save) {
-        modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
-        return;
-      }
       this.set('assigning_home_board', true);
-      LingoLinq.store.query('board', { q: 'Vocal Flair 84', public: true, per_page: 10 }).then(function(results) {
-        var list = (results && results.toArray) ? results.toArray() : (results || []);
-        var pick = function(re) {
-          for(var i = 0; i < list.length; i++) {
-            if(re.test((list[i].get('key') || ''))) { return list[i]; }
-          }
-          return null;
-        };
-        var board = pick(/(^|\/)vocal-flair-84$/) || pick(/vocal-flair-84/) || list[0];
-        if(!board) {
-          _this.set('assigning_home_board', false);
-          modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
-          return;
-        }
-        user.set('preferences.home_board', {
-          id: board.get('id'),
-          key: board.get('key'),
-          locale: _this.appState.get('label_locale')
-        });
-        user.save().then(function() {
-          if(_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
-            _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
-          }
-          _this.appState.return_to_index();
-        }, function() {
-          _this.set('assigning_home_board', false);
-          modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
-        });
-      }, function() {
-        _this.set('assigning_home_board', false);
-        modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
-      });
+      var done = function() { _this.set('assigning_home_board', false); };
+      openRecommendedHomeBoard().then(done, done);
     },
     // Purchase check, then route to the modern create-board flow.
     create_new_board: function() {

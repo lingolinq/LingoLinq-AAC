@@ -7,7 +7,7 @@ import LingoLinq from '../app';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 import { inject as service } from '@ember/service';
-import { schedule } from '@ember/runloop';
+import { schedule, debounce, cancel } from '@ember/runloop';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -42,16 +42,85 @@ export default Component.extend({
   didInsertElement: function() {
     this._super(...arguments);
     this._scheduleExplainOverflowCheck();
+    // Re-run the tab orphan check on viewport resize (the wrap point — and thus
+    // whether a single tab is orphaned — depends on available width). Debounced;
+    // removed in willDestroyElement.
+    var _this = this;
+    this._on_tabs_resize = function() {
+      // `debounce` from '@ember/runloop' returns a cancelable timer handle (the documented
+      // Ember contract), and the matching `cancel(this._tabs_resize_timer)` in
+      // willDestroyElement accepts exactly that handle — so the pending invocation is torn
+      // down on destroy. (Adversarial-review note: this is the correct, supported API in
+      // this Ember version; pre-existing code, unchanged by this PR.)
+      _this._tabs_resize_timer = debounce(_this, '_adjustTabsForOrphans', 120);
+    };
+    window.addEventListener('resize', this._on_tabs_resize);
   },
   didUpdateAttrs: function() {
     this._super(...arguments);
     this._scheduleExplainOverflowCheck();
   },
+  willDestroyElement: function() {
+    if (this._on_tabs_resize) {
+      window.removeEventListener('resize', this._on_tabs_resize);
+      this._on_tabs_resize = null;
+    }
+    if (this._tabs_resize_timer) {
+      cancel(this._tabs_resize_timer);
+      this._tabs_resize_timer = null;
+    }
+    this._super(...arguments);
+  },
   _scheduleExplainOverflowCheck: function() {
     var _this = this;
     schedule('afterRender', _this, function() {
       _this._checkExplainOverflow();
+      _this._adjustTabsForOrphans();
     });
+  },
+  // Prevent a single orphaned category tab on the last wrapped row: when the tabs
+  // wrap such that exactly ONE sits alone on the final row, insert a full-width
+  // break <li> before the second-to-last tab so it drops down to join the orphan
+  // (last row → two tabs). Only acts when the second-to-last tab's row has ≥3
+  // tabs, so pulling one down can't strand a NEW orphan on the row above. Scoped
+  // to the standalone /board-picker page (the tabs keep their natural width
+  // elsewhere). Idempotent — clears its prior break and re-measures each run.
+  _adjustTabsForOrphans: function() {
+    // Adversarial-review note (LOW, pre-existing — unchanged by this PR): the injected
+    // tab-break <li> is created imperatively, but this is safe/idempotent: the lookup is
+    // scoped to THIS component (`this.element`, further gated to `.board-picker-page`),
+    // every run first removes any prior `.md-home-boards-picker__tab-break` before
+    // re-inserting, and the node carries aria-hidden + role="presentation" so it's inert
+    // to assistive tech. If Glimmer re-renders the <ul>, the manual node is dropped with
+    // it and re-added on the next resize tick — no orphan/duplicate accumulates.
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var root = this.element;
+    if (!root || !root.closest || !root.closest('.board-picker-page')) { return; }
+    var ul = root.querySelector('.md-home-boards-picker__tabs.ub-boards-page__tabs--boards');
+    if (!ul) { return; }
+    var prior = ul.querySelector('.md-home-boards-picker__tab-break');
+    if (prior) { ul.removeChild(prior); }
+    var items = [];
+    for (var i = 0; i < ul.children.length; i++) {
+      if (ul.children[i].tagName === 'LI') { items.push(ul.children[i]); }
+    }
+    if (items.length < 3) { return; }
+    var rowCount = function(top) {
+      var n = 0;
+      for (var j = 0; j < items.length; j++) {
+        if (Math.abs(items[j].offsetTop - top) <= 1) { n++; }
+      }
+      return n;
+    };
+    var orphan = items[items.length - 1];
+    if (rowCount(orphan.offsetTop) !== 1) { return; }       // last row isn't a lone tab
+    var penultimate = items[items.length - 2];
+    if (rowCount(penultimate.offsetTop) < 3) { return; }    // pulling it would strand a new orphan
+    var brk = document.createElement('li');
+    brk.className = 'md-home-boards-picker__tab-break';
+    brk.setAttribute('aria-hidden', 'true');
+    brk.setAttribute('role', 'presentation');
+    ul.insertBefore(brk, penultimate);
   },
   _checkExplainOverflow: function() {
     if (this.get('show_category_explainer')) {
@@ -77,9 +146,6 @@ export default Component.extend({
       res.push(cat);
     }
     LingoLinq.board_categories.forEach(function(c) {
-      // The tabbed (setup Board Category) view hides the Cause and Effect
-      // tab; the vertical /search/home picker keeps the full set.
-      if(_this.get('tabbed') && c.id === 'cause_effect') { return; }
       var cat = $.extend({}, c);
       if(_this.get('current_category') == c.id) {
         cat.selected = true;
@@ -221,6 +287,31 @@ export default Component.extend({
       _this.set('category_boards', { error: true });
     });
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     set_category: function(str) {
       var res = {};
@@ -243,6 +334,12 @@ export default Component.extend({
         // Setup Robust Vocabularies renders the Quick Core / Vocal Flair
         // brand cards instead of the flat category grid.
         _this._loadBrandGroups();
+      } else if(_this.get('tabbed') && str == 'cause_effect') {
+        // Board-picker page: Cause and Effect is "coming soon" — no catalog yet,
+        // so skip the board query (the template renders a coming-soon button
+        // instead of a grid). The non-tabbed /search/home picker keeps its prior
+        // behavior (loads boards via the else branch below).
+        _this.set('category_boards', []);
       } else {
         _this._resolveCategoryBoards(str);
       }

@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
-import { next, debounce, cancel, later as runLater } from '@ember/runloop';
+import { next, debounce, cancel, later as runLater, scheduleOnce } from '@ember/runloop';
 import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
@@ -11,7 +11,9 @@ import modalUtil from '../utils/modal';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
+import contentGrabbers from '../utils/content_grabbers';
 import persistence from '../utils/persistence';
+import speecher from '../utils/speecher';
 import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 
@@ -36,6 +38,13 @@ export default Component.extend({
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
+
+    // Did we arrive here from the board-picker guided-tour modal? The tour modal
+    // sets appState.from_tour_board_picker before navigating; capture it here so
+    // this page can adapt (e.g. return the user to the tour/dashboard on finish).
+    // The route clears the appState flag on deactivate so it never leaks to a
+    // normal (non-tour) visit.
+    this.set('from_tour', !!this.get('appState.from_tour_board_picker'));
 
     // Initialize model; for_user_id 'self' ensures create payload includes owner for API
     var currentUserId = this.appState.get('currentUser.id') || this.appState.get('sessionUser.id');
@@ -88,7 +97,12 @@ export default Component.extend({
     
     this.set('status', null);
     this.set('more_options', false);
-    this.set('preview_mode', 'dark');
+    // Board light/dark mirrors the user's single `board_dark_mode` preference —
+    // the same one board-detail's dark toggle writes. This page has no default of
+    // its own: it just reflects the preference (unset/false → light, true → dark),
+    // which is light until the user turns on dark in board-detail.
+    var darkPref = this.appState.get('currentUser.preferences.board_dark_mode');
+    this.set('preview_mode', darkPref ? 'dark' : 'light');
     this.set('labels_list_open', false);
     /* Default "Are you creating this board for someone else?" to NO for EVERY
        user — boards default to being created for the current user themselves.
@@ -120,6 +134,21 @@ export default Component.extend({
     this.set('show_paint_dropdown', false);
     this.set('show_paint_color_picker', false);
     this.set('custom_paint_color', '#4a90d9');
+    // Words tapped on the preview grid, shown in the preview speak bar (mirrors
+    // board-detail speak mode's sentence box). Single-clicking a button appends
+    // its label here and speaks it; the bar's Speak/Backspace/Clear act on it.
+    this.set('_speak_words', []);
+    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue
+    // Anyway" flips this to dismiss it for the rest of this visit (resets on
+    // re-entry — see dismiss_orientation_overlay).
+    this.set('orientation_overlay_dismissed', false);
+    // Create-method chooser: on entry to the create-board page, present three
+    // animated options (Create My Own / Import / Generate with AI). Picking one
+    // routes into that flow and dismisses the chooser.
+    this.set('show_create_chooser', true);
+    // True once the user picked "Create My Own Board" from the chooser — swaps the
+    // header title to "Create My Own Board".
+    this.set('via_create_own', false);
     // Field-level validation tracking. `_field_touched` flips true after
     // the user has interacted with a field and blurred it; `_submit_attempted`
     // flips true after the first time the user clicks Create with required
@@ -150,6 +179,34 @@ export default Component.extend({
     
     // Initialize showGrid immediately (observers don't fire during init)
     this.updateShowGrid();
+
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.ctrlActionEventValue = function(actionName, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, value);
+      };
+    };
   },
 
   for_user_id: computed('model.for_user_id', function() {
@@ -383,10 +440,13 @@ export default Component.extend({
        Text Settings sitting at the bottom of the rail. */
     { id: 'background', label: i18n.t('board_detail_background', "Background") },
     { id: 'layout',     label: i18n.t('board_detail_board_layout', "Board Layout") },
-    { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols") },
+    { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols"), short_label: i18n.t('symbols', "Symbols") },
     { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") },
-    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border") },
-    { id: 'skin',       label: i18n.t('board_detail_skin_tones', "Skin Tones") },
+    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border"), short_label: i18n.t('shape_border', "Shape/Border") },
+    /* Skin Tones section temporarily hidden from the create-board rail — the
+       in-rail dropdown positioning needs rework; removed from the list so the
+       toggle + its body don't render. Re-add this entry to restore it. */
+    /* { id: 'skin',    label: i18n.t('board_detail_skin_tones', "Skin Tones") }, */
     { id: 'speakbar',   label: i18n.t('board_detail_speak_bar', "Speak Bar") },
     { id: 'text',       label: i18n.t('board_detail_text_settings', "Text Settings") }
     /* Gap removed — Grid Gap lives in the Board Layout section. */
@@ -512,6 +572,16 @@ export default Component.extend({
   // is-equal comparisons.
   utterance_text_only_str: computed('appState.sessionUser.preferences.device.utterance_text_only', function() {
     return this.appState.get('sessionUser.preferences.device.utterance_text_only') ? 'true' : 'false';
+  }),
+
+  // Speak-bar chip layout — mirrors board-detail's `utterance_text_on_top` so
+  // the preview sentence bar stacks each chip's label/symbol the SAME way the
+  // user's `button_text_position` preference renders the board cells above
+  // (button_text_position_class). 'top' → label over symbol; anything else →
+  // symbol over label. Same default ('top') and same pref key as the grid.
+  utterance_text_on_top: computed('appState.sessionUser.preferences.device.button_text_position', function() {
+    var pos = this.appState.get('sessionUser.preferences.device.button_text_position') || 'top';
+    return pos === 'top';
   }),
 
   // Preview hook: maps the chosen vocalization_height onto a class so
@@ -1223,6 +1293,10 @@ export default Component.extend({
         // Bake in the previewed symbol image so the saved board
         // uses what the user actually saw — without this the server
         // would re-search and might pick a different first result.
+        // Bake the URL (NOT image_id): the server's process_client_supplied_images
+        // turns it into a fresh PUBLIC board-owned ButtonImage and caches it via
+        // map_images. Linking the drop's private standalone image by id renders
+        // blank on the board page — see _applyDroppedImageToLabel.
         var img = label_images[key];
         if(img && img.image_url) {
           btn.image_url = img.image_url;
@@ -1258,6 +1332,8 @@ export default Component.extend({
       var key = board.get('key') || '';
       var parts = key.split('/');
       var transition = function() {
+        // Debounced "Preparing your Board" mask for the post-create board load.
+        _this.appState.arm_board_load_overlay(_this.get('router'));
         if (parts.length >= 2) {
           _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         } else {
@@ -1521,9 +1597,164 @@ export default Component.extend({
     this.updateShowGrid();
   }),
 
+  // ── External image drag-and-drop onto a preview tile ────────────────────────
+  // Mirrors the board-detail edit-mode flow (content_grabbers.content_dropped →
+  // apply_dropped_image_to_button): drag an image file (or an image from another
+  // tab) onto a button and it becomes that button's symbol in place. The board
+  // doesn't exist yet, so instead of editManager.change_button we reuse the SAME
+  // upload primitive board-detail uses (pictureGrabber.save_image_preview) and
+  // write the persisted URL into our label-keyed `_label_images` map — the same
+  // map the symbol search fills, which preview_grid renders from and
+  // _completeSaveBoard bakes into model.buttons[]. So the dropped image shows
+  // immediately AND persists on Create.
+
+  /** Drag payload types as a plain array (`dataTransfer.types` is a
+   *  DOMStringList in some browsers). */
+  _dragTypes: function(dataTransfer) {
+    var types = (dataTransfer && dataTransfer.types) || [];
+    return Array.prototype.slice.call(types);
+  },
+
+  /** True when a drag carries an external image — a real image File, or (during
+   *  dragover, when files aren't yet readable) the `Files` type, or an image
+   *  dragged from another tab (`text/uri-list`). Internal tile-reorder drags
+   *  carry only `text/plain` (the source index), so they return false and fall
+   *  through to the swap logic. */
+  _dragHasImage: function(dataTransfer) {
+    if(!dataTransfer) { return false; }
+    if(dataTransfer.files && dataTransfer.files.length) {
+      for(var i = 0; i < dataTransfer.files.length; i++) {
+        var f = dataTransfer.files[i];
+        if(f && f.type && f.type.match(/^image/)) { return true; }
+      }
+    }
+    var types = this._dragTypes(dataTransfer);
+    return types.indexOf('Files') !== -1 || types.indexOf('text/uri-list') !== -1;
+  },
+
+  /** Resolve an image URL from a cross-tab/page image drag — `text/uri-list`
+   *  (the dragged image's src) or an `<img>` embedded in `text/html`. Mirrors
+   *  content_grabbers.content_dropped's items branch. Resolves null when none. */
+  _dropped_image_url: function(dataTransfer) {
+    var _this = this;
+    return new RSVP.Promise(function(resolve) {
+      var items = dataTransfer && dataTransfer.items;
+      var types = _this._dragTypes(dataTransfer);
+      if(!items || !items.length || !types.length) { return resolve(null); }
+      var results = {};
+      var promises = [];
+      var read = function(key, item) {
+        return new RSVP.Promise(function(res) {
+          try { item.getAsString(function(str) { results[key] = str; res(); }); }
+          catch(e) { res(); }
+        });
+      };
+      for(var i = 0; i < types.length; i++) {
+        if(types[i] === 'text/uri-list' && items[i]) { promises.push(read('url', items[i])); }
+        else if(types[i] === 'text/html' && items[i]) { promises.push(read('html', items[i])); }
+      }
+      if(!promises.length) { return resolve(null); }
+      RSVP.all(promises).then(function() {
+        if(!results.url && results.html) {
+          var pieces = results.html.split(/<\s*img/);
+          if(pieces.length > 1) {
+            var m = pieces[1].match(/src\s*=\s*['"]([^'"]+)/);
+            if(m && m[1]) { results.url = m[1]; }
+          }
+        }
+        resolve(results.url || null);
+      }, function() { resolve(null); });
+    });
+  },
+
+  /** Upload a dropped image and assign it to `label`'s button in place. Reuses
+   *  content_grabbers' read_file + pictureGrabber.save_image_preview (the board-
+   *  detail upload pipeline), then stores the persisted URL under the label so
+   *  the preview updates and the save bakes it in. */
+  _applyDroppedImageToLabel: function(label, dataTransfer) {
+    var _this = this;
+    var key = (label || '').toLowerCase();
+    if(!key || !dataTransfer) { return RSVP.reject(); }
+    var image_file = null;
+    if(dataTransfer.files && dataTransfer.files.length) {
+      for(var i = 0; i < dataTransfer.files.length; i++) {
+        var f = dataTransfer.files[i];
+        if(!image_file && f && f.type && f.type.match(/^image/)) { image_file = f; }
+      }
+    }
+    var url_promise;
+    if(image_file) {
+      url_promise = contentGrabbers.read_file(image_file).then(function(data) {
+        return data.target.result; // data URL
+      });
+    } else {
+      url_promise = this._dropped_image_url(dataTransfer);
+    }
+    return url_promise.then(function(url) {
+      if(!url) { return RSVP.reject(); }
+      var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
+      // Defense-in-depth: only accept image payloads. Reject a data: URI whose
+      // MIME isn't image/* (e.g. data:text/html) before it reaches the upload
+      // pipeline or the preview. The server also drops these (ButtonImage), but
+      // bailing here keeps the raw payload out of the client entirely.
+      //
+      // NOTE (security review false-positive): a dropped FILE does NOT bypass this.
+      // The File branch above runs it through read_file → reader.readAsDataURL(),
+      // which yields `data:<file.type>;…`, so a text/html File becomes
+      // `data:text/html;…` and is caught right here by the same MIME check (and
+      // again server-side). There is no File path that skips it — and _dragHasImage
+      // only treats image-typed Files as images in the first place.
+      if(content_type && !content_type.match(/^image\//)) { return RSVP.reject(); }
+      // `suggestion` seeds the saved image's button_label since there's no live
+      // button to read it from (save_image_preview falls back to it).
+      var preview = { url: url, content_type: content_type, protected: false, suggestion: label };
+      return contentGrabbers.pictureGrabber.save_image_preview(preview).then(function(image) {
+        if(_this.isDestroyed || _this.isDestroying) { return image; }
+        var saved_url = (image && image.get && image.get('url')) || url;
+        // Store ONLY the URL (not the saved image's id). On Create the server's
+        // process_client_supplied_images turns this URL into a fresh, PUBLIC,
+        // board-owned ButtonImage and wires it into the board's image cache
+        // (map_images). The standalone record save_image_preview made here is
+        // private/unlinked, so referencing it by image_id would show in this
+        // preview but render blank on the board page — see LEARNINGS. URL-baking
+        // is the deliberate, proven path (matches the symbol-search flow).
+        var next_map = Object.assign({}, _this.get('_label_images') || {});
+        next_map[key] = { image_url: saved_url };
+        _this.set('_label_images', next_map);
+        // Re-run preview_grid (deps on _label_images) so the tile updates.
+        _this.notifyPropertyChange('_label_images');
+        return image;
+      });
+    });
+  },
+
+  /** Remove the image drag-over highlight from a cell element. */
+  _clearCellDropHighlight: function(el) {
+    if(el && el.classList) { el.classList.remove('md-board-detail-grid__cell--image-drop'); }
+  },
+
   actions: {
     close: function() {
       if(this.get('standalone')) {
+        // Arrived from the board-picker guided-tour modal? Return the user to
+        // that modal instead of just the page underneath it. The modal can't be
+        // kept open "behind" this page — app_state.global_transition closes every
+        // open modal on each route change — so we go back to the board-picker
+        // page and RE-OPEN the tour modal. It hosts a fresh live picker (no
+        // per-session state), so re-opening lands the user right back where they
+        // left off. Captured at init as `from_tour`; the route clears the
+        // appState flag on deactivate so a normal (non-tour) visit is unaffected.
+        if(this.get('from_tour')) {
+          var r = this.get('router');
+          var reopen = function() { modalUtil.open('tour-board-picker', {}); };
+          var t = r.transitionTo('board-picker');
+          if(t && typeof t.then === 'function') {
+            t.then(reopen, reopen);
+          } else {
+            reopen();
+          }
+          return;
+        }
         var onClose = this.get('onClose');
         if (onClose && typeof onClose === 'function') {
           onClose();
@@ -1557,6 +1788,12 @@ export default Component.extend({
         this.get('modal').close();
       }
       modalUtil.open('import-from-html');
+    },
+    importFromJsonBundle: function() {
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
+      modalUtil.open('import-from-json-bundle');
     },
     // Legacy entry point — now just switches the page into AI mode
     // instead of opening the old generate-board modal.
@@ -1609,6 +1846,11 @@ export default Component.extend({
         _this.set('model.grid.labels', labels);
         if(res && res.name && !(_this.get('model.name') || '').trim().length) {
           _this.set('model.name', res.name);
+        }
+        // EU AI Act Article 50(2): carry the signed AI-generation marker onto the board
+        // so it rides the save payload and the server can verify + persist it.
+        if(res && res.ai_generated) {
+          _this.set('model.ai_generated', res.ai_generated);
         }
         _this.set('ai_generating', false);
         _this.set('ai_labels_generated', true);
@@ -1683,16 +1925,55 @@ export default Component.extend({
       }
       this.set('_dragSourceIdx', idx);
     },
-    cellDragOver: function(event) {
-      if(event && event.preventDefault) { event.preventDefault(); }
+    cellDragOver: function(row, col, event) {
       // Stop propagation so the global file-drop handler (used for board file
       // imports) doesn't see this and treat our chip as a dropped file.
       if(event && event.stopPropagation) { event.stopPropagation(); }
-      if(event && event.dataTransfer) { event.dataTransfer.dropEffect = 'move'; }
+      var dt = event && event.dataTransfer;
+      // External image drag: accept ONLY on a labeled cell (images are keyed by
+      // label, so a blank tile has nothing to attach to) and show the drop cue.
+      if(dt && this._dragHasImage(dt)) {
+        var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+        var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+        var order = this.get('model.grid.labels_order') || 'rows';
+        var idx = (order === 'columns') ? (col * rows + row) : (row * cols + col);
+        var hasLabel = !!((this.get('positional_labels') || [])[idx]);
+        if(hasLabel) {
+          if(event.preventDefault) { event.preventDefault(); }
+          dt.dropEffect = 'copy';
+          if(event.currentTarget && event.currentTarget.classList) {
+            event.currentTarget.classList.add('md-board-detail-grid__cell--image-drop');
+          }
+        } else {
+          dt.dropEffect = 'none';
+        }
+        return;
+      }
+      // Internal tile reorder — accept on any cell (incl. blanks).
+      if(event && event.preventDefault) { event.preventDefault(); }
+      if(dt) { dt.dropEffect = 'move'; }
+    },
+    cellDragLeave: function(event) {
+      this._clearCellDropHighlight(event && event.currentTarget);
     },
     cellDrop: function(row, col, event) {
       if(event && event.preventDefault) { event.preventDefault(); }
       if(event && event.stopPropagation) { event.stopPropagation(); }
+      // External image dropped from the desktop or another tab → set THIS
+      // button's image in place (see _applyDroppedImageToLabel). Internal
+      // tile-reorder drags carry no image and fall through to the swap below.
+      var dt = event && event.dataTransfer;
+      if(dt && this._dragHasImage(dt)) {
+        this._clearCellDropHighlight(event && event.currentTarget);
+        this.set('_dragSourceIdx', null);
+        var rowsI = parseInt(this.get('model.grid.rows'), 10) || 0;
+        var colsI = parseInt(this.get('model.grid.columns'), 10) || 0;
+        var orderI = this.get('model.grid.labels_order') || 'rows';
+        var dropIdx = (orderI === 'columns') ? (col * rowsI + row) : (row * colsI + col);
+        var dropLabel = (this.get('positional_labels') || [])[dropIdx] || '';
+        if(dropLabel) { this._applyDroppedImageToLabel(dropLabel, dt); }
+        return;
+      }
       var sourceIdx = this.get('_dragSourceIdx');
       if(sourceIdx === null || sourceIdx === undefined) { return; }
       var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
@@ -1734,21 +2015,20 @@ export default Component.extend({
         this.set('model.grid.labels', newValue);
       }
     },
-    cellDragEnd: function() {
+    cellDragEnd: function(event) {
       this.set('_dragSourceIdx', null);
+      this._clearCellDropHighlight(event && event.currentTarget);
     },
+    // Inline-edit a cell's label. Now triggered by DOUBLE-click (the cell's
+    // `ondblclick`) — a single click speaks the button (see cellClicked). Paint
+    // mode still hijacks the cell: while painting, a single click already applied
+    // the color, so the double-click must NOT open inline edit (and must not
+    // re-toggle the paint). Editing is also always available via the label chips.
     startCellEdit: function(idx, event) {
       if(event && event.stopPropagation) { event.stopPropagation(); }
       var labels = this.get('parsed_labels') || [];
       if(idx >= labels.length || !labels[idx]) { return; }
-      // Paint mode hijacks the cell click: instead of opening the inline
-      // edit, apply the currently-armed paint color to this label. Mirrors
-      // the board-detail edit flow where clicks-while-painting paint
-      // instead of selecting/editing the button.
-      if(this.get('paint_mode')) {
-        this.send('paint_button', labels[idx]);
-        return;
-      }
+      if(this.get('paint_mode')) { return; }
       this.set('_editIdx', idx);
       this.set('_editValue', labels[idx]);
       var _this = this;
@@ -1796,33 +2076,174 @@ export default Component.extend({
       labels.splice(idx, 1);
       this.set('model.grid.labels', labels.join('\n'));
     },
-    /** Cell-wrapper click handler. Exists primarily so paint mode can
-     *  apply to the *whole card* (symbol image + padding + edges), not
-     *  just the label-text area covered by `__label-btn`. When paint
-     *  mode is off this is a no-op — clicks on the label-btn continue
-     *  to fire `startCellEdit` directly with `bubbles=false`, and clicks
-     *  on the X / warning icon don't bubble here either. So this only
-     *  catches the dead-zone clicks (image area, padding) that
-     *  previously did nothing. */
-    cellClicked: function(idx, event) {
-      if(!this.get('paint_mode')) { return; }
-      // Defer to the X (remove) button when the user clicked it or
-      // any of its descendants (e.g. the SVG inside). The X uses
-      // {{action "removeCellAt" ... bubbles=false}} which Ember
-      // dispatches via a root-delegated listener — that listener
-      // fires AFTER this bubble-phase onclick handler runs, so the
-      // X's bubbles=false alone can't suppress this handler. Calling
-      // event.stopPropagation() below would cancel the event before
-      // it reaches Ember's root and removeCellAt would never fire.
-      // Opt out explicitly so the X still removes the label while
-      // paint mode is armed.
+    /** Cell click handler for the WHOLE card (symbol image + padding + edges +
+     *  the label-text button, which forwards here). A single click:
+     *    - paint mode ON  → applies the armed color to this button;
+     *    - paint mode OFF → speaks the button and appends it to the preview
+     *      speak bar, exactly like board-detail speak mode.
+     *  Clicks on the X (remove) are ignored here, and a drag never fires `click`
+     *  (native HTML5 drag suppresses it), so dragging a button doesn't speak. */
+    cellClicked: function(idx, image_url, event) {
+      // Defer to the X (remove) button when the user clicked it or any of its
+      // descendants (e.g. the SVG inside). The X uses {{action "removeCellAt" ...
+      // bubbles=false}}, which Ember dispatches via a root-delegated listener that
+      // fires AFTER this bubble-phase onclick — so bubbles=false alone can't
+      // suppress this handler, and calling stopPropagation() here would cancel the
+      // event before it reaches Ember's root (removeCellAt would never fire). Opt
+      // out explicitly instead.
       if(event && event.target && event.target.closest && event.target.closest('.md-board-detail-symbol-card__remove')) {
         return;
       }
+      // The 2nd click of a double-click opens inline edit (ondblclick →
+      // startCellEdit); don't also speak/paint on it. event.detail is the
+      // consecutive-click count (1 = single, ≥2 = part of a double-click).
+      if(event && event.detail > 1) { return; }
       var labels = this.get('parsed_labels') || [];
       if(idx < 0 || idx >= labels.length || !labels[idx]) { return; }
-      if(event && event.stopPropagation) { event.stopPropagation(); }
-      this.send('paint_button', labels[idx]);
+      if(this.get('paint_mode')) {
+        if(event && event.stopPropagation) { event.stopPropagation(); }
+        // SECURITY (adversarial-review false positive — "unsanitized image URLs in paint
+        // mode"): paint passes only the LABEL object to paint_button; image_url is never
+        // used in the paint path. (And where image_url IS used — the speak-bar chip — it
+        // renders via an Ember-escaped, sanitized `<img src>`; see speak_word.)
+        this.send('paint_button', labels[idx]);
+        return;
+      }
+      // `image_url` is the cell's resolved (skinned) symbol URL, passed from the
+      // template so the speak-bar chip shows the SAME symbol as the button — just
+      // like board-detail speak mode's sentence box (it falls back to text-only
+      // when there's no symbol or the user chose words-only).
+      this.send('speak_word', labels[idx], image_url);
+    },
+    // ── Preview speak bar (mirrors board-detail speak mode) ──────────────
+    // Tapping a grid button appends a { label, image_url } chip to `_speak_words`
+    // and speaks it; the speak bar's Speak / Backspace / Clear act on the list.
+    speak_word: function(label, image_url) {
+      if(!label) { return; }
+      var _this = this;
+      // SECURITY (adversarial-review false positive — "XSS via image_url in speak_word"):
+      // image_url is NOT interpolated into markup here. It's stored on a plain object and
+      // the chip renders it via an Ember-escaped, URL-sanitized bound attribute —
+      // `<img src={{word.image_url}}>` (create-board-new.hbs ~l.537). Ember HTML-escapes
+      // attribute values, so a crafted URL can't break out to inject `onerror=`/`onload=`,
+      // and a `javascript:`/`data:` value in an <img src> is inert (browsers never execute
+      // script from an image's src). So there is no script-injection path. (image_url is
+      // also a resolved symbol URL from the search/board pipeline, not raw free text.)
+      var entry = { label: label, image_url: image_url || null };
+      var words = (this.get('_speak_words') || []).slice();
+      words.push(entry);
+      this.set('_speak_words', words);
+      try { speecher.speak_text(label); } catch(e) { /* speech is best-effort */ }
+      // Don't let the bar bleed into the action buttons or scroll: once the
+      // newly-added chip pushes the content past the bar's width (or wraps to a
+      // second line), reset the bar to just this latest word so the user keeps
+      // building from a clean line. Measured AFTER the chip renders.
+      scheduleOnce('afterRender', this, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        // This component is tagless (tagName ''), so there's no `this.element` to
+        // scope the lookup to — and `.md-board-detail-sentence-bar__text` is also
+        // used by board-detail's own speak bar. Anchor the query to the
+        // create-board-only preview row (`.nb-preview-sentence-row`) so a
+        // board-detail sentence bar elsewhere in the DOM can never be measured.
+        //
+        // Adversarial-review false positive ("global query bleeds across routes" /
+        // "overlapping renders / modal-within-modal could measure the second element"):
+        // `.nb-preview-sentence-row` exists ONLY in this template (create-board-new.hbs)
+        // and create-board-new is a single route-level page/modal — there is never a
+        // second instance, and board-detail's speak bar does NOT have this ancestor, so
+        // the anchored descendant query cannot match it. There is no FastBoot/SSR in this
+        // app (Ember SPA), so no nested-outlet double-render either. The product UX never
+        // stacks a second create-board-new (you don't open the create-board modal while
+        // already on the /create-board-new page), so there is never a 2nd
+        // `.nb-preview-sentence-row` for querySelector to pick the wrong one of. And even
+        // in that hypothetical, the worst case is benign: it resets THIS throwaway
+        // create-board PREVIEW bar, never a real Speak-Mode utterance.
+        var el = document.querySelector('.nb-preview-sentence-row .md-board-detail-sentence-bar__text');
+        if(!el) { return; }
+        if(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) {
+          _this.set('_speak_words', [entry]);
+        }
+      });
+    },
+    speak_sentence: function() {
+      var words = this.get('_speak_words') || [];
+      if(!words.length) { return; }
+      var text = words.map(function(w) { return w.label; }).join(' ');
+      try { speecher.speak_text(text); } catch(e) { /* best-effort */ }
+    },
+    speak_backspace: function() {
+      var words = (this.get('_speak_words') || []).slice();
+      if(!words.length) { return; }
+      words.pop();
+      this.set('_speak_words', words);
+    },
+    speak_clear: function() {
+      this.set('_speak_words', []);
+    },
+    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for
+    // the rest of THIS visit (accessibility escape for mounted / non-rotatable
+    // setups). State lives on the component, so it resets on a later visit, where
+    // the device orientation may well differ. Adds nb-orientation-overlay--dismissed,
+    // which beats the media query.
+    //
+    // Adversarial-review note ("a11y: SR users trapped if they can't rotate"): not a
+    // trap — this is a real, keyboard/SR-reachable <button> that fully removes the
+    // overlay, and it is present on EVERY visit, so a non-rotatable user is never stuck.
+    // Re-showing on a later visit (vs. persisting the dismissal) is intentional: the
+    // orientation may differ next time; the escape is always one button away. (Persisting
+    // the dismissal to a preference is a possible future nicety, not an a11y blocker.)
+    dismiss_orientation_overlay: function() {
+      this.set('orientation_overlay_dismissed', true);
+    },
+    // ── Create-method chooser actions ──────────────────────────────────
+    // "Create My Own Board" → the regular create-board form (dismiss the chooser;
+    // ensure we're not in AI mode).
+    choose_create_own: function() {
+      this.send('set_create_mode', 'regular');
+      this.set('via_create_own', true);
+      this.set('show_create_chooser', false);
+    },
+    // "Import Board(s)" → open the native board-file picker (#board_upload is
+    // always rendered behind the chooser; content-grabbers.js handles the upload
+    // on change). Clicked synchronously so it stays inside the user gesture.
+    choose_paste_html: function() {
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+      this.send('importFromHtml');
+    },
+    choose_json_bundle: function() {
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+      this.send('importFromJsonBundle');
+    },
+    choose_import: function() {
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+      // Adversarial-review false positive ("#board_upload may not be rendered yet"): the
+      // hidden <input id="board_upload"> (create-board-new.hbs ~l.125) renders whenever
+      // `standalone && !ai_mode`, and the chooser's Import option is ONLY reachable in
+      // !ai_mode (choosing "Generate with AI" sets ai_mode AND closes the chooser;
+      // reopening via "Other Methods" runs set_create_mode('regular') -> ai_mode false).
+      // So the input is always present in the DOM (behind the chooser overlay) at this
+      // point. The `if(el)` guard then makes a missing element a safe no-op rather than a
+      // crash. The click MUST stay synchronous in this user-gesture handler — deferring to
+      // afterRender would put it outside the gesture and browsers would block the file
+      // dialog — so we intentionally do not poll/retry.
+      var el = document.getElementById('board_upload');
+      if(el) { el.click(); }
+    },
+    // "Generate with AI" → the in-page AI generation flow.
+    choose_ai: function() {
+      this.send('set_create_mode', 'ai');
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', false);
+    },
+    // "Other Create Board Methods" (regular form) → reopen the chooser so the
+    // user can switch to Import / Generate with AI.
+    open_create_chooser: function() {
+      this.send('set_create_mode', 'regular');
+      this.set('via_create_own', false);
+      this.set('show_create_chooser', true);
     },
     cellEditKeydown: function(event) {
       var key = event.key;
@@ -1862,7 +2283,7 @@ export default Component.extend({
         this.set('show_paint_color_picker', false);
       }
     },
-    set_paint_mode: function(fill, border, part_of_speech) {
+    set_paint_mode: function(fill, border, part_of_speech, label) {
       this.set('show_paint_dropdown', false);
       this.set('show_paint_color_picker', false);
       if(!fill) { return; }
@@ -1872,7 +2293,11 @@ export default Component.extend({
       this.set('paint_mode', {
         fill: fill_tc ? fill_tc.toRgbString() : fill,
         border: border_tc ? border_tc.toRgbString() : (border || fill),
-        part_of_speech: part_of_speech
+        part_of_speech: part_of_speech,
+        // Human-readable name of the picked color (the swatch's POS label, e.g.
+        // "Pronoun"/"Verb", or "Custom" for a hand-picked hex) — surfaced above
+        // the palette swatch so the user can see which preset they selected.
+        label: label || null
       });
     },
     clear_paint_mode: function() {
@@ -1909,7 +2334,12 @@ export default Component.extend({
     apply_custom_paint_color: function() {
       var color = (this.get('custom_paint_color') || '').trim();
       if(!color) { return; }
-      this.send('set_paint_mode', color, null, null);
+      // Defense-in-depth: the swatch comes from <input type="color"> (browser-
+      // enforced hex), but the paired hex text field is hand-editable — only
+      // apply a value the browser parses as a bare CSS color so it can't smuggle
+      // extra declarations into a painted button's inline style.
+      if(window.CSS && window.CSS.supports && !window.CSS.supports('color', color)) { return; }
+      this.send('set_paint_mode', color, null, null, i18n.t('paint_color_custom', "Custom"));
     },
 
     previewDragOver: function(event) {
@@ -1934,17 +2364,50 @@ export default Component.extend({
       this.toggleProperty('icon_picker_open');
     },
     togglePreviewMode: function() {
-      this.set('preview_mode', this.get('preview_mode') === 'dark' ? 'light' : 'dark');
+      var next = this.get('preview_mode') === 'dark' ? 'light' : 'dark';
+      this.set('preview_mode', next);
+      // Remember the choice on the user (single `board_dark_mode` preference, shared
+      // with board-detail). Skip the save when the stored value already matches —
+      // avoids redundant writes and the last-write-wins race on rapid toggles. Same
+      // `device.updated` dirty-flag trick the board-detail save uses (Ember Data
+      // under-marks the raw prefs blob). (Cross-tab last-write-wins still possible —
+      // inherent/low, accepted; see board-detail `_persist_board_dark_mode`.)
+      var nextDark = next === 'dark';
+      var user = this.appState.get('currentUser');
+      if(user && user.set && !!user.get('preferences.board_dark_mode') !== nextDark) {
+        user.set('preferences.board_dark_mode', nextDark);
+        user.set('preferences.device.updated', true);
+        if(user.save) { user.save().then(null, function() {}); }
+      }
     },
     // Edit-rail accordion: clicking a section opens it (and closes any
     // other). Clicking the open one closes it. Drives the grid's
     // max-height expansion via the .nb-preview-stage--expanded class.
     toggle_create_rail_section: function(id) {
+      // The Paint section header doubles as the paint-mode indicator + toggle:
+      // once a color is armed its icon shows the active state (see the
+      // --paint-armed class in the template), and clicking the header again turns
+      // paint mode OFF and collapses the section — dimming the icon back to
+      // neutral. Mirrors the dual-purpose in-section palette button
+      // (toggle_paint_dropdown). When paint mode is NOT armed, the header just
+      // expands/collapses like every other section.
+      if(id === 'paint' && this.get('paint_mode')) {
+        this.send('clear_paint_mode');
+        this.set('show_paint_dropdown', false);
+        this.set('create_rail_open_section', null);
+        return;
+      }
       if(this.get('create_rail_open_section') === id) {
         this.set('create_rail_open_section', null);
       } else {
         this.set('create_rail_open_section', id);
       }
+    },
+    // "Back" affordance for the narrow (<=1024px) rail: collapses whatever
+    // section is open and returns to the full section list. Unlike the
+    // toggle above it never touches paint mode — it's purely navigational.
+    close_create_rail_section: function() {
+      this.set('create_rail_open_section', null);
     },
     toggleLabelsList: function() {
       this.toggleProperty('labels_list_open');
@@ -1970,6 +2433,17 @@ export default Component.extend({
       this.set('core_words', null);
       this.set('_editIdx', null);
       this.set('_editValue', '');
+      // On an AI-generation board, clearing the grid resets back to the generate
+      // step: dropping ai_labels_generated collapses the labels section (the
+      // full-size "Size & Labels" editor is gated on show_full_size_section =
+      // !ai_mode || ai_labels_generated) and re-reveals the AI description +
+      // Generate UI, so the user can re-generate from their description. Also
+      // collapse any open labels list and clear a stale generate error.
+      if(this.get('ai_mode')) {
+        this.set('ai_labels_generated', false);
+        this.set('labels_list_open', false);
+        this.set('ai_generate_error', null);
+      }
     },
     importCsv: function() {
       var input = document.getElementById('new_board_csv_input');

@@ -31,6 +31,8 @@ gem 'matrix'
 
 # CVE-2026-54904/54905/54906; bundler-audit minimum
 gem 'concurrent-ruby', '>= 1.3.7'
+# CVE-2026-54463/54464/54465, GHSA-2x63-gw47-w4mm; bundler-audit minimum (transitive via actioncable)
+gem 'websocket-driver', '>= 0.8.2'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
@@ -44,6 +46,8 @@ gem 'json', '>= 2.19.2'
 gem 'oj', '>= 3.17.3'
 # GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
 gem 'loofah', '>= 2.25.1'
+# GHSA-6jxj-px6v-747w et al.; bundler-audit minimum (transitive via loofah, rails-dom-testing)
+gem 'crass', '>= 1.0.7'
 # ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
 gem 'erb', '>= 6.0.4'
 gem 'pg', '~> 1.5'
@@ -83,7 +87,7 @@ gem 'go_secure'
 gem 'permissable-coughdrop' # TODO: Republish as permissable-lingolinq
 gem 'boy_band'
 gem 'ttfunk', '1.7'
-gem 'ruby-saml'
+gem 'ruby-saml', '>= 1.18.0' # CVE-2025-25291/25292 SAML auth-bypass floor; lockfile already resolves 1.18.1 (LL-6f1977944f)
 gem 'rotp'
 gem 'googleauth', '~> 1.11'
 # CVE-2026-54297; bundler-audit minimum (transitive via googleauth, stripe, etc.)

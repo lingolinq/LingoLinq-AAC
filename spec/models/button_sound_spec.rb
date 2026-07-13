@@ -303,7 +303,7 @@ describe ButtonSound, :type => :model do
       end
     end
     it "should import sounds" do
-      allow_any_instance_of(ButtonSound).to receive(:upload_to_remote).with('data_uri').and_return(true)
+      allow_any_instance_of(ButtonSound).to receive(:upload_to_remote).with(Uploadable::UPLOAD_FROM_STORED_DATA_URI).and_return(true)
       expect(Uploader).to receive(:remote_zip).with('http://www.example.com/import.zip').and_yield(TestZipper.new)
       u = User.create
       res = ButtonSound.import_for(u.global_id, 'http://www.example.com/import.zip')
@@ -330,7 +330,7 @@ describe ButtonSound, :type => :model do
     end
     
     it "should work even without MessageBank.json" do
-      allow_any_instance_of(ButtonSound).to receive(:upload_to_remote).with('data_uri').and_return(true)
+      allow_any_instance_of(ButtonSound).to receive(:upload_to_remote).with(Uploadable::UPLOAD_FROM_STORED_DATA_URI).and_return(true)
       zipper = TestZipper.new
       zipper.instance_variable_set('@no_json', true)
       expect(Uploader).to receive(:remote_zip).with('http://www.example.com/import.zip').and_yield(zipper)

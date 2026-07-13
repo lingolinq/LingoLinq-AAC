@@ -389,6 +389,57 @@ describe Api::IntegrationsController, :type => :controller do
       expect(focus_set.generated_count).to eq(1)
     end
 
+    it 'exposes the Article 50(2) marker public view when the generator marks the output' do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      expect(AiBoardGenerator).to receive(:generate_focus_words).and_return(
+        { words: %w[go stop more help read], title: 'Grinch Words', ai_generated: marker, error: nil }
+      )
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['ai_generated']['marked']).to eq(true)
+      expect(json['ai_generated']['provider']).to eq('claude')
+      # Non-secret provenance view: signature + content_id are withheld from the API.
+      expect(json['ai_generated']).not_to have_key('signature')
+      expect(json['ai_generated']).not_to have_key('content_id')
+      # Persisted on the set and verifies server-side.
+      focus_set = AiFocusWordSet.find_by_global_id(json['library_id'])
+      expect(Art50Marker.verify(focus_set.ai_generated_marker)).to eq(true)
+    end
+
+    it 'exposes the stored marker on a cache hit without re-generating' do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      focus_set = AiFocusWordSet.create!(
+        scrubbed_prompt: 'grinch lesson', locale: 'en', include_core_words: true,
+        title: 'Grinch Words', words: %w[go stop more help read]
+      )
+      focus_set.ai_generated_marker = marker
+      focus_set.save!
+      expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['cached']).to eq(true)
+      expect(json['ai_generated']['marked']).to eq(true)
+    end
+
+    it 'returns a nil marker for an unmarked (e.g. curated) library hit' do
+      token_user
+      AiFocusWordSet.create!(
+        scrubbed_prompt: 'grinch lesson', locale: 'en', include_core_words: true,
+        title: 'Grinch Words', words: %w[go stop more help read]
+      )
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['ai_generated']).to be_nil
+    end
+
     it 'should return generator errors using the endpoint error shape' do
       token_user
       expect(AiBoardGenerator).to receive(:generate_focus_words).and_return({ words: nil, error: 'AI service unavailable' })
@@ -431,6 +482,67 @@ describe Api::IntegrationsController, :type => :controller do
       expect(json['accepted']).to eq(true)
       expect(focus_set.reload.applied_words).to eq(%w[go stop read])
       expect(focus_set.applied_count).to eq(1)
+    end
+  end
+
+  describe "domain_settings coppa_consent_age injection" do
+    it "does not inject coppa_consent_age when the flag is OFF (identical to today)" do
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']).not_to have_key('coppa_consent_age')
+    end
+
+    it "injects 16 for an EU (Poland) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']['coppa_consent_age']).to eq(16)
+    end
+
+    it "injects 13 for a non-EU (US) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'en-US,en;q=0.9'
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']['coppa_consent_age']).to eq(13)
+    end
+
+    it "does not mutate the cached per-host domain blob" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'pl-PL'
+      get 'domain_settings'
+      expect(JsonApi::Json.current_domain['settings']).not_to have_key('coppa_consent_age')
+    end
+  end
+
+  # The layout (app/views/layouts/application.html.erb) injects window.domain_settings
+  # via exactly these helpers; test them directly so the primary (server-render)
+  # delivery path is covered, not only the JSON endpoint.
+  describe "#coppa_consent_age_injection (layout data source)" do
+    before(:each) { controller.instance_variable_set(:@domain_overrides, { 'settings' => {} }) }
+
+    it "is empty when the flag is OFF (layout injection is a no-op)" do
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      expect(controller.send(:coppa_consent_age_injection)).to eq({})
+    end
+
+    it "returns 16 for an EU (Poland) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      expect(controller.send(:coppa_consent_age_injection)).to eq({ 'coppa_consent_age' => 16 })
+    end
+
+    it "returns 13 for a non-EU (US) request when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['eu_consent_age'])
+      request.headers['Accept-Language'] = 'en-US,en;q=0.9'
+      expect(controller.send(:coppa_consent_age_injection)).to eq({ 'coppa_consent_age' => 13 })
+    end
+
+    it "uses the Accept-Language header as the jurisdiction signal (no org/domain signal wired)" do
+      request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
+      expect(controller.send(:jurisdiction_signal_for_request)).to eq('pl-PL,pl;q=0.9')
     end
   end
 end

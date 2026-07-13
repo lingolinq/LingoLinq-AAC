@@ -1,5 +1,6 @@
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { A as emberArray } from '@ember/array';
 import { later as runLater, schedule as runSchedule } from '@ember/runloop';
 import $ from 'jquery';
 import RSVP from 'rsvp';
@@ -27,7 +28,7 @@ export function fastHtmlHasRenderableContent(fast) {
 var editManager = EmberObject.extend({
   _services: {},
   get appState() {
-    return (this._services && this._services.appState) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    return (this._services && (this._services.appState || this._services.app_state)) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
   },
   set appState(val) {
     this._services = this._services || {};
@@ -443,7 +444,7 @@ var editManager = EmberObject.extend({
       // TO BE verb overrides
       var overrides = [];
       if(rules.fallback_list) {
-        overrides.push({lookback: [{words: ["i"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["i"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "am"};
           inflections["are"] = {type:'override', label: "am"};
           inflections["does"] = {type:'override', label: "do"};
@@ -452,10 +453,10 @@ var editManager = EmberObject.extend({
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "am not"};
         }});
-        overrides.push({lookback: [{words: ["feel", "feels", "felt", "feeling"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{type: 'pronoun'}, {type: 'adverb', optional: true}, {words: ["feel", "feels", "felt", "feeling"]}], callback: function(inflections) {
           inflections["like"] = {type:'override', label: "like"};
         }});
-        overrides.push({lookback: [{words: ["you", "we", "they"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["you", "we", "they"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "are"};
           inflections["am"] = {type:'override', label: "are"};
           inflections["was"] = {type:'override', label: "were"};
@@ -464,39 +465,40 @@ var editManager = EmberObject.extend({
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "aren't"};
         }});
-        overrides.push({lookback: [{words: ["those", "these"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["those", "these"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "are"};
           inflections["am"] = {type:'override', label: "are"};
           inflections["was"] = {type:'override', label: "were"};
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "aren't"};
         }});
-        overrides.push({lookback: [{words: ["he", "she"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["he", "she"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "is"};
           inflections["is"] = {type:'override', label: "is"};
           inflections["were"] = {type:'override', label: "was"};
           inflections["no"] = {type:'override', label: "doesn't"};
           inflections["not"] = {type:'override', label: "isn't"};
+          inflections["done"] = {type:'override', label: "does"};
         }});
-        overrides.push({lookback: [{words: ["can", "will", "could", "should", "would", "may", "might", "must", "shall"]}, {words: ["it", "that", "this", "he", "she", "they", "i", "we"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["can", "will", "could", "should", "would", "may", "might", "must", "shall"]}, {words: ["it", "that", "this", "he", "she", "they", "i", "we"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "be"};
           inflections["is"] = {type:'override', label: "be"};
         }});
-        overrides.push({lookback: [{words: ["it", "that", "this"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["it", "that", "this"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "is"};
           inflections["is"] = {type:'override', label: "is"};
           inflections["were"] = {type:'override', label: "was"};
           inflections["no"] = {type:'override', label: "doesn't"};
           inflections["not"] = {type:'override', label: "isn't"};
         }});
-        overrides.push({lookback: [{words: ["what"]}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["what"]}], callback: function(inflections) {
           inflections["happen"] = {type:'override', label: "happened"};
         }});
-        overrides.push({lookback: [{words: ["will", "won't", "can", "can't", "do", "don't"]}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["will", "won't", "can", "can't", "do", "don't"]}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "be"};
           inflections["is"] = {type:'override', label: "be"};
         }});
-        overrides.push({lookback: [{words: ["is", "are", "am", "be"]}, {words: ["she", "he", "i", "they", "we"], optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["is", "are", "am", "be"]}, {words: ["she", "he", "i", "they", "we", "you"], optional: true}], callback: function(inflections) {
           inflections["I"] = {type:'override', label: "my"};
           inflections["done"] = {type:'override', label: "done"};
         }});
@@ -1183,7 +1185,7 @@ var editManager = EmberObject.extend({
     } else if(details && this.lastChange && details.mode == 'paint' && details.paint_id == this.lastChange.paint_id) {
       // don't add to state if it's the same paint as the previous edit.
     } else {
-      this.get('history').pushObject(this.clone_state());
+      this.set('history', (this.get('history') || []).concat([this.clone_state()]));
     }
     this.lastChange = details;
   },
@@ -1215,9 +1217,12 @@ var editManager = EmberObject.extend({
         // Ensure pending_image and pending_sound are false so the pending computed property works correctly
         raw.pending_image = false;
         raw.pending_sound = false;
+        // board-detail speak grid adds this plain bool; Button defines it as a
+        // computed — passing it into create clobbers the computed (Ember 3.28+).
+        delete raw.display_as_hidden;
         var b = editManager.Button.create(raw, {board: board});
         if(b.get('board') != board || (b.get('pending_image') || b.get('pending_sound'))) { alert('blech!'); }
-        b.set('id', oldState[idx][jdx].get('id'));
+        b.set('id', (btn.get && typeof btn.get === 'function') ? btn.get('id') : btn.id);
         // Explicitly preserve empty/image_url — Button.create may not retain them from raw
         if(raw.empty) { b.set('empty', true); }
         if(raw.image_url) { b.set('image_url', raw.image_url); }
@@ -1229,20 +1234,24 @@ var editManager = EmberObject.extend({
   },
   undo: function() {
     if(!this.controller) { return; }
-    var lastState = this.get('history').popObject();
+    var history = (this.get('history') || []).slice();
+    var lastState = history.pop();
     if(lastState) {
+      this.set('history', history);
       var currentState = this.clone_state();
-      this.get('future').pushObject(currentState);
+      this.set('future', (this.get('future') || []).concat([currentState]));
       this.controller.set('ordered_buttons', lastState);
       this.update_color_key_id();
     }
   },
   redo: function() {
     if(!this.controller) { return; }
-    var state = this.get('future').popObject();
+    var future = (this.get('future') || []).slice();
+    var state = future.pop();
     if(state) {
+      this.set('future', future);
       var currentState = this.clone_state();
-      this.get('history').pushObject(currentState);
+      this.set('history', (this.get('history') || []).concat([currentState]));
       this.controller.set('ordered_buttons', state);
       this.update_color_key_id();
     }
@@ -1379,7 +1388,6 @@ var editManager = EmberObject.extend({
     opts.image_url = null;
     opts.local_image_url = null;
     opts.local_sound_url = null;
-    opts.image_style = null;
     this.change_button(id, opts);
   },
   change_button: function(id, options) {
@@ -1497,7 +1505,7 @@ var editManager = EmberObject.extend({
       button.stashed_at = (new Date()).getTime();
     }
     if(button && list[list.length - 1] != button) {
-      list.pushObject(button);
+      list.push(button);
     }
     editManager.get_stashes().persist('stashed_buttons', list);
   },
@@ -1610,7 +1618,7 @@ var editManager = EmberObject.extend({
     });
 
     return update_buttons.then(function(board) {
-      this.update_color_key_id();
+      _this.update_color_key_id();
       return RSVP.resolve({visible: board.button_visible(new_id), button: button});
     });
   },
@@ -1849,6 +1857,13 @@ var editManager = EmberObject.extend({
     if(!controller) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no controller)'); } return; }
     var appState = this.appState || (typeof window !== 'undefined' && window.appState) || (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState);
     if(!appState || (typeof appState.get !== 'function')) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no appState)'); } return; }
+    // Ember 5 throws a hard assertion when a computed (edit_mode/speak_mode below)
+    // is read on a destroyed object. A leaked post-teardown callback (e.g. the
+    // app-state on_user_change observer or a scheduled runloop task) can reach
+    // here after the app-state service is torn down; the throw then re-enters the
+    // window.onerror chain and wedges the test runner. Nothing is displayable on a
+    // destroyed app-state anyway, so bail. (3.28 returned undefined here silently.)
+    if(appState.isDestroyed || appState.isDestroying) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (destroyed appState)'); } return; }
     var stashes = this.stashes;
     if(appState.get('edit_mode') && controller.get('ordered_buttons')) {
       LingoLinq.log.track('will not redraw while in edit mode');
@@ -1866,6 +1881,19 @@ var editManager = EmberObject.extend({
         controller._apply_focus_dim_to_ordered_buttons();
       }
     };
+    var is_board_detail = !!(controller.get && controller.get('is_board_detail'));
+    // Board-detail builds its own plain-object grid in speak mode (_build_from_raw /
+    // boardDetailCache). The classic path below recreates every cell as Button.create
+    // on each utterance update — redundant load_image work and console noise with no
+    // visible change. Edit mode still uses board-detail's Ember-button grid rebuild.
+    if(appState.get('speak_mode') && is_board_detail && !appState.get('edit_mode')) {
+      if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (board-detail speak mode)'); }
+      applyBoardDetailFocusDim();
+      if(typeof appState.refresh_suggestions === 'function') {
+        appState.refresh_suggestions();
+      }
+      return;
+    }
     var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
     board.set('display_level', board_level);
     if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying getting contextualized_buttons'); }
@@ -1928,7 +1956,6 @@ var editManager = EmberObject.extend({
 
     var p = this.persistence || (typeof window !== 'undefined' && window.persistence);
     var need_everything_local = appState.get('speak_mode') || !p || typeof p.get !== 'function' || !p.get('online');
-    var is_board_detail = !!(controller.get && controller.get('is_board_detail'));
     if(appState.get('speak_mode') && !is_board_detail) {
       if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') }); }
       controller.update_button_symbol_class();
@@ -2043,7 +2070,14 @@ var editManager = EmberObject.extend({
       }
       if(!allButtonsReady) {
         LingoLinq.log.track('need to wait for buttons');
-        board.set('pending_buttons', pending_buttons);
+        // Ember 5 (EXTEND_PROTOTYPES:false): a native array is NOT observable, so
+        // board.set_all_ready's `pending_buttons.[]` / `.@each.content_status`
+        // observer would never fire → all_ready stays false → ordered_buttons stays
+        // null → "Grid not defined". Wrap in A() so the array stays observable and
+        // all_ready flips once the button images finish loading. (Regular boards
+        // usually skip this path with cached images; the eval's symbol-library
+        // images always hit it, which is why the eval broke on the 5.12 upgrade.)
+        board.set('pending_buttons', emberArray(pending_buttons));
         board.addObserver('all_ready', function() {
           if(!controller.get('ordered_buttons')) {
             if(controller.get('model.id') == result.board_id) {
@@ -2751,7 +2785,10 @@ editManager.get_stashes = function() {
 
 // Service registration method
 editManager.register_services = function(appStateService, persistenceService, stashesService) {
-  if(appStateService) { editManager._services.app_state = appStateService; }
+  if(appStateService) {
+    editManager._services.app_state = appStateService;
+    editManager._services.appState = appStateService;
+  }
   if(persistenceService) { editManager._services.persistence = persistenceService; }
   if(stashesService) { editManager._services.stashes = stashesService; }
 };

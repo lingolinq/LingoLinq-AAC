@@ -9,11 +9,58 @@ import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 
+// No-progress stall watchdog window (ms). This is NOT a total-load deadline — it's the
+// maximum GAP with zero image progress before the preview gives up and lifts the loading
+// overlay (every settled image re-arms it; see arm_stall_watchdog). It only ever fires on
+// a true wedge (a CDN/network hang where neither onload nor onerror arrives), so a
+// slow-but-steady load on 3G / hospital WiFi keeps the overlay up and is NOT cut off at
+// this value. Named at module scope (not buried in the render closure) so it can be tuned
+// in one place.
+const STALL_MS = 12000;
+
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   didInsertElement: function() {
     this.render_canvas();
+  },
+  /* Size the modal canvas by the board's column:row ASPECT RATIO (square cells)
+     rather than a fixed pixel height, so it scales UNIFORMLY when the available
+     width changes — e.g. a modal scrollbar appearing on smaller screens. A fixed
+     px height let the already-drawn square bitmap stretch into portrait cells when
+     the width then shrank. width:100% + aspect-ratio keeps the dark canvas hugging
+     the board AND keeps the cells square at every width. Capped at the column
+     height (minus the actions row) so a tall board still fits — then it's
+     height-limited and the draw loop centers it horizontally. */
+  _apply_modal_canvas_sizing: function() {
+    var el = this.element;
+    if(!el) { return; }
+    el.style.flex = '0 0 auto';
+    el.style.minHeight = '0';
+    el.style.width = '100%';
+    var board = this.get('board');
+    var cols = board && board.get && board.get('grid.columns');
+    var rows = board && board.get && board.get('grid.rows');
+    if(cols && rows) {
+      el.style.aspectRatio = cols + ' / ' + rows;
+      el.style.height = 'auto';
+    } else {
+      el.style.aspectRatio = '';
+      el.style.height = '';
+    }
+    var max_h = this._modal_canvas_max_height();
+    el.style.maxHeight = max_h ? (max_h + 'px') : '';
+  },
+  // Height cap for a tall board = the column height minus a FIXED band for the
+  // actions row (~48px) + a breathing gap. We deliberately do NOT measure the
+  // actions element: it's a sibling rendered right after this canvas, so at
+  // didInsertElement time it often isn't laid out yet and reports 0.
+  _modal_canvas_max_height: function() {
+    var el = this.element;
+    var col = el && el.parentNode;
+    if(!col || !col.getBoundingClientRect) { return null; }
+    var max_h = col.getBoundingClientRect().height - 96;
+    return max_h > 0 ? max_h : null;
   },
   preview_style: computed('size', 'dark_mode', function() {
     /* In dark_mode, the canvas wrapper gets a deep-navy fill + matching
@@ -21,7 +68,10 @@ export default Component.extend({
        modal. Light mode keeps the original light-gray frame. */
     var dark = this.get('dark_mode');
     if(this.get('size') == 'modal') {
-      this.element.style.height = 'calc(70vh - 140px)';
+      // Aspect-ratio sizing keeps the cells square at any width (see
+      // _apply_modal_canvas_sizing); the actions row is pinned below it
+      // (margin-top:auto in CSS).
+      this._apply_modal_canvas_sizing();
       if(dark) {
         return htmlSafe('width: 100%; height: 100%; border: 1px solid rgba(255,255,255,0.10); padding: 2px; border-radius: 8px; background: #0d2438;');
       }
@@ -33,13 +83,20 @@ export default Component.extend({
   }),
   render_canvas: function() {
     if(this.get('size') == 'modal') {
-      this.element.style.height = 'calc(70vh - 140px)';
+      // Aspect-ratio sizing keeps the cells square at any width and lets the canvas
+      // scale uniformly when the width changes (see _apply_modal_canvas_sizing).
+      this._apply_modal_canvas_sizing();
     } else if(this.get('show_links')) {
       this.element.style.height = 'calc(100% - 70px)';
     } else {
       this.element.style.height = 'calc(100% - 55px)';
     }
     var _this = this; // Capture _this for closure access
+    /* Drop any prior render's stall watchdog before starting a fresh render —
+       the observer can re-render (debounced) when board.id/image_urls/locale
+       settle, and a stale watchdog from the previous closure must not fire
+       onCanvasReady against this render. */
+    if (_this._previewStallTimer) { runCancel(_this._previewStallTimer); _this._previewStallTimer = null; }
     var persistence = _this.persistence;
     var board = this.get('board');
     var level = this.get('current_level') || this.get('base_level') || 10;
@@ -54,31 +111,91 @@ export default Component.extend({
     var pending = 0;
     var loop_done = false;
     var emitted = false;
+    /* Image-load progress surfaced to the loading overlay via onCanvasProgress
+       so the spinner can show "N / total" instead of an opaque wait — important
+       on slow/old devices where the (correct) wait-for-all-images behavior can
+       otherwise look like a hang. total_images counts cells that start an image
+       load; loaded_images counts the ones that have settled (onload OR onerror). */
+    var total_images = 0;
+    var loaded_images = 0;
     /* Set inside the main draw block (closure over context + palette).
        Called by maybe_emit_canvas_ready as the FINAL drawing operation,
        AFTER all per-cell drawImage calls have settled, so nothing can
        overdraw the badge. Null when the canvas didn't draw (e.g.
        board.id missing). */
     var draw_badge_if_offline = null;
-    var maybe_emit_canvas_ready = function() {
+    var stall_timer = null;
+    /* Fire onCanvasReady exactly once, painting the offline badge LAST so no
+       late-loading cell image can overdraw it (only when persistence reports
+       offline at this exact moment — the badge captures "was offline when the
+       preview finished loading"). Shared by the normal "all images settled"
+       path and the stall watchdog, and always clears the watchdog so it can't
+       fire after we've already emitted. */
+    var do_emit = function() {
       if(emitted) { return; }
-      if(!loop_done) { return; }
-      if(pending > 0) { return; }
-      // Paint the offline badge LAST so no late-loading cell image can
-      // overdraw it. Only when persistence reports offline at this
-      // exact moment — the badge captures "was offline when the
-      // preview finished loading," which is the right semantic for a
-      // one-shot canvas render.
       if(draw_badge_if_offline && persistence && persistence.get('online') === false) {
         draw_badge_if_offline();
       }
+      if(stall_timer) { runCancel(stall_timer); stall_timer = null; _this._previewStallTimer = null; }
       emitted = true;
       var cb = _this.get('onCanvasReady');
       if(cb && typeof cb === 'function') { cb(); }
     };
+    var maybe_emit_canvas_ready = function() {
+      if(emitted) { return; }
+      if(!loop_done) { return; }
+      if(pending > 0) { return; }
+      do_emit();
+    };
+    /* No-progress stall watchdog. The loading overlay (board-preview-overlay)
+       stays up until the canvas reports onCanvasReady, so we must NOT report
+       ready while images are still legitimately loading — on a slow/old device
+       that would lift the overlay onto a half-drawn board. Instead of a fixed
+       deadline from render start, we only bail when image loading makes ZERO
+       progress for STALL_MS: every settled image (onload/onerror) re-arms the
+       timer via mark_image_done, so a slow-but-steady load keeps the overlay up
+       until the last image lands and pending hits 0 (the normal emit path). The
+       watchdog fires only on a true wedge — a CDN/network hang where neither
+       onload nor onerror ever arrives — guaranteeing the overlay can never stick
+       forever. Re-arm (cancel + reschedule) implements the "no progress for
+       STALL_MS" semantic without any wall-clock math. STALL_MS is the module-scope
+       named constant defined at the top of this file (tunable in one place). */
+    var arm_stall_watchdog = function() {
+      if(emitted) { return; }
+      if(stall_timer) { runCancel(stall_timer); }
+      // Adversarial-review false positive ("isDestroyed guard fires too late, could call
+      // do_emit -> onCanvasReady on a stale parent"): two layers prevent that. (1) The
+      // timer handle is stored on `_this._previewStallTimer` and runCancel()'d in
+      // willDestroyElement (see below), so on a normal teardown the callback never runs.
+      // (2) Even if it did fire, the FIRST statement here is the isDestroyed/isDestroying
+      // check, which returns BEFORE do_emit — so onCanvasReady is never invoked once the
+      // component is tearing down. The guard is the entry condition, not "too late".
+      stall_timer = _this._previewStallTimer = runLater(function() {
+        stall_timer = null;
+        _this._previewStallTimer = null;
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        do_emit();
+      }, STALL_MS);
+    };
+    /* Push the current image-load tally to the overlay. Called once up-front
+       with (0, total) so the spinner can show the total immediately, then after
+       every settled image. No-op when the parent didn't wire a handler. */
+    var emit_progress = function() {
+      var cb = _this.get('onCanvasProgress');
+      if(cb && typeof cb === 'function') { cb(loaded_images, total_images); }
+    };
     var mark_image_done = function() {
       if(pending > 0) { pending--; }
+      if(loaded_images < total_images) { loaded_images++; }
+      emit_progress();
       maybe_emit_canvas_ready();
+      // An image just settled — that's progress. Reset the no-progress
+      // watchdog so loading is judged stalled only by a genuine gap with no
+      // image arriving, not by overall slowness. (do_emit clears it once
+      // pending hits 0, so this is a no-op on the final image.) Skip during
+      // teardown — image callbacks can route here after destroy, and we must
+      // not schedule a fresh timer then.
+      if(!emitted && !_this.isDestroyed && !_this.isDestroying) { arm_stall_watchdog(); }
     };
     /* Pick a label color (dark or light) that contrasts with the
        button's actual fill. Author-set background colors override the
@@ -220,6 +337,15 @@ export default Component.extend({
         });
         var button_width = width / columns;
         var button_height = height / rows;
+        // Keep buttons square — never stretch a cell beyond a square. Use the
+        // smaller of the two per-axis sizes for BOTH dimensions and center the
+        // grid in the leftover space (letterbox), so a tall modal canvas no
+        // longer produces tall rectangles.
+        var cell = Math.min(button_width, button_height);
+        button_width = cell;
+        button_height = cell;
+        var offset_x = (width - (cell * columns)) / 2;
+        var offset_y = (height - (cell * rows)) / 2;
         var radius = button_width / 20;
         var border_size = pad / 2.5;
         if(this.get('size') == 'selection') {
@@ -455,8 +581,8 @@ export default Component.extend({
 
               var show_always = true;
               if(!button.hidden || show_always) {
-                var x = button_width * jdx;
-                var y = button_height * idx;
+                var x = offset_x + (button_width * jdx);
+                var y = offset_y + (button_height * idx);
                 var draw_button = function(button, x, y, fill) {
                   context.beginPath();
                   if(button.hidden) {
@@ -514,6 +640,17 @@ export default Component.extend({
                          invisible. */
                       var fill_for_label = button.background_color || (show_links ? palette.link_fallback_fill : palette.fill);
                       context.fillStyle = contrast_label(fill_for_label, palette.label);
+                      /* Shrink the label so it fits the button's inner width
+                         instead of overflowing and clipping (e.g. "question" ->
+                         "uestion"). Start at text_height and scale down to fit,
+                         floored at 50% so it never becomes unreadable. */
+                      var label_avail = button_width - pad - pad - border_size - border_size;
+                      context.font = text_height + "px Arial";
+                      var label_w = context.measureText(button.label).width;
+                      if(label_w > label_avail && label_w > 0) {
+                        var fit_size = Math.max(text_height * (label_avail / label_w), text_height * 0.5);
+                        context.font = fit_size + "px Arial";
+                      }
                       context.fillText(button.label, x + (button_width / 2), y + pad + (text_height * 0.85));
                     }
                   }
@@ -542,6 +679,7 @@ export default Component.extend({
                      S3 symbol URLs reliably. */
                   var resolved_url = resolve_url_sync(url) || url;
                   pending++;
+                  total_images++;
                   (function(button, x, y, resolved_url, component) {
                     var cell_done = false;
                     var cell_finish = function() {
@@ -612,31 +750,25 @@ export default Component.extend({
            guards on pending > 0); the per-cell `cell_finish` callbacks
            then drive the emit when the last image actually settles. */
         loop_done = true;
+        /* Seed the overlay with (0, total) now that the cell count is known, so
+           the progress reads "0 / N" the instant the spinner appears rather than
+           jumping in once the first image lands. */
+        if (total_images > 0) { emit_progress(); }
         runLater(function() {
           if (_this.isDestroyed || _this.isDestroying) { return; }
           maybe_emit_canvas_ready();
         }, 0);
-        /* Safety net: if any per-cell image load wedges (rare now that
-           we no longer route through persistence.find_url, but the
-           browser can still hang on a slow CDN), guarantee the overlay
-           still hides after a bounded wait. 4s is short enough that a
-           stuck preview isn't silently broken; cached/CDN-warm loads
-           land in well under 1s. */
-        runLater(function() {
-          if (_this.isDestroyed || _this.isDestroying) { return; }
-          if (!emitted) {
-            // Safety-net path bypasses maybe_emit_canvas_ready, so
-            // paint the badge directly here too if we're offline at
-            // this point. Without this, a stuck preview goes 4s
-            // without revealing whether the user is offline.
-            if(draw_badge_if_offline && persistence && persistence.get('online') === false) {
-              draw_badge_if_offline();
-            }
-            emitted = true;
-            var cb = _this.get('onCanvasReady');
-            if(cb && typeof cb === 'function') { cb(); }
-          }
-        }, 4000);
+        /* Arm the no-progress stall watchdog once all per-cell image loads have
+           been dispatched. From here each settled image re-arms it
+           (mark_image_done); it fires only if loading wedges for STALL_MS with
+           zero progress. When pending is already 0 (text-only board, fully
+           cached symbols) the 0-tick maybe_emit above handles the emit and no
+           watchdog is needed. This replaces the old fixed 4s deadline, which
+           lifted the overlay early on slow devices while images were still
+           loading — exactly the half-rendered-preview symptom we're fixing. */
+        if (pending > 0) {
+          arm_stall_watchdog();
+        }
       }
     }
   },
@@ -671,6 +803,10 @@ export default Component.extend({
     if (this._renderDebounce) {
       runCancel(this._renderDebounce);
       this._renderDebounce = null;
+    }
+    if (this._previewStallTimer) {
+      runCancel(this._previewStallTimer);
+      this._previewStallTimer = null;
     }
     this._super(...arguments);
   },

@@ -46,6 +46,7 @@ export default Component.extend({
   showBetaFeedbackDrawerTab: computed(
     'isAuthenticated',
     'application.showBetaFeedbackDrawer',
+    'application.on_board_detail',
     'appState.speak_mode',
     'appState.edit_mode',
     'appState.currentBoardState.id',
@@ -57,6 +58,12 @@ export default Component.extend({
       // still be set — in that case the board header is suppressed (see
       // application.hbs) and the drawer tab should show, matching home-page
       // behavior.
+      // board-detail is decoupled from the global speak_mode flag (it renders
+      // through its own controller state, so appState.speak_mode stays false
+      // there); without an explicit board-detail check the navbar tab would
+      // wrongly show at the top. application.hbs renders the bottom-center
+      // --speak drawer tab on board-detail, so suppress the navbar tab here.
+      if(this.get('application.on_board_detail')) { return false; }
       return this.get('isAuthenticated') &&
         this.get('application.showBetaFeedbackDrawer') &&
         ((!this.appState.get('speak_mode') && !this.appState.get('edit_mode')) || !this.appState.get('currentBoardState.id'));
@@ -66,21 +73,25 @@ export default Component.extend({
   /** When true, the mobile drawer (landing-alt nav) is open. */
   isLandingDrawerOpen: false,
 
-  actions: {
-    index() {
-      this.get('application').send('index');
-    },
-    toggleHeroColors() {
-      this.get('application').send('toggleHeroColors');
-    },
-    toggleLandingDrawer() {
-      this.set('isLandingDrawerOpen', !this.get('isLandingDrawerOpen'));
-    },
-    closeLandingDrawer() {
-      this.set('isLandingDrawerOpen', false);
-    },
-    toggleBetaFeedbackDrawer() {
-      this.get('application').send('toggleBetaFeedbackDrawer');
-    },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    var owner = getOwner(this);
+    this.toggleLandingDrawer = () => {
+      self.set('isLandingDrawerOpen', !self.get('isLandingDrawerOpen'));
+    };
+    this.closeLandingDrawer = () => {
+      self.set('isLandingDrawerOpen', false);
+    };
+    this.toggleBetaFeedbackDrawer = () => {
+      owner.lookup('controller:application').send('toggleBetaFeedbackDrawer');
+    };
+  },
+
+  index() {
+    this.get('application').send('index');
+  },
+  toggleHeroColors() {
+    this.get('application').send('toggleHeroColors');
   }
 });

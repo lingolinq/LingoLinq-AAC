@@ -355,6 +355,31 @@ describe User, :type => :model do
       u.generate_defaults
       expect(u.settings['preferences']['word_suggestion_images']).to eq(true)
     end
+
+    it "should default word_suggestions ON for new users only, never backfilling existing users" do
+      # New users (new_record?) get word prediction ON by default at registration.
+      u = User.new
+      u.generate_defaults
+      expect(u.settings['preferences']['word_suggestions']).to eq(true)
+      expect(u.settings['preferences']['word_suggestion_position']).to eq('side_rail')
+
+      # Existing (already-persisted) users with no stored value are NOT backfilled
+      # — word prediction is never silently enabled for them (it stays nil/off).
+      u2 = User.new
+      u2.settings = {'preferences' => {}}
+      allow(u2).to receive(:new_record?).and_return(false)
+      u2.generate_defaults
+      expect(u2.settings['preferences']['word_suggestions']).to eq(nil)
+      expect(u2.settings['preferences']['word_suggestion_position']).to eq(nil)
+    end
+
+    it "should not carry word_suggestions in the unconditional preference_defaults bucket" do
+      # If it were in the bucket, the generate_defaults bucket loop would backfill
+      # every existing user — the regression this guards against.
+      User.preference_defaults.each do |bucket, defaults|
+        expect(defaults).not_to have_key('word_suggestions'), "found word_suggestions in preference_defaults['#{bucket}']"
+      end
+    end
   end
 
   describe "generate_email_hash" do
@@ -587,6 +612,52 @@ describe User, :type => :model do
       expect(u.settings['privacy_policy_acknowledged']['policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
     end
 
+    it "grant_parental_consent! writes an immutable AuditEvent atomically, and rolls the grant back if the audit insert fails" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      AuditEvent.delete_all
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_audit',
+        'email' => 'kidaudit@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentaudit@example.com'
+      }, {})
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+
+      # Happy path: one immutable event carrying the persisted grant timestamp.
+      expect { expect(u.grant_parental_consent!(token, ip: '203.0.113.7', user_agent: 'TestAgent/1.0')).to eq(true) }
+        .to change { AuditEvent.where(event_type: 'parental_consent_grant', user_key: u.global_id).count }.by(1)
+      ae = AuditEvent.where(event_type: 'parental_consent_grant', user_key: u.global_id).last
+      expect(ae.record_id).to be_present
+      expect(ae.data['ip']).to eq('203.0.113.7')
+      expect(ae.data['user_agent']).to eq('TestAgent/1.0')
+      expect(ae.data['privacy_policy_version']).to eq(User::PRIVACY_POLICY_VERSION)
+      expect(ae.data['granted_at']).to eq(u.reload.settings['coppa']['parent_consent_granted_at'])
+
+      # Rollback: a fresh grantable user whose audit insert raises must NOT end up
+      # consented, and the token must remain usable for a retry.
+      u2 = User.new
+      u2.process_params({
+        'name' => 'coppa_kid_rollback',
+        'email' => 'kidrollback@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentrollback@example.com'
+      }, {})
+      u2.save!
+      token2 = u2.settings['coppa']['parent_consent_token']
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        expect { u2.grant_parental_consent!(token2) }.to raise_error(ActiveRecord::RecordInvalid)
+      }.to_not change { AuditEvent.count }
+      u2.reload
+      expect(u2.settings['coppa']['parent_consent_granted_at']).to be_blank
+      expect(u2.settings['coppa']['parent_consent_token']).to eq(token2)
+      expect(u2.coppa_parental_consent_pending?).to eq(true)
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}
@@ -594,6 +665,22 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(false)
       u.process_params({'preferences' => {'cookies' => 'true'}}, {})
       expect(u.settings['preferences']['cookies']).to eq(true)
+    end
+
+    it "should persist require_sidebar_edit_pin (whitelisted) and coerce to boolean" do
+      # Guards the silent-drop failure mode: a preference not in PREFERENCE_PARAMS
+      # is dropped by process_params and never persists. require_sidebar_edit_pin
+      # gates the sidebar editor behind the speak-mode PIN.
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {'require_sidebar_edit_pin' => 'true'}}, {})
+      expect(u.settings['preferences']['require_sidebar_edit_pin']).to eq(true)
+      u.process_params({'preferences' => {'require_sidebar_edit_pin' => 'false'}}, {})
+      expect(u.settings['preferences']['require_sidebar_edit_pin']).to eq(false)
+    end
+
+    it "should default require_sidebar_edit_pin to false for authenticated users" do
+      expect(User.preference_defaults['authenticated_user']['require_sidebar_edit_pin']).to eq(false)
     end
 
     it "should ignore beta_program_access from preferences unless updater is admin" do
@@ -700,7 +787,88 @@ describe User, :type => :model do
       }, {}) }.to_not raise_error
       expect(u.valid_password?('braised-beef')).to eq(true)
     end
-    
+
+    it "should allow a self-service password change even when valet_login is the string 'false' (regression)" do
+      # The Ember client serializes the boolean valet_login attribute as a
+      # STRING, so a normal profile save sends valet_login => 'false'. A bare
+      # truthiness check treated the non-empty string 'false' as true, enabled
+      # valet mode (assert_valet_mode! + a random valet password), and the
+      # following valid_password? check then compared the real password against
+      # the valet secret -> every self-service password change failed with
+      # "incorrect current password". The valet block only runs when the
+      # updater is the user themselves, so pass updater => u.
+      u = User.create
+      u.generate_password('horseradish')
+      u.save!
+      expect(u.valet_mode?).to eq(false)
+      res = u.process_params({
+        'password' => 'chicken',
+        'old_password' => 'horseradish',
+        'valet_login' => 'false'
+      }, {'updater' => u})
+      expect(u.processing_errors).to eq([])
+      expect(res).to_not eq(false)
+      expect(u.valid_password?('chicken')).to eq(true)
+      # valet mode must NOT have been silently enabled by the falsey string
+      expect(u.valet_mode?).to eq(false)
+      expect(u.settings['valet_password']).to eq(nil)
+    end
+
+    it "should still disable valet when valet_login is boolean false" do
+      u = User.create
+      u.generate_password('horseradish')
+      u.process_params({'valet_login' => true, 'valet_password' => 'gemini'}, {'updater' => u})
+      u.save!
+      expect(u.settings['valet_password']).to_not eq(nil)
+      u.process_params({'valet_login' => false}, {'updater' => u})
+      expect(u.settings['valet_password']).to eq(nil)
+    end
+
+    describe "password-change audit trail (LL-747bb0e02d)" do
+      # AuditEvent.log_command commits outside the per-example transaction, so
+      # rows leak across examples and inflate counts. Scope the reset to this
+      # describe block (not globally) per the AuditEvent testing convention.
+      before(:each) { AuditEvent.delete_all }
+
+      it "logs an AuditEvent when an existing password is changed by the user" do
+        u = User.create
+        u.generate_password('horseradish')
+        u.save!
+        expect(AuditEvent.count).to eq(0)
+        expect(u.process_params({'password' => 'chicken', 'old_password' => 'horseradish'}, {})).to_not eq(false)
+        u.save!
+        expect(u.valid_password?('chicken')).to eq(true)
+        expect(AuditEvent.count).to eq(1)
+        ae = AuditEvent.last
+        expect(ae.user_key).to eq(u.global_id)
+        expect(ae.data['type']).to eq('password_changed')
+        expect(ae.data['self_service']).to eq(true)
+      end
+
+      it "logs an AuditEvent for an admin-initiated / forced reset without the old password" do
+        u = User.create
+        u.generate_password('horseradish')
+        u.save!
+        expect(AuditEvent.count).to eq(0)
+        expect(u.process_params({'password' => 'chicken-little'}, {:allow_password_change => true})).to_not eq(false)
+        u.save!
+        expect(u.valid_password?('chicken-little')).to eq(true)
+        expect(AuditEvent.count).to eq(1)
+        ae = AuditEvent.last
+        expect(ae.data['type']).to eq('password_changed')
+        expect(ae.data['self_service']).to eq(false)
+      end
+
+      it "does not log an AuditEvent when an initial password is first set" do
+        u = User.create
+        expect(u.settings['password']).to be_nil
+        expect(u.process_params({'password' => 'first-pass'}, {})).to_not eq(false)
+        u.save!
+        expect(u.valid_password?('first-pass')).to eq(true)
+        expect(AuditEvent.count).to eq(0)
+      end
+    end
+
     it "should generate a username only if none yet and provided or forced" do
       u = User.new
       u.process_params({
@@ -827,6 +995,21 @@ describe User, :type => :model do
         ]
       }}, {})
       expect(u.settings['preferences']['requested_phrases']).to eq(['I like you', 'I am you'])
+    end
+
+    it "should skip malformed (non-hash) offline_actions entries without raising" do
+      u = User.create
+      # A corrupt/stale entry that is an Array (not a hash) must not 500 the update
+      # via action['action'] (TypeError: no implicit conversion of String into
+      # Integer) — otherwise the queue never clears and re-fails on every save.
+      expect {
+        u.process({'offline_actions' => [
+          [{'label' => 'bogus'}],
+          {'action' => 'add_vocalization', 'id' => 'ok', 'list' => [{'label' => 'asdf'}]}
+        ]})
+      }.to_not raise_error
+      expect(u.settings['vocalizations'].length).to eq(1)
+      expect(u.settings['vocalizations'][0]['id']).to eq('ok')
     end
 
     it "should process offline_actions" do
@@ -2473,11 +2656,16 @@ describe User, :type => :model do
     end
 
     it "should merge new default sidebar entries into an older saved default list" do
+      # The stored order IS the user's chosen sidebar order (drag / up-down reorder
+      # in the Edit Sidebar panel), so it must be PRESERVED on load — a newly-added
+      # auto-add default (crisis-vocabulary) is APPENDED, not re-sorted into its
+      # default-order slot. See User.merge_missing_default_sidebar_boards.
       u = User.new
-      old_defaults = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }
+      crisis_key = SystemBoardSources.board_key('crisis-vocabulary')
+      old_defaults = User.default_sidebar_boards.reject { |b| b['key'] == crisis_key }
       u.settings = {'preferences' => {'sidebar_boards' => old_defaults}}
       expect(u.sidebar_boards.map { |b| b['key'] || 'alert' }).to eq(
-        User.default_sidebar_boards.map { |b| b['key'] || 'alert' }
+        old_defaults.map { |b| b['key'] || 'alert' } + [crisis_key]
       )
     end
 
@@ -2497,6 +2685,80 @@ describe User, :type => :model do
       keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
       expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
+    end
+
+    it "should resolve default sidebar entries to user-owned copies except keyboard" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      yesno_copy = yesno.copy_for(u)
+      inflections_copy = inflections.copy_for(u)
+      crisis_copy = crisis.copy_for(u)
+
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(yesno_copy.key)
+      expect(keys).to include(inflections_copy.key)
+      expect(keys).to include(crisis_copy.key)
+      expect(keys).to include(SystemBoardSources.board_key('keyboard'))
+      expect(keys).not_to include(yesno.key)
+      expect(keys).not_to include(inflections.key)
+      expect(keys).not_to include(crisis.key)
+    end
+
+    it "should not auto-add crisis when the user's resolved copy key is already stored" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      crisis_copy = crisis.copy_for(u)
+      saved = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }
+      saved << {
+        'name' => 'Crisis Vocabulary',
+        'key' => crisis_copy.key,
+        'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png',
+        'home_lock' => false
+      }
+      u.settings = {'preferences' => {'sidebar_boards' => saved}}
+
+      crisis_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+      end
+      expect(crisis_keys).to eq([crisis_copy.key])
+    end
+
+    it "should dedupe duplicate crisis sidebar entries after resolving to the user copy" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      crisis_copy = crisis.copy_for(u)
+      system_key = SystemBoardSources.board_key('crisis-vocabulary')
+      u.settings = {'preferences' => {'sidebar_boards' => [
+        {'name' => 'Crisis Vocabulary', 'key' => system_key, 'image' => 'https://example.com/crisis.png', 'home_lock' => false},
+        {'name' => 'Crisis Vocabulary', 'key' => crisis_copy.key, 'image' => 'https://example.com/crisis.png', 'home_lock' => false}
+      ]}}
+
+      crisis_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+      end
+      expect(crisis_keys).to eq([crisis_copy.key])
+    end
+
+    it "should dedupe duplicate non-crisis sidebar entries after resolving to the user copy" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      yesno_copy = yesno.copy_for(u)
+      system_key = SystemBoardSources.board_key('yesno')
+      u.settings = {'preferences' => {'sidebar_boards' => [
+        {'name' => 'Yes/No', 'key' => system_key, 'image' => 'https://example.com/yesno.png', 'home_lock' => false},
+        {'name' => 'Yes/No', 'key' => yesno_copy.key, 'image' => 'https://example.com/yesno.png', 'home_lock' => false}
+      ]}}
+
+      yesno_keys = u.sidebar_boards.map { |b| b['key'] }.compact.select do |key|
+        key.split('/').last == 'yesno'
+      end
+      expect(yesno_keys).to eq([yesno_copy.key])
     end
   end
   
@@ -3190,8 +3452,207 @@ describe User, :type => :model do
       expect(User.find_by_token("#{u.global_id}-whatever")).to eq(nil)
       expect(User.find_by_token(nil)).to eq(nil)
     end
+
+    it 'should use a constant-time comparison to guard against timing attacks (LL-90045bb29c)' do
+      u = User.create
+      token = "#{u.global_id}-"
+      token = token + GoSecure.sha512(token, 'user_token verifier')[0, 30]
+      expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
+      expect(User.find_by_token(token)).to eq(u)
+    end
+
+    it 'should still use the constant-time comparison on the mismatch path, not just the happy path (LL-90045bb29c)' do
+      u = User.create
+      # Correct length (30 hex chars) but wrong verifier: exercises the branch a
+      # timing attack targets, so a future fast-path/early-return on mismatch fails here.
+      wrong_token = "#{u.global_id}-" + ('0' * 30)
+      expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
+      expect(User.find_by_token(wrong_token)).to eq(nil)
+    end
   end
-  
+
+  describe "protected_image_token" do
+    it 'should return a signed token that expires after the default lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + User::PROTECTED_IMAGE_TOKEN_LIFESPAN).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+      expect(u.protected_image_token).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+
+    it 'should respect a custom lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + 7.days).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+      expect(u.protected_image_token(7.days)).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+  end
+
+  describe "find_by_protected_image_token" do
+    it 'should find the correct user for a valid, unexpired token' do
+      u = User.create
+      expect(User.find_by_protected_image_token(u.protected_image_token)).to eq(u)
+    end
+
+    it 'should fall back to the legacy permanent user_token format' do
+      u = User.create
+      expect(User.find_by_protected_image_token(u.user_token)).to eq(u)
+    end
+
+    it 'should log when the legacy permanent-token fallback is used' do
+      u = User.create
+      expect(Rails.logger).to receive(:info).with(/\[protected_image_legacy_token\] accepted permanent-format token for #{Regexp.escape(u.global_id)}/)
+      User.find_by_protected_image_token(u.user_token)
+    end
+
+    it 'should not log for the newer expiring token format' do
+      u = User.create
+      expect(Rails.logger).to_not receive(:info).with(/protected_image_legacy_token/)
+      User.find_by_protected_image_token(u.protected_image_token)
+    end
+
+    it 'should return nil for an expired token' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.protected_image_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      expect(User.find_by_protected_image_token(token)).to eq(nil)
+    end
+
+    it 'should return nil for a tampered signature' do
+      u = User.create
+      parts = u.protected_image_token.split('-')
+      parts[-1] = 'a' * 30
+      expect(User.find_by_protected_image_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil for a tampered expiry' do
+      u = User.create
+      parts = u.protected_image_token.split('-')
+      parts[-2] = (parts[-2].to_i + 100).to_s
+      expect(User.find_by_protected_image_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil when the expiry segment is not numeric' do
+      u = User.create
+      expect(User.find_by_protected_image_token("#{u.global_id}-notanumber-#{'a' * 30}")).to eq(nil)
+    end
+
+    it 'should return nil for garbage or missing input' do
+      expect(User.find_by_protected_image_token('asdf')).to eq(nil)
+      expect(User.find_by_protected_image_token(nil)).to eq(nil)
+    end
+  end
+
+  describe "lesson_share_token" do
+    it 'should return a signed token that expires after the default lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + User::LESSON_SHARE_TOKEN_LIFESPAN).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+      expect(u.lesson_share_token).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+
+    it 'should respect a custom lifespan' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      expires_at = (now + 7.days).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+      expect(u.lesson_share_token(7.days)).to eq("#{u.global_id}-#{expires_at}-#{sig}")
+    end
+
+    it 'should use its own verifier purpose, distinct from protected_image_token' do
+      u = User.create
+      expect(u.lesson_share_token.split('-')[-1]).to_not eq(u.protected_image_token.split('-')[-1])
+    end
+
+    it 'should mint the legacy permanent user_token when the kill-switch is off (LL-90045bb29c option (b))' do
+      u = User.create
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXPIRING_LESSON_SHARE_TOKENS').and_return('off')
+      expect(u.lesson_share_token).to eq(u.user_token)
+    end
+  end
+
+  describe "find_by_lesson_share_token" do
+    it 'should find the correct user for a valid, unexpired token' do
+      u = User.create
+      expect(User.find_by_lesson_share_token(u.lesson_share_token)).to eq(u)
+    end
+
+    it 'should fall back to the legacy permanent user_token format' do
+      u = User.create
+      expect(User.find_by_lesson_share_token(u.user_token)).to eq(u)
+    end
+
+    it 'should accept both formats regardless of the mint kill-switch' do
+      u = User.create
+      expiring = u.lesson_share_token
+      # even with construction reverted to legacy, the finder still resolves an already-issued expiring token
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXPIRING_LESSON_SHARE_TOKENS').and_return('off')
+      expect(User.find_by_lesson_share_token(expiring)).to eq(u)
+      expect(User.find_by_lesson_share_token(u.user_token)).to eq(u)
+    end
+
+    it 'should log when the legacy permanent-token fallback is used' do
+      u = User.create
+      expect(Rails.logger).to receive(:info).with(/\[lesson_share_legacy_token\] accepted permanent-format token for #{Regexp.escape(u.global_id)}/)
+      User.find_by_lesson_share_token(u.user_token)
+    end
+
+    it 'should not log for the newer expiring token format' do
+      u = User.create
+      expect(Rails.logger).to_not receive(:info).with(/lesson_share_legacy_token/)
+      User.find_by_lesson_share_token(u.lesson_share_token)
+    end
+
+    it 'should return nil for an expired token' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.lesson_share_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      expect(User.find_by_lesson_share_token(token)).to eq(nil)
+    end
+
+    it 'should return nil for a tampered signature' do
+      u = User.create
+      parts = u.lesson_share_token.split('-')
+      parts[-1] = 'a' * 30
+      expect(User.find_by_lesson_share_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should use a constant-time comparison on the signature (LL-90045bb29c)' do
+      u = User.create
+      expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
+      expect(User.find_by_lesson_share_token(u.lesson_share_token)).to eq(u)
+    end
+
+    it 'should return nil for a tampered expiry' do
+      u = User.create
+      parts = u.lesson_share_token.split('-')
+      parts[-2] = (parts[-2].to_i + 100).to_s
+      expect(User.find_by_lesson_share_token(parts.join('-'))).to eq(nil)
+    end
+
+    it 'should return nil when the expiry segment is not numeric' do
+      u = User.create
+      expect(User.find_by_lesson_share_token("#{u.global_id}-notanumber-#{'a' * 30}")).to eq(nil)
+    end
+
+    it 'should return nil for garbage or missing input' do
+      expect(User.find_by_lesson_share_token('asdf')).to eq(nil)
+      expect(User.find_by_lesson_share_token(nil)).to eq(nil)
+    end
+  end
+
   describe "versions" do
     it "should track versions correctly" do
       PaperTrail.request.whodunnit = 'user:bob'
@@ -3902,6 +4363,12 @@ describe User, :type => :model do
   end
 
   describe '#ai_consent_granted?' do
+    # AuditEvent.create! fires inside grant/revoke under with_lock(requires_new: true)
+    # and commits outside the per-example fixture transaction, so rows leak across
+    # examples and break the `expect(AuditEvent.count).to eq(0)` baselines. Clean per
+    # example, scoped to the consent specs so there is no global suite blast radius.
+    before(:each) { AuditEvent.delete_all }
+
     it 'returns false for a newly created user with no ai_consent grant' do
       u = User.create
       expect(u.settings).to be_a(Hash)
@@ -3937,11 +4404,17 @@ describe User, :type => :model do
       expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
     end
 
-    it 'raises ArgumentError when disclosures_version: kwarg is omitted' do
+    it 'defaults disclosures_version: to LingoLinq::AiConsentDisclosures::CURRENT_VERSION when the kwarg is omitted (VPC Phase 2)' do
+      expect(LingoLinq::AiConsentDisclosures::CURRENT_VERSION).to eq(1)
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload
-      expect { u.ai_consent_granted? }.to raise_error(ArgumentError)
+      expect(u.ai_consent_granted?).to eq(true)
+    end
+
+    it 'the omitted-kwarg default still returns false for a user with no grant (does not silently pass)' do
+      u = User.create
+      expect(u.ai_consent_granted?).to eq(false)
     end
 
     it 'returns false when explicit disclosures_version: nil is passed' do
@@ -3953,6 +4426,8 @@ describe User, :type => :model do
   end
 
   describe '#grant_ai_consent!' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'writes the settings hash and returns truthy on first call' do
       u = User.create
       res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
@@ -4191,9 +4666,104 @@ describe User, :type => :model do
         )
       }.not_to raise_error
     end
+
+    it 'raises ArgumentError when granted_by is nil and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: nil, source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_granted_by')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by is blank and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: '   ', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_granted_by')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when disclosures_version is nil and writes no consent row' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: nil, granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when disclosures_version is non-numeric' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 'abc', granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+    end
+
+    it 'raises ArgumentError when disclosures_version is below 1' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 0, granted_by: 'Parent', source: 'email_link')
+      }.to raise_error(ArgumentError, 'invalid_disclosures_version')
+    end
+
+    it 'compares versions numerically, not lexicographically (v10 is newer than v2)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent', source: 'email_link')
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 10, granted_by: 'Parent', source: 'in_app')
+      # Lexicographic "10" < "2" would wrongly treat v10 as stale and no-op.
+      expect(res).to eq(true)
+      expect(AuditEvent.count - pre_count).to eq(1)
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(10)
+    end
+
+    it 'coerces a numeric-string disclosures_version to an Integer' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: '3', granted_by: 'Parent', source: 'email_link')
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(3)
+      expect(u.ai_consent_granted?(disclosures_version: 3)).to eq(true)
+    end
+
+    it 'does NOT reactivate consent at a stale version after a revoke (revoked-then-stale grant is a no-op)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      u.reload
+      pre_count = AuditEvent.count
+      # Following an OLD v1 grant link after revoking v2 must not reactivate at v1.
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_at']).to be_present       # still revoked, not reactivated
+      expect(c['disclosures_version']).to eq(2)   # not downgraded to v1
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'reactivates consent on a same-or-newer version grant after a revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      u.reload
+      res = u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent <p@example.com>', source: 'in_app')
+      expect(res).to eq(true)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_at']).to be_blank
+      expect(c['disclosures_version']).to eq(2)
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(true)
+    end
   end
 
   describe '#revoke_ai_consent!' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'returns false when called on a user with no consent record' do
       expect(AuditEvent.count).to eq(0)
       u = User.create
@@ -4284,9 +4854,38 @@ describe User, :type => :model do
       u2.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
       expect { u2.revoke_ai_consent!(source: 'system') }.not_to raise_error
     end
+
+    it 'records revoked_by and revoked_reason in the immutable AuditEvent payload, not just settings' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!(revoked_by: 'Parent <p@example.com>', reason: 'Withdrawing consent', source: 'parent')
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_revoke')
+      expect(ae.data['revoked_by']).to eq('Parent <p@example.com>')
+      expect(ae.data['revoked_reason']).to eq('Withdrawing consent')
+    end
+
+    it 'preserves revoked_by/revoked_reason in the audit trail even after a re-grant clears the settings copy' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.revoke_ai_consent!(revoked_by: 'Parent <p@example.com>', reason: 'changed mind')
+      revoke_ae = AuditEvent.last
+      u.reload
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent <p@example.com>', source: 'email_link')
+      u.reload
+      # The settings copy is cleared on re-grant...
+      expect(u.settings['ai_consent']['revoked_by']).to be_blank
+      expect(u.settings['ai_consent']['revoked_reason']).to be_blank
+      # ...but the audit row still carries who revoked and why.
+      revoke_ae.reload
+      expect(revoke_ae.data['revoked_by']).to eq('Parent <p@example.com>')
+      expect(revoke_ae.data['revoked_reason']).to eq('changed mind')
+    end
   end
 
   describe 'AI consent atomicity and audit-event coupling' do
+    before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
+
     it 'populates audit_events.event_type and record_id columns on grant (not just the data blob)' do
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')

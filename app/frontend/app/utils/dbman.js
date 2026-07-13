@@ -130,13 +130,31 @@ var dbman = {
   store: function(store, record, success, error) {
     success = success || capabilities.dbman.success;
     error = error || capabilities.dbman.error;
+    if (!record) {
+      if (error) {
+        error({error: 'no record'});
+      }
+      return;
+    }
+    if (record.isDestroyed) {
+      if (success) {
+        success(record);
+      }
+      return;
+    }
     if(record.id) {
       record.id = capabilities.dbman.uniqify_key(record.id, store, 'id');
     }
     if(record.storageId) {
       record.storageId = capabilities.dbman.uniqify_key(record.storageId, store, 'id');
     }
-    record.persisted = record.persisted || (new Date()).getTime();
+    if (typeof record.set === 'function') {
+      if (!record.isDestroyed) {
+        record.set('persisted', record.get('persisted') || (new Date()).getTime());
+      }
+    } else {
+      record.persisted = record.persisted || (new Date()).getTime();
+    }
     record.raw = capabilities.encrypt(record.raw);
     record.changed = record.changed || false;
 

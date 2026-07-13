@@ -10,7 +10,7 @@ var boundClasses = {};
 
   $.extend(boundClasses, {
     setup: function(reset) {
-      if(!styleElement || reset) {
+      if(!styleElement || reset || !this.classes) {
         this.classes = {
           '__': true
         };

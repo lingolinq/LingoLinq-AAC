@@ -71,7 +71,10 @@ export function advanceSweep(state, attempt) {
     next.lowerBound = Math.min(state.index + 1, state.upperBound);
   } else {
     // Failed (or too slow) → push upper bound down, try smaller.
-    next.upperBound = Math.max(state.index - 1, state.lowerBound);
+    // Do not clamp to lowerBound: when the bracket is already collapsed
+    // (lower === upper), failing at that tier must let upperBound fall
+    // below lowerBound so convergence triggers on the next check.
+    next.upperBound = state.index - 1;
   }
 
   // Convergence: bracket collapsed, exhausted attempts, or floored.

@@ -7,11 +7,15 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { debounce } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import progress_tracker from '../utils/progress_tracker';
-import { filterRootBoards, dedupeByName, sortByNameNatural } from '../utils/board-roots';
+import { filterRootBoards, dedupeByName, sortByNameNatural, boardsPagePreferUserNames } from '../utils/board-roots';
 import { groupBoardsByBrand } from '../utils/board-brands';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
 
   title: computed('searchString', function() {
@@ -56,12 +60,13 @@ export default Controller.extend({
   jump_sections: computed('online_results', function() {
     var userId = app_state.get('currentUser.id');
     var online = this.get('online_results');
+    var preferOwners = boardsPagePreferUserNames(app_state);
     return [{
       id: 'boards',
       label_key: 'boards',
       default_label: 'Boards',
       state: online ? (online.loading ? 'loading' : 'loaded') : 'loading',
-      boards: sortByNameNatural(dedupeByName(filterRootBoards((online && online.results) || [], userId)))
+      boards: sortByNameNatural(dedupeByName(filterRootBoards((online && online.results) || [], userId), { preferUserNames: preferOwners }))
     }];
   }),
   // Natural (numeric-aware) sort by display name, so "Quick Core 84" sorts
@@ -100,7 +105,7 @@ export default Controller.extend({
              (e.g. "Vocal Flair 84" by several users). Collapse exact-name
              duplicates, keeping the first — server popularity order means
              that's the most-prominent one. */
-          _this.set('online_results', {results: dedupeByName(_this.sort_boards_by_name(res.map(function(i) { return i; })))});
+          _this.set('online_results', {results: dedupeByName(_this.sort_boards_by_name(res.slice()), { preferUserNames: boardsPagePreferUserNames(app_state) })});
         }, function() {
           _this.set('search_promise', null);
           _this.set('online_results', {results: []});
@@ -124,7 +129,7 @@ export default Controller.extend({
                 }
               });
             } else {
-              _this.set('personal_results', {results: _this.sort_boards_by_name(res.map(function(i) { return i; }))});
+              _this.set('personal_results', {results: _this.sort_boards_by_name(res.slice())});
             }
           }, function() {
             _this.set('personal_results', {results: []});
@@ -154,18 +159,54 @@ export default Controller.extend({
     this.load_results(str);
     this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     searchBoards: function() {
       this.load_results(this.get('searchString'));
       this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
     },
-    /* Picked a board from the header jump dropdown — open it. Mirrors the
-       board-tile navigation used across the app
-       (router.transitionTo('board', key)). */
+    /* Picked a board from the find-boards search box — open it in the user's
+       PREFERRED board view, mirroring boards-page tile navigation
+       (user/index.js#open_board_in_user_view):
+         - default / 'modern' → user.board-detail.index (the speak page)
+         - explicit 'classic'  → user.board-alt.index (the classic grid)
+       Previously this used transitionTo('board', key), whose route ALWAYS
+       replaceWith('user.board-alt', …) (routes/board.js#beforeModel) — so every
+       pick landed on board-alt regardless of preference. Non user/board keys
+       (integrations, obf) still go through the 'board' route, which handles them. */
     select_jump_board: function(board) {
       if(!board) { return; }
       var key = board.get ? board.get('key') : board.key;
-      if(key) { this.router.transitionTo('board', key); }
+      if(!key) { return; }
+      var parts = key.split('/');
+      if(parts.length !== 2) { this.router.transitionTo('board', key); return; }
+      var pref = app_state.get('currentUser.preferences.board_view_style');
+      var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
+      this.router.transitionTo(route, parts[0], parts[1]);
     }
   }
 });

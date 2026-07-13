@@ -12,11 +12,11 @@
 
   {{!-- Sub-navigation pills for people sections --}}
   <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
-    <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{action "pick" "managers"}}>{{t "Managers" key="managers"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{action "pick" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{action "pick" "communicators"}}>{{t "Communicators" key="communicators"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{action "pick" "evals"}}>{{t "Evals" key="evals"}}</button>
-    <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{action "pick" "extras"}}>{{t "Symbols" key="symbols"}}</button>
+    <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>{{t "Managers" key="managers"}}</button>
+    <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</button>
+    <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>{{t "Communicators" key="communicators"}}</button>
+    <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>{{t "Evals" key="evals"}}</button>
+    <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>{{t "Symbols" key="symbols"}}</button>
   </nav>
 
   {{!-- Managers --}}
@@ -36,7 +36,7 @@
                   <span class="md-chip md-chip--soft">{{t "assistant" key="assistant"}}</span>
                 {{/if}}
               </LinkTo>
-              <button type="button" class="md-org-user-row__remove" {{action "management_action" "remove_manager" manager.id}} aria-label={{t "Remove" key="remove"}}>
+              <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "management_action" "remove_manager" manager.id)}} aria-label={{t "Remove" key="remove"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -49,9 +49,9 @@
       {{/if}}
       <div class="md-org-add-row">
         <Input @value={{this.manager_user_name}} placeholder="user name" class="md-org-input" />
-        <button class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_manager"}}>{{t "Add Manager" key="add_manager"}}</button>
-        <button class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_assistant"}}>{{t "Add Assistant" key="add_assistant"}}</button>
-        <a href="#" class="md-org-add-row__link" {{action "new_user" "add_manager"}}>{{t "New User" key="new_user"}}</a>
+        <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_manager")}}>{{t "Add Manager" key="add_manager"}}</button>
+        <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_assistant")}}>{{t "Add Assistant" key="add_assistant"}}</button>
+        <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_manager")}}>{{t "New User" key="new_user"}}</a>
       </div>
       {{#if this.suggest_creating_manager}}
         <p class="md-org-error">{{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.manager_user_name}}</p>
@@ -86,7 +86,7 @@
                   <LinkTo @route="user" @model={{sup.user_name}} class="md-org-user-row__supervisee-link">{{sup.user_name}}</LinkTo>
                 {{/each}}
               </div>
-              <button type="button" class="md-org-user-row__remove" {{action "management_action" "remove_supervisor" user.user_name}} aria-label={{t "Remove" key="remove"}}>
+              <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "management_action" "remove_supervisor" user.user_name)}} aria-label={{t "Remove" key="remove"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -102,9 +102,9 @@
       {{/if}}
       <div class="md-org-add-row">
         <Input @value={{this.supervisor_user_name}} placeholder="user name" class="md-org-input" />
-        <button disabled={{this.no_supervisor_licenses}} class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_premium_supervisor"}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
-        <button class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
-        <a href="#" class="md-org-add-row__link" {{action "new_user" "add_supervisor"}}>{{t "New User" key="new_user"}}</a>
+        <button disabled={{this.no_supervisor_licenses}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_premium_supervisor")}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
+        <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_supervisor")}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+        <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_supervisor")}}>{{t "New User" key="new_user"}}</a>
       </div>
       {{#if this.suggest_creating_supervisor}}
         <p class="md-org-error">{{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.supervisor_user_name}}</p>
@@ -138,7 +138,7 @@
                   <span class="md-chip md-chip--soft">{{t "(sponsored)" key="sponsored_paren"}}</span>
                 {{/if}}
               </LinkTo>
-              <button type="button" class="md-org-user-row__remove" {{action "management_action" "remove_user" user.user_name}} aria-label={{t "Remove" key="remove"}}>
+              <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "management_action" "remove_user" user.user_name)}} aria-label={{t "Remove" key="remove"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -154,9 +154,9 @@
       {{/if}}
       <div class="md-org-add-row">
         <Input @value={{this.user_user_name}} placeholder="user name" class="md-org-input" />
-        <button disabled={{this.no_licenses}} class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_user"}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
-        <button class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_unsponsored_user"}}>{{t "Add Unsponsored User" key="add_unsponsored_user"}}</button>
-        <a href="#" class="md-org-add-row__link" {{action "new_user" "add_user"}}>{{t "New User" key="new_user"}}</a>
+        <button disabled={{this.no_licenses}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_user")}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
+        <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_unsponsored_user")}}>{{t "Add Unsponsored User" key="add_unsponsored_user"}}</button>
+        <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_user")}}>{{t "New User" key="new_user"}}</a>
       </div>
       {{#if this.suggest_creating_communicator}}
         <p class="md-org-error">{{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.user_user_name}}</p>
@@ -184,7 +184,7 @@
                   <span class="md-chip md-chip--soft">{{t "(pending)" key="pending_paren"}}</span>
                 {{/if}}
               </LinkTo>
-              <button type="button" class="md-org-user-row__remove" {{action "management_action" "remove_user" user.user_name}} aria-label={{t "Remove" key="remove"}}>
+              <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "management_action" "remove_user" user.user_name)}} aria-label={{t "Remove" key="remove"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -200,9 +200,9 @@
       {{/if}}
       <div class="md-org-add-row">
         <Input @value={{this.eval_user_name}} placeholder="user name" class="md-org-input" />
-        <button disabled={{this.no_eval_licenses}} class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_eval"}}>{{t "Add Eval Account" key="add_eval"}}</button>
+        <button disabled={{this.no_eval_licenses}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_eval")}}>{{t "Add Eval Account" key="add_eval"}}</button>
         {{#unless this.no_eval_licenses}}
-          <a href="#" class="md-org-add-row__link" {{action "new_user" "add_eval"}}>{{t "New Eval Account" key="new_eval"}}</a>
+          <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_eval")}}>{{t "New Eval Account" key="new_eval"}}</a>
         {{/unless}}
       </div>
       {{#if this.suggest_creating_eval}}
@@ -228,7 +228,7 @@
                 <img src={{user.avatar_url}} class="md-org-user-row__avatar" alt="">
                 <span class="md-org-user-row__name">{{user.user_name}}</span>
               </LinkTo>
-              <button type="button" class="md-org-user-row__remove" {{action "management_action" "remove_extras" user.user_name true}} aria-label={{t "Remove" key="remove"}}>
+              <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "management_action" "remove_extras" user.user_name true)}} aria-label={{t "Remove" key="remove"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -241,7 +241,7 @@
       {{/if}}
       <div class="md-org-add-row">
         <Input @value={{this.extras_user_name}} placeholder="user name" class="md-org-input" />
-        <button disabled={{this.no_extras}} class="md-btn md-btn--primary md-btn--sm" {{action "management_action" "add_extras" this.extras_user_name}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
+        <button disabled={{this.no_extras}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_extras" this.extras_user_name)}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
       </div>
     </section>
   {{/if}}

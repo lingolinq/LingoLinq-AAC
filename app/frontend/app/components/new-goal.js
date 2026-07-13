@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer, computed } from '@ember/object';
+import { A } from '@ember/array';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
@@ -32,6 +33,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'new-goal';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -42,6 +65,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.set('goal', this.get('model.goal') || this.get('store').createRecord('goal'));
     if (!this.get('goal.id') && window.moment) {
       this.set('goal.expires', window.moment().add(2, 'month').format('YYYY-MM-DD'));
@@ -60,6 +87,9 @@ export default Component.extend({
       this.set('model.users', null);
     }
     if (this.get('model.users')) {
+      // Ember 5.12: wrap in A() so single_user's `model.users.@each.add_goal`
+      // dependency tracks the in-place checkbox mutations (@checked=user.add_goal).
+      this.set('model.users', A(this.get('model.users')));
       this.get('model.users').forEach(function(u) {
         emberSet(u, 'not_premium', !emberGet(u, 'premium') && !emberGet(u, 'currently_premium'));
       });
@@ -166,7 +196,7 @@ export default Component.extend({
     const _this = this;
     _this.set('goals', { loading: true });
     this.get('store').query('goal', { template_header: true }).then(function(data) {
-      _this.set('goals', data.map(function(i) { return i; }));
+      _this.set('goals', data.slice());
       _this.set('goals.meta', data.meta);
     }, function() {
       _this.set('goals', { error: true });
@@ -361,7 +391,7 @@ export default Component.extend({
           offset: this.get('goals.meta.next_offset')
         }).then(function(list) {
           let goals = _this.get('goals') || [];
-          goals = goals.concat(list.map(function(i) { return i; }));
+          goals = goals.concat(list.slice());
           _this.set('goals', goals);
           _this.set('goals.meta', list.meta);
           _this.set('goals.loading', false);

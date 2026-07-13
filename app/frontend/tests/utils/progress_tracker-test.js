@@ -9,6 +9,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { fakeRecorder, queryLog } from 'frontend/tests/helpers/ember_helper';
+import { persistenceTarget } from 'frontend/tests/helpers/persistence-stub';
 import RSVP from 'rsvp';
 import progress_tracker from '../../utils/progress_tracker';
 import persistence from '../../utils/persistence';
@@ -19,6 +20,7 @@ describe('progress_tracker', function() {
   beforeEach(function() {
     progress_tracker.success_wait = 1;
     progress_tracker.error_wait = 1;
+    progress_tracker.setup(persistenceTarget());
   });
 
   afterEach(function() {

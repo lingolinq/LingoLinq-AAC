@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
+import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 /**
  * Board Actions Modal Component
@@ -18,6 +19,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'modals/board-actions';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -33,6 +56,12 @@ export default Component.extend({
 
   cannot_categorize: computed('appState.currentUser', function() {
     return !this.get('appState.currentUser');
+  }),
+
+  // True when the persisted board view style is Modern (the default). Drives the
+  // View Style toggle's active segment + thumb position.
+  is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
+    return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
   }),
 
   actions: {
@@ -108,6 +137,51 @@ export default Component.extend({
       const model = this.get('model');
       if (!model || !model.board) { return; }
       modalUtil.open('confirm-delete-board', { board: model.board, redirect: true });
+    },
+    // View Style toggle (Modern panels ↔ Classic full-device grid). Persists the
+    // preference and navigates to the matching board page through the shared
+    // "Preparing your Board" overlay — mirrors go_to_classic/go_to_modern. No-op
+    // when already on the chosen style.
+    set_view_style(style) {
+      var user = this.get('appState.currentUser');
+      var board = this.get('model.board');
+      if (!user || !board) { return; }
+      var current = this.get('appState.currentUser.preferences.board_view_style') || 'modern';
+      if (current === style) { return; }
+      user.set('preferences.board_view_style', style);
+      if (user.save) {
+        user.set('preferences.device.updated', true);
+        user.save();
+      }
+      var key = (board.get ? board.get('key') : board.key) || '';
+      var routerSvc = this.get('router');
+      this.get('modal').close();
+      if (key.indexOf('/') === -1) { return; }
+      var parts = key.split('/');
+      var userName = parts[0];
+      var boardname = parts.slice(1).join('/');
+      var appStateService = this.get('appState');
+      var isDark = true;
+      var themeMode = appStateService && appStateService.get('themeMode');
+      if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+      paint_view_switch_overlay({
+        routerSvc: routerSvc,
+        isDark: isDark,
+        accentLight: (style === 'classic'),
+        transition: function() {
+          var route = (style === 'classic') ? 'user.board-alt' : 'user.board-detail';
+          return routerSvc.transitionTo(route, userName, boardname);
+        }
+      });
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

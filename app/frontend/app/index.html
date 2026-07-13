@@ -33,6 +33,38 @@
     <link rel="icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" type="image/png" />
     <link rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" />
 
+    <!-- Preload the Focused View "Let's Communicate" hero image during initial
+         page load. Its card is display:none until the Focused View layout is
+         active, so the browser would otherwise only fetch + decode it the moment
+         the card appears (making the image reveal top-down). Preloading fetches
+         the bytes up front so it paints instantly, paired with decoding="sync"
+         on the img. NOTE: index.html only processes ember-cli tokens like
+         {{rootURL}} — use HTML comments here, NOT {{!-- --}} (which leaks as text). -->
+    <link rel="preload" as="image" href="{{rootURL}}images/speak-circle-simple-dark.webp" type="image/webp" fetchpriority="high" />
+
+    <!-- Preload the My Caseload card illustration. Unlike the Speak hero above
+         (an eager <img>), this one is only a CSS background-image (the big-icon
+         .md-card--caseload variant in app.scss -> images/caseload-light.png), so
+         the browser would otherwise fetch it lazily the instant the card first
+         paints and it pops in. Preloading puts the bytes in cache up front so it
+         paints with the card. -->
+    <link rel="preload" as="image" href="{{rootURL}}images/caseload-light.png" type="image/png" fetchpriority="high" />
+
+    <!-- Preload the guided-tour welcome-card map illustrations. These are CSS
+         background-images on the tour's welcome step (.md-tour__step--welcome
+         .shepherd-text in app.scss: tour-map-dark.png for Focused View,
+         tour-map-light.png for Gentle View), shared by all three opening tours
+         (home, board-picker, board-detail edit). Shepherd injects the popover
+         into <body> only at tour-start, so the browser would otherwise fetch the
+         background the instant the card paints — the card flashes blank, then the
+         map pops in. Preloading puts the bytes in cache up front so it paints with
+         the card. Both variants are preloaded because index.html is static and
+         can't branch on the user's dashboard_layout; each is small (~30-40KB).
+         (A CSS background can't take decoding="sync" like the <img> hero above,
+         so the preload fetch is the whole fix — decode of a 120px PNG is trivial.) -->
+    <link rel="preload" as="image" href="{{rootURL}}images/tour-map-dark.png" type="image/png" />
+    <link rel="preload" as="image" href="{{rootURL}}images/tour-map-light.png" type="image/png" />
+
     <style>
       /* Bootstrap skeleton — painted before vendor.css / frontend.css load
          and before Ember boots. Identical visual to the Rails-served
@@ -428,6 +460,31 @@
             <feFuncA type="linear" slope="8" intercept="-0.96"/>
           </feComponentTransfer>
           <feComposite in="SourceGraphic" in2="alphaMask" operator="in"/>
+        </filter>
+        <!-- AAC symbol backing (Colored mode). These symbols carry their OWN baked
+             white halo/background; the old matte filter knocked it out (causing the
+             card color to bleed through). This filter instead PRESERVES that white
+             but RECOLORS it to a subtle off-white (#f0ebdf) so symbols read softer
+             on colored cards, then backs any semi-transparent edges with the same
+             off-white. The feComponentTransfer tables are ~identity below 0.9 and
+             pull only near-white toward the cream target per channel
+             (R 240/255≈0.941, G 235/255≈0.922, B 223/255≈0.875), so colored art is
+             essentially untouched and alpha is preserved (transparent stays
+             transparent). CAVEAT: this tints ALL near-white pixels, so genuinely
+             white parts of the ARTWORK (milk, highlights) also go cream — subtle,
+             but it can't tell background-white from art-white. -->
+        <filter id="ll-symbol-white-backing" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+          <feComponentTransfer in="SourceGraphic" result="tinted">
+            <feFuncR type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.941"/>
+            <feFuncG type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.922"/>
+            <feFuncB type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.875"/>
+          </feComponentTransfer>
+          <feFlood flood-color="#f0ebdf" result="creamFill"/>
+          <feComposite in="creamFill" in2="SourceAlpha" operator="in" result="creamBacking"/>
+          <feMerge>
+            <feMergeNode in="creamBacking"/>
+            <feMergeNode in="tinted"/>
+          </feMerge>
         </filter>
       </defs>
     </svg>

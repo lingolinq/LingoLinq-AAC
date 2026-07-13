@@ -36,8 +36,9 @@ export default Service.extend({
   autoCloseTimer: null,
   autoCloseCallback: null,
   
-  // Highlight system state
-  highlightController: null,
+  // Highlight overlay state (replaces named outlets removed in Ember 4)
+  highlightModel: null,
+  highlight2Model: null,
   highlight2Controller: null,
   highlightPromise: null,
   highlight2Promise: null,
@@ -138,7 +139,7 @@ export default Service.extend({
     const controllerName = template === 'highlight-secondary' ? 'highlight2Controller' : 'highlightController';
     const promiseName = template === 'highlight-secondary' ? 'highlight2Promise' : 'highlightPromise';
     const settingsName = template === 'highlight-secondary' ? 'highlight2Settings' : 'highlightSettings';
-    
+    const modelKey = template === 'highlight-secondary' ? 'highlight2Model' : 'highlightModel';
     const settings = this.get(settingsName) || EmberObject.create();
     settings.setProperties({
       left: options.left || 0,
@@ -155,8 +156,8 @@ export default Service.extend({
     });
     
     this.set(settingsName, settings);
+    this.set(modelKey, settings);
     
-    // If controller exists, update it; otherwise will be handled by old system
     const existingController = this.get(controllerName);
     if (existingController) {
       const existingPromise = this.get(promiseName);
@@ -205,9 +206,12 @@ export default Service.extend({
       locale: options.locale,
       option: options.option,
       allowStyle: options.allow_style,
-      callback: options.callback
+      callback: options.callback,
+      // When true, the preview is a "recommended home board" suggestion (opened by
+      // "Assign a Home Board For Me") — the overlay swaps its header copy.
+      recommend: options.recommend
     });
-    
+
     return RSVP.resolve();
   },
   
@@ -310,6 +314,8 @@ export default Service.extend({
     }
     
     this.set(controllerName, null);
+    const modelKey = outlet === 'highlight-secondary' ? 'highlight2Model' : 'highlightModel';
+    this.set(modelKey, null);
   },
   
   /**

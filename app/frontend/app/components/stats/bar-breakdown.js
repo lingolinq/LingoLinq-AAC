@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { htmlSafe } from '@ember/template';
-import { computed } from '@ember/object';
+import { computed, get as emberGet } from '@ember/object';
 import LingoLinq from '../../app';
 import image from '../../models/image';
 
@@ -63,7 +63,7 @@ export default Component.extend({
       }
       color_index++;
     });
-    return list.sortBy('index').reverse();
+    return list.slice().sort(function(a, b) { var x = emberGet(a, 'index'), y = emberGet(b, 'index'); return x > y ? -1 : (x < y ? 1 : 0); });
   }),
   actions: {
   }

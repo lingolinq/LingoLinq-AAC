@@ -19,7 +19,7 @@ export default Controller.extend({
     }
     _this.set('more_available', false);
     this.store.query('log', {user_id: user_id, goal_id: this.get('model.id')}).then(function(list) {
-      _this.set('logs', list.map(function(i) { return i; }));
+      _this.set('logs', list.slice());
 
       var meta = $.extend({}, list.meta);
       _this.set('meta', meta);
@@ -39,7 +39,7 @@ export default Controller.extend({
   load_user_badges: observer('user.id', 'model.id', 'model.badges', function() {
     var _this = this;
     this.store.query('badge', {user_id: this.get('user.id'), goal_id: this.get('model.id')}).then(function(badges) {
-      _this.set('user_badges', badges.map(function(i) { return i; }));
+      _this.set('user_badges', badges.slice());
     }, function(err) {
     });
 
@@ -81,6 +81,31 @@ export default Controller.extend({
     }
     return htmlSafe(res);
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     more_results: function() {
       var _this = this;
@@ -89,7 +114,7 @@ export default Controller.extend({
         var args = {user_id: this.get('user.id'), goal_id: this.get('model.id'), per_page: meta.per_page, offset: (meta.offset + meta.per_page)};
         var find = this.store.query('log', args);
         find.then(function(list) {
-          _this.set('logs', _this.get('logs').concat(list.map(function(i) { return i; })));
+          _this.set('logs', _this.get('logs').concat(list.slice()));
           var meta = $.extend({}, list.meta);
           _this.set('meta', meta);
           _this.set('more_available', !!meta.next_url);

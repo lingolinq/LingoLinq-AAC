@@ -38,14 +38,39 @@ export default Controller.extend({
     });
     return res;
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     launch: function(lesson) {
-      if(lesson && this.get('model.user_token')) {
+      if(lesson && this.get('model.lesson_share_token')) {
         var prefix = location.protocol + "//" + location.host;
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
-        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.get('model.user_token'), '_blank');
+        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.get('model.lesson_share_token'), '_blank');
       }
 
     }

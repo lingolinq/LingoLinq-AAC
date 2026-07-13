@@ -1,4 +1,6 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import modal from '../../utils/modal';
 import { computed, observer } from '@ember/object';
 import i18n from '../../utils/i18n';
@@ -6,6 +8,10 @@ import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  router: service('router'),
   opening: function() {
     var _this = this;
     _this.set('status', null);
@@ -88,6 +94,31 @@ export default Controller.extend({
     res.push({name: i18n.t('unspecified', "Unspecified"), id: ''});
     return res;
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     modify_templates: function() {
       var _this = this;
@@ -102,7 +133,7 @@ export default Controller.extend({
       modal.open('modals/start-codes', {org: _this.get('model')});
     },
     cancel: function() {
-      this.transitionToRoute('organization', this.get('model.id'));
+      this.router.transitionTo('organization', this.get('model.id'));
     },
     save: function() {
       var _this = this;
@@ -122,7 +153,7 @@ export default Controller.extend({
       _this.set('status', {saving: true});
       org.save().then(function() {
         _this.set('status', null);
-        _this.transitionToRoute('organization', _this.get('model.id'));
+        _this.router.transitionTo('organization', _this.get('model.id'));
       }, function() {
         _this.set('status', {error: true});
       });

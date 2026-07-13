@@ -8,6 +8,7 @@ import LingoLinq from '../app';
 import capabilities from '../utils/capabilities';
 import lingoLinqExtras from '../utils/extras';
 import i18n from '../utils/i18n';
+import evaluation from '../utils/eval';
 import modal from '../utils/modal';
 
 export default Service.extend({
@@ -493,6 +494,9 @@ export default Service.extend({
       var any_proof_of_existing_login = Object.keys(store_data).length > 0;
       any_proof_of_existing_login = any_proof_of_existing_login || this.stashes.fs_user_name || (window.kvstash && window.kvstash.values && window.kvstash.user_name);
       var do_it = function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
         if(any_proof_of_existing_login) {
           _this.force_logout(i18n.t('session_lost', "Session data has been lost, please log back in"));
         } else {
@@ -503,6 +507,9 @@ export default Service.extend({
          do_it();
       } else {
         this.stashes.get_db_id(capabilities).then(function(obj) {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           any_proof_of_existing_login = any_proof_of_existing_login || obj.db_id;
           do_it();
         });
@@ -594,8 +601,17 @@ export default Service.extend({
 
   invalidate: function(force) {
     var _this = this;
+    if (this.isDestroyed || this.isDestroying) {
+      return;
+    }
     var full_invalidate = force || !!(this.appState.get('currentUser') || this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback());
     if(full_invalidate) {
+      // Purge any in-progress eval snapshot (partially-answered clinical data)
+      // BEFORE the transition/reload so it doesn't survive logout at rest on a
+      // shared device (the rest of IndexedDB survives sign-out by design; this
+      // transient assessment is different). Best-effort; issued early so the
+      // IndexedDB removes have the best chance to commit ahead of any reload.
+      try { evaluation.purge_for_logout(); } catch(e) { /* best-effort */ }
       if(window.navigator.splashscreen) {
         window.navigator.splashscreen.show();
       }
@@ -631,6 +647,9 @@ export default Service.extend({
       // Give the session time to clear completely before navigating, otherwise the
       // user might not actually get logged out.
       later(function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
         // STEP (a): Clear auth tokens FIRST. The index route's afterModel
         // checks session.access_token and replaceWith('user.home', user_name)
         // if it sees one. Clearing here ensures the SPA transitionTo('index')

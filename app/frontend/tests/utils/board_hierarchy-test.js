@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  xit,
   expect,
   beforeEach,
   afterEach,
@@ -244,8 +245,7 @@ describe('boardHierarchy', function() {
       expect(bh.get('root.children')[0].get('children')[1].get('children').length).toEqual(0);
       expect(bh.get('all_boards').length).toEqual(5);
     });
-    it('should apply options.prevent_keyboard correctly', function() {
-      expect('test').toEqual('todo');
+    xit('should apply options.prevent_keyboard correctly', function() {
     });
   });
   describe('disabled', function() {

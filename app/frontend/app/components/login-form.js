@@ -511,6 +511,12 @@ export default Component.extend({
   _login_spa_eligible: function() {
     return !!this.appState.get('feature_flags.auth_spa_transition');
   },
+  // Thin wrapper so plan-07 tests can observe post-auth reload navigation without
+  // overriding window.location.assign (frozen in modern Chrome / Puppeteer).
+  _login_location_assign: function(url) {
+    if (isTesting()) { return; }
+    location.assign(url);
+  },
   // Post-auth web dispatch logic. Called from login_success's web `else`
   // branch (the existing branch after `if(isTesting()) ... else if(installed_app)`).
   // Extracted as a method so plan 07 tests can call it directly with a
@@ -538,7 +544,7 @@ export default Component.extend({
       if(_this.get('return')) {
         _this.session.set('return', true);
       }
-      location.assign('/');
+      _this._login_location_assign('/');
     };
 
     var removePreReloadOverlay = function() {
@@ -653,6 +659,40 @@ export default Component.extend({
     var timeoutPromise = new RSVP.Promise(function(resolve) { runLater(resolve, 6000); });
     RSVP.race([wait, timeoutPromise]).then(doNext, function() { doReload(); });
   },
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    var send = function(name) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      self.send.apply(self, [name].concat(args));
+    };
+    this.loginFollowupTrue = () => { send('login_followup', true); };
+    this.loginFollowupFalse = () => { send('login_followup', false); };
+    this.loginForceLogoutYes = () => { send('login_force_logut', true); };
+    this.loginForceLogoutNo = () => { send('login_force_logut', false); };
+    this.onGoogleLinkUserSelect = (event) => {
+      var userName = event && event.target && event.target.value;
+      if (userName) { send('select_google_link_user', userName); }
+    };
+    this.onGoogleLinkUserPick = (event) => {
+      var userName = event && event.target && event.target.value;
+      if (userName) { self.set('google_link_selected_user_name', userName); }
+    };
+    this.onAuthenticateSubmit = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('authenticate');
+    };
+    this.onConfirmGoogleLink = () => { send('confirm_google_link'); };
+    this.onCancelGoogleLink = () => { send('cancel_google_link'); };
+    this.onStartGoogleLinkAnother = () => { send('start_google_link_another'); };
+    this.onStartGoogleSignup = () => { send('start_google_signup'); };
+    this.onConfirm2fa = () => { send('confirm_2fa'); };
+    this.onResendParentConsentEmail = () => { send('resendParentConsentEmail'); };
+    this.onLogout = () => { send('logout'); };
+    this.onContinueWithGoogle = (event) => { send('continue_with_google', event); };
+  },
+
   actions: {
     login_success: function(reload) {
       var _this = this;

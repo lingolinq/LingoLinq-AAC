@@ -826,13 +826,18 @@ describe UserMailer, :type => :mailer do
       expect(html).to match(/Super Lesson/)
       expect(html).to match(/This is a great lesson/)
       expect(html).to match(/14 minutes/)
-      expect(html).to match(/#{JsonApi::Json.current_host}\/lessons\/#{l.global_id}\/#{l.nonce}\/#{u.user_token}/)
-      
+      # The lesson link now carries an expiring lesson_share_token, not the permanent user_token
+      # (LL-90045bb29c option (b)); assert the path shape and that the embedded token resolves to u.
+      lesson_link = /#{JsonApi::Json.current_host}\/lessons\/#{l.global_id}\/#{l.nonce}\/([\w-]+)/
+      expect(html).to match(lesson_link)
+      expect(User.find_by_lesson_share_token(html.match(lesson_link)[1])).to eq(u)
+
       text = message_body(m, :text)
       expect(text).to match(/Super Lesson/)
       expect(text).to match(/This is a great lesson/)
       expect(text).to match(/14 minutes/)
-      expect(text).to match(/#{JsonApi::Json.current_host}\/lessons\/#{l.global_id}\/#{l.nonce}\/#{u.user_token}/)
+      expect(text).to match(lesson_link)
+      expect(User.find_by_lesson_share_token(text.match(lesson_link)[1])).to eq(u)
     end
   end
   

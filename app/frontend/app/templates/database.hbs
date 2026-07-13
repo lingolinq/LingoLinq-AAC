@@ -17,14 +17,14 @@
                           role="tab"
                           aria-selected={{if (is-equal this.activeTab "setup") "true" "false"}}
                           class="la-database-explorer__tab {{if (is-equal this.activeTab "setup") "la-database-explorer__tab--active"}}"
-                          {{action "setActiveTab" "setup"}}>
+                          {{on "click" (this.ctrlAction "setActiveTab" "setup")}}>
                     {{t "Setup" key="database_explorer_tab_setup"}}
                   </button>
                   <button type="button"
                           role="tab"
                           aria-selected={{if (is-equal this.activeTab "contents") "true" "false"}}
                           class="la-database-explorer__tab {{if (is-equal this.activeTab "contents") "la-database-explorer__tab--active"}}"
-                          {{action "setActiveTab" "contents"}}>
+                          {{on "click" (this.ctrlAction "setActiveTab" "contents")}}>
                     {{t "Contents" key="database_explorer_tab_contents"}}
                   </button>
                 </div>
@@ -55,7 +55,7 @@
                           <ul class="list-group la-database-explorer__table-list">
                             {{#each this.filteredTables as |tbl|}}
                               <li class="list-group-item la-database-explorer__table-item">
-                                <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.selectedTableName) "la-database-explorer__table-btn--active"}}" {{action "selectTable" tbl.name}}>
+                                <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.selectedTableName) "la-database-explorer__table-btn--active"}}" {{on "click" (this.ctrlAction "selectTable" tbl.name)}}>
                                   {{tbl.name}}
                                 </button>
                               </li>
@@ -129,7 +129,7 @@
                           <ul class="list-group la-database-explorer__table-list">
                             {{#each this.filteredContentsTables as |tbl|}}
                               <li class="list-group-item la-database-explorer__table-item">
-                                <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.contentsTableName) "la-database-explorer__table-btn--active"}}" disabled={{this.contentsLoading}} {{action "selectContentsTable" tbl.name}}>
+                                <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.contentsTableName) "la-database-explorer__table-btn--active"}}" disabled={{this.contentsLoading}} {{on "click" (this.ctrlAction "selectContentsTable" tbl.name)}}>
                                   {{tbl.name}}
                                 </button>
                               </li>
@@ -191,10 +191,10 @@
                               </div>
 
                               <div class="la-database-explorer__pager">
-                                <button type="button" class="btn btn-default la-database-explorer__pager-btn" disabled={{is-equal this.contentsOffset 0}} {{action "prevContentsPage"}}>
+                                <button type="button" class="btn btn-default la-database-explorer__pager-btn" disabled={{is-equal this.contentsOffset 0}} {{on "click" (this.ctrlAction "prevContentsPage")}}>
                                   {{t "Previous" key="database_explorer_prev"}}
                                 </button>
-                                <button type="button" class="btn btn-default la-database-explorer__pager-btn" disabled={{this.noMoreContents}} {{action "nextContentsPage"}}>
+                                <button type="button" class="btn btn-default la-database-explorer__pager-btn" disabled={{this.noMoreContents}} {{on "click" (this.ctrlAction "nextContentsPage")}}>
                                   {{t "Next" key="database_explorer_next"}}
                                 </button>
                               </div>

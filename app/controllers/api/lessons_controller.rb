@@ -74,9 +74,32 @@ class Api::LessonsController < ApplicationController
     lesson_id, lesson_code, user_token = params['id'].split(/:/)
     lesson = Lesson.find_by_path(lesson_id)
     return unless exists?(lesson, lesson_id)
-    return unless lesson.nonce == lesson_code || allowed?(lesson, 'view')
-    user = User.find_by_token(user_token)
-    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user, extra_user: user})
+    nonce_matched = lesson.nonce == lesson_code
+    # Codex review finding (High, second round, LL-90045bb29c follow-up): full lesson content
+    # (title/url/description) must not be served on nonce-match alone when the share token
+    # doesn't resolve -- that defeated the "links stop working" promise for the client-side
+    # (already-booted SPA) transition path, which has no server-rendered page to signal
+    # invalidity through (unlike the fresh-navigation path, fixed separately via
+    # boards_controller.rb + window.lesson_share_token_valid).
+    #
+    # Call the model's pure `allows?` predicate directly (NOT the `allowed?` controller
+    # helper) to learn whether the CURRENT viewer is independently authorized (e.g. the
+    # lesson's own author, an org admin/supervisor) -- `allowed?` renders its own 400
+    # "Not authorized" response on failure, so calling it unconditionally here would
+    # double-render for the common anonymous share-link case (nonce matches, no @api_user
+    # session, so `allowed?` would fail and render). `allows?` has no such side effect --
+    # confirmed via Permissable::InstanceMethods#allows? (gem source), a pure boolean
+    # permission-rule evaluation.
+    independently_authorized = lesson.allows?(@api_user, 'view', api_permission_scopes)
+    return unless nonce_matched || independently_authorized || allowed?(lesson, 'view')
+    user = User.find_by_lesson_share_token(user_token)
+    # Withhold full lesson content when the ONLY reason this request got past the guard
+    # above is the nonce match, and the share token didn't resolve to a user. An
+    # independently-authorized viewer (session/API-permission based) or a resolved share
+    # token always sees content, matching this action's existing multi-path authorization
+    # model -- this only tightens the anonymous-nonce-only, unresolved-token case.
+    withhold_content = !independently_authorized && !user
+    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user, extra_user: user, extra_user_token: user_token, withhold_content: withhold_content})
   end
 
   def update
@@ -96,12 +119,12 @@ class Api::LessonsController < ApplicationController
     if lesson.settings['nonce'] != lesson_code
       return allowed?(lesson, 'never_allow')
     end
-    user = User.find_by_token(user_token)
+    user = User.find_by_lesson_share_token(user_token)
     return unless exists?(user, user_token)
 
     Lesson.complete(lesson, user, params['rating'].to_i, nil, params['duration'].to_i)
 
-    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, extra_user: user, permissions: user})
+    render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, extra_user: user, permissions: user, extra_user_token: user_token})
   end
 
   def assign

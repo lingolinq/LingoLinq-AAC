@@ -1,5 +1,6 @@
 import EmberObject from '@ember/object';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import $ from 'jquery';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
@@ -9,7 +10,7 @@ import Subscription from '../utils/subscription';
 import Utils from '../utils/misc';
 import { computed, observer } from '@ember/object';
 
-LingoLinq.Organization = DS.Model.extend({
+LingoLinq.Organization = BaseModel.extend({
   init() {
     this._super(...arguments);
   },
@@ -19,55 +20,55 @@ LingoLinq.Organization = DS.Model.extend({
     this.set('total_licenses', this.get('allotted_licenses'));
     this.update_licenses_expire();
   }),
-  name: DS.attr('string'),
-  permissions: DS.attr('raw'),
-  purchase_history: DS.attr('raw'),
-  org_subscriptions: DS.attr('raw'),
-  default_home_board: DS.attr('raw'),
-  home_board_keys: DS.attr('raw'),
-  admin: DS.attr('boolean'),
-  org_access: DS.attr('boolean'),
-  allotted_licenses: DS.attr('number'),
-  allotted_eval_licenses: DS.attr('number'),
-  allotted_supervisor_licenses: DS.attr('number'),
-  allotted_extras: DS.attr('number'),
-  used_licenses: DS.attr('number'),
-  used_evals: DS.attr('number'),
-  used_supervisors: DS.attr('number'),
-  used_extras: DS.attr('number'),
-  total_users: DS.attr('number'),
-  total_managers: DS.attr('number'),
-  total_supervisors: DS.attr('number'),
-  total_premium_supervisors: DS.attr('number'),
-  total_extras: DS.attr('number'),
-  include_extras: DS.attr('boolean'),
-  support_target: DS.attr('raw'),
-  extra_colors: DS.attr('raw'),
-  sale_cutoff_date: DS.attr('string'),
-  site: DS.attr('raw'),
-  status_overrides: DS.attr('raw'),
-  note_templates: DS.attr('raw'),
-  premium: DS.attr('boolean'),
-  licenses_expire: DS.attr('string'),
-  saml_metadata_url: DS.attr('string'),
-  saml_sso_url: DS.attr('string'),
-  image_url: DS.attr('string'),
-  created: DS.attr('date'),
-  children_orgs: DS.attr('raw'),
-  parent_org: DS.attr('raw'),
-  management_action: DS.attr('string'),
-  assignment_action: DS.attr('string'),
-  default_locale: DS.attr('string'),
-  default_beta_program_access: DS.attr('boolean'),
-  preferred_symbols: DS.attr('string'),
-  start_codes: DS.attr('raw'),
-  custom_domain: DS.attr('boolean'),
-  supervisor_profile_id: DS.attr('string'),
-  supervisor_profile_frequency: DS.attr('number'),
-  communicator_profile_id: DS.attr('string'),
-  communicator_profile_frequency: DS.attr('number'),
-  hosts: DS.attr('raw'),
-  host_settings: DS.attr('raw'),
+  name: attr('string'),
+  permissions: attr('raw'),
+  purchase_history: attr('raw'),
+  org_subscriptions: attr('raw'),
+  default_home_board: attr('raw'),
+  home_board_keys: attr('raw'),
+  admin: attr('boolean'),
+  org_access: attr('boolean'),
+  allotted_licenses: attr('number'),
+  allotted_eval_licenses: attr('number'),
+  allotted_supervisor_licenses: attr('number'),
+  allotted_extras: attr('number'),
+  used_licenses: attr('number'),
+  used_evals: attr('number'),
+  used_supervisors: attr('number'),
+  used_extras: attr('number'),
+  total_users: attr('number'),
+  total_managers: attr('number'),
+  total_supervisors: attr('number'),
+  total_premium_supervisors: attr('number'),
+  total_extras: attr('number'),
+  include_extras: attr('boolean'),
+  support_target: attr('raw'),
+  extra_colors: attr('raw'),
+  sale_cutoff_date: attr('string'),
+  site: attr('raw'),
+  status_overrides: attr('raw'),
+  note_templates: attr('raw'),
+  premium: attr('boolean'),
+  licenses_expire: attr('string'),
+  saml_metadata_url: attr('string'),
+  saml_sso_url: attr('string'),
+  image_url: attr('string'),
+  created: attr('date'),
+  children_orgs: attr('raw'),
+  parent_org: attr('raw'),
+  management_action: attr('string'),
+  assignment_action: attr('string'),
+  default_locale: attr('string'),
+  default_beta_program_access: attr('boolean'),
+  preferred_symbols: attr('string'),
+  start_codes: attr('raw'),
+  custom_domain: attr('boolean'),
+  supervisor_profile_id: attr('string'),
+  supervisor_profile_frequency: attr('number'),
+  communicator_profile_id: attr('string'),
+  communicator_profile_frequency: attr('number'),
+  hosts: attr('raw'),
+  host_settings: attr('raw'),
   update_licenses_expire: function() {
     if(this.get('licenses_expire')) {
       var m = window.moment(this.get('licenses_expire'));
@@ -149,15 +150,14 @@ LingoLinq.Organization = DS.Model.extend({
     return res;
   })
 });
-LingoLinq.Organization.reopenClass({
-  mimic_server_processing: function(record, hash) {
-    hash.organization.permissions = {
-      "view": true,
-      "edit": true
-    };
 
-    return hash;
-  }
-});
+LingoLinq.Organization.mimic_server_processing = function(record, hash) {
+  hash.organization.permissions = {
+    "view": true,
+    "edit": true
+  };
+
+  return hash;
+};
 
 export default LingoLinq.Organization;

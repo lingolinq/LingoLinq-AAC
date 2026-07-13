@@ -39,8 +39,10 @@ module Api::SchemaExplorer
   # - organizations.external_auth_key/shortcut: SAML SSO auth hashes.
   # - boards.search_string: denormalized board content (button labels), which is
   #   AAC user vocabulary (FERPA/HIPAA), even though boards.settings is encrypted.
-  # - licenses.metadata/external_reference: License has no secure_serialize;
-  #   metadata is an untyped catch-all and external_reference is a PO/Stripe id.
+  # - licenses.metadata/external_reference: metadata is now secure_serialize'd
+  #   (encrypted, LL-740bcb10fa) but is still stripped here for defense in depth;
+  #   external_reference is a PO/Stripe id that stays plaintext (go_secure allows
+  #   only one secure column per model) and must be stripped explicitly.
   SENSITIVE_COLUMNS = {
     'organizations' => ['external_auth_key', 'external_auth_shortcut'],
     'boards'        => ['search_string'],

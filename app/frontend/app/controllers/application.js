@@ -73,6 +73,7 @@ export default Controller.extend({
   showSystemSettingsLink: alias('showBetaFeedbackAdminLink'),
 
   landingNavOpen: false,
+
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
   betaFeedbackDrawerOpen: false,
 
@@ -146,6 +147,34 @@ export default Controller.extend({
     if(!ev || !ev.intro_header_visibility) { return false; }
     return ev.intro_header_visibility().showSkip;
   }),
+  /** True on the combined welcome intro (before the evaluation actually
+      starts). Used to show the regular home AppNavbar instead of the eval
+      speak bar until the SLP hits Start — the welcome screen is informational,
+      not yet an assessment. Once Start jumps to the first find step this goes
+      false and the eval speak bar returns. */
+  eval_welcome_active: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return !!(intro && intro.intro === 'intro');
+  }),
+
+  // Show the in-place Pause button only during a running eval on the modern
+  // board view — never on board-alt (per request) and never on the welcome
+  // intro (nothing to pause before the assessment starts).
+  show_eval_pause: computed('appState.eval_mode', 'on_board_alt', 'eval_welcome_active', function() {
+    return !!(this.appState.get('eval_mode') && !this.get('on_board_alt') && !this.get('eval_welcome_active'));
+  }),
+
+  // Hide the header Previous button while on the first assessment section:
+  // stepping back from there lands on the welcome/intro (obf/eval-0-0), which is
+  // a broken dead end once the eval has started. Keyed off the board so it
+  // re-evaluates on every navigation.
+  show_eval_prev: computed('appState.eval_mode', 'on_board_alt', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode') || this.get('on_board_alt')) { return false; }
+    var ev = obf.eval;
+    return !!(ev && ev.can_go_back && ev.can_go_back());
+  }),
 
   boardMenuOpen: false,
 
@@ -166,6 +195,40 @@ export default Controller.extend({
         configurable: true
       });
     }
+
+    var router = this.router;
+    var self = this;
+    this.support = () => {
+      router.transitionTo('support');
+    };
+    this.language = () => {
+      modal.open('modals/choose-locale');
+    };
+    this.toggleLandingNav = () => {
+      self.set('landingNavOpen', !self.get('landingNavOpen'));
+    };
+    this.closeLandingNav = () => {
+      self.set('landingNavOpen', false);
+    };
+    this.onCloseBetaFeedbackDrawer = () => {
+      self.send('closeBetaFeedbackDrawer');
+    };
+    this.onToggleBetaFeedbackDrawer = () => {
+      self.send('toggleBetaFeedbackDrawer');
+    };
+
+    var _this = this;
+    _this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        _this.send.apply(_this, [actionName].concat(args));
+      };
+    };
   },
   updateTitle: function(str) {
     if(!isTesting()) {
@@ -509,7 +572,11 @@ export default Controller.extend({
     var s = this.get('session.isAuthenticated') ? 'margin-top: -10px; font-size: 14px;' : 'font-size: 14px;';
     return htmlSafe(s);
   }),
+
   actions: {
+    toggleEvalPause: function() {
+      if(obf.eval && obf.eval.toggle_pause) { obf.eval.toggle_pause(); }
+    },
     invalidateSession: function() {
       var sess = this.get('session');
       if (sess && typeof sess.invalidate === 'function') {
@@ -602,7 +669,9 @@ export default Controller.extend({
     },
     stickSidebar: function() {
       var user = this.appState.get('currentUser');
-      var wantQuickSidebar = !user.get('preferences.quick_sidebar');
+      // Toggle the EFFECTIVE state (unset is treated as shown), so the first
+      // collapse from the default-shown state persists `false` rather than `true`.
+      var wantQuickSidebar = !this.appState.get('effective_quick_sidebar');
       user.set('preferences.quick_sidebar', wantQuickSidebar);
       this.stashes.persist('sidebarEnabled', false);
       if(!wantQuickSidebar) {
@@ -1061,7 +1130,7 @@ export default Controller.extend({
     toggleEditMode: function(decision) {
       if(!this.appState.get('edit_mode')) {
         if(this.appState.speak_mode_exit_pin_required()) {
-          modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+          modal.open('speak-mode-pin', {action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
         } else {
           this.appState.toggle_edit_mode(decision);
         }
@@ -1089,7 +1158,7 @@ export default Controller.extend({
     switch_communicators: function(opts) {
       var ready = RSVP.resolve({correct_pin: true});
       if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
-        ready = modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+        ready = modal.open('speak-mode-pin', {action: 'none', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
       }
       ready.then(function(res) {
         if(res && res.correct_pin) {
@@ -1675,18 +1744,33 @@ export default Controller.extend({
       key: board.get('key'),
       parent_id: board.get('parent_board_id')
     };
-    var image_url = button.image;
+    var image_url = (button.get && (button.get('local_image_url') || button.get('image_url'))) ||
+      button.local_image_url ||
+      button.image_url ||
+      button.image;
+    if(image && image.get && image.get('best_url') && !image_url) {
+      image_url = image.get('best_url');
+    }
     if(image && image.get('personalized_url') && !button.no_skin) {
       image_url = image.get('personalized_url');
     } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
-      image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
+      image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.protected_image_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
+    }
+    var part_of_speech = (button.get && button.get('part_of_speech')) || button.part_of_speech ||
+      (button.get && button.get('painted_part_of_speech')) || button.painted_part_of_speech ||
+      (button.get && button.get('suggested_part_of_speech')) || button.suggested_part_of_speech;
+    var label = (button.get && button.get('label')) || button.label;
+    var vocalization = (button.get && button.get('vocalization')) || button.vocalization;
+    // Spelling-style "+s" on a dedicated "-s" modifier should inflect (walks), not append "s" (watchs).
+    if((vocalization || '').match(/^\+s$/i) && (label || '').trim().match(/^-?s$/i)) {
+      vocalization = ':plural';
     }
     var obj = {
-      label: button.label,
-      vocalization: button.vocalization,
+      label: label,
+      vocalization: vocalization,
       image: image_url,
       button_id: button.id,
-      part_of_speech: button.part_of_speech,
+      part_of_speech: part_of_speech,
       sound: (sound && sound.get && sound.get('url')) || button.get('original_sound_url'),
       board: oldState,
       completion: button.completion,
@@ -2104,10 +2188,13 @@ export default Controller.extend({
     return route === 'organization' || (route && route.indexOf('organization.') === 0);
   }),
   /** Use AppNavbar in #inner_header for both authenticated dashboard-like pages and unauthenticated landing/info pages. */
-  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'isOrganizationRoute', 'appState.current_route', 'appState.currentUser', 'appState.currentBoardState.id', function() {
+  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'isOrganizationRoute', 'appState.current_route', 'appState.currentUser', 'appState.currentBoardState.id', 'eval_welcome_active', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
     if (route === 'user.board-alt.index') { return false; }
+    // Eval welcome intro: show the regular home AppNavbar (not the eval speak
+    // bar) until the evaluation actually starts. See `eval_welcome_active`.
+    if (this.get('eval_welcome_active')) { return true; }
     // Authenticated pages
     if (this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) || (this.get('isOrganizationRoute') && cu) ||
       (route === 'about' && cu) ||
@@ -2126,7 +2213,6 @@ export default Controller.extend({
       route === 'beta-feedback' ||
       (route && route.indexOf('beta-feedback-admin') === 0) ||
       route === 'contact' ||
-      route === 'troubleshooting' ||
       route === 'login.device') {
       return true;
     }

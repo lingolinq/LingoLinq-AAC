@@ -1,5 +1,7 @@
 require 'timeout'
 
+require 'safe_http'
+
 class Webhook < ApplicationRecord
   include Async
   include SecureSerialize
@@ -37,8 +39,8 @@ class Webhook < ApplicationRecord
   end
   
   def self.register(user, record, options)
-    if !options[:callback] ||!options[:callback].match(/^http/)
-      # callback provided by user must be a valid url
+    if !options[:callback] ||!options[:callback].match(/^https:\/\//)
+      # callback provided by user must be a valid https url (no plaintext http transport)
       return nil
     end
     register_internal(user, record, options)
@@ -152,17 +154,23 @@ class Webhook < ApplicationRecord
           end
         end
         res = nil
+        log_url = url
         s = 10
         begin
           Timeout::timeout(s + 1) do
-            url = Uploader.sanitize_url(url)
-            res = Typhoeus.post(url, body: body, timeout: s)
+            sanitized = Uploader.sanitize_url(url)
+            if sanitized
+              res = SafeHttp.post(sanitized, body: body, timeout: s)
+              log_url = res.effective_url || sanitized
+            else
+              res = OpenStruct.new(code: 0, body: 'blocked or invalid URL')
+            end
           end
         rescue Timeout::Error => e
           res = OpenStruct.new(:code => 0, :body => "Timeout, request took more than #{s} seconds")
         end
         results << {
-          url: url,
+          url: log_url,
           response_code: res.code,
           response_body: res.body
         }
@@ -170,7 +178,7 @@ class Webhook < ApplicationRecord
         self.settings['callback_attempts'] << {
           'timestamp' => Time.now.to_i,
           'code' => res.code,
-          'url' => url
+          'url' => log_url
         }
         self.settings['callback_attempts'] = self.settings['callback_attempts'].last(20)
         self.save
@@ -243,7 +251,7 @@ class Webhook < ApplicationRecord
     self.settings['name'] = process_string(params['name']) if params['name']
     self.settings['include_content'] = params['include_content'] if params['include_content'] != nil
     self.settings['content_types'] = params['content_types'] if params['content_types']
-    self.settings['url'] = params['url'] if params['url'] && params['url'].match(/^http/)
+    self.settings['url'] = params['url'] if params['url'] && params['url'].match(/^https:\/\//)
     self.settings['webhook_type'] = params['webhook_type'] if params['webhook_type']
 
     if params['webhook_type'] == 'user'
@@ -253,7 +261,7 @@ class Webhook < ApplicationRecord
         notifications_param.each do |key, opts|
           if key == '*' || USER_WEBHOOKS.include?(key)
             self.settings['notifications'][key] ||= []
-            if opts['callback'] && opts['callback'].match(/^http/)
+            if opts['callback'] && opts['callback'].match(/^https:\/\//)
               self.settings['notifications'][key] = self.settings['notifications'][key].select{|n| n['callback'] != opts['callback'] }
               self.settings['notifications'][key] << {
                 'callback' => opts['callback'],

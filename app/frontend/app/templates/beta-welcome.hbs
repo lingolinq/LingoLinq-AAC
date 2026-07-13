@@ -57,6 +57,16 @@
         </section>
       </div>
 
+      {{#if this.showShort}}
+      <div class="beta-welcome-footer">
+        <div class="register-btn-wrap beta-welcome-actions">
+          <LinkTo @route="beta-welcome-message" class="register-btn">
+            <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
+            {{t "Back" key="back"}}
+          </LinkTo>
+        </div>
+      </div>
+      {{else}}
       <div class="beta-welcome-footer">
         <div class="register-checkboxes beta-welcome-accept">
           <div class="checkbox big_checkbox">
@@ -68,11 +78,12 @@
         </div>
 
         <div class="register-btn-wrap beta-welcome-actions">
-          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{action "acceptAgreement"}}>
+          <button type="button" disabled={{this.acceptButtonDisabled}} class="register-btn" {{on "click" (this.ctrlAction "acceptAgreement")}}>
             {{t "Get Started" key="get_started"}}
           </button>
         </div>
       </div>
+      {{/if}}
     </div>
   </div>
 </div>

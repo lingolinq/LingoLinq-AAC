@@ -224,6 +224,9 @@ function _prefetch_pipeline_complete(user, phaseDone) {
 }
 
 function _later_promise(ms) {
+  if (!ms) {
+    return RSVP.resolve();
+  }
   return new RSVP.Promise(function(resolve) {
     runLater(resolve, ms);
   });
@@ -280,36 +283,56 @@ function _load_prefetch_user(supervisee) {
   return RSVP.resolve(_summary_as_user(supervisee));
 }
 
+function _schedule_sequential_step(processNext, gapMs) {
+  if (!gapMs) {
+    return processNext();
+  }
+  return new RSVP.Promise(function(resolve) {
+    runLater(function() {
+      processNext().then(resolve, resolve);
+    }, gapMs);
+  });
+}
+
 function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
   if (!rootKeys || !rootKeys.length) { return RSVP.resolve(true); }
   var index = 0;
 
   var processNext = function() {
-    if (_document_hidden() || !_is_online()) {
-      return RSVP.resolve(false);
-    }
     if (index >= rootKeys.length) {
       return RSVP.resolve(true);
+    }
+    if (_document_hidden() || !_is_online()) {
+      return RSVP.resolve(false);
     }
     var key = rootKeys[index++];
     var existing = _lookup(key);
     if (existing && _is_fresh(existing) && existing.raw) {
-      return new RSVP.Promise(function(resolve) {
-        runLater(function() {
-          processNext().then(resolve, resolve);
-        }, gapMs);
-      });
+      return _schedule_sequential_step(processNext, gapMs);
     }
-    return persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
+    // Dedup concurrent warm passes for the same board: a caseload warm and a
+    // board-route warm can request the same /tree at once, and (unlike the
+    // sibling SHOW fetch above) this GET otherwise skips the _inflight map, so
+    // both fire. Share the in-flight request so identical concurrent fetches
+    // collapse to one network call; each pass still ingests the shared response
+    // into its own cache with its own warm_opts. Namespaced key ('tree:') so it
+    // can't collide with the bare-lookup SHOW entries in _inflight.
+    var tree_lookup = 'tree:' + key;
+    var tree_req = _inflight[tree_lookup];
+    if (!tree_req) {
+      tree_req = persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' });
+      _inflight[tree_lookup] = tree_req;
+      var _clear_tree_inflight = function() {
+        if (_inflight[tree_lookup] === tree_req) { delete _inflight[tree_lookup]; }
+      };
+      tree_req.then(_clear_tree_inflight, _clear_tree_inflight);
+    }
+    return tree_req.then(function(data) {
       _ingest_tree_response(cache, data, warm_opts);
     }, function() {
       /* swallow per-board errors */
     }).then(function() {
-      return new RSVP.Promise(function(resolve) {
-        runLater(function() {
-          processNext().then(resolve, resolve);
-        }, gapMs);
-      });
+      return _schedule_sequential_step(processNext, gapMs);
     });
   };
 
@@ -321,7 +344,12 @@ function _ingest_tree_response(cache, data, warm_opts, options) {
   if (!data || !data.root || !data.root.board) { return false; }
   var root_raw = normalize_board_payload(data.root);
   if (!root_raw) { return false; }
-  cache.set(root_raw);
+  // options.force lets a caller that fetched a fresh /tree (e.g. the speak
+  // handoff waiting on a just-copied board) make its root authoritative even
+  // when a staler entry is still within TTL — so the route's cache-first read
+  // and the store record agree on the newest server response. Prefetch callers
+  // pass no options, so their non-forcing behavior is unchanged.
+  cache.set(root_raw, { force: !!options.force });
   if (options.warm_root_images !== false) {
     cache.warm_images(root_raw, warm_opts);
   }
@@ -350,6 +378,19 @@ function _collect_linked_lookups(raw) {
 
 export default {
   normalize_board_payload: normalize_board_payload,
+
+  // Ingest a /api/v1/boards/:id/tree response (root + descendants) into the
+  // cache AND the Ember Data store, exactly as the route's own model hook and
+  // the prefetch pipeline do. Callers that fetch a tree ahead of navigation
+  // (e.g. the guided-tour speak handoff waiting for a freshly-copied board)
+  // use this to prime the cache so the subsequent board-detail transition is
+  // a pure cache HIT — no second network load, descendants already warm.
+  // Returns true when the root was ingested, false when the payload has no
+  // usable root (board not materialized yet), so the caller can keep polling.
+  ingest_tree: function(data, warm_opts, options) {
+    return _ingest_tree_response(this, data, warm_opts, options);
+  },
+
   // Returns the cached raw board JSON, or null if missing/stale.
   get: function(key_or_id) {
     var entry = _lookup(key_or_id);
@@ -568,9 +609,11 @@ export default {
     });
   },
 
-  _run_prefetch_pipeline: function(user, warm_opts) {
+  _run_prefetch_pipeline: function(user, warm_opts, pipeline_opts) {
     var _this = this;
     var user_id = user.get('id');
+    pipeline_opts = pipeline_opts || {};
+    var gapMs = pipeline_opts.gapMs !== undefined ? pipeline_opts.gapMs : TREE_GAP_MS;
     warm_opts = warm_opts || {
       skin: user.get('preferences.skin'),
       preferred_symbols: user.get('preferences.preferred_symbols')
@@ -589,7 +632,7 @@ export default {
           phaseDone.phase1 = true;
           return RSVP.resolve();
         }
-        return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function(completed) {
+        return _process_roots_sequentially(_this, lookups, warm_opts, gapMs).then(function(completed) {
           _complete_phase_if_done(phaseDone, 'phase1', completed);
         }, function() {
           delete phaseDone.phase1;
@@ -608,7 +651,7 @@ export default {
             phaseDone.phase2 = true;
             return RSVP.resolve();
           }
-          return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function(completed) {
+          return _process_roots_sequentially(_this, lookups, warm_opts, gapMs).then(function(completed) {
             _complete_phase_if_done(phaseDone, 'phase2', completed);
           }, function() {
             delete phaseDone.phase2;
@@ -632,7 +675,7 @@ export default {
               phaseDone.phase3 = true;
               return RSVP.resolve();
             }
-            return _process_roots_sequentially(_this, phased.phase3, warm_opts, TREE_GAP_MS).then(function(completed) {
+            return _process_roots_sequentially(_this, phased.phase3, warm_opts, gapMs).then(function(completed) {
               _complete_phase_if_done(phaseDone, 'phase3', completed);
             }, function() {
               delete phaseDone.phase3;
@@ -669,7 +712,7 @@ export default {
             phaseDone.phase4 = true;
             return RSVP.resolve();
           }
-          return _process_roots_sequentially(_this, publicLookups, warm_opts, TREE_GAP_MS).then(function(completed) {
+          return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs).then(function(completed) {
             _complete_phase_if_done(phaseDone, 'phase4', completed);
           }, function() {
             delete phaseDone.phase4;
@@ -754,15 +797,16 @@ export default {
       chain = chain.then(function() {
         if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
         if (_this._prefetched_caseload_supervisee_ids[key]) { return RSVP.resolve(); }
-        return _load_prefetch_user(supervisee).then(function(prefetchUser) {
-          if (!prefetchUser || !prefetchUser.get || !prefetchUser.get('id')) {
-            return RSVP.resolve();
-          }
-          var warm_opts = {
-            skin: prefetchUser.get('preferences.skin'),
-            preferred_symbols: prefetchUser.get('preferences.preferred_symbols')
-          };
-          return _this._run_prefetch_pipeline(prefetchUser, warm_opts).then(function(completed) {
+          return _load_prefetch_user(supervisee).then(function(prefetchUser) {
+            if (!prefetchUser || !prefetchUser.get || !prefetchUser.get('id')) {
+              return RSVP.resolve();
+            }
+            var warm_opts = {
+              skin: prefetchUser.get('preferences.skin'),
+              preferred_symbols: prefetchUser.get('preferences.preferred_symbols')
+            };
+            var pipeline_opts = opts.pipelineGapMs !== undefined ? { gapMs: opts.pipelineGapMs } : null;
+            return _this._run_prefetch_pipeline(prefetchUser, warm_opts, pipeline_opts).then(function(completed) {
             if (completed) {
               _this._prefetched_caseload_supervisee_ids[key] = true;
             }
@@ -770,7 +814,7 @@ export default {
         }, function() {
           return RSVP.resolve();
         }).then(function() {
-          return _later_promise(opts.gapMs || CASELOAD_PREFETCH_GAP_MS);
+          return _later_promise(opts.gapMs !== undefined ? opts.gapMs : CASELOAD_PREFETCH_GAP_MS);
         });
       });
     });
@@ -786,9 +830,11 @@ export default {
 
   // Legacy entry point kept for tests. Prefetches LingoLinq catalog +
   // global public roots when public prefetch is enabled.
-  prefetch_lingolinq_catalog: function(user, warm_opts) {
+  prefetch_lingolinq_catalog: function(user, warm_opts, prefetch_opts) {
     if (!user || !user.get) { return RSVP.resolve(); }
     if (!boardPrefetchPlanner.publicPrefetchEnabled(user)) { return RSVP.resolve(); }
+    prefetch_opts = prefetch_opts || {};
+    var gapMs = prefetch_opts.gapMs !== undefined ? prefetch_opts.gapMs : TREE_GAP_MS;
     var user_id = user.get('id');
     if (!user_id) { return RSVP.resolve(); }
     if (!_is_online()) { return RSVP.resolve(); }
@@ -819,7 +865,7 @@ export default {
         delete _this._prefetched_catalog_user_ids[user_id];
         return RSVP.resolve();
       }
-      return _process_roots_sequentially(_this, publicLookups, warm_opts, TREE_GAP_MS).then(function() {
+      return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs).then(function() {
         /* done */
       }, function() {
         delete _this._prefetched_catalog_user_ids[user_id];

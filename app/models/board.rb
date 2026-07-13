@@ -1,3 +1,9 @@
+# EU AI Act Article 50(2) marker verification. Required explicitly (not left to
+# Zeitwerk) for parity with app/cloners/board_cloner.rb and lib/json_api/board.rb,
+# so the persist path below stays deterministic even where lib/ autoload is skipped
+# (RESQUE_WORKER=='true'); require_relative loads it regardless of the autoloader.
+require_relative '../../lib/art50_marker'
+
 class Board < ApplicationRecord
   DEFAULT_ICON = "/images/lingolinq-board-icon.png"
   TRANSLATION_LANGUAGE_LABELS = {
@@ -50,6 +56,7 @@ class Board < ApplicationRecord
   after_commit :enqueue_suggested_sounds_if_deferred, on: %i[create update]
   after_save :post_process
   after_save :assert_shallow_mapping
+  after_commit :schedule_pending_privacy_update, on: :create
   after_commit :schedule_pending_folder_cascades, on: %i[create update]
   after_destroy :flush_related_records
 #  replicated_model
@@ -716,6 +723,73 @@ class Board < ApplicationRecord
 
     boards.map { |b| JsonApi::Board.as_json(b, permissions: primary) }
   end
+
+  # Imports a JSON bundle ({ root, boards: [{ key, data }] }) exported from
+  # CoughDrop/LingoLinq API responses. +source+ is an HTTPS URL, local path, or
+  # parsed Hash. See Converters::ApiJsonBundle.
+  def self.import_json_bundle(importer_global_id, source, extra = {})
+    importer = User.find_by_global_id(importer_global_id)
+    raise Progress::ProgressError, "invalid importer account" unless importer
+
+    recipient_ids_raw = []
+    extra = {} if extra.nil?
+    extra = extra.with_indifferent_access
+    if extra[:recipient_global_ids].present?
+      recipient_ids_raw = Array(extra[:recipient_global_ids]).flatten.map(&:presence).compact
+    end
+
+    by_gid = User.find_all_by_global_id(recipient_ids_raw).index_by(&:global_id)
+    recipient_users = recipient_ids_raw.filter_map { |gid| by_gid[gid] }
+    recipient_users = [importer] if recipient_users.empty?
+
+    recipient_users.each do |u|
+      next if u.global_id == importer.global_id
+      unless importer.edit_permission_for?(u)
+        raise Progress::ProgressError, "not authorized to import boards for #{u.user_name}"
+      end
+    end
+
+    primary = recipient_users[0]
+    dup_targets = recipient_users[1..] || []
+    bundle = Converters::ApiJsonBundle.load_bundle(source, allowed_importer_global_id: importer.global_id)
+    root_key = bundle['root']
+
+    boards = []
+    Progress.update_current_progress(0.05, :generating_boards)
+    begin
+      end_percent = dup_targets.any? ? 0.45 : 0.9
+      Progress.as_percent(0.05, end_percent) do
+        boards = Converters::ApiJsonBundle.import(bundle, primary)
+      end
+    rescue => e
+      if e.message.match(/protected boards/)
+        return {error: {message: "protected material cannot be imported", protected: true}}
+      else
+        raise e
+      end
+    end
+
+    if dup_targets.any?
+      root_old = boards.find { |b| root_key.present? && b.key == root_key } || boards[0]
+      root_old = root_old.reload
+      dup_targets.each_with_index do |target_user, idx|
+        span = 0.45 / dup_targets.length.to_f
+        start_p = 0.45 + (idx * span)
+        end_p = 0.45 + ((idx + 1) * span)
+        Progress.as_percent(start_p, end_p) do
+          new_root = root_old.copy_for(target_user, copier: importer)
+          Board.copy_board_links_for(target_user,
+            starting_old_board: root_old,
+            starting_new_board: new_root,
+            authorized_user: importer,
+            copier: importer
+          )
+        end
+      end
+    end
+
+    boards.map { |b| JsonApi::Board.as_json(b, permissions: primary) }
+  end
   
   def generate_download(user_id, type, opts)
     res = {}
@@ -1123,6 +1197,23 @@ class Board < ApplicationRecord
     @cascade_invalidations = invalidations if invalidations.any?
   end
 
+  # A new board can already contain links to existing boards, but it has no id
+  # while process_params runs. Preserve a requested privacy cascade until the
+  # create commits so the async dispatcher receives an instance id.
+  def schedule_pending_privacy_update
+    pending = @pending_privacy_update
+    @pending_privacy_update = nil
+    return unless pending
+
+    schedule_for(
+      :priority,
+      :update_privacy,
+      pending['privacy_level'],
+      pending['author_global_id'],
+      []
+    )
+  end
+
   def post_process
     if @skip_post_process
       @skip_post_process = false
@@ -1386,14 +1477,20 @@ class Board < ApplicationRecord
 
     # Google TTS is one HTTP call per button; large boards exceed Rack::Timeout during POST /boards#create.
     # Defer to Progress + worker (same pattern as other long-running board work).
-    if ENV['GOOGLE_TTS_TOKEN'].present?
+    #
+    # Also defer when the record is not yet persisted: this is a before_save callback, so a brand-new
+    # board has no id. process_suggested_sounds_async reloads self (and writes board-scoped
+    # associations), which raises ActiveRecord::RecordNotFound ("Board ... id IS NULL") on a new
+    # record. The after_commit hook reruns it once the id exists. (Without GOOGLE_TTS_TOKEN this used
+    # to crash board creation entirely - e.g. db:seed on a fresh DB.)
+    if ENV['GOOGLE_TTS_TOKEN'].present? || !persisted?
       @defer_suggested_sounds = true
       return
     end
 
-    # For non-Google providers, generate suggested sounds inline so locales that
-    # do not require GOOGLE_TTS_TOKEN (for example Abair-backed locales) still
-    # receive auto-generated sounds during the save flow.
+    # For non-Google providers updating an already-persisted board, generate suggested sounds inline
+    # so locales that do not require GOOGLE_TTS_TOKEN (for example Abair-backed locales) still receive
+    # auto-generated sounds during the save flow.
     process_suggested_sounds_async
   end
 
@@ -1401,12 +1498,18 @@ class Board < ApplicationRecord
     return unless @defer_suggested_sounds
 
     @defer_suggested_sounds = false
-    return unless id && ENV['GOOGLE_TTS_TOKEN'].present?
+    return unless id
 
     b = self.class.find_by(id: id)
     return unless b
 
-    Progress.schedule(b, :process_suggested_sounds_async)
+    if ENV['GOOGLE_TTS_TOKEN'].present?
+      Progress.schedule(b, :process_suggested_sounds_async)
+    else
+      # Non-Google providers: run inline now that the record is persisted (reload succeeds). Wrapped by
+      # the rescue below so a sound-generation failure never rolls back the already-committed board.
+      b.process_suggested_sounds_async
+    end
   rescue => e
     Rails.logger.error "enqueue_suggested_sounds_if_deferred failed: #{e.class}: #{e.message}"
   end
@@ -1437,7 +1540,7 @@ class Board < ApplicationRecord
         bs.settings['suggestion'] = true
         bs.settings['data_uri'] = "data:#{bs.settings['content_type']};base64,#{Base64.strict_encode64(audio[:body])}"
         bs.save
-        bs.upload_to_remote('data_uri')
+        bs.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
         next unless bs.url.present?
 
         button['sound_id'] = bs.global_id
@@ -1804,6 +1907,23 @@ class Board < ApplicationRecord
     self.settings['text_only'] = params['text_only'] if params['text_only'] != nil
     self.settings['dim_header'] = params['dim_header'] if params['dim_header'] != nil
     self.settings['small_header'] = params['small_header'] if params['small_header'] != nil
+    # EU AI Act Article 50(2): if the client supplied an AI-generation marker, persist
+    # it onto settings ONLY if it verifies as a genuine, server-signed marker. Client
+    # input is never trusted: a missing, malformed, or forged marker is silently dropped,
+    # leaving any existing valid marker intact (the assignment is guarded on `marker`);
+    # only a freshly verified marker replaces the stored one. Marking is unconditional
+    # (no feature flag); see lib/art50_marker.rb. verify never raises, but we still guard
+    # so a marker problem can never break a board save. Art50Marker is require_relative'd
+    # at the top of this file, so it is defined even on the Resque-worker path where lib/
+    # autoload is skipped.
+    if params['ai_generated']
+      begin
+        marker = Art50Marker.normalized(params['ai_generated'])
+        self.settings['ai_generated'] = marker if marker
+      rescue StandardError => e
+        Rails.logger.warn("Art50 marker verification skipped on save: #{e.class}")
+      end
+    end
     self.settings['never_edited'] = false if self.id
     button_params = params['buttons']
     button_params.instance_variable_set('@add_voc_error', non_user_params['add_voc_error']) if button_params
@@ -1843,8 +1963,19 @@ class Board < ApplicationRecord
       self.settings['grid'] = grid_val if grid_val.is_a?(Hash)
     end
     if params['visibility'] != nil && !self.unshareable?
-      if params['update_visibility_downstream']
-        self.schedule_for(:priority, :update_privacy, params['visibility'], (non_user_params[:updater] || ref_user).global_id, [])
+      # process_params runs before save. Defer a new board's cascade until
+      # after_commit so schedule_for captures its id; linked boards may already
+      # be present in the create payload and still need the requested update.
+      if params['update_visibility_downstream'] && !params['visibility'].blank?
+        author_global_id = (non_user_params[:updater] || ref_user).global_id
+        if self.id
+          self.schedule_for(:priority, :update_privacy, params['visibility'], author_global_id, [])
+        else
+          @pending_privacy_update = {
+            'privacy_level' => params['visibility'],
+            'author_global_id' => author_global_id
+          }
+        end
       end
       if params['visibility'] == 'public'
         if !self.public || self.settings['unlisted']
@@ -2728,7 +2859,9 @@ class Board < ApplicationRecord
           next button if button['label'] && button['label'].match(/LingoLinq/)
           old_bi = bis.detect{|i| i.global_id == button['image_id'] }
           # skip buttons that have manually-uploaded image
-          if old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
+          if old_bi && old_bi.preserve_source_image?
+            # JSON bundle / migration import — keep exported image
+          elsif old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
             # puts "SAFE PIC"
           elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(old_bi.image_library) && library == 'opensybmols'))
             # puts "ALREADY SWAPPED"

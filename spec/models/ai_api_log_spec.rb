@@ -495,4 +495,139 @@ describe AiApiLog, :type => :model do
       expect(log2.reload.ip_address).to eq('[REDACTED]')
     end
   end
+
+  describe "purge_old_eu_logs!" do
+    it "should delete EU-jurisdiction records older than 5 years" do
+      old_eu = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      old_eu.update_column(:created_at, 6.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(1)
+      expect(AiApiLog.where(id: old_eu.id)).to be_empty
+    end
+
+    it "should keep EU records newer than 5 years" do
+      recent_eu = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      recent_eu.update_column(:created_at, 4.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(0)
+      expect(recent_eu.reload).to be_present
+    end
+
+    it "should NOT delete non-EU records even when older than 5 years (EU-only scope)" do
+      old_us = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'US')
+      old_unknown = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: nil)
+      old_us.update_column(:created_at, 7.years.ago)
+      old_unknown.update_column(:created_at, 7.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(0)
+      expect(old_us.reload).to be_present
+      expect(old_unknown.reload).to be_present
+    end
+
+    it "should accept a custom years argument" do
+      eu_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      eu_log.update_column(:created_at, 3.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!(years: 2)
+      expect(count).to eq(1)
+      expect(AiApiLog.where(id: eu_log.id)).to be_empty
+    end
+
+    it "should purge multiple eligible EU records in one call" do
+      log1 = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', jurisdiction: 'EU')
+      log2 = AiApiLog.create!(ai_provider: 'gemini', request_type: 'word_suggestion', jurisdiction: 'EU')
+      log1.update_column(:created_at, 6.years.ago)
+      log2.update_column(:created_at, 8.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+      expect(count).to eq(2)
+      expect(AiApiLog.where(jurisdiction: 'EU')).to be_empty
+    end
+  end
+
+  describe "Article 50 fields via log_ai_call" do
+    it "persists jurisdiction, disclosure, marking, and content id when provided" do
+      log = AiApiLog.log_ai_call(
+        provider: 'claude', model: 'claude-haiku-4-5-20251001', type: 'board_generation',
+        jurisdiction: 'EU', article_50_disclosure_shown: true,
+        ai_content_marked: true, ai_generated_content_id: '1_99'
+      )
+      expect(log).to be_persisted
+      expect(log.jurisdiction).to eq('EU')
+      expect(log.article_50_disclosure_shown).to eq(true)
+      expect(log.ai_content_marked).to eq(true)
+      expect(log.ai_generated_content_id).to eq('1_99')
+    end
+
+    it "defaults the Article 50 booleans to false for existing callers (backward compatible)" do
+      log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
+      expect(log).to be_persisted
+      expect(log.jurisdiction).to be_nil
+      expect(log.article_50_disclosure_shown).to eq(false)
+      expect(log.ai_content_marked).to eq(false)
+    end
+  end
+
+  describe "log_ai_call audit-write failure (alert-but-continue)" do
+    # Fake Sentry so the guarded alert path runs whether or not Sentry is
+    # initialized in the test env. Mirrors AuditEvent's capture_message contract.
+    let(:fake_sentry) do
+      Module.new do
+        def self.initialized?
+          true
+        end
+      end
+    end
+
+    before(:each) do
+      stub_const('Sentry', fake_sentry)
+    end
+
+    it "alerts via Sentry and returns the unsaved log instead of raising" do
+      captured = nil
+      allow(fake_sentry).to receive(:capture_message) { |msg, *| captured = msg }
+
+      log = nil
+      expect {
+        # invalid ai_provider fails the inclusion validation -> save! raises RecordInvalid
+        log = AiApiLog.log_ai_call(provider: 'evilcorp', type: 'board_generation')
+      }.not_to raise_error
+
+      expect(log).to be_a(AiApiLog)
+      expect(log).not_to be_persisted
+      expect(captured).to include('failed to persist audit log')
+      expect(fake_sentry).to have_received(:capture_message)
+        .with(kind_of(String), hash_including(level: 'error', tags: { audit: 'ai_api_log_persist_failed' }))
+    end
+
+    it "does not let a Sentry failure escape (alerting can never break generation)" do
+      allow(fake_sentry).to receive(:capture_message).and_raise(StandardError, 'sentry down')
+
+      expect {
+        AiApiLog.log_ai_call(provider: 'evilcorp', type: 'board_generation')
+      }.not_to raise_error
+    end
+
+    it "also alerts (not just validation errors) on a real DB failure during save" do
+      captured = nil
+      allow(fake_sentry).to receive(:capture_message) { |msg, *| captured = msg }
+      # Simulate an operational DB hiccup -- a StatementInvalid, NOT a validation
+      # RecordInvalid -- which is the scenario the loud fix is meant to surface.
+      allow_any_instance_of(AiApiLog).to receive(:save!)
+        .and_raise(ActiveRecord::StatementInvalid.new('PG::ConnectionBad: server closed the connection'))
+
+      log = nil
+      expect {
+        log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
+      }.not_to raise_error
+
+      expect(log).to be_a(AiApiLog)
+      expect(captured).to include('failed to persist audit log')
+      expect(fake_sentry).to have_received(:capture_message)
+        .with(kind_of(String), hash_including(level: 'error', tags: { audit: 'ai_api_log_persist_failed' }))
+    end
+  end
 end

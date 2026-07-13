@@ -21,6 +21,14 @@ export default Component.extend({
   currentComm: null,
   suspectedAccess: null,
 
+  // Two-step intake: 'choose' shows the tailor-vs-general gate; 'form' shows the
+  // four demographic questions. Supervisors can skip the questions and run a
+  // general (un-narrowed) screen — see chooseSkip / eval_session.beginScreening.
+  step: 'choose',
+  isChoosing: computed('step', function() {
+    return this.get('step') === 'choose';
+  }),
+
   ageBands: computed(function() {
     return [
       { value: '<3',    label: i18n.t('age_under_3', "Under 3") },
@@ -113,8 +121,45 @@ export default Component.extend({
       current_comm: this.get('currentComm')
     });
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
 
   actions: {
+    chooseTailor() {
+      this.set('step', 'form');
+    },
+    chooseSkip() {
+      // Skip the demographic questions → run a general screen with no demographic
+      // narrowing (eval_session.beginScreening reads intake.generalized).
+      const onComplete = this.get('onComplete');
+      if (onComplete) { onComplete({ generalized: true }); }
+    },
+    backToChoice() {
+      this.set('step', 'choose');
+    },
     pick(field, value) {
       this.set(field, value);
     },

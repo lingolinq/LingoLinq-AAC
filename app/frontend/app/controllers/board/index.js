@@ -16,6 +16,7 @@ import { sync_current_board_state as runBoardStateSync } from '../../utils/board
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
 import Button from '../../utils/button';
+import obf from '../../utils/obf';
 import frame_listener from '../../utils/frame_listener';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/template';
@@ -49,6 +50,13 @@ export default Controller.extend(prefClasses, {
     }
     return title;
   }),
+  // The template checks `this.board.grid` (and this.board.* throughout), but the
+  // controller only ever had `model` set — `this.board` resolved to undefined,
+  // so any board whose grid isn't reached some other way rendered "Grid not
+  // defined!". Surfaced by the eval (client-built obf boards) after the Ember
+  // 5.12 upgrade removed the implicit-`this` template fallback that used to let
+  // bare `{{board.grid}}` reach the model. Alias it to the current model.
+  board: alias('model'),
   ordered_buttons: null,
   suggestions: null,
   word_prediction_locale: function() {
@@ -81,6 +89,27 @@ export default Controller.extend(prefClasses, {
     'appState.speak_mode',
     function() { runShareApprovalCheck(this, this.appState); }
   ),
+  // In-place eval pause (utils/eval.js sets appState.eval_paused). The overlay
+  // blocks input; here we freeze the board's own timers: cancel the pending
+  // audio reprompt on pause, and on resume shift `rendered` forward by the
+  // paused span so the per-item response clock (time_to_select = now - rendered)
+  // excludes the pause.
+  eval_pause_watcher: observer('appState.eval_paused', function() {
+    if(!this.appState.get('eval_mode')) { return; }
+    var board = this.get('model');
+    if(!board || !board.get) { return; }
+    if(this.appState.get('eval_paused')) {
+      if(board.get('reprompt_wait')) {
+        cancelLater(board.get('reprompt_wait'));
+        board.set('reprompt_wait', null);
+      }
+    } else {
+      var ms = this.appState.get('eval_last_pause_ms') || 0;
+      if(ms && board.get('rendered')) {
+        board.set('rendered', board.get('rendered') + ms);
+      }
+    }
+  }),
   updateSuggestions: observer(
     'appState.button_list',
     'appState.button_list.[]',
@@ -93,10 +122,14 @@ export default Controller.extend(prefClasses, {
     'model.locale',
     'model.translations',
     function() {
-      // Word prediction is governed by the global user preference (default
-      // OFF), not a per-board flag — it now behaves identically on the classic
-      // board-alt and modern board-detail speak pages.
-      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode')) { return; }
+      // Word prediction is governed by the global user preference (only an
+      // explicit true is on; null/undefined = off), not a per-board flag — it
+      // behaves identically on the classic board-alt and modern board-detail
+      // speak pages.
+      // Eval boards (obf/eval*) are a controlled assessment — word prediction
+      // would interfere and its symbols aren't part of the test — so suppress
+      // the lookup (and the bar below) whenever eval_mode is active.
+      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode') || this.appState.get('eval_mode')) { return; }
       var _this = this;
       var button_list = this.get('appState.button_list');
       var last_button = button_list[button_list.length - 1];
@@ -429,7 +462,7 @@ export default Controller.extend(prefClasses, {
       }
       var topHeight = header_base + (this.appState.get('extra_header_height') || 0);
       var sidebarTopHeight = topHeight;
-      this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode'));
+      this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode') && !this.appState.get('eval_mode'));
       if(this.get('show_word_suggestions')) {
         topHeight = topHeight + 55;
         var style = this.get('get_style');
@@ -981,7 +1014,7 @@ export default Controller.extend(prefClasses, {
       });
     });
     this.clear_levels_change();
-    return levels.uniq().sort(function(a, b) { return a - b; });
+    return [...new Set(levels)].sort(function(a, b) { return a - b; });
   }),
   clear_levels_change() {
     this.set('levels_change', false);
@@ -1147,6 +1180,7 @@ export default Controller.extend(prefClasses, {
     'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
+    'eval_intro_active',
     'high_contrast_class',
     'symbol_background_class',
     function() {
@@ -1211,9 +1245,45 @@ export default Controller.extend(prefClasses, {
       if(this.appState.get('eval_mode')) {
         res = res + 'eval_mode ';
       }
+      if(this.appState.get('eval_mode') && this.get('eval_intro_active')) {
+        res = res + 'eval_intro ';
+      }
       return res;
     }
   ),
+  /* Bespoke modern eval intro screen: active when in eval mode and the
+     current step is an intro (the board-grid render is replaced by the
+     <eval-intro> component — see templates/board/index.hbs). Keyed on the
+     board key so it recomputes as the eval flow jumps between boards. */
+  eval_intro_active: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    return !!(ev && ev.current_intro && ev.current_intro());
+  }),
+  eval_intro_text: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return intro ? intro.text : '';
+  }),
+  /* Whether the header Skip control is available for this intro step
+     (section intros can be skipped; the welcome intro can't). Mirrors the
+     application controller's eval_intro_header_show_skip so the bespoke
+     screen shows Skip exactly when the toolbar does. */
+  eval_intro_show_skip: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    if(!ev || !ev.intro_header_visibility) { return false; }
+    return !!ev.intro_header_visibility().showSkip;
+  }),
+  /* The welcome intro ('intro') is the combined first screen — it shows the
+     succinct checklist (no section nav) and starts the actual evaluation.
+     Section intros (diff_target, symbols, …) are mid-evaluation and keep the
+     lead text + Back/Skip/Next nav. */
+  eval_intro_is_welcome: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return !!(intro && intro.intro === 'intro');
+  }),
   suggestion_class: computed(
     'button_style',
     'text_style',
@@ -1286,6 +1356,31 @@ export default Controller.extend(prefClasses, {
   },
 
   boardMenuOpen: false,
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
 
   actions: {
     // Persist the user's preferred board UI shell. 'classic' = this

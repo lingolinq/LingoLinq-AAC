@@ -421,7 +421,11 @@ var stashes = EmberObject.extend({
     };
     obj.sentence = obj.vocalizations.map(function(v) { return v.label; }).join(" ");
     if(!list.find(function(v) { return v.sentence == obj.sentence; })) {
-      list.pushObject(obj);
+      if(typeof list.pushObject === 'function') {
+        list.pushObject(obj);
+      } else {
+        list.push(obj);
+      }
     }
     stashes.persist('remembered_vocalizations', list);
   },
@@ -736,7 +740,9 @@ var stashes = EmberObject.extend({
     // If log pushes have been failing, don't keep trying on every button press
     var wait_on_error = stashes.errored_at && stashes.errored_at > 10 && ((timestamp - stashes.errored_at) < (2 * 60));
     // TODO: add listener on persistence.online and trigger this log save stuff when reconnected
-    if(LingoLinq.session && LingoLinq.session.get('isAuthenticated') && stashes.get('online') && usage_log.length > 0 && !wait_on_error) {
+    var sessionAuthenticated = LingoLinq.session && LingoLinq.session.get('isAuthenticated');
+    var canPushLogs = sessionAuthenticated || (typeof LingoLinq !== 'undefined' && LingoLinq._pushLogAllowUnauthenticated);
+    if(canPushLogs && stashes.get('online') && usage_log.length > 0 && !wait_on_error) {
       // If there's more than 50 events, or it's been more than 30 minutes
       // since the last recorded event.
       if(usage_log.length > 50 || diff == -1 || diff > (30 * 60 * 1000) || !only_if_convenient) {
@@ -751,15 +757,27 @@ var stashes = EmberObject.extend({
         });
         log.cleanup();
         stashes.last_log_push = timestamp;
+        var pushSerial = (stashes._logPushSerial || 0) + 1;
+        stashes._logPushSerial = pushSerial;
         log.save().then(function() {
+          if (pushSerial !== stashes._logPushSerial) {
+            return;
+          }
           stashes.errored_at = null;
           if(for_later.length > 0) {
-            runLater(function() {
+            if(typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
               stashes.push_log();
-            }, 10000);
+            } else {
+              runLater(function() {
+                stashes.push_log();
+              }, 10000);
+            }
           }
           // success!
         }, function(err) {
+          if (pushSerial !== stashes._logPushSerial) {
+            return;
+          }
           // error, try again later
           if(!stashes.errored_at || stashes.errored_at <= 2) {
 //             stashes.persist('usage_log', to_persist.concat(stashes.get('usage_log')));

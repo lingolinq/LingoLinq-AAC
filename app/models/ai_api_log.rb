@@ -90,10 +90,42 @@ class AiApiLog < ApplicationRecord
     log.error_message = params[:error_message]
     log.ip_address = params[:ip_address]
     log.feature_flag = params[:feature_flag]
+    # EU AI Act Article 50 fields (all optional; default to a safe non-EU/unmarked state
+    # so existing callers are unaffected). jurisdiction gates the 50(1) disclosure only;
+    # ai_content_marked reflects the unconditional 50(2) marking of the output.
+    log.jurisdiction = params[:jurisdiction]
+    log.article_50_disclosure_shown = params[:article_50_disclosure_shown] || false
+    log.ai_content_marked = params[:ai_content_marked] || false
+    log.ai_generated_content_id = params[:ai_generated_content_id]
     log.save!
     log
-  rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "AiApiLog: failed to persist audit log: #{e.message}"
+  rescue ActiveRecord::ActiveRecordError => e
+    # Alert-but-continue: a failed AI compliance audit write (incl. EU AI Act
+    # Article 50 fields) must be LOUD so the gap surfaces in monitoring, but it
+    # must NOT fail the user's AI generation on an audit-DB hiccup. Catch the whole
+    # ActiveRecordError tree (RecordInvalid for validation bugs AND StatementInvalid
+    # / ConnectionNotEstablished / lock+timeout for real DB incidents) -- the
+    # operational "audit loss looks like success" case is a DB hiccup, not a
+    # validation failure, so rescuing only RecordInvalid would have left exactly
+    # that case silent. Mirror AuditEvent: scrub the message, log it, and Sentry the
+    # scrubbed MESSAGE (not
+    # the raw exception, which CoppaSentryScrub#before_send does not scrub for
+    # non-child users), guarded so alerting can never raise. Previously this was
+    # a silent Rails.logger.error -> audit loss looked like success (finding P3).
+    detail = begin
+      PiiScrubber.scrub_log_line(e.message.to_s).truncate(300)
+    rescue ScriptError, StandardError => scrub_err
+      "[unscrubbable:#{scrub_err.class}]"
+    end
+    message = "AiApiLog: failed to persist audit log: #{detail}"
+    Rails.logger.error(message)
+    begin
+      if defined?(Sentry) && Sentry.respond_to?(:initialized?) && Sentry.initialized?
+        Sentry.capture_message(message, level: 'error', tags: { audit: 'ai_api_log_persist_failed' })
+      end
+    rescue StandardError
+      nil
+    end
     log
   end
 
@@ -194,6 +226,25 @@ class AiApiLog < ApplicationRecord
     where('created_at < ?', days.days.ago)
       .where.not(ip_address: [nil, '[REDACTED]'])
       .update_all(ip_address: '[REDACTED]')
+  end
+
+  # EU AI Act Article 50 record-keeping: AI-call logs for EU-jurisdiction users
+  # are retained for five years, then purged. The `jurisdiction = 'EU'` value is
+  # the canonical stamp written by the shared call-context helper (the partial
+  # index `index_ai_api_logs_on_jurisdiction_and_created_at` backs this scan).
+  #
+  # Scope is deliberately EU-only. There is no blanket ai_api_logs purge today,
+  # and one is out of scope here: these rows double as a HIPAA audit trail
+  # (45 CFR 164.316(b)(2) -> six years), so a shorter default purge is a separate
+  # decision that must weigh the HIPAA floor, not a byproduct of this EU rule.
+  # `delete_all` is used (not destroy_all): these rows have no dependents and no
+  # destroy callbacks, and a bulk purge should not instantiate five years of rows.
+  #
+  # Returns the number of records deleted.
+  def self.purge_old_eu_logs!(years: 5)
+    where(jurisdiction: 'EU')
+      .where('created_at < ?', years.years.ago)
+      .delete_all
   end
 
   # Returns a hash representation suitable for audit log exports.

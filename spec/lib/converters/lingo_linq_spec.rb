@@ -752,7 +752,57 @@ describe Converters::LingoLinq do
       expect(button['url']).to eq(nil)
       expect(button['apps']).to eq({'a' => 1})
     end
-    
+
+    it "should accept the ext_coughdrop_* namespace on import (CoughDrop/OpenBoards origin)" do
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = '3001'
+      shell['name'] = "Cool Board"
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'hardly',
+        'url' => 'http://www.example.com',
+        'ext_coughdrop_apps' => {'a' => 1}
+      }]
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      button = b.settings['buttons'][0]
+      expect(button['url']).to eq(nil)
+      expect(button['apps']).to eq({'a' => 1})
+    end
+
+    it "should prefer ext_lingolinq_* over ext_coughdrop_* when both are present" do
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = '3002'
+      shell['name'] = "Cool Board"
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'hardly',
+        'url' => 'http://www.example.com',
+        'ext_lingolinq_apps' => {'a' => 'lingo'},
+        'ext_coughdrop_apps' => {'a' => 'cough'}
+      }]
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      expect(b.settings['buttons'][0]['apps']).to eq({'a' => 'lingo'})
+    end
+
+    it "should preserve an explicit boolean false button setting on import" do
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = '3003'
+      shell['name'] = "Cool Board"
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'go',
+        'ext_coughdrop_hide_label' => false
+      }]
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      button = b.settings['buttons'][0]
+      # Before the fix this dropped to nil (the old `if val` guard skipped
+      # false); now an explicit false survives import.
+      expect(button['hide_label']).to eq(false)
+    end
+
     it "should not allow importing a protected board for a different user than the original user" do
       u = User.create
       u.settings['email'] = 'fred@example.com'
@@ -1109,7 +1159,52 @@ describe Converters::LingoLinq do
         expect(zipper.read("board_#{b2.global_id}.obf")).to eq(nil)
       end
     end
-    
+
+    it "should embed a working protected_image token at export time, and let it expire per LL-310b464be4" do
+      res = OpenStruct.new(:success? => true, :body => "abc", :headers => {'Content-Type' => 'image/png'})
+      allow(Typhoeus).to receive(:get).and_return(res)
+      allow(OBF::Utils).to receive(:image_attrs).and_return({})
+
+      u = User.create
+      bi = ButtonImage.create(:user => u, :url => "https://example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/abc123")
+      bi.settings['protected'] = true
+      bi.settings['protected_source'] = 'lessonpix'
+      bi.settings['content_type'] = 'image/png'
+      bi.settings['width'] = 100
+      bi.settings['height'] = 100
+      bi.save!
+      b = Board.new(:user => u, :settings => {'name' => 'Protected Export Test'})
+      b.settings['buttons'] = [{'id' => '1', 'label' => 'btn', 'image_id' => bi.global_id}]
+      b.settings['grid'] = {'rows' => 1, 'columns' => 1, 'order' => [['1']]}
+      b.instance_variable_set('@buttons_changed', true)
+      b.save
+
+      path = OBF::Utils.temp_path(['obz_protected_token', '.obz'])
+      Converters::LingoLinq.to_obz(b.reload, path, {'user' => u})
+
+      exported_url = nil
+      OBF::Utils.load_zip(path) do |zipper|
+        manifest = JSON.parse(zipper.read('manifest.json'))
+        board_json = JSON.parse(zipper.read(manifest['root']))
+        exported_url = board_json['images'][0]['url']
+      end
+      File.unlink(path) if File.exist?(path)
+
+      expect(exported_url).to match(/user_token=/)
+      token = exported_url.match(/user_token=([^&]+)/)[1]
+
+      # Right after export the embedded token is live, so the protected image
+      # resolves for whoever opens the freshly-exported .obz.
+      expect(User.find_by_protected_image_token(token)).to eq(u)
+
+      # There's no refresh mechanism for a token baked into an already-exported
+      # file, so once the 30-day window passes the same URL goes dark -- a
+      # tradeoff of the expiring-token fix (LL-310b464be4) that's flagged in
+      # the PR description, not silently regressed.
+      allow(Time).to receive(:now).and_return(Time.now + 31.days)
+      expect(User.find_by_protected_image_token(token)).to eq(nil)
+    end
+
     it "should include images" do
       res = OpenStruct.new(:success? => true, :body => "abc", :headers => {'Content-Type' => 'text/plaintext'})
       expect(OBF::Utils).to receive(:image_attrs).and_return({})

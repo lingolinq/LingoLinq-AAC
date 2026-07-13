@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import Service from '@ember/service';
-import { setupTest } from 'ember-qunit';
+import { setupTest } from '../../helpers';
 import modal from 'frontend/utils/modal';
 
 // Regression for issue #293 (High finding from adversary review): the share

@@ -1,4 +1,5 @@
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import LingoLinq from '../app';
@@ -7,7 +8,7 @@ import Utils from '../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Goal = DS.Model.extend({
+LingoLinq.Goal = BaseModel.extend({
   init() {
     this._super(...arguments);
     // Set auto_assessment based on assessment_badge
@@ -15,50 +16,50 @@ LingoLinq.Goal = DS.Model.extend({
       this.set('auto_assessment', true);
     }
   },
-  user_id: DS.attr('string'),
-  video_id: DS.attr('string'),
-  has_video: DS.attr('boolean'),
-  primary: DS.attr('boolean'),
-  active: DS.attr('boolean'),
-  uneditable: DS.attr('boolean'),
-  unit_id: DS.attr('string'),
-  unit_name: DS.attr('string'),
-  unit_org_id: DS.attr('string'),
-  template_id: DS.attr('string'),
-  template: DS.attr('boolean'),
-  template_header: DS.attr('boolean'),
-  global: DS.attr('boolean'),
-  summary: DS.attr('string'),
-  sequence_summary: DS.attr('string'),
-  description: DS.attr('string'),
-  sequence_description: DS.attr('string'),
-  permissions: DS.attr('raw'),
-  currently_running_template: DS.attr('raw'),
-  video: DS.attr('raw'),
-  user: DS.attr('raw'),
-  author: DS.attr('raw'),
-  comments: DS.attr('raw'),
-  started: DS.attr('date'),
-  ended: DS.attr('date'),
-  advance: DS.attr('date'),
-  expires: DS.attr('date'),
-  advancement: DS.attr('string'),
-  duration: DS.attr('number'),
-  stats: DS.attr('raw'),
-  related: DS.attr('raw'),
-  ref_data: DS.attr('raw'),
-  sequence: DS.attr('boolean'),
-  date_based: DS.attr('boolean'),
-  next_template_id: DS.attr('string'),
-  template_header_id: DS.attr('string'),
-  template_stats: DS.attr('raw'),
-  badge_name: DS.attr('string'),
-  badge_image_url: DS.attr('string'),
-  badges: DS.attr('raw'),
-  assessment_badge: DS.attr('raw'),
-  goal_advances_at: DS.attr('string'),
-  goal_duration_unit: DS.attr('string'),
-  goal_duration_number: DS.attr('string'),
+  user_id: attr('string'),
+  video_id: attr('string'),
+  has_video: attr('boolean'),
+  primary: attr('boolean'),
+  active: attr('boolean'),
+  uneditable: attr('boolean'),
+  unit_id: attr('string'),
+  unit_name: attr('string'),
+  unit_org_id: attr('string'),
+  template_id: attr('string'),
+  template: attr('boolean'),
+  template_header: attr('boolean'),
+  global: attr('boolean'),
+  summary: attr('string'),
+  sequence_summary: attr('string'),
+  description: attr('string'),
+  sequence_description: attr('string'),
+  permissions: attr('raw'),
+  currently_running_template: attr('raw'),
+  video: attr('raw'),
+  user: attr('raw'),
+  author: attr('raw'),
+  comments: attr('raw'),
+  started: attr('date'),
+  ended: attr('date'),
+  advance: attr('date'),
+  expires: attr('date'),
+  advancement: attr('string'),
+  duration: attr('number'),
+  stats: attr('raw'),
+  related: attr('raw'),
+  ref_data: attr('raw'),
+  sequence: attr('boolean'),
+  date_based: attr('boolean'),
+  next_template_id: attr('string'),
+  template_header_id: attr('string'),
+  template_stats: attr('raw'),
+  badge_name: attr('string'),
+  badge_image_url: attr('string'),
+  badges: attr('raw'),
+  assessment_badge: attr('raw'),
+  goal_advances_at: attr('string'),
+  goal_duration_unit: attr('string'),
+  goal_duration_number: attr('string'),
   best_time_level: computed('stats', function() {
     var stats = this.get('stats') || {};
     if(stats && stats.monthly && stats.monthly.totals && stats.monthly.totals.sessions > 0) {
@@ -168,7 +169,7 @@ LingoLinq.Goal = DS.Model.extend({
         reversed_units.push(unit);
       }
     });
-    var max = Math.max.apply(null, units.mapBy('max_statuses'));
+    var max = Math.max.apply(null, units.map(function(unit) { return unit.max_statuses; }));
     reversed_units.max = max;
     return reversed_units;
   }),
@@ -348,7 +349,8 @@ LingoLinq.Goal = DS.Model.extend({
     var fallback = imgs[Math.floor(Math.random() * imgs.length)];
     badge.image_url = badge.image_url || fallback;
     badge.id = Math.random();
-    badges.pushObject(badge);
+    badges = badges.slice();
+    badges.push(badge);
     this.set('badges', badges);
   },
   check_badges: observer('badges', 'badges.length', function() {
@@ -356,17 +358,28 @@ LingoLinq.Goal = DS.Model.extend({
     this.set('badges_enabled', !!(badges.length > 0 && badges[badges.length - 1].level !== 0));
   }),
   set_zero_badge: observer('auto_assessment', 'assessment_badge', function(obj, changed) {
-    if(changed == 'auto_assessment' && this.get('auto_assessment') === false) {
-      this.set('assessment_badge', null);
-    }
-    if(this.get('auto_assessment') || this.get('assessment_badge')) {
-      this.set('auto_assessment', true);
-      if(!this.get('assessment_badge')) {
-        this.set('assessment_badge', {assessment: true});
+    if(this._applyingZeroBadge) { return; }
+    this._applyingZeroBadge = true;
+    try {
+      if(changed === 'auto_assessment' && this.get('auto_assessment') === false) {
+        if(this.get('assessment_badge') != null) {
+          this.set('assessment_badge', null);
+        }
+        return;
       }
-    } else {
-      this.set('auto_assessment', false);
-      this.set('assessment_badge', null);
+      if(this.get('auto_assessment') || this.get('assessment_badge')) {
+        if(!this.get('auto_assessment')) {
+          this.set('auto_assessment', true);
+        }
+        if(!this.get('assessment_badge')) {
+          this.set('assessment_badge', {assessment: true});
+        }
+      } else if(this.get('auto_assessment') !== false || this.get('assessment_badge') != null) {
+        this.set('auto_assessment', false);
+        this.set('assessment_badge', null);
+      }
+    } finally {
+      this._applyingZeroBadge = false;
     }
   })
 });

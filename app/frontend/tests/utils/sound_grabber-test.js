@@ -8,7 +8,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { fakeRecorder, queryLog } from 'frontend/tests/helpers/ember_helper';
+import { fakeRecorder, queryLog, stubNavigatorGetUserMedia, fakeMediaRecorder } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import contentGrabbers from '../../utils/content_grabbers';
 import editManager from '../../utils/edit_manager';
@@ -18,7 +18,7 @@ import Utils from '../../utils/misc';
 import EmberObject from '@ember/object';
 
 describe('soundGrabber', function() {
-  var soundGrabber = contentGrabbers.soundGrabber;
+  var soundGrabber;
   var navigator = window.navigator;
   var wav_data_uri = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
@@ -27,6 +27,7 @@ describe('soundGrabber', function() {
   var recorder = fakeRecorder();
 
   beforeEach(function() {
+    soundGrabber = contentGrabbers.soundGrabber;
     contentGrabbers.unlink();
     var obj = EmberObject.create({
     });
@@ -117,14 +118,25 @@ describe('soundGrabber', function() {
   });
 
   describe('recording sound', function() {
+    beforeEach(function() {
+      stub(window, 'MediaRecorder', function(stream) {
+        return fakeMediaRecorder(stream);
+      });
+    });
+
     it('should initialize recording process', function() {
       soundGrabber.setup(button, controller);
       var called = false;
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        called = callback && args.audio === true;
+      stubNavigatorGetUserMedia({
+        onLegacyCall: function(args) {
+          called = args.audio === true;
+        }
       });
       soundGrabber.record_sound();
-      expect(called).toEqual(true);
+      waitsFor(function() { return called; });
+      runs(function() {
+        expect(called).toEqual(true);
+      });
     });
     it('should toggle recording on and off', function() {
       soundGrabber.setup(button, controller);
@@ -156,6 +168,13 @@ describe('soundGrabber', function() {
       stub(soundGrabber, 'native_record_sound', function() {
         called = true;
       });
+      stub(contentGrabbers, 'capture_types', function() {
+        return {audio: true};
+      });
+      navigator.getUserMedia = undefined;
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.getUserMedia = undefined;
+      }
       stub(navigator, 'device', {
         capture: {
           captureAudio: function() { }
@@ -184,31 +203,28 @@ describe('soundGrabber', function() {
       window.MediaRecorder = MR2;
       soundGrabber.setup(button, controller);
 
-      var called = false;
       var stream = fakeRecorder();
-      stub(navigator, 'getUserMedia', function(args, callback) {
-        called = callback && args.audio === true;
-        callback(stream);
-      });
+      stubNavigatorGetUserMedia({ stream: stream });
       soundGrabber.record_sound();
 
-      expect(called).toEqual(true);
-      var mr = controller.get('sound_recording.media_recorder');
-      expect(mr.stream).toEqual(stream);
-      expect(controller.get('sound_recording.stream')).toEqual(stream);
+      waitsFor(function() { return controller.get('sound_recording.media_recorder'); });
+      runs(function() {
+        var mr = controller.get('sound_recording.media_recorder');
+        expect(mr.stream).toEqual(stream);
+        expect(controller.get('sound_recording.stream')).toEqual(stream);
 
-      var blob = new window.Blob([0], {type: 'audio/webm'});
-      mr.trigger('dataavailable', {data: blob});
-      expect(controller.get('sound_recording.blob')).toEqual(blob);
+        var blob = new window.Blob([0], {type: 'audio/webm'});
+        mr.trigger('dataavailable', {data: blob});
+        expect(controller.get('sound_recording.blob')).toEqual(blob);
 
-      mr.trigger('recordingdone');
+        mr.trigger('recordingdone');
+      });
       waitsFor(function() { return controller.get('sound_preview'); });
       runs(function() {
         expect(controller.get('sound_preview.url')).toEqual("data:audio/webm;base64,MA==");
         expect(controller.get('sound_preview.name')).toEqual("Recorded sound");
+        window.MediaRecorder = stash;
       });
-
-      window.MediaRecorder = stash;
     });
   });
 

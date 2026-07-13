@@ -1,7 +1,36 @@
 class License < ApplicationRecord
   include GlobalId
+  include SecureSerialize
   belongs_to :organization
   belongs_to :user, optional: true
+
+  # LL-740bcb10fa: metadata is an untyped catch-all that may hold sensitive
+  # district/billing data, so it is encrypted at rest via secure_serialize.
+  # go_secure permits only one secure_serialize column per model, so the
+  # second sensitive field (external_reference) is encrypted manually below.
+  secure_serialize :metadata
+
+  # LL-740bcb10fa (follow-up): external_reference is a PO Number / Stripe id.
+  # secure_serialize is already taken by :metadata, so this column is encrypted
+  # manually with the same GoSecure::SecureJson primitive used for device and
+  # user_integration secrets. The reader tolerates legacy plaintext (rescue ->
+  # raw) so existing rows keep reading correctly before the backfill runs; the
+  # writer encrypts at assignment.
+  def external_reference
+    raw = read_attribute(:external_reference)
+    return raw if raw.blank?
+    GoSecure::SecureJson.load(raw)
+  rescue StandardError
+    raw
+  end
+
+  def external_reference=(value)
+    if value.blank?
+      write_attribute(:external_reference, value)
+    else
+      write_attribute(:external_reference, GoSecure::SecureJson.dump(value))
+    end
+  end
 
   validates :organization_id, presence: true
   validates :seat_type, inclusion: { in: %w[student supervisor] }

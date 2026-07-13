@@ -18,6 +18,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'copy-board';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -62,7 +84,9 @@ export default Component.extend({
         supervisees.push(res);
       }.bind(this));
       this.set('model.known_supervisees', supervisees);
-      this.set('currently_selected_id', selected_user_id);
+      // Default to "me" (self) when no specific supervisee was pre-selected, so
+      // the modal opens with a valid selection instead of a required-pick prompt.
+      this.set('currently_selected_id', selected_user_id != null ? selected_user_id : 'self');
     } else {
       this.set('currently_selected_id', 'self');
     }
@@ -158,14 +182,14 @@ export default Component.extend({
                 if (board.get('key') === _this.get('model.board.key')) {
                   _this.set('sidebar_board', true);
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat([board.get('id')]).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat([board.get('id')]))]);
                 }
               }
               LingoLinq.Buttonset.load_button_set(board.get('id')).then(function(bs) {
                 const board_ids = bs.board_ids_for(board.get('id'));
                 if (_this.get('current_user') === user && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat(board_ids).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat(board_ids))]);
                   if (board_ids.indexOf(_this.get('model.board.id')) >= 0) {
                     _this.set('in_sidebar_set', true);
                   }
@@ -250,5 +274,14 @@ export default Component.extend({
         translate_locale: translate_locale
       });
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

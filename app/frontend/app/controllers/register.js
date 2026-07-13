@@ -13,6 +13,7 @@ export default Controller.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   session: service('session'),
+  router: service('router'),
   title: "Register",
   queryParams: ['code', 'v', 'google_signup'],
   registrationStep: 'role',
@@ -25,6 +26,7 @@ export default Controller.extend({
   googleSignupUserName: '',
   googleSignupRegistrationType: 'communicator',
   googleSignupTerms: false,
+  googleSignupMissingLinkTerms: false,
   googleSignupProductImprovementOptIn: false,
   showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
     return !!(this.get('google_signup') && this.get('googleSignupProfile'));
@@ -35,8 +37,9 @@ export default Controller.extend({
   googleSignupUserNameInvalid: computed('googleSignupUserName', function() {
     return !!(this.get('googleSignupUserName') || '').match(/[\s\.'"]/);
   }),
-  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', 'showCoppaConsent', 'age_attested', function() {
+  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupMissingLinkTerms', 'googleSignupTerms', 'googleSignupUserNameMissing', 'googleSignupUserNameInvalid', 'showCoppaConsent', 'age_attested', function() {
     if(this.get('googleSignupBusy')) { return true; }
+    if(this.get('googleSignupMissingLinkTerms')) { return true; }
     if(!this.get('googleSignupTerms')) { return true; }
     if(this.get('googleSignupUserNameMissing')) { return true; }
     if(this.get('googleSignupUserNameInvalid')) { return true; }
@@ -85,6 +88,9 @@ export default Controller.extend({
   }),
   showAccountStep: computed('registrationStep', function() {
     return this.get('registrationStep') === 'account';
+  }),
+  showEmailStep: computed('registrationStep', function() {
+    return this.get('registrationStep') === 'email';
   }),
   showSupporterTypeStep: computed('registrationStep', function() {
     return this.get('registrationStep') === 'supporter_type';
@@ -146,6 +152,19 @@ export default Controller.extend({
     return !!(ds && ds.coppa_parental_consent);
   }),
   coppa_age_group: null,
+  // EU launch (GDPR Art. 8): the age below which registration requires
+  // verifiable parental consent. Gated by the eu_consent_age feature flag; with
+  // the flag OFF this is always 13 and the age gate is identical to today. When
+  // ON, the EU value (16) is computed server-side (LingoLinq::Jurisdiction) and
+  // delivered through domain_settings, so the single source of EU truth stays
+  // on the backend and this stays a dumb number consumer.
+  coppaConsentAge: computed('appState.feature_flags.eu_consent_age', 'appState.domain_settings.coppa_consent_age', function() {
+    var fallback = 13;
+    if(!this.get('appState.feature_flags.eu_consent_age')) { return fallback; }
+    var age = parseInt(this.get('appState.domain_settings.coppa_consent_age'), 10);
+    if(!age || age < 13 || age > 18) { return fallback; }
+    return age;
+  }),
   parent_consent_email: '',
   coppaParentEmailMissing: computed('triedToSave', 'coppa_age_group', 'parent_consent_email', function() {
     if(this.get('coppa_age_group') !== 'under_13') { return false; }
@@ -197,12 +216,13 @@ export default Controller.extend({
   googleSsoEnabled: computed('appState.feature_flags.google_sso', function() {
     return !!this.get('appState.feature_flags.google_sso');
   }),
-  googleRegisterAllowed: computed('model.terms_agree', 'googleSsoEnabled', 'registrationStep', 'coppa_age_group', 'roleIncomplete', 'persistence.online', 'userNameBlank', 'noSpacesName', 'userNameUnavailable', function() {
+  // The Google button lives on the method-chooser (`account`) step. The
+  // username is collected AFTER Google returns (in the Google modal), so we no
+  // longer gate this on the username — only on the age/terms attestation.
+  googleRegisterAllowed: computed('model.terms_agree', 'googleSsoEnabled', 'registrationStep', 'coppa_age_group', 'roleIncomplete', 'persistence.online', function() {
     if(!this.get('googleSsoEnabled')) { return false; }
     if(!this.persistence.get('online')) { return false; }
     if(!this.get('model.terms_agree')) { return false; }
-    if(this.get('userNameBlank')) { return false; }
-    if(this.get('noSpacesName') || this.get('userNameUnavailable')) { return false; }
     if(this.get('registrationStep') !== 'account') { return false; }
     if(this.get('coppa_age_group') === 'under_13') { return false; }
     if(this.get('roleIncomplete')) { return false; }
@@ -211,8 +231,26 @@ export default Controller.extend({
   googleRegisterDisabled: computed('googleRegisterAllowed', function() {
     return !this.get('googleRegisterAllowed');
   }),
+  // Still used by the under-13 COPPA step, whose Sign Up relies on
+  // saveProfile-side validation for email/password.
   accountStepEmailSignupDisabled: computed('registering.saving', 'model.terms_agree', 'userNameBlank', 'noSpacesName', 'userNameUnavailable', function() {
     return !!(this.get('registering.saving') || !this.get('model.terms_agree') || this.get('userNameBlank') || this.get('noSpacesName') || this.get('userNameUnavailable'));
+  }),
+  // "Sign up with Email" button on the method-chooser step: only the age/terms
+  // attestation gates whether the user can proceed to the email form.
+  emailMethodDisabled: computed('model.terms_agree', function() {
+    return !this.get('model.terms_agree');
+  }),
+  // "Sign Up" on the dedicated email step. Terms are already attested on the
+  // method-chooser step, so here we additionally require a filled-in username,
+  // email, and password before enabling submit.
+  emailStepSignupDisabled: computed('registering.saving', 'model.terms_agree', 'userNameBlank', 'noSpacesName', 'userNameUnavailable', 'model.email', 'model.password', function() {
+    if(this.get('registering.saving')) { return true; }
+    if(!this.get('model.terms_agree')) { return true; }
+    if(this.get('userNameBlank') || this.get('noSpacesName') || this.get('userNameUnavailable')) { return true; }
+    if(!(this.get('model.email') || '').trim()) { return true; }
+    if((this.get('model.password') || '').length < 6) { return true; }
+    return false;
   }),
   clear_start_code_ref: observer('model.start_code', 'start_code_ref', function() {
     if(this.get('model.start_code') && this.get('model.start_code') != this.get('start_code_ref.code')) {
@@ -236,12 +274,22 @@ export default Controller.extend({
     if(!nonce) { return; }
     this.set('googleSignupBusy', true);
     this.set('googleSignupError', null);
+    this.set('googleSignupMissingLinkTerms', false);
     this.persistence.ajax('/auth/google/signup?nonce=' + encodeURIComponent(nonce), { type: 'GET' }).then(function(res) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('googleSignupProfile', res);
       _this.set('googleSignupBusy', false);
       _this.set('googleSignupRegistrationType', res.registration_type || 'communicator');
-      _this.set('googleSignupTerms', !!res.terms_agree);
+      var linkTermsAgreed = !!res.terms_agree;
+      _this.set('googleSignupMissingLinkTerms', !linkTermsAgreed);
+      _this.set('googleSignupTerms', linkTermsAgreed);
+      // The age/terms attestation was made on the method-chooser step before
+      // the OAuth redirect (which resets in-memory controller state). Carry it
+      // forward from the round-tripped terms_agree so the Google modal doesn't
+      // have to re-ask, and Create Account enables once a username is entered.
+      // When the link omitted terms, the safety-net checkbox cannot satisfy the
+      // server — googleSignupMissingLinkTerms blocks submit and shows restart UI.
+      _this.set('age_attested', linkTermsAgreed);
       _this.set('googleSignupProductImprovementOptIn', !!res.product_improvement_opt_in);
       _this.set('googleSignupUserName', res.user_name || '');
       if(res.name && !_this.get('googleSignupUserName')) {
@@ -258,10 +306,15 @@ export default Controller.extend({
     var year = parseInt(this.get('birth_year'), 10);
     if(!month || !year) { return null; }
     var today = new Date();
-    var cutoffYear = today.getFullYear() - 13;
+    // Jurisdiction-aware consent age (13 by default, 16 for EU when the
+    // eu_consent_age flag is on). The returned labels 'under_13'/'over_13' are
+    // semantic ("under/over the applicable threshold"), not literally 13, and
+    // are consumed unchanged by the rest of the flow and the backend
+    // coppa_under_13 gate.
+    var cutoffYear = today.getFullYear() - this.get('coppaConsentAge');
     var cutoffMonth = today.getMonth() + 1;
-    // With month/year only, treat the cutoff month as under 13 until the
-    // exact birthday is known. This keeps Google off the ambiguous edge.
+    // With month/year only, treat the cutoff month as under the threshold until
+    // the exact birthday is known. This keeps Google off the ambiguous edge.
     if(year > cutoffYear || (year === cutoffYear && month >= cutoffMonth)) {
       return 'under_13';
     }
@@ -273,6 +326,22 @@ export default Controller.extend({
     this.set('model.preferences.cookies', enabled);
     this.set('model.preferences.telemetry_opt_in', enabled);
     this.set('model.preferences.comms_log_opt_in', enabled);
+  },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
   },
   actions: {
     go_to_step: function(step) {
@@ -320,6 +389,26 @@ export default Controller.extend({
     allow_start_code: function() {
       this.set('start_code', !this.get('start_code'));
     },
+    continue_with_email: function() {
+      // Only proceed once the age/terms attestation is made on the method
+      // chooser; the attestation is carried forward (same controller, no
+      // reload) so the email step never re-asks for it.
+      if(!this.get('model.terms_agree')) { return; }
+      this.set('triedToSave', false);
+      this.set('registrationStep', 'email');
+    },
+    restart_google_signup: function() {
+      this.set('googleSignupProfile', null);
+      this.set('googleSignupMissingLinkTerms', false);
+      this.set('googleSignupBusy', false);
+      this.set('googleSignupError', null);
+      this.set('googleSignupTerms', false);
+      this.set('googleSignupUserName', '');
+      this.set('age_attested', false);
+      this.set('googleSignupProductImprovementOptIn', false);
+      this.set('registrationStep', 'account');
+      this.router.transitionTo('register', { queryParams: { google_signup: null } });
+    },
     continue_with_google: function() {
       if(!this.get('googleRegisterAllowed') || !this.persistence.get('online')) { return; }
       var url = '/auth/google/start?flow=register&device_id=' + encodeURIComponent(capabilities.device_id());
@@ -365,7 +454,12 @@ export default Controller.extend({
       }, function(xhr) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('googleSignupBusy', false);
-        _this.set('googleSignupError', true);
+        var err = xhr && xhr.responseJSON && xhr.responseJSON.error;
+        if(err === 'terms_required') {
+          _this.set('googleSignupMissingLinkTerms', true);
+        } else {
+          _this.set('googleSignupError', true);
+        }
       });
     }
   }

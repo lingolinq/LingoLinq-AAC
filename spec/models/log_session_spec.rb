@@ -1,6 +1,21 @@
 require 'spec_helper'
 
 describe LogSession, :type => :model do
+  # Many examples here assert against the *global* LogSession / LogMerger
+  # counts (e.g. `expect(LogSession.count).to eq(2)`). The test database can
+  # carry orphaned, already-committed rows from a prior interrupted run
+  # (observed: ~108 LogSession + ~95 JobStash rows committed days earlier),
+  # which inflates those counts and fails ~45 examples regardless of run order.
+  # Clearing these tables inside each example's transaction (the rows are
+  # restored on rollback) gives every example a clean, deterministic baseline.
+  # Mirrors spec_helper's RemoteAction.delete_all and the JobStash.delete_all
+  # in the process_as_follow_on block below; scoped to this file, not global.
+  before(:each) do
+    LogSession.delete_all
+    LogMerger.delete_all
+    JobStash.delete_all
+  end
+
   describe "paper trail" do
     it "should make sure paper trail is doing its thing"
   end

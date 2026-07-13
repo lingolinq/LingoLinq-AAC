@@ -135,17 +135,17 @@ describe Api::DatabaseContentsController, :type => :controller do
       end
     end
 
-    it 'should serve a no-secure-column allowlisted table (licenses)' do
-      # Exercises the exposable_columns guard for a model that never calls
-      # secure_serialize, so respond_to?(:secure_column) is false.
+    it 'should strip both the encrypted metadata and the plaintext external_reference (licenses)' do
+      # licenses.metadata is now secure_serialize'd (LL-740bcb10fa), so it is
+      # stripped via the secure_column guard; external_reference is a plaintext
+      # PO/Stripe id that go_secure cannot also encrypt (one secure column per
+      # model), so it must still be stripped explicitly via SENSITIVE_COLUMNS.
       make_admin
-      expect(License.respond_to?(:secure_column)).to eq(false)
+      expect(License.secure_column).to eq(:metadata)
       get :index, params: {table: 'licenses'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
       columns = json['database_contents']['columns']
-      # licenses has no encrypted column, so its plaintext metadata and the
-      # PO/Stripe external_reference must be stripped explicitly.
       expect(columns).not_to include('metadata')
       expect(columns).not_to include('external_reference')
     end
@@ -185,6 +185,18 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(event.data['type']).to eq('database_contents')
       expect(event.data['command']).to eq('organizations')
       expect(event.data['limit']).to eq(5)
+      expect(event.data).not_to have_key('acting_as')
+    end
+
+    it 'refuses the read with 503 when the audit write does not persist (fail-closed)' do
+      make_admin
+      Organization.create
+      # Simulate an audit-write failure: log_command returns an unsaved record.
+      allow(AuditEvent).to receive(:log_command).and_return(AuditEvent.new)
+      get :index, params: {table: 'organizations', limit: 5, offset: 0}
+      expect(response.status).to eq(503)
+      json = JSON.parse(response.body)
+      expect(json).not_to have_key('database_contents')
     end
 
     it 'should not write an AuditEvent for a non-allowlisted table (no disclosure)' do

@@ -59,6 +59,47 @@ describe AiBoardGenerator do
       expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(provider: 'claude', success: false))
     end
 
+    it "scrubs PII from the model response before it reaches AiApiLog" do
+      logged = nil
+      allow(AiApiLog).to receive(:log_ai_call) { |**kw| logged = kw }
+      raw = "WORDS: apple, banana, carrot, drink\nNAME: Snacks\nDESCRIPTION: Email parent@example.com for help."
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(raw))
+
+      result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+
+      expect(result[:error]).to eq(nil)
+      expect(logged[:response_summary]).to include('[REDACTED_EMAIL]')
+      expect(logged[:response_summary]).not_to include('parent@example.com')
+    end
+
+    it "marks the AI-generated output with a verifiable Article 50 marker and records it in the audit log" do
+      logged = nil
+      allow(AiApiLog).to receive(:log_ai_call) { |**kw| logged = kw }
+      complete = "WORDS: apple, banana, carrot, drink\nNAME: Snacks\nDESCRIPTION: Snack words."
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+
+      result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+
+      expect(result[:ai_generated]).to be_a(Hash)
+      expect(Art50Marker.verify(result[:ai_generated])).to eq(true)
+      expect(result[:ai_generated]['provider']).to eq('claude')
+      expect(result[:ai_generated]['model']).to eq(AiBoardGenerator::DEFAULT_MODEL)
+      expect(logged[:ai_content_marked]).to eq(true)
+      expect(logged[:ai_generated_content_id]).to eq(result[:ai_generated]['content_id'])
+    end
+
+    it "does not attach a marker to a shortfall (no AI content delivered)" do
+      short = "WORDS: apple, banana\nNAME: Snacks\nDESCRIPTION: x."
+      allow(described_class).to receive(:call_anthropic).and_return(
+        anthropic_response(short), anthropic_response(short)
+      )
+
+      result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+
+      expect(result[:words]).to eq(nil)
+      expect(result[:ai_generated]).to eq(nil)
+    end
+
     context "COPPA Final Rule hard-gate" do
       it "returns a parental-consent error when coppa_blocks_ai_for? is true" do
         u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
@@ -98,6 +139,30 @@ describe AiBoardGenerator do
       expect(result[:title]).to eq('Story Time')
       expect(result[:error]).to eq(nil)
       expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(type: 'focus_word_generation', success: true))
+    end
+
+    it "marks the AI-generated focus list with a verifiable Article 50 marker and records it in the audit log" do
+      logged = nil
+      allow(AiApiLog).to receive(:log_ai_call) { |**kw| logged = kw }
+      complete = "WORDS: go, stop, more, help, read\nTITLE: Story Time"
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+
+      result = described_class.generate_focus_words(prompt: 'story time', word_count: 5)
+
+      expect(result[:ai_generated]).to be_a(Hash)
+      expect(Art50Marker.verify(result[:ai_generated])).to eq(true)
+      expect(result[:ai_generated]['provider']).to eq('claude')
+      expect(logged[:ai_content_marked]).to eq(true)
+      expect(logged[:ai_generated_content_id]).to eq(result[:ai_generated]['content_id'])
+    end
+
+    it "does not attach a marker to a focus-word shortfall (no AI content delivered)" do
+      short = "WORDS: go, stop\nTITLE: Too Few"
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(short), anthropic_response(short))
+
+      result = described_class.generate_focus_words(prompt: 'story time', word_count: 5)
+
+      expect(result[:ai_generated]).to eq(nil)
     end
 
     it "clamps requested word count to fifty" do

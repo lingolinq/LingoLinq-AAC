@@ -2,10 +2,12 @@ import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+import { A } from '@ember/array';
 import $ from 'jquery';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
+import { assignVocalFlair84AsHome } from '../utils/assign-vocal-flair-home';
 import speecher from '../utils/speecher';
 import utterance from '../utils/utterance';
 import Utils from '../utils/misc';
@@ -144,14 +146,14 @@ export default Controller.extend({
         } else {
           var parts = user.get('preferences.skin').split(/::/);
           if(parts[0] == 'mix_only' || parts[0] == 'mix_prefer') {
-            res.options = [
+            res.options = A([
               {label: i18n.t('default_skin_tones', "Pale"), id: 'default', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
               {label: i18n.t('dark_skin_tone', "Dark"), id: 'dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3ff.svg'},
               {label: i18n.t('medium_dark_skin_tone', "Medium-Dark"), id: 'medium_dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fe.svg'},
               {label: i18n.t('medium_skin_tone', "Medium"), id: 'medium', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fd.svg'},
               {label: i18n.t('medium_light_skin_tone', "Medium-Light"), id: 'medium_light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fc.svg'},
               {label: i18n.t('light_skin_tone', "Light"), id: 'light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
-            ];
+            ]);
             if(parts[2]) {
               var rules = parts[2].split(/-/).pop();
               for(var idx = 0; idx < 6; idx++) {
@@ -794,6 +796,31 @@ export default Controller.extend({
       this._save_user_timer = null;
     }
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     noop: function() {
 
@@ -989,37 +1016,16 @@ export default Controller.extend({
         return;
       }
       this.set('assigning_home_board', true);
-      LingoLinq.store.query('board', { q: 'Vocal Flair 84', public: true, per_page: 10 }).then(function(results) {
-        var list = (results && results.toArray) ? results.toArray() : (results || []);
-        var pick = function(re) {
-          for(var i = 0; i < list.length; i++) {
-            if(re.test((list[i].get('key') || ''))) { return list[i]; }
-          }
-          return null;
-        };
-        var board = pick(/(^|\/)vocal-flair-84$/) || pick(/vocal-flair-84/) || list[0];
-        if(!board) {
-          _this.set('assigning_home_board', false);
-          modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
-          return;
-        }
-        user.set('preferences.home_board', {
-          id: board.get('id'),
-          key: board.get('key'),
-          locale: _this.appState.get('label_locale')
-        });
-        user.save().then(function() {
+      assignVocalFlair84AsHome(user, {
+        locale: _this.appState.get('label_locale'),
+        onSuccess: function() {
           if(_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
             _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
           }
           _this.appState.return_to_index();
-        }, function() {
-          _this.set('assigning_home_board', false);
-          modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
-        });
-      }, function() {
+        }
+      }).catch(function() {
         _this.set('assigning_home_board', false);
-        modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
       });
     },
     // Mirrors the home page's "New Board" button (dashboard

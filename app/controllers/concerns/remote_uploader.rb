@@ -12,6 +12,10 @@ module RemoteUploader
       url = config[:upload_url] + record.full_filename
       res = Typhoeus.head(url)
       if res.success?
+        unless !record.is_a?(ButtonImage) || record.verify_stored_s3_upload!(url)
+          render json: {confirmed: false, message: "Upload rejected"}.to_json, status: 400
+          return
+        end
         record.url = url
         record.settings['pending'] = false
         record.settings['data_uri'] = nil

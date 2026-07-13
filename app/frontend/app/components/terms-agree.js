@@ -12,6 +12,31 @@ export default Component.extend({
   router: service('router'),
   session: service('session'),
   tagName: '',
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
 
   actions: {
     close() {
@@ -28,7 +53,21 @@ export default Component.extend({
           _this.get('modal').close();
           _this.get('appState').set('auto_setup', true);
           if (!user.get('preferences.progress.intro_watched')) {
-            _this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
+            // home_tour ON: skip the legacy setup wizard entirely — mark
+            // intro_watched and let the home page's Shepherd tour auto-open
+            // (mirrors routes/register.js). OFF: fall back to the setup wizard so
+            // accounts/orgs not opted into the tour don't regress.
+            if (_this.get('appState').get('feature_flags.home_tour')) {
+              var preferences = user.get('preferences') || {};
+              var progress = preferences.progress || {};
+              user.set('preferences', preferences);
+              user.set('preferences.progress', progress);
+              user.set('preferences.progress.intro_watched', true);
+              _this.get('appState').set('auto_open_home_tour', true);
+              user.save().then(null, function() { });
+            } else {
+              _this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
+            }
           }
         }, function() {
           _this.set('agree_error', true);
@@ -37,5 +76,14 @@ export default Component.extend({
         _this.get('modal').close();
       }
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

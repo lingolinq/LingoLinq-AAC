@@ -5,14 +5,20 @@ import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
 import LingoLinq from '../../app';
 import { observer } from '@ember/object';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import stashes from '../../utils/_stashes';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  router: service('router'),
   load_goals: function() {
     var _this = this;
     _this.set('goals', {loading: true});
     LingoLinq.store.query('goal', {template_header: true}).then(function(data) {
-      _this.set('goals', data.map(function(i) { return i; }));
+      _this.set('goals', data.slice());
       _this.set('goals.meta', data.meta);
     }, function(err) {
       _this.set('goals', {error: true});
@@ -20,7 +26,7 @@ export default Controller.extend({
     if(app_state.get('currentUser.permissions.admin_support_actions')) {
       _this.set('global_goals', {loading: true});
       LingoLinq.store.query('goal', {global: true}).then(function(data) {
-        _this.set('global_goals', data.map(function(i) { return i; }));
+        _this.set('global_goals', data.slice());
         _this.set('global_goals.meta', data.meta);
       }, function(err) {
         _this.set('global_goals', {error: true});
@@ -35,6 +41,31 @@ export default Controller.extend({
       _this.load_goals();
     }
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     new_goal: function() {
       var goal = LingoLinq.store.createRecord('goal');
@@ -49,7 +80,7 @@ export default Controller.extend({
       goal.save().then(function(goal) {
         _this.set('new_goal', null);
         _this.set('status', null);
-        _this.transitionToRoute('goals.goal', goal.get('id'));
+        _this.router.transitionTo('goals.goal', goal.get('id'));
       }, function(err) {
         _this.set('status', {error: true});
       });

@@ -23,6 +23,59 @@ export default Component.extend({
     return getOwner(this).lookup('controller:application');
   }),
 
+  init() {
+    this._super(...arguments);
+    var self = this;
+    var send = function(name) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      self.send.apply(self, [name].concat(args));
+    };
+    this.onSearchBoardsSubmit = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('searchBoards');
+    };
+    this.onSearchBoards = () => { send('searchBoards'); };
+    this.onHandleSearchInput = (event) => {
+      send('handleSearchInput', event && event.target ? event.target.value : '');
+    };
+    this.onOpenSupport = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('openSupport');
+    };
+    this.onOpenCompanySidebar = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('openCompanySidebar');
+    };
+    this.onOpenLanguage = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('openLanguage');
+    };
+    this.onSelectThemeModeLight = () => { send('selectThemeMode', 'light'); };
+    this.onSelectThemeModeMidDay = () => { send('selectThemeMode', 'midDay'); };
+    this.onSelectThemeModeDark = () => { send('selectThemeMode', 'dark'); };
+    this.onSelectThemeModeDefault = () => { send('selectThemeMode', 'default'); };
+    this.onInvalidateSession = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('invalidateSession');
+    };
+    this.onToggleDrawer = () => { send('toggleDrawer'); };
+    this.onCloseDrawer = () => { send('closeDrawer'); };
+    this.onCloseDrawerAndNewBoard = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('closeDrawerAndSend', 'newBoard');
+    };
+    this.onCloseDrawerAndGoUpgrade = () => { send('closeDrawerAndSend', 'goUpgrade'); };
+    this.onCloseDrawerAndSupport = () => { send('closeDrawerAndSend', 'support'); };
+    this.onCloseDrawerAndOpenBetaFeedback = () => { send('closeDrawerAndSend', 'openBetaFeedback'); };
+    this.onCloseDrawerAndLanguage = () => { send('closeDrawerAndSend', 'language'); };
+    this.onCloseDrawerAndInvalidateSession = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('closeDrawerAndSend', 'invalidateSession');
+    };
+    this.onCloseDrawerAndDisplayStyle = () => { send('closeDrawerAndDisplayStyle'); };
+    this.onCloseCompanySidebar = () => { send('closeCompanySidebar'); };
+  },
+
   actions: {
     openSupport() {
       var fn = this.get('onSupport');
@@ -35,6 +88,23 @@ export default Component.extend({
     },
     openLanguage() {
       this.get('application').send('language');
+    },
+    // Open the Dashboard Design / Display Style flow from the mobile drawer —
+    // mirrors dashboard/authenticated-view's `editDashboard`: prefer the direct
+    // opener the (still-mounted) display-style component registers on appState,
+    // falling back to the appState signal it also observes. The disc itself is
+    // hidden in the inner header at <=640px; this is its drawer replacement.
+    openDisplayStyle() {
+      var opener = this.get('appState.dashboard_design_opener');
+      if (opener) {
+        opener('display_style_display');
+      } else {
+        this.get('appState').set('open_dashboard_design', 'display');
+      }
+    },
+    closeDrawerAndDisplayStyle() {
+      this.send('closeDrawer');
+      this.send('openDisplayStyle');
     },
     openCompanySidebar() {
       this.set('isCompanySidebarOpen', true);

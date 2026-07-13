@@ -1,3 +1,5 @@
+require 'safe_http'
+
 module Exporter
   LOG_DIVIDER = 'quarter' # quarter, week, doy
   LOG_CUTOFF = 500
@@ -526,7 +528,7 @@ More information about the file formats being used is available at https://www.o
   def self.process_log(data, type, user_id, author_id, device_id)
     sessions = nil
     if data.match(/^http/)
-      data = Typhoeus.get(Uploader.sanitize_url(data), timeout: 10).body
+      data = SafeHttp.get(data, timeout: 10).body
     end
     user = User.find_by_path(user_id)
     raise "invalid user" unless user

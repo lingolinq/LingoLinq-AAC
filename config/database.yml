@@ -18,12 +18,31 @@ test:
   timeout: 5000
 
 production:
-  primary: 
+  primary:
     adapter: postgresql
+    # GCP Cloud Run reaches Cloud SQL over a unix socket (--set-cloudsql-instances). The socket-form
+    # DATABASE_URL (postgres://user:pass@/db?host=/cloudsql/CONN) has an empty host, which uri >= 1.0
+    # rejects at boot (URI::InvalidURIError), failing every Rails boot path. So when DATABASE_URL is
+    # absent we configure the connection from discrete env vars instead of a URL. Render still sets
+    # DATABASE_URL and keeps the url path unchanged.
+    # NOTE: uses plain ERB conditionals (no dash-trim markers) because Rails renders this file with
+    # ERB.new(content) and NO trim_mode; dash-trim markers would raise SyntaxError at boot. The
+    # control tags sit at column 0 (same as the replica block below) so they render to blank lines
+    # that YAML ignores.
+    # NOTE: sslmode is inert over a unix socket (libpq ignores it); in-transit encryption to Cloud SQL
+    # is provided by the Cloud SQL connector behind --set-cloudsql-instances, not by this value.
+<% if ENV['DATABASE_URL'].to_s.strip.empty? && ENV['LEADER_POSTGRES_URL'].to_s.strip.empty? %>
+    host: <%= ENV['DB_HOST'] %>
+    database: <%= ENV['DB_NAME'] %>
+    username: <%= ENV['DB_USERNAME'] %>
+    password: <%= ENV['DB_PASSWORD'] %>
+    sslmode: <%= ENV['DB_SSLMODE'] || 'disable' %>
+<% else %>
     url: <%= ENV['DATABASE_URL'] || ENV['LEADER_POSTGRES_URL'] %>
+    sslmode: require
+<% end %>
     pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
     timeout: 5000
-    sslmode: require
 <% if false %>
   # TODO: see shards.yml for examples of how to process follower
   primary_replica: 

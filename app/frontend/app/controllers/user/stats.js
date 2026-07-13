@@ -12,8 +12,14 @@ import Utils from '../../utils/misc';
 import Stats from '../../utils/stats';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  router: service('router'),
   title: computed('model.user_name', function() {
     if(this.get('model.user_name')) {
       return this.get('model.user_name') + "'s Activity";
@@ -316,6 +322,31 @@ export default Controller.extend({
       controller.set(status_key + '.error', true);
     });
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     reset_to_default: function() {
       var _this = this;
@@ -419,7 +450,7 @@ export default Controller.extend({
     },
     show_logs: function(opts) {
       opts = opts || {};
-      this.transitionToRoute('user.logs', this.get('model.user_name'), {queryParams: {start: opts.start, end: opts.end, device_id: opts.device_id, location_id: opts.location_id, highlighted: null, type: 'session'}});
+      this.router.transitionTo('user.logs', this.get('model.user_name'), {queryParams: {start: opts.start, end: opts.end, device_id: opts.device_id, location_id: opts.location_id, highlighted: null, type: 'session'}});
     },
     modify_core: function() {
       var _this = this;

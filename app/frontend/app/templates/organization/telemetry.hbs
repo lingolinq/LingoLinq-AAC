@@ -5,14 +5,14 @@
         <h3 class="md-org-section-title">{{t "Telemetry" key="telemetry"}}</h3>
         <p class="md-org-section-desc">{{t "Review app usage, speak-board activations, and possible missed taps for beta testing." key="telemetry_org_desc"}}</p>
       </div>
-      <button type="button" class="md-org-btn md-org-btn--outline" {{action "refresh"}}>{{t "Refresh" key="refresh"}}</button>
+      <button type="button" class="md-org-btn md-org-btn--outline" {{on "click" (this.ctrlAction "refresh")}}>{{t "Refresh" key="refresh"}}</button>
     </div>
 
     <div class="md-org-report-filters">
       {{#if this.is_super_admin}}
         <div class="md-org-report-field md-org-report-field--inline">
           <label for="telemetry_scope" class="md-org-report-field__label">{{t "Scope:" key="scope_colon"}}</label>
-          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_scope" content=this.scope_options selection=this.scope action=(action (mut this.scope)) }}
+          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_scope" content=this.scope_options selection=this.scope action=(mut this.scope) }}
         </div>
       {{/if}}
       <div class="md-org-report-field md-org-report-field--inline">
@@ -27,13 +27,13 @@
       {{#if (is-equal this.scope "organization")}}
         <div class="md-org-report-field md-org-report-field--inline">
           <label for="telemetry_user_filter" class="md-org-report-field__label">{{t "Communicator:" key="telemetry_communicator_filter"}}</label>
-          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_user_filter" content=this.user_filter_options selection=this.filter_user_id action=(action "set_filter_user")}}
+          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_user_filter" content=this.user_filter_options selection=this.filter_user_id action=(this.ctrlAction "set_filter_user")}}
         </div>
 
         {{#if this.device_filter_options.length}}
           <div class="md-org-report-field md-org-report-field--inline">
             <label for="telemetry_device_filter" class="md-org-report-field__label">{{t "Device:" key="telemetry_device_filter"}}</label>
-            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_device_filter" content=this.device_filter_options selection=this.filter_device_id action=(action "set_filter_device")}}
+            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_device_filter" content=this.device_filter_options selection=this.filter_device_id action=(this.ctrlAction "set_filter_device")}}
           </div>
         {{/if}}
       {{/if}}
@@ -55,8 +55,8 @@
       <div class="md-org-stats__grid md-org-telemetry__summary">
         {{#each this.summary_cards as |card|}}
           <div class="md-org-stat-card">
-            <div class="md-org-stat-card__label">{{card.label}}</div>
-            <div class="md-org-stat-card__value">{{card.value}}</div>
+            <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{card.label}}</span></div>
+            <div class="md-org-stat-card__body"><span class="md-org-stat-card__value">{{card.value}}</span></div>
           </div>
         {{/each}}
       </div>

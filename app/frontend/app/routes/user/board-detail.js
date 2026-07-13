@@ -225,6 +225,13 @@ export default Route.extend({
     controller.set('model', model);
     controller.set('user', user);
 
+    // Light/dark board view is the single remembered user preference
+    // `board_dark_mode` (see controller._persist_board_dark_mode), shared with the
+    // create-board-new preview. Boards open LIGHT by default; dark only once the
+    // user turns it on. Honor the saved choice on every board entry.
+    var darkPref = this.appState.get('currentUser.preferences.board_dark_mode');
+    controller.set('dark_mode', !!darkPref);
+
     // Mirror the board model onto the `board.index` controller. The
     // application controller injects `board: inject('board.index')` and
     // reads `this.get('board.model')` from many legacy code paths —
@@ -258,7 +265,6 @@ export default Route.extend({
     }
     controller.set('paint_mode', null);
     controller.set('color_picker_button', null);
-    controller.set('button_menu_id', null);
     controller.set('show_paint_color_picker', false);
     controller.set('board_recolored', false);
     controller.set('_saved_recolor', null);
@@ -274,6 +280,13 @@ export default Route.extend({
     // defaults whenever the current user opened a board they don't own
     // (anything outside "My Boards"), because the board owner has no such
     // preference saved.
+    // Resolve folder_display_style preference-FIRST, then fall back to the
+    // 'default' style only when no value is stored — covers legacy users who
+    // predate the server-side default (new users get it at registration via
+    // User preference_defaults; the backfill task fills existing users). Read
+    // from currentUser (see note above); this single value drives BOTH speak
+    // mode and edit mode through board-detail-grid, so the fallback applies
+    // everywhere the modern board renders folders.
     var pref_user = this.appState.get('currentUser');
     controller.set('folder_display_style', (pref_user && pref_user.get && pref_user.get('preferences.folder_display_style')) || 'default');
     // Folder colored face defaults to ON for every user. Only the
@@ -337,7 +350,9 @@ export default Route.extend({
       );
     }
 
-    if(!model || model.error) { return; }
+    if(!model || model.error || (model.get && model.get('error')) || typeof model.load_button_set !== 'function') {
+      return;
+    }
 
     // Load button set for find-a-button functionality
     if(model.get('valid_id') && !model.get('integration')) {

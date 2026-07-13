@@ -8,6 +8,8 @@ import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { later as runLater } from '@ember/runloop';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
+import { board_view_route } from '../utils/board_view';
+import warm_board_preview from '../utils/board_preview_warmer';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -17,6 +19,36 @@ export default Component.extend({
    *  and cleared after a short delay so the spinner shows while the
    *  modal materializes. */
   loadingPreview: false,
+  /** Opt-in (default off): when true, hovering/focusing/touching the tile
+   *  pre-warms this board's preview record + symbol images so the Preview
+   *  modal renders fast. Only the board-picker passes this (board-picker.hbs)
+   *  so the shared component's behavior is unchanged everywhere else. */
+  prefetchPreview: false,
+  /* Pre-warm on user intent. Passive (no preventDefault) so it can't
+     interfere with the tile's click/drag/keyboard handling; best-effort and
+     deduped inside the warmer. */
+  _maybe_prefetch_preview: function() {
+    if (!this.get('prefetchPreview')) { return; }
+    warm_board_preview(this.get('board_record') || this.get('board'));
+  },
+  // `mouseEnter` as a component method is deprecated in Ember 4.x
+  // (component.mouseenter-leave-move), so attach the hover prefetch listener to
+  // the element directly instead. focusIn/touchStart stay as event methods —
+  // those are NOT part of that deprecation.
+  didInsertElement: function() {
+    this._super(...arguments);
+    var _this = this;
+    this._onMouseEnter = function() { _this._maybe_prefetch_preview(); };
+    if (this.element) { this.element.addEventListener('mouseenter', this._onMouseEnter); }
+  },
+  willDestroyElement: function() {
+    if (this._onMouseEnter && this.element) {
+      this.element.removeEventListener('mouseenter', this._onMouseEnter);
+    }
+    this._super(...arguments);
+  },
+  focusIn: function() { this._maybe_prefetch_preview(); },
+  touchStart: function() { this._maybe_prefetch_preview(); },
   triggerExternalAction: function(actionName) {
     var args = Array.prototype.slice.call(arguments, 1);
     var action = this.get(actionName);
@@ -172,6 +204,31 @@ export default Component.extend({
     }
     return name;
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     /* Keyboard activation for the role="button" div that wraps the
        card body — Enter and Space mirror the click handler so the
@@ -285,6 +342,14 @@ export default Component.extend({
         }
         modal.board_preview(board_record, board_record.preview_locale, this.get('allow_style'), function() {
         });
+      } else if(_this.get('appState.tour_board_picker_active')) {
+        // Inside the board-picker guided-tour modal (tour-board-picker.js sets
+        // this flag while open), a card tap must open the board PREVIEW — whose
+        // CTA becomes "Pick this Board" while tour_board_picker_active (see
+        // board-preview.js#tour_pick → board-preview-overlay.js#pick_for_home) —
+        // NOT navigate the user away to Speak Mode / board-detail and abandon the
+        // tour. Delegates to the same preview path as the tile's Preview pill.
+        _this.send('board_preview', board_record);
       } else {
         var key = board_record.get ? board_record.get('key') : board_record.key;
         var parts = key ? key.split('/') : [];
@@ -308,7 +373,10 @@ export default Component.extend({
             isDark: isDark,
             accentLight: false,
             transition: function() {
-              return routerSvc.transitionTo('user.board-detail', parts[0], parts[1]);
+              // board-detail (modern) by default; board-alt (classic) only when
+              // the user's board_view_style preference is 'classic'.
+              var user = appStateService && appStateService.get && appStateService.get('currentUser');
+              return routerSvc.transitionTo(board_view_route(user), parts[0], parts[1]);
             }
           });
         } else {

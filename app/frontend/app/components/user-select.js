@@ -67,7 +67,31 @@ export default Component.extend({
       }
     }
     this.set('users', this.get('users') || supervisees);
+    // Reflect a pre-set `selection` (e.g. copy-board defaulting to "me") onto the
+    // per-user `currently_selected` flag the buttons template highlights on — the
+    // `select` action only sets that flag on click, so without this an initial
+    // selection rendered with no button highlighted.
+    this._apply_external_selection();
   },
+
+  // Keep the highlighted button in sync with an externally-provided `selection`
+  // (initial value or a later programmatic change). No-op when nothing is passed.
+  _apply_external_selection: function() {
+    // The `selection` observer can fire during teardown if a bound parent prop
+    // changes as the modal closes — bail so we don't iterate on a destroyed view.
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var sel = this.get('selection');
+    if(sel == null) { return; }
+    (this.get('users') || []).forEach(function(sup) {
+      emberSet(sup, 'currently_selected', sup.id == sel);
+    });
+  },
+  // Only watch `selection` — the initial reflect after `users` is built is done
+  // by the explicit call in didInsertElement, so watching `users` here would just
+  // double-fire the loop on first render.
+  _sync_external_selection: observer('selection', function() {
+    this._apply_external_selection();
+  }),
   users_with_extras: computed('users', 'extra_users', 'extra_users.loading', 'extra_users.length', function() {
     var _this = this;
     var res = [].concat(this.get('users') || []);
@@ -178,5 +202,37 @@ export default Component.extend({
         actionFn(user.id);
       }
     }
-  }
+  },
+
+  init() {
+    this._super(...arguments);
+var self = this;
+this.ctrlAction = function(actionName) {
+  var bound = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    var args = bound.concat(Array.prototype.slice.call(arguments));
+    var evt = args[args.length - 1];
+    if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+      if (evt.preventDefault) { evt.preventDefault(); }
+      args.pop();
+    }
+    self.send.apply(self, [actionName].concat(args));
+  };
+};
+this.ctrlActionNoBubble = function(actionName) {
+  var bound = Array.prototype.slice.call(arguments, 1);
+  return function(event) {
+    if (event && event.stopPropagation) { event.stopPropagation(); }
+    if (event && event.preventDefault) { event.preventDefault(); }
+    self.send.apply(self, [actionName].concat(bound));
+  };
+};
+this.ctrlActionEventValue = function(actionName, targetProp) {
+  return function(event) {
+    var value = event && event.target ? event.target[targetProp] : undefined;
+    self.send(actionName, value);
+  };
+};
+  },
+
 });

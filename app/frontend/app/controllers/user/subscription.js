@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import Subscription from '../../utils/subscription';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -8,10 +9,29 @@ import app_state from '../../utils/app_state';
 import progress_tracker from '../../utils/progress_tracker';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   queryParams: ['code', 'confirmation'],
   code: null,
   confirmation: null,
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+  },
   actions: {
     subscription_error: function(err) {
       modal.error(err);

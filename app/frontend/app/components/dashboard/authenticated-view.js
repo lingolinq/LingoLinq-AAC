@@ -3,11 +3,13 @@ import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { later as runLater, cancel as runCancel } from '@ember/runloop';
+import { A } from '@ember/array';
+import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import { board_view_route } from '../../utils/board_view';
 import Badge from '../../models/badge';
 import Log from '../../models/log';
 import session from '../../utils/session';
@@ -15,7 +17,7 @@ import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
-import { availableHomeSections, sectionHidden, gridLayoutState } from '../../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, gridLayoutState, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 
 export default Component.extend({
   tagName: '',
@@ -28,111 +30,111 @@ export default Component.extend({
   modal: service('modal'),
   app_state: alias('appState'),
 
-  // The layout actually RENDERED. Normally the saved `dashboard_layout` pref, but
-  // when a focused communicator's grown-up presses-and-holds the lock to reveal the
-  // full dashboard (caregiverUnlocked), the parent/caregiver view is the BALANCED
-  // layout — NOT the default dynamic — so 'focused' resolves to 'balanced' while
-  // unlocked. Everything that drives the grid (class, grid state, section
-  // visibility, the shell modifier) reads THIS, so the parent view is fully balanced.
-  effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', 'caregiverUnlocked', function() {
-    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'dynamic';
-    if (['dynamic', 'focused', 'balanced'].indexOf(layout) === -1) { layout = 'dynamic'; }
-    if (this.get('caregiverUnlocked') && layout === 'focused') { return 'balanced'; }
+  // The layout actually RENDERED — the saved `dashboard_layout` pref, validated to a
+  // known variant. Everything that drives the grid (class, grid state, section
+  // visibility, the shell modifier) reads THIS. The default is 'gentle'; an unset
+  // pref or any legacy/invalid value (e.g. the removed 'balanced') resolves to it.
+  effectiveLayout: computed('appState.currentUser.preferences.dashboard_layout', function() {
+    var layout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
+    if (['gentle', 'focused'].indexOf(layout) === -1) { layout = 'gentle'; }
     return layout;
   }),
 
+
   // Home dashboard arrangement modifier, driven by the EFFECTIVE layout (above).
   // Always resolves to a known variant so the grid has a stable hook class;
-  // 'dynamic' is today's default grid — the focused/balanced CSS variants
-  // hang off md-grid--layout-focused / md-grid--layout-balanced.
+  // 'focused' is the default grid — the Gentle View/Focused View CSS variants hang off
+  // md-grid--layout-gentle / md-grid--layout-focused.
   dashboardLayoutClass: computed('effectiveLayout', function() {
     return 'md-grid--layout-' + this.get('effectiveLayout');
   }),
 
-  // Whether "Reports" appears in the primary pill-nav. It stays there only for
-  // SUPPORTERS on a non-Balanced layout. Communicators get Reports moved to an
-  // Extras card link instead (so it's out of their nav); Balanced hides it for
-  // everyone (Focused has no pill-nav). The Extras "Reports" card shows precisely
-  // when this is false (see extrasItems).
-  showReportsPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
-    if (!this.get('appState.currentUser.supporter_role')) { return false; }
-    return this.get('effectiveLayout') !== 'balanced';
+  // Counts for the supervisor home header subheader. Rooms are the supervisor's org
+  // units (supervised_units); communicators are the people they supervise (supervisees).
+  // Both default to 0 when the raw arrays are absent.
+  slpRoomCount: computed('appState.currentUser.supervised_units', function() {
+    return (this.get('appState.currentUser.supervised_units') || []).length;
+  }),
+  slpCommunicatorCount: computed('appState.currentUser.supervisees', function() {
+    return (this.get('appState.currentUser.supervisees') || []).length;
+  }),
+  // The supporter's actual role label for the home subheader, instead of a
+  // hardcoded "Supervisor": site admins read "Admin", anyone who manages an org
+  // reads "Manager", and everyone else (supervises only) keeps "Supervisor".
+  roleName: computed(
+    'appState.currentUser.admin',
+    'appState.currentUser.is_admin',
+    'appState.currentUser.org_manager',
+    'appState.currentUser.managed_orgs.[]',
+    function() {
+      var user = this.get('appState.currentUser');
+      if (!user) { return i18n.t('slp_role', "Supervisor"); }
+      if (user.get('admin') || user.get('is_admin')) { return i18n.t('org_admin', "Admin"); }
+      if (user.get('org_manager') || (user.get('managed_orgs') || []).length > 0) { return i18n.t('org_manager', "Manager"); }
+      return i18n.t('slp_role', "Supervisor");
+    }
+  ),
+
+  // First name for the supervisor home greeting. The model has no first_name field, so
+  // take the leading word of the full `name`; fall back to user_name when name is blank.
+  slpFirstName: computed('appState.currentUser.name', 'appState.currentUser.user_name', function() {
+    var name = (this.get('appState.currentUser.name') || '').trim();
+    if (name) { return name.split(/\s+/)[0]; }
+    return this.get('appState.currentUser.user_name');
   }),
 
-  // Communicators get a far-right "Account" pill in the nav — but NOT on Balanced
+  // Rooms (supervised org units) for the home Rooms card. Natural-sorted by name so
+  // embedded room numbers order numerically (112 before 1012) via Intl.Collator numeric
+  // collation, then sliced to the first 5 with an overflow count for the "view all"
+  // affordance. roomsAllOrgId points the "view all" link at the org rooms page (rooms
+  // are org-scoped; the first room's org covers the common single-org case).
+  sortedRooms: computed('appState.currentUser.supervised_units.[]', function() {
+    var units = (this.get('appState.currentUser.supervised_units') || []).slice();
+    var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    units.sort(function(a, b) { return collator.compare((a && a.name) || '', (b && b.name) || ''); });
+    return units;
+  }),
+  roomsShown: computed('sortedRooms.[]', function() {
+    return (this.get('sortedRooms') || []).slice(0, 4);
+  }),
+  roomsOverflowCount: computed('sortedRooms.[]', function() {
+    return Math.max(0, (this.get('sortedRooms') || []).length - 4);
+  }),
+  roomsAllOrgId: computed('sortedRooms.[]', function() {
+    var first = (this.get('sortedRooms') || [])[0];
+    return first && first.organization_id;
+  }),
+
+  // Communicators whose org_status needs attention (see communicatorsNeedingAttention /
+  // ATTENTION_STATUS_IDS in dashboard_sections). Each maps to the bits the card renders:
+  // name, avatar, and the human status label (from LingoLinq.user_statuses).
+  attentionCommunicators: computed('appState.currentUser.supervisees.[]', function() {
+    var statusMap = {};
+    (LingoLinq.user_statuses || []).forEach(function(s) { statusMap[s.id] = s.label; });
+    return communicatorsNeedingAttention(this.get('appState.currentUser')).map(function(s) {
+      var state = s.org_status && s.org_status.state;
+      return {
+        user_name: s.user_name,
+        avatar_url: s.avatar_url,
+        status_state: state,
+        status_label: statusMap[state] || state
+      };
+    });
+  }),
+
+  // "Reports" appears in the primary pill-nav (and its responsive dropdown) for
+  // EVERYONE — supporters and communicators alike, on every layout including Focused
+  // View. Communicators ALSO keep a Reports card in Extras (see extrasItems), so for
+  // them it's reachable from both places. Constant for now; left as a named hook so
+  // the template guards stay in place if visibility ever needs gating again.
+  showReportsPill: true,
+
+  // Communicators get a far-right "Account" pill in the nav — but NOT on Focused View
   // (its nav is the minimal centered bar). Supporters never get it (they use the
   // identity dropdown).
   showAccountPill: computed('effectiveLayout', 'appState.currentUser.supporter_role', function() {
-    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'balanced';
+    return !this.get('appState.currentUser.supporter_role') && this.get('effectiveLayout') !== 'focused';
   }),
-
-  // Transient "the grown-up unlocked the full dashboard" flag. Set by a press-and-
-  // hold on the Grown-Ups lock; NOT persisted — it resets on reload / re-entry, so
-  // the kid-facing focused view is always the default for a focused communicator.
-  caregiverUnlocked: false,
-
-  // The Focused home view renders when ALL hold: we're on the Home tab, the user is a
-  // COMMUNICATOR (not a supporter), they picked the 'focused' display in Getting
-  // Started, and a grown-up hasn't pressed-and-held to reveal the full dashboard.
-  // Preference-only gating — no feature flag (chosen display == their display).
-  focusedHomeLayout: computed(
-    'activeTab',
-    'appState.currentUser.preferences.dashboard_layout',
-    'appState.currentUser.supporter_role',
-    'appState.gettingStartedActive',
-    'caregiverUnlocked',
-    function() {
-      if (this.get('caregiverUnlocked')) { return false; }
-      // Don't flip the home behind the open Getting Started modal — the modal's
-      // preview clones the dashboard grid, which the focused view removes. Block only
-      // when the modal is ACTUALLY open: the flag drives reactivity, but we confirm
-      // against body.md-gst-active (the real "modal open" signal) so a stale flag can
-      // never trap the user on the default layout once the modal has closed.
-      if (this.get('appState.gettingStartedActive') &&
-          typeof document !== 'undefined' &&
-          document.body.classList.contains('md-gst-active')) {
-        return false;
-      }
-      if (this.get('activeTab') !== 'home') { return false; }
-      if (this.get('appState.currentUser.supporter_role')) { return false; }
-      return this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
-    }
-  ),
-
-  // After a grown-up presses-and-holds the lock to leave focused mode, the full
-  // dashboard shows but this communicator's SAVED display is still 'focused' — so
-  // surface a "Back to Kiddo's View" affordance to return. True only while unlocked
-  // AND the user is a focused communicator.
-  showBackToFocused: computed(
-    'caregiverUnlocked',
-    'appState.currentUser.preferences.dashboard_layout',
-    'appState.currentUser.supporter_role',
-    function() {
-      return !!this.get('caregiverUnlocked') &&
-        !this.get('appState.currentUser.supporter_role') &&
-        this.get('appState.currentUser.preferences.dashboard_layout') === 'focused';
-    }
-  ),
-
-  // Short, friendly first name for the focused greeting ("Hi Johnny"). Prefer the
-  // display name's first word; fall back to the username.
-  greetingFirstName: computed('appState.currentUser.name', 'appState.currentUser.user_name', function() {
-    var raw = this.get('appState.currentUser.name') || this.get('appState.currentUser.user_name') || '';
-    return (raw || '').toString().trim().split(/\s+/)[0] || '';
-  }),
-
-  // Hide the inner-header chrome (Upgrade / Settings / identity dropdown) while the
-  // focused view is active by toggling a body class — the SAME mechanism the Getting
-  // Started tour uses (body.md-gst-active). CSS scopes the hiding so the focused view
-  // never has to reach into the separate header component.
-  _syncFocusedBodyClass: function() {
-    try {
-      if (this.isDestroying || this.isDestroyed) { document.body.classList.remove('md-home-focused'); return; }
-      if (this.get('focusedHomeLayout')) { document.body.classList.add('md-home-focused'); }
-      else { document.body.classList.remove('md-home-focused'); }
-    } catch (e) { /* body class is presentational — never block render */ }
-  },
-  _focusedBodyClassObserver: observer('focusedHomeLayout', function() { this._syncFocusedBodyClass(); }),
 
   // Visibility map for the home dashboard cards, keyed by section key
   // (boards/speak/extras/caseload/org). A key is present+true only when the
@@ -145,16 +147,18 @@ export default Component.extend({
     'effectiveLayout',
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
+    'appState.currentUser.managing_supervision_orgs',
+    'appState.currentUser.supervisees',
     function() {
       var user = this.get('appState.currentUser');
       var vis = {};
       availableHomeSections(user).forEach(function(s) {
         vis[s.key] = !sectionHidden(user, s.key);
       });
-      // The Balanced layout never shows the Extras card — Speak takes the focal
+      // The Focused View layout never shows the Extras card — Speak takes the focal
       // full-width hero slot instead. Force it hidden so the grid matrix and the
       // per-card cardHideStyle agree (no orphaned Extras card overflowing the grid).
-      if (this.get('effectiveLayout') === 'balanced') {
+      if (this.get('effectiveLayout') === 'focused') {
         vis.extras = false;
       }
       return vis;
@@ -165,36 +169,23 @@ export default Component.extend({
   // the computed grid-template-areas/rows. The layout is applied as an inline
   // style (gridStyle) from the shared layout matrix, so the home grid and the
   // Getting Started preview reflow identically with no CSS-specificity juggling.
-  dashboardGrid: computed('sectionVisibility', 'sectionPositions', 'sectionBoards', 'effectiveLayout', function() {
-    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionPositions'), this.get('sectionBoards'), this.get('effectiveLayout'));
+  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', function() {
+    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionOrder'), this.get('effectiveLayout'));
   }),
 
-  // The user's saved Boards placement ({side, raised}; drag-to-move the hero).
-  // Read like the other dashboard prefs and fully gated behind the
-  // `dashboard_drag_layout` flag. Returns null when unset → canonical layout.
-  sectionBoards: computed(
-    'appState.currentUser.preferences.dashboard_boards',
+  // The user's saved drag-to-reorder arrangement: an ordered array of section
+  // keys (the layout packs visible cards in this order — Boards full-width, small
+  // cards two-per-row; see dashboard_sections.gridLayoutState). Read like the
+  // other dashboard prefs and gated behind the `dashboard_drag_layout` flag (the
+  // only way to SET an order is the flagged drag UI). Returns null when unset or
+  // the flag is off → the canonical default order.
+  sectionOrder: computed(
+    'appState.currentUser.preferences.dashboard_order',
     'appState.feature_flags.dashboard_drag_layout',
     function() {
       if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
-      var b = this.get('appState.currentUser.preferences.dashboard_boards');
-      return (b && typeof b === 'object') ? b : null;
-    }
-  ),
-
-  // The user's saved drag-to-swap arrangement (section key → the section key
-  // whose home-slot it occupies; default identity). Read from preferences the
-  // same way as `dashboard_sections`, so a saved arrangement reflows the home
-  // grid on render. Fully gated behind the `dashboard_drag_layout` flag (the
-  // only way to SET a position is the flagged drag UI), and returns null when
-  // unset → the canonical layout.
-  sectionPositions: computed(
-    'appState.currentUser.preferences.dashboard_positions',
-    'appState.feature_flags.dashboard_drag_layout',
-    function() {
-      if (!this.get('appState.feature_flags.dashboard_drag_layout')) { return null; }
-      var map = this.get('appState.currentUser.preferences.dashboard_positions');
-      return (map && typeof map === 'object') ? map : null;
+      var o = this.get('appState.currentUser.preferences.dashboard_order');
+      return (o && o.length) ? o : null;
     }
   ),
   gridClassString: computed('dashboardGrid', function() {
@@ -203,7 +194,17 @@ export default Component.extend({
   gridStyle: computed('dashboardGrid', function() {
     var s = this.get('dashboardGrid');
     // Inline !important so it wins over the base .md-grid !important rules.
-    return htmlSafe('grid-template-areas: ' + s.areasValue + ' !important; grid-template-rows: ' + s.rows + ' !important;');
+    var css = 'grid-template-areas: ' + s.areasValue + ' !important; grid-template-rows: ' + s.rows + ' !important;';
+    // Focused View pins the column count to the visible utility-card count so the
+    // utility row fills evenly (see gridLayoutState.columns); Gentle View leaves
+    // the stylesheet's columns in place.
+    if (s.columns) { css += ' grid-template-columns: ' + s.columns + ' !important;'; }
+    // Per-section reading-order as `--ord-<key>` custom properties — inert on large
+    // screens, consumed by the ≤950px Gentle View single-column flex fallback so its
+    // card order matches this (drag-aware) arrangement instead of a static order.
+    var oi = s.orderIndices || {};
+    Object.keys(oi).forEach(function(k) { css += ' --ord-' + k + ': ' + oi[k] + ';'; });
+    return htmlSafe(css);
   }),
 
   // Availability-only map (does this section EXIST for this user type, ignoring
@@ -215,6 +216,9 @@ export default Component.extend({
     'appState.currentUser',
     'appState.currentUser.supporter_role',
     'appState.currentUser.organizations',
+    'appState.currentUser.managing_supervision_orgs',
+    'appState.currentUser.supervised_units',
+    'appState.currentUser.supervisees',
     function() {
       var user = this.get('appState.currentUser');
       var map = {};
@@ -236,10 +240,20 @@ export default Component.extend({
     var HIDDEN = htmlSafe('display: none !important;');
     var SHOWN = htmlSafe('');
     var map = {};
-    ['boards', 'speak', 'extras', 'caseload', 'org'].forEach(function(k) {
+    ['boards', 'speak', 'extras', 'caseload', 'rooms', 'attention', 'org', 'account', 'createboard', 'reports', 'editdashboard'].forEach(function(k) {
       map[k] = vis[k] ? SHOWN : HIDDEN;
     });
     return map;
+  }),
+
+  // The welcome hero banner is a non-grid toggle (see EXTRA_HOME_TOGGLES): hidden
+  // via the same dashboard_sections preference the cards use. Focused View hides the
+  // hero in CSS regardless; this governs the Gentle View layout. Only applies to the
+  // GREETING hero — on the Extras tab the same <header> is the page header, which
+  // the toggle must never hide.
+  heroHideStyle: computed('appState.currentUser.preferences.dashboard_sections', 'activeTab', function() {
+    if (this.get('activeTab') === 'extras') { return htmlSafe(''); }
+    return sectionHidden(this.get('appState.currentUser'), 'hero') ? htmlSafe('display: none !important;') : htmlSafe('');
   }),
 
   activeTab: 'home',
@@ -268,35 +282,41 @@ export default Component.extend({
       this.set('activeTab', initial);
     }
     this._loadPreviewBoards();
+    var self = this;
+    var send = function(action) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      self.send.apply(self, [action].concat(args));
+    };
+    this.onGoTab = function(tab) { send('goTab', tab); };
+    this.onSelectTab = function(tab) { send('selectTab', tab); };
+    this.onApproveOrRejectOrg = function(decision) { send('approve_or_reject_org', decision); };
+    this.onGo = function(dest) { send('go', dest); };
+    this.onGoToBoard = function(boardKey) { send('goToBoard', boardKey); };
+    this.onGoAndCloseSearch = function(dest) { send('goAndCloseSearch', dest); };
+    this.onExtraAction = function(name) { send('extraAction', name); };
+    this.onHomeInSpeakMode = function(boardForUserId, keepAsSelf) {
+      send('homeInSpeakMode', boardForUserId, keepAsSelf);
+    };
+    this.onRecordNoteFor = function(supervisee) { send('recordNoteFor', supervisee); };
+    this.onQuickAssessmentFor = function(supervisee) { send('quickAssessmentFor', supervisee); };
+    this.onTogglePillnavDropdown = function() { send('togglePillnavDropdown'); };
+    this.onGettingStarted = function() { send('getting_started'); };
+    this.onGoOrganizations = function() { send('goOrganizations'); };
+    this.onOpenNewBoardOnBoards = function() { send('openNewBoardOnBoards'); };
+    this.onEditDashboard = function() { send('editDashboard'); };
+    this.onCloseSearch = function() { send('closeSearch'); };
+    this.onOpenExtrasTab = function() { send('openExtrasTab'); };
+    this.onSearchKeydown = function(event) { send('onSearchKeydown', event); };
   },
   didInsertElement() {
     this._super(...arguments);
     this._loadPreviewBoards();
-    this._syncFocusedBodyClass();
   },
 
-  willDestroyElement() {
-    this._super(...arguments);
-    if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
-    try { document.body.classList.remove('md-home-focused'); } catch (e) { /* noop */ }
-  },
-
-  didRender() {
-    this._super(...arguments);
-    // Self-heal the Getting Started "modal open" flag. body.md-gst-active is the
-    // real signal that the GS modal is showing; the gettingStartedActive flag only
-    // mirrors it (for reactive gating of focusedHomeLayout). If the flag is still
-    // true but the modal is gone (a missed _clearCentered on close), clear it so the
-    // focused layout can apply — otherwise a stale flag traps the user on the default
-    // layout. Idempotent: once cleared the condition is false, so no render loop.
-    try {
-      if (this.get('appState.gettingStartedActive') &&
-          typeof document !== 'undefined' &&
-          !document.body.classList.contains('md-gst-active')) {
-        this.set('appState.gettingStartedActive', false);
-      }
-    } catch (e) { /* defensive — never block render */ }
-  },
+  // NOTE: the `body.ll-layout-focused` class is now set globally (on every page,
+  // not just the dashboard) by sync_layout_scope in services/app-state.js, which
+  // mirrors the dashboard_layout pref onto <body>. The component no longer toggles
+  // it here so the Focused View overlay survives navigation away from the dashboard.
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
     return this.get('extras.ready') && !this.appState.get('currentUser.external_device');
@@ -602,7 +622,7 @@ export default Component.extend({
         controller.set('logs', {loading: true});
       }
       this.get('store').query('log', find_args).then(function(list) {
-        controller.set('logs', list.map(function(i) { return i; }));
+        controller.set('logs', list.slice());
       }, function() {
         if(!(controller.get('logs') || {}).length) {
           controller.set('logs', {error: true});
@@ -743,6 +763,39 @@ export default Component.extend({
   multipleOrgs: computed('all_orgs.length', function() {
     return (this.get('all_orgs.length') || 0) > 1;
   }),
+  // True when there are more organizations than the 4 shown on the card, so the
+  // "View all organizations" button only appears when it has somewhere extra to go.
+  orgsOverflow: computed('all_orgs.length', function() {
+    return (this.get('all_orgs.length') || 0) > 4;
+  }),
+  // First 4 organizations the user manages/supervises, for the Rooms-style My
+  // Organizations card tiles (mirrors roomsShown). Count shown is all_orgs.length.
+  // `desc` is a "main-line" info string under the org name — the user's ROLE in
+  // that org, the number of rooms they have IN that org (supervised_units matched
+  // by organization_id), and the org's plan — joined with " · " to fill the tile.
+  orgsShown: computed('all_orgs.[]', 'appState.currentUser.supervised_units.[]', function() {
+    var units = this.get('appState.currentUser.supervised_units') || [];
+    return (this.get('all_orgs') || []).slice(0, 4).map(function(o) {
+      var role;
+      if (o.type == 'manager') {
+        role = o.admin ? i18n.t('org_admin', "Admin") : i18n.t('org_manager', "Manager");
+      } else if (o.type == 'supervisor') {
+        role = i18n.t('org_supervisor', "Supervisor");
+      } else {
+        role = i18n.t('org_member', "Member");
+      }
+      var bits = [role];
+      var roomCount = units.filter(function(u) { return u && u.organization_id == o.id; }).length;
+      if (roomCount > 0) {
+        // Use i18n count-pluralization (prepends the number + picks the right
+        // plural form) instead of concatenating a singular/plural ternary, so
+        // locales with different plural rules / word order render correctly.
+        bits.push(i18n.t('n_rooms', "room", {count: roomCount}));
+      }
+      if (o.premium) { bits.push(i18n.t('premium', "Premium")); }
+      return { id: o.id, name: o.name, desc: bits.join(' · ') };
+    });
+  }),
   orgDropdownOpen: false,
   autoOpenSpeakMode: computed('appState.currentUser.preferences.auto_open_speak_mode', {
     get() {
@@ -786,7 +839,7 @@ export default Component.extend({
         // modal is suppressed so newly-registered users route directly
         // into the home-page tour instead (see routes/register.js
         // `save_done` → appState.auto_open_home_tour = true, which
-        // home-tour.js observes and auto-fires).
+        // guided-tour.js observes and auto-fires).
         //
         // The subscribe modal template, component, SCSS, and the
         // `modal.open('subscribe')` mechanism are all preserved — to
@@ -856,7 +909,7 @@ export default Component.extend({
     // from the dashboard grid (see authenticated-view.hbs), so the layout
     // doesn't reserve a hole where the card used to live. To re-enable:
     // restore the original return below AND un-comment the matching
-    // article block in templates/components/dashboard/authenticated-view.hbs.
+    // article block in app/components/dashboard/authenticated-view.hbs.
     // var progress = this.appState.get('currentUser.preferences.progress');
     // return progress && !progress.setup_done;
     return false;
@@ -886,6 +939,13 @@ export default Component.extend({
   }),
   previewBoards: computed(
     '_fetchedPreviewBoards.[]',
+    // Prefer the FULL fetched library (same pool boardCount uses) once it has
+    // paginated in: filterRootBoards is first-page-sensitive, so clustering only
+    // the first page leaks sub-board copies of a set into the strip. Recompute
+    // when the full set (and its per-board star/name) arrives.
+    '_fetchedBoards.[]',
+    '_fetchedBoards.@each.starred_for_current_user',
+    '_fetchedBoards.@each.name',
     // The appended 6th tile is the system Crisis Vocabulary board from the sidebar.
     'appState.sidebar_boards',
     // Re-sort the preview when a board's liked status flips or its
@@ -914,7 +974,16 @@ export default Component.extend({
     'appState.currentUser.preferences.home_board.id',
     function() {
       var _this = this;
-      var fetched = this.get('_fetchedPreviewBoards') || [];
+      // Roots only — `store.query('board', {user_id})` returns the full owned
+      // library INCLUDING every sub-board copy in a copied set, so the raw pool
+      // would fill the 5-tile preview with sub-boards. Cluster to root tiles the
+      // same way `boardCount` (this component) and the boards page do. Prefer the
+      // FULL `_fetchedBoards` pool (falling back to the first preview page until it
+      // arrives): `filterRootBoards` is first-page-sensitive, so clustering only the
+      // first 20 records lets sub-board copies leak through. See utils/board-roots.js
+      // / LEARNINGS "visible-tile counts need root clustering".
+      var pool = this.get('_fetchedBoards') || this.get('_fetchedPreviewBoards') || [];
+      var fetched = filterRootBoards(pool, this.get('appState.currentUser.id'));
       var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
       var seen = {};
       var ordered = [];
@@ -987,18 +1056,21 @@ export default Component.extend({
       // dependent-keys comment above for why.
       var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred_for_current_user'); }).sort(alphaByName);
       var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred_for_current_user'); }).sort(alphaByName);
+      // Cap the home + middle section at 4 (home board + up to 3 favourites,
+      // falling back to 3 others from the collection) so that, with the Crisis
+      // board appended below, the strip shows exactly FIVE tiles total.
       starredAlpha.forEach(function(board) {
-        if (ordered.length >= 5) { return; }
+        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
       othersAlpha.forEach(function(board) {
-        if (ordered.length >= 5) { return; }
+        if (ordered.length >= 4) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
 
-      var top = ordered.slice(0, 5);
-      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as a
-      // 6th tile at the END of the list — same key/name/image the sidebar uses.
+      var top = ordered.slice(0, 4);
+      // Append the system "Crisis Vocabulary" board (on everyone's sidebar) as the
+      // 5th/last tile — same key/name/image the sidebar uses.
       try {
         var sidebars = this.appState.get('sidebar_boards') || [];
         var crisis = null;
@@ -1015,7 +1087,11 @@ export default Component.extend({
               imageUrl: emberGet(crisis, 'image') || '',
               key: crisisKey,
               languageLabel: null,
-              isHome: false
+              isHome: false,
+              // The system Crisis/Emergency board — flagged so the strip can keep
+              // showing it (alongside the home board) when the small-screen rule
+              // hides the other tiles (see ≤1024px rule in app.scss).
+              isEmergency: true
             }]);
           }
         }
@@ -1042,16 +1118,16 @@ export default Component.extend({
     _this.get('store').query('board', { user_id: user.get('id'), per_page: 20 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
-      _this.set('_fetchedPreviewBoards', results);
+      _this.set('_fetchedPreviewBoards', A(results));
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
         _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results);
       } else {
-        _this.set('_fetchedBoards', results);
+        _this.set('_fetchedBoards', A(results));
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedPreviewBoards', []);
+      _this.set('_fetchedPreviewBoards', A([]));
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
@@ -1063,11 +1139,11 @@ export default Component.extend({
       if (meta && meta.more) {
         _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
-        _this.set('_fetchedBoards', combined);
+        _this.set('_fetchedBoards', A(combined));
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedBoards', accumulated);
+      _this.set('_fetchedBoards', A(accumulated));
     });
   },
   /* Count of the user's CORE (root tile) boards, matching the "My
@@ -1088,16 +1164,17 @@ export default Component.extend({
     if (!boards || !boards.forEach) { return 0; }
     return filterRootBoards(boards, userId).length;
   }),
-  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.currentUser.supporter_role', 'showReportsPill', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
+  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.currentUser.supporter_role', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
     var user = appState.get('currentUser');
     var perms = user && user.get('permissions.delete');
     var modelingOnly = user && user.get('modeling_only');
     var externalDevice = user && user.get('external_device');
     var supporterRole = user && user.get('supporter_role');
-    // Reports moves into Extras exactly when it's NOT in the pill-nav (communicators
-    // on any layout; everyone on Balanced) — see showReportsPill.
-    var showReports = !this.get('showReportsPill');
+    // Communicators keep a Reports card in Extras IN ADDITION to the pill-nav (which
+    // now shows Reports for everyone — see showReportsPill), so they can reach it from
+    // either place. Supporters get Reports in the pill only, not duplicated in Extras.
+    var showReports = !supporterRole;
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
     return [
@@ -1117,33 +1194,43 @@ export default Component.extend({
   }),
 
   actions: {
-    // Grown-Ups lock (focused view): press-and-HOLD to exit. pointerdown starts a
-    // ~700ms timer that, if not cancelled by release/leave, drops focused mode and
-    // reveals the full caregiver dashboard. A deliberate hold (not a tap) keeps a
-    // communicator from leaving their view by accident.
-    lockHoldStart: function() {
-      var _this = this;
-      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); }
-      this.set('lockHolding', true);
-      this._lockHoldTimer = runLater(this, function() {
-        _this._lockHoldTimer = null;
-        _this.set('lockHolding', false);
-        _this.send('exitFocusedLayout');
-      }, 700);
-    },
-    lockHoldEnd: function() {
-      if (this._lockHoldTimer) { runCancel(this._lockHoldTimer); this._lockHoldTimer = null; }
-      this.set('lockHolding', false);
-    },
-    // Transient unlock — reveal the normal dashboard for the grown-up WITHOUT changing
-    // the saved display preference. focusedHomeLayout flips false → the full chrome
-    // (pill-nav + header) returns; the body class is removed by its observer.
-    exitFocusedLayout: function() {
-      this.set('caregiverUnlocked', true);
-    },
-    // Re-enter the focused (kid-facing) view from the "Back to Kiddo's View" button.
-    backToFocused: function() {
-      this.set('caregiverUnlocked', false);
+    // Approve / deny a pending org (or supervision) request from the home page
+    // notice — same supervisor_key save the user/index controller uses, run
+    // against the current user.
+    approve_or_reject_org: function(decision) {
+      // Acts ONLY on the session's own currentUser: pending_org /
+      // pending_supervision_org are computeds on that user, so the action can
+      // never target another user's relationship (ownership is enforced by
+      // construction; the server re-authorizes the supervisor_key on save).
+      var user = this.get('appState.currentUser');
+      if(!user) { return; }
+      // Prevent a double-save race from rapid clicks (Approve/Deny tapped twice).
+      if(user.get('isSaving')) { return; }
+      if(decision === 'user_approve' || decision === 'user_reject') {
+        // Bail if the pending org cleared (e.g. resolved elsewhere) between render
+        // and click, rather than firing a no-op key.
+        if(!user.get('pending_org')) { return; }
+        user.set('supervisor_key', decision === 'user_approve' ? 'approve-org' : 'remove_supervisor-org');
+      } else if(decision === 'supervisor_approve' || decision === 'supervisor_reject') {
+        // Same guard for the supervision id: bail rather than build a
+        // 'remove_supervision-undefined' key the server would silently reject.
+        var org_id = user.get('pending_supervision_org.id');
+        if(!org_id) { return; }
+        var prefix = (decision === 'supervisor_approve') ? 'approve_supervision-' : 'remove_supervision-';
+        user.set('supervisor_key', prefix + org_id);
+      } else {
+        return;
+      }
+      // Don't swallow the result — an org-approval that silently fails would
+      // leave the user believing the relationship was approved/denied when it
+      // wasn't. Confirm success and surface failure so they can retry.
+      if(user.save) {
+        user.save().then(function() {
+          modal.success(i18n.t('org_response_saved', "Your response was saved."));
+        }, function() {
+          modal.error(i18n.t('error_saving_org_response', "There was a problem saving your response. Please try again."));
+        });
+      }
     },
     addOrganization: function() {
       var user_name = this.appState.get('currentUser.user_name');
@@ -1165,8 +1252,11 @@ export default Component.extend({
       if (boardKey) {
         var parts = boardKey.split('/');
         if(parts.length === 2) {
-          this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
+          // Open in the user's preferred view: board-detail (modern) by default,
+          // board-alt (classic) only when board_view_style === 'classic'.
+          this.get('router').transitionTo(board_view_route(this.get('appState.currentUser')), parts[0], parts[1]);
         } else {
+          // Canonical /key route — routes/board.js already redirects by preference.
           this.get('router').transitionTo('board', boardKey);
         }
       }
@@ -1352,12 +1442,40 @@ export default Component.extend({
     getting_started: function() {
       this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
     },
+    // Open the Dashboard Design tour (display-style, mounted in the navbar)
+    // directly on the "choose your display style" page. Prefer the DIRECT opener
+    // the tour registers on appState (deterministic — no cross-component observer
+    // timing/coalescing), and fall back to the appState signal (which the tour
+    // also observes) if the tour component hasn't registered yet.
+    editDashboard: function() {
+      var opener = this.get('appState.dashboard_design_opener');
+      if (opener) {
+        opener('display_style_display');
+      } else {
+        this.get('appState').set('open_dashboard_design', 'display');
+      }
+    },
     extraAction: function(name) {
       var _this = this;
       var appState = this.appState;
       var user = appState.get('currentUser');
       var userName = user && user.get('user_name');
       var userId = user && user.get('id');
+      // Drop focus from the activating card before running the action. Several of
+      // these actions open a modal, and modal-dialog returns focus to the
+      // previously-focused element when it closes (WCAG focus-return,
+      // modal-dialog.js:144). That left the clicked extras card stuck showing a
+      // persistent focus state after the modal closed. modal-dialog only records a
+      // restore target when document.activeElement !== document.body at capture time
+      // (modal-dialog.js:30), so blurring the card here means body is active when the
+      // modal captures focus and nothing is restored to the card. Navigation actions
+      // are unaffected (the route change moves focus regardless).
+      try {
+        var active = (typeof document !== 'undefined') && document.activeElement;
+        if (active && active.blur && active.closest && active.closest('.md-extras-card')) {
+          active.blur();
+        }
+      } catch(e) { }
       if (name === 'intro') {
         this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
       } else if (name === 'newBoard') {
@@ -1643,7 +1761,7 @@ export default Component.extend({
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
-        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.appState.get('sessionUser.user_token'), '_blank');
+        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.appState.get('sessionUser.lesson_share_token'), '_blank');
       }
     },
     launch_rating: function() {

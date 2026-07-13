@@ -1075,7 +1075,8 @@ describe UserBadge, type: :model do
       b = UserBadge.new
       b.earned = true
       b.generate_defaults
-      expect(b.data['earn_recorded']).to eq(Time.now.utc.iso8601)
+      expect(b.data.except('earn_recorded')).to eq({'name' => 'Unnamed Badge'})
+      expect(b.data['earn_recorded']).to be > 5.seconds.ago.utc.iso8601
       expect(b.instance_variable_get('@just_earned')).to eq(true)
     end
   end
@@ -1218,10 +1219,9 @@ describe UserBadge, type: :model do
       })
       expect(b.id).to_not eq(nil)
       expect(b.earned).to eq(true)
-      expect(b.data).to eq({
+      expect(b.data.except('earn_recorded')).to eq({
         'started' => started.utc.iso8601,
         'ended' => ended.utc.iso8601,
-        'earn_recorded' => Time.now.utc.iso8601,
         'units' => [{}],
         'explanation' => 'good stuff happened',
         'samples' => [],
@@ -1231,6 +1231,7 @@ describe UserBadge, type: :model do
         'streak' => 3,
         'percent' => 1.0
       })
+      expect(b.data['earn_recorded']).to be > 5.seconds.ago.utc.iso8601
     end
     
     it "should use the goal's name for the badge level if defined" do

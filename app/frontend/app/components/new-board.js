@@ -97,6 +97,42 @@ export default Component.extend({
     
     // Initialize showGrid immediately (observers don't fire during init)
     this.updateShowGrid();
+
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.ctrlActionEventValue = function(actionName, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, value);
+      };
+    };
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
   },
 
   for_user_id: computed('model.for_user_id', function() {
@@ -349,6 +385,12 @@ export default Component.extend({
         this.get('modal').close();
       }
       modalUtil.open('import-from-html');
+    },
+    importFromJsonBundle: function() {
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
+      modalUtil.open('import-from-json-bundle');
     },
     generateWithAi: function() {
       if(!this.get('standalone')) {
@@ -681,6 +723,8 @@ export default Component.extend({
           _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
           var key = board.get('key') || '';
           var parts = key.split('/');
+          // Debounced "Preparing your Board" mask for the post-create board load.
+          _this.appState.arm_board_load_overlay(_this.get('router'));
           if (parts.length >= 2) {
             return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
           } else {

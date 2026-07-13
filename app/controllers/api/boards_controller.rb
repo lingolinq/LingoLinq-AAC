@@ -527,8 +527,43 @@ class Api::BoardsController < ApplicationController
     end
   end
 
+  def from_json_bundle
+    unless FeatureFlags.feature_enabled_for?('paste_html_import', @api_user)
+      return api_error(403, { error: 'Feature not available' })
+    end
+
+    if params['url']
+      raw_url = params['url'].to_s
+      return api_error(400, { error: 'url required' }) if raw_url.blank?
+
+      url = Uploader.sanitize_url(raw_url)
+      return api_error(400, { error: 'invalid URL' }) unless url.present?
+      unless Uploader.valid_import_bundle_url?(url, @api_user.global_id)
+        return api_error(400, { error: 'invalid import bundle URL' })
+      end
+
+      extra = {}
+      raw = params['recipient_global_ids'] || params.dig('board', 'recipient_global_ids')
+      if raw.present?
+        extra['recipient_global_ids'] = raw.is_a?(Array) ? raw : raw.to_s.split(/,/).map(&:strip).reject(&:blank?)
+      end
+
+      progress = Progress.schedule(Board, :import_json_bundle, @api_user.global_id, url, extra, for_user: @api_user)
+      render json: JsonApi::Progress.as_json(progress, wrapper: true).to_json
+    else
+      remote_path = "imports/boards/#{@api_user.global_id}/bundle-#{GoSecure.nonce('filename')}.json"
+      upload_params = Uploader.remote_upload_params(remote_path, 'application/json')
+      url = upload_params[:upload_url] + remote_path
+      upload_params[:success_url] = "/api/v1/boards/from_json_bundle?url=#{CGI.escape(url)}"
+      render json: { 'remote_upload' => upload_params }.to_json
+    end
+  end
+
   def generate_labels
-    unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
+    # Gate on the AI-specific check so an org-level AI opt-out (disable_ai_features) is
+    # enforced at the endpoint and returns a clean 403, instead of passing the plain flag
+    # check here and being rejected deeper in the generator as a 503.
+    unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
     processed_params, json_body_source = board_json_body_params_source
@@ -573,6 +608,14 @@ class Api::BoardsController < ApplicationController
       fallback_board_name(prompt)
     end
     response[:description] = result[:description].presence || prompt
+    # EU AI Act Article 50(2): surface the signed AI-generated marker on the
+    # generation response (unconditional; not flag-gated). NOTE: durable persistence
+    # of this marker onto board.settings at save time, and its propagation through
+    # relinking copy_for, are NOT yet implemented -- they are the follow-up
+    # persistence slice. Until then the marker exists only on this transient
+    # response, so saved/exported/shared boards are not yet marked. The Art. 50
+    # register entry stays OPEN until persistence lands.
+    response[:ai_generated] = result[:ai_generated] if result[:ai_generated]
     render json: response
   end
 

@@ -171,10 +171,13 @@ var Subscription = EmberObject.extend({
   valid: computed(
     'user_type',
     'subscription_type',
+    'subscription_amount',
     'gift_code',
     'user.lapsed',
     'email',
     'subscription_custom_amount',
+    'any_subscription_amount',
+    'eval',
     function() {
       if(this.get('subscription_type') == 'gift_code') {
         return !!this.get('gift_code');
@@ -585,7 +588,7 @@ var Subscription = EmberObject.extend({
       _this.set('gift_status', {error: true});
     })
   },
-  description: computed('user_type', 'subscription_type', 'extras', 'included_supporters', 'communicator_type', function() {
+  description: computed('user_type', 'subscription_type', 'extras', 'included_supporters', 'communicator_type', 'eval', function() {
     var res = i18n.t('app_license', "%app_name% license");
     if(this.get('user_type') == 'communicator') {
       if(this.get('eval')) {
@@ -655,7 +658,7 @@ var Subscription = EmberObject.extend({
       return type + schedule + amount;
     }
   ),
-  purchase_description: computed('subscription_type', 'extras', function() {
+  purchase_description: computed('subscription_type', 'subscription_amount', 'extras', function() {
     var res = i18n.t('activate', "Activate");
     if(this.get('subscription_type') == 'monthly') {
       if(this.get('subscription_amount') && this.get('subscription_amount').match(/free/)) {

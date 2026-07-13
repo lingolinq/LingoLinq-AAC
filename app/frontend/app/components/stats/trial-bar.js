@@ -9,6 +9,7 @@ export default Component.extend({
   },
   draw: function() {
     var $elem = $(this.get('element'));
+    // `title` is app-controlled stats data; do not enable html:true or pass untrusted strings (bootstrap 3 EOL, LL-d1ea8659c3).
     $elem.find(".bar_holder").tooltip({container: 'body'});
   }
 });

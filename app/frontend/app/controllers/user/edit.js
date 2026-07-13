@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
@@ -11,7 +12,33 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.onSaveProfile = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('saveProfile');
+    };
+    this.onRegistrationTypeChange = function(value) {
+      self.set('model.preferences.registration_type', value);
+    };
+    this.onExternalAccessMethodChange = function(value) {
+      self.set('external_access_method', value);
+    };
+  },
+
   registration_types: LingoLinq.registrationTypes,
   allow_shares_options: [
     {name: i18n.t('email_shares', "Email"), id: 'email'},

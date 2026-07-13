@@ -1,3 +1,12 @@
+<%# DEAD PARTIAL (confirmed 2026-07-09, VPC Phase 2 Task 02-02.2): BoardsController#privacy
+    calls `render :index` (the Ember SPA shell), not `boards/privacy.html.erb`, so this
+    partial (rendered only from that unused view) is never actually served to a browser.
+    The live privacy policy is the Ember template at
+    app/frontend/app/templates/privacy.hbs -- edit that one, not this one. This stale
+    duplicate is hardcoded English with no i18n and a stale "Last Updated" date, and is
+    a risk if anyone ever wires it back up expecting it to be current. Flagged here per
+    the Phase 2 plan rather than deleted outright, since deletion is a separate cleanup
+    ticket outside this phase's scope. %>
 <div class="row">
   <div class="col-sm-8 col-sm-offset-2">
     <h2>Privacy Policy</h2>
@@ -71,7 +80,7 @@
         <ul>
           <li>Active account data: retained for the life of the account, plus up to 2 years of continuous inactivity, after which the account is soft-deleted and queued for purge.</li>
           <li>Inactive accounts: accounts inactive for 12 months are flagged for automatic deletion, subject to a 10-day grace period for accidental deletions.</li>
-          <li>AI request logs: the audit record (AiApiLog) is retained for 2 years; IP addresses on those records are redacted at 90 days.</li>
+          <li>AI request logs: the audit record (AiApiLog) tied to a user account is deleted when that account is deleted; IP addresses on those records are redacted at 90 days.</li>
           <li>Voice and audio recordings (button sounds you record): retained for the life of the user account and deleted when the account is deleted.</li>
           <li>Dwell, eye-gaze, and head-tracking timing data (stored within communication logs): retained for 3 years by default, configurable to a shorter window per user or organization.</li>
           <li>School and district tenant data: deleted within 90 days after the customer contract ends, unless a shorter window is specified in the data processing addendum.</li>

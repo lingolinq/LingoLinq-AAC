@@ -1,0 +1,137 @@
+// =============================================================================
+// Modern utility/detail pages
+// =============================================================================
+// Page-specific styles for the modern-restyled standalone pages, extracted from
+// app.scss so they don't bloat the monolith (same direction as _caseload.scss).
+// All design tokens come from _variables.scss; surfaces mirror the .md-org-section
+// / .md-card language used across the dashboard and org pages.
+//
+// Pages covered here:
+//   - /trends  (.md-trends)  — aggregate research dashboard
+// (start_codes / download styles still live in app.scss; migrate them here when
+//  convenient for full consistency.)
+
+@use "variables" as *;
+
+// -----------------------------------------------------------------------------
+// /trends — aggregate research page
+// -----------------------------------------------------------------------------
+// Legacy Bootstrap markup (.panel.summary metric tiles + .list-group sections)
+// wrapped in .md-shell (mesh bg) + a centered .md-trends container with a modern
+// hero. The Bootstrap classes are restyled in place, scoped under .md-trends.
+
+.md-trends {
+  width: min(1040px, 100%);
+  box-sizing: border-box;
+  margin: 56px auto 56px;
+  padding: 0 20px;
+}
+
+.md-trends__hero {
+  margin-bottom: 26px;
+}
+
+.md-trends__title {
+  // override the global `h1 { height: 60px; display: inline-block }` (app.scss)
+  display: block;
+  height: auto;
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-trends__intro {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--md-muted, $la-navy);
+  max-width: 800px;
+}
+
+// Metric tiles — restyle the legacy .panel.summary as elevated metric cards.
+.md-trends .panel.summary {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba($la-navy, 0.07),
+    0 8px 20px rgba($la-navy, 0.08);
+  overflow: hidden;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.md-trends .panel.summary .panel-heading {
+  background: transparent;
+  border: none;
+  padding: 15px 12px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.72;
+  white-space: normal;
+}
+
+.md-trends .panel.summary .panel-body {
+  // !important beats the one inline `style="font-size:22px..."` in the markup.
+  padding: 6px 12px 16px !important;
+  font-size: 26px !important;
+  font-weight: 800;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+// Section headings.
+.md-trends h4 {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+  margin: 0 0 14px;
+}
+
+// List sections — restyle the legacy .list-group / .list-group-item as tiles.
+.md-trends .list-group {
+  border-radius: 14px;
+  border: 1px solid rgba($la-navy, 0.08);
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba($la-navy, 0.06);
+}
+
+.md-trends .list-group-item {
+  border: none;
+  border-bottom: 1px solid rgba($la-navy, 0.06);
+  background: rgba(255, 255, 255, 0.82);
+  padding: 11px 15px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-trends .list-group-item:last-child {
+  border-bottom: none;
+}
+
+.md-trends a.list-group-item:hover {
+  background: rgba($brand-dusty-denim, 0.06);
+  color: $brand-dusty-denim-aa;
+  text-decoration: none;
+}
+
+.md-trends .list-group-item .text-muted {
+  color: var(--md-muted, $la-navy) !important;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+// "show internal metrics" danger label + range note.
+.md-trends .label-danger {
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 4px 10px;
+}

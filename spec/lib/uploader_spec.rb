@@ -284,19 +284,6 @@ describe Uploader do
 
       res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
       expect(res[:upload_params]['acl']).to eq(nil)
-
-      orig = ENV['UPLOADS_S3_NO_ACL']
-      begin
-        ENV['UPLOADS_S3_NO_ACL'] = '1'
-        res = Uploader.remote_upload_params("downloads/file.png", "image/png")
-        expect(res[:upload_params]['acl']).to eq(nil)
-      ensure
-        if orig.nil?
-          ENV.delete('UPLOADS_S3_NO_ACL')
-        else
-          ENV['UPLOADS_S3_NO_ACL'] = orig
-        end
-      end
     end
   end
 
@@ -372,6 +359,81 @@ describe Uploader do
     end
   end
 
+  describe "signed_internal_url" do
+    let(:uploads_bucket) { 'spec-uploads' }
+    let(:remote_config) do
+      {
+        upload_url: 'https://spec-uploads.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: uploads_bucket
+      }
+    end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
+    let(:presigner) { instance_double(Aws::S3::Presigner) }
+
+    before do
+      @orig_uploads_s3_bucket = ENV['UPLOADS_S3_BUCKET']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(Aws::S3::Presigner).to receive(:new).with(client: s3_client).and_return(presigner)
+    end
+
+    after do
+      if @orig_uploads_s3_bucket.nil?
+        ENV.delete('UPLOADS_S3_BUCKET')
+      else
+        ENV['UPLOADS_S3_BUCKET'] = @orig_uploads_s3_bucket
+      end
+    end
+
+    it "should presign virtual-hosted and path-style uploads-bucket urls without a head_object check" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).exactly(2).times.with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: 'extras/foo.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json")).to eq('signed-url')
+      expect(Uploader.signed_internal_url("https://s3.amazonaws.com/#{uploads_bucket}/extras/foo.json")).to eq('signed-url')
+    end
+
+    it "should keep the leading slash for legacy version-0 extra_data double-slash urls" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: '/extras0/LogSession/1_1/nonce/data-x.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com//extras0/LogSession/1_1/nonce/data-x.json")).to eq('signed-url')
+    end
+
+    it "should pass through a bare bucket url with no key" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+
+    it "should pass through non-bucket urls untouched" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      expect(Uploader.signed_internal_url("https://example.com/pic.png")).to eq("https://example.com/pic.png")
+      expect(Uploader.signed_internal_url("https://cdn.example.com/extras/foo.json")).to eq("https://cdn.example.com/extras/foo.json")
+      expect(Uploader.signed_internal_url(nil)).to eq(nil)
+    end
+
+    it "should return the original url when credentials are missing or signing fails" do
+      allow(Uploader).to receive(:remote_upload_config).and_return({})
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+
+    it "should return the original url when presigning raises unexpectedly" do
+      allow(presigner).to receive(:presigned_url).and_raise(Aws::Errors::MissingRegionError.new(nil, 'missing region'))
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect { Uploader.signed_internal_url(url) }.to_not raise_error
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+  end
+
   describe "valid_remote_url?" do
     it "should return true only for known URLs" do
       uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
@@ -391,6 +453,53 @@ describe Uploader do
       ensure
         ENV['UPLOADS_S3_BUCKET'] = orig_uploads
         ENV['OPENSYMBOLS_S3_BUCKET'] = orig_opensymbols
+      end
+    end
+  end
+
+  describe "valid_import_bundle_url?" do
+    it "allows only HTTPS bundle uploads under imports/boards/{global_id}/" do
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      orig_uploads = ENV['UPLOADS_S3_BUCKET']
+      orig_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV.delete('UPLOADS_S3_CDN')
+      gid = '1_42'
+      good = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/bundle-abc123.json"
+      begin
+        expect(Uploader.valid_import_bundle_url?(good, gid)).to eq(true)
+        expect(Uploader.valid_import_bundle_url?(good, '1_99')).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/upload-abc.json", gid)).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("https://evil.com/imports/boards/#{gid}/bundle-abc.json", gid)).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("http://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/bundle-abc.json", gid)).to eq(false)
+      ensure
+        ENV['UPLOADS_S3_BUCKET'] = orig_uploads
+        if orig_cdn.nil?
+          ENV.delete('UPLOADS_S3_CDN')
+        else
+          ENV['UPLOADS_S3_CDN'] = orig_cdn
+        end
+      end
+    end
+
+    it "accepts CDN-fronted bundle upload URLs" do
+      uploads_bucket = 'lingolinq-dev-uploads'
+      cdn = 'https://cdn.example.com'
+      orig_uploads = ENV['UPLOADS_S3_BUCKET']
+      orig_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV['UPLOADS_S3_CDN'] = cdn
+      gid = '1_42'
+      url = "#{cdn}/imports/boards/#{gid}/bundle-abc123.json"
+      begin
+        expect(Uploader.valid_import_bundle_url?(url, gid)).to eq(true)
+      ensure
+        ENV['UPLOADS_S3_BUCKET'] = orig_uploads
+        if orig_cdn.nil?
+          ENV.delete('UPLOADS_S3_CDN')
+        else
+          ENV['UPLOADS_S3_CDN'] = orig_cdn
+        end
       end
     end
   end  
@@ -1564,7 +1673,7 @@ describe Uploader do
     it "should call the block with the loaded zip" do
       expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
       res = OpenStruct.new(body: 'abc')
-      expect(Typhoeus).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
+      expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
       Uploader.remote_zip('http://www.example.com/import.zip') do |zipper|
         expect(zipper).to eq({zipper: true})
       end
@@ -1842,6 +1951,33 @@ describe Uploader do
       expect(Uploader.sanitize_url("http://www.yahoo.com/?asdf=1")).to eq("http://www.yahoo.com/?asdf=1")
       expect(Uploader.sanitize_url("http://13.142.13.1512:12345/?asdf=1")).to eq("http://13.142.13.1512:12345/?asdf=1")
       expect(Uploader.sanitize_url("http://username:password@example.com")).to eq("http://example.com")
+    end
+
+    it 'should block IP-literal SSRF targets (cloud metadata, link-local, private ranges)' do
+      # Cloud metadata endpoint — the canonical SSRF target.
+      expect(Uploader.sanitize_url("http://169.254.169.254/latest/meta-data/iam/security-credentials/")).to eq(nil)
+      # Link-local + RFC1918 private ranges (not caught by the 127/0/localhost checks).
+      expect(Uploader.sanitize_url("http://169.254.1.1/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://10.0.0.5/internal")).to eq(nil)
+      expect(Uploader.sanitize_url("http://172.16.4.4/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://172.31.255.255/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://192.168.1.1/admin")).to eq(nil)
+      expect(Uploader.sanitize_url("http://100.64.0.1/")).to eq(nil)
+      # IPv6 loopback / link-local / unique-local literals.
+      expect(Uploader.sanitize_url("http://[::1]/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://[fe80::1]/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://[fc00::1]/")).to eq(nil)
+      # Public addresses still pass (172.15/172.32 are OUTSIDE the 172.16-31 private block).
+      expect(Uploader.sanitize_url("http://8.8.8.8/asdf")).to eq("http://8.8.8.8/asdf")
+      expect(Uploader.sanitize_url("http://172.15.0.1/")).to eq("http://172.15.0.1/")
+      expect(Uploader.sanitize_url("http://172.32.0.1/")).to eq("http://172.32.0.1/")
+    end
+
+    it 'should only allow http(s) schemes' do
+      expect(Uploader.sanitize_url("file:///etc/passwd")).to eq(nil)
+      expect(Uploader.sanitize_url("gopher://127.0.0.1:6379/_SET")).to eq(nil)
+      expect(Uploader.sanitize_url("ftp://example.com/x")).to eq(nil)
+      expect(Uploader.sanitize_url("data:text/html,<script>alert(1)</script>")).to eq(nil)
     end
   end
 

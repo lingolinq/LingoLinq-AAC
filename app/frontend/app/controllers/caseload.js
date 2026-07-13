@@ -1,6 +1,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { scheduleOnce } from '@ember/runloop';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 
@@ -88,6 +89,31 @@ export default Controller.extend({
   router: service('router'),
   store: service(),
 
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   // Free-text filter for the supervisee grid — matches against
   // user_name and goal summary (case-insensitive substring). Bound
   // to the search input rendered above the grid.
@@ -99,26 +125,6 @@ export default Controller.extend({
   // holds the user_name of the currently expanded row (null = list
   // only, no card showing).
   selectedSupervisee: null,
-
-  selectedSuperviseeRecord: computed('supervisees.[]', 'selectedSupervisee', function() {
-    var name = this.get('selectedSupervisee');
-    if (!name) { return null; }
-    var list = this.get('supervisees') || [];
-    for (var i = 0; i < list.length; i++) {
-      if (list[i] && list[i].user_name === name) { return list[i]; }
-    }
-    return null;
-  }),
-
-  // The list rows actually rendered. When a supervisee is selected,
-  // the list collapses to JUST that one row (with the full card
-  // expanded underneath). When nothing is selected, the list shows
-  // the standard filtered roster.
-  visibleSupervisees: computed('filteredSupervisees.[]', 'selectedSuperviseeRecord', function() {
-    var selected = this.get('selectedSuperviseeRecord');
-    if (selected) { return [selected]; }
-    return this.get('filteredSupervisees') || [];
-  }),
 
   supervisees: computed('model.known_supervisees.[]', 'model.supervisees.[]', function() {
     var list = this.get('model.known_supervisees') || [];
@@ -224,7 +230,30 @@ export default Controller.extend({
     });
   },
 
+  // Scroll the just-expanded communicator card into view. If it fits the
+  // viewport, bring it fully in; if it's taller, align its top near the top so
+  // the header + goals show and the rest can scroll. Only scrolls when the card
+  // actually extends past the viewport, so already-visible rows don't jump.
+  _scrollExpandedIntoView: function() {
+    try {
+      var row = document.querySelector('.md-caseload__list-row--active');
+      if (!row || typeof row.getBoundingClientRect !== 'function') { return; }
+      var rect = row.getBoundingClientRect();
+      var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      if (rect.top < 0 || rect.bottom > vh) {
+        var block = (rect.height <= vh - 24) ? 'nearest' : 'start';
+        row.scrollIntoView({ behavior: 'smooth', block: block, inline: 'nearest' });
+      }
+    } catch (e) { /* best-effort — never block toggling */ }
+  },
+
   actions: {
+    // Open the static "Managing Your Caseload" guide modal (info button next to
+    // the "People you support" subheader) — maps the row quick-action icons and
+    // explains what opening a communicator's card lets you do.
+    showCaseloadGuide: function() {
+      modal.open('modals/caseload-guide');
+    },
     // Toggle the selected supervisee. Clicking a row in the compact
     // student list opens that supervisee's full card below; clicking
     // the same row again (or another row) collapses or switches.
@@ -246,15 +275,10 @@ export default Controller.extend({
         this.set('selectedSupervisee', null);
       } else {
         this.set('selectedSupervisee', name);
+        // After the panel renders, bring the newly-expanded card into view —
+        // expanding a low row can push its content below the fold.
+        scheduleOnce('afterRender', this, this._scrollExpandedIntoView);
       }
-    },
-
-    // Reset the selection AND clear the text filter so the full
-    // supervisee roster is visible again. Bound to the "Full List"
-    // button that renders above the collapsed single-row list.
-    clearSelectedSupervisee: function() {
-      this.set('selectedSupervisee', null);
-      this.set('superviseeFilter', '');
     },
 
     // Reset the supervisee text filter. Bound to the × inside the
@@ -410,91 +434,6 @@ export default Controller.extend({
       }, function() {
         modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
       });
-    },
-
-    // Keyboard navigation for the per-supervisee "extras" dropdown.
-    // Wired to `keydown` on `.md-caseload__extras-dropdown`.
-    // Bootstrap 3's native dropdown plugin handles open-on-click and
-    // outside-click-to-close, but provides no arrow-key navigation,
-    // Home/End shortcuts, or Escape support. This handler implements
-    // the WAI-ARIA menu keyboard pattern on top of it.
-    extras_dropdown_keydown: function(event) {
-      if (!event) { return; }
-      var key = event.key;
-      var keyCode = event.keyCode;
-      var container = event.currentTarget;
-      if (!container) { return; }
-
-      // Find the dropdown items (LinkTo + button children of <li>).
-      // Filter to visible elements only, since {{#if}} branches in
-      // the template can hide some items conditionally.
-      var items = Array.prototype.slice.call(
-        container.querySelectorAll('.dropdown-menu > li > a, .dropdown-menu > li > button')
-      ).filter(function(el) { return el.offsetParent !== null; });
-      if (items.length === 0) { return; }
-
-      var trigger = container.querySelector('[data-toggle="dropdown"]');
-      var menu = container.querySelector('.dropdown-menu');
-      var is_open = menu && menu.parentElement && menu.parentElement.classList.contains('open');
-      var current_idx = items.indexOf(document.activeElement);
-
-      // Escape: close the dropdown and restore focus to the trigger.
-      if (key === 'Escape' || key === 'Esc' || keyCode === 27) {
-        if (is_open) {
-          event.preventDefault();
-          if (trigger) {
-            trigger.click(); // Bootstrap toggles via click
-            trigger.focus();
-          }
-        }
-        return;
-      }
-
-      // ArrowDown: from trigger or any item, move to the next item.
-      if (key === 'ArrowDown' || keyCode === 40) {
-        if (!is_open && document.activeElement === trigger) {
-          event.preventDefault();
-          trigger.click(); // open the menu
-          // Focus the first item after the menu opens
-          var first = items[0];
-          if (first) { setTimeout(function() { first.focus(); }, 0); }
-          return;
-        }
-        if (is_open && current_idx >= 0) {
-          event.preventDefault();
-          var next = items[(current_idx + 1) % items.length];
-          if (next) { next.focus(); }
-        }
-        return;
-      }
-
-      // ArrowUp: previous item; from first wraps to last.
-      if (key === 'ArrowUp' || keyCode === 38) {
-        if (is_open && current_idx >= 0) {
-          event.preventDefault();
-          var prev = items[(current_idx - 1 + items.length) % items.length];
-          if (prev) { prev.focus(); }
-        }
-        return;
-      }
-
-      // Home: jump to first item.
-      if (key === 'Home' || keyCode === 36) {
-        if (is_open) {
-          event.preventDefault();
-          if (items[0]) { items[0].focus(); }
-        }
-        return;
-      }
-
-      // End: jump to last item.
-      if (key === 'End' || keyCode === 35) {
-        if (is_open) {
-          event.preventDefault();
-          if (items[items.length - 1]) { items[items.length - 1].focus(); }
-        }
-        return;
-      }
     }
   }
 });

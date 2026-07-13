@@ -4,10 +4,14 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
+import { board_view_route } from '../utils/board_view';
 
 export default Component.extend({
   appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   willInsertElement: function() {
     this.set('include_canvas', window.outerWidth > 800);
@@ -130,6 +134,37 @@ export default Component.extend({
   select_option: computed('option', function() {
     return this.get('option') == 'select';
   }),
+  // True when this preview was opened from the board-picker TOUR modal (flag set
+  // by tour-board-picker). In that mode the "Try This Board" + "Board Actions"
+  // buttons are replaced by a single "Pick this Board" CTA (see the template).
+  tour_pick: computed('appState.tour_board_picker_active', function() {
+    return !!this.get('appState.tour_board_picker_active');
+  }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     /* Fired by board-preview-canvas once every button-image promise
        has settled (or there were no images to load). Flips the
@@ -142,6 +177,21 @@ export default Component.extend({
     select: function() {
       if (this.onSelect && typeof this.onSelect === 'function') {
         this.onSelect();
+      }
+    },
+    /* Forward canvas image-load progress (loaded, total) to the parent
+       (overlay / controller) so its loading spinner can show "N / total".
+       Pure pass-through — the parent owns the displayed state. */
+    canvas_progress: function(loaded, total) {
+      if (this.onCanvasProgress && typeof this.onCanvasProgress === 'function') {
+        this.onCanvasProgress(loaded, total);
+      }
+    },
+    // Tour mode "Pick this Board": delegate to the overlay, which sets this board
+    // as the user's home board and opens it in speak mode.
+    pick_for_home: function() {
+      if (this.onPickForHome && typeof this.onPickForHome === 'function') {
+        this.onPickForHome();
       }
     },
     close: function() {
@@ -171,13 +221,18 @@ export default Component.extend({
         isDark: isDark,
         accentLight: false,
         transition: function() {
-          // transitionToRoute (Route helper) returns a Transition like
-          // router.transitionTo does, so the overlay's promise chain
-          // still works.
+          // router.transitionTo returns a Transition, so the overlay's
+          // promise chain still works. (appController is the application
+          // controller, which injects the router service.) Open in the user's
+          // preferred view: board-detail (modern) by default, board-alt (classic)
+          // only when board_view_style === 'classic'.
+          var user = appStateService && appStateService.get && appStateService.get('currentUser');
+          var route = board_view_route(user);
           if(parts.length === 2) {
-            return appController.transitionToRoute('user.board-detail', parts[0], parts[1]);
+            return appController.router.transitionTo(route, parts[0], parts[1]);
           } else {
-            return appController.transitionToRoute('board', key);
+            // Canonical /key route — routes/board.js already redirects by preference.
+            return appController.router.transitionTo('board', key);
           }
         }
       });

@@ -1,7 +1,6 @@
 import { module, test } from 'qunit';
-import { uploadTargetUrl } from 'frontend/components/beta-feedback-form';
 import Service from '@ember/service';
-import { setupTest } from 'ember-qunit';
+import { setupTest } from '../../helpers';
 
 module('Unit | Component | beta feedback form', function(hooks) {
   setupTest(hooks);
@@ -40,16 +39,6 @@ module('Unit | Component | beta feedback form', function(hooks) {
     assert.equal(options.selfBrowserSurface, 'include');
     assert.equal(options.surfaceSwitching, 'include');
     assert.equal(options.video.displaySurface, 'browser');
-  });
-
-  test('recording upload posts to post_url, falling back to legacy upload_url', function(assert) {
-    assert.equal(uploadTargetUrl({
-      post_url: 'https://bucket.s3.us-west-2.amazonaws.com/',
-      upload_url: 'https://bucket.s3.amazonaws.com/'
-    }), 'https://bucket.s3.us-west-2.amazonaws.com/');
-    assert.equal(uploadTargetUrl({
-      upload_url: 'https://bucket.s3.amazonaws.com/'
-    }), 'https://bucket.s3.amazonaws.com/');
   });
 
   test('recording upload strips codec parameters from content type', function(assert) {

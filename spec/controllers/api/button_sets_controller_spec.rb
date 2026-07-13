@@ -95,6 +95,17 @@ describe Api::ButtonSetsController, :type => :controller do
       assert_unauthorized
     end
 
+    it "should not leak a backtrace in the debug_sync error response" do
+      token_user
+      b = Board.create(user: @user)
+      expect(BoardDownstreamButtonSet).to receive(:generate_for).and_raise("boom in generate_for")
+      post :generate, params: {'id' => b.global_id, 'debug_sync' => '1'}
+      expect(response.code).to eq('500')
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('boom in generate_for')
+      expect(json).to_not have_key('backtrace')
+    end
+
     it "should return exists message if true, including URL" do
       token_user
       b = Board.create(user: @user, :settings => {'full_set_revision' => 'asdf'})

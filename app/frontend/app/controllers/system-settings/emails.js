@@ -14,6 +14,17 @@ export default Controller.extend({
   searchQuery: '',
   categoryFilter: '',
 
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlActionMut = function(propPath, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.set(propPath, value);
+      };
+    };
+  },
+
   filteredTemplates: computed('templates.[]', 'searchQuery', 'categoryFilter', function() {
     var list = this.get('templates') || [];
     var q = (this.get('searchQuery') || '').trim().toLowerCase();

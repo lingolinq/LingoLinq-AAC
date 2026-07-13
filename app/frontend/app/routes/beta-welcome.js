@@ -5,9 +5,9 @@ import config from '../config/environment';
 export default Route.extend({
   router: service(),
   session: service('session'),
-  persistence: service('persistence'),
   appState: service('app-state'),
   store: service('store'),
+  betaWelcomeMode: service('beta-welcome-mode'),
   beforeModel() {
     if (!this.session.get('isAuthenticated') && config.environment !== 'development') {
       this.router.transitionTo('login');
@@ -33,29 +33,12 @@ export default Route.extend({
     controller.set('agreementAccepted', false);
   },
   actions: {
+    // Original layout: the Get Started button lives on this page. Short layout
+    // shows only a Back link (this action is unused there). Shared flow.
     acceptAgreement() {
       var controller = this.get('controller');
       if (!controller.get('agreementAccepted')) { return; }
-      if (!this.session.get('isAuthenticated')) {
-        this.router.transitionTo('login');
-        return;
-      }
-      this.persistence.ajax('/api/v1/users/self', {
-        type: 'PUT',
-        data: { user: { preferences: { beta_agreement_accepted: true } } }
-      }).then(() => {
-        try {
-          sessionStorage.setItem('ll_auto_open_home_tour', '1');
-        } catch (e) { /* sessionStorage unavailable */ }
-        this.appState.set('auto_open_home_tour', true);
-        this.appState.return_to_index();
-      }, () => {
-        try {
-          sessionStorage.setItem('ll_auto_open_home_tour', '1');
-        } catch (e) { /* sessionStorage unavailable */ }
-        this.appState.set('auto_open_home_tour', true);
-        this.appState.return_to_index();
-      });
+      this.betaWelcomeMode.acceptAndFinish();
     }
   }
 });

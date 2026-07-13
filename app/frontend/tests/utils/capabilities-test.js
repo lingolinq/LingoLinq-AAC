@@ -11,7 +11,7 @@ import {
 import { db_wait } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import capabilities from '../../utils/capabilities';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 
 describe("capabilities", function() {
   describe("volume_check", function() {
@@ -118,7 +118,7 @@ describe("capabilities", function() {
           var evt = {
             attempt: attempt
           };
-          emberRun.later(function() {
+          later(function() {
             db_req.onerror(evt);
             if(attempt == 2) {
               expect(deleted_databases).toEqual([key]);
@@ -135,7 +135,7 @@ describe("capabilities", function() {
         });
         stub(capabilities.idb, 'webkitGetDatabaseNames', function() {
           var res = {};
-          emberRun.later(function() {
+          later(function() {
             res.onsuccess({
               target: {
                 result: [other]
@@ -171,6 +171,8 @@ describe("capabilities", function() {
         });
       });
       it('should return valid sharing types only', function() {
+        var priorSystem = capabilities.system;
+        capabilities.system = 'Android';
         stub(window, 'cordova', {
           plugins: {
             clipboard: {
@@ -181,7 +183,7 @@ describe("capabilities", function() {
         stub(window, 'plugins', {
           socialsharing: {
             canShareVia: function(type, str, header, img, url, success, error) {
-              if(type == 'facebook' || type == 'instagram') {
+              if(type == 'instagram' || type == 'facebook' || type == 'com.facebook.katana') {
                 success();
               } else {
                 error();
@@ -195,7 +197,8 @@ describe("capabilities", function() {
         });
         waitsFor(function() { return valids; });
         runs(function() {
-          expect(valids).toEqual(['email', 'generic', 'clipboard', 'facebook', 'instagram']);
+          expect(valids).toEqual(['generic', 'clipboard', 'email', 'facebook', 'instagram']);
+          capabilities.system = priorSystem;
         });
       });
     });
@@ -1235,6 +1238,7 @@ describe("capabilities", function() {
         var called = false;
         var blob = new window.Blob([1, 2, 3], {type: 'image/png'});
         stub(capabilities, 'system', 'Android');
+        stub(capabilities, 'installed_app', true);
         stub(capabilities.storage, 'assert_directory', function() {
           return RSVP.resolve({
             getFile: function(filename, opts, success, err) {

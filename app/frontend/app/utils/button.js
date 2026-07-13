@@ -19,9 +19,11 @@ import progress_tracker from './progress_tracker';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import rewriteBrokenSymbolUrl from './symbol-url';
 
 var clean_url = function(str) {
   str = str || "";
+  str = rewriteBrokenSymbolUrl(str);
   return str.replace(/"/g, "%22");
 };
 var dom = document.createElement('div');
@@ -65,6 +67,11 @@ var Button = EmberObject.extend({
     }
   },
   buttonAction: 'talk',
+  // Holds the integration sub-type string ('webhook' | 'render'). Kept
+  // separate from the `integrationAction`/`webhookAction` boolean computeds
+  // below: Ember 5 forbids `set()`-ing a computed without a setter, so the
+  // stored value and the derived booleans can no longer share one name.
+  integration_action_type: null,
   updateAction: observer(
     'load_board',
     'url',
@@ -79,9 +86,9 @@ var Button = EmberObject.extend({
       } else if(this.get('integration') != null) {
         this.set('buttonAction', 'integration');
         if(this.get('integration.action_type') == 'webhook') {
-          this.set('integrationAction', 'webhook');
+          this.set('integration_action_type', 'webhook');
         } else {
-          this.set('integrationAction', 'render');
+          this.set('integration_action_type', 'render');
         }
       } else if(this.get('url') != null) {
         this.set('buttonAction', 'link');
@@ -107,14 +114,14 @@ var Button = EmberObject.extend({
   folderAction: computed('buttonAction', function() {
     return this.get('buttonAction') == 'folder';
   }),
-  integrationAction: computed('buttonAction', 'integrationAction', function() {
-    return this.get('buttonAction') == 'integration' && this.get('integrationAction') == 'render';
+  integrationAction: computed('buttonAction', 'integration_action_type', function() {
+    return this.get('buttonAction') == 'integration' && this.get('integration_action_type') == 'render';
   }),
   integrationOrWebhookAction: computed('buttonAction', function() {
     return this.get('buttonAction') == 'integration';
   }),
-  webhookAction: computed('buttonAction', 'integrationAction', function() {
-    return this.get('buttonAction') == 'integration' && this.get('integrationAction') == 'webhook';
+  webhookAction: computed('buttonAction', 'integration_action_type', function() {
+    return this.get('buttonAction') == 'integration' && this.get('integration_action_type') == 'webhook';
   }),
   action_styling: computed(
     'buttonAction',
@@ -444,7 +451,8 @@ var Button = EmberObject.extend({
       var appState = this.appState || app_state;
       res = res + "<span style='" + this.get('image_holder_style') + "'>";
       if(!appState.get('currentUser.hide_symbols') && this.get('local_image_url') && !this.get('board.text_only') && !this.get('text_only')) {
-        res = res + "<img src=\"" + clean_url(this.get('local_image_url')) + "\" rel=\"" + clean_url(this.get('original_image_url') || this.get('image.url')) + "\" onerror='button_broken_image(this);' draggable='false' style='" + this.get('image_style') + "' class='symbol" + (this.get('hc_image') ? ' hc' : '') + "' />";
+        var symbol_alt = clean_text(this.get('label') || '').replace(/"/g, '&quot;');
+        res = res + "<img src=\"" + clean_url(this.get('local_image_url')) + "\" rel=\"" + clean_url(this.get('original_image_url') || this.get('image.url')) + "\" alt=\"" + symbol_alt + "\" onerror='button_broken_image(this);' draggable='false' style='" + this.get('image_style') + "' class='symbol" + (this.get('hc_image') ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
       if(this.get('sound')) {
@@ -622,11 +630,13 @@ var Button = EmberObject.extend({
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no image lookups');
+      } else if(preference == 'local') {
+        return RSVP.reject('no image lookups');
       } else {
-        if(!(requestedId || '').match(/^tmp/) && preference != 'remote') {
+        if(!String(requestedId || '').match(/^tmp/) && preference != 'remote') {
           console.warn("had to revert to image record lookup");
         }
-        var find = LingoLinq.store.findRecord('image', requestedId).then(function(image) {
+        return LingoLinq.store.findRecord('image', requestedId).then(function(image) {
           if(!stillCurrent()) { return image; }
           _this.set('image', image);
           if(image.get('incomplete')) {
@@ -638,11 +648,6 @@ var Button = EmberObject.extend({
           }
           return check_image(image);
         });
-        if(preference == 'local') {
-          return RSVP.reject('no image lookups');
-        } else {
-          return find;
-        }
       }
     } else {
       if(!image.get('incomplete')) {
@@ -683,16 +688,13 @@ var Button = EmberObject.extend({
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no sound lookups');
+      } else if(preference == 'local') {
+        return RSVP.reject('no sound lookups');
       } else {
-        var find = LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
+        return LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
         });
-        if(preference == 'local') {
-          return RSVP.reject('no sound lookups');
-        } else {
-          return find;
-        }
       }
     } else {
       return check_sound(sound);
@@ -779,8 +781,8 @@ var Button = EmberObject.extend({
         promises.push(RSVP.resolve());
       } else if(_this.image_id) {
         if(_this.image_url && (_this.image_url.match(/^https?:\/\//) || _this.image_url.match(/^data:/))) {
-          _this.set('local_image_url', _this.image_url);
-          _this.set('original_image_url', _this.image_url);
+          _this.set('local_image_url', rewriteBrokenSymbolUrl(_this.image_url));
+          _this.set('original_image_url', rewriteBrokenSymbolUrl(_this.image_url));
         }
         promises.push(_this.load_image('local'));
       }
@@ -1082,6 +1084,12 @@ Button.button_styling = function(button, board, pos) {
 
 Button.broken_image = function(image, skip_server_reattempt) {
   image.already_broken = image.already_broken || {};
+  var rewritten = rewriteBrokenSymbolUrl(image.src);
+  if(rewritten && rewritten !== image.src && !image.already_broken[image.src]) {
+    image.already_broken[image.src] = true;
+    image.src = rewritten;
+    return;
+  }
   if(image.already_broken[image.src]) { return; }
   if(capabilities.installed_app && image.src && image.src.match(/localhost/) && !skip_server_reattempt) {
     // Apparently the local server just returns a blank response
@@ -1710,11 +1718,18 @@ Button.load_actions = function() {
       action: ':plural',
       modifier: true,
       description: i18n.t('pluralize', "Make the word plural"),
-      types: ['noun'],
+      types: ['noun', 'verb'],
       alter: function(text, prior_text, prior_label, altered, addition) {
         // TODO: first check for inflection_overrides
-        altered.vocalization = i18n.pluralize(prior_text);
-        altered.label = i18n.pluralize(prior_label);
+        // On verb boards the "-s" modifier is third-person present (walks), not plural.
+        var pos = altered.part_of_speech || (addition && addition.part_of_speech);
+        if(pos == 'verb') {
+          altered.vocalization = i18n.tense(prior_text, {simple_present: true});
+          altered.label = i18n.tense(prior_label, {simple_present: true});
+        } else {
+          altered.vocalization = i18n.pluralize(prior_text);
+          altered.label = i18n.pluralize(prior_label);
+        }
         altered.in_progress = false;
       }
     },

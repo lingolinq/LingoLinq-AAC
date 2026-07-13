@@ -6,8 +6,14 @@ import app_state from '../../utils/app_state';
 import Utils from '../../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  router: service('router'),
   load_goals: function() {
     var controller = this;
     controller.set('goals', {loading: true});
@@ -50,12 +56,28 @@ export default Controller.extend({
   past_goals: computed('goals.list', function() {
     return (this.get('goals.list') || []).filter(function(g) { return !g.get('active'); });
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+  },
   actions: {
     add_goal: function() {
       var _this = this;
       modal.open('new-goal', {user: this.get('model') }).then(function(res) {
         if(res && res.get('id') && res.get('set_badges')) {
-          _this.transitionToRoute('user.goal', _this.get('model.user_name'), res.get('id'));
+          _this.router.transitionTo('user.goal', _this.get('model.user_name'), res.get('id'));
         } else if(res) {
           _this.load_goals();
         }

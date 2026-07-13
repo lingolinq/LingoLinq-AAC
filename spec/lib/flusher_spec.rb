@@ -321,7 +321,7 @@ describe Flusher do
       u1 = User.create
       u2 = User.create
       ref = {}
-      expect(ref).to receive(:update_all).with(user_id: u2.id).and_return(1).exactly(10).times
+      expect(ref).to receive(:update_all).with(user_id: u2.id).and_return(1).exactly(11).times
       expect(NfcTag).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserIntegration).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserGoal).to receive(:where).with(:user_id => u1.id).and_return(ref)
@@ -332,7 +332,17 @@ describe Flusher do
       expect(ButtonSound).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(ButtonImage).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserVideo).to receive(:where).with(:user_id => u1.id).and_return(ref)
+      expect(License).to receive(:where).with(:user_id => u1.id).and_return(ref)
       Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+    end
+
+    it "should transfer license seats so they are not orphaned on merge" do
+      u1 = User.create
+      u2 = User.create
+      o = Organization.create
+      l = License.create!(organization: o, user: u1, seat_type: 'student', status: 'active')
+      Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+      expect(l.reload.user_id).to eq(u2.id)
     end
   end
   
@@ -397,6 +407,17 @@ describe Flusher do
       expect(Flusher).to receive(:flush_record).with(u, u.id, u.class.to_s)
       Flusher.flush_user_completely(u.global_id, u.user_name)
     end
+
+    it "should log an audit event recording the permanent destruction" do
+      u = User.create
+      gid = u.global_id
+      AuditEvent.delete_all
+      Flusher.flush_user_completely(u.global_id, u.user_name)
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_permanently_destroyed' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq('system')
+      expect(ev.data['user_id']).to eq(gid)
+    end
   end
 
   describe "flush_deleted_users" do
@@ -408,6 +429,222 @@ describe Flusher do
       expect(Worker.scheduled?(Flusher, :flush_user_completely, u.global_id, u.user_name)).to eq(false)
       expect(Worker.scheduled?(Flusher, :flush_user_completely, u2.global_id, u2.user_name)).to eq(true)
       expect(Worker.scheduled?(Flusher, :flush_user_completely, u3.global_id, u3.user_name)).to eq(false)
+    end
+  end
+
+  describe "flush_leftovers" do
+    it "should not error when there is nothing to flush" do
+      expect { Flusher.flush_leftovers }.to_not raise_error
+    end
+
+    it "should never destroy button_images -- board_button_images no longer reflects live usage" do
+      # Regression guard: Board#map_images stopped calling BoardButtonImage.connect
+      # for images (board.rb), so an actively-used image now has zero
+      # board_button_images rows -- the same state a genuinely orphaned image would
+      # be in. flush_leftovers must not use that join table as an orphan signal for
+      # images (it still can for sounds, whose connect/disconnect stayed active).
+      # This reproduces real usage via process_buttons + grid_buttons, not a manual
+      # BoardButtonImage.connect call, so it actually exercises the live code path.
+      u = User.create
+      old_in_use = ButtonImage.create(user: u, removable: true)
+      old_in_use.update_column(:created_at, 8.days.ago)
+      b = Board.create!(user: u)
+      b.process_buttons([{ 'id' => '1', 'label' => 'hat', 'image_id' => old_in_use.global_id }], u)
+      b.save
+      expect(BoardButtonImage.where(button_image_id: old_in_use.id).count).to eq(0)
+      Flusher.flush_leftovers
+      expect(ButtonImage.where(id: old_in_use.id).count).to eq(1)
+
+      old_orphan = ButtonImage.create(user: u, removable: true)
+      old_orphan.update_column(:created_at, 8.days.ago)
+      recent = ButtonImage.create(user: u, removable: true)
+      Flusher.flush_leftovers
+      expect(ButtonImage.where(id: old_orphan.id).count).to eq(1)
+      expect(ButtonImage.where(id: recent.id).count).to eq(1)
+    end
+
+    it "should never destroy button_sounds -- board_button_sounds sync can be deferred to an async job" do
+      # Regression guard: BoardButtonSound.connect/disconnect are still called (unlike
+      # images), but Board#map_images can defer that resync via @map_later to a real
+      # Resque job (Board#swap_images, the batch public/privacy toggle). During that
+      # window a sound already referenced by a board's grid_buttons can have zero
+      # board_button_sounds rows, so a join-table-only orphan check has a live-data-
+      # deletion race (the same underlying flaw as the button_images case above).
+      # flush_leftovers must not delete button_sounds via that signal at all.
+      u = User.create
+      old_in_use = ButtonSound.create(user: u, removable: true)
+      old_in_use.update_column(:created_at, 8.days.ago)
+      b = Board.create!(user: u)
+      b.process_buttons([{ 'id' => '1', 'label' => 'moo', 'sound_id' => old_in_use.global_id }], u)
+      # Reproduce the real @map_later deferral (Board#swap_images / the batch
+      # public-privacy toggle set this instance variable before saving) so
+      # map_images defers to an async job instead of syncing board_button_sounds
+      # synchronously -- the exact window the join-table check would be blind to.
+      b.instance_variable_set('@map_later', true)
+      b.save
+      expect(BoardButtonSound.where(button_sound_id: old_in_use.id).count).to eq(0)
+      Flusher.flush_leftovers
+      expect(ButtonSound.where(id: old_in_use.id).count).to eq(1)
+
+      old_orphan = ButtonSound.create(user: u, removable: true)
+      old_orphan.update_column(:created_at, 8.days.ago)
+      recent = ButtonSound.create(user: u, removable: true)
+      Flusher.flush_leftovers
+      expect(ButtonSound.where(id: old_orphan.id).count).to eq(1)
+      expect(ButtonSound.where(id: recent.id).count).to eq(1)
+    end
+
+    it "should remove a board_button_image left dangling by a hard-deleted button_image" do
+      u = User.create
+      b = Board.create(user: u)
+      i = ButtonImage.create(user: u)
+      bbi = BoardButtonImage.create!(board_id: b.id, button_image_id: i.id)
+      i.delete
+      Flusher.flush_leftovers
+      expect(BoardButtonImage.where(id: bbi.id).count).to eq(0)
+    end
+
+    it "should remove a board_button_image left dangling by a hard-deleted board" do
+      u = User.create
+      b = Board.create(user: u)
+      i = ButtonImage.create(user: u)
+      bbi = BoardButtonImage.create!(board_id: b.id, button_image_id: i.id)
+      b.delete
+      Flusher.flush_leftovers
+      expect(BoardButtonImage.where(id: bbi.id).count).to eq(0)
+    end
+
+    it "should not remove a board_button_image with a live board and button_image" do
+      u = User.create
+      b = Board.create(user: u)
+      i = ButtonImage.create(user: u)
+      bbi = BoardButtonImage.create!(board_id: b.id, button_image_id: i.id)
+      Flusher.flush_leftovers
+      expect(BoardButtonImage.where(id: bbi.id).count).to eq(1)
+    end
+
+    it "should remove a board_button_sound left dangling by a hard-deleted button_sound" do
+      u = User.create
+      b = Board.create(user: u)
+      s = ButtonSound.create(user: u)
+      bbs = BoardButtonSound.create!(board_id: b.id, button_sound_id: s.id)
+      s.delete
+      Flusher.flush_leftovers
+      expect(BoardButtonSound.where(id: bbs.id).count).to eq(0)
+    end
+
+    it "should not remove a board_button_sound with a live board and button_sound" do
+      u = User.create
+      b = Board.create(user: u)
+      s = ButtonSound.create(user: u)
+      bbs = BoardButtonSound.create!(board_id: b.id, button_sound_id: s.id)
+      Flusher.flush_leftovers
+      expect(BoardButtonSound.where(id: bbs.id).count).to eq(1)
+    end
+
+    it "should remove a log_session_board left dangling by a hard-deleted log_session" do
+      u = User.create
+      d = Device.create(:user => u)
+      b = Board.create(user: u)
+      s = LogSession.create!(user: u, author: u, device: d)
+      lsb = LogSessionBoard.create!(log_session_id: s.id, board_id: b.id)
+      s.delete
+      Flusher.flush_leftovers
+      expect(LogSessionBoard.where(id: lsb.id).count).to eq(0)
+    end
+
+    it "should not remove a log_session_board with a live session and board" do
+      u = User.create
+      d = Device.create(:user => u)
+      b = Board.create(user: u)
+      s = LogSession.create!(user: u, author: u, device: d)
+      lsb = LogSessionBoard.create!(log_session_id: s.id, board_id: b.id)
+      Flusher.flush_leftovers
+      expect(LogSessionBoard.where(id: lsb.id).count).to eq(1)
+    end
+
+    it "should not touch developer keys -- there is no expiration concept for them (LL-991d259b2a)" do
+      key = DeveloperKey.create!
+      Flusher.flush_leftovers
+      expect(DeveloperKey.where(id: key.id).count).to eq(1)
+    end
+
+    it "should destroy progress records more than a month old" do
+      old = Progress.create!
+      old.update_column(:created_at, 40.days.ago)
+      recent = Progress.create!
+      Flusher.flush_leftovers
+      expect(Progress.where(id: old.id).count).to eq(0)
+      expect(Progress.where(id: recent.id).count).to eq(1)
+    end
+
+    it "should remove a user_board_connection left dangling by a hard-deleted user" do
+      u = User.create
+      b = Board.create(user: u)
+      ubc = UserBoardConnection.create!(user_id: u.id, board_id: b.id)
+      u.delete
+      Flusher.flush_leftovers
+      expect(UserBoardConnection.where(id: ubc.id).count).to eq(0)
+    end
+
+    it "should not remove a user_board_connection with a live user and board" do
+      u = User.create
+      b = Board.create(user: u)
+      ubc = UserBoardConnection.create!(user_id: u.id, board_id: b.id)
+      Flusher.flush_leftovers
+      expect(UserBoardConnection.where(id: ubc.id).count).to eq(1)
+    end
+
+    it "should report but not delete paper trail versions whose item_type no longer maps to any class" do
+      # PaperTrail::Version has a real polymorphic belongs_to :item, so .create!
+      # would itself raise NameError trying to resolve a bogus item_type (the gem's
+      # version_limit callback loads .item). Insert directly to simulate a version
+      # row left behind from a since-renamed/removed model, bypassing that check --
+      # the same way it would have been possible historically, before the rename.
+      #
+      # Per DATA_RETENTION.md:30, these rows require 6-year retention + cold-storage
+      # archival, not deletion -- an unconstantizable item_type only proves the code
+      # was renamed, not that the audit evidence is disposable. flush_leftovers must
+      # only report/count these, never delete them (see LL-991d259b2a follow-up).
+      PaperTrail::Version.insert!({ item_type: 'LegacyWidgetThatNoLongerExists', item_id: 12345, event: 'destroy', created_at: Time.now })
+      Flusher.flush_leftovers
+      expect(PaperTrail::Version.where(item_type: 'LegacyWidgetThatNoLongerExists').count).to eq(1)
+      ev = AuditEvent.where(event_type: 'retention_flush').order('id DESC').first
+      expect(ev.data['versions_stale_type_detected_not_deleted']).to eq(1)
+    end
+
+    it "should treat an item_type that resolves to a non-model Ruby constant as stale, not as a live model" do
+      # safe_constantize succeeds for ANY resolvable constant, not just ActiveRecord
+      # models -- 'File' resolves to the built-in File class. A truthy-only check
+      # would wrongly treat that as "still a real model" and skip counting it.
+      PaperTrail::Version.insert!({ item_type: 'File', item_id: 12345, event: 'destroy', created_at: Time.now })
+      Flusher.flush_leftovers
+      expect(PaperTrail::Version.where(item_type: 'File').count).to eq(1)
+      ev = AuditEvent.where(event_type: 'retention_flush').order('id DESC').first
+      expect(ev.data['versions_stale_type_detected_not_deleted']).to eq(1)
+    end
+
+    it "should not remove paper trail versions for a real model class, even for a destroyed record (audit trail preservation)", :versioning => true do
+      PaperTrail.request.whodunnit = 'user:jane'
+      u = User.create
+      u.user_name = 'renamed'
+      u.save
+      u.reload
+      version_ids = u.versions.pluck(:id)
+      expect(version_ids).to_not be_empty
+      u.destroy
+      Flusher.flush_leftovers
+      expect(PaperTrail::Version.where(id: version_ids).count).to eq(version_ids.length)
+    end
+
+    it "should log a retention_flush AuditEvent with per-category counts" do
+      old = Progress.create!
+      old.update_column(:created_at, 40.days.ago)
+      Flusher.flush_leftovers
+      ev = AuditEvent.where(event_type: 'retention_flush').order('id DESC').first
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq('system')
+      expect(ev.data['progresses']).to eq(1)
     end
   end
 end

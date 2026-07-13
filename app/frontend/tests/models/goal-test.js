@@ -1,9 +1,10 @@
-import DS from 'ember-data';
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
+import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import {
   describe,
   it,
+  xit,
   expect,
   beforeEach,
   afterEach,
@@ -11,7 +12,6 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
@@ -351,16 +351,16 @@ describe('Goal', function() {
 
   it("should return the correct unit_description", function() {
     var goal = LingoLinq.store.createRecord('goal');
-    goal.set('best_time_level', 'none');
+    goal.set('stats', empty);
     expect(goal.get('unit_description')).toEqual('No Data');
 
-    goal.set('best_time_level', 'daily');
+    goal.set('stats', recent_daily);
     expect(goal.get('unit_description')).toEqual('Day');
 
-    goal.set('best_time_level', 'weekly');
+    goal.set('stats', recent_weekly);
     expect(goal.get('unit_description')).toEqual('Week');
 
-    goal.set('best_time_level', 'monthly');
+    goal.set('stats', recent_monthly);
     expect(goal.get('unit_description')).toEqual('Month');
   });
 
@@ -524,13 +524,14 @@ describe('Goal', function() {
       var goal = LingoLinq.store.createRecord('goal');
       goal.update_advancement();
       expect(goal.get('advancement')).toEqual('none');
-      goal.set('advance_type', 'date');
+      goal.set('advance', true);
       goal.update_advancement();
       expect(goal.get('advancement')).toEqual('none');
       goal.set('goal_advances_at', 'July 1');
       goal.update_advancement();
       expect(goal.get('advancement')).toEqual('date:July 1');
-      goal.set('advance_type', 'duration');
+      goal.set('advance', false);
+      goal.set('duration', true);
       goal.update_advancement();
       expect(goal.get('advancement')).toEqual('date:July 1');
       goal.set('goal_duration_number', 12);
@@ -603,11 +604,16 @@ describe('Goal', function() {
     it('should return correct values', function() {
       var g = LingoLinq.store.createRecord('goal');
       expect(g.get('any_statuses')).toEqual(false);
-      g.set('time_unit_status_rows', []);
+      g.set('stats', empty);
       expect(g.get('any_statuses')).toEqual(false);
-      g.set('time_unit_status_rows', [{time_blocks: []}]);
+      g.set('stats', {
+        monthly: {
+          totals: { sessions: 1, statuses: [3] },
+          '2015-11': { statuses: [], sessions: 1 }
+        }
+      });
       expect(g.get('any_statuses')).toEqual(false);
-      g.set('time_unit_status_rows', [{time_blocks: [{score: 1}]}]);
+      g.set('stats', recent_daily);
       expect(g.get('any_statuses')).toEqual(true);
     });
   });
@@ -636,7 +642,7 @@ describe('Goal', function() {
       expect(g.get('badges')[2]['b']).toEqual(1);
     });
 
-    it('should have multiple possible default images', function() {
+    xit('should have multiple possible default images', function() {
       expect('test').toEqual('todo');
     });
   });

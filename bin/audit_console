@@ -1,8 +1,33 @@
 #!/bin/sh
-# TODO: this wrapper still invokes the Heroku CLI (`heroku auth:whoami`,
-# `heroku run -a lingolinq`). LingoLinq runs on Render now, so this script
-# only works against the legacy Heroku environment. Follow-up: rewrite the
-# body to attach to a Render service shell while still exporting USER_KEY
-# so the Rails console records an AuditEvent per session.
-heroku_id=`heroku auth:whoami`
-heroku run "export USER_KEY=$heroku_id && bundle exec rails console" -a lingolinq
+# Rails console launcher with operator identity.
+#
+# Sets USER_KEY and opens a Rails console in the CURRENT shell, so it works
+# wherever you already have a shell on the app -- the Render Shell tab, a GCP
+# Cloud Run exec shell, or a local checkout. (It replaced an older
+# Heroku-CLI-only version; the legacy Heroku app is gone.)
+#
+# USER_KEY tags PaperTrail changes with the operator's identity
+# (config/initializers/auditing.rb), which attributes record WRITES made during
+# the session. NOTE: the per-session / per-command AuditEvent logging this
+# wrapper is meant to feed is NOT currently operative -- the Readline hook is
+# bypassed by Reline on Ruby 3.4, and the un-keyed-console refusal never fires
+# because ARGV_COMMAND is undefined at boot. That control gap is tracked as
+# finding LL-7f7372e3eb; this platform-agnostic wrapper is a prerequisite for
+# that fix, not the whole fix. USER_KEY is still requested so write-attribution
+# works and the path is ready once the control is restored.
+set -e
+
+# Identity for attribution. Honor an already-exported USER_KEY (e.g. one set in
+# a local .env); otherwise prompt, mirroring setup_env.sh.
+if [ -z "$USER_KEY" ]; then
+  printf 'Enter your email for console auditing (USER_KEY): '
+  read -r USER_KEY || true
+fi
+
+if [ -z "$USER_KEY" ]; then
+  echo 'audit_console: USER_KEY is required for console attribution; aborting.' >&2
+  exit 1
+fi
+
+export USER_KEY
+exec bundle exec rails console "$@"

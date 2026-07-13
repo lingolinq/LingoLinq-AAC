@@ -1,0 +1,229 @@
+{{#button-listener buttonEvent=(this.invokeAttr0 "buttonEvent")}}
+{{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember actions on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{on "click"}} on symbol cards for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
+<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.shrinkLabelsToFit 'md-board-detail-grid--shrink-labels'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+  data-id={{this.board.id}}
+  data-filter={{this.activeCategory}}
+  style={{safe-style (concat this.gridStyle ";--bd-button-text-size:" this.buttonTextSizePx "px" ";--bd-button-gap:" this.buttonSpacingPx "px" ";--bd-button-border:" this.buttonBorderPx "px" (if this.buttonFontStyle.family (concat ";--bd-button-font:" this.buttonFontStyle.family)) (if this.buttonFontStyle.transform (concat ";--bd-button-text-transform:" this.buttonFontStyle.transform)))}}>
+  {{#if this.board.has_background}}
+    <div style={{this.bgStyle}} id='board_bg' class={{this.bgClass}}>
+      {{#if this.board.background.text}}
+        <div class='text'><span>{{this.board.background.text}}</span></div>
+      {{/if}}
+      {{#if this.board.background.image}}
+        {{#if this.board.background.image_exclusion}}
+          <div class='exclude'></div>
+        {{/if}}
+        <img src={{this.board.background_image_url_with_fallback}} style={{this.bgImgStyle}}>
+      {{/if}}
+    </div>
+  {{/if}}
+  {{#each this.orderedButtons as |row|}}
+    {{#each row as |btn|}}
+    <div class="md-board-detail-grid__cell {{if btn.load_board 'md-board-detail-grid__cell--folder'}} {{if btn._filtered_out 'md-board-detail-grid__cell--filtered-out'}}"
+      data-id={{btn.id}}
+      draggable={{if this.editMode "true" "false"}}>
+      {{#if btn.load_board}}
+        {{!-- Folder back + tab are visual decoration; the front card
+             below is the actionable element. Skip keyboard nav for
+             both so users tab from one folder front to the next
+             without landing on the protruding tab. Mouse clicks on
+             the tab still activate via the click handler. --}}
+        <div class="md-folder-back" aria-hidden={{unless this.editMode "true"}}>
+          <div class="md-folder-tab" tabindex="-1" {{on "click" (this.invokeAttr "selectButton" btn)}}>
+            {{#if this.editMode}}
+              {{label-field value=btn.label class="md-folder-tab__label-input" placeholder="enter label" aria-label=(concat (t "Folder label" key="board_detail_folder_label_aria") " " btn.id)}}
+            {{else}}
+              <span class="md-folder-tab__label" aria-label={{btn.label}}>{{btn.label}}</span>
+            {{/if}}
+          </div>
+        </div>
+      {{/if}}
+      {{!-- template-lint-disable-tree no-nested-interactive --}}
+      {{!-- Intentional nested interactive elements in editMode: the outer
+           card is the primary tap target (select button); the inner
+           <button>s are secondary edit actions that stop propagation via
+           {{action bubbles=false}} on the component actions.
+           aria-label and each inner button's own title. --}}
+      <div
+        class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if this.editMode (if btn.hidden 'md-board-detail-symbol-card--hidden') (if btn.display_as_hidden 'md-board-detail-symbol-card--hidden')}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}}"
+        role={{if this.editMode "group" "button"}}
+        tabindex={{if this.editMode "-1" "0"}}
+        aria-label={{or btn.label btn.vocalization}}
+        data-id={{btn.id}}
+        style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";--btn-bg:" btn.background_color ";")) (if btn.border_color (concat "outline-color:" btn.border_color ";--btn-border:" btn.border_color ";")))}}
+        {{on "click" (this.invokeAttr "selectButton" btn)}}
+        {{on "keydown" (this.invokeAttr "selectButtonKey" btn)}}>
+        {{#if this.editMode}}
+          {{!-- Per-button edit affordances (inline Edit/Color/Stash/Word Data/Clear
+               icons + the short-card triple-dot menu) were REMOVED: in edit mode,
+               clicking the button itself opens the Button Settings modal (see
+               board-detail#select_button → _open_button_settings), and those actions
+               now live in that modal's left nav (below Extras). No icon on the button. --}}
+          {{!-- Level badge (edit mode only) — pinned to the bottom-left
+               corner, surfaces the button's level rules so therapists
+               can see at a glance which levels each button is wired
+               to. Reads the existing button.levels_list computed
+               (utils/button.js#270) which produces strings like "L3"
+               or "L2 4 5". --}}
+          {{#if btn.levels_list}}
+            <span class="md-board-detail-symbol-card__level-badge"
+              title={{t "Level rules" key="board_detail_level_rules_tooltip"}}
+              aria-label={{t "Level rules" key="board_detail_level_rules_tooltip"}}
+              style={{safe-style (concat "position: absolute; bottom: 6px; left: 6px; display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; background: " btn.level_badge_color "; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.2; box-shadow: 0 0 6px " btn.level_badge_color "80; pointer-events: none; z-index: 2;")}}>
+              {{btn.levels_list}}
+            </span>
+          {{/if}}
+        {{/if}}
+        {{#if (or btn.local_image_url btn.image_url)}}
+          <div class="md-board-detail-symbol-card__image">
+            <img class="symbol" src={{or btn.local_image_url btn.image_url}} alt={{btn.label}} decoding="async" data-fallback={{btn.image_fallback_url}} onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;delete this.dataset.fallback}else{this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');}">
+            <img class="md-board-detail-symbol-card__fallback-img" src="/images/square.svg" alt="" draggable="false" style="display:none; max-width: 70%; max-height: 70%;">
+          </div>
+        {{else}}
+          <div class="md-board-detail-symbol-card__image md-board-detail-symbol-card__image--placeholder">
+            {{#if btn.load_board}}
+              {{!-- Modern folder fallback — only when this folder
+                   has no associated symbol image. Two-path folder
+                   shape (back panel + front flap) with linear
+                   gradients for tonal depth and a thin top
+                   highlight line on the flap for a subtle gloss.
+                   CSS drop-shadow on the class gives it the
+                   elevation that makes the icon read as "polished
+                   surface" rather than a flat sticker. The
+                   gradient IDs are suffixed with btn.id so multiple
+                   folder placeholders on the same page each get
+                   their own scoped gradient defs. --}}
+              <svg class="symbol md-board-detail-symbol-card__folder-placeholder" viewBox="0 0 64 50" fill="none" aria-hidden="true">
+                <defs>
+                  {{!-- Back tab — diagonal warm-slate gradient (lit upper-left,
+                       deeper lower-right) for a soft three-quarter-light feel. --}}
+                  <linearGradient id="{{concat "fpBack-" btn.id}}" x1="0.25" y1="0" x2="0.65" y2="1">
+                    <stop offset="0%"   stop-color="#a4a8af"/>
+                    <stop offset="55%"  stop-color="#82868d"/>
+                    <stop offset="100%" stop-color="#5e6168"/>
+                  </linearGradient>
+                  {{!-- Front face — 4-stop vertical gradient: bright rim →
+                       lifted body → shaded mid → deep bottom edge for real
+                       tonal depth instead of the prior flat two-stop fade. --}}
+                  <linearGradient id="{{concat "fpFront-" btn.id}}" x1="0.5" y1="0" x2="0.5" y2="1">
+                    <stop offset="0%"   stop-color="#e9ebef"/>
+                    <stop offset="18%"  stop-color="#d4d7dd"/>
+                    <stop offset="65%"  stop-color="#abafb6"/>
+                    <stop offset="100%" stop-color="#7c8088"/>
+                  </linearGradient>
+                  {{!-- Lit-from-above radial highlight overlay on the front face --}}
+                  <radialGradient id="{{concat "fpHi-" btn.id}}" cx="0.28" cy="0.15" r="0.7">
+                    <stop offset="0%"   stop-color="rgba(255,255,255,0.55)"/>
+                    <stop offset="55%"  stop-color="rgba(255,255,255,0.10)"/>
+                    <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+                  </radialGradient>
+                  {{!-- Seam shadow band where the front face tucks behind the
+                       tab — gives the folder real "two-piece" depth. --}}
+                  <linearGradient id="{{concat "fpSeam-" btn.id}}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stop-color="rgba(28,38,56,0.40)"/>
+                    <stop offset="100%" stop-color="rgba(28,38,56,0)"/>
+                  </linearGradient>
+                </defs>
+                {{!-- Back panel + tab --}}
+                <path d="M0 8 Q0 4 4 4 L20 4 L25 9 L60 9 Q64 9 64 13 L64 42 Q64 47 59 47 L5 47 Q0 47 0 42 Z" fill="url(#{{concat "fpBack-" btn.id}})"/>
+                {{!-- Front face — the body of the folder --}}
+                <path d="M0 16 Q0 14 2 14 L62 14 Q64 14 64 16 L64 42 Q64 47 59 47 L5 47 Q0 47 0 42 Z" fill="url(#{{concat "fpFront-" btn.id}})"/>
+                {{!-- Seam shadow band (6px) drops below the tab edge,
+                     creating the "tucked behind" inset look. --}}
+                <path d="M0 16 L64 16 L64 22 L0 22 Z" fill="url(#{{concat "fpSeam-" btn.id}})"/>
+                {{!-- Lit-from-above highlight overlay on the front face --}}
+                <path d="M0 16 Q0 14 2 14 L62 14 Q64 14 64 16 L64 42 Q64 47 59 47 L5 47 Q0 47 0 42 Z" fill="url(#{{concat "fpHi-" btn.id}})"/>
+                {{!-- Top rim highlight on the front face leading edge --}}
+                <path d="M2.5 14 L61.5 14" stroke="rgba(255,255,255,0.65)" stroke-width="0.8" stroke-linecap="round"/>
+                {{!-- Subtle bottom edge dark line for grounding --}}
+                <path d="M5 46.6 L59 46.6" stroke="rgba(20,30,50,0.18)" stroke-width="0.6" stroke-linecap="round"/>
+              </svg>
+            {{else if btn.label}}
+              <img class="symbol" src="/images/square.svg" alt="" draggable="false" style="max-width: 70%; max-height: 70%;">
+            {{/if}}
+          </div>
+        {{/if}}
+        {{#if this.editMode}}
+          {{#if this.labelsEditable}}
+            {{!-- Suppress the inline label input on empty buttons.
+                 The "enter label" placeholder field competed with
+                 the redesigned subtle empty-cell treatment. Users
+                 add content to empty buttons via the edit modal
+                 (Edit-actions → opens the full button editor), so
+                 the inline shim is redundant for empty cells. Once
+                 the button has any data (label / image / vocalization),
+                 the input field reappears so the label can be edited
+                 in place like other buttons. --}}
+            {{#if (or btn.label btn.image_id btn.image_url btn.vocalization)}}
+              {{label-field value=btn.label class="md-board-detail-symbol-card__label-input" placeholder="enter label" aria-label=(concat (t "Button label" key="board_detail_button_label_aria") " " btn.id)}}
+            {{/if}}
+          {{else}}
+            <span class="md-board-detail-symbol-card__label" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
+          {{/if}}
+        {{else}}
+          <span class="md-board-detail-symbol-card__label" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
+        {{/if}}
+        {{#if btn.load_board}}
+          <span class="md-board-detail-symbol-card__folder-badge" aria-label={{t "Folder" key="folder"}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+            </svg>
+          </span>
+        {{/if}}
+        {{#if (or (and this.editMode btn.hidden) (and this.editMode this.previewLevelsMode btn.hidden))}}
+          <span class="md-board-detail-symbol-card__hidden-badge" aria-label={{t "Hidden button" key="board_detail_hidden_badge"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </span>
+        {{/if}}
+      </div>
+
+      {{#if this.editMode}}
+        {{!-- Color Picker Popover --}}
+        {{#if (is-equal this.colorPickerButton btn)}}
+          <div class="md-board-detail-color-picker">
+            <div class="md-board-detail-color-picker__header">
+              <span class="md-board-detail-color-picker__title">{{t "Choose Color" key="board_detail_choose_color"}}</span>
+              <button type="button" class="md-board-detail-color-picker__close" {{on "click" (this.invokeAttr0 "closeColorPicker")}} aria-label={{t "Close" key="close"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div class="md-board-detail-color-picker__swatches">
+              {{#each this.colorPickerSwatches as |swatch|}}
+                <button type="button"
+                  class="md-board-detail-color-picker__swatch"
+                  {{on "click" (this.invokeAttr "applySwatchColor" swatch)}}>
+                  <span class="md-board-detail-color-picker__swatch-color" style={{safe-style (concat "background-color:" swatch.bg ";border-color:" swatch.border)}}></span>
+                  <span class="md-board-detail-color-picker__swatch-label">{{swatch.label}}</span>
+                </button>
+              {{/each}}
+            </div>
+
+            <div class="md-board-detail-color-picker__custom">
+              <div class="md-board-detail-color-picker__custom-header">
+                <label class="md-board-detail-color-picker__custom-label" for="bd-btn-custom-color">{{t "Custom Color" key="board_detail_custom_color"}}</label>
+              </div>
+              <div class="md-board-detail-color-picker__custom-row">
+                <span class="md-board-detail-color-picker__preview"
+                  {{on "click" (this.invokeAttr0 "toggleMinicolors")}}
+                  style={{if this.customColorValue (safe-style (concat "background-color:" this.customColorValue))}}></span>
+                <input type="text" id="bd-btn-custom-color" class="md-board-detail-color-picker__input" placeholder="#hex" autocomplete="off" />
+                <button type="button" class="md-board-detail-color-picker__apply" {{on "click" (this.invokeAttr0 "applyCustomColor")}}>{{t "Apply" key="board_detail_apply"}}</button>
+              </div>
+            </div>
+          </div>
+        {{/if}}
+      {{/if}}
+    </div>
+    {{/each}}
+  {{/each}}
+  {{#unless this.orderedButtons.length}}
+    <div class="md-board-detail-grid__empty">
+      <p>{{t "No symbols found for this category" key="board_detail_no_symbols"}}</p>
+    </div>
+  {{/unless}}
+</div>
+{{/button-listener}}

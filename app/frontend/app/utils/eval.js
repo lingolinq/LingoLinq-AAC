@@ -5,17 +5,39 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **/
 
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, debounce as runDebounce } from '@ember/runloop';
 import templateHelpers from './template_helpers';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import { set as emberSet, observer } from '@ember/object';
 import app_state from './app_state';
+import persistence_singleton from './persistence';
+import stashes_singleton from './_stashes';
+import i18n_singleton from './i18n';
+import speecher_singleton from './speecher';
+import utterance_singleton from './utterance';
+import modal_singleton from './modal';
+import capabilities_singleton from './capabilities';
 
 // select language when starting assessment
 
 var pixels_per_inch = 96;
 window.ppi = window.ppi || 96;
+
+// Modern, self-contained SVG icons for the open-ended nav buttons (previous /
+// next / done). Inline data-URIs so there's no external dependency; encoded via
+// encodeURIComponent so the raw SVG stays readable/editable above.
+var svg_data_uri = function(svg) { return 'data:image/svg+xml,' + encodeURIComponent(svg); };
+var EVAL_NAV_ICON = {
+  prev: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#1B365D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 12H5'/><path d='M12 19l-7-7 7-7'/></svg>"),
+  next: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#1B365D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h15'/><path d='M12 5l7 7-7 7'/></svg>"),
+  done: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='#2A9D8F'/><path d='M7 12.6l3.2 3.2L17 9' fill='none' stroke='#ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/></svg>"),
+  // Elegant "achievement complete" mark for the eval "Done!" screen: a laurel
+  // wreath framing a verdigris medallion with a gold star (award motif, brand
+  // palette) — professional rather than playful.
+  celebration: svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' fill='none'><path d='M35 92 C22 78 22 52 34 36' stroke='#3c5a86' stroke-width='2.5' stroke-linecap='round'/><path d='M85 92 C98 78 98 52 86 36' stroke='#3c5a86' stroke-width='2.5' stroke-linecap='round'/><g fill='#3c5a86'><ellipse cx='29' cy='82' rx='7' ry='3.2' transform='rotate(-52 29 82)'/><ellipse cx='24' cy='70' rx='7.5' ry='3.4' transform='rotate(-28 24 70)'/><ellipse cx='24' cy='57' rx='7.5' ry='3.4' transform='rotate(-6 24 57)'/><ellipse cx='28' cy='45' rx='7' ry='3.2' transform='rotate(20 28 45)'/><ellipse cx='91' cy='82' rx='7' ry='3.2' transform='rotate(52 91 82)'/><ellipse cx='96' cy='70' rx='7.5' ry='3.4' transform='rotate(28 96 70)'/><ellipse cx='96' cy='57' rx='7.5' ry='3.4' transform='rotate(6 96 57)'/><ellipse cx='92' cy='45' rx='7' ry='3.2' transform='rotate(-20 92 45)'/></g><circle cx='60' cy='56' r='23' fill='#2A9D8F'/><path d='M60 41 L64.1 50.3 74.3 51.4 66.7 58.2 68.8 68.1 60 63 51.2 68.1 53.3 58.2 45.7 51.4 55.9 50.3 Z' fill='#f2c230'/></svg>")
+};
+
 var evaluation = {
   _services: {},
   setup: function(appState, persistence, stashes, speecher, utterance, obf, modal, i18n, capabilities) {
@@ -31,14 +53,14 @@ var evaluation = {
   },
   // Fall back when setup() has not run yet or eval.js was re-evaluated (e.g. dev reload) while the app kept running.
   get appState() { return this._services.appState || app_state; },
-  get persistence() { return this._services.persistence; },
-  get stashes() { return this._services.stashes; },
-  get speecher() { return this._services.speecher; },
-  get utterance() { return this._services.utterance; },
+  get persistence() { return this._services.persistence || persistence_singleton; },
+  get stashes() { return this._services.stashes || stashes_singleton; },
+  get speecher() { return this._services.speecher || speecher_singleton; },
+  get utterance() { return this._services.utterance || utterance_singleton; },
   get obf() { return this._services.obf || (typeof window !== 'undefined' && window.obf); },
-  get modal() { return this._services.modal; },
-  get i18n() { return this._services.i18n; },
-  get capabilities() { return this._services.capabilities; },
+  get modal() { return this._services.modal || modal_singleton; },
+  get i18n() { return this._services.i18n || i18n_singleton; },
+  get capabilities() { return this._services.capabilities || capabilities_singleton; },
   register: function(obf) {
     obf.register("eval", evaluation.callback);
     obf.eval = evaluation;
@@ -67,9 +89,76 @@ var evaluation = {
     evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
     evaluation.appState.set_history([]);
   },
+  // In-place pause (SLP taps Pause during a running assessment): freeze the
+  // screen with an overlay, silence prompts, and record the paused span as a
+  // gap so the results duration subtracts it (see the gap math in results()).
+  // board/index shifts the current board's `rendered` forward on unpause so the
+  // per-item response clock (time_to_select) also excludes the pause. This is
+  // distinct from resume() above, which reopens a persisted/ended assessment.
+  is_paused: function() {
+    return !!evaluation.appState.get('eval_paused');
+  },
+  toggle_pause: function() {
+    if(evaluation.is_paused()) { evaluation.unpause(); }
+    else { evaluation.pause(); }
+  },
+  // Active elapsed time (assessment.started → now) with prior paused gaps
+  // subtracted, formatted M:SS (or H:MM:SS past an hour). Mirrors results()'s
+  // duration math so the paused figure matches the final report.
+  _format_elapsed: function(total_seconds) {
+    var s = Math.max(0, Math.round(total_seconds || 0));
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    return (h > 0 ? (h + ':' + pad(m)) : ('' + m)) + ':' + pad(sec);
+  },
+  elapsed_active_seconds: function(at_ms) {
+    if(!assessment || !assessment.started) { return 0; }
+    var elapsed = ((at_ms || (new Date()).getTime()) / 1000) - assessment.started;
+    (assessment.gaps || []).forEach(function(g) { elapsed -= (g[1] - g[0]); });
+    return Math.max(0, elapsed);
+  },
+  pause: function() {
+    // only meaningful once an assessment is actually running
+    if(!assessment || !assessment.started || evaluation.is_paused()) { return; }
+    evaluation._paused_at_ms = (new Date()).getTime();
+    try { if(evaluation.speecher && evaluation.speecher.stop) { evaluation.speecher.stop('all'); } }
+    catch(e) { /* best-effort — silence is nice-to-have */ }
+    // Measure the REAL inner_header bottom and pin --eval-pause-top so the dim
+    // overlay starts exactly at it. The --speak-header-height / --topbar-height
+    // vars don't equal the actual header bottom here (the header over-reserves
+    // past #content's padding), so a var-based top mis-aligns — measure instead.
+    try {
+      var ih = (typeof document !== 'undefined') && document.getElementById('inner_header');
+      if(ih && document.documentElement) {
+        document.documentElement.style.setProperty('--eval-pause-top', Math.round(ih.getBoundingClientRect().bottom) + 'px');
+      }
+    } catch(e) { /* fall back to the CSS calc default */ }
+    // Freeze the elapsed-time readout at the pause instant for the overlay.
+    evaluation.appState.set('eval_paused_elapsed', evaluation._format_elapsed(evaluation.elapsed_active_seconds(evaluation._paused_at_ms)));
+    evaluation.appState.set('eval_last_pause_ms', 0);
+    evaluation.appState.set('eval_paused', true);
+  },
+  unpause: function() {
+    if(!evaluation.is_paused()) { return; }
+    var now = (new Date()).getTime();
+    var started = evaluation._paused_at_ms || now;
+    var paused_ms = Math.max(0, now - started);
+    // record the paused span as a gap (seconds, matching results() duration math)
+    if(assessment) {
+      assessment.gaps = assessment.gaps || [];
+      assessment.gaps.push([started / 1000, now / 1000]);
+    }
+    evaluation._paused_at_ms = null;
+    // board/index reads this on the eval_paused flip to shift `rendered`.
+    evaluation.appState.set('eval_last_pause_ms', paused_ms);
+    evaluation.appState.set('eval_paused', false);
+  },
   clear: function() {
     assessment = {};
     working = {};
+    evaluation.appState.set('eval_paused', false);
   },
   conclude: function() {
     evaluation.modal.open('modals/assessment-settings', {assessment: assessment, action: 'results'});
@@ -82,6 +171,13 @@ var evaluation = {
     assessment.accommodations = settings.accommodations;
     assessment.prompts = settings.prompts;
     assessment.prompts_delay = settings.prompts_delay || 0;
+    // How long the just-selected item stays on screen before advancing to the
+    // next eval board. Kept short so the switch feels responsive (the old 1000ms
+    // read as a hang — users re-tapped, thinking it hadn't registered). The
+    // correct/incorrect ding is fire-and-forget audio, so it still plays across
+    // the board switch. Tunable per-assessment; applies to every interactive
+    // eval type since they all share res.handler below.
+    assessment.advance_delay = settings.advance_delay || 350;
     assessment.chimes = settings.chimes;
     if(settings.for_user && !assessment.saved) {
       if(settings.for_user.user_id == 'self') {
@@ -118,8 +214,11 @@ var evaluation = {
     if(evaluation.persistence.get('online')) {
       evaluation.stashes.push_log();
     }
+    // Concluded + saved — drop the in-progress snapshot so it can't resurrect a
+    // finished eval on the next visit.
+    evaluation.clear_progress();
     // navigate to the results page (should work even if offline and haven't been able to push yet)
-    evaluation.appState.controller.transitionToRoute('user.log', assessment.user_name, 'last-eval');
+    evaluation.appState.controller.router.transitionTo('user.log', assessment.user_name, 'last-eval');
     assessment = {};
     working = {};
   },
@@ -140,6 +239,164 @@ var evaluation = {
     if (userName) {
       evaluation.appState.set('last_assessment_for_uname_' + userName, null);
     }
+  },
+  // --- Incremental persistence -------------------------------------------------
+  // A running eval lives only in memory (module-level `assessment`/`working`)
+  // until persist() saves it at conclusion, so a reload / tab-close / crash
+  // mid-eval loses every answer and leaves last-eval blank. These helpers
+  // snapshot the in-progress assessment to IndexedDB after each response.
+  //
+  // The snapshot is keyed PER communicator — `eval_progress_<user_id>` in the
+  // `settings` store — so the last-eval fallback for user X can only ever load
+  // X's own snapshot (never another communicator's). A tiny `_current` pointer
+  // records which user is mid-eval, since the reload/resume path (a bare
+  // `obf/eval-5-2-1` URL) carries no user id. The pointer lives in sessionStorage
+  // (NOT IndexedDB) so it is PER-TAB: it survives a reload but is isolated between
+  // tabs, so two evals for different users in two tabs never cross-restore.
+  // Everything is best-effort: if the store is unavailable the eval continues.
+  EVAL_PROGRESS_PREFIX: 'eval_progress_',
+  EVAL_PROGRESS_POINTER: 'eval_progress__current',
+  _set_pointer: function(uid) {
+    try { if(window.sessionStorage) { window.sessionStorage.setItem(evaluation.EVAL_PROGRESS_POINTER, String(uid)); } } catch(e) { /* best-effort */ }
+  },
+  _get_pointer: function() {
+    try { return (window.sessionStorage && window.sessionStorage.getItem(evaluation.EVAL_PROGRESS_POINTER)) || ''; } catch(e) { return ''; }
+  },
+  _clear_pointer: function() {
+    try { if(window.sessionStorage) { window.sessionStorage.removeItem(evaluation.EVAL_PROGRESS_POINTER); } } catch(e) { /* best-effort */ }
+  },
+  // Ignore an abandoned in-progress snapshot older than this so a stale eval
+  // doesn't resurface indefinitely on last-eval / auto-resume.
+  EVAL_PROGRESS_MAX_AGE_S: 24 * 60 * 60,
+  // Snapshot schema version. Bump when the assessment/working shape changes so a
+  // snapshot written by an older build is ignored instead of restored into a
+  // shape analyze()/the board builder can't read.
+  EVAL_PROGRESS_VERSION: 1,
+  _json_safe: function(obj) {
+    // Strip functions (e.g. word.action closures on working.ref) so the snapshot
+    // survives structured-clone into IndexedDB. Scored data (events/started) is
+    // plain data and round-trips intact.
+    try { return JSON.parse(JSON.stringify(obj || {})); }
+    catch(e) { return null; }
+  },
+  // The communicator this eval is FOR: assessment.user_id once update() has run,
+  // else the speak-mode/current user (the run_eval launch skips the settings
+  // modal, so assessment.user_id can be unset during early play).
+  _eval_user_id: function() {
+    var id = (assessment && assessment.user_id) ||
+             evaluation.appState.get('currentUser.id') ||
+             evaluation.appState.get('sessionUser.id');
+    return id ? String(id) : '';
+  },
+  save_progress: function() {
+    // Debounced so a burst of taps doesn't hammer the store.
+    runDebounce(evaluation, evaluation._save_progress_now, 500);
+  },
+  _save_progress_now: function() {
+    if(!assessment || !assessment.started || assessment.ended) { return; }
+    var uid = evaluation._eval_user_id();
+    if(!uid) { return; } // no user to key to — skip rather than risk a shared record
+    var snap = evaluation._json_safe(assessment);
+    if(!snap) { return; }
+    snap.working_stash = evaluation._json_safe(working) || {step: 0};
+    snap.in_progress = true;
+    snap.saved_at = (new Date()).getTime() / 1000;
+    snap.user_id = snap.user_id || uid;
+    snap.v = evaluation.EVAL_PROGRESS_VERSION;
+    try {
+      var s = evaluation.persistence.store('settings', snap, evaluation.EVAL_PROGRESS_PREFIX + uid);
+      if(s && s.then) { s.then(null, function() {}); }
+    } catch(e) { /* best-effort */ }
+    // Per-tab pointer (sessionStorage) so a reload of THIS tab resumes THIS eval.
+    evaluation._set_pointer(uid);
+  },
+  _find_snap: function(key) {
+    try {
+      return evaluation.persistence.find('settings', key).then(function(rec) {
+        var snap = rec && (rec.raw || rec);
+        if(!snap || !snap.in_progress) { return null; }
+        // Schema-version guard: ignore a snapshot written by a different build so
+        // a shape change can't crash restore/analyze.
+        if(snap.v !== evaluation.EVAL_PROGRESS_VERSION) { return null; }
+        // Freshness bound: drop an abandoned snapshot past EVAL_PROGRESS_MAX_AGE_S.
+        var age = ((new Date()).getTime() / 1000) - (snap.saved_at || 0);
+        if(snap.saved_at && age > evaluation.EVAL_PROGRESS_MAX_AGE_S) { return null; }
+        return snap;
+      }, function() { return null; });
+    } catch(e) { return Promise.resolve(null); }
+  },
+  // With a uid (last-eval fallback) → load THAT user's snapshot only. Without one
+  // (reload/resume) → resolve the mid-eval user via this tab's sessionStorage
+  // pointer first.
+  load_progress: function(uid) {
+    if(uid) { return evaluation._find_snap(evaluation.EVAL_PROGRESS_PREFIX + String(uid)); }
+    var puid = evaluation._get_pointer();
+    return puid ? evaluation._find_snap(evaluation.EVAL_PROGRESS_PREFIX + String(puid)) : Promise.resolve(null);
+  },
+  clear_progress: function(uid) {
+    evaluation._restore_attempted = true; // a cleared/fresh eval must not re-restore
+    uid = uid || evaluation._eval_user_id();
+    try {
+      if(uid) {
+        var s = evaluation.persistence.remove('settings', {id: evaluation.EVAL_PROGRESS_PREFIX + uid}, evaluation.EVAL_PROGRESS_PREFIX + uid);
+        if(s && s.then) { s.then(null, function() {}); }
+      }
+    } catch(e) { /* best-effort */ }
+    evaluation._clear_pointer();
+  },
+  // Sign-out purge: an in-progress snapshot is partially-answered clinical data,
+  // so it must NOT survive logout on a shared device (clear_user_state keeps the
+  // rest of IndexedDB by design, but this transient assessment is different).
+  // Removes the mid-eval snapshot (via the per-tab pointer) AND the current
+  // in-memory eval's key, clears the pointer, and drops in-memory state. Wired
+  // from services/session.js#invalidate. Best-effort.
+  purge_for_logout: function() {
+    var puid = evaluation._get_pointer();
+    var uid = evaluation._eval_user_id();
+    [puid, uid].forEach(function(id) {
+      if(!id) { return; }
+      try {
+        var p = evaluation.persistence.remove('settings', {id: evaluation.EVAL_PROGRESS_PREFIX + id}, evaluation.EVAL_PROGRESS_PREFIX + id);
+        if(p && p.then) { p.then(null, function() {}); }
+      } catch(e) { /* best-effort */ }
+    });
+    evaluation._clear_pointer();
+    evaluation._restore_attempted = true;
+    assessment = {};
+    working = {};
+  },
+  restore_progress: function() {
+    // Called on re-entry (reload/deep-link) when the live assessment is empty.
+    // Adopt the mid-eval snapshot (via the pointer) and re-render so recovered
+    // answers + timer carry forward. Runs at most once per module load and never
+    // clobbers a session that already has answers.
+    if(evaluation._restore_attempted) { return; }
+    evaluation._restore_attempted = true;
+    // Gate answer recording while the (async) snapshot load is in flight: a tap
+    // landing first would make assessment.events truthy and cause us to skip the
+    // restore, dropping the pre-reload history. The handler checks _restoring and
+    // ignores taps during this ~ms window. Safety timeout so it can never stick
+    // (a hung/absent store must not brick input).
+    evaluation._restoring = true;
+    runLater(function() { evaluation._restoring = false; }, 1500);
+    var done = function() { evaluation._restoring = false; };
+    evaluation.load_progress().then(function(snap) {
+      if(!snap) { return done(); }
+      if(assessment && (assessment.events || assessment.ended)) { return done(); }
+      var stash = snap.working_stash || {step: 0};
+      delete snap.working_stash;
+      delete snap.in_progress;
+      delete snap.saved_at;
+      assessment = snap;
+      working = stash;
+      window.assessment = assessment;
+      window.working = working;
+      var lvl = working.level || 0, stp = working.step || 0;
+      var key = 'obf/eval-' + lvl + '-' + stp + (working.attempts != null ? '-' + working.attempts : '');
+      evaluation.appState.jump_to_board({key: key});
+      evaluation.appState.set_history([]);
+      done();
+    }, done);
   },
   settings: function() {
     evaluation.modal.open('modals/assessment-settings', {assessment: assessment});
@@ -199,6 +456,24 @@ var evaluation = {
     evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
     evaluation.appState.set_history([]);
   },
+  // Whether the header Previous button should be available. move('back') steps a
+  // WHOLE level back. Start jumps into the find_target section (the first
+  // assessment section — its level index isn't fixed, ~levels[2], since Start
+  // searches every level for find-4); stepping back from there walks into the
+  // legacy welcome/intro levels the combined welcome replaced (the deferred note
+  // in intro_header_start). So hide Back on the intro/welcome levels and on the
+  // find_target section; later sections step back to a real prior section. The
+  // section id lives on the level's first step (level[0].intro); working.level_id
+  // is unreliable (stays 'intro' after Start), so read the level directly.
+  can_go_back: function() {
+    try {
+      if(!working || working.level == null) { return true; }
+      var level = levels[working.level];
+      var section = level && level[0] && level[0].intro;
+      if(section && (/^intro/.test(section) || section === 'find_target')) { return false; }
+    } catch(e) { return true; }
+    return true;
+  },
   /** Header shortcuts for intro boards when on-board Start/Skip are obscured (same logic as intro_board handler). */
   intro_header_visibility: function() {
     try {
@@ -222,6 +497,22 @@ var evaluation = {
       return { showStart: false, showSkip: false };
     }
   },
+  /** Current intro step's prompt text (for the modern bespoke intro screen),
+      or null when the current step isn't an intro. Mirrors the visibility
+      guard above so the screen shows exactly when on-board Start would. */
+  current_intro: function() {
+    try {
+      if(typeof levels === 'undefined' || !levels || !levels.length) { return null; }
+      if(!working || working.level === undefined || working.level === null) { return null; }
+      var level = levels[working.level];
+      if(!level) { return null; }
+      var step = level[working.step];
+      if(!step || !step.intro || step.intro === 'done') { return null; }
+      return { intro: step.intro, text: evaluation.level_prompt(step) };
+    } catch(e) {
+      return null;
+    }
+  },
   intro_header_start: function() {
     if(!evaluation.appState.get('speak_mode')) {
       evaluation.modal.notice(evaluation.i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
@@ -232,12 +523,37 @@ var evaluation = {
     if(!level) { return; }
     var step = level[working.step];
     if(!step || !step.intro || step.intro === 'done') { return; }
-    if(step.intro == 'find_target') {
-      var start_step = level.find(function(s) { return s.id == "find-4"; });
+    if(step.intro == 'find_target' || step.intro == 'intro') {
+      // The welcome intro ('intro') now combines the old welcome + intro2 +
+      // find_target messages into one screen, so Starting from it jumps
+      // straight to the first find assessment step (find-4) — the same target
+      // the find_target intro uses. find-4 lives in a LATER level than the
+      // welcome (welcome is levels[0]; find-4 is in the find_target level), so
+      // when it isn't in the current level, search every level and jump to it.
+      // We resync `level` too, so the level-overflow normalization below
+      // (`if(!level[working.step])`) checks the destination level, not the old
+      // welcome level — otherwise it would re-increment past find-4.
+      //
+      // KNOWN / DEFERRED (eval pages design is still in progress): forward Start
+      // skips intro2 + find_target, but the speak-bar Back from the first
+      // assessment step can still walk back into those legacy intro screens that
+      // the combined welcome is meant to replace. The eval flow back-traversal
+      // (hiding Back on the first post-welcome step, or collapsing intro2 /
+      // find_target on the way back) will be addressed in a future eval pass.
+      var is_find_4 = function(s) { return s.id == "find-4"; };
+      var start_step = level.find(is_find_4);
       if(start_step) {
         working.step = level.indexOf(start_step);
       } else {
-        working.step++;
+        for(var li = 0; li < levels.length; li++) {
+          var idx = levels[li].findIndex(is_find_4);
+          if(idx != -1) {
+            working.level = li;
+            working.step = idx;
+            level = levels[li];
+            break;
+          }
+        }
       }
     } else if(step.intro == 'diff_target') {
       var step_id = 'diff-4';
@@ -276,9 +592,17 @@ var evaluation = {
     evaluation.appState.set_history([]);
   },
   analyze: function(assessment) {
-    if(!assessment || !assessment.mastery_cutoff) {
+    if(!assessment) {
       return {};
     }
+    // Don't bail on a missing cutoff — an assessment saved without the adaptive
+    // cutoffs (resume/deep-link path that never hit the 'start' init) would
+    // otherwise produce a completely blank results page (0 hits, N/A mastery,
+    // empty grid). Default them from the module constants so the report renders.
+    assessment.mastery_cutoff = assessment.mastery_cutoff || mastery_cutoff;
+    assessment.non_mastery_cutoff = assessment.non_mastery_cutoff || non_mastery_cutoff;
+    assessment.attempt_minimum = assessment.attempt_minimum || attempt_minimum;
+    assessment.attempt_maximum = assessment.attempt_maximum || attempt_maximum;
     var res = Object.assign({}, assessment);
     res.label = assessment.name || "Unnamed Eval";
     res.total_time = 0;
@@ -510,9 +834,10 @@ var evaluation = {
         }
         list.forEach(function(i) { i.box_style_props = { width: (Math.floor(1000 / list.length) / 10) + "%" }});
         if(item_key == 'button_sizes') {
-          list = list.sortBy('size').reverse();
+          // Native sort (Ember 5 EXTEND_PROTOTYPES:false removed Array#sortBy).
+          list = list.slice().sort(function(a, b) { return (b.size || 0) - (a.size || 0); });
         } else if(item_key == 'field_sizes') {
-          list = list.sortBy('size');
+          list = list.slice().sort(function(a, b) { return (a.size || 0) - (b.size || 0); });
         } else if(item_key == 'symbol_libraries') {
           // list = list;
         }
@@ -679,14 +1004,10 @@ var evaluation = {
         label: "save",
         id: 'button_save',
         skip_vocalization: true,
-        image: {url: words.find(function(w) { return w.label == 'done'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.done},
       }, 0, 5);
-      board.add_button({
-        label: 'settings',
-        id: 'button_settings',
-        skip_vocalization: true,
-        image: {url: words.find(function(w) { return w.label == 'think'; }).urls['default']},
-      }, 0, 0);
+      // (Removed the board settings button here: it duplicated the inner-header
+      // gear #eval_open_settings, which fires the same evaluation.settings().)
     } else {
       board.add_button({
         label: step.intro.match(/intro/) ? 'next' : 'start',
@@ -840,18 +1161,24 @@ var levels = [
     {id: 'open-core', core: true, difficulty: 1, distractors: true, prompts: [
       //    ['happy', 'sad', 'dog', 'eat', 'play', 'read', 'ball']
       {id: 'kidc1', core_word: 'eat', url: 'https://images.pexels.com/photos/6413448/pexels-photo-6413448.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc2', core_word: 'play', url: 'https://images.pexels.com/photos/4004418/pexels-photo-4004418.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
+      // (Removed kidc2 'play': the scene shows food/pizza prominently and was
+      // routinely misread as 'eat'. Other scenes still cover 'play'. Prompt
+      // cycling is index-relative, so dropping it doesn't affect scoring/flow.)
       {id: 'kidc3', core_word: 'read', url: 'https://images.pexels.com/photos/261895/pexels-photo-261895.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc4', core_word: 'read', url: 'https://images.pexels.com/photos/1741230/pexels-photo-1741230.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc5', core_word: 'eat', url: 'https://images.pexels.com/photos/5693056/pexels-photo-5693056.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc6', core_word: 'dog', url: 'https://images.pexels.com/photos/332974/pexels-photo-332974.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc7', core_word: 'play', url: 'https://images.pexels.com/photos/3618499/pexels-photo-3618499.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
+      // (Removed kidc6 'dog': 'dog' isn't a word button on the open-ended board
+      // these scenes render with, so there was no matching answer to select.
+      // Prompt cycling is index-relative, so dropping it doesn't affect scoring.)
+      {id: 'kidc7', core_word: 'ball', url: 'https://images.pexels.com/photos/3618499/pexels-photo-3618499.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc8', core_word: 'play', url: 'https://images.pexels.com/photos/974498/pexels-photo-974498.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc9', core_word: 'happy', url: 'https://images.pexels.com/photos/294173/pexels-photo-294173.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
       {id: 'kidc10', core_word: 'play', url: 'https://images.pexels.com/photos/4691579/pexels-photo-4691579.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc11', core_word: 'sad', url: 'https://images.pexels.com/photos/208087/pexels-photo-208087.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
+      // (Removed kidc11 'sad': the scene had no matching word button to select
+      // and the image read as unsettling. Prompt cycling is index-relative with
+      // length-based wrapping, so dropping an entry doesn't affect scoring/flow.)
       {id: 'kidc12', core_word: 'read', url: 'https://images.pexels.com/photos/5634667/pexels-photo-5634667.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
-      {id: 'kidc13', core_word: 'they', url: 'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'}
+      {id: 'kidc13', core_word: 'play', url: 'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'}
     ]}, // allow cycling through while staying on the same step
     {id: 'open-keyboard', core: true, keyboard: true, prompts: [
       {id: 'kidk1', ref: 'bike', url: 'https://images.pexels.com/photos/5792901/pexels-photo-5792901.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500'},
@@ -928,9 +1255,18 @@ evaluation.callback = function(key) {
               evaluation.obf.offline_urls.push(w.urls[key]);
               evaluation.persistence.find_url(w.urls[key], 'image').then(function(data_uri) {
                 w.urls[key] = data_uri;
+                // Decode ahead of time. The browser keeps the previously-decoded
+                // frame in the <img> until the NEW source is decoded, which is
+                // what makes the background image "linger then flash" when
+                // advancing between eval boards. Pre-decoding the cached bitmap
+                // removes that lag so the swap is instant.
+                var pre = new Image();
+                pre.src = data_uri;
+                if(pre.decode) { pre.decode().then(null, function() {}); }
               }, function(err) {
                 var img = new Image();
                 img.src = w.urls[key];
+                if(img.decode) { img.decode().then(null, function() {}); }
               });
             }
           })(key);
@@ -997,6 +1333,8 @@ evaluation.callback = function(key) {
   var board = null;
   var opts = key.split(/-/);
   if(opts[1] == 'start') {
+    // Fresh eval — drop any stale in-progress snapshot and suppress restore.
+    evaluation.clear_progress();
     assessment = {
       mastery_cutoff: mastery_cutoff,
       non_mastery_cutoff: non_mastery_cutoff,
@@ -1006,6 +1344,7 @@ evaluation.callback = function(key) {
       prompts: true,
       chimes: true,
       prompts_delay: 1500,
+      advance_delay: 350,
       default_library: 'default',
       name: 'Unnamed Eval',
     };
@@ -1023,6 +1362,10 @@ evaluation.callback = function(key) {
     if(_levelArr) {
       working.step = Math.max(0, Math.min(_levelArr.length - 1, working.step));
     }
+    // Re-entry via reload/deep-link: the module `assessment` is fresh ({}), so
+    // recover any in-progress snapshot for this eval (self-guards: once per load,
+    // and only when the live assessment has no answers yet).
+    evaluation.restore_progress();
   } else if(!working || working.step == undefined) {
     board = evaluation.obf.shell(1, 1);
     runLater(function() {
@@ -1032,6 +1375,18 @@ evaluation.callback = function(key) {
     res.json = board.to_json();
     return res;
   }
+  // Advancement (see ~l.2077) gates entirely on these assessment.* cutoffs, but
+  // they're only assigned in the `opts[1] == 'start'` branch above. A resume /
+  // deep-link (eval-<level>-<step>) or a re-entry after a page refresh (module
+  // reload resets `assessment` to {}) leaves them undefined, so every advancement
+  // comparison is `>= undefined` (false) and the eval can NEVER advance — it just
+  // repeats the current step. Default them from the module constants on every
+  // board build (no-op on 'start', which already set them) so any entry path can
+  // advance.
+  assessment.mastery_cutoff = assessment.mastery_cutoff || mastery_cutoff;
+  assessment.non_mastery_cutoff = assessment.non_mastery_cutoff || non_mastery_cutoff;
+  assessment.attempt_minimum = assessment.attempt_minimum || attempt_minimum;
+  assessment.attempt_maximum = assessment.attempt_maximum || attempt_maximum;
   if(!assessment.populated) {
     evaluation.populate_assessment(assessment);
   }
@@ -1042,6 +1397,13 @@ evaluation.callback = function(key) {
   assessment.started = assessment.started || (new Date()).getTime() / 1000;
   var level = levels[working.level];
   var step = level[working.step];
+  // level_id keys every recorded response (assessment.events[level_id]) and is how
+  // analyze() attributes answers to a section. intro_board sets it, but a reload /
+  // deep-link / resume enters a mid-level item step WITHOUT that intro, leaving
+  // level_id stale ('intro') or undefined — so answers mis-key and the report shows
+  // 0 hits / no assessment types despite real answers. Derive it from the current
+  // level's section on every build so scoring survives any entry path.
+  if(level && level[0] && level[0].intro) { working.level_id = level[0].intro; }
   if(working.step == 0) {
     var intro = evaluation.intro_board(level, step, user_id);
     board = intro.board;
@@ -1514,27 +1876,36 @@ evaluation.callback = function(key) {
       var prompt = step.prompts[working.ref.prompt_index];
       
       board.background.image = prompt.url;
+      // Review helper: surface the target concept this scene is meant to elicit
+      // so it's clear what each open-ended page is testing. Uses the ext_lingolinq_
+      // prefix (like ext_lingolinq_image_exclusion) so it survives the OBF
+      // serialize/parse round-trip the eval board goes through; obf.js maps it back
+      // to background.eval_helper. Prompts carry the concept as core_word or ref.
+      board.background.ext_lingolinq_eval_helper = prompt.core_word || prompt.ref;
       $("#board_bg img").attr('src', prompt.url);
+      // Mirror the image's direct-DOM update so the caption tracks prev/next
+      // paging too (which updates in place rather than re-parsing the board).
+      $("#board_bg .eval-helper").text('(' + (prompt.core_word || prompt.ref || '') + ')');
       
       board.add_button({
         id: 'button_prev',
         label: "previous",
         background_color: "rgba(255, 255, 255, 0.7)",
-        image: {url: words.find(function(w) { return w.label == 'left'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.prev},
         skip_vocalization: true
       }, 0, 0);
       board.add_button({
         id: 'button_next',
         label: "next",
         background_color: "rgba(255, 255, 255, 0.7)",
-        image: {url: words.find(function(w) { return w.label == 'right'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.next},
         skip_vocalization: true
       }, 0, step_cols - 1);
       board.add_button({
         id: 'button_done',
         label: "done",
         background_color: "rgba(255, 255, 255, 0.7)",
-        image: {url: words.find(function(w) { return w.label == 'done'; }).urls['default']},
+        image: {url: EVAL_NAV_ICON.done},
         skip_vocalization: true
       }, 1, step_cols - 1);
     } else {
@@ -1752,7 +2123,14 @@ evaluation.callback = function(key) {
                 used_words[word.label] = true;  
               }
             } else {
-              var unused = distractor_words.filter(function(w) { return w != prompt && !used_words[w.label]; });
+              // A distractor must be a WRONG answer to the prompt. "earth" is
+              // itself a planet, so it can't stand in as a distractor for
+              // "planet" (both read as correct on "Find planet"). Exclude such
+              // superset/subset overlaps so the slot fills with a genuinely
+              // different space word (moon / satellite / sun) instead.
+              var distractor_conflicts = { 'planet': ['earth'], 'earth': ['planet'] };
+              var conflicts = distractor_conflicts[prompt.label] || [];
+              var unused = distractor_words.filter(function(w) { return w != prompt && !used_words[w.label] && conflicts.indexOf(w.label) == -1; });
               var fails = 0;
               var tries = 0;
               while(tries < 20 && (!word || used_words[word.label] || !(word && (word.urls[library] || word.urls['default'])))) {
@@ -1796,6 +2174,9 @@ evaluation.callback = function(key) {
     var handling = false;
     var original_board = board;
     res.handler = function(button, obj) {
+      // Ignore taps while a reload-restore is loading (see restore_progress): a tap
+      // here would clobber the recovered pre-reload history. The window is a few ms.
+      if(evaluation._restoring) { return {ignore: true, highlight: false, sound: false}; }
       assessment.access_method = assessment.access_method || evaluation.appState.get('currentUser.access_method');
       obj = obj || {};
       var r = -1, c = -1;
@@ -1822,6 +2203,9 @@ evaluation.callback = function(key) {
       if(working.ref.prompt_index != null) {
         var prompt = step.prompts[working.ref.prompt_index];
         $("#board_bg img").attr('src', prompt.url);
+        // Keep the review caption in sync as prev/next pages the prompt (this
+        // handler pokes the image directly rather than re-parsing the board).
+        $("#board_bg .eval-helper").text('(' + (prompt.core_word || prompt.ref || '') + ')');
       }
       var grid = button.board.get('grid');
       for(var idx = 0; idx < grid.rows; idx++) {
@@ -1886,7 +2270,11 @@ evaluation.callback = function(key) {
 
         if(button.id == 'button_correct') {
           working.correct++;
-        } 
+        }
+        // Snapshot the in-progress eval so an interruption after this answer can
+        // be recovered (debounced; reads the settled assessment/working — incl.
+        // any advance below — at fire time).
+        evaluation.save_progress();
         var has_correct_button = true;
         if(step.prompts) {
 
@@ -2040,9 +2428,12 @@ evaluation.callback = function(key) {
         if(!step.prompts || next_step) {
           runLater(function() {
             evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + "-" + working.step + "-" + working.attempts});
-            evaluation.appState.set_history([]);  
+            evaluation.appState.set_history([]);
             evaluation.utterance.clear();
-          }, button.id == 'button_done' ? 200 : 1000);
+            // Default the delay here: the common run_eval launch never opens the
+            // settings modal, so update() (which sets advance_delay) may not have
+            // run. `!= null` (not `||`) so an intentional 0 stays 0 rather than 350.
+          }, button.id == 'button_done' ? 200 : (assessment.advance_delay != null ? assessment.advance_delay : 350));
           return {ignore: true, highlight: false, sound: false};
         }
       } else {
@@ -2461,7 +2852,11 @@ var functional_associations = {
   shovel: {prompt: "a shovel", answer: "dig"},
   eye: {prompt: "your eyes", answer: "see"},
   nose: {prompt: "your nose", answer: "smell"},
-  hands: {prompt: "your hands", answer: "clap"},
+  // Nearly every action in this pool is done WITH your hands, so exclude the
+  // hand-actions as distractors — otherwise "What do you do with your hands?"
+  // has several defensible answers (pop/wash/write/...). Leaves clearly non-hand
+  // distractors (sleep, eat, race, fly, see, smell) so "clap" is unambiguous.
+  hands: {prompt: "your hands", answer: "clap", exclude: {write: true, drink: true, drive: true, push: true, pop: true, wash: true, dig: true, cut: true, fold: true}},
   scissors: {prompt: "scissors", answer: "cut"},
   laundry: {prompt: "laundry", answer: "fold", exclude: {clothing: true, sleep: true}},
 };
@@ -2714,8 +3109,22 @@ var words = [
   {label: 'dinner', group: 'food', urls: {photos: "", lessonpix: "", pcs_hc: "", pcs: "", twemoji: "", default: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/food.png"}},
   {label: 'sleep', group: 'sleep', urls: {photos: "", lessonpix: "", pcs_hc: "", pcs: "", twemoji: "", default: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20sleep_2.png"}},
   {label: 'done', type: 'filler', urls: {photos: "", lessonpix: "", pcs_hc: "", pcs: "", twemoji: "", default: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/2705.svg"}},
-  {label: 'backgrounds', type: 'filler', urls: {intro: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20enter_1.png", intro2: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/service_235_g.svg", find_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Magnifying-Glass_918_708000.svg", diff_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/choose.png", symbols: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f5bc.svg", find_shown: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/point.png", open_ended: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/tell.png", categories: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/living%20thing.png", inclusion_exclusion_association: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/groups.png", literacy: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20read_2.png", done: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f389.svg"}},
+  {label: 'backgrounds', type: 'filler', urls: {intro: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20enter_1.png", intro2: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/service_235_g.svg", find_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Magnifying-Glass_918_708000.svg", diff_target: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/choose.png", symbols: "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f5bc.svg", find_shown: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/point.png", open_ended: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/tell.png", categories: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/living%20thing.png", inclusion_exclusion_association: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/groups.png", literacy: "https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/to%20read_2.png", done: EVAL_NAV_ICON.celebration}},
 ];
+// Color words shipped a /photos/<color>.jpg that is a SCENE which happens to be
+// that color (e.g. a gray landscape), so the picture reads as the scene, not the
+// color — confusing for "which group does <color> belong to" and "find the gray
+// one". Replace each color word's image with a solid color swatch so the color
+// concept itself is shown, everywhere the word appears as a prompt or option.
+var COLOR_SWATCH_HEX = {
+  red: '#e23b3b', yellow: '#f2c230', blue: '#2f74d0', gray: '#8d9094',
+  green: '#3fae52', purple: '#8a4fbf', pink: '#ef78ad', brown: '#8a5a34'
+};
+words.forEach(function(w) {
+  if(w && w.category == 'color' && COLOR_SWATCH_HEX[w.label] && w.urls) {
+    w.urls.photos = svg_data_uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='" + COLOR_SWATCH_HEX[w.label] + "' stroke='#1B365D' stroke-width='4'/></svg>");
+  }
+});
 evaluation.words = words;
 
 evaluation.level_prompt = function(step) {

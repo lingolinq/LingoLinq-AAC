@@ -14,8 +14,34 @@ export default Component.extend({
   appState: service('app-state'),
   tagName: '',
 
+  // Collapsed by default — the board picker is an opt-in disclosure (all boards
+  // are already selected). Explicit so aria-expanded reads "false" from the start.
+  show_board_picker: false,
+
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'copying-board';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -210,6 +236,20 @@ export default Component.extend({
     copy_all() {
       this.set('includeMissing', true);
       this.start_copying();
+    },
+    // The board picker is collapsed by default — every board is already selected,
+    // so opening it is an opt-in step for deselecting specific sub-boards.
+    toggle_board_picker() {
+      this.toggleProperty('show_board_picker');
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

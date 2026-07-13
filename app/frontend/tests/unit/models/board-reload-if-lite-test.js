@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
-import { setupTest } from 'ember-qunit';
+import { setupTest } from '../../helpers';
 import RSVP from 'rsvp';
+import { stubPersistenceAjax } from '../../helpers/persistence-stub';
 
 // Regression for issue #293: a board first materialized from a #tree/#bulk
 // lite prefetch (server-side as_lite, PR #294) omits parent_board_id,
@@ -15,6 +16,18 @@ import RSVP from 'rsvp';
 // shallow clones; neither is a clean lite signal.
 module('Unit | Model | board#reload_if_lite (issue #293)', function(hooks) {
   setupTest(hooks);
+
+  hooks.beforeEach(function() {
+    this._restorePersistenceAjax = stubPersistenceAjax(function() {
+      return RSVP.reject({ error: 'offline in test' });
+    });
+  });
+
+  hooks.afterEach(function() {
+    if(this._restorePersistenceAjax) {
+      this._restorePersistenceAjax();
+    }
+  });
 
   test('refetches a lite-sourced board and toggles reloading_detail across the reload', async function(assert) {
     const store = this.owner.lookup('service:store');

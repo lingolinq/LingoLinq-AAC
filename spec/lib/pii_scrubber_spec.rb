@@ -516,6 +516,30 @@ describe PiiScrubber do
       expect(result[:payload]).to include('[REDACTED_NAME]')
     end
 
+    it "should redact a common first name even with no blocklist configured" do
+      # This is the gap the account-holder blocklist alone cannot close: a parent/SLP
+      # can type ANY child's name into a free-text AI prompt, not just their own.
+      PiiScrubber.reset_blocklist!
+      result = PiiScrubber.redact_for_ai("Create a board about Bobby Smith who lives in Salt Lake City Utah")
+      expect(result[:payload]).not_to include('Bobby')
+      expect(result[:payload]).to include('[REDACTED_NAME]')
+      expect(result[:pii_found]).to eq(true)
+      expect(result[:findings].map { |f| f[:type] }).to include(:common_name)
+    end
+
+    it "should not flag ordinary neutral topic prompts as containing PII" do
+      %w[
+        Generate\ a\ board\ about\ the\ zoo
+        Make\ a\ board\ about\ dinosaurs
+        Board\ about\ Fox\ in\ Sox
+        Create\ a\ board\ with\ core\ vocabulary\ words
+      ].each do |topic|
+        result = PiiScrubber.redact_for_ai(topic)
+        expect(result[:pii_found]).to eq(false), "expected no PII in #{topic.inspect}, got #{result[:findings].inspect}"
+        expect(result[:payload]).to eq(topic)
+      end
+    end
+
     it "should deduplicate findings by type and position" do
       # A string with the same PII appearing once should only generate one finding
       result = PiiScrubber.redact_for_ai("Email: alice@example.com")
@@ -592,9 +616,12 @@ describe PiiScrubber do
     it "should detect blocklist names when configured" do
       PiiScrubber.configure_blocklist(['Alice', 'Bartholomew'])
       findings = PiiScrubber.scan_for_pii("Alice wants to play with Bartholomew")
-      types = findings.map { |f| f[:type] }
-      expect(types).to include(:blocklist_name)
-      expect(findings.size).to eq(2)
+      blocklist_findings = findings.select { |f| f[:type] == :blocklist_name }
+      expect(blocklist_findings.size).to eq(2)
+      # "Alice" is also in the common first-name gazetteer (Bartholomew is not common
+      # enough to be), so it is additionally reported once as :common_name -- both
+      # mechanisms independently flagging the same word is expected, not a bug.
+      expect(findings.size).to eq(3)
     end
 
     it "should not detect blocklist names when blocklist is empty" do

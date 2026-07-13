@@ -18,6 +18,11 @@ import eval_recommend from './eval_recommend';
 const STATES = ['configuring', 'screening', 'targeting', 'comprehensive', 'reviewing'];
 
 const SUBTEST_ORDER = {
+  // 'general' — the un-narrowed screen a supervisor gets when they skip the
+  // demographic intake ("Run a general screen"). Runs the standard screening
+  // subtests with no population tailoring; recorded as item_bank_profile
+  // 'general' in the recommendation so the report is honest about the mode.
+  'general':            ['stage_probe', 'access_snapshot', 'library_compare', 'vocab_probe', 'wrap'],
   'early-comm':         ['stage_probe', 'access_snapshot', 'choice_probe', 'wrap'],
   'peds-emerging':      ['stage_probe', 'access_snapshot', 'library_compare', 'vocab_probe', 'wrap'],
   'peds-established':   ['stage_probe', 'access_snapshot', 'library_compare', 'vocab_probe', 'literacy_probe', 'wrap'],
@@ -74,8 +79,12 @@ const EvalSession = EmberObject.extend({
   // --- transitions -------------------------------------------------------
 
   beginScreening(intake) {
-    this.set('intake', intake || {});
-    this.set('protocolProfile', eval_recommend.profileForIntake(intake));
+    intake = intake || {};
+    this.set('intake', intake);
+    // A generalized skip (supervisor chose "Run a general screen") runs the
+    // standard, un-narrowed protocol — record it honestly as 'general' rather
+    // than routing through profileForIntake to a mislabeled population profile.
+    this.set('protocolProfile', intake.generalized ? 'general' : eval_recommend.profileForIntake(intake));
     this.set('subtestIndex', 0);
     this.set('startedAt', Date.now());
     this.set('state', 'screening');
@@ -189,7 +198,14 @@ const EvalSession = EmberObject.extend({
         duration_s: this.durationSeconds(),
         slp_notes: this.get('slpNotes') || '',
         sett: this.get('sett') || null,
-        ai_narrative: this.get('aiNarrative') || null
+        ai_narrative: this.get('aiNarrative') || null,
+        // EU AI Act Article 50(2): the raw signed marker the /narrate endpoint returned
+        // for the AI-drafted narrative (null for the deterministic template, or when AI
+        // narration was never run). Carried through opaquely -- the server re-verifies it
+        // on save (LogSession#process_params via Art50Marker.normalized) and again on every
+        // read (json_api/log.rb via Art50Marker.public_view), so this client value is never
+        // trusted as-is.
+        ai_generated: this.get('aiGenerated') || null
       }
     };
   },

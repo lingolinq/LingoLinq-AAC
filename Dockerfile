@@ -21,12 +21,18 @@ FROM ruby:3.4.4-slim
 WORKDIR /app
 
 # Install system dependencies
+# imagemagick (convert/identify/montage) and ghostscript (gs, ImageMagick's PDF/PS delegate) are
+# required by ButtonImage upload processing (app/models/concerns/uploadable.rb `identify -verbose`)
+# and lib/sentence_pic.rb (`convert`) -- LL-5954bcbbe6: missing here caused
+# "No such file or directory - identify" Resque failures in the Cloud Run image.
 RUN apt-get update -qq && apt-get install -y \
     build-essential \
     libpq-dev \
     curl \
     git \
     libvips \
+    imagemagick \
+    ghostscript \
     pkg-config \
     libyaml-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -51,14 +57,26 @@ COPY . .
 # Copy built Ember assets from the frontend-builder stage
 COPY --from=frontend-builder /app/frontend/dist ./app/frontend/dist
 
-# Precompile assets with dummy keys
+# Client-public config baked into globals.js.erb AT asset-precompile (build time), not read at
+# runtime: window.maps_key (Google Maps embed) and window.default_host. These are emitted to the
+# browser, so they are NOT secrets. They must be present during precompile or the compiled
+# /assets/globals.js bakes dummy values (default_host=localhost, maps_key omitted). On Render this
+# worked implicitly because the build env carried the real values; the GCP build must be told via
+# --build-arg (see .github/workflows/deploy-cloudrun.yml "Build and push image"). Defaults keep the
+# old dummy behavior so a bare `docker build` (local/dev) still succeeds.
+ARG MAPS_KEY=""
+ARG APP_DEFAULT_HOST="localhost"
+
+# Precompile assets. Server secrets stay dummy (the asset pipeline never reads them); the two
+# client-public build args above carry their real values into globals.js.erb.
 RUN export SECRET_KEY_BASE=dummy_key_at_least_30_characters_long_for_build && \
     export COOKIE_KEY=dummy_key_at_least_30_characters_long_for_build && \
     export SECURE_ENCRYPTION_KEY=dummy_key_at_least_30_characters_long_for_build && \
     export SECURE_NONCE_KEY=dummy_key_at_least_30_characters_long_for_build && \
     export DATABASE_URL=postgres://postgres@localhost/dummy && \
     export REDIS_URL=redis://localhost:6379/0 && \
-    export DEFAULT_HOST=localhost && \
+    export DEFAULT_HOST="$APP_DEFAULT_HOST" && \
+    export MAPS_KEY="$MAPS_KEY" && \
     bundle exec rake extras:assert_js && \
     bundle exec rake extras:copy_terms && \
     bundle exec rake assets:precompile && \

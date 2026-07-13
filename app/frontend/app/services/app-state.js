@@ -38,6 +38,7 @@ import i18n from '../utils/i18n';
 import frame_listener from '../utils/frame_listener';
 import Button from '../utils/button';
 import actionLock from '../utils/action-lock';
+import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -157,6 +158,18 @@ export default Service.extend({
         _this._setupRefreshTimers();
       }
     }, 0);
+  },
+
+  willDestroy() {
+    this._super(...arguments);
+    if (this.refreshing_user) {
+      runCancel(this.refreshing_user);
+      this.refreshing_user = null;
+    }
+    if (this.check_for_board_readiness && this.check_for_board_readiness.timer) {
+      runCancel(this.check_for_board_readiness.timer);
+      this.check_for_board_readiness.timer = null;
+    }
   },
 
   setup: function() {
@@ -608,11 +621,14 @@ export default Service.extend({
   },
   refresh_user: function() {
     var _this = this;
+    if (_this.isDestroyed || _this.isDestroying) { return; }
     runCancel(_this.refreshing_user);
 
     function refresh() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
       runCancel(_this.refreshing_user);
       _this.refreshing_user = runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.refresh_user();
       }, 60000 * 15);
     }
@@ -794,6 +810,7 @@ export default Service.extend({
     this.set('latest_board_id', this.get('currentBoardState.id'));
   }),
   check_for_board_readiness: function(delay) {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.check_for_board_readiness.timer) {
       runCancel(this.check_for_board_readiness.timer);
     }
@@ -851,6 +868,17 @@ export default Service.extend({
   transitionToBoardForCurrentUiStyle: function(router, boardKey, opts) {
     opts = opts || {};
     if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
+    // In-board board changes (tapping a folder/link button in speak mode, sidebar
+    // jumps, home entry) route through here. Show the shared "Preparing your Board"
+    // overlay ONLY if the new board is slow to settle — quick taps stay snappy.
+    // Skip when navigating to the board we're already on: an identical transition
+    // may not fire routeDidChange, which would leave the overlay up until its 8s
+    // safety timer.
+    var curBoardKey = null;
+    try { curBoardKey = this.get('currentBoardState.key'); } catch(e) { curBoardKey = null; }
+    if(curBoardKey !== boardKey) {
+      this._debounceBoardLoadOverlay(router);
+    }
     var routeName = '';
     try {
       routeName = this.get('current_route') || '';
@@ -900,6 +928,55 @@ export default Service.extend({
     } else {
       router.transitionTo('user.board-detail', userName, boardSlug);
     }
+  },
+  // Debounced loading overlay for in-board board changes. Unlike a board CARD
+  // click (which masks the cross-route load immediately), tapping a folder/link
+  // button is usually instant, so flashing the overlay on every tap would be jank.
+  // Instead: arm a short timer; if the board's route settles (routeDidChange)
+  // BEFORE it fires, cancel — no overlay. If the board is still loading when the
+  // timer fires, paint the shared overlay, which then dismisses itself on the next
+  // routeDidChange (same overlay + dismissal a card click / view-switch uses).
+  _debounceBoardLoadOverlay: function(router) {
+    var _this = this;
+    if(typeof document === 'undefined' || !router || typeof router.on !== 'function') { return; }
+    // Replace any pending debounce (rapid successive taps reuse one timer).
+    if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); }
+    // Another overlay is already up (e.g. a card-click mask) — let it run.
+    if(document.getElementById('ll-pre-reload-overlay')) { return; }
+    var timer = null;
+    var cleanup = function() {
+      if(timer) { try { runCancel(timer); } catch(e) {} timer = null; }
+      try { router.off('routeDidChange', onSettled); } catch(e) {}
+      if(_this._boardLoadOverlayCleanup === cleanup) { _this._boardLoadOverlayCleanup = null; }
+    };
+    var onSettled = function() {
+      // Board settled before the threshold — no overlay needed.
+      cleanup();
+    };
+    this._boardLoadOverlayCleanup = cleanup;
+    try { router.on('routeDidChange', onSettled); } catch(e) {}
+    timer = runLater(function() {
+      timer = null;
+      // Stop listening with onSettled; the painted overlay arms its OWN
+      // routeDidChange dismissal (+ 8s safety) from here on.
+      try { router.off('routeDidChange', onSettled); } catch(e) {}
+      if(_this._boardLoadOverlayCleanup === cleanup) { _this._boardLoadOverlayCleanup = null; }
+      // Match the board's theme (dark by default, like board-icon's card → board
+      // navigation) so the mask doesn't flash a light card over a dark board.
+      var isDark = true;
+      var themeMode = _this.get('themeMode');
+      if(themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+      paint_view_switch_overlay({ routerSvc: router, isDark: isDark });
+    }, 200);
+  },
+  // Public entry point for flows that navigate to a board via a DIRECT transitionTo
+  // (style switch, board import, board create) rather than through
+  // transitionToBoardForCurrentUiStyle. Call this IMMEDIATELY before the transitionTo
+  // so the debounced "Preparing your Board" overlay times the resulting board load and
+  // is shown only if it's actually slow. Router defaults to the app's router service.
+  arm_board_load_overlay: function(router) {
+    router = router || this.get('router') || this.router;
+    this._debounceBoardLoadOverlay(router);
   },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
@@ -1061,9 +1138,12 @@ export default Service.extend({
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
-    runLater(function() {
-      _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
-    });
+    if (!isTesting()) {
+      runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
+      });
+    }
     return !!res;
   }),
   auto_clear_modeling: observer('short_refresh_stamp', 'modeling', function() {
@@ -1930,7 +2010,6 @@ export default Service.extend({
     this.set('currentUser', null);
     this.set('speakModeUser', null);
     this.set('referenced_speak_mode_user', null);
-    this.set('referenced_user', null);
     this.set('modeling_for_self', null);
 
     // Per-user board / navigation state
@@ -2587,6 +2666,7 @@ export default Service.extend({
     }
   },
   on_user_change: observer('currentUser', function() {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.get('currentUser') && LingoLinq.Board) {
       LingoLinq.Board.clear_fast_html();
     }
@@ -2621,6 +2701,7 @@ export default Service.extend({
     'referenced_user.preferences.logging',
     'referenced_user.id',
     function() {
+      if (this.isDestroyed || this.isDestroying) { return; }
       if(this.session.get('isAuthenticated') && !this.get('currentUser.id')) {
         // Don't run handlers on page reload until user is loaded
         return;
@@ -2734,26 +2815,41 @@ export default Service.extend({
               }
             }, function() { });
           }
-        }
-        this.set('eye_gaze', capabilities.eye_gaze);
-        this.set('embedded', !!(LingoLinq.embedded));
-        this.set('full_screen_capable', capabilities.fullscreen_capable());
-        if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro')) {
-          var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
-          if(!intro && !this.get('speak-mode-intro')) {
-            if(modal.route && !modal.is_open('speak-mode-intro')) {
-              modal.open('speak-mode-intro');
-            }
-          } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
-            var now = (new Date()).getTime();
-            if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
-            if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
-              if(modal.route && !modal.is_open('modeling-intro')) {
-                modal.open('modeling-intro');
+          // Speak-mode / modeling intros belong with first speak-mode entry only.
+          // speak_mode_handlers also fires on board loads and referenced-user
+          // changes while already in speak mode — showing the intro here on every
+          // fire made board switches re-open the welcome modal.
+          // Eval boards (obf/eval*) require speak mode and enter it as part of the
+          // assessment's own flow, which has its own on-board intro. Suppress the
+          // generic speak-mode-intro / modeling-intro here so they don't interrupt
+          // an eval. speak_mode_intro_done stays unset, so a later normal (non-eval)
+          // speak-mode entry still shows the intro. (Same spirit as the tour guard
+          // below, where the guided tour IS the intro.)
+          if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro') && !this.get('eval_mode')) {
+            var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
+            // Stand down when a board-detail SPEAK tour is pending/handing off (home
+            // tour "start speaking" button, board picker, board-preview overlay): the
+            // guided tour IS the speak-mode intro, so the legacy modal would otherwise
+            // race it and render dimmed behind the tour card. The tour clears the flag
+            // once it opens, after which normal (no-tour) entry shows the modal again.
+            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
+              if(modal.route && !modal.is_open('speak-mode-intro')) {
+                modal.open('speak-mode-intro');
+              }
+            } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
+              var now = (new Date()).getTime();
+              if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
+              if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
+                if(modal.route && !modal.is_open('modeling-intro')) {
+                  modal.open('modeling-intro');
+                }
               }
             }
           }
         }
+        this.set('eye_gaze', capabilities.eye_gaze);
+        this.set('embedded', !!(LingoLinq.embedded));
+        this.set('full_screen_capable', capabilities.fullscreen_capable());
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
         var fullscreenPromise = capabilities.fullscreen(false);
@@ -2934,11 +3030,30 @@ export default Service.extend({
       text_fallback(tag.text.slice(1, tag.text.length - 2));
     }
   },
-  speak_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+  speak_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. As with
+      // edit_mode, the app drives mode via stashes.current_mode and only
+      // tests force speak_mode directly; cache the forced value (it
+      // re-derives from current_mode/currentBoardState on dependency change).
+      return !!value;
+    }
   }),
-  edit_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+  edit_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. The app itself
+      // never assigns edit_mode on app-state (it drives mode via
+      // stashes.current_mode in toggle_edit_mode); only tests force it
+      // directly. Accept and cache the forced value; it re-derives from
+      // current_mode/currentBoardState if a dependency later changes.
+      return !!value;
+    }
   }),
   default_mode: computed('stashes.current_mode', 'currentBoardState', function() {
     return !!(this.stashes.get('current_mode') == 'default' || !this.get('currentBoardState'));
@@ -3239,15 +3354,26 @@ export default Service.extend({
       return this.get_history().length === 0;
     }
   ),
+  // The speak-mode SIDEBAR (the quick/inline sidebar) shows by DEFAULT: an UNSET
+  // `quick_sidebar` preference is treated as `true` (show). Once the user uses the
+  // sidebar's expand/unexpand button the preference is set explicitly (persisted by
+  // application#stickSidebar — expand => true, collapse => false) and that wins.
+  // Single source of truth so every sidebar read site agrees on the default.
+  effective_quick_sidebar: computed('currentUser.preferences.quick_sidebar', 'currentUser.preferences.disable_quick_sidebar', function() {
+    // A user who explicitly disabled the quick sidebar keeps it off (don't let the
+    // show-by-default override their choice).
+    if(this.get('currentUser.preferences.disable_quick_sidebar')) { return false; }
+    var qs = this.get('currentUser.preferences.quick_sidebar');
+    return (qs === undefined || qs === null) ? true : !!qs;
+  }),
   sidebar_visible: computed(
     'speak_mode',
     'stashes.sidebarEnabled',
-    'currentUser',
-    'currentUser.preferences.quick_sidebar',
+    'effective_quick_sidebar',
     'eval_mode',
     function() {
       // TODO: does this need to trigger board resize event? maybe...
-      return this.get('speak_mode') && !this.get('eval_mode') && (this.stashes.get('sidebarEnabled') || this.get('currentUser.preferences.quick_sidebar'));
+      return this.get('speak_mode') && !this.get('eval_mode') && (this.stashes.get('sidebarEnabled') || this.get('effective_quick_sidebar'));
     }
   ),
   sidebar_relegated: computed('speak_mode', 'window_inner_width', function() {
@@ -3276,7 +3402,7 @@ export default Service.extend({
       if(_this.get('nearby_places') && any_places) {
         // set current_place_types to the list of places for the closest-retrieved place
         (_this.get('nearby_places') || []).forEach(function(place) {
-          var d = geolocation.distance(place.latitude, place.longitude, this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'));
+          var d = geolocation.distance(place.latitude, place.longitude, _this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'));
           // anything with 500ft could be a winner
           if(d && d < 500) {
             place.types.forEach(function(type) {
@@ -3301,12 +3427,12 @@ export default Service.extend({
           matches['ssid'] = true;
         }
         var geo_set = false;
-        if(brd.geos && this.stashes.get('geo.latest.coords')) {
+        if(brd.geos && _this.stashes.get('geo.latest.coords')) {
           var geos = brd.geos || [];
           if(geos.split) { geos = geos.split(/;/).map(function(g) { return g.split(/,/).map(function(n) { return parseFloat(n); }); }); }
           brd.geo_distance = -1;
           geos.forEach(function(geo) {
-            var d = geolocation.distance(this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
+            var d = geolocation.distance(_this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
             if(d && d < loose_tolerance && (brd.geo_distance == -1 || d < brd.geo_distance)) {
               brd.geo_distance = d;
               geo_set = true;
@@ -3431,10 +3557,9 @@ export default Service.extend({
   ),
   sidebar_pinned: computed(
     'speak_mode',
-    'currentUser',
-    'currentUser.preferences.quick_sidebar',
+    'effective_quick_sidebar',
     function() {
-      return this.get('speak_mode') && this.get('currentUser.preferences.quick_sidebar');
+      return this.get('speak_mode') && this.get('effective_quick_sidebar');
     }
   ),
   referenced_user: computed(
@@ -3489,8 +3614,14 @@ export default Service.extend({
       if(LingoLinq.store && user && !user.get('supporter_role') && user.get('currently_premium') && last_check < (now - 600000)) {
         _this.set('last_user_badge_load_for_' + user.get('id'), now);
         runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           _this.set('user_badge_hash', badge_hash);
           LingoLinq.store.query('badge', {user_id: user.get('id'), recent: 1}).then(function(badges) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', badge_hash);
             badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
             var badge = LingoLinq.Badge.best_earned_badge(badges);
@@ -3500,6 +3631,9 @@ export default Service.extend({
             }
             _this.set('user_badge', badge);
           }, function(err) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', old_badge_hash);
           });
         });
@@ -4270,6 +4404,13 @@ export default Service.extend({
       }
     }
   },
+  // In-place eval pause state (set by utils/eval.js pause/unpause). eval_paused
+  // drives the pause overlay + the Pause/Resume button label; eval_last_pause_ms
+  // is read once by board/index on the unpause flip to shift the board's
+  // `rendered` so per-item response time excludes the paused span.
+  eval_paused: false,
+  eval_last_pause_ms: 0,
+  eval_paused_elapsed: null,
   eval_mode: computed('currentBoardState.key', function() {
     return (this.get('currentBoardState.key') || '').match(/^obf\/eval/);
   }),
@@ -4374,6 +4515,21 @@ export default Service.extend({
     var bg = this.get('sessionUser.preferences.symbol_background');
     if(window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
       window.LingoLinq.set_fitzgerald_scope(bg);
+    }
+  }),
+  /** Mirror the user's dashboard_layout pref onto <body> via the
+   *  `.ll-layout-focused` class so the Focused View styling overlay applies
+   *  app-wide, gated on the saved preference. Fires on sessionUser change
+   *  (initial load / login, i.e. the per-page-load check) and on every
+   *  dashboard_layout change. LingoLinq.set_layout_scope lives in app.js and
+   *  treats anything other than 'gentle' as the 'focused' default.
+   *  NOTE (security review — LOW, non-issue: "observer concurrency/flicker"): this
+   *  only toggles ONE idempotent class; Ember observers already batch in the run loop,
+   *  and it mirrors the long-shipped sync_fitzgerald_scope. No debounce needed. */
+  sync_layout_scope: observer('sessionUser', 'sessionUser.preferences.dashboard_layout', function() {
+    var layout = this.get('sessionUser.preferences.dashboard_layout');
+    if(window.LingoLinq && window.LingoLinq.set_layout_scope) {
+      window.LingoLinq.set_layout_scope(layout);
     }
   }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {

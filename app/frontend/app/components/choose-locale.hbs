@@ -1,0 +1,25 @@
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+  <div class="la-support-modal-wrap la-choose-locale-modal-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Select a Language" key="choose_language"}}</span>
+      <div class="la-support-modal-header-meta">
+        <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>✕</button>
+      </div>
+    </div>
+    <div class="la-support-modal-body">
+      <p class="la-support-intro">
+        {{t "Choose from the list of supported languages" key="select_language"}}
+      </p>
+      <form class="la-contact-form" {{on "submit" (this.ctrlAction "nothing")}}>
+        <div class="la-contact-form__row">
+          <label for="lang" class="la-contact-form__label">{{t "Language" key="language"}}</label>
+          {{bound-select select_class="la-contact-input" select_id="lang" content=this.locales selection=this.lang action=(mut this.lang) }}
+        </div>
+        <div class="la-contact-form__actions">
+          <button type="button" class="login-btn" {{on "click" (this.ctrlAction "update")}}>{{t "Update & Reload" key="update_and_reload"}}</button>
+          <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{{/modal-dialog}}

@@ -1,4 +1,3 @@
-import DS from 'ember-data';
 import {
   describe,
   it,
@@ -9,9 +8,10 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { } from 'frontend/tests/helpers/ember_helper';
+import { appStateTarget } from 'frontend/tests/helpers/service-stub';
 import LingoLinq from '../../app';
-import app_state from '../../utils/app_state';
+import persistence from '../../utils/persistence';
+import RSVP from 'rsvp';
 
 describe('Image', function() {
   describe("filename", function() {
@@ -71,8 +71,8 @@ describe('Image', function() {
     });
   });
   it("should automatically check for locally-stored data-uri on load", function() {
-    var image = LingoLinq.store.createRecord('image', {});
-    image.didLoad();
+    var image = LingoLinq.store.createRecord('image', { url: 'data:image/png;abc' });
+    image.checkForDataURL();
     expect(image.get('checked_for_data_url')).toEqual(true);
   });
 
@@ -80,7 +80,7 @@ describe('Image', function() {
     it('should return the right value', function() {
       var image = LingoLinq.store.createRecord('image', {url: 'http://www.example.com/api/v1/users/2/protected_image/lessonpix/asdf'});
       expect(image.get('personalized_url')).toEqual('http://www.example.com/api/v1/users/2/protected_image/lessonpix/asdf');
-      image.set('app_state', {currentUser: {user_token: 'asdf'}});
+      appStateTarget().set('currentUser', { protected_image_token: 'asdf' });
       expect(image.get('personalized_url')).toEqual('http://www.example.com/api/v1/users/2/protected_image/lessonpix/asdf?user_token=asdf');
       image.set('url', 'http://www.example.com/pic.png');
       expect(image.get('personalized_url')).toEqual('http://www.example.com/pic.png');

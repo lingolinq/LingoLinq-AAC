@@ -32,11 +32,22 @@ export const BRAND_FAMILIES = [
     label_key: 'quick_core',
     default_label: 'Quick Core',
     query: 'Quick Core',
-    root_re: /(^|\/)quick-core-\d+(-w(?:ith)?-keyboard)?$/i,
+    /* Roots: `quick-core-60`, `core-112`, `core-blocks-112`, optional `-w-keyboard`.
+       Sub-boards: `core-blocks-112-categories`, names like "Core Blocks 112 - …"
+       or "Core 112 - at". Legacy slugs omit the `quick-` prefix on copies. */
+    root_re: /(^|\/)(?:quick-core|core)(?:-blocks)?-\d+(-w(?:ith)?-keyboard)?$/i,
     test: function(board) {
       var key = (board && board.get && board.get('key')) || '';
       var name = (board && board.get && board.get('name')) || '';
-      return /(?:^|\/|-)quick-core\b/i.test(key) || /\bquick[\s-]?core\b/i.test(name);
+      /* Key slugs: quick-core*, core-blocks*, or core-NN (2+ digits) — avoid
+         matching incidental slugs like user/core-5. Name patterns catch shipped
+         set titles ("Core 112 - …", "Core Blocks 40 - …"). */
+      return /(?:^|\/|-)quick-core\b/i.test(key) ||
+        /(?:^|\/|-)core-blocks\b/i.test(key) ||
+        /(^|\/)core-\d{2,}\b/i.test(key) ||
+        /\bquick[\s-]?core\b/i.test(name) ||
+        /\bcore\s+blocks\s+\d+\b/i.test(name) ||
+        /\bcore\s+\d+\b/i.test(name);
     }
   },
   {
@@ -95,6 +106,30 @@ export function groupBoardsByBrand(boards) {
     groups.push({ id: 'other', label_key: 'other_boards', default_label: 'Other Boards', boards: other });
   }
   return groups;
+}
+
+/* Drop brand-family SUB-boards (the page copies that ride along inside a copied
+   set, e.g. "CommuniKate alcohol", "CommuniKate bodyparts") while keeping the
+   brand ROOT tile and every non-brand board untouched. This is the KEY-pattern
+   classifier the speak-menu brand sections already use (board-collection.js) —
+   it works even when the records have no `copy_id`, which is exactly the case
+   `filterRootBoards` (copy_id-based) misses. A board is a brand sub-board when it
+   matches a family's `test()` (brand marker in key/name) but NOT that family's
+   `root_re` (the `<brand>-<size>` root shape). Non-brand boards always pass. */
+export function filterBrandRoots(boards) {
+  if (!boards || !boards.filter) { return boards || []; }
+  return boards.filter(function(b) {
+    if (!b) { return false; }
+    var key = (b.get && b.get('key')) || b.key || '';
+    for (var i = 0; i < BRAND_FAMILIES.length; i++) {
+      var fam = BRAND_FAMILIES[i];
+      if (fam.test(b)) {
+        // Brand board: keep only the root; drop the descriptive-suffix sub-boards.
+        return fam.root_re ? fam.root_re.test(key) : true;
+      }
+    }
+    return true; // not a known brand — leave it alone
+  });
 }
 
 export default BRAND_FAMILIES;

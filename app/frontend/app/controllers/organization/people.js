@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import { later as runLater } from '@ember/runloop';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
@@ -8,6 +9,7 @@ import { computed } from '@ember/object';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
+  router: service('router'),
   refresh_lists: function() {
     this.set('users', {});
     this.set('evals', {});
@@ -134,6 +136,31 @@ export default Controller.extend({
   suggest_creating_eval: computed('eval_user_name', 'missing_user_name', function() {
     return this.get('missing_user_name') && this.get('missing_user_name') == this.get('eval_user_name');
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     pick: function(view) {
       this.set('selected_view', view);
@@ -234,7 +261,7 @@ export default Controller.extend({
                   action: {
                     text: i18n.t('run_setup', "Run Setup Wizard"),
                     callback: function() {
-                      _this.transitionToRoute('setup', {queryParams: {user_id: user.get('id')}});
+                      _this.router.transitionTo('setup', {queryParams: {user_id: user.get('id')}});
                     }
                   }
                 };

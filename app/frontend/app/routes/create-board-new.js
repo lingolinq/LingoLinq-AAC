@@ -14,6 +14,10 @@ export default Route.extend({
 
   deactivate() {
     this.appState.controller.set('hide_header_force', false);
+    // One-shot flag: the board-picker tour modal sets it before navigating here;
+    // clear it on leave so a later, non-tour visit to create-board-new doesn't
+    // read it as tour-originated.
+    this.appState.set('from_tour_board_picker', false);
   },
 
   actions: {

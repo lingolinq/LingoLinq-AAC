@@ -2,24 +2,32 @@ import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import BoardIndexController from 'frontend/controllers/board/index';
 
-module('Unit | Controller | board/index word prediction locale', function(hooks) {
-  var controller;
-
-  hooks.beforeEach(function() {
-    controller = BoardIndexController.create();
+function stubInjectedService() {
+  return EmberObject.create({
+    get: function() { return null; },
+    set: function() { return null; },
+    addObserver: function() {},
+    removeObserver: function() {}
   });
+}
 
-  hooks.afterEach(function() {
-    if(controller) { controller.destroy(); }
-  });
-
+module('Unit | Controller | board/index word prediction locale', function() {
   test('word_prediction_locale uses the visible label locale first', function(assert) {
-    controller.set('appState', EmberObject.create({
-      label_locale: 'es',
-      currentBoardState: { default_locale: 'en' }
-    }));
-    controller.set('model', EmberObject.create({ locale: 'en' }));
+    var controller = BoardIndexController.create({
+      appState: EmberObject.create({
+        label_locale: 'es',
+        currentBoardState: { default_locale: 'en' }
+      }),
+      model: EmberObject.create({ locale: 'en' }),
+      persistence: stubInjectedService(),
+      stashes: stubInjectedService(),
+      router: stubInjectedService()
+    });
 
-    assert.equal(controller.word_prediction_locale(), 'es');
+    try {
+      assert.equal(controller.word_prediction_locale(), 'es');
+    } finally {
+      controller.destroy();
+    }
   });
 });

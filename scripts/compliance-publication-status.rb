@@ -1,0 +1,185 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# compliance-publication-status.rb - render the compliance publication queue.
+#
+# The findings register and document register are the source-of-truth inputs. This report
+# answers "what updates automatically, and what still needs a human or agent publish step?"
+# It is intentionally network-free and deterministic so CI can block when the committed
+# markdown drifts from the registers.
+#
+# Usage:
+#   ruby scripts/compliance-publication-status.rb
+#   ruby scripts/compliance-publication-status.rb --check
+
+require 'json'
+require 'date'
+require 'optparse'
+
+FINDINGS_PATH = 'audit-reports/FINDINGS.json'
+DOCS_PATH = 'audit-reports/DOCUMENT-REGISTER.json'
+REPORT_PATH = 'audit-reports/COMPLIANCE-PUBLICATION-STATUS.md'
+
+options = { mode: :render }
+OptionParser.new do |o|
+  o.banner = 'Usage: ruby scripts/compliance-publication-status.rb [--check]'
+  o.on('--check', 'Exit 1 if the committed publication report is stale') { options[:mode] = :check }
+end.parse!(ARGV)
+
+def read_json(path)
+  abort "compliance-publication-status: missing #{path}" unless File.file?(path)
+
+  JSON.parse(File.read(path))
+end
+
+def parse_date(value)
+  return nil if value.nil? || value.to_s.strip.empty?
+
+  Date.parse(value.to_s)
+rescue ArgumentError
+  nil
+end
+
+def esc(value)
+  value.to_s.gsub('|', '\\|')
+end
+
+def link_for(doc)
+  loc = doc['canonicalLocation'].to_s
+  doc['canonicalSystem'].to_s == 'git' ? "`#{loc}`" : "[open](#{loc})"
+end
+
+def workflow_state(path)
+  File.file?(path) ? 'configured' : 'missing'
+end
+
+findings = read_json(FINDINGS_PATH)
+doc_register = read_json(DOCS_PATH)
+
+finding_meta = findings['meta'] || {}
+doc_meta = doc_register['meta'] || {}
+docs = doc_register['documents'] || []
+
+generated_date = parse_date(doc_meta['generatedDate']) ||
+                 parse_date(finding_meta['auditedDate']) ||
+                 Date.today
+generated = generated_date.strftime('%Y-%m-%d')
+
+finding_date = parse_date(finding_meta['auditedDate'])
+doc_date = parse_date(doc_meta['generatedDate'])
+latest_source_date = [finding_date, doc_date].compact.max || generated_date
+latest_source = latest_source_date.strftime('%Y-%m-%d')
+
+findings_auto = workflow_state('.github/workflows/sync-findings-to-notion.yml')
+docs_auto = workflow_state('.github/workflows/sync-document-register-to-notion.yml')
+
+drive_docs = docs.select { |d| d['canonicalSystem'].to_s == 'drive' }
+notion_docs = docs.select { |d| d['canonicalSystem'].to_s == 'notion' }
+
+review_stale = docs.select do |d|
+  last = parse_date(d['lastReviewed'])
+  status = d['status'].to_s
+  next false if %w[superseded archived].include?(status)
+  next true if last.nil?
+
+  last < latest_source_date
+end
+
+missing_external_hash = docs.select do |d|
+  %w[drive notion].include?(d['canonicalSystem'].to_s) && d['contentHash'].to_s.empty?
+end
+
+drive_needs_refresh = drive_docs.select do |d|
+  last = parse_date(d['lastReviewed'])
+  status = d['status'].to_s
+  next false if %w[superseded archived].include?(status)
+  next true if last.nil?
+
+  last < latest_source_date
+end
+
+notion_needs_hash = notion_docs.select do |d|
+  d['contentHash'].to_s.empty?
+end
+
+out = +''
+out << "# Compliance Publication Status\n\n"
+out << "> Generated from `#{FINDINGS_PATH}` and `#{DOCS_PATH}` by `scripts/compliance-publication-status.rb`.\n"
+out << "> Do not hand-edit; update the registers and re-render.\n\n"
+
+out << "**Generated:** #{generated}\n\n"
+out << "**Latest source date:** #{latest_source}\n\n"
+out << "**Findings audited date:** #{finding_meta['auditedDate']}\n\n"
+out << "**Document register generated date:** #{doc_meta['generatedDate']}\n\n"
+
+out << "## What Updates Automatically\n\n"
+out << "| Surface | Source | Automation | Scope |\n"
+out << "|---|---|---|---|\n"
+out << "| Notion findings board | `audit-reports/FINDINGS.json` | #{findings_auto} | Register-owned finding facts only. Human-owned Notion columns are preserved. |\n"
+out << "| Notion documents board | `audit-reports/DOCUMENT-REGISTER.json` | #{docs_auto} | Register-owned document-index facts only. Human-owned Notion columns are preserved. |\n\n"
+
+out << "## What Does Not Auto-Update\n\n"
+out << "- Google Docs bodies are not rewritten by the current repo workflows. Drive rows are tracked by URL, review date, and optional content hash only.\n"
+out << "- Frozen branded records can stay point-in-time, but living Drive docs must be refreshed by an operator or a future Google Docs publisher.\n"
+out << "- Notion page content is not rewritten here. The document board can be synced; individual Notion pages need either canonical git sources or an explicit publisher.\n\n"
+
+out << "## Stale Review Queue\n\n"
+if review_stale.empty?
+  out << "_No active documents have a `lastReviewed` date older than the latest register source date._\n\n"
+else
+  out << "| Title | System | Location | Last reviewed | Status | Why |\n"
+  out << "|---|---|---|---|---|---|\n"
+  review_stale.sort_by { |d| [d['canonicalSystem'].to_s, d['title'].to_s] }.each do |d|
+    out << "| #{esc(d['title'])} | #{d['canonicalSystem']} | #{link_for(d)} | #{d['lastReviewed']} | #{d['status']} | Review date is older than #{latest_source}. |\n"
+  end
+  out << "\n"
+end
+
+out << "## Drive Refresh Queue\n\n"
+if drive_needs_refresh.empty?
+  out << "_No Drive-canonical documents are stale against the latest register source date._\n\n"
+else
+  out << "| Title | Location | Last reviewed | Status | Action |\n"
+  out << "|---|---|---|---|---|\n"
+  drive_needs_refresh.sort_by { |d| d['title'].to_s }.each do |d|
+    out << "| #{esc(d['title'])} | #{link_for(d)} | #{d['lastReviewed']} | #{d['status']} | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |\n"
+  end
+  out << "\n"
+end
+
+out << "## External Hash Gaps\n\n"
+if missing_external_hash.empty?
+  out << "_All Drive/Notion canonical rows have supplied content hashes._\n\n"
+else
+  out << "| Title | System | Location | Action |\n"
+  out << "|---|---|---|---|\n"
+  missing_external_hash.sort_by { |d| [d['canonicalSystem'].to_s, d['title'].to_s] }.each do |d|
+    action = d['canonicalSystem'].to_s == 'notion' ? 'Run `ruby scripts/document-register-notion-sync.rb --refresh-notion-hashes` with `NOTION_TOKEN`.' : 'Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet.'
+    out << "| #{esc(d['title'])} | #{d['canonicalSystem']} | #{link_for(d)} | #{esc(action)} |\n"
+  end
+  out << "\n"
+end
+
+out << "## Next Automation Gap\n\n"
+out << "The missing layer is a Google Docs publisher/refresh workflow. Until that exists, the compliance agent should use this report as its work queue: update canonical registers, sync Notion boards, then refresh or explicitly freeze affected Drive documents.\n\n"
+
+out << "---\n\n"
+out << "_#{docs.size} documents tracked. #{review_stale.size} stale review item(s). #{drive_needs_refresh.size} Drive refresh item(s). #{notion_needs_hash.size} Notion hash item(s)._\n"
+
+if options[:mode] == :check
+  unless File.file?(REPORT_PATH)
+    warn "compliance-publication-status: missing #{REPORT_PATH}"
+    exit 1
+  end
+
+  if File.read(REPORT_PATH) == out
+    puts 'compliance-publication-status: OK'
+    exit 0
+  end
+
+  warn 'compliance-publication-status: DRIFT - run `ruby scripts/compliance-publication-status.rb`'
+  exit 1
+end
+
+File.write(REPORT_PATH, out)
+puts "compliance-publication-status: wrote #{REPORT_PATH} (#{review_stale.size} stale, #{drive_needs_refresh.size} Drive refresh)"

@@ -166,6 +166,21 @@ class ButtonImage < ApplicationRecord
     lib
   end
   
+  # Sanitize a stored image data: URL (including content-type spoofing).
+  def self.sanitize_stored_data_url(data_url)
+    payload = SvgSanitizer.decode_image_data_uri_payload(data_url)
+    return nil unless payload
+    return data_url unless data_url.to_s.match?(/\Adata:image\/svg\+xml/i) || SvgSanitizer.looks_like_svg?(payload)
+
+    result = SvgSanitizer.sanitize(payload)
+    return nil unless result[:ok]
+
+    base64 = data_url.to_s.match?(/;base64,/i)
+    return data_url if !result[:changed] && data_url.to_s.match?(/\Adata:image\/svg\+xml/i)
+
+    SvgSanitizer.encode_data_uri_payload(result[:bytes], base64: base64)
+  end
+
   def process_params(params, non_user_params)
     raise "user required as image author" unless self.user_id || non_user_params[:user] || non_user_params[:no_author]
     self.user ||= non_user_params[:user] if non_user_params[:user]
@@ -188,12 +203,28 @@ class ButtonImage < ApplicationRecord
       # Data URLs (word art, file upload, webcam) are not processed by process_url (http only).
       # Store in data column so JsonApi can return them before S3 upload completes.
       data_url = params['data_url'].presence || (params['url'] if params['url'].to_s.match(/^data:/))
+      # Security: a ButtonImage must be an image. Drop a data: URI whose own MIME
+      # isn't image/* (e.g. data:text/html — a stored-XSS payload were the bytes
+      # ever served / opened as a document) so it's never stored.
+      data_url = nil if data_url.to_s.match(/\Adata:/i) && !data_url.to_s.match(/\Adata:image\//i)
+      # Sanitize SVG data: URIs — strip scriptable content while keeping static symbols.
+      if data_url.present?
+        data_url = ButtonImage.sanitize_stored_data_url(data_url)
+      end
       if data_url.present?
         self.data = data_url
         self.settings['data_uri'] = data_url
       end
       process_url(params['url'], non_user_params) if params['url'] && params['url'].match(/^http/)
-      self.settings['content_type'] = params['content_type'] if params['content_type']
+      # Security: only ever store an image/* content type. Anything else
+      # (text/html, application/*, …) is coerced to image/png so a client-supplied
+      # type can't ride through to the S3 object's Content-Type and get served
+      # inline as a document. SVG passes (a legit symbol-library type); active
+      # content is stripped by SvgSanitizer on store and before S3 upload.
+      if params['content_type'].present?
+        ct = params['content_type'].to_s
+        self.settings['content_type'] = ct.match(/\Aimage\//i) ? ct : 'image/png'
+      end
       self.settings['width'] = params['width'].to_i if params['width']
       self.settings['height'] = params['height'].to_i if params['height']
       self.settings['hc'] = !!params['hc'] if params['hc']
@@ -232,7 +263,12 @@ class ButtonImage < ApplicationRecord
     candidates.compact.find { |u| u.to_s.match(/\/libraries\//) }
   end
 
+  def preserve_source_image?
+    !!settings['preserve_source_image']
+  end
+
   def needs_library_url_enrichment?
+    return false if preserve_source_image?
     return false if library_url_for_skin
     return false if settings['library_url_lookup_attempted']
     !!(url.to_s.match(/amazonaws|lingolinq.*uploads/i))
@@ -241,6 +277,7 @@ class ButtonImage < ApplicationRecord
   # Re-resolve a plain S3 copy to the canonical OpenSymbols/library URL so
   # check_for_variants and client skin_image_map can apply skin tones.
   def ensure_library_url_for_skin!(label: nil, force: false)
+    return false if preserve_source_image? && !force
     return true if library_url_for_skin && !force
     return false if settings['library_url_lookup_attempted'] && !force
 
@@ -396,6 +433,12 @@ class ButtonImage < ApplicationRecord
     settings['protected'] = !!self.protected?
     settings.delete('library_alternates')
     used_library = 'original'
+    if preserve_source_image?
+      settings['used_library'] = 'original'
+      settings['url'] = self.best_url
+      settings['url'] = Uploadable.tokenize_protected_image_url(settings['url'], user)
+      return settings
+    end
     if self.settings['library_alternates']
       pref ||= user && ((user.settings || {})['preferences'] || {})['preferred_symbols']
       allowed_sources ||= user && user.enabled_protected_sources(true)
@@ -425,10 +468,7 @@ class ButtonImage < ApplicationRecord
       end
     end
     settings['used_library'] = used_library
-    token = user && user.user_token
-    if token && settings['url'] && settings['url'].match(/\/api\/v1\/users\/.+\/protected_image/)
-      settings['url'] = settings['url'] + (settings['url'].match(/\?/) ? '&' : '?') + "user_token=#{token}"
-    end
+    settings['url'] = Uploadable.tokenize_protected_image_url(settings['url'], user)
     settings
   end
 
