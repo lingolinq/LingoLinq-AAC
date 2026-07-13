@@ -121,7 +121,7 @@ export default modal.ModalController.extend({
       var intro = this.get('model.intro') || {};
       emberSet(intro, 'unapproved', false);
       var sections = intro.sections || [];
-      sections.pushObject({});
+      sections.push({});
       emberSet(intro, 'sections', sections);
       this.set('model.intro', intro);
     },

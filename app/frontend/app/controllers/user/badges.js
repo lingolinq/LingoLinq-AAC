@@ -1,11 +1,15 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import modal from '../../utils/modal';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   store: service('store'),
   load_badges: function() {
     var _this = this;

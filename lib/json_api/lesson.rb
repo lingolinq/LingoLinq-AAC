@@ -9,28 +9,38 @@ module JsonApi::Lesson
     json = {}
     
     json['id'] = lesson.global_id
-    json['title'] = lesson.settings['title']
-    stored_url = lesson.settings['url']
-    json['original_url'] = stored_url
-    json['url'] = ::Lesson.normalize_lesson_embed_url(stored_url)
     json['required'] = !!lesson.settings['required']
     json['lesson_code'] = lesson.nonce
-    json['due_at'] = lesson.settings['due_at']
-    json['due_ts'] = json['due_at'] ? Time.parse(json['due_at']).to_i : nil
-    json['description'] = lesson.settings['description']
-    json['time_estimate'] = lesson.settings['time_estimate']
-    json['past_cutoff'] = lesson.settings['past_cutoff']
-    json['badge'] = lesson.settings['badge']
-    json['noframe'] = !!(lesson.settings['checked_url'] || {})['noframe']
-    cutoff = lesson.settings['past_cutoff'] ? (Time.now.to_i - lesson.settings['past_cutoff']) : nil
     json['completed_users'] = {}
+    cutoff = lesson.settings['past_cutoff'] ? (Time.now.to_i - lesson.settings['past_cutoff']) : nil
 
-    youtube_regex = (/(?:https?:\/\/)?(?:www\.)?youtu(?:be\.com\/watch\?(?:.*?&(?:amp;)?)?v=|\.be\/)([\w \-]+)(?:&(?:amp;)?[\w\?=]*)?/);
-    youtube_match = json['url'] && json['url'].match(youtube_regex);
-    youtube_id = youtube_match && youtube_match[1];
-    if youtube_id
-      json['url'] = "#{JsonApi::Json.current_host}/videos/youtube/#{youtube_id}?controls=true"
-      json['video'] = true
+    # Codex review finding (High, second round, LL-90045bb29c follow-up): an anonymous
+    # share-link visitor whose token doesn't resolve must not receive the lesson's actual
+    # content (title/url/description/etc) -- only the low-sensitivity metadata above (which
+    # the requester already supplied or which reveals nothing about the lesson itself).
+    # `args[:withhold_content]` is set by Api::LessonsController#show specifically for the
+    # nonce-matched-but-unresolved-token, not-independently-authorized case; every other
+    # caller (independently authorized viewers, resolved tokens) is unaffected.
+    unless args[:withhold_content]
+      json['title'] = lesson.settings['title']
+      stored_url = lesson.settings['url']
+      json['original_url'] = stored_url
+      json['url'] = ::Lesson.normalize_lesson_embed_url(stored_url)
+      json['due_at'] = lesson.settings['due_at']
+      json['due_ts'] = json['due_at'] ? Time.parse(json['due_at']).to_i : nil
+      json['description'] = lesson.settings['description']
+      json['time_estimate'] = lesson.settings['time_estimate']
+      json['past_cutoff'] = lesson.settings['past_cutoff']
+      json['badge'] = lesson.settings['badge']
+      json['noframe'] = !!(lesson.settings['checked_url'] || {})['noframe']
+
+      youtube_regex = (/(?:https?:\/\/)?(?:www\.)?youtu(?:be\.com\/watch\?(?:.*?&(?:amp;)?)?v=|\.be\/)([\w \-]+)(?:&(?:amp;)?[\w\?=]*)?/);
+      youtube_match = json['url'] && json['url'].match(youtube_regex);
+      youtube_id = youtube_match && youtube_match[1];
+      if youtube_id
+        json['url'] = "#{JsonApi::Json.current_host}/videos/youtube/#{youtube_id}?controls=true"
+        json['video'] = true
+      end
     end
 
     comps = {}

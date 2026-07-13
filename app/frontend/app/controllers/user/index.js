@@ -13,6 +13,7 @@ import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import {
   filterRootBoards,
   dedupeByName,
@@ -55,6 +56,8 @@ export default Controller.extend({
   store: service('store'),
   router: service('router'),
   appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   persistence: service('persistence'),
 
   init() {

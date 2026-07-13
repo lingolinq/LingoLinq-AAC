@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer, computed } from '@ember/object';
+import { A } from '@ember/array';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
@@ -86,6 +87,9 @@ export default Component.extend({
       this.set('model.users', null);
     }
     if (this.get('model.users')) {
+      // Ember 5.12: wrap in A() so single_user's `model.users.@each.add_goal`
+      // dependency tracks the in-place checkbox mutations (@checked=user.add_goal).
+      this.set('model.users', A(this.get('model.users')));
       this.get('model.users').forEach(function(u) {
         emberSet(u, 'not_premium', !emberGet(u, 'premium') && !emberGet(u, 'currently_premium'));
       });

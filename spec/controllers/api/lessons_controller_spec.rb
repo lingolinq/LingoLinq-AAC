@@ -266,6 +266,45 @@ describe Api::LessonsController, :type => :controller do
       json = assert_success_json
       expect(json['lesson']['id']).to eq(l.global_id)
     end
+
+    it "should withhold lesson content when nonce matches but the share token doesn't resolve and the viewer isn't independently authorized (Codex review High finding)" do
+      l = Lesson.create
+      l.settings['title'] = 'Secret Lesson Title'
+      l.settings['description'] = 'Secret lesson description'
+      l.settings['url'] = 'https://example.com/secret-lesson'
+      l.save
+      get 'show', params: {'id' => "#{l.global_id}:#{l.nonce}:not-a-real-token"}
+      json = assert_success_json
+      expect(json['lesson']['id']).to eq(l.global_id)
+      expect(json['lesson']['title']).to eq(nil)
+      expect(json['lesson']['description']).to eq(nil)
+      expect(json['lesson']['url']).to eq(nil)
+      expect(json['lesson']['original_url']).to eq(nil)
+    end
+
+    it "should return full content when the share token resolves, even for an anonymous viewer (regression)" do
+      u = User.create
+      l = Lesson.create
+      l.settings['title'] = 'Visible Lesson Title'
+      l.save
+      future_ts = (Time.now + 1.day).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{future_ts}", 'lesson_share_token verifier')[0, 30]
+      token = "#{u.global_id}-#{future_ts}-#{sig}"
+      get 'show', params: {'id' => "#{l.global_id}:#{l.nonce}:#{token}"}
+      json = assert_success_json
+      expect(json['lesson']['title']).to eq('Visible Lesson Title')
+      expect(json['lesson']['user']).to_not eq(nil)
+    end
+
+    it "should return full content for an independently-authorized viewer even without a resolved share token (admin preview, regression)" do
+      token_user
+      l = Lesson.create(user_id: @user.id)
+      l.settings['title'] = 'Owner Preview Title'
+      l.save
+      get 'show', params: {'id' => "#{l.global_id}:#{l.nonce}:not-a-real-token"}
+      json = assert_success_json
+      expect(json['lesson']['title']).to eq('Owner Preview Title')
+    end
   end
 
   describe "complete" do

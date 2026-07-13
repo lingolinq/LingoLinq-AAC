@@ -38,8 +38,8 @@
 # status (code-verified, governance-gated); program-management lives in Notion. Do NOT add
 # any of the human-owned columns to properties_for.
 #
-# This is compliance content: Claude-only, never routed to Codex/DeepSeek. The register is
-# already PII-free (code/path evidence only), so nothing identifiable reaches Notion.
+# This is compliance content: Tier 2 (PII-free register, code/path evidence only), so nothing
+# identifiable reaches Notion or any approved reviewer.
 
 require 'json'
 require 'net/http'

@@ -22,7 +22,7 @@ export default Component.extend({
         var url = _this.get('selection');
         var urls = [].concat(_this.get('extra_urls') || []);
         urls.push(url);
-        urls = urls.uniq();
+        urls = [...new Set(urls)];
         _this.set('extra_urls', urls);
         _this.set('selection_preview', url);
       };

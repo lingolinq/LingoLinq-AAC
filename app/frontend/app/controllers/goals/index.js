@@ -6,9 +6,13 @@ import app_state from '../../utils/app_state';
 import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import stashes from '../../utils/_stashes';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   load_goals: function() {
     var _this = this;

@@ -189,7 +189,7 @@
           {{else if this.app_state.followers.active}}
             <div class='label label-info over clear' id='reply_icon'>
               {{#each this.app_state.followers.active as |user|}}
-                <img src={{this.user.avatar_url}} class='follower' >
+                <img src={{user.avatar_url}} class='follower' >
               {{/each}}
             </div>
           {{else if this.app_state.clearable_history}}
@@ -1516,28 +1516,28 @@
       </button>
     </span>
     {{#each this.app_state.sidebar_boards as |board|}}
-      {{#if this.board.alert}}
+      {{#if board.alert}}
         <a href="#" {{on "click" (this.ctrlAction "alert" "sidebar")}} class='sidebar_item'>
           <span class="glyphicon glyphicon-bullhorn"></span>
-          <img src={{this.board.image}} class='pic' alt="">
-          {{this.board.name}}
+          <img src={{board.image}} class='pic' alt="">
+          {{board.name}}
         </a>
-      {{else if this.board.special}}
+      {{else if board.special}}
         <a href="#" {{on "click" (this.ctrlAction "special")}} class='sidebar_item'>
           <span class="glyphicon glyphicon-flash"></span>
-          <img src={{this.board.image}} class='pic' alt="">
-          {{this.board.name}}
+          <img src={{board.image}} class='pic' alt="">
+          {{board.name}}
         </a>
       {{else}}
         <a href="#" class='sidebar_item' {{on "click" (this.ctrlAction "jump" "sidebar")}} data-key={{board.key}}>
-          {{#if this.board.home_lock}}
+          {{#if board.home_lock}}
             <span class="glyphicon glyphicon-home"></span>
           {{/if}}
-          {{#if this.board.fenced}}
+          {{#if board.fenced}}
             <span class="glyphicon glyphicon-map-marker"></span>
           {{/if}}
-          <img src={{this.board.image}} class='pic' alt="">
-          {{this.board.name}}
+          <img src={{board.image}} class='pic' alt="">
+          {{board.name}}
         </a>
       {{/if}}
     {{/each}}

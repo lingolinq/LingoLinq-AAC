@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import { A } from '@ember/array';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
@@ -1117,16 +1118,16 @@ export default Component.extend({
     _this.get('store').query('board', { user_id: user.get('id'), per_page: 20 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
-      _this.set('_fetchedPreviewBoards', results);
+      _this.set('_fetchedPreviewBoards', A(results));
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
         _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results);
       } else {
-        _this.set('_fetchedBoards', results);
+        _this.set('_fetchedBoards', A(results));
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedPreviewBoards', []);
+      _this.set('_fetchedPreviewBoards', A([]));
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
@@ -1138,11 +1139,11 @@ export default Component.extend({
       if (meta && meta.more) {
         _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
-        _this.set('_fetchedBoards', combined);
+        _this.set('_fetchedBoards', A(combined));
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedBoards', accumulated);
+      _this.set('_fetchedBoards', A(accumulated));
     });
   },
   /* Count of the user's CORE (root tile) boards, matching the "My

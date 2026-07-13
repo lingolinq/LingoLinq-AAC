@@ -197,3 +197,72 @@ The **register entry for Art. 50(2) stays OPEN**: `generate_focus_words` / `AiWo
 - **Remediation trigger and plan.** Folded into the 8.3 content-binding hardening: an edit-tolerant content digest plus a server-side reconciliation would let `content_id` be trusted as an audit pointer. Until then, treat the marker as evidence of provenance only, and resolve audit questions from `AiApiLog` directly.
 
 **Cross-references.** BoardCloner marker propagation and the allowlist behavior that made these boundaries load-bearing are tracked separately; see the task log for slices 1-2 and the copy-settings allowlist gotcha. 8.1 (OBF export) and 8.2 (key rotation) are the two Low-severity items the Claude `adversary` reviews of PR #505 and PR #507 deferred; 8.3 (bearer/transplant) is the accepted design tradeoff those same reviews surfaced and the code comment requires be recorded here; 8.4 (audit-linkage) is a consequence of the same transplant mechanism, added after the adversary review of this record (PR #510).
+
+---
+
+## 9. Per-site marking scope decisions (2026-07-09, "finish the marking" work)
+
+Section 4 (Art50-P3) originally named `generate_words` (board gen) AND `ai_word_predictor`
+(word prediction) as marking sites. A per-site analysis before implementing the remaining
+surfaces (branch `scot/compliance/art50-marking-callsites`) shows the AI-output surfaces are
+NOT interchangeable, so the 50(2) treatment differs by site. This section is the authoritative
+per-site scope record; for word prediction it **supersedes** the single-line "both sites"
+phrasing in Sec 4.
+
+| Site | Output shape | 50(2) treatment |
+|---|---|---|
+| Board generation (`AiBoardGenerator.generate_words`) | Persisted synthetic board content (`board.settings`) | CONTENT-MARKED (shipped, PRs #505/#507) |
+| Focus words (`AiBoardGenerator.generate_focus_words` -> `AiFocusWordSet`) | Persisted synthetic word list (shared cache) | CONTENT-MARKED (shipped, this branch, 2026-07-09) |
+| Eval narration (`EvalNarrator.draft_via_anthropic`) | Persisted synthetic prose (`log.data['ai_narrative']`, AI path only) | CONTENT-MARKED, AI path only (shipped, this branch, 2026-07-10) |
+| Word prediction (`AiWordPredictor.predict`) | Transient suggestion menu (in-memory cache), human-selected into the user's own utterance | NOT content-marked; out of 50(2) content-marking scope (this record) |
+
+### 9.1 Word prediction: out of Article 50(2) content-marking scope (decided, not deferred)
+
+- **What it is.** `AiWordPredictor.predict` returns a menu of candidate next words for the
+  sentence the AAC user is building. The suggestions live only in an in-memory LRU cache
+  (`AiWordPredictor::CACHE`, 30-minute TTL); they are never persisted as an artifact. The user
+  then SELECTS a word into their own utterance. The only durable output is the user's
+  human-authored communication.
+- **Decision: no content marker; `ai_content_marked` stays false.** Two independent grounds,
+  either sufficient:
+  1. **Assistive-function carve-out.** The Commission's Article 50 guidance provides that the
+     50(2) marking obligation does not apply where the AI system performs only an assistive
+     function for standard editing, or does not substantially alter the input data or its
+     semantics. A hand-selected next-word suggestion in a sentence the human is authoring fits
+     this carve-out.
+  2. **No markable artifact / false-marking risk.** There is no persisted AI output to mark.
+     Marking the words the user selected would falsely label human speech (frequently a
+     COPPA-covered child's communication board) as AI-generated. That is the OPPOSITE of what
+     50(2) polices: the obligation guards against under-marking of AI OUTPUT, not against
+     over-marking of human output. Over-marking human AAC communication is itself a harm (the
+     8.3 false-marking direction).
+- **Audit trail (unchanged, already present).** Every prediction call still writes a
+  `request_type = 'word_prediction'` `AiApiLog` row (provider, model, tokens, PII-scrub result,
+  success). `request_type` distinguishes these out-of-scope rows from the in-scope,
+  content-marked sites, so a compliance auditor can reason about them without a per-row marker
+  flag. No new column is warranted.
+- **Locked by test.** `spec/lib/ai_word_predictor_spec.rb` asserts `predict` returns a bare word
+  array (no `ai_generated` marker) and never logs `ai_content_marked: true`, so a future change
+  cannot silently start (falsely) content-marking word prediction.
+- **Sources.** EC Code of Practice on marking and labelling of AI-generated content
+  (digital-strategy.ec.europa.eu); European Commission draft Article 50 transparency guidelines
+  (per artificialintelligenceact.eu/transparency-rules-article-50 and Bird & Bird / Covington
+  analyses), assistive-function and substantial-alteration carve-outs. Verified 2026-07-09.
+
+### 9.2 Focus words and eval narration: in scope, both shipped
+
+Both produce persisted synthetic text and are content-marked with `Art50Marker`. Focus words
+(2026-07-09): a marker on the `AiFocusWordSet`, re-minted on each AI accretion, exposed as a
+non-secret public view via `focus_words_response`. Eval narration (2026-07-10): a marker returned
+from the Anthropic path only, never the deterministic local template draft; the frontend carries
+it opaquely from the `/narrate` response into the persisted `LogSession`, which re-verifies it
+(`Art50Marker.normalized`) before storing and again on every read (`json_api/log.rb`), so a
+forged or tampered client value can never read back as marked. Details and verification in the
+task log for `scot/compliance/art50-marking-callsites`
+(`docs/task-management/2026-07-09-art50-marking-remaining-callsites.md`).
+
+With this, all three per-site scope decisions in the table above are closed: word prediction
+(9.1, decided out of scope), focus words and eval narration (this section, shipped). The
+remaining Art. 50 milestone work is Art50-P4 (frontend disclosure modal + persistent badge,
+gated on the VPC Phase 3 modal) and Art50-P5 (feature flag / retention / monitoring / audit
+close) -- see Section 4.

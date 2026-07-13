@@ -2,8 +2,14 @@ import Controller from '@ember/controller';
 import persistence from '../utils/persistence';
 import { computed, observer } from '@ember/object';
 import LingoLinq from '../app';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  link_expired: false,
   setup_tracking: function() {
     this.set('status', null);
     this.set('show_description', false);
@@ -11,6 +17,9 @@ export default Controller.extend({
     this.set('started', (new Date()).getTime());
     this.set('player', null);
     this.set('forced_show', false);
+    // Reset in case a prior transition on this same controller instance set
+    // link_expired true (e.g. an expired-lesson -> valid-lesson transition).
+    this.set('link_expired', false);
     var _this = this;
     LingoLinq.Lessons.track(this.get('model.url')).then(function(lesson) {
       _this.set('lesson', lesson);      

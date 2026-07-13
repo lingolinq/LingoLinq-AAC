@@ -3,9 +3,12 @@ import { later as runLater } from '@ember/runloop';
 import contentGrabbers from '../utils/content_grabbers';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Component.extend({
   appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   tagName: 'div',
   willInsertElement: function () {
     var _this = this;

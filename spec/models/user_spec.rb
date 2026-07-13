@@ -667,6 +667,26 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(true)
     end
 
+    it "preserves supporter dashboard sections rooms and attention on write" do
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {
+        'dashboard_sections' => {
+          'boards' => true,
+          'rooms' => true,
+          'attention' => false,
+          'not_a_section' => true
+        },
+        'dashboard_order' => ['boards', 'rooms', 'attention', 'bogus']
+      }}, {})
+      expect(u.settings['preferences']['dashboard_sections']).to eq({
+        'boards' => true,
+        'rooms' => true,
+        'attention' => false
+      })
+      expect(u.settings['preferences']['dashboard_order']).to eq(['boards', 'rooms', 'attention'])
+    end
+
     it "should persist require_sidebar_edit_pin (whitelisted) and coerce to boolean" do
       # Guards the silent-drop failure mode: a preference not in PREFERENCE_PARAMS
       # is dropped by process_params and never persists. require_sidebar_edit_pin
@@ -4404,11 +4424,17 @@ describe User, :type => :model do
       expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
     end
 
-    it 'raises ArgumentError when disclosures_version: kwarg is omitted' do
+    it 'defaults disclosures_version: to LingoLinq::AiConsentDisclosures::CURRENT_VERSION when the kwarg is omitted (VPC Phase 2)' do
+      expect(LingoLinq::AiConsentDisclosures::CURRENT_VERSION).to eq(1)
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload
-      expect { u.ai_consent_granted? }.to raise_error(ArgumentError)
+      expect(u.ai_consent_granted?).to eq(true)
+    end
+
+    it 'the omitted-kwarg default still returns false for a user with no grant (does not silently pass)' do
+      u = User.create
+      expect(u.ai_consent_granted?).to eq(false)
     end
 
     it 'returns false when explicit disclosures_version: nil is passed' do

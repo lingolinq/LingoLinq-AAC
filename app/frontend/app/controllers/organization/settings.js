@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import modal from '../../utils/modal';
 import { computed, observer } from '@ember/object';
 import i18n from '../../utils/i18n';
@@ -7,6 +8,9 @@ import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   opening: function() {
     var _this = this;

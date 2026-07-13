@@ -11,6 +11,7 @@ import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 var shuffle = function (array) {
   var array = [].concat(array);
@@ -23,6 +24,8 @@ var shuffle = function (array) {
 
 export default Component.extend({
   appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   triggerExternalAction: function(primaryName, fallbackName) {
     var args = Array.prototype.slice.call(arguments, 2);
     var action = this.get(primaryName) || this.get(fallbackName);

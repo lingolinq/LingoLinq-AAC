@@ -8,9 +8,10 @@
 > data path / model attribute rather than a line). The companion file is retained as plain-English context for reviewers
 > who do not read code; treat it as narrative, not as the declaration source.
 >
-> **Claude-only compliance content. Never route this file or its analysis to
-> Codex / DeepSeek / any external model.** (Company rule: compliance content is
-> Claude-only.)
+> **Tier 2 compliance content.** This is a posture document (data-flow narrative, no student or
+> patient records), reviewable by any approved reviewer under the two-tier policy. If a revision
+> embeds real identifiers or data-bearing content, that content is Tier 1 and stays off no-BAA
+> routes -- the data-bearing-path guard is the boundary.
 >
 > **Status:** DRAFT pending Scot sign-off. Reconciled as SSOT 2026-06-30.
 

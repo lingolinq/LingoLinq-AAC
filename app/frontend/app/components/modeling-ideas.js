@@ -114,7 +114,7 @@ export default Component.extend({
     if (app_state.get('speak_mode_modeling_ideas.enabled')) {
       for_word = middles.filter(function(a) { return a.word === check_word; });
     }
-    middles = for_word.concat(middles.slice(offset, offset + 8)).uniq().slice(0, 8);
+    middles = [...new Set(for_word.concat(middles.slice(offset, offset + 8)))].slice(0, 8);
     res = res.concat(middles);
     if (res.length === empty_num) {
       let none_premium = true;
@@ -150,7 +150,7 @@ export default Component.extend({
         if (user_ids.length > 1) {
           emberSet(w, 'matching_users', valids);
         }
-        emberSet(w, 'text_reasons', (w.reasons || []).map(function(r) { return text_reasons[r]; }).uniq().compact().join(', '));
+        emberSet(w, 'text_reasons', [...new Set((w.reasons || []).map(function(r) { return text_reasons[r]; }))].filter(function(x) { return x != null; }).join(', '));
         res.push(w);
       }
     });
@@ -359,6 +359,10 @@ export default Component.extend({
     this.onClose = function() { self.send('close'); };
     this.onOpening = function() { self.send('opening'); };
     this.onClosing = function() { self.send('closing'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs. See assessment-settings.
+    self.send('opening');
 },
 
 });

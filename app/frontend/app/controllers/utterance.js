@@ -7,8 +7,13 @@ import modal from '../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   title: computed('model.sentence', 'model.show_user', 'model.user', function() {
     var sentence = this.get('model.sentence') || "something";
     if(this.get('model.show_user') && this.get('model.user')) {

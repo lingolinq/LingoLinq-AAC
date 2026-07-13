@@ -888,7 +888,7 @@ LingoLinq.Buttonset = BaseModel.extend({
           }
         }
       });
-      return resolve(list.sortBy('loc'));
+      return resolve(list.slice().sort(function(a, b) { var x = emberGet(a, 'loc'), y = emberGet(b, 'loc'); return x < y ? -1 : (x > y ? 1 : 0); }));
     });
 
     var downs = {};

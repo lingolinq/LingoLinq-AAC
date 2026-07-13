@@ -91,6 +91,18 @@ module('Unit | Utility | eval_session', function() {
     assert.strictEqual(payload.data.events.length, 1);
     assert.ok(payload.data.recommendation, 'recommendation included');
     assert.ok(typeof payload.data.duration_s === 'number', 'duration_s computed');
+    assert.strictEqual(payload.data.ai_generated, null, 'no Article 50(2) marker before AI narration runs');
+  });
+
+  test('toLogPayload carries the Article 50(2) ai_generated marker through when set', function(assert) {
+    const session = EvalSession.create();
+    session.beginScreening(PEDS_INTAKE);
+    const marker = { marked: true, spec: 'eu-ai-act-art50-2', provider: 'claude', model: 'claude-opus-4-7', generated_at: '2026-07-10T00:00:00Z', content_id: 'abc', sig_alg: 'GoSecure.lite_hmac.v1', signature: 'sig' };
+    session.set('aiNarrative', 'Drafted narrative.');
+    session.set('aiGenerated', marker);
+    const payload = session.toLogPayload();
+    assert.strictEqual(payload.data.ai_narrative, 'Drafted narrative.');
+    assert.deepEqual(payload.data.ai_generated, marker, 'raw marker carried through unmodified');
   });
 
   test('progressFraction reflects the subtest cursor', function(assert) {

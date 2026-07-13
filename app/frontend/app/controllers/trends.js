@@ -49,7 +49,7 @@ export default Controller.extend({
     });
     var counts = this.get('trends.word_counts') || {};
     for(var idx in counts) {
-      res.get('words_by_frequency').pushObject({text: idx, count: counts[idx]});
+      res.get('words_by_frequency').push({text: idx, count: counts[idx]});
     }
     return res;
   }),

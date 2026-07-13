@@ -145,7 +145,7 @@ class Api::IntegrationsController < ApplicationController
       locale: locale,
       include_core_words: include_core_words
     )
-    focus_set.record_generation!(new_words: new_words, title: result[:title], user: @api_user)
+    focus_set.record_generation!(new_words: new_words, title: result[:title], user: @api_user, marker: result[:ai_generated])
     render json: focus_words_response(focus_set, requested_count, false)
   end
 
@@ -200,7 +200,11 @@ class Api::IntegrationsController < ApplicationController
       words: focus_set.words.first(requested_count).join(', '),
       title: focus_set.title,
       cached: cached,
-      library_id: focus_set.global_id
+      library_id: focus_set.global_id,
+      # EU AI Act Article 50(2): non-secret provenance view of the marker (marked/spec/
+      # provider/model), or nil for a set with no valid marker. Additive key; withholds
+      # signature + content_id. Cache-hit responses expose the stored set's marker too.
+      ai_generated: focus_set.ai_generated_public_view
     }
   end
 end

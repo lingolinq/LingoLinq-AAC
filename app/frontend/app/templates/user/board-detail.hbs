@@ -678,7 +678,7 @@
              the inline mic below is the keyboard/SR speak control, so this
              stays a plain click target with no tabindex/role to avoid a
              duplicate "Speak sentence" tab stop). --}}
-        <div class="md-board-detail-sentence-bar__text {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
+        <div class="md-board-detail-sentence-bar__text {{if (and this.utterance_show_symbols this.has_sentence) "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
           {{#if this.has_sentence}}
             {{#if (or this.utterance_show_symbols this.sentence_bar_editing_enabled)}}
               {{#each this.sentence_parts as |part index|}}

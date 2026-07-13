@@ -59,8 +59,9 @@ describe EvalNarrator do
     it 'never calls the AI when no user is resolved (returns template)' do
       out = described_class.draft_narrative(payload, user: nil)
       expect(described_class).not_to have_received(:call_anthropic)
-      expect(out).to be_a(String)
-      expect(out).to include('Evaluation Summary')
+      expect(out['narrative']).to be_a(String)
+      expect(out['narrative']).to include('Evaluation Summary')
+      expect(out['ai_generated']).to be_nil
     end
 
     it 'never calls the AI for a COPPA-consent-pending student' do
@@ -69,7 +70,8 @@ describe EvalNarrator do
       out = described_class.draft_narrative(payload, user: u)
       expect(described_class).not_to have_received(:call_anthropic)
       expect(AiApiLog).not_to have_received(:log_ai_call)
-      expect(out).to include('Evaluation Summary')
+      expect(out['narrative']).to include('Evaluation Summary')
+      expect(out['ai_generated']).to be_nil
     end
 
     it 'never calls the AI when the student org has opted out of AI' do
@@ -131,8 +133,10 @@ describe EvalNarrator do
       out_absent = described_class.draft_narrative(payload.reject { |k, _| k == 'use_anthropic' }, user: user)
 
       expect(described_class).not_to have_received(:call_anthropic)
-      expect(out_false).to include('Evaluation Summary')
-      expect(out_absent).to include('Evaluation Summary')
+      expect(out_false['narrative']).to include('Evaluation Summary')
+      expect(out_absent['narrative']).to include('Evaluation Summary')
+      expect(out_false['ai_generated']).to be_nil
+      expect(out_absent['ai_generated']).to be_nil
     end
 
     it 'does not forward the client-asserted SETT student name to the AI (subject derived from resolved user)' do
@@ -202,12 +206,38 @@ describe EvalNarrator do
       expect(log.request_type).to eq('eval_narration')
       expect(log.feature_flag).to eq('comprehensive_eval_ai')
       expect(log.success).to eq(true)
+      # EU AI Act Article 50(2): a successful AI-drafted narrative is content-marked,
+      # and the audit row links to the marker's content_id.
+      expect(log.ai_content_marked).to eq(true)
+      expect(log.ai_generated_content_id).to be_present
     end
 
     it 'returns the AI-drafted narrative' do
       allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('Drafted narrative.'))
       allow(AiApiLog).to receive(:log_ai_call)
-      expect(described_class.draft_narrative(payload, user: user)).to eq('Drafted narrative.')
+      expect(described_class.draft_narrative(payload, user: user)['narrative']).to eq('Drafted narrative.')
+    end
+
+    it 'mints a valid, verifiable Article 50(2) marker for the AI-drafted narrative' do
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('Drafted narrative.'))
+      allow(AiApiLog).to receive(:log_ai_call)
+
+      out = described_class.draft_narrative(payload, user: user)
+
+      marker = out['ai_generated']
+      expect(marker).to be_a(Hash)
+      expect(marker['provider']).to eq('claude')
+      expect(Art50Marker.verify(marker)).to eq(true)
+    end
+
+    it 'never marks the deterministic template fallback, even for a consented student' do
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('Drafted narrative.'))
+      allow(AiApiLog).to receive(:log_ai_call)
+
+      out = described_class.draft_narrative(payload.merge('use_anthropic' => false), user: user)
+
+      expect(described_class).not_to have_received(:call_anthropic)
+      expect(out['ai_generated']).to be_nil
     end
 
     it 'falls back to the template (and logs failure) when the AI call raises' do
@@ -215,10 +245,15 @@ describe EvalNarrator do
 
       expect {
         out = described_class.draft_narrative(payload, user: user)
-        expect(out).to include('Evaluation Summary')
+        expect(out['narrative']).to include('Evaluation Summary')
+        expect(out['ai_generated']).to be_nil
       }.to change(AiApiLog, :count).by(1)
 
-      expect(AiApiLog.order(:created_at).last.success).to eq(false)
+      failed_log = AiApiLog.order(:created_at).last
+      expect(failed_log.success).to eq(false)
+      # A failed AI call mints no marker -- there is no AI output to attribute one to.
+      expect(failed_log.ai_content_marked).to eq(false)
+      expect(failed_log.ai_generated_content_id).to be_nil
     end
   end
 end
