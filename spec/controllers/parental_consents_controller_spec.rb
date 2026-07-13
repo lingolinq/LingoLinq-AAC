@@ -38,7 +38,7 @@ describe ParentalConsentsController, :type => :controller do
         'parent_consent_email' => 'guardian_pc_mail@example.com'
       }, {:pending => true})
       tok = u.settings['coppa']['parent_consent_token']
-      expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_confirmation, u.global_id)
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_confirmation, u.global_id)
       expect(UserMailer).to receive(:schedule_delivery).with(:confirm_registration, u.global_id)
       expect(UserMailer).to receive(:schedule_delivery).with(:new_user_registration, u.global_id)
       get :complete, params: {user_id: u.global_id, token: tok}
@@ -127,7 +127,7 @@ describe ParentalConsentsController, :type => :controller do
     it "revokes consent and queues the parent withdrawal email" do
       u = create_granted_minor!('ok')
       revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
-      expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_revoked, u.global_id)
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_revoked, u.global_id)
       get :revoke, params: {user_id: u.global_id, token: revoke_tok}
       expect(response).to be_successful
       u.reload

@@ -45,6 +45,15 @@ export default Route.extend({
   beforeModel: function() {
     if(typeof window === 'undefined') { return; }
     var path = window.location.pathname;
+    if(path.indexOf('/parental_consent/') === 0) {
+      // COPPA email links must hit Rails, not the Ember SPA (see server/index.js proxy).
+      if(window.location.port === '8184') {
+        var qs = window.location.search || '';
+        window.location.replace(window.location.protocol + '//' + window.location.hostname + ':5000' + path + qs);
+        return new RSVP.Promise(function() { /* wait for full-page navigation */ });
+      }
+      return;
+    }
     if(path !== '/auth' && path.indexOf('/auth/') !== 0) { return; }
     // OAuth paths must be handled by Rails, not the Ember SPA. If the app
     // booted here, the /auth proxy did not run — fall back to Rails on :5000.

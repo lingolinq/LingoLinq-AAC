@@ -235,7 +235,7 @@ if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored
 
 **This is the bypass:** when an Organization with `edit` permission seeds the user (`authored_organization_id` present, lines 992-998 set `settings['authored_organization_id']` and `settings['pending'] = false`), the entire COPPA branch (the under-13 check at lines 960-988 that sets `pending_parent_consent`, `parent_email`, `parent_consent_token`) is **skipped**. The user is created with no `settings['coppa']` hash at all, so `coppa_parental_consent_pending?` returns `false` permanently - appearing "consented" without VPC ever being recorded. **This is the school-official substitute pattern, implemented as an org-authored signup short-circuit.**
 
-`JsonApi::Json.coppa_parental_consent_enabled?` (`lib/json_api/json.rb:127-128`) further requires the current domain to opt in. `JsonApi::User#as_json` at `lib/json_api/user.rb:448` only emits `coppa_parental_consent_pending` when true. `grant_parental_consent!` (`user.rb:378-408`) is the only path that flips the flag for non-org users.
+`JsonApi::Json.coppa_parental_consent_enabled?` (`lib/json_api/json.rb:127-128`) reads the domain setting (default **ON** via env; disable with `COPPA_PARENTAL_CONSENT=0|false|no|off`, or per-org override). `JsonApi::User#as_json` at `lib/json_api/user.rb:448` only emits `coppa_parental_consent_pending` when true. `grant_parental_consent!` (`user.rb:378-408`) is the only path that flips the flag for non-org users.
 
 ### Item 5 - Pre-Consent Bootstrap Init
 

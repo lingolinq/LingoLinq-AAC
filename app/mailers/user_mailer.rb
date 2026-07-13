@@ -13,6 +13,22 @@ class UserMailer < ActionMailer::Base
     end
   end
 
+  # Queues or immediately delivers parent-facing COPPA mailers. In development,
+  # set INLINE_PARENTAL_CONSENT_EMAIL=1 to bypass Resque (same as signup request).
+  def self.schedule_parent_consent_delivery(delivery_type, user_id)
+    if Rails.env.development? && inline_parental_consent_email?
+      deliver_message(delivery_type, user_id)
+      Rails.logger.info("[COPPA] #{delivery_type} delivered inline for user=#{user_id}")
+    else
+      schedule_delivery(delivery_type, user_id)
+      Rails.logger.info("[COPPA] #{delivery_type} queued for user=#{user_id} (start Resque priority worker, or set INLINE_PARENTAL_CONSENT_EMAIL=1 in development)")
+    end
+  end
+
+  def self.inline_parental_consent_email?
+    %w[1 true yes on].include?(ENV['INLINE_PARENTAL_CONSENT_EMAIL'].to_s.strip.downcase)
+  end
+
   def new_user_registration(user_id)
     @user = User.find_by_global_id(user_id)
     d = @user.devices[0]

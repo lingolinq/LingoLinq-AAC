@@ -15,7 +15,7 @@ class ParentalConsentsController < ApplicationController
       # grant_parental_consent! writes the immutable COPPA AuditEvent atomically
       # with the consent grant (see User#grant_parental_consent!).
       @success = true
-      UserMailer.schedule_delivery(:parental_consent_confirmation, user.global_id)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_confirmation, user.global_id)
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)
       UserMailer.schedule_delivery(:new_user_registration, user.global_id)
       ExternalTracker.track_new_user(user)
@@ -42,7 +42,7 @@ class ParentalConsentsController < ApplicationController
       @success = true
     elsif user && user.revoke_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
       @success = true
-      UserMailer.schedule_delivery(:parental_consent_revoked, user.global_id)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_revoked, user.global_id)
     end
     render 'revoke', layout: 'parental_consent'
   end

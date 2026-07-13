@@ -81,6 +81,23 @@ describe UserMailer, :type => :mailer do
     end
   end
 
+  describe "schedule_parent_consent_delivery" do
+    it "delivers inline in development when INLINE_PARENTAL_CONSENT_EMAIL is set" do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      allow(UserMailer).to receive(:inline_parental_consent_email?).and_return(true)
+      expect(UserMailer).to receive(:deliver_message).with(:parental_consent_request, '1_1')
+      expect(UserMailer).not_to receive(:schedule_delivery)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_request, '1_1')
+    end
+
+    it "queues when not in inline development mode" do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('test'))
+      expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_confirmation, '1_1')
+      expect(UserMailer).not_to receive(:deliver_message)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_confirmation, '1_1')
+    end
+  end
+
   describe "parental_consent_request" do
     after do
       Setting.find_by(key: SystemEmailTemplates::DEFAULT_KEY)&.destroy

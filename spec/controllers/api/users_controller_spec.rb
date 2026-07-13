@@ -722,7 +722,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "creates a pending minor when authored_organization_id is blank string (Ember serializes empty attrs)" do
-        expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_request, anything).once
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
         post :create, params: {:user => {
           'name' => 'coppa_kid_blank_org',
           'email' => 'kid_blank_org@example.com',
@@ -740,7 +740,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "creates a pending minor without access token and emails the parent" do
-        expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_request, anything).once
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
         expect(UserMailer).not_to receive(:schedule_delivery).with(:confirm_registration, anything)
         expect(UserMailer).not_to receive(:schedule_delivery).with(:new_user_registration, anything)
         expect(ExternalTracker).not_to receive(:track_new_user)
@@ -764,7 +764,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "creates a pending minor when Ember sends dasherized attribute keys" do
-        expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_request, anything).once
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
         post :create, params: {:user => {
           'name' => 'coppa_kid_dash',
           'email' => 'kid_dash@example.com',
@@ -781,7 +781,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "creates a pending minor when Ember sends camelCase attribute keys" do
-        expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_request, anything).once
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
         post :create, params: {:user => {
           'name' => 'coppa_kid_camel',
           'email' => 'kid_camel@example.com',
@@ -1667,7 +1667,7 @@ describe Api::UsersController, :type => :controller do
       expect(u).to be_persisted
       expect(u.coppa_parental_consent_pending?).to eq(true)
       RedisInit.default.del("parental_consent_resend:#{u.global_id}")
-      expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_request, u.global_id).once
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id).once
       post :resend_parental_consent, params: {
         :client_id => 'browser',
         :client_secret => token,
@@ -1731,7 +1731,7 @@ describe Api::UsersController, :type => :controller do
         'parent_consent_email' => 'parent_throttle@example.com'
       }, {:pending => true})
       RedisInit.default.del("parental_consent_resend:#{u.global_id}")
-      expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_request, u.global_id).once
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id).once
       post :resend_parental_consent, params: {
         :client_id => 'browser',
         :client_secret => token,
