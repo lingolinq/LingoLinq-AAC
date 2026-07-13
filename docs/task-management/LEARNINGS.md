@@ -6417,6 +6417,32 @@ Clone each button (and nested `load_board`) into a new array before `set`, match
 `[].concat(buttons)` pattern already used in `board.js#add_button`. Touch both
 `app/utils/persistence.js` and `app/services/persistence.js`. (2026-07-08)
 
+## Registration consent age threshold lives ONLY on the frontend (2026-07-08)
+The COPPA/GDPR parental-consent age gate is computed client-side in
+`app/frontend/app/controllers/register.js#_classifyCommunicatorAge`
+(`getFullYear() - 13`). The birthdate is NEVER sent to the backend; the client
+maps age -> the boolean `coppa_under_13` (via `routes/register.js#saveProfile`
++ `serializers/user.js`), and `User#process_params` (~user.rb:1321) triggers
+the parental-consent flow purely off that boolean. So to change the AGE
+threshold (e.g. EU 16 vs US 13), you change the FRONTEND cutoff, not the
+backend gate. To feed the frontend a jurisdiction-derived number without
+duplicating logic: compute server-side and deliver via `domain_settings`
+(anonymous-available; injected at `layouts/application.html.erb:61` from the
+CACHED per-host `@domain_overrides` blob -> always `.merge` a fresh copy, never
+mutate). Anonymous registration reads feature flags from
+`window.enabled_frontend_features` (= `ENABLED_FRONTEND_FEATURES`), NOT from
+`currentUser.feature_flags` (there is no user yet), so an `AVAILABLE_`-only
+flag is OFF for signup by default. See `LingoLinq::Jurisdiction` (PR #556).
+
+## Fresh worktree frontend node_modules breaks on sqlite3 native build (2026-07-08)
+`npm install` in a fresh agent-wt worktree fails to compile `sqlite3`
+(node-pre-gyp, Cordova/Electron offline path only) under the current Node 20
+toolchain and can leave `node_modules/.bin/ember` unlinked, so `ember build`
+won't run. sqlite3 is not needed for the WEB target. If a real ember build /
+browser drive is required, fix sqlite3 first (rebuild against a compatible
+toolchain or skip the optional native dep); a JS ES-module `node --check` is
+the cheap fallback to confirm controller/route syntax.
+
 ## Ember 4.12→5.12 upgrade (staging #490) shipped under-migrated — 4 break classes
 **Context:** staging's Ember 5.12 upgrade left widespread latent breakage (no build/console errors — just wrong/blank UI). Full register: `docs/ember-5.12-migration-findings.md`.
 **The 4 runtime break classes to grep for after any Ember 4→5 upgrade with EXTEND_PROTOTYPES:false:**
