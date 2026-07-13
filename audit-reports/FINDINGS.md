@@ -58,7 +58,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-2695434541 |  | low | SOC2 | **accepted** | audit-run | Puma Gemfile constraint permits 7.2.0 which predates the CVE-2026-47736/47737 fix; floor unset | `Gemfile`:62 |
 | LL-b0bc6880e6 |  | low | SOC2 | **accepted** | audit-run | sync-render-secrets.yml (holds RENDER_API_KEY + 1Password token) declares no permissions: block, inheriting default write GITHUB_TOKEN | `.github/workflows/sync-render-secrets.yml`:14 |
 | LL-e76d6378b5 |  | low |  | **accepted** | audit-run | Webhook model declares notifications and content_type attrs that Rails never serializes | `app/frontend/app/models/webhook.js`:12 |
-| LL-5d7197fa7d |  | low | HIPAA, FERPA | untriaged | audit-run | PaperTrail versions with unconstantizable item_type are detected but retention disposition is undecided | `lib/flusher.rb`:116 |
+| LL-5d7197fa7d |  | low | HIPAA, FERPA | untriaged | audit-run | PaperTrail versions with unconstantizable item_type are detected but retention disposition is undecided | `lib/flusher.rb`:135 |
 | LL-de9c94bf36 |  | low | GDPR | untriaged | audit-run | Org retention policy purges a sponsored user's entire log history, including logs outside that org's context | `lib/data_policy_enforcer.rb`:31 |
 | LL-d8072299bf |  | low | GDPR, COPPA | untriaged | audit-run | Automated retention only runs for org-sponsored users; standalone accounts keep communication logs indefinitely | `lib/data_policy_enforcer.rb`:22 |
 | LL-c226391436 |  | low | SOC2 | untriaged | audit-run | Content-Security-Policy is report-only (nothing blocked) and script-src permits unsafe-inline + unsafe-eval | `config/initializers/content_security_policy.rb`:114 |

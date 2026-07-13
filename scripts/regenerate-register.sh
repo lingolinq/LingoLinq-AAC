@@ -90,18 +90,27 @@ step() {  # step "label" cmd args...
 # is intentionally NOT part of the CI integrity job (ci.yml); gating on it locally
 # is a stricter, correct pre-render safeguard. ---------------------------------
 verify_all() {
+  # Run EVERY check and remember if ANY failed. verify_all is always called in a
+  # condition context (`if verify_all` / `if ! verify_all`), which disables set -e
+  # inside it, so a bare `step` list would (a) keep going past a failure anyway and
+  # (b) return only the LAST step's status -- masking an early failure (e.g. a red
+  # citation-check) behind a later green step. Accumulate into rc so the caller
+  # sees a non-zero result whenever any single check failed, while still running
+  # all of them so every failure is reported in one pass.
+  local rc=0
   step "verify: citation-check (evidence resolves; stricter-than-CI local gate)" \
-    ruby scripts/citation-check.rb "$FINDINGS"
+    ruby scripts/citation-check.rb "$FINDINGS" || rc=1
   step "verify: compliance calendar render matches JSON" \
-    ruby scripts/compliance-calendar-render.rb --check
+    ruby scripts/compliance-calendar-render.rb --check || rc=1
   step "verify: Notion compliance page matches register" \
-    ruby scripts/compliance-notion-publish.rb --check
+    ruby scripts/compliance-notion-publish.rb --check || rc=1
   step "verify: document register render + git hashes + bundle completeness" \
-    ruby scripts/document-register-render.rb --check
+    ruby scripts/document-register-render.rb --check || rc=1
   step "verify: compliance publication status report" \
-    ruby scripts/compliance-publication-status.rb --check
+    ruby scripts/compliance-publication-status.rb --check || rc=1
   step "verify: capability ledger (currentEvidence at HEAD + negativeEvidence)" \
-    ruby scripts/capability-check.rb --check
+    ruby scripts/capability-check.rb --check || rc=1
+  return $rc
 }
 
 if [ "$MODE" = "check" ]; then

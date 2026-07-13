@@ -3111,9 +3111,9 @@
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
-        "line": 116,
-        "snippet": "docs/legal/DATA_RETENTION.md:30, authentication/audit-trail paper_trail",
-        "sha": "84f573b34cba5c4212f4e0948abf92a20335609c"
+        "line": 135,
+        "snippet": "stale_version_count = stale_types.any? ? PaperTrail::Version.where(item_type: stale_types).count",
+        "sha": "7419c7368eb154707e322e71bdd8bfad893318d7"
       },
       "firstSeen": "2026-07-02",
       "lastSeen": "2026-07-02",
