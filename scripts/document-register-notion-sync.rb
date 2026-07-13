@@ -39,8 +39,8 @@
 # "Needs Scot decision" (and any future ones) - are never sent, so the team can annotate the
 # board directly. Do NOT add human-owned columns to properties_for.
 #
-# Compliance content: Claude-only, never routed to Codex/DeepSeek. The register is PII-free
-# (titles, paths/URLs, hashes only), so nothing identifiable reaches Notion.
+# Compliance content: Tier 2 (PII-free register: titles, paths/URLs, hashes only), so nothing
+# identifiable reaches Notion or any approved reviewer.
 #
 # contentHash refresh: CI is network-free and cannot hash Drive/Notion docs, so that happens
 # here. --refresh-notion-hashes fetches each notion-canonical page's text via the Notion API,

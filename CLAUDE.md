@@ -451,5 +451,5 @@ and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
 - The register (`audit-reports/FINDINGS.json`) is the single source of truth. `audit-merge.rb`
   only ever ADDS findings or marks them `open`; it never closes or downgrades.
 - No student/patient data ever appears in findings; evidence snippets are code only.
-- Compliance content is Claude-only, never routed to Codex/DeepSeek.
+- Compliance content is **Tier 2**: the register is PII-free (code evidence only), so any approved reviewer is permitted; the data-bearing-path guard (`codex-review-guard.sh`), not a Claude-only rule, is the boundary.
 - All findings include file paths and line numbers, anchored to the audited commit SHA.

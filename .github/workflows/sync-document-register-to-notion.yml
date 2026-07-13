@@ -3,8 +3,8 @@ name: Sync document register to Notion
 # Keeps the "LingoLinq Compliance Documents (LL)" Notion board in sync with the SSOT
 # (audit-reports/DOCUMENT-REGISTER.json) whenever the register changes on staging. One-way:
 # register -> Notion. Only writes register-owned columns; human-owned columns (Program notes,
-# Needs Scot decision) are never touched. Compliance content stays Claude-only; the register is
-# PII-free (titles, paths/URLs, hashes).
+# Needs Scot decision) are never touched. The register is PII-free (titles, paths/URLs, hashes)
+# -- Tier 2 content, no identifiers.
 #
 # Inert until set up: the job is guarded on the NOTION_DOCS_DB_ID repo variable, so it is a
 # no-op until Scot (1) creates the Notion DB with the schema in document-register-notion-sync.rb,
