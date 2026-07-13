@@ -1876,7 +1876,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/views/layouts/application.html.erb",
@@ -1892,16 +1892,16 @@
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "5f7d7cd990ce79ed64b35182d47bab2eafc632b0",
+        "verifierNote": "Verified 2026-07-13: app/views/layouts/application.html.erb:2 now sets lang from I18n.locale while preserving the conditional schema attributes. Remediated in #601.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; remediated in #601, code-verified 2026-07-13."
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 3.1.1 (EN 301 549 9.3.1). The Rails-served application layout opens <html> with only a conditional itemscope/itemtype and never sets lang, so AT cannot determine the page language for server-rendered pages (marketing/SEO, parental-consent shares). The Ember SPA shell index.html does set lang. parental_consent.html.erb already sets lang=\"en\"; application.html.erb and email.html.erb do not. | adversary: confirmed (2026-06-16): the <html> tag has no lang in either ERB branch; no <body lang>, meta http-equiv, or JS documentElement.lang assignment exists anywhere. This is the default Rails layout (boards#index, crawler/meta pages, parental-consent meta), so it renders real user-facing/SEO content. parental_consent.html.erb sets lang; email.html.erb does not. Note: once the SPA boots it inherits no lang from this <html> either.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT). Fixed in #601."
       }
     },
     {
@@ -2635,7 +2635,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "Gemfile",
@@ -2651,16 +2651,16 @@
         "timeframe": "90d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "5f7d7cd990ce79ed64b35182d47bab2eafc632b0",
+        "verifierNote": "Verified 2026-07-13: Gemfile:68 now requires puma >= 7.2.1 while preserving the existing CVE comment. Remediated in #601.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; remediated in #601, code-verified 2026-07-13."
       },
       "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2026-47736 / CVE-2026-47737 are PROXY protocol v1 parser issues fixed in puma 7.2.1. The Gemfile comment acknowledges this but the ~> 7.2 constraint technically permits 7.2.0. Current lockfile resolves 7.2.1 (safe). Constraint-tightening only; no current vulnerability exposure.\n\nadversary (2026-06-18): CONFIRMED but config-gated. CVE-2026-47736/47737 real, fixed in 7.2.1; lock pins 7.2.1 (safe). Gemfile:62 already carries an inline comment documenting the floor. Both CVEs only bite with non-default `set_remote_address proxy_protocol: :v1`, which is not enabled (Render terminates TLS normally) -> real-world exploitability ~nil. RECOMMEND Scot treat as informational; optional tighten to `'~> 7.2', '>= 7.2.1'`.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version)."
+        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version). Fixed in #601."
       }
     },
     {
