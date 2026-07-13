@@ -3380,12 +3380,12 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-07-13",
+        "rationale": "SigV4 PresignedPost signing backported to Render production (branch main) in #538; prod uploads verified working and all degraded data-URI records repaired. See closureEvidence."
       },
       "evidence": {
         "type": "code",
@@ -3403,9 +3403,9 @@
         "timeframe": "7-15d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "b03fb7cf1c4812cb5430c0dfc282e4c86b56a874",
+        "verifierNote": "Verified 2026-07-05..06: the SigV2 (HMAC-SHA1) POST policy that SSE-KMS S3 rejects was remediated by backporting the SigV4 PresignedPost signer to main in #538 (fix commit 4d28166ea; merge b03fb7cf1), after the KMS/NO_ACL/CDN env prerequisites were applied 2026-07-05. Render prod web+worker deployed b03fb7cf1. All 51 degraded records (49 button_images + 2 button_sounds) re-driven via Render one-off jobs with 0 failures; prod DB now has 0 data-URI fallbacks and 51 bucket URLs. End-to-end confirmed: a repaired object serves 200 image/png via CloudFront (d34sa6lc5jfe66.cloudfront.net) while the raw bucket URL still 403s. Companion finding LL-705b10bcd7 (GCP stack, same root defect) was independently live-verified.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; SigV4 remediation backported to Render prod main in #538, prod-verified 2026-07-06."
       },
       "notes": "Split out of LL-705b10bcd7 (which tracks the GCP rehearsal stack, now live-verified): same root defect, different deploy target and IAM principal. The data-URI fallback keeps prod images rendering (served inline from the DB), so user impact is degraded-not-broken for images; sounds/videos over the size cap are lost (errored_pending_url). Scope details and consumer inventory: ai-company-brain outputs/plans/2026-07-05-s3-private-bucket-read-path-scope.md."
     },
