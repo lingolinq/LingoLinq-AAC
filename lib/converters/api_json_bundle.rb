@@ -44,7 +44,10 @@ module Converters::ApiJsonBundle
       end
     end
 
-    head = SafeHttp.head(sanitized)
+    fetch_url = Uploader.signed_internal_url(sanitized).presence || sanitized
+    raise Progress::ProgressError, "invalid bundle URL" unless fetch_url.present?
+
+    head = SafeHttp.head(fetch_url)
     if head.success?
       len = response_content_length(head)
       if len && len > MAX_BUNDLE_BYTES
@@ -52,7 +55,7 @@ module Converters::ApiJsonBundle
       end
     end
 
-    response = SafeHttp.get(sanitized)
+    response = SafeHttp.get(fetch_url)
     raise Progress::ProgressError, "failed to download bundle (#{response.code})" unless response.success?
 
     body = response.body.to_s

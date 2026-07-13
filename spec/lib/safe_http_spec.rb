@@ -138,7 +138,16 @@ describe SafeHttp do
       res = SafeHttp.get('http://169.254.169.254/latest/meta-data/')
       expect(res.success?).to eq(false)
       expect(res.code).to eq(0)
+      expect(res.body).to eq('blocked or invalid URL')
       expect(res.effective_url).to eq(nil)
+    end
+
+    it 'coerces non-string failed_response messages to strings' do
+      expect(Typhoeus).not_to receive(:get)
+
+      res = SafeHttp.get('http://127.0.0.1/internal')
+      expect(res.body).to be_a(String)
+      expect(res.return_message).to be_a(String)
     end
 
     it 'returns a failed response for IPv4-compatible IPv6 literals without calling Typhoeus' do
