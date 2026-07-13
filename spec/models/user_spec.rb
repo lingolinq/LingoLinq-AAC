@@ -667,6 +667,26 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(true)
     end
 
+    it "preserves supporter dashboard sections rooms and attention on write" do
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {
+        'dashboard_sections' => {
+          'boards' => true,
+          'rooms' => true,
+          'attention' => false,
+          'not_a_section' => true
+        },
+        'dashboard_order' => ['boards', 'rooms', 'attention', 'bogus']
+      }}, {})
+      expect(u.settings['preferences']['dashboard_sections']).to eq({
+        'boards' => true,
+        'rooms' => true,
+        'attention' => false
+      })
+      expect(u.settings['preferences']['dashboard_order']).to eq(['boards', 'rooms', 'attention'])
+    end
+
     it "should persist require_sidebar_edit_pin (whitelisted) and coerce to boolean" do
       # Guards the silent-drop failure mode: a preference not in PREFERENCE_PARAMS
       # is dropped by process_params and never persists. require_sidebar_edit_pin

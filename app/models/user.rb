@@ -1244,7 +1244,7 @@ class User < ApplicationRecord
   # the 'hero' non-grid toggle). Duplicated here so the server can validate the
   # user-supplied dashboard_* preferences on write (Ruby can't import the JS).
   # Keep in sync if a section key is added/removed there.
-  DASHBOARD_SECTION_KEYS = ['boards', 'speak', 'extras', 'caseload', 'org',
+  DASHBOARD_SECTION_KEYS = ['boards', 'speak', 'extras', 'caseload', 'rooms', 'attention', 'org',
       'account', 'createboard', 'reports', 'editdashboard', 'hero']
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports',
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']

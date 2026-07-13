@@ -115,12 +115,28 @@ describe Converters::ApiJsonBundle do
       }.to raise_error(Progress::ProgressError, /invalid import bundle URL/)
     end
 
+    it 'presigns uploads-bucket bundle URLs before downloading' do
+      importer = User.create
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{importer.global_id}/bundle-abc.json"
+      signed = 'https://signed.example.com/bundle?X-Amz-Signature=abc'
+      allow(Uploader).to receive(:valid_import_bundle_url?).with(url, importer.global_id).and_return(true)
+      allow(Uploader).to receive(:sanitize_url).with(url).and_return(url)
+      expect(Uploader).to receive(:signed_internal_url).with(url).and_return(signed)
+      allow(SafeHttp).to receive(:head).with(signed).and_return(double('head', success?: true, headers: {}))
+      allow(SafeHttp).to receive(:get).with(signed).and_return(double('get', success?: true, body: '{"boards":[]}', code: 200))
+
+      result = described_class.load_bundle(url, allowed_importer_global_id: importer.global_id)
+      expect(result['boards']).to eq([])
+    end
+
     it 'rejects bundles larger than MAX_BUNDLE_BYTES' do
       importer = User.create
       uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
       url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{importer.global_id}/bundle-abc.json"
       allow(Uploader).to receive(:valid_import_bundle_url?).with(url, importer.global_id).and_return(true)
       allow(Uploader).to receive(:sanitize_url).with(url).and_return(url)
+      allow(Uploader).to receive(:signed_internal_url).with(url).and_return(url)
       head = double('head', success?: true, headers: { 'Content-Length' => (described_class::MAX_BUNDLE_BYTES + 1).to_s })
       allow(SafeHttp).to receive(:head).with(url).and_return(head)
 
@@ -135,6 +151,7 @@ describe Converters::ApiJsonBundle do
       url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{importer.global_id}/bundle-abc.json"
       allow(Uploader).to receive(:valid_import_bundle_url?).with(url, importer.global_id).and_return(true)
       allow(Uploader).to receive(:sanitize_url).with(url).and_return(url)
+      allow(Uploader).to receive(:signed_internal_url).with(url).and_return(url)
       allow(SafeHttp).to receive(:head).with(url).and_return(double('head', success?: true, headers: {}))
       allow(SafeHttp).to receive(:get).with(url).and_return(double('get', success?: true, body: '<html></html>', code: 200))
 

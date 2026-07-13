@@ -138,6 +138,7 @@ describe SafeHttp do
       res = SafeHttp.get('http://169.254.169.254/latest/meta-data/')
       expect(res.success?).to eq(false)
       expect(res.code).to eq(0)
+      expect(res.body).to eq('blocked or invalid URL')
       expect(res.effective_url).to eq(nil)
     end
 

@@ -1,5 +1,6 @@
 require 'ffi'
 require 'ipaddr'
+require 'ostruct'
 require 'socket'
 require 'timeout'
 require 'ethon'
