@@ -13,8 +13,12 @@ import Stats from '../../utils/stats';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   title: computed('model.user_name', function() {
     if(this.get('model.user_name')) {

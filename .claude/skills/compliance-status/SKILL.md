@@ -47,5 +47,5 @@ Present the officer's report to Scot:
   dated hygiene/regulatory notes, `docs/legal/*.md`); a PreToolUse hook enforces it. Never
   `audit-reports/FINDINGS.json`. No application-code edits, no external sends.
 - No student/patient data in any output (code-only evidence; public regulation text).
-- Compliance content is Claude-only, never Codex/DeepSeek.
+- Compliance content is Tier 2 (PII-free output): any approved reviewer is permitted; the data-bearing-path guard is the boundary.
 - The register is the only authoritative status; dated reports are point-in-time snapshots.

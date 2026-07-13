@@ -21,8 +21,8 @@
       <tbody>
         {{#each this.supervisors_with_lessons as |user|}}
           <tr>
-            <td>{{this.user.user.user_name}}</td>
-            {{#each this.user.lessons as |lesson|}}
+            <td>{{user.user.user_name}}</td>
+            {{#each user.lessons as |lesson|}}
               <td>
                 {{#if lesson.completed}}
                   {{#if lesson.display_class}}
@@ -61,8 +61,8 @@
       <tbody>
         {{#each this.users_with_lessons as |user|}}
           <tr>
-            <td>{{this.user.user.user_name}}</td>
-            {{#each this.user.lessons as |lesson|}}
+            <td>{{user.user.user_name}}</td>
+            {{#each user.lessons as |lesson|}}
               <td>
                 {{#if lesson.completed}}
                   {{#if lesson.display_class}}
@@ -101,8 +101,8 @@
       <tbody>
         {{#each this.managers_with_lessons as |user|}}
           <tr>
-            <td>{{this.user.user.user_name}}</td>
-            {{#each this.user.lessons as |lesson|}}
+            <td>{{user.user.user_name}}</td>
+            {{#each user.lessons as |lesson|}}
               <td>
                 {{#if lesson.completed}}
                   {{#if lesson.display_class}}

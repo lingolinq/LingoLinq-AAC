@@ -8,6 +8,7 @@ import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { A } from '@ember/array';
 
 var extra_types = ['NW', 'N', 'NE', 'W', 'E', 'SW', 'S', 'SE'];
 export default Controller.extend({
@@ -166,7 +167,7 @@ export default Controller.extend({
         }
       });
     });
-    return res;
+    return A(res);
   }),
   update_primary_on_single_word_type: observer(
     'word_types',

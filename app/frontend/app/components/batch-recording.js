@@ -189,7 +189,7 @@ export default Component.extend({
           });
           sounds.forEach(function(s) {
             if (s.get('transcription') && (s.get('tags') || []).indexOf(rep.id + ':' + cat.id) !== -1) {
-              cat.phrases.pushObject({
+              cat.phrases.push({
                 id: s.get('id'),
                 text: s.get('transcription'),
                 custom: true,
@@ -376,7 +376,7 @@ export default Component.extend({
     add_phrase(confirm) {
       if (confirm) {
         if (this.get('custom_phrase.text')) {
-          this.get('category.phrases').pushObject({
+          this.get('category.phrases').push({
             id: (new Date()).getTime() + ':' + Math.random(),
             text: this.get('custom_phrase.text'),
             custom: true,

@@ -35,7 +35,7 @@ If you are tempted to fix something, record it as a finding instead.
   Never copy real names, emails, logs, vocabulary, grades, or DB rows into a finding. If a
   risky pattern lives in a fixture/seed/migration with real-looking rows, cite the file:line
   and the column/shape, not the row contents.
-- **Compliance content is Claude-only.** Nothing you produce is routed to Codex/DeepSeek.
+- **Compliance content is Tier 2.** Your output is PII-free (code `file:line` evidence only), so any approved reviewer may see it; the data-bearing-path guard, not a Claude-only rule, is the boundary.
 
 ## What you load first
 Your checklist is preloaded as the `gdpr-ferpa-audit` skill (scan scope, checklist,

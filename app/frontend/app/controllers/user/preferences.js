@@ -1,5 +1,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import { A } from '@ember/array';
 import { later as runLater } from '@ember/runloop';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
@@ -127,6 +129,11 @@ function mergeMissingDefaultSidebarBoards(stored, defaults) {
 }
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
 
   init() {
@@ -318,14 +325,14 @@ export default Controller.extend({
       image_urls: [option.image_url]
     };
     if(parts[0] == 'mix_only' || parts[0] == 'mix_prefer') {
-      res.options = [
+      res.options = A([
         {label: i18n.t('default_skin_tones', "Original Skin Tone"), id: 'default', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-varxxxUNI.svg'},
         {label: i18n.t('dark_skin_tone', "Dark Skin Tone"), id: 'dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3ff.svg'},
         {label: i18n.t('medium_dark_skin_tone', "Medium-Dark Skin Tone"), id: 'medium_dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fe.svg'},
         {label: i18n.t('medium_skin_tone', "Medium Skin Tone"), id: 'medium', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fd.svg'},
         {label: i18n.t('medium_light_skin_tone', "Medium-Light Skin Tone"), id: 'medium_light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fc.svg'},
         {label: i18n.t('light_skin_tone', "Light Skin Tone"), id: 'light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
-      ];
+      ]);
       if(parts[2]) {
         var rules = parts[2].split(/-/).pop();
         for(var idx = 0; idx < 6; idx++) {
@@ -1246,7 +1253,9 @@ export default Controller.extend({
         var post = active.slice(button.idx + 1);
         var prior = [].concat(this.get('pending_preferences.prior_sidebar_boards') || []);
         prior.push(button);
-        prior = prior.uniq(function(o) { return o.special ? (o.alert + "_" + o.action + "_" + o.arg) : o.key; });
+        // Ember's arg-less uniq() ignored the key fn even under 4.12 (prototype
+        // extensions), so this has always deduped by identity — preserve that.
+        prior = [...new Set(prior)];
         this.set('pending_preferences.prior_sidebar_boards', prior);
         this.set('pending_preferences.sidebar_boards', pre.concat(post));
       } else if(direction == 'restore') {

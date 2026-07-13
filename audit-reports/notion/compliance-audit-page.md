@@ -11,13 +11,13 @@
 **Audited commit:** `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1`  
 **Audited ref:** `scot/compliance/audit-refresh-2026-07-07`  
 **Run date:** 2026-07-08  
-**Page generated:** 2026-07-10T20:46:15Z
+**Page generated:** 2026-07-11T21:28:00Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **8** | 26 | 26 |
+| **0** | **8** | 26 | 25 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -62,7 +62,6 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-0196a680c5 |  | low |  | Ember UserGoal model declares scalar user_id/video_id/template_id attrs that JsonApi::Goal never emits as top-level keys | `app/frontend/app/models/goal.js`:19 |
 | LL-2695434541 |  | low | SOC2 | Puma Gemfile constraint permits 7.2.0 which predates the CVE-2026-47736/47737 fix; floor unset | `Gemfile`:62 |
 | LL-3483c28f3c |  | low | SOC2 | Parallel finders read live infra without synchronization (possible inconsistent snapshot) | `.claude/skills/audit-run/SKILL.md`:33 |
-| LL-42a24ee911 |  | low | SOC2 | A diagnostic SES send to a personal Gmail address never arrived (inbox or spam); a same-account send to a Workspace-internal address arrived immediately | (attestation) |
 | LL-45bdcc73c9 |  | low | SOC2 | Developer key expiration policy is undecided; DeveloperKey records never age out (item 3) | `lib/flusher.rb`:48 |
 | LL-553fdc242b |  | low | SOC2 | davidshimjs-qrcodejs 0.0.2 is abandoned (no release since 2014, >10 years) | `app/frontend/package.json`:36 |
 | LL-57e9beb87f |  | low | GDPR, FERPA | Flusher.flush_leftovers has no usage-based orphan check for orphaned ButtonImage/ButtonSound media records (item 1) | `lib/flusher.rb`:57 |

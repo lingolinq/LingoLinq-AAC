@@ -99,6 +99,10 @@ didInsertElement() {
     this.onClose = function() { self.send('close'); };
     this.onOpening = function() { self.send('opening'); };
     this.onClosing = function() { self.send('closing'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs. See assessment-settings.
+    self.send('opening');
 },
 
 });

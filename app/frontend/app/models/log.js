@@ -129,7 +129,7 @@ LingoLinq.Log = BaseModel.extend({
   processed_events: computed('events', 'toggled_event_ids', function() {
     var result = [];
     var last_ts = null;
-    var max_id = Math.max.apply(null, (this.get('events') || []).mapBy('id').compact()) || 0;
+    var max_id = Math.max.apply(null, (this.get('events') || []).map(function(o) { return emberGet(o, 'id'); }).filter(function(x) { return x != null; })) || 0;
     if(max_id < 0) { max_id = 0; }
     var shown_ids = this.get('toggled_event_ids') || [];
     (this.get('events') || []).forEach(function(event, idx) {
@@ -257,7 +257,7 @@ LingoLinq.Log = BaseModel.extend({
     events.forEach(function(event) {
       if(event.id == event_id) {
         event['notes'] = event['notes'] || [];
-        var max_id = Math.max.apply(null, event['notes'].mapBy('id').compact()) || 0;
+        var max_id = Math.max.apply(null, event['notes'].map(function(o) { return emberGet(o, 'id'); }).filter(function(x) { return x != null; })) || 0;
         if(max_id < 0) { max_id = 0; }
         event['notes'].push({
           id: ++max_id,

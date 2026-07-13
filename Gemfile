@@ -87,7 +87,7 @@ gem 'go_secure'
 gem 'permissable-coughdrop' # TODO: Republish as permissable-lingolinq
 gem 'boy_band'
 gem 'ttfunk', '1.7'
-gem 'ruby-saml'
+gem 'ruby-saml', '>= 1.18.0' # CVE-2025-25291/25292 SAML auth-bypass floor; lockfile already resolves 1.18.1 (LL-6f1977944f)
 gem 'rotp'
 gem 'googleauth', '~> 1.11'
 # CVE-2026-54297; bundler-audit minimum (transitive via googleauth, stripe, etc.)

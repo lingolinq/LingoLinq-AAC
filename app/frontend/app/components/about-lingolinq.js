@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import modalUtil from '../utils/modal';
 
 /**
@@ -9,6 +10,9 @@ import modalUtil from '../utils/modal';
  * Other modals will be converted incrementally.
  */
 export default Component.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   modal: service('modal'),
   tagName: '',
   

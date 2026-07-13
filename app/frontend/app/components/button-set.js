@@ -372,7 +372,7 @@ export default Component.extend({
     closing() {},
     download_list() {
       var element = document.createElement('a');
-      var words = this.get('sorted_filtered_buttons').mapBy('label').uniq();
+      var words = [...new Set(this.get('sorted_filtered_buttons').map(function(o) { return emberGet(o, 'label'); }))];
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(words.join('\n')));
       element.setAttribute('download', this.get('model.board.key').replace(/\//, '-') + '-words.txt');
       element.style.display = 'none';

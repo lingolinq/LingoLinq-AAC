@@ -4,11 +4,14 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { board_view_route } from '../utils/board_view';
 
 export default Component.extend({
   appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
   willInsertElement: function() {
     this.set('include_canvas', window.outerWidth > 800);

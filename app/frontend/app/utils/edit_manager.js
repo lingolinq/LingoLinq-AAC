@@ -1,5 +1,6 @@
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { A as emberArray } from '@ember/array';
 import { later as runLater, schedule as runSchedule } from '@ember/runloop';
 import $ from 'jquery';
 import RSVP from 'rsvp';
@@ -2069,7 +2070,14 @@ var editManager = EmberObject.extend({
       }
       if(!allButtonsReady) {
         LingoLinq.log.track('need to wait for buttons');
-        board.set('pending_buttons', pending_buttons);
+        // Ember 5 (EXTEND_PROTOTYPES:false): a native array is NOT observable, so
+        // board.set_all_ready's `pending_buttons.[]` / `.@each.content_status`
+        // observer would never fire → all_ready stays false → ordered_buttons stays
+        // null → "Grid not defined". Wrap in A() so the array stays observable and
+        // all_ready flips once the button images finish loading. (Regular boards
+        // usually skip this path with cached images; the eval's symbol-library
+        // images always hit it, which is why the eval broke on the 5.12 upgrade.)
+        board.set('pending_buttons', emberArray(pending_buttons));
         board.addObserver('all_ready', function() {
           if(!controller.get('ordered_buttons')) {
             if(controller.get('model.id') == result.board_id) {

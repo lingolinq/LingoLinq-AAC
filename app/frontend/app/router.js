@@ -126,7 +126,6 @@ Router.map(function() {
     this.route('entry', { path: '/:feedback_id' });
   });
   this.route('faq', { path: '/faq' });
-  this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });
   this.route('profile', { path: '/profile/:user_id/:profile_id'});
   // Eval namespace must come before user so /eval/* matches eval, not a user named "eval"

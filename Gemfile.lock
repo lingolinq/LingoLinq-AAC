@@ -631,7 +631,7 @@ DEPENDENCIES
   ruby-lsp (>= 0.26.9)
   ruby-lsp-rails
   ruby-openai (~> 7.0)
-  ruby-saml
+  ruby-saml (>= 1.18.0)
   rubyzip (~> 2.3)
   sanitize
   sass-rails (~> 6.0)

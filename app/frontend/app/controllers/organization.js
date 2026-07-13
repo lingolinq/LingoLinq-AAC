@@ -12,6 +12,8 @@ import capabilities from '../utils/capabilities';
 
 export default Controller.extend({
   router: service('router'),
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
   appState: service('app-state'),
   app_state: alias('appState'),
   actions: {

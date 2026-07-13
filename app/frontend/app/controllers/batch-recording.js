@@ -62,7 +62,7 @@ export default modal.ModalController.extend({
           }
         });
         categories.forEach(function(name) {
-          repo.categories.pushObject({
+          repo.categories.push({
             id: name,
             name: name,
             phrases: cats_hash[name]
@@ -150,7 +150,7 @@ export default modal.ModalController.extend({
           // look for any recordings custom-added to the category
           sounds.forEach(function(s) {
             if(s.get('transcription') && (s.get('tags') || []).indexOf(rep.id + ":" + cat.id) != -1) {
-              cat.phrases.pushObject({
+              cat.phrases.push({
                 id: s.get('id'),
                 text: s.get('transcription'),
                 custom: true,
@@ -324,7 +324,7 @@ export default modal.ModalController.extend({
     add_phrase: function(confirm) {
       if(confirm) {
         if(this.get('custom_phrase.text')) {
-          this.get('category.phrases').pushObject({
+          this.get('category.phrases').push({
             id: (new Date()).getTime() + ":" + Math.random(),
             text: this.get('custom_phrase.text'),
             custom: true,

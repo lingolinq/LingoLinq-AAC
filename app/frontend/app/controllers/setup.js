@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+import { A } from '@ember/array';
 import $ from 'jquery';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
@@ -145,14 +146,14 @@ export default Controller.extend({
         } else {
           var parts = user.get('preferences.skin').split(/::/);
           if(parts[0] == 'mix_only' || parts[0] == 'mix_prefer') {
-            res.options = [
+            res.options = A([
               {label: i18n.t('default_skin_tones', "Pale"), id: 'default', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
               {label: i18n.t('dark_skin_tone', "Dark"), id: 'dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3ff.svg'},
               {label: i18n.t('medium_dark_skin_tone', "Medium-Dark"), id: 'medium_dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fe.svg'},
               {label: i18n.t('medium_skin_tone', "Medium"), id: 'medium', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fd.svg'},
               {label: i18n.t('medium_light_skin_tone', "Medium-Light"), id: 'medium_light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fc.svg'},
               {label: i18n.t('light_skin_tone', "Light"), id: 'light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
-            ];
+            ]);
             if(parts[2]) {
               var rules = parts[2].split(/-/).pop();
               for(var idx = 0; idx < 6; idx++) {

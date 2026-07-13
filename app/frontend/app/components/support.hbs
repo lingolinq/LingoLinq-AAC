@@ -82,7 +82,6 @@
           {{/if}}
           <div class="la-contact-form__actions">
             <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
-            <LinkTo @route="troubleshooting" class="la-support-troubleshooting-link login-btn" style="display: none;">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo>
             <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
           </div>
         </form>

@@ -102,13 +102,13 @@
               <div class="md-org-room-summary__row">
                 <span class="md-org-room-summary__label">{{t "Supervisors" key="supervisors"}} ({{unit.supervisors.length}})</span>
                 <span class="md-org-room-summary__users">
-                  {{#each unit.supervisors as |user index|}}{{if index ", "}}<LinkTo @route="user" @model={{this.user.user_name}} class="md-org-room-summary__link">{{this.user.user_name}}</LinkTo>{{/each}}
+                  {{#each unit.supervisors as |user index|}}{{if index ", "}}<LinkTo @route="user" @model={{user.user_name}} class="md-org-room-summary__link">{{user.user_name}}</LinkTo>{{/each}}
                 </span>
               </div>
               <div class="md-org-room-summary__row">
                 <span class="md-org-room-summary__label">{{t "Communicators" key="communicators"}} ({{unit.communicators.length}})</span>
                 <span class="md-org-room-summary__users">
-                  {{#each unit.communicators as |user index|}}{{if index ", "}}<LinkTo @route="user" @model={{this.user.user_name}} class="md-org-room-summary__link">{{this.user.user_name}}</LinkTo>{{/each}}
+                  {{#each unit.communicators as |user index|}}{{if index ", "}}<LinkTo @route="user" @model={{user.user_name}} class="md-org-room-summary__link">{{user.user_name}}</LinkTo>{{/each}}
                 </span>
               </div>
             </div>
