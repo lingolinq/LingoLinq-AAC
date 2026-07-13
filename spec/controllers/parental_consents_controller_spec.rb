@@ -75,13 +75,15 @@ describe ParentalConsentsController, :type => :controller do
       tok = u.settings['coppa']['parent_consent_token']
       get :complete, params: {user_id: u.global_id, token: tok}
       u.reload
+      # Controller specs do not render views by default; assert assigns that drive
+      # the invalid vs already-granted branches (no body/PII without a valid token).
       get :complete, params: {user_id: u.global_id}
       expect(response).to be_successful
-      expect(response.body).to include(I18n.t('parental_consent.invalid_title'))
-      expect(response.body).not_to include(I18n.t('parental_consent.already_title'))
+      expect(assigns(:success)).to eq(false)
+      expect(assigns(:already_granted)).to eq(false)
       get :complete, params: {user_id: u.global_id, token: 'wrong-token'}
-      expect(response.body).to include(I18n.t('parental_consent.invalid_title'))
-      expect(response.body).not_to include(I18n.t('parental_consent.already_title'))
+      expect(assigns(:success)).to eq(false)
+      expect(assigns(:already_granted)).to eq(false)
     end
 
     it "writes an immutable AuditEvent recording the consent grant" do
@@ -174,13 +176,15 @@ describe ParentalConsentsController, :type => :controller do
       revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
       get :revoke, params: {user_id: u.global_id, token: revoke_tok}
       u.reload
+      # Controller specs do not render views by default; assert assigns that drive
+      # the invalid vs already-revoked branches (no body/PII without a valid token).
       get :revoke, params: {user_id: u.global_id}
       expect(response).to be_successful
-      expect(response.body).to include(I18n.t('parental_consent.revoke_invalid_title'))
-      expect(response.body).not_to include(I18n.t('parental_consent.revoke_already_title'))
+      expect(assigns(:success)).to eq(false)
+      expect(assigns(:already_revoked)).to eq(false)
       get :revoke, params: {user_id: u.global_id, token: 'wrong-token'}
-      expect(response.body).to include(I18n.t('parental_consent.revoke_invalid_title'))
-      expect(response.body).not_to include(I18n.t('parental_consent.revoke_already_title'))
+      expect(assigns(:success)).to eq(false)
+      expect(assigns(:already_revoked)).to eq(false)
     end
   end
 end
