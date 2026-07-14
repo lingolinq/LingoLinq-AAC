@@ -45,7 +45,7 @@
 |---|---|---|---|
 | **2026-04-22** | **passed enforceable** | Written data-retention policy with enforced deletion; written information security program; expanded PI (voiceprints,... | COPPA |
 | 2026-08-02 | upcoming | Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-sc... | EU AI Act |
-| 2026-12-02 | upcoming | Generative AI systems already on the market before 2026-08-02 must meet the machine-readable marking-of-output requir... | EU AI Act |
+| 2026-12-02 | upcoming | The 2026-12-02 grace on the Article 50(2) machine-readable marking sub-obligation comes from the Digital Omnibus on A... | EU AI Act |
 | 2027-04-24 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. Lin... | WCAG |
 | 2027-12-02 | upcoming | High-risk obligations for Annex III systems (deferred from earlier by the Digital Omnibus). An AAC word predictor is ... | EU AI Act |
 | (conditional) | conditional | EAA enforceable since 2025-06. LingoLinq is likely inside the microenterprise exemption (<10 staff AND <EUR 2M turnov... | EAA |
