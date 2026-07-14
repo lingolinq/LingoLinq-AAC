@@ -281,13 +281,13 @@
         "GDPR",
         "COPPA"
       ],
-      "lastReviewed": "2026-07-13",
-      "nextReviewDue": "2026-10-13",
+      "lastReviewed": "2026-07-14",
+      "nextReviewDue": "2026-10-14",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-13"
+        "attestedDate": "2026-07-14"
       },
-      "contentHash": "d3a2e387f8dd24de4d81caa72e5b8897f0d1099a7d847a01e1dca3452863806e",
+      "contentHash": "0d3eb3fe73dad8b26b3e55f3e49a57afa5204758dd4d2d64327b282bb1ff863b",
       "bundles": [
         "compliance-records-set-2026-06"
       ],

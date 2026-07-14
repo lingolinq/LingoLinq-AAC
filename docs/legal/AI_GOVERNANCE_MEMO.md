@@ -173,7 +173,7 @@ Article 50 transparency obligations apply from **2026-08-02** and are not limite
 systems. They cover disclosing AI interaction to users (50(1)) and marking synthetic or
 AI-generated content (50(2)). This section states LingoLinq's **decided** applicability
 position; it supersedes the earlier "plan/decide" framing (see the 2026-07-13 amendment note in
-section 8, pending re-attestation). Full analysis with code citations:
+section 8, re-attested 2026-07-14). Full analysis with code citations:
 `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` (sections 8 and 9) and the readiness brief
 `ai-company-brain/outputs/docs/2026-07-13-eu-ai-act-art50-readiness-brief.md`.
 
@@ -264,7 +264,7 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-13** |
+| Latest re-attestation date | **2026-07-14** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -294,14 +294,15 @@ memo's HIPAA-defensibility conclusion for the model-call path and is covered by 
 re-attestation**; section 3 is the current attested position, per the same governance the memo
 requires of every other open item (section 6: AI drafts and flags, humans attest and accept risk)._
 
-_Amended 2026-07-13 (PENDING RE-ATTESTATION): section 5.2 was rewritten from a "plan/decide"
+_Amended 2026-07-13, re-attested 2026-07-14: section 5.2 was rewritten from a "plan/decide"
 outline into LingoLinq's **decided** Article 50 applicability position, and the section 7 open
 item "Finalize the Article 50 applicability decision" was marked resolved. This is a
 **substantive** change to the attested EU AI Act analysis (it records decisions -- board
 generation / focus words / eval narration in 50(2) scope and marked; word prediction out of
 50(2) scope via the assistive-function carve-out; 50(1) EU modal deferred with a ratified
-fallback), so per section 6 it is **not yet attested** and section 5.2 is provisional until Scot
-reviews and re-attests. Code and legal citations re-verified against live `origin/staging` and
+fallback). Per section 6 (AI drafts and flags, humans attest and accept risk), Scot reviewed and
+**re-attested this section on 2026-07-14**; section 5.2 is now the current attested Article 50
+position. Code and legal citations re-verified against live `origin/staging` and
 `origin/main` on 2026-07-13; the 2026-12-02 Digital Omnibus grace basis was corrected (it does
 not give LingoLinq headroom -- see section 5.2). Supporting analysis:
 `ai-company-brain/outputs/docs/2026-07-13-eu-ai-act-art50-readiness-brief.md`._
