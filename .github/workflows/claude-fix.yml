@@ -1,0 +1,97 @@
+name: Claude Fix
+
+# Build order step 8 (last). Dispatched by n8n W2 when a Codex/claude-deep
+# verdict is REQUEST_CHANGES and loop_n < 2. Runs headless Claude Code against
+# the findings JSON, commits a fix, and pushes back to the SAME PR branch --
+# the push's `synchronize` event re-enters W1 with loop_n + 1.
+#
+# SHIPPING POSTURE (build spec section 9, step 8): ship this workflow with
+# the fix step DISABLED for the first week of review-only operation, to
+# calibrate Codex's automated verdict quality against interactive sessions
+# before letting it drive an autonomous commit loop. Flip
+# vars.CLAUDE_FIX_ENABLED to "true" only after that calibration period.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to fix"
+        required: true
+        type: string
+      head_ref:
+        description: "PR branch name to check out and push back to"
+        required: true
+        type: string
+      findings_json:
+        description: "The REQUEST_CHANGES findings array (JSON string) from the review verdict"
+        required: true
+        type: string
+      loop_n:
+        description: "Review loop counter this fix is responding to"
+        required: true
+        type: string
+
+jobs:
+  claude-fix:
+    if: vars.CLAUDE_FIX_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ inputs.pr_number }}
+      HEAD_REF: ${{ inputs.head_ref }}
+      LOOP_N: ${{ inputs.loop_n }}
+    steps:
+      - name: Validate inputs
+        run: |
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::pr_number is not numeric" >&2; exit 1
+          fi
+          if ! [[ "$LOOP_N" =~ ^[0-9]+$ ]]; then
+            echo "::error::loop_n is not numeric" >&2; exit 1
+          fi
+          # head_ref is a branch name, not a shell/ref-metacharacter payload;
+          # restrict to characters git branch names can legally contain plus
+          # our own scot/<type>/<slug> convention.
+          if ! [[ "$HEAD_REF" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error::head_ref contains unexpected characters" >&2; exit 1
+          fi
+
+      - name: Write findings to a file (avoid interpolating JSON into a shell command)
+        env:
+          FINDINGS_JSON: ${{ inputs.findings_json }}
+        run: |
+          printf '%s' "$FINDINGS_JSON" > /tmp/findings.json
+          python3 -c "import json; json.load(open('/tmp/findings.json'))"
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Run headless Claude Code fix pass
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_FIX_API_KEY }}
+        run: |
+          echo "::add-mask::$ANTHROPIC_API_KEY"
+          scripts/codex-review-claude-fix.sh /tmp/findings.json "$LOOP_N"
+
+      - name: Run CLAUDE.md P1-P6 preflight before pushing
+        run: scripts/claude-preflight-check.sh
+
+      - name: Commit and push fix
+        run: |
+          git config user.name "claude-fix[bot]"
+          git config user.email "claude-fix@lingolinq.noreply.github.com"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes produced by the fix pass; nothing to commit." >&2
+            exit 1
+          fi
+          git add -A
+          git commit -m "fix(codex-review): address loop ${LOOP_N} findings" \
+            -m "Findings addressed per the codex-review verdict on PR #${PR_NUMBER}. Any disputed finding is marked in the PR comment, not silently skipped."
+          git push origin "HEAD:${HEAD_REF}"
+
+      - name: Comment finding-id -> commit SHA mapping
+        run: |
+          SHA="$(git rev-parse HEAD)"
+          scripts/codex-review-post-fix-comment.sh "$PR_NUMBER" "$SHA" /tmp/findings.json
