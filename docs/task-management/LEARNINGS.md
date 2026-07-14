@@ -78,6 +78,7 @@ file (see [README.md](README.md)).
 - [Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize](#pattern-opensymbols-search-returns-nested-license-objects--pick_preview-must-normalize)
 - [Pattern: Speak+light surface overrides shadow speak+light from the base — delete the override, don't fork it](#pattern-speaklight-surface-overrides-shadow-speaklight-from-the-base--delete-the-override-dont-fork-it)
 - [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
+- [Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise](#gotcha-persistence-sync-jasmine-harness--wait-for-sync_boards-tail--syncsettled-not-only-the-sync-promise)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
@@ -6417,6 +6418,32 @@ Clone each button (and nested `load_board`) into a new array before `set`, match
 `[].concat(buttons)` pattern already used in `board.js#add_button`. Touch both
 `app/utils/persistence.js` and `app/services/persistence.js`. (2026-07-08)
 
+## Registration consent age threshold lives ONLY on the frontend (2026-07-08)
+The COPPA/GDPR parental-consent age gate is computed client-side in
+`app/frontend/app/controllers/register.js#_classifyCommunicatorAge`
+(`getFullYear() - 13`). The birthdate is NEVER sent to the backend; the client
+maps age -> the boolean `coppa_under_13` (via `routes/register.js#saveProfile`
++ `serializers/user.js`), and `User#process_params` (~user.rb:1321) triggers
+the parental-consent flow purely off that boolean. So to change the AGE
+threshold (e.g. EU 16 vs US 13), you change the FRONTEND cutoff, not the
+backend gate. To feed the frontend a jurisdiction-derived number without
+duplicating logic: compute server-side and deliver via `domain_settings`
+(anonymous-available; injected at `layouts/application.html.erb:61` from the
+CACHED per-host `@domain_overrides` blob -> always `.merge` a fresh copy, never
+mutate). Anonymous registration reads feature flags from
+`window.enabled_frontend_features` (= `ENABLED_FRONTEND_FEATURES`), NOT from
+`currentUser.feature_flags` (there is no user yet), so an `AVAILABLE_`-only
+flag is OFF for signup by default. See `LingoLinq::Jurisdiction` (PR #556).
+
+## Fresh worktree frontend node_modules breaks on sqlite3 native build (2026-07-08)
+`npm install` in a fresh agent-wt worktree fails to compile `sqlite3`
+(node-pre-gyp, Cordova/Electron offline path only) under the current Node 20
+toolchain and can leave `node_modules/.bin/ember` unlinked, so `ember build`
+won't run. sqlite3 is not needed for the WEB target. If a real ember build /
+browser drive is required, fix sqlite3 first (rebuild against a compatible
+toolchain or skip the optional native dep); a JS ES-module `node --check` is
+the cheap fallback to confirm controller/route syntax.
+
 ## Ember 4.12→5.12 upgrade (staging #490) shipped under-migrated — 4 break classes
 **Context:** staging's Ember 5.12 upgrade left widespread latent breakage (no build/console errors — just wrong/blank UI). Full register: `docs/ember-5.12-migration-findings.md`.
 **The 4 runtime break classes to grep for after any Ember 4→5 upgrade with EXTEND_PROTOTYPES:false:**
@@ -6446,3 +6473,6 @@ Clone each button (and nested `load_board`) into a new array before `set`, match
 - To flatten the grid cleanly, scope overrides to the form: `[class*="col-sm-"] { float:none; width:auto; margin-left:0 }` (kills offsets) and make `.form-group` a `display:flex; flex-wrap:wrap`. Align rows with a fixed label column via `[class*="col-sm-"]:has(.form-control-static) { flex: 0 0 210px }`.
 - `overflow:hidden` on the editor card (added to clip a header bg) **clips open `bound-select` popups** — round the header's own corners instead and drop the card overflow; `bound-select` is a custom `<div>`, not a native `<select>`, so target `.bound-select`/`.bound-select__list` for width.
 - Restructuring the component's template modernizes ALL its consumers at once — preserve every action/conditional/`bound-select`, keep the complex conditional rows verbatim, and lint for block balance. (2026-07-13)
+## Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise
+
+Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)

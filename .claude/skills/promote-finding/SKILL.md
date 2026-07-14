@@ -21,11 +21,12 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
 
 ## Why this is a manual command (not a hook, not an n8n auto-promote step)
 
-1. **Compliance isolation.** The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA).
-   `FINDINGS.json` is a **Claude-only** compliance surface. Auto-promoting from the bot would
-   route DeepSeek-curated content into the compliance SSOT and would require giving the n8n
-   service write access to the repo register, a governance and attack-surface violation. Promotion
-   is operated from a trusted Claude session.
+1. **SSOT write governance.** The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA).
+   `FINDINGS.json` is the compliance SSOT (PII-free, Tier 2). The concern is not a reviewer
+   *seeing* the register -- under the two-tier policy an approved reviewer may -- it is letting
+   bot-curated content be written *into* the SSOT automatically, which would require giving the
+   n8n service write access to the repo register: a governance and attack-surface violation.
+   Promotion is operated manually from a trusted session.
 2. **False-positive control.** AI reviewers carry a 5-15% false-positive rate. Auto-promotion
    would flood the register with FPs. A human (you) deciding "yes, this one is real, track it" IS
    the triage gate the 2026-06-14 evaluation calls the differentiator (attribution + ownership).
@@ -34,9 +35,11 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
 
 ## Hard rules (always)
 
-- **Claude-only.** Never route this work, or any register content, through Codex/DeepSeek
-  (`/review-pr` is forbidden as a *reviewer of this work*; you may *promote findings that the
-  /review-pr CLI produced*, after reading them yourself).
+- **Human-gated promotion.** The register is Tier 2 (PII-free), so an approved reviewer may see
+  it; the gate here is governance, not routing. YOU decide what enters the SSOT: you may promote
+  findings that a reviewer (`/review-pr`, the n8n bot's DeepSeek pass, `/adversary-review`)
+  produced, but only after reading and re-judging them yourself -- never auto-forward a
+  reviewer's verdict into the register.
 - **Code/path evidence only.** Every promoted finding must carry `evidence.file` + a `snippet`
   that resolves at `evidence.sha`. No student/patient data, no secrets, no finding bodies with
   identifiers ever enter the register. `promote-finding.rb` REFUSES (does not redact) any finding
@@ -49,7 +52,7 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
 Get the findings from ONE of:
 - a `/review-pr` or `/adversary-review` run you just did in this session (read its output), or
 - the n8n PR Review Bot's sticky PR comment: `gh pr view <PR#> --comments` and read the comment
-  marked `<!-- pr-review-bot -->` (read it yourself; you are the Claude-only gate, the bot's
+  marked `<!-- pr-review-bot -->` (read it yourself; you are the promotion gate -- the bot's
   DeepSeek section is advisory input you re-judge, not a source you forward verbatim).
 
 You decide which findings are REAL and worth tracking. Do not promote speculative or duplicate
@@ -121,16 +124,38 @@ for this reason, cite a different (cleaner) line of the same issue, or paraphras
 line; do not fight the gate. This in-script gate is redundant with the n8n bot's upstream
 pre-scrub, so conservative is correct.
 
-## Step 5: Validate + render
+## Step 5: Validate + regenerate all derived artifacts
+
+Promoting a finding can change severity counts and bundle membership, so it is not enough to
+rebuild `FINDINGS.md` alone — the Notion mirror, compliance calendar, document register, and
+publication-status report all derive from the register and CI's `audit-artifacts-integrity` job
+fails the merge if any drifts. Regenerate them all in one governed, ordered step:
 
 ```
-ruby scripts/citation-check.rb audit-reports/FINDINGS.json          # expect exit 0
-ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json # rebuild FINDINGS.md
+scripts/regenerate-register.sh          # gate on citation-check, render all artifacts, re-verify
 ```
+
+This gates on `citation-check` first (refuses to render onto a register whose evidence does not
+resolve), renders every derived artifact in dependency order, then re-runs the exact `--check`
+verifications CI uses, so a green run here means a green `audit-artifacts-integrity`. It writes
+local artifacts only and never pushes to Notion/Drive (those sync in their own CI workflows).
+Run `scripts/regenerate-register.sh --check` to verify without writing (mirror CI locally).
 
 If citation-check is red, a promoted snippet does not resolve at its sha (usually the sha is not
 fetched locally, or the snippet was not copied verbatim). Fix the evidence and re-run; do not
 commit a red register.
+
+<details><summary>Underlying commands (if you need to run one render in isolation)</summary>
+
+```
+ruby scripts/citation-check.rb audit-reports/FINDINGS.json          # validate evidence (exit 0)
+ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json # rebuild FINDINGS.md
+ruby scripts/document-register-render.rb                            # DOCUMENT-REGISTER.md + JSON hashes
+ruby scripts/compliance-calendar-render.rb                          # compliance-calendar.md
+ruby scripts/compliance-notion-publish.rb                          # local Notion mirror render
+ruby scripts/compliance-publication-status.rb                      # publication status report
+```
+</details>
 
 ## Step 6: Report to Scot (he owns triage)
 
@@ -146,6 +171,6 @@ commit a red register.
 
 - The register is the single source of truth and never regresses; this flow only adds `open`.
 - Code/path evidence only; PII/secret-bearing findings are refused, never redacted-in.
-- Compliance content is Claude-only, never Codex/DeepSeek.
+- Compliance content is Tier 2 (PII-free output): any approved reviewer is permitted; the data-bearing-path guard is the boundary.
 - Promotion does not change `meta.auditedSha` (these findings are anchored to their own PR sha,
   not the last /audit-run tree).

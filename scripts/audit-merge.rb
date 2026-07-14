@@ -54,7 +54,7 @@ SCOT_OWNED_DISPOSITIONS = %w[accepted fixed dismissed-false-positive wontfix].fr
 ASSIGNABLE_STATUS = 'open'
 
 # --- PII / secret detection (mirrors scripts/promote-finding.rb + lib/pii_scrubber.rb) -----------
-# The register is code/path evidence only and is a Claude-only compliance surface. A finder finding
+# The register is code/path evidence only (PII-free, Tier 2 content). A finder finding
 # whose text carries an identifier or a secret is REFUSED, not redacted: such evidence has no business
 # in the SSOT. Finders are read-only and code-scoped by contract, so this is defense-in-depth -- but
 # the register is git-tracked, so a single mis-shaped finder snippet must never be able to commit a

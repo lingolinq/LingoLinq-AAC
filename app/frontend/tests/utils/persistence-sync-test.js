@@ -416,6 +416,13 @@ function waitForSyncDone(doneFlag) {
     persistence.get('sync_status') === 'failed';
 }
 
+// Wait until the sync() promise flagged done AND harness async (board threads,
+// url queue, eventual_store) has drained — prevents assert/cleanup racing the
+// real sync_boards traversal that can finish after the sync() promise resolves.
+function waitForSyncDoneAndSettled(doneFlag) {
+  return !!(doneFlag && syncSettled());
+}
+
 function expectMissingLocalRecord(type, id) {
   return new RSVP.Promise(function(resolve) {
     var settled = false;
@@ -3703,37 +3710,34 @@ describe("persistence-sync", function() {
             persistRoot.known_missing = {};
           }
           persistence.sync(1567).then(function() {
-            cancelSyncTailWork();
-            persistRoot = persistenceTarget() || persistence;
-            if (persistRoot) {
-              persistRoot.known_missing = {};
-            }
-            persistence.known_missing = {};
             sync_done = true;
-            later(function() {
-              RSVP.all([
+            // Do not cancelSyncTailWork here — remap/tail work may still be
+            // rewriting tmp_* button links. Wait for harness settle + permanent
+            // IDs in local DB before clearing temps / asserting.
+            waitUntil(function() { return syncSettled(); }).then(function() {
+              return RSVP.all([
                 waitForBoardRaw(serverBoardId, boardHasPermanentButtonLinks, 80),
                 waitForBoardRaw(tmpBoardId, boardHasPermanentButtonLinks, 80),
                 expectMissingLocalRecord('board', tmp_board_id),
                 expectMissingLocalRecord('image', tmp_image_id),
                 expectMissingLocalRecord('sound', tmp_sound_id)
-              ]).then(function(results) {
-                server_board = results[0];
-                new_board = results[1];
-                var buttonSource = (new_board && new_board.buttons && new_board.buttons[0]) ? new_board :
-                  (server_board && server_board.buttons && server_board.buttons[0]) ? server_board : null;
-                if (buttonSource) {
-                  new_image = { id: buttonSource.buttons[0].image_id };
-                  new_sound = { id: buttonSource.buttons[0].sound_id };
-                }
-                tmp_board = null;
-                tmp_image = null;
-                tmp_sound = null;
-                synced = true;
-              }, function() {
-                synced = false;
-              });
-            }, 50);
+              ]);
+            }).then(function(results) {
+              server_board = results[0];
+              new_board = results[1];
+              var buttonSource = (new_board && new_board.buttons && new_board.buttons[0]) ? new_board :
+                (server_board && server_board.buttons && server_board.buttons[0]) ? server_board : null;
+              if (buttonSource) {
+                new_image = { id: buttonSource.buttons[0].image_id };
+                new_sound = { id: buttonSource.buttons[0].sound_id };
+              }
+              tmp_board = null;
+              tmp_image = null;
+              tmp_sound = null;
+              synced = true;
+            }, function() {
+              synced = false;
+            });
           }, function() {
             sync_done = true;
             synced = true;
@@ -3744,7 +3748,7 @@ describe("persistence-sync", function() {
       // make sure the temporary sound has a permanent id
       // make sure the temporary board has a permanent id
       waitsFor(function() {
-        return sync_done && synced && !tmp_image && !tmp_sound && !tmp_board &&
+        return waitForSyncDoneAndSettled(sync_done) && synced && !tmp_image && !tmp_sound && !tmp_board &&
           new_image && new_sound && new_board && new_board.buttons && new_board.buttons[0] &&
           server_board && server_board.buttons && server_board.buttons[0] &&
           boardHasPermanentButtonLinks(new_board) && boardHasPermanentButtonLinks(server_board);
@@ -4431,7 +4435,7 @@ describe("persistence-sync", function() {
           }, function() { done = true; });
         }, 50);
       });
-      waitsFor(function() { return done; });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         cancelSyncTailWork();
@@ -4443,7 +4447,8 @@ describe("persistence-sync", function() {
 
   it("should not try to download boards that match the fresh revision from board_revisions", function() {
     db_wait(function() {
-      primeBoardRevisionsSyncHarness();
+      var tailDone = false;
+      primeBoardRevisionsSyncHarness(function() { tailDone = true; });
       persistence.known_missing = {};
       var revisions_called = false;
       var reloads = {};
@@ -4640,7 +4645,7 @@ describe("persistence-sync", function() {
           }, function() { done = true; });
         }, 50);
       });
-      waitsFor(function() { return done; });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads['178']).toEqual(true);
@@ -4855,7 +4860,7 @@ describe("persistence-sync", function() {
           }, function() { done = true; });
         }, 50);
       });
-      waitsFor(function() { return done && tailDone; });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(revisions_called).toEqual(true);
         expect(reloads).toEqual({

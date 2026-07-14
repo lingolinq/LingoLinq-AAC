@@ -81,6 +81,23 @@ describe UserMailer, :type => :mailer do
     end
   end
 
+  describe "schedule_parent_consent_delivery" do
+    it "delivers inline in development when INLINE_PARENTAL_CONSENT_EMAIL is set" do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      allow(UserMailer).to receive(:inline_parental_consent_email?).and_return(true)
+      expect(UserMailer).to receive(:deliver_message).with(:parental_consent_request, '1_1')
+      expect(UserMailer).not_to receive(:schedule_delivery)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_request, '1_1')
+    end
+
+    it "queues when not in inline development mode" do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('test'))
+      expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_confirmation, '1_1')
+      expect(UserMailer).not_to receive(:deliver_message)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_confirmation, '1_1')
+    end
+  end
+
   describe "parental_consent_request" do
     after do
       Setting.find_by(key: SystemEmailTemplates::DEFAULT_KEY)&.destroy
@@ -145,6 +162,57 @@ describe UserMailer, :type => :mailer do
       html = message_body(m, :html)
       expect(html).to include('Custom layout test body')
       expect(html).to include('background-color: #eee')
+    end
+  end
+
+  describe "parental_consent_confirmation" do
+    after do
+      Setting.find_by(key: SystemEmailTemplates::DEFAULT_KEY)&.destroy
+      RedisInit.default.del("setting/#{SystemEmailTemplates::DEFAULT_KEY}")
+    end
+
+    it "sends to the parent email with a revoke URL after consent is granted" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid_confirm',
+        'email' => 'kid_confirm@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_confirm@example.com'
+      }, {:pending => true})
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(tok)).to eq(true)
+      m = UserMailer.parental_consent_confirmation(u.global_id)
+      expect(m.to).to eq(['parent_confirm@example.com'])
+      expect(m.subject).to eq(I18n.t('parental_consent_confirmation_mailer.subject', app_name: 'LingoLinq'))
+      html = message_body(m, :html)
+      expect(html).to match(/parental_consent\/revoke/)
+    end
+  end
+
+  describe "parental_consent_revoked" do
+    it "sends to the parent email after consent is withdrawn" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid_revoked',
+        'email' => 'kid_revoked@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_revoked@example.com'
+      }, {:pending => true})
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(tok)).to eq(true)
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect(u.revoke_parental_consent!(revoke_tok)).to eq(true)
+      m = UserMailer.parental_consent_revoked(u.global_id)
+      expect(m.to).to eq(['parent_revoked@example.com'])
+      expect(m.subject).to eq(I18n.t('parental_consent_revoked_mailer.subject', app_name: 'LingoLinq'))
+      html = message_body(m, :html)
+      expect(html).to match(/withdrawn/i)
     end
   end
   

@@ -750,7 +750,7 @@ class Api::UsersController < ApplicationController
     if params['resend']
       sent = false
       if user.settings['pending'] != false
-        if user.coppa_parental_consent_pending?
+        if user.coppa_parental_consent_pending? || user.coppa_parental_consent_revoked?
           sent = false
         else
           sent = true
@@ -761,6 +761,9 @@ class Api::UsersController < ApplicationController
     else
       confirmed = !!(user && !user.settings['pending'])
       if params['code'] && user && params['code'] == user.registration_code
+        if user.coppa_parental_consent_revoked?
+          return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
+        end
         if user.coppa_parental_consent_pending?
           return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
         end
@@ -1094,15 +1097,7 @@ class Api::UsersController < ApplicationController
 
   def schedule_parental_consent_request_email!(user)
     # Mail goes to settings['coppa']['parent_email'] (see UserMailer#parental_consent_request).
-    # By default delivery is queued (Resque priority); without a worker the email never sends.
-    # In development, set INLINE_PARENTAL_CONSENT_EMAIL=1 to call SES immediately (still needs SES_KEY/SECRET or delivery will no-op / log).
-    if Rails.env.development? && %w[1 true yes on].include?(ENV['INLINE_PARENTAL_CONSENT_EMAIL'].to_s.strip.downcase)
-      UserMailer.deliver_message(:parental_consent_request, user.global_id)
-      Rails.logger.info("[COPPA] parental_consent_request delivered inline for user=#{user.global_id}")
-    else
-      UserMailer.schedule_delivery(:parental_consent_request, user.global_id)
-      Rails.logger.info("[COPPA] parental_consent_request queued for user=#{user.global_id} (start Resque priority worker, or set INLINE_PARENTAL_CONSENT_EMAIL=1 in development)")
-    end
+    UserMailer.schedule_parent_consent_delivery(:parental_consent_request, user.global_id)
   end
 
   def parental_consent_resend_redis_key(user)

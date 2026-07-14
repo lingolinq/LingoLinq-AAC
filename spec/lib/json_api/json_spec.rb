@@ -176,13 +176,34 @@ describe JsonApi::Json do
 
     it 'fills coppa_parental_consent from ENV when org host_settings omit it' do
       orig = ENV['COPPA_PARENTAL_CONSENT']
-      ENV['COPPA_PARENTAL_CONSENT'] = '1'
+      ENV.delete('COPPA_PARENTAL_CONSENT')
       begin
         expect(Organization).to receive(:load_domains).and_return({'bacon.com' => {'app_name' => 'bacon'}})
         host = JsonApi::Json.load_domain('bacon.com')
         expect(host['settings']['coppa_parental_consent']).to eq(true)
       ensure
-        ENV['COPPA_PARENTAL_CONSENT'] = orig
+        if orig.nil?
+          ENV.delete('COPPA_PARENTAL_CONSENT')
+        else
+          ENV['COPPA_PARENTAL_CONSENT'] = orig
+        end
+      end
+    end
+
+    it 'disables coppa_parental_consent when COPPA_PARENTAL_CONSENT is explicitly off' do
+      orig = ENV['COPPA_PARENTAL_CONSENT']
+      ENV['COPPA_PARENTAL_CONSENT'] = 'false'
+      begin
+        expect(JsonApi::Json.coppa_parental_consent_from_env?).to eq(false)
+        expect(Organization).to receive(:load_domains).and_return({'bacon.com' => {'app_name' => 'bacon'}})
+        host = JsonApi::Json.load_domain('bacon.com')
+        expect(host['settings']['coppa_parental_consent']).to eq(false)
+      ensure
+        if orig.nil?
+          ENV.delete('COPPA_PARENTAL_CONSENT')
+        else
+          ENV['COPPA_PARENTAL_CONSENT'] = orig
+        end
       end
     end
 
