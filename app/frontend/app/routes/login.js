@@ -4,8 +4,16 @@ import session from '../utils/session';
 
 export default Route.extend({
   router: service('router'),
+  appState: service('app-state'),
   title: "Login",
   beforeModel: function(transition) {
+    if(this.appState.get('feature_flags.landing_beta_closed')) {
+      // Allow device activation to complete even when public login is closed
+      if(!(transition && transition.to && transition.to.name === 'login.device')) {
+        this.appState.return_to_index();
+        return;
+      }
+    }
     // Allow staying on login.device to complete device activation (Trust / Shared device)
     if(transition && transition.to && transition.to.name === 'login.device') {
       return;

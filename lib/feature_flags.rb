@@ -35,7 +35,12 @@ module FeatureFlags
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
               # registration flow is identical to today. Add to
               # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
-              'eu_consent_age']
+              'eu_consent_age',
+              # Landing-page beta publish: hide Sign In / Register, block auth
+              # routes + self-registration API, show "In beta testing" badge.
+              # ENABLED on feat/lingolinq-landing-page-beta only; remove from
+              # ENABLED (or drop gates) when opening public auth again.
+              'landing_beta_closed']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -53,7 +58,8 @@ module FeatureFlags
               'signup_default_library_boards', 'english_first_board_generation',
               'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'sentence_bar_editing'] # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'landing_beta_closed'] # TEMPORARY: ON for feat/lingolinq-landing-page-beta publish (closed Sign In/Register). Remove from ENABLED before opening public auth.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -81,7 +87,8 @@ module FeatureFlags
     'google_sso' => 'May 18, 2026',
     'quick_screen_eval' => 'May 9, 2026',
     'comprehensive_eval_ai' => 'May 12, 2026',
-    'multi_user_board_import' => 'May 15, 2026'
+    'multi_user_board_import' => 'May 15, 2026',
+    'landing_beta_closed' => 'Jul 14, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
                    ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze
@@ -175,6 +182,12 @@ module FeatureFlags
   # enforcement is a separate hardening item, see the PR/plan.)
   def self.eu_consent_age_enabled?
     ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
+  end
+
+  # Landing-page beta publish: Sign In / Register closed for anonymous visitors.
+  # Mirrors eu_consent_age_enabled? — anonymous pages only see ENABLED.
+  def self.landing_beta_closed_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('landing_beta_closed')
   end
 
   # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.

@@ -32,7 +32,7 @@ export default Route.extend({
     if(controller.get('google_signup')) {
       controller.loadGoogleSignup();
     }
-    if(!this.appState.get('domain_settings.full_domain')) {
+    if(!this.appState.get('domain_settings.full_domain') || this.appState.get('feature_flags.landing_beta_closed')) {
       this.appState.return_to_index();
       return;
     }

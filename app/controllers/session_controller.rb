@@ -737,6 +737,9 @@ class SessionController < ApplicationController
       return render inline: 'Google sign-in is not available', status: :not_found
     end
     flow = params['flow'].to_s == 'register' ? 'register' : 'login'
+    if FeatureFlags.landing_beta_closed_enabled?
+      return redirect_to google_frontend_redirect('/', nil), allow_other_host: true
+    end
     code = GoSecure.nonce('google_oauth_state')
     config = {
       'flow' => flow,
@@ -909,6 +912,9 @@ class SessionController < ApplicationController
   end
 
   def google_signup_complete
+    if FeatureFlags.landing_beta_closed_enabled?
+      return api_error 403, {error: 'registration is not available during beta testing', landing_beta_closed: true}
+    end
     unless google_sso_available?
       return api_error 404, {error: 'not available'}
     end

@@ -148,4 +148,17 @@ describe FeatureFlags do
       expect(FeatureFlags.eu_consent_age_enabled?).to eq(true)
     end
   end
+
+  describe "landing_beta_closed" do
+    it "is registered and enabled on the landing-page beta publish branch" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('landing_beta_closed')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('landing_beta_closed')
+      expect(FeatureFlags.landing_beta_closed_enabled?).to eq(true)
+    end
+
+    it "reports disabled when removed from the enabled list" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES - ['landing_beta_closed'])
+      expect(FeatureFlags.landing_beta_closed_enabled?).to eq(false)
+    end
+  end
 end

@@ -242,6 +242,9 @@ class Api::UsersController < ApplicationController
   end
   
   def create
+    if FeatureFlags.landing_beta_closed_enabled?
+      return api_error(403, {error: "registration is not available during beta testing", landing_beta_closed: true})
+    end
     user_data = params['user']
     user_data = user_data.permit! if user_data.is_a?(ActionController::Parameters)
     if user_data && user_data['start_code'].present?

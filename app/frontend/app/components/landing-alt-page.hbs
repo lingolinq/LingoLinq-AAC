@@ -18,7 +18,7 @@
             <div class="la-hero-title-wrap">
               <h1 class="la-hero-title">
                 <span class="la-hero-title-line1 la-hero-title--from-left">{{t "Communication" key='communication'}} {{t "access" key='access'}}</span><br>
-                <span class="la-hero-title-line2 la-hero-title--from-right"><span class="la-hero-title-line1">{{t "for" key='for_lower'}}</span> <span class="hero-gradient">{{t "every student" key='landing_hero_highlight'}}</span></span>
+                <span class="la-hero-title-line2 la-hero-title--from-right"><span class="la-hero-title-line1">{{t "for" key='for_lower'}}</span> <span class="hero-gradient">{{t "everyone" key='landing_hero_highlight'}}</span></span>
               </h1>
             </div>
           </div>
@@ -47,7 +47,9 @@
           </div>
           <div class="la-hero-section la-hero-actions-section">
           <div class="la-hero-actions">
-            <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key='landing_try_free'}} →</LinkTo>
+            {{#unless this.appState.feature_flags.landing_beta_closed}}
+              <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key='landing_try_free'}} →</LinkTo>
+            {{/unless}}
             <a href="#la-demo" class="la-btn la-btn--ghost">{{t "Watch Demo" key='landing_watch_demo'}}</a>
           </div>
           </div>
@@ -284,10 +286,12 @@
       <section id="la-cta" class="la-cta-section">
         <div class="la-cta-inner">
           <span class="la-cta-eyebrow">{{t "Ready to start?" key='fsa_ready_to_start'}}</span>
-          <h2 class="la-cta-headline">{{t "Give every student" key='landing_cta_title_1'}} <em>{{t "a voice" key='landing_cta_title_2'}}</em></h2>
+          <h2 class="la-cta-headline">{{t "Give every communicator" key='landing_cta_title_1'}} <em>{{t "a voice" key='landing_cta_title_2'}}</em></h2>
           <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key='landing_cta_subtitle'}}</p>
           <div id="la-cta-buttons" class="la-cta-buttons">
-            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key='landing_cta_start'}} &rarr;</LinkTo>
+            {{#unless this.appState.feature_flags.landing_beta_closed}}
+              <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key='landing_cta_start'}} &rarr;</LinkTo>
+            {{/unless}}
             <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Schedule a District Demo" key='landing_cta_demo'}}</LinkTo>
           </div>
         </div>
@@ -310,7 +314,9 @@
             <div class="la-footer-col">
               <h4>{{t "Resources" key='landing_footer_resources'}}</h4>
               <nav aria-label={{t "Resources" key="fsa_nav_resources"}}>
-              <LinkTo @route="register">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+              {{#unless this.appState.feature_flags.landing_beta_closed}}
+                <LinkTo @route="register">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+              {{/unless}}
               <LinkTo @route="support" class="la-footer-link-btn">{{t "Help Center" key='landing_footer_help'}}</LinkTo>
               <LinkTo @route="faq" class="la-footer-link-btn">{{t "Guides & FAQs" key='landing_footer_how_tos'}}</LinkTo>
               {{#if this.appState.showFooterGithubLinks}}
@@ -345,7 +351,9 @@
             {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Pricing" key='landing_footer_pricing'}}</LinkTo> --}}
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Resources" key='landing_footer_resources'}}</div>
-            <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+            {{#unless this.appState.feature_flags.landing_beta_closed}}
+              <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+            {{/unless}}
             <LinkTo @route="support" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</LinkTo>
             <LinkTo @route="faq" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Guides & FAQs" key='landing_footer_how_tos'}}</LinkTo>
             {{#if this.appState.showFooterGithubLinks}}

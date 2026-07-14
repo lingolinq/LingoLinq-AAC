@@ -19061,6 +19061,15 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
   flex-shrink: 0 !important;
 
 }
+.app-navbar .header-unauth-right .app-navbar__beta-badge,
+.header--unauthenticated .header-unauth-right .app-navbar__beta-badge {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.app-navbar__beta-badge--drawer {
+  display: inline-block;
+  margin: 8px 16px 0;
+}
 .app-navbar #header_search {
   display: inline-block !important;
 

@@ -358,14 +358,16 @@
                 <li><a href="#" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="logout"}}</a></li>
               {{/unless}}
             {{else}}
-              <li role="presentation">
-                <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
-              </li>
-              {{#if this.app_state.domain_settings.full_domain}}
+              {{#unless this.app_state.feature_flags.landing_beta_closed}}
                 <li role="presentation">
-                  <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+                  <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
                 </li>
-              {{/if}}
+                {{#if this.app_state.domain_settings.full_domain}}
+                  <li role="presentation">
+                    <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+                  </li>
+                {{/if}}
+              {{/unless}}
             {{/if}}
           {{/unless}}
         </ul>
