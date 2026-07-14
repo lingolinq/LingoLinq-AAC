@@ -29,7 +29,7 @@
           <p class="register-error">{{t "This Google sign-up session did not include agreement to the Terms of Service." key="google_signup_link_terms_missing"}}</p>
           <p class="register-help-text">{{t "Go back to sign up, agree to the terms, then continue with Google again." key="google_signup_link_terms_missing_hint"}}</p>
           <div class="register-btn-wrap">
-            <button type="button" class="register-btn" {{action "restart_google_signup"}}>
+            <button type="button" class="register-btn" {{on "click" (this.ctrlAction "restart_google_signup")}}>
               {{t "Restart Google sign up" key="google_signup_restart"}}
             </button>
           </div>
@@ -337,7 +337,7 @@
               </div>
             {{/if}}
             <div class="register-btn-wrap">
-              <button type="button" disabled={{this.emailMethodDisabled}} class="register-btn register-btn--wide" {{action "continue_with_email"}}>
+              <button type="button" disabled={{this.emailMethodDisabled}} class="register-btn register-btn--wide" {{on "click" (this.ctrlAction "continue_with_email")}}>
                 {{t "Sign up with Email" key="sign_up_with_email"}}
               </button>
             </div>
@@ -348,7 +348,7 @@
           {{else if this.showEmailStep}}
             {{! Dedicated email form, reached from the method chooser. Terms are
                 already attested there, so they are not re-asked here. }}
-            <button type="button" class="register-back-link" {{action "go_to_step" "account"}}>
+            <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" "account")}}>
               <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
               {{t "Choose a different sign up method" key="choose_different_signup_method"}}
             </button>
