@@ -2403,6 +2403,7 @@
   "google_link_invalid_password": "Password not accepted",
   "invalid_login": "Invalid user name or password",
   "coppa_login_blocked_until_parent_consent": "This account is waiting for a parent or guardian to approve it. Ask them to check their email for the approval link.",
+  "coppa_login_blocked_parent_consent_revoked": "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again.",
   "expired_login": "Your login token is expired, please try again",
   "user_name_changed": "NOTE: User name has changed to \"%{un}\"",
   "coppa_parent_email_resent": "If that email address is correct, the parent or guardian should receive another message shortly.",

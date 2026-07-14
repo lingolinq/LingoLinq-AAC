@@ -189,7 +189,7 @@ module FeatureFlags
   def self.coppa_blocks_ai_for?(user)
     return false unless coppa_ai_hard_gate_enabled?
     return false unless user
-    return false unless user.respond_to?(:coppa_parental_consent_pending?)
-    user.coppa_parental_consent_pending?
+    return false unless user.respond_to?(:coppa_parental_consent_blocks_access?)
+    user.coppa_parental_consent_blocks_access?
   end
 end
