@@ -2114,8 +2114,10 @@ export default Controller.extend(prefClasses, {
   pd_license: computed('model.license.type', function() {
     return this.get('model.license.type') == 'public domain';
   }),
-  has_info_icons: computed('model.public', 'cc_license', 'pd_license', function() {
-    return !this.get('model.public') || this.get('cc_license') || this.get('pd_license');
+  has_info_icons: computed(function() {
+    // A privacy pill (Public or Private) always renders now, so the info-icons
+    // wrapper is always populated; license icons are additive.
+    return true;
   }),
 
   // No-ops: board-detail uses CSS grid, not computed height or canvas

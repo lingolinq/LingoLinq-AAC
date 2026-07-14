@@ -6907,3 +6907,8 @@ remove|ember-template-lint|no-curly-component-invocation|361|14|361|14|b4da70006
 remove|ember-template-lint|no-heading-inside-button|280|12|280|12|74ac923614f551b8186f3650d1863a4b50274741|1782259200000|1784851200000|1787443200000|app/components/dashboard/authenticated-view.hbs
 remove|ember-template-lint|no-curly-component-invocation|240|6|240|6|90a94caf42166b985326490d316309c8d039ece2|1782259200000|1784851200000|1787443200000|app/templates/demo/speak.hbs
 remove|ember-template-lint|no-curly-component-invocation|2017|6|2017|6|a1eb464feed02c11f7e5b06f336411746798d406|1782259200000|1784851200000|1787443200000|app/templates/user/board-detail.hbs
+remove|ember-template-lint|no-invalid-aria-attributes|252|20|252|20|c1a6c184d0ab65ddc4f31693d07962b7a4cc5797|1782259200000|1784851200000|1787443200000|app/templates/user/goal.hbs
+remove|ember-template-lint|no-unsupported-role-attributes|252|20|252|20|c1a6c184d0ab65ddc4f31693d07962b7a4cc5797|1782259200000|1784851200000|1787443200000|app/templates/user/goal.hbs
+remove|ember-template-lint|require-media-caption|130|16|130|16|f67f66ec9a7f06cadeeade431c41e120da840ff9|1782259200000|1784851200000|1787443200000|app/templates/user/goal.hbs
+remove|ember-template-lint|require-media-caption|211|6|211|6|f67f66ec9a7f06cadeeade431c41e120da840ff9|1782259200000|1784851200000|1787443200000|app/templates/user/goal.hbs
+remove|ember-template-lint|require-media-caption|15|8|15|8|be98960f27a7bf75b0daf35221a17defcacfa3a8|1782259200000|1784851200000|1787443200000|app/components/badge-settings.hbs

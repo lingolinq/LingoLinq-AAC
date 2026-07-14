@@ -8,6 +8,7 @@
 @use "caseload";
 @use "modern_pages";
 @use "badges";
+@use "goals";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -29310,7 +29311,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-trust-line {
-  margin-top: 24px;
+  margin-top: 0;
   margin-bottom: 14px;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.11);
@@ -30915,6 +30916,14 @@ body.md-ds-active .app-navbar__beta-feedback-link {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
     color: $brand-charcoal-dark;
   }
+}
+
+/* AI-sparkle SVG (AI-driven badge) — sized like the ☁/$ glyphs, inherits their
+   charcoal color via fill:currentColor so it sits consistently in the circle. */
+.la-hero-badge-icon__svg {
+  width: 1.25em;
+  height: 1.25em;
+  display: block;
 }
 
 /* 90% Lower Cost icon: copy cloud-based icon bg and icon color */
@@ -69350,12 +69359,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    control. Scoped to the metadata row so the pill style elsewhere
    on the page is unaffected. */
 .md-board-detail-header__meta .md-board-detail-header__info-icon--private,
+.md-board-detail-header__meta .md-board-detail-header__info-icon--public,
 .md-board-detail-header__meta .md-board-detail-header__info-icon--lock {
   height: 22px;
   padding: 0 8px;
   font-size: 14px;
 }
 .md-board-detail-header__meta .md-board-detail-header__info-icon--private svg,
+.md-board-detail-header__meta .md-board-detail-header__info-icon--public svg,
 .md-board-detail-header__meta .md-board-detail-header__info-icon--lock svg {
   width: 13px;
   height: 13px;
@@ -69539,6 +69550,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-header__info-icon--private svg line {
   stroke: currentColor;
 }
+/* Public pill — same soft metadata chip as --private, in a blue tint
+   (dusty-denim) so the open/globe indicator reads as the counterpart to
+   the private verdigris. Structural sizing/shape/hover come from the
+   shared .info-icon / meta-context / --clickable rules. */
+.md-board-detail-header__info-icon--public {
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.04);
+  color: $brand-dusty-denim;
+}
+.md-board-detail-header__info-icon--public svg {
+  stroke: $brand-dusty-denim;
+}
 /* Dark-mode pinning: the broader `--private { color: white }` rule
    below would otherwise override the verdigris text + strokes set
    above. Re-asserts the verdigris on text + eye shape, with a
@@ -69566,7 +69589,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    and explicitly set the SVG stroke so currentColor inheritance can't
    be overridden by any descendant rule. */
 .md-board-detail--dark .md-board-detail-header__info-icon--lock,
-.md-board-detail--dark .md-board-detail-header__info-icon--private {
+.md-board-detail--dark .md-board-detail-header__info-icon--private,
+.md-board-detail--dark .md-board-detail-header__info-icon--public {
   /* Per user spec — softer metadata pill in dark mode:
      bg .10 → .08, hairline white border at .05. */
   background: rgba(255, 255, 255, 0.08);
@@ -69574,7 +69598,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: rgba(255, 255, 255, 0.92);
 }
 .md-board-detail--dark .md-board-detail-header__info-icon--lock svg,
-.md-board-detail--dark .md-board-detail-header__info-icon--private svg {
+.md-board-detail--dark .md-board-detail-header__info-icon--private svg,
+.md-board-detail--dark .md-board-detail-header__info-icon--public svg {
   stroke: rgba(255, 255, 255, 0.92);
 }
 /* Clickable variant — when the user has edit permission, the private
