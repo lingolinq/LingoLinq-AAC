@@ -381,14 +381,51 @@ class User < ApplicationRecord
     !!c['pending_parent_consent']
   end
 
+  def coppa_parental_consent_revoked?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_revoked_at'].present?
+  end
+
+  def coppa_parental_consent_active?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+  end
+
+  def coppa_parental_consent_blocks_access?
+    coppa_parental_consent_pending? || coppa_parental_consent_revoked?
+  end
+
+  # Validates the grant link token from the parental consent request email.
+  # Retained after grant so idempotent revisits require the same secret as the first click.
+  def valid_parent_consent_grant_link_token?(token)
+    parent_consent_link_token_valid?(token, 'parent_consent_token')
+  end
+
+  # Validates the revoke link token from the parental consent confirmation email.
+  def valid_parent_consent_revoke_link_token?(token)
+    parent_consent_link_token_valid?(token, 'parent_consent_revoke_token')
+  end
+
+  def parent_consent_link_token_valid?(token, settings_key)
+    return false if token.blank?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    stored = c[settings_key].to_s
+    return false if stored.blank?
+    tok = token.to_s
+    return false if stored.bytesize != tok.bytesize
+    ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+  end
+
   # Parent completes email link with token. Returns true when consent is newly
   # recorded. Mirrors grant_ai_consent! (COPPA 16 CFR 312.5 record-keeping): the
   # settings write, the Privacy Policy acknowledgment, User#save! and an immutable
   # AuditEvent all run inside one `with_lock(requires_new: true)` (SELECT FOR
   # UPDATE + SAVEPOINT). Two consequences that a fail-open, post-save audit could
-  # not give: an audit-insert failure rolls back the consent grant - including the
-  # token invalidation, so the parent can simply retry the same link rather than
-  # being left consented-without-a-record; and concurrent token requests against
+  # not give: an audit-insert failure rolls back the consent grant, so the parent
+  # can simply retry the same link rather than being left consented-without-a-record; and concurrent token requests against
   # the same user are serialized, so the second reloads, sees the committed grant
   # and no-ops instead of double-granting/double-logging. `ip:`/`user_agent:` come
   # from the request so the immutable record identifies where and with what the
@@ -418,7 +455,7 @@ class User < ApplicationRecord
       granted_at = Time.now.utc.iso8601
       record_id = SecureRandom.uuid
       c['parent_consent_granted_at'] = granted_at
-      c.delete('parent_consent_token')
+      c['parent_consent_revoke_token'] = GoSecure.nonce('parent_consent_revoke')
       c.delete('parent_consent_expires_at')
       c.delete('pending_parent_consent')
       self.settings['coppa'] = c
@@ -446,6 +483,49 @@ class User < ApplicationRecord
           'record_id' => record_id
         },
         event_type: 'parental_consent_grant',
+        record_id: record_id
+      )
+      res = true
+    end
+    devices.each(&:invalidate_cached_keys) if res
+    res
+  end
+
+  # Parent completes the revoke link from the confirmation email. Returns true when
+  # consent is newly revoked. Mirrors grant_parental_consent!: settings write and
+  # immutable AuditEvent run atomically inside with_lock(requires_new: true).
+  def revoke_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_revoked_at'].present?
+      next unless c['parent_consent_granted_at'].present?
+      stored = c['parent_consent_revoke_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      revoked_at = Time.now.utc.iso8601
+      granted_at = c['parent_consent_granted_at']
+      record_id = SecureRandom.uuid
+      c['parent_consent_revoked_at'] = revoked_at
+      self.settings['coppa'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_revoke',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'granted_at' => granted_at,
+          'revoked_at' => revoked_at,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_revoke',
         record_id: record_id
       )
       res = true

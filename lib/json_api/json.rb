@@ -144,10 +144,13 @@ module JsonApi::Json
     LingoLinq::Jurisdiction.eu?(signal) ? EU_COPPA_CONSENT_AGE : DEFAULT_COPPA_CONSENT_AGE
   end
 
-  # Truthy: true, 1, yes, on (case-insensitive). Matches typical .env conventions.
+  # Default ON for COPPA under-13 signup + parental email consent.
+  # Set COPPA_PARENTAL_CONSENT=0|false|no|off only to disable (e.g. legacy dev).
   def self.coppa_parental_consent_from_env?
     v = ENV['COPPA_PARENTAL_CONSENT'].to_s.strip.downcase
-    %w[1 true yes on].include?(v)
+    return false if %w[0 false no off].include?(v)
+
+    true
   end
 
   def self.base_default_domain_settings

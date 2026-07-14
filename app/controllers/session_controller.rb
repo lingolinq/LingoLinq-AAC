@@ -106,7 +106,9 @@ class SessionController < ApplicationController
         end
       end
     end
-    if !error && user && user.coppa_parental_consent_pending?
+    if !error && user && user.coppa_parental_consent_revoked?
+      error = 'parental_consent_revoked'
+    elsif !error && user && user.coppa_parental_consent_pending?
       error = 'awaiting_parental_consent'
     end
     if !error && params['2fa_code']
@@ -524,6 +526,9 @@ class SessionController < ApplicationController
         return api_error 400, { error: "Invalid client_secret for client_id", client_id: params['client_id'] }
       end
       if u && u.valid_password?(params['password'])
+        if u.coppa_parental_consent_revoked?
+          return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
+        end
         if u.coppa_parental_consent_pending?
           return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
         end
@@ -984,6 +989,9 @@ class SessionController < ApplicationController
   end
 
   def google_finish_login(user, config)
+    if user.coppa_parental_consent_revoked?
+      return redirect_to google_frontend_redirect('/login?coppa_revoked=1', config), allow_other_host: true
+    end
     if user.coppa_parental_consent_pending?
       return redirect_to google_frontend_redirect('/register?coppa_waiting=1', config), allow_other_host: true
     end

@@ -39,6 +39,7 @@ export default Component.extend({
     var googleLink = params.get('google_link');
     var googleError = params.get('google_error');
     var googlePopout = params.get('google_popout');
+    var coppaRevoked = params.get('coppa_revoked');
     if(!googleLink) {
       try { googleLink = sessionStorage.getItem('google_link_nonce'); } catch (e) { /* ignore */ }
     }
@@ -51,6 +52,10 @@ export default Component.extend({
     }
     if(googlePopout && !this.get('google_popout_id')) {
       this.set('google_popout_id', googlePopout);
+    }
+    if(coppaRevoked && !this.get('login_error')) {
+      this.set('coppa_awaiting_parent', false);
+      this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_revoked', "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again."));
     }
   },
   googleLinkNonceObserver: observer('google_link_nonce', function() {
@@ -1169,7 +1174,10 @@ export default Component.extend({
           _this.appState.set('logging_in', false);
           if(err.error == "Invalid authentication attempt") {
             _this.set('login_error', i18n.t('invalid_login', "Invalid user name or password"));
-          } else if(err.error == "awaiting parental consent" || err.coppa_parental_consent_pending) {
+          } else if(err.coppa_parental_consent_revoked) {
+            _this.set('coppa_awaiting_parent', false);
+            _this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_revoked', "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again."));
+          } else if(err.coppa_parental_consent_pending) {
             _this.set('coppa_awaiting_parent', true);
             _this.set('login_error', i18n.t('coppa_login_blocked_until_parent_consent', "This account is waiting for a parent or guardian to approve it. Ask them to check their email for the approval link."));
           } else if(err.error == "Invalid client secret") {

@@ -139,10 +139,9 @@ rather than "disclosure" under 16 CFR 312.2, subject to legal confirmation; that
 on the provider not using the data for any other purpose, and it is a stronger fit for
 storage/hosting than for external model vendors (for AI calls, the PiiScrubber-redacts-first
 posture, not the carve-out, is the primary defense). The current flow (child registers, account
-waits, parent confirms via a single tokenized link, consent recorded) is the **first message
-only** and does **not yet satisfy email-plus**: the method is valid under COPPA only once the
-confirmatory second message and an explicit revoke-anytime notice ship. Single-token confirmation
-is the interim state.
+waits, parent confirms via a single tokenized link, consent recorded, parent receives a
+confirmatory email with an explicit revoke-anytime link) satisfies **email-plus** for signup
+consent, pending counsel review of the default copy.
 
 **No credit card is collected at registration.** A $0 authorization or non-charging "card check"
 does not satisfy the FTC credit-card method (which requires a real transaction that notifies the

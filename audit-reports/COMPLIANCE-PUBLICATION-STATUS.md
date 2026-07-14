@@ -51,7 +51,6 @@
 | Subprocessor Register (branded) | drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | 2026-06-19 | published | Review date is older than 2026-07-08. |
 | Vendor and Subprocessor Management Policy | drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | 2026-06-19 | published | Review date is older than 2026-07-08. |
 | Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-07-08. |
-| AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-06-20 | published | Review date is older than 2026-07-08. |
 | AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-05-11 | approved | Review date is older than 2026-07-08. |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | 2026-05-11 | published | Review date is older than 2026-07-08. |
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-07-08. |
@@ -146,4 +145,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_53 documents tracked. 51 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._
+_53 documents tracked. 50 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._
