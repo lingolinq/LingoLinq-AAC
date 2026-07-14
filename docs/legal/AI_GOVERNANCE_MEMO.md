@@ -167,22 +167,59 @@ is a documented analysis, not an assumption.
 - **Trigger to revisit:** if the product moves toward education-gating functions (assessment,
   admission, proctoring, or outcome scoring), re-run this classification before shipping.
 
-### 5.2 Article 50 transparency plan (action before 2026-08-02)
+### 5.2 Article 50 transparency (decided position)
 
 Article 50 transparency obligations apply from **2026-08-02** and are not limited to high-risk
-systems. They cover disclosing AI interaction to users and labeling synthetic or AI-generated
-content. For systems already on the market, the machine-readable marking requirement under
-Article 50(2) has a grace period to **2026-12-02** (Digital Omnibus).
+systems. They cover disclosing AI interaction to users (50(1)) and marking synthetic or
+AI-generated content (50(2)). This section states LingoLinq's **decided** applicability
+position; it supersedes the earlier "plan/decide" framing (see the 2026-07-13 amendment note in
+section 8, re-attested 2026-07-14). Full analysis with code citations:
+`docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` (sections 8 and 9) and the readiness brief
+`ai-company-brain/outputs/docs/2026-07-13-eu-ai-act-art50-readiness-brief.md`.
 
-Plan before 2026-08-02:
-1. Decide whether the AAC predictor's output meets the synthetic-content marking trigger. A
-   word suggestion that the user selects and speaks is arguably the user's own communication,
-   not machine-generated content presented as fact. Document this analysis.
-2. Implement any required user-facing disclosure that the prediction feature is AI assisted,
-   for EU-facing deployments.
-3. If marking is deemed required, resolve it before the 2026-12-02 grace date.
+**Article 50(2) -- machine-readable marking of synthetic output:**
+- **Board generation, AI focus words, and comprehensive eval narration are in scope and are
+  marked.** Marking shipped via `lib/art50_marker.rb` (HMAC-SHA512 provenance attestation
+  persisted at `board.settings['ai_generated']`, re-verified server-side on every read; a marker
+  that fails verification is treated as unmarked, i.e. failure is toward under-claiming).
+  Delivered in PRs #505/#507/#511 (board gen), #573 (focus words + eval narration), and
+  **released to `main`/prod via PR #584 on 2026-07-13** -- `main` and `staging` are byte-identical
+  on the marking surfaces.
+- **Word/phrase prediction is OUT of 50(2) scope, via the assistive-function carve-out.** Art.
+  50(2) "shall not apply to the extent the AI systems perform an assistive function for standard
+  editing or do not substantially alter the input data provided by the deployer or the semantics
+  thereof." `AiWordPredictor.predict` returns candidate next words that the user then selects
+  into their own utterance; suggestions are never persisted (in-memory LRU, 30-min TTL). The only
+  durable output is the user's own human-authored communication, so marking it would falsely
+  label human speech (often a COPPA-covered child's) as AI-generated -- a harm, not compliance.
+  This decision is **test-locked** (`spec/lib/ai_word_predictor_spec.rb`) so it cannot silently
+  regress. Code: `lib/ai_word_predictor.rb:91-104`.
+- **50(3) emotion recognition / biometric categorisation and 50(4) deep fakes / public-interest
+  text are N/A** -- LingoLinq runs none.
 
-This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
+**The 2026-12-02 marking grace does NOT give LingoLinq headroom.** The grace comes from the
+**Digital Omnibus on AI amending regulation** (Council final adoption 2026-06-29; OJ publication
+expected July 2026, in force on the third day after publication -- re-verify at EUR-Lex before
+citing to counsel or a customer), **not** the original Regulation (EU) 2024/1689. It defers only
+the 50(2) marking sub-obligation, and **only for AI systems already placed on the EU market
+before 2026-08-02.** A system first placed on the EU market from 2026-08-02 onward must mark
+immediately, with no grace. LingoLinq has no EU deployment today, so its first EU deployment is a
+"new" system with no December grace -- and in any case the in-scope surfaces are already marked,
+so no grace is needed for them.
+
+**Article 50(1) -- disclosure of AI interaction:**
+- Board generation and word prediction may implicate 50(1) (disclose that the feature is AI). The
+  remaining deliverable is the **EU-gated AI-interaction disclosure modal** shown before first AI
+  generation. It is **not yet built** (no `article_50_disclosure_modal` feature flag; no modal
+  component), and it sits on the COPPA "VPC" (Verifiable Parental Consent) consent track -- **not**
+  the Render-to-GCP migration (that conflation was corrected in the 2026-06-30 decoupling brief).
+- **Deferral is ratified and bounded.** Per the 2026-07-09 fallback memo, best-effort by
+  2026-08-02 with a slip measured in days-to-weeks is accepted **because prod carries no real EU
+  users** (internal/test accounts only). The deferral is withdrawn the instant a real EU customer
+  onboards, at which point the modal moves to unconditional priority.
+
+Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
+`fix-euaiact-art50-2-2026-12-02`).
 
 ## 6. Human oversight
 
@@ -206,7 +243,11 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
       enumerate the surface; the data-flow docs are the gap).
 - [ ] Vendor terms on file for every model provider in the inventory (Anthropic, Google,
       OpenRouter), with renewal tracking.
-- [ ] Finalize the Article 50 applicability decision before 2026-08-02.
+- [x] Finalize the Article 50 applicability decision before 2026-08-02: DECIDED 2026-07-13, now
+      stated in section 5.2 (board gen / focus words / eval narration in scope + marked + on
+      prod; word prediction out of scope via the assistive-function carve-out; 50(3)/50(4) N/A;
+      50(1) EU modal deferred-with-ratified-fallback on the COPPA VPC track). The section 5.2
+      restatement is **pending Scot's re-attestation** (see section 8, 2026-07-13 amendment).
 - [ ] Model inventory kept current as models are upgraded (the ids above are point-in-time).
 - [ ] Resolve the eval-narration consent-binding residual (LL-11db0dc848): bind the COPPA/consent
       gate subject to the eval content actually egressed, via server-side eval persistence
@@ -223,7 +264,7 @@ This is tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`).
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-13** |
+| Latest re-attestation date | **2026-07-14** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -252,6 +293,19 @@ control on that path, not a safe harbor and not BAA-backed. **This second correc
 memo's HIPAA-defensibility conclusion for the model-call path and is covered by Scot's 2026-07-13
 re-attestation**; section 3 is the current attested position, per the same governance the memo
 requires of every other open item (section 6: AI drafts and flags, humans attest and accept risk)._
+
+_Amended 2026-07-13, re-attested 2026-07-14: section 5.2 was rewritten from a "plan/decide"
+outline into LingoLinq's **decided** Article 50 applicability position, and the section 7 open
+item "Finalize the Article 50 applicability decision" was marked resolved. This is a
+**substantive** change to the attested EU AI Act analysis (it records decisions -- board
+generation / focus words / eval narration in 50(2) scope and marked; word prediction out of
+50(2) scope via the assistive-function carve-out; 50(1) EU modal deferred with a ratified
+fallback). Per section 6 (AI drafts and flags, humans attest and accept risk), Scot reviewed and
+**re-attested this section on 2026-07-14**; section 5.2 is now the current attested Article 50
+position. Code and legal citations re-verified against live `origin/staging` and
+`origin/main` on 2026-07-13; the 2026-12-02 Digital Omnibus grace basis was corrected (it does
+not give LingoLinq headroom -- see section 5.2). Supporting analysis:
+`ai-company-brain/outputs/docs/2026-07-13-eu-ai-act-art50-readiness-brief.md`._
 
 _Re-attested 2026-07-13 by Scot Wahlquist, CEO: covers the 2026-07-11 HIPAA-basis correction in
 section 3 and the 2026-07-12 DeepSeek-vs-compliance-surface resolution in section 4.1. The original
