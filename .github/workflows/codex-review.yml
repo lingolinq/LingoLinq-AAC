@@ -244,7 +244,7 @@ jobs:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           RUN_ID: ${{ github.run_id }}
 
-      - name: POST result to n8n W2 and verify status resolved
+      - name: POST result to n8n W2 and resolve status
         run: |
           RESULT_JSON="$(cat /tmp/envelope.json)"
           HTTP_STATUS="$(curl -sS -o /tmp/w2-response.json -w '%{http_code}' \
@@ -258,6 +258,24 @@ jobs:
             cat /tmp/w2-response.json >&2
             exit 1
           fi
+
+          VERDICT="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['review'].get('verdict', ''))")"
+          if [ "$VERDICT" = "APPROVE" ]; then
+            FINAL_STATE="success"
+            DESCRIPTION="Codex review approved"
+          else
+            FINAL_STATE="failure"
+            DESCRIPTION="Codex review requires changes"
+          fi
+
+          # W2 owns the sticky comment; Actions owns the commit status
+          # because this job already has statuses:write and n8n's comment
+          # credential intentionally does not need that scope.
+          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            -f state="$FINAL_STATE" \
+            -f context=codex-review/deep-pass \
+            -f description="$DESCRIPTION" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           # Success condition (literal, per build spec section 1): do not
           # exit success unless a follow-up GET confirms deep-pass is no
