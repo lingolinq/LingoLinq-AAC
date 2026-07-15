@@ -23,11 +23,11 @@
   flex-direction: column;
   max-width: 100%;
   box-sizing: border-box;
-  /* Same top-down bento gradient the home page uses (bento-default palette). */
-  background: linear-gradient(to bottom,
-    rgba(126, 184, 224, 0.25) 0%,
-    rgba(212, 168, 75, 0.12) 50%,
-    rgba(61, 122, 92, 0.14) 100%);
+  /* Transparent: the bento gradient is painted on the full-viewport
+     #within_ember:has(.ub-find-board-page) (app.scss) so it fills the ENTIRE
+     page height. Painting it here only reached content height, leaving a bare
+     strip below (LEARNINGS "auth-page bg not full height"). */
+  background: transparent;
 }
 /* Restored page header — compact vertical footprint so the two-pane below keeps
    room, but the la-hero-title / eyebrow keep their entrance movement + styling. */
@@ -48,6 +48,15 @@
    through the <h1>. */
 /* Tighten the title↔subtitle spacing (no negative-margin hacks): zero the h1's
    bottom margin AND pull the line boxes in with a tight line-height. */
+/* Center the title block on the page. The base `.la-hero-title-wrap` is
+   `max-width: 590px` with NO auto margins, so it pins to the left of the 640px
+   `.la-section-header` and drags both lines off the page center — center the
+   wrap so the h1 + subtitle sit on the header's (and page's) center axis. */
+.ub-find-board__page-header .la-hero-title-wrap {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
 .ub-find-board__page-header .la-hero-title {
   margin-bottom: 0;
   line-height: 1.05;
@@ -59,6 +68,11 @@
 }
 .ub-find-board-page .ub-find-board__page-header .ub-search-page__title-boards.ub-search-page__title-boards--note {
   display: inline-block;
+  /* Cancel the 0.25em left padding inherited from `.ub-search-page__title-boards`
+     (meant to space "Boards" off "Search for" in the h1). On this standalone
+     inline-block subtitle that padding sits inside the centered box and nudges
+     the text off the h1's center axis. */
+  padding-left: 0;
   background: none;
   -webkit-text-fill-color: $brand-charcoal-dark;
   color: $brand-charcoal-dark;
@@ -99,6 +113,33 @@
   color: #fff !important;
 }
 .ub-find-board__homenav .md-pillnav__pill svg { color: #fff; }
+/* Clear-filter affordance — icon + "Clear filter" label seated to the RIGHT of
+   the language field in the filter row. Rendered only while a search query is
+   active (this.has_active_filter). A quiet text button that tints on hover. */
+.ub-search-page__clear-filter {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: $brand-slate-blue;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ub-search-page__clear-filter:hover,
+.ub-search-page__clear-filter:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  color: $brand-charcoal-dark;
+  outline: none;
+}
+.ub-search-page__clear-filter-icon { flex-shrink: 0; }
 .ub-find-board {
   display: grid;
   grid-template-columns: 380px minmax(0, 1fr); /* panel (left) | preview (right) */
@@ -219,6 +260,25 @@
 .ub-find-board__search-row > *:first-child { flex: 1 1 auto; min-width: 0; }
 .ub-find-board__locale-wrap { flex: 0 0 auto; min-width: 120px; }
 .ub-find-board__create { width: 100%; margin-top: 10px; justify-content: center; }
+
+/* Primary action buttons (Create a New Board, Open Board): keep the shared
+   .md-btn--primary.md-btn--pill look untouched (the original lighter wash, text,
+   and blur all inherit from the base) — only swap the base's light hairline for
+   a small dark outline so the buttons read with a bit more definition against
+   the pale panel.
+   SPECIFICITY: the base rule is (0,2,0) with !important; !important vs
+   !important is decided by specificity, so this override MUST include both
+   button classes to win. The :hover/:focus-visible selectors are listed too
+   ((0,4,0)) so the base :hover ((0,3,0), which resets border-color) can't drop
+   the dark outline on hover. */
+.ub-find-board__create.md-btn--primary.md-btn--pill,
+.ub-find-board__preview-open.md-btn--primary.md-btn--pill,
+.ub-find-board__create.md-btn--primary.md-btn--pill:hover,
+.ub-find-board__preview-open.md-btn--primary.md-btn--pill:hover,
+.ub-find-board__create.md-btn--primary.md-btn--pill:focus-visible,
+.ub-find-board__preview-open.md-btn--primary.md-btn--pill:focus-visible {
+  border: 1px solid rgba($la-navy, 0.40) !important;
+}
 
 /* Selected row highlight (mirrors the collection hover tint) */
 .md-board-collection__item--selected {

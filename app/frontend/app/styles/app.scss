@@ -674,6 +674,28 @@ html, body {
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
 }
 
+/* Search / Find Boards page: same recurring "short background" bug as
+   login/register/board-picker — /search is a top-level route, so its #content is
+   NOT `.index.with_user` and never gets the fill-painted bento gradient (line
+   ~579). Painting the gradient on the inner `.ub-find-board-page` wrapper only
+   reached content height, leaving a bare strip below. FIX (per LEARNINGS
+   "auth-page bg not full height"): paint the SAME bento gradient the home page
+   uses (line ~579) on the fixed full-viewport #within_ember so it fills the
+   entire page height behind the (transparent) #content + wrapper. Compound
+   `:has()` (1,2,0) out-specifies the `:has(.page-footer)` transparent reset. */
+#within_ember:has(.page-footer):has(.ub-find-board-page) {
+  background: linear-gradient(to bottom,
+    rgba(126, 184, 224, 0.25) 0%,
+    rgba(212, 168, 75, 0.12) 50%,
+    rgba(61, 122, 92, 0.14) 100%);
+}
+/* Keep this page's #content transparent so the full-viewport mesh above shows
+   through the whole height (mirrors the login/register #content reset). Scoped
+   to the search page; padding/flex are left to the existing #content rules. */
+#within_ember:has(.page-footer) #content:has(.ub-find-board-page) {
+  background: transparent;
+}
+
 /* Full-screen onboarding: hide the app footer bar on the beta pages. Use
    display:none (not removal) — the element stays in the DOM so the
    `:has(.page-footer)` shell layout above still matches; it just no longer
@@ -40183,6 +40205,7 @@ a.la-footer-bottom-a11y-wcag {
   .ub-search-jump__trigger-label {
     flex: 1 1 auto;
     min-width: 0;
+    padding-left: 14px; /* extra breathing room between the search icon and the "Find a board…" text */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -40226,6 +40249,12 @@ a.la-footer-bottom-a11y-wcag {
        collapse it. */
     .md-board-collection__search {
       margin-top: 0;
+    }
+    /* Match the trigger's helper-text indent — push the live input's
+       "Find a board…" placeholder off the search icon. Scoped to this panel
+       so the shared speak-mode drawer field is untouched. */
+    .md-board-collection__search-input {
+      padding-left: 8px;
     }
   }
   .ub-search-page__locale-wrap {
@@ -61268,6 +61297,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     flex: 1 1 100% !important;
   }
   .ub-boards-page__boards-summary-new-btn--in-tabs-row {
+    /* Back into flow at phone width so it stacks below the <select>
+       (desktop pins it absolutely to page-center the tabs). */
+    position: static !important;
     flex: 1 1 100% !important;
     margin-top: 8px !important;
   }
@@ -62755,13 +62787,18 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
     );
   }
-  /* In-tabs-row positional modifier — lifts the button 1rem off the
-     layered divider beneath the tabs so it doesn't sit directly on
-     the gradient hairline. The parent .tabs-row uses
-     align-items: flex-end so without this nudge the button's
-     bottom edge would touch the divider. */
+  /* In-tabs-row positional modifier — pulled OUT of the flex flow and
+     pinned to the row's right edge so the tab strip (.tabs--boards,
+     flex: 1 1 auto + justify-content: center) spans the full row width and
+     its pills center on the PAGE rather than only within the space left of
+     this button. `bottom: 1rem` keeps the original 1rem lift off the layered
+     divider (the ::after hairline at the row's bottom). The tabs-row is
+     position: relative, so this anchors to it. Reset to static ≤640px, where
+     the button stacks below the mobile <select>. */
   &__boards-summary-new-btn--in-tabs-row {
-    margin-bottom: 1rem;
+    position: absolute;
+    right: 0;
+    bottom: 1rem;
   }
   &__boards-summary-body {
     /* Matches the folders body's top padding + layered divider so

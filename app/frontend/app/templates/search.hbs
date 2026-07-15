@@ -29,8 +29,18 @@
             @sections={{this.jump_sections}}
             @onSelect={{this.ctrlAction "select_preview_board"}} />
           <div class="ub-search-page__locale-wrap">
-            {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(mut this.locale) ariaLabel=(t "Language" key="locale")}}
+            {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(mut this.locale) placeholder=(t "[Choose a Language]" key="choose_locale") ariaLabel=(t "Language" key="locale")}}
           </div>
+          {{#if this.has_active_filter}}
+            {{!-- Clear the active search filter — shown only while a filter is applied. --}}
+            <button type="button" class="ub-search-page__clear-filter" {{on "click" (this.ctrlAction "clear_filter")}}>
+              <svg class="ub-search-page__clear-filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              {{t "Clear filter" key="clear_filter"}}
+            </button>
+          {{/if}}
         </div>
       </form>
     </div>

@@ -39,6 +39,25 @@ export default Controller.extend({
   panel_filter_active: computed('panel_filter', function() {
     return !!(this.get('panel_filter') || '').trim();
   }),
+  /* The user's default language for the filter — the resolved preferred locale,
+     mirroring routes/search.js#model (the "unfiltered" language state). A locale
+     that differs from this is a deliberate language filter. */
+  default_locale: computed(function() {
+    var preferred = (i18n.langs || {}).preferred || (typeof window !== 'undefined' && window.navigator && window.navigator.language) || 'en';
+    var list = i18n.get('translatable_locales') || {};
+    var normalized = String(preferred).replace(/-/g, '_');
+    if(list[normalized]) { return normalized; }
+    var base = normalized.split(/_/)[0];
+    return list[base] ? base : 'en';
+  }),
+  /* An active filter = a non-empty search query OR a language other than the
+     default (the user selected a specific/Any language). Drives the "Clear
+     filter" affordance shown to the right of the filter row. */
+  has_active_filter: computed('searchString', 'locale', 'default_locale', function() {
+    var q = (this.get('searchString') || '').trim();
+    var locale = this.get('locale');
+    return !!q || (!!locale && locale !== this.get('default_locale'));
+  }),
   _filter_boards: function(boards) {
     var q = (this.get('panel_filter') || '').trim().toLowerCase();
     if(!q || !boards) { return boards || []; }
@@ -152,7 +171,12 @@ export default Controller.extend({
           _this.set('online_results', {results: []});
         });
         if(app_state.get('currentUser')) {
-          LingoLinq.store.query('board', {q: str, user_id: 'self', locale: locale, allow_job: true}).then(function(res) {
+          // Owned-boards query must use the user's REAL global id — the server
+          // resolves `user_id` via find_by_path, and the literal string 'self'
+          // has no user_name match, so it 404s and My Boards comes back empty.
+          // The board-detail "My Board Collection" drawer this page mirrors uses
+          // currentUser.id for exactly this reason (board-collection.js).
+          LingoLinq.store.query('board', {q: str, user_id: app_state.get('currentUser.id'), locale: locale, allow_job: true}).then(function(res) {
             if(res.meta && res.meta.progress) {
               progress_tracker.track(res.meta.progress, function(event) {
                 if(event.status == 'errored') {
@@ -194,10 +218,26 @@ export default Controller.extend({
   _autoSearch: observer('searchString', 'locale', function() {
     debounce(this, this._runAutoSearch, 300);
   }),
+  /* Changing the LANGUAGE filter invalidates the current preview — that board is
+     in the previous language, and the panel is about to be re-scoped to the new
+     one (load_results below re-queries with the new locale). Drop the preview
+     back to its empty state so a stale board doesn't linger, and so the canvas
+     stops re-rendering against the changing locale (that churn is what made the
+     preview shrink/enlarge repeatedly). Only `locale` — typing in the search box
+     narrows the panel but should keep the current preview. */
+  _clearPreviewOnLocaleChange: observer('locale', function() {
+    this.set('preview_board', null);
+    this.set('preview_loading', false);
+    this.set('preview_error', false);
+  }),
   _runAutoSearch: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
     var str = this.get('searchString') || '';
     this.load_results(str);
+    /* clear_filter resets the language to '' ([Choose a Language]); skip the
+       route transition so the route's empty-locale→preferred resolution doesn't
+       snap the dropdown back to a concrete language. */
+    if(this._suppressTransition) { this._suppressTransition = false; return; }
     this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
   init() {
@@ -287,6 +327,17 @@ export default Controller.extend({
     },
     clear_panel_filter: function() {
       this.set('panel_filter', '');
+    },
+    /* Clear the active filters: empty the search query AND reset the language
+       dropdown to "[Choose a Language]" (id ''). `_suppressTransition` keeps the
+       ensuing _runAutoSearch from route-transitioning — the route resolves an
+       empty locale back to the preferred language and would snap the dropdown
+       off "[Choose a Language]". load_results still reloads the panel (it falls
+       back to the preferred locale for the actual query). */
+    clear_filter: function() {
+      this._suppressTransition = true;
+      this.set('searchString', '');
+      this.set('locale', '');
     },
     newBoard: function() {
       this.router.transitionTo('create-board-new');

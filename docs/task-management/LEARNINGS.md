@@ -3288,7 +3288,7 @@ pinned/clipped by the `#content` scrollport). Paint the mesh on the fixed full-v
 `#within_ember`.** `footer` (controllers/application.js) is true for any non-board route,
 so most app pages ARE `:has(.page-footer)` and can use this.
 
-**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`.
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`. SEARCH-PAGE instance (2026-07-15): /search is top-level (no `.index.with_user`), bg was on `.ub-find-board-page` wrapper → short. Fixed the same way: bento gradient on `#within_ember:has(.page-footer):has(.ub-find-board-page)` + transparent `#content:has(.ub-find-board-page)` + transparent wrapper. See `2026-07-15-search-my-boards-empty-self-userid.md`.
 
 ---
 
@@ -6507,3 +6507,51 @@ a plain flex child, so `display:none` reflows cleanly. To hide "temporarily with
 user's preference," key the CSS off the transient state class (`.md-shell--board-collection` =
 `board_collection_open`), never the persisted `--collapsed` / `quick_sidebar` state. See
 `docs/task-management/2026-07-14-board-collection-lang-column-narrow.md` Change 5. (2026-07-14)
+
+### Board `user_id` query param resolves via `find_by_path` — pass the real global id, never `'self'`
+`boards_controller#index` resolves the `user_id` query param with
+`User.find_by_path(user_id)`, which routes a non-digit string to
+`find_by(user_name: ...)` and only routes a digit-leading global id (`1_1`) to
+`find_by_global_id`. There is no user named `self`, so `?user_id=self` returns nil
+→ `exists?` 404s → the owned-boards query comes back empty. The literal `'self'`
+DOES work for `store.findRecord('user', 'self')` (persistence.js special-cases it),
+but NOT for the boards index `user_id` param. To load a user's owned boards, pass
+`app_state.get('currentUser.id')` (what the working `board-collection` drawer does),
+not `'self'`. A `.length`-gated section will silently vanish when this is wrong;
+an always-empty "None found" state can hide the same bug for years.
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### A generic preventDefault-and-drop action wrapper silently breaks `<input>` handlers
+Some components (e.g. `search-board-jump.js`) define a `ctrlAction(name)` helper
+that wraps click actions: it calls `event.preventDefault()` and then POPS the DOM
+event off the args before `send()`. That's correct for buttons, but any handler
+that needs the event — `input` (reads `event.target.value`), `keydown` (reads
+`event.key`) — receives `undefined` and silently no-ops (a text field that won't
+accept typing). Bind input/keydown to dedicated event-preserving closures
+(`this.handleInput = e => self.send('update_query', e)`), NOT the click wrapper.
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### Overriding a compound-class `!important` base (e.g. `.md-btn--primary`) needs ≥ its specificity
+`.md-btn--primary.md-btn--pill` sets `background`/`border-color`/`color` with
+`!important` at specificity (0,2,0). A page-scoped override like
+`.ub-find-board__create` (0,1,0) that ALSO uses `!important` still LOSES —
+`!important` vs `!important` is resolved by specificity, and source order is
+irrelevant when specificity differs (a `@use`d partial emitting before app.scss
+does not matter here). The override silently applies nothing (button keeps the
+pale base wash). Fix: include the base's classes so the override matches/exceeds
+it — `.ub-find-board__create.md-btn--primary.md-btn--pill` (0,3,0), and the
+`:hover`/`:focus-visible` variants likewise (0,3,1) to beat the base's (0,2,1).
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### A canvas sized from a parent measurement re-renders wrong on route re-entry
+`board-preview-canvas` sets its dimensions from the parent's measured height
+(`getBoundingClientRect().height − 96`). That measurement is only reliable once
+the layout has settled. When the rendering trigger is a singleton controller
+property that survives navigation (e.g. `preview_board`, never reset on route
+exit), the component re-inserts on route RE-ENTRY and measures a still-transitional
+(short) parent → the element caps to a wide-short strip and the board letterboxes
+tiny. First visit hides the bug because the user only triggers render after layout.
+Fix pattern: a `ResizeObserver` on the PARENT (not the self-sized element) that
+re-renders when the container settles — deterministic, no rAF/setTimeout guessing,
+and it also fixes window-resize sizing. Guard with a <2px no-op check to prevent
+loops. See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)

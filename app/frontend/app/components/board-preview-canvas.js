@@ -24,6 +24,52 @@ export default Component.extend({
   persistence: service('persistence'),
   didInsertElement: function() {
     this.render_canvas();
+    this._observe_container_resize();
+  },
+  /* Re-render when the preview's container box settles or changes size. The
+     canvas derives its dimensions from the parent's MEASURED height
+     (_modal_canvas_max_height = parent height − 96). On first paint that's fine —
+     the user only selects a board after the page is laid out, so the parent is
+     full-height. But `preview_board` is a singleton controller property that
+     survives route exit, so on RE-ENTRY (search → home → back) the canvas
+     inserts while the two-pane flex/grid heights are still transitional; the
+     parent then measures short and the element gets capped to a wide-short strip
+     with the board letterboxed tiny. A ResizeObserver on the PARENT re-renders
+     once the real height lands (and also fixes canvas sizing on window resize).
+     Observe the parent — NOT our own element, whose size _apply_modal_canvas_sizing
+     mutates — and skip no-op callbacks so a settled layout can't loop. */
+  _observe_container_resize: function() {
+    var _this = this;
+    var el = this.element;
+    var parent = el && el.parentNode;
+    if(!parent || typeof window === 'undefined' || !window.ResizeObserver || !parent.getBoundingClientRect) { return; }
+    var seed = parent.getBoundingClientRect();
+    this._maxParentW = seed.width;
+    this._maxParentH = seed.height;
+    var ro = new window.ResizeObserver(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var r = parent.getBoundingClientRect();
+      /* Re-render ONLY when the container grows past the largest size we've drawn
+         for — this catches the route-re-entry "settle" (transitional-short → full
+         height) without reacting to shrinks. Reacting to every delta risks a
+         feedback loop: a re-render can flip the parent's overflow scrollbar or
+         nudge the aspect-ratio'd element, changing the parent's measured box and
+         re-triggering the observer indefinitely (the shrink/enlarge churn seen
+         when the locale changed mid-preview). Growth is monotonic, so it always
+         terminates. A genuine window-shrink just leaves the canvas CSS-scaled
+         (marginally softer) rather than risk the loop. */
+      if(r.width <= _this._maxParentW + 2 && r.height <= _this._maxParentH + 2) { return; }
+      _this._maxParentW = Math.max(_this._maxParentW, r.width);
+      _this._maxParentH = Math.max(_this._maxParentH, r.height);
+      if(_this._resizeDebounce) { runCancel(_this._resizeDebounce); }
+      _this._resizeDebounce = runLater(function() {
+        _this._resizeDebounce = null;
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.render_canvas();
+      }, 60);
+    });
+    ro.observe(parent);
+    this._resizeObserver = ro;
   },
   /* Size the modal canvas by the board's column:row ASPECT RATIO (square cells)
      rather than a fixed pixel height, so it scales UNIFORMLY when the available
@@ -851,6 +897,14 @@ export default Component.extend({
     if (this._previewStallTimer) {
       runCancel(this._previewStallTimer);
       this._previewStallTimer = null;
+    }
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    }
+    if (this._resizeDebounce) {
+      runCancel(this._resizeDebounce);
+      this._resizeDebounce = null;
     }
     this._super(...arguments);
   },
