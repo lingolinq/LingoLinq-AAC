@@ -218,6 +218,21 @@ so no grace is needed for them.
   users** (internal/test accounts only). The deferral is withdrawn the instant a real EU customer
   onboards, at which point the modal moves to unconditional priority.
 
+**Ownership -- the 50(1) modal is VPC-owned (single owner).** Build and delivery of the Article
+50(1) disclosure modal belong to the **VPC (Verifiable Parental Consent) GSD project** as a phase
+on that track, not to any standalone Article 50 effort or compliance-doc thread. Rationale: the
+modal's linchpin dependency -- a shared call-context helper that stamps `jurisdiction:` at the
+three AI call sites (board generation, word prediction, eval narration) -- **is VPC Phase 4**, and
+that same helper un-inerts the currently-dormant EU log-retention purge
+(`AiApiLog.purge_old_eu_logs!`, which today matches zero rows because nothing stamps jurisdiction).
+Two efforts editing the same call sites would collide. Boundary rules: **(1)** only the VPC track
+edits the three AI call sites, the `article_50_disclosure_modal` flag, and the 50(1) paragraph of
+this section; **(2)** this section 5.2 is the shared contract -- any Article 50 thread reads it
+first and updates it last; **(3)** when the modal ships, the "not yet built / deferred" wording
+above is rewritten by the shipping thread and re-attested per section 6. Compliance-posture
+documentation (this memo, the calendar) remains a separate, non-code workstream and never edits
+the call sites.
+
 Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 `fix-euaiact-art50-2-2026-12-02`).
 
@@ -247,7 +262,9 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
       stated in section 5.2 (board gen / focus words / eval narration in scope + marked + on
       prod; word prediction out of scope via the assistive-function carve-out; 50(3)/50(4) N/A;
       50(1) EU modal deferred-with-ratified-fallback on the COPPA VPC track). The section 5.2
-      restatement is **pending Scot's re-attestation** (see section 8, 2026-07-13 amendment).
+      restatement was **re-attested 2026-07-14** (see section 8, 2026-07-13/07-14 amendment). The
+      50(1) modal build is owned by the VPC GSD project as VPC Phase 4+ (see section 5.2 ownership
+      note).
 - [ ] Model inventory kept current as models are upgraded (the ids above are point-in-time).
 - [ ] Resolve the eval-narration consent-binding residual (LL-11db0dc848): bind the COPPA/consent
       gate subject to the eval content actually egressed, via server-side eval persistence
