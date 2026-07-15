@@ -20,8 +20,10 @@
 #
 # AWS_KEY / AWS_SECRET are the EXCEPTION: they are a NEW least-privilege IAM user minted for Cloud Run
 # (scripts/gcp/iam/), NOT Render's broad key. They are sourced from 1Password "LingoLinq Prod" /
-# "AWS Cloud Run" and are asserted to DIFFER from Render's AWS_KEY (so we never silently re-seed the
-# old key). Seed them only after the IAM user exists; see scripts/gcp/iam/README.md.
+# "AWS_IAM_ACCESSKEY" (fields AWS_KEY/AWS_SECRET) and are asserted to DIFFER from Render's AWS_KEY (so we
+# never silently re-seed the old key). Seed them only after the IAM user exists; see scripts/gcp/iam/README.md.
+# NOTE: the Prod-vault item "AWS Credentials" holds the OLD broad lingolinq-app key under the same
+# AWS_KEY/AWS_SECRET field labels -- do NOT point OP_AWS_ITEM at it (the differs-from-Render guard stops it).
 #
 # SMS_ENCRYPTION_KEY is preserve-exact: it salts persisted RemoteTarget.source_hash, so a changed
 # value orphans existing SMS rows. Reading it from live Render IS the preserve-exact source.
@@ -50,7 +52,7 @@ RENDER_PROD_SERVICE_ID="${RENDER_PROD_SERVICE_ID:-srv-d510bsemcj7s73966i60}"   #
 RUNTIME_SA_ID="${RUNTIME_SA_ID:-lingolinq-run}"
 RUNTIME_SA="${RUNTIME_SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 OP_AWS_VAULT="${OP_AWS_VAULT:-LingoLinq Prod}"
-OP_AWS_ITEM="${OP_AWS_ITEM:-AWS Cloud Run}"
+OP_AWS_ITEM="${OP_AWS_ITEM:-AWS_IAM_ACCESSKEY}"
 
 # The 15 secrets sourced from live Render prod (exact running bytes).
 # NOTE: MAPS_KEY is intentionally NOT here. It is a CLIENT-PUBLIC key emitted into the browser via
