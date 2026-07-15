@@ -166,13 +166,22 @@ jobs:
         if: steps.classify.outputs.reviewer_route == 'codex'
         run: npm install -g @openai/codex
 
+      - name: Authenticate Codex CLI
+        if: steps.classify.outputs.reviewer_route == 'codex'
+        env:
+          OPENAI_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
+          CODEX_HOME: ${{ runner.temp }}/codex-home
+        run: |
+          echo "::add-mask::$OPENAI_API_KEY"
+          mkdir -p "$CODEX_HOME"
+          printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
+
       - name: Run reviewer (codex exec)
         id: review_codex
         if: steps.classify.outputs.reviewer_route == 'codex'
         env:
-          OPENAI_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
+          CODEX_HOME: ${{ runner.temp }}/codex-home
         run: |
-          echo "::add-mask::$OPENAI_API_KEY"
           codex exec \
             --sandbox read-only \
             -m gpt-5.5 \
