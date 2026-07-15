@@ -162,6 +162,10 @@ jobs:
           LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
           LOOP_N: ${{ inputs.loop_n }}
 
+      - name: Install Codex CLI
+        if: steps.classify.outputs.reviewer_route == 'codex'
+        run: npm install -g @openai/codex
+
       - name: Run reviewer (codex exec)
         id: review_codex
         if: steps.classify.outputs.reviewer_route == 'codex'
