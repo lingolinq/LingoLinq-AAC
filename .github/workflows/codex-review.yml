@@ -118,6 +118,19 @@ jobs:
           ref: ${{ inputs.head_sha }}
           fetch-depth: 0
 
+      - name: Restore Codex review helpers from workflow ref
+        # Older PR heads predate this pipeline, and any PR can modify or
+        # delete these helper files. Run the review using the trusted helper
+        # versions from the workflow ref that GitHub dispatched, while still
+        # reviewing the PR head checkout.
+        run: |
+          git checkout "${{ github.workflow_sha }}" -- \
+            .github/codex \
+            scripts/codex-review-assemble-prompt.py \
+            scripts/codex-review-build-envelope.py \
+            scripts/codex-review-claude-deep.sh \
+            scripts/codex-review-path-classifier.sh
+
       - name: Re-classify paths in CI (fail-safe; n8n's classification is not trusted alone)
         id: classify
         run: scripts/codex-review-path-classifier.sh "${BASE_SHA}" "${HEAD_SHA}"
