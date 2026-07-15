@@ -101,7 +101,7 @@ jobs:
         # to proceed -- and flip the status to failure -- if pr_number's
         # actual current head doesn't match the dispatched head_sha.
         run: |
-          ACTUAL_HEAD="$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')"
+          ACTUAL_HEAD="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json headRefOid --jq '.headRefOid')"
           if [ "$ACTUAL_HEAD" != "$HEAD_SHA" ]; then
             gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
               -f state=failure \
@@ -130,10 +130,10 @@ jobs:
           {
             echo "live_state<<LIVE_STATE_EOF"
             echo "### gh pr view"
-            gh pr view "$PR_NUMBER" --json mergeable,mergeStateStatus,headRefOid,title,body
+            gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
             echo ""
             echo "### gh pr checks"
-            gh pr checks "$PR_NUMBER" || true
+            gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
             echo ""
             echo "### changed files (git ls-files -s)"
             git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | while read -r f; do
