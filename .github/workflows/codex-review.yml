@@ -92,6 +92,26 @@ jobs:
         env:
           REVIEWER_ROUTE: ${{ inputs.reviewer_route }}
 
+      - name: Bind pr_number to head_sha (refuse a stale/mismatched W1 dispatch)
+        # Codex review flagged that pr_number and head_sha were trusted
+        # independently with no cross-check they name the same commit. A
+        # stale or wrong W1 dispatch (e.g. a race between two pushes) could
+        # otherwise gather live state / comment on one PR while setting the
+        # commit status, and now the W2 envelope, on a different SHA. Refuse
+        # to proceed -- and flip the status to failure -- if pr_number's
+        # actual current head doesn't match the dispatched head_sha.
+        run: |
+          ACTUAL_HEAD="$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')"
+          if [ "$ACTUAL_HEAD" != "$HEAD_SHA" ]; then
+            gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="pr_number ${PR_NUMBER}'s current head (${ACTUAL_HEAD}) does not match dispatched head_sha" \
+              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "::error::pr_number ${PR_NUMBER} head is ${ACTUAL_HEAD}, but dispatch head_sha was ${HEAD_SHA}: refusing to bind review/comment routing to the wrong PR" >&2
+            exit 1
+          fi
+
       - name: Checkout PR head
         uses: actions/checkout@v4
         with:
