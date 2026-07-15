@@ -39,6 +39,10 @@ on:
 jobs:
   codex-review:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+      pull-requests: read
     env:
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ inputs.pr_number }}
@@ -46,38 +50,47 @@ jobs:
       BASE_SHA: ${{ inputs.base_sha }}
       LOOP_N: ${{ inputs.loop_n }}
     steps:
-      - name: Validate inputs (fail closed before anything else touches them)
+      # Codex review of this pipeline (PR #607) caught that the fail-closed
+      # anchor was not actually first: the old single validate-inputs step
+      # ran before the pending status existed, so a malformed dispatch input
+      # meant NO status was ever posted -- silently invisible to the 30-min
+      # watchdog sweep, which only detects a status stuck at `pending`. Fix:
+      # validate only what's needed to safely address the status API
+      # (head_sha), set pending, THEN validate everything else -- flipping
+      # the status straight to `failure` on bad input instead of leaving it
+      # for the watchdog to notice half an hour later.
+      - name: Validate head_sha (minimum needed before it is safe to use in the status API)
         run: |
-          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
-            echo "::error::pr_number is not numeric: refusing to proceed" >&2
-            exit 1
-          fi
           if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
-            echo "::error::head_sha is not a hex SHA: refusing to proceed" >&2
+            echo "::error::head_sha is not a hex SHA: no status can be posted for an unverified ref, refusing to proceed" >&2
             exit 1
           fi
-          if ! [[ "$BASE_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
-            echo "::error::base_sha is not a hex SHA: refusing to proceed" >&2
-            exit 1
-          fi
-          if ! [[ "$LOOP_N" =~ ^[0-9]+$ ]]; then
-            echo "::error::loop_n is not numeric: refusing to proceed" >&2
-            exit 1
-          fi
-          if ! [[ "$REVIEWER_ROUTE" =~ ^(codex|claude-deep)$ ]]; then
-            echo "::error::reviewer_route must be codex or claude-deep: refusing to proceed" >&2
-            exit 1
-          fi
-        env:
-          REVIEWER_ROUTE: ${{ inputs.reviewer_route }}
 
-      - name: Set codex-review/deep-pass = pending (fail-closed anchor, must be first)
+      - name: Set codex-review/deep-pass = pending (fail-closed anchor, first step able to act)
         run: |
           gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
             -f state=pending \
             -f context=codex-review/deep-pass \
             -f description="Codex review running (loop ${LOOP_N})" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Validate remaining inputs (flip status to failure on bad input, don't just leave it pending)
+        run: |
+          fail() {
+            gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="$1" \
+              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "::error::$1" >&2
+            exit 1
+          }
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || fail "pr_number is not numeric"
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{7,40}$ ]] || fail "base_sha is not a hex SHA"
+          [[ "$LOOP_N" =~ ^[0-9]+$ ]] || fail "loop_n is not numeric"
+          [[ "$REVIEWER_ROUTE" =~ ^(codex|claude-deep)$ ]] || fail "reviewer_route must be codex or claude-deep"
+        env:
+          REVIEWER_ROUTE: ${{ inputs.reviewer_route }}
 
       - name: Checkout PR head
         uses: actions/checkout@v4
@@ -173,9 +186,21 @@ jobs:
           }
           JSONEOF
 
+      - name: Build W2 envelope (CI-trusted routing fields wrap the model's review JSON)
+        # Codex review of this pipeline (PR #607) flagged that POSTing
+        # /tmp/review.json alone means W2 would have to trust the model's
+        # OWN self-reported head_sha/etc. for routing (which PR to comment
+        # on, which status to resolve). Wrap it in an envelope of
+        # Actions-validated values instead, so W2 routes off CI ground
+        # truth, not model output.
+        run: python3 scripts/codex-review-build-envelope.py /tmp/review.json /tmp/envelope.json
+        env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
+          RUN_ID: ${{ github.run_id }}
+
       - name: POST result to n8n W2 and verify status resolved
         run: |
-          RESULT_JSON="$(cat /tmp/review.json)"
+          RESULT_JSON="$(cat /tmp/envelope.json)"
           HTTP_STATUS="$(curl -sS -o /tmp/w2-response.json -w '%{http_code}' \
             -X POST "${{ secrets.N8N_CODEX_RESULTS_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
