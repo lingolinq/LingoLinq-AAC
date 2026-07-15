@@ -6485,3 +6485,25 @@ The Ember 5.12 upgrade (PR #490) changed `config/environment.js` `EXTEND_PROTOTY
 3. When fixing a real native-receiver site, wrap the receiver in `A()` (matches existing repo precedent, e.g. `components/modeling-ideas.js:78 A(follow_ups).sortBy`) or convert to native JS. `A(x).uniq()`/`.sortBy()` return a **native** array, so a following `.compact()`/`.uniq()` must be native (`.filter(v => v != null)`) — don't chain another Ember-array method onto the result.
 
 **Corollary — dead legacy modal controllers.** Many `controllers/modals/*.js` were "Converted … to component" during the modal-system migration: the live path is now `components/modal-container.js`'s `convertedModals` list → the `components/` version; `templates/modals/*.hbs` no longer exists. Same-named `controllers/modals/X.js` are orphaned and never instantiated, so any breakage in them (e.g. native-array `TypeError`s the upgrade missed) never executes. Before "fixing" a modal controller, confirm it isn't a converted-to-component corpse — check `convertedModals` and whether a `components/X.hbs` exists. See `docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md`. (2026-07-14)
+
+## Gotcha: the board-detail view has THREE distinct "sidebars" — confirm which before styling
+
+`templates/user/board-detail.hbs` renders three different things a user might call "the sidebar":
+1. **`.md-board-detail-sidebar`** — the left NAV column (`<aside aria-label="Board navigation">`,
+   Communicate / Clinical / Settings). Left grid track of `.md-board-detail-layout`
+   (`grid-template-columns: 194px 1fr 194px`). Shown `{{#unless model.integration}}`; `display:none`
+   in EDIT mode.
+2. **`.md-board-detail-right-panel`** — the RIGHT grid column (3rd 194px track).
+3. **`.md-board-detail-inline-sidebar`** — a thin (`width:100px`) quick-nav strip of board
+   thumbnails, a FLEX child of `.md-board-detail-grid-sidebar-wrap`. Renders only when
+   `inlineSidebarOpen` (the `quick_sidebar` preference) is true, `{{#unless edit_mode}}`.
+
+"Reduce/hide the sidebar" is ambiguous across these — **ask or inspect which element** before
+editing; don't assume the left nav. Styling the wrong one produces correct-looking CSS that
+"does nothing" on screen. Also note the layout difference that dictates the hide technique: the
+3-col grid is AUTO-FLOW (no grid-template-areas), so `display:none` on a grid-child sidebar
+mis-slots the board into the vacated track — collapse the track instead; but the inline sidebar is
+a plain flex child, so `display:none` reflows cleanly. To hide "temporarily without changing the
+user's preference," key the CSS off the transient state class (`.md-shell--board-collection` =
+`board_collection_open`), never the persisted `--collapsed` / `quick_sidebar` state. See
+`docs/task-management/2026-07-14-board-collection-lang-column-narrow.md` Change 5. (2026-07-14)

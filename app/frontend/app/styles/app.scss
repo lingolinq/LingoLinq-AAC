@@ -9,6 +9,7 @@
 @use "modern_pages";
 @use "badges";
 @use "goals";
+@use "search";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -71504,6 +71505,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   overflow: hidden;
   margin-left: 6px;
 }
+/* When the My Board Collection drawer is open, temporarily hide the inline sidebar
+   (any screen width/height). This is a VISUAL hide only — the sidebar is rendered by
+   the user's `inlineSidebarOpen` / quick_sidebar preference, which we do NOT touch, so
+   it reappears when the drawer closes (if they had it expanded). It's a flex child, so
+   display:none lets the board reflow to fill the space — no gap. */
+.md-shell--board-collection .md-board-detail-inline-sidebar {
+  display: none;
+}
 /* Absolute scroll layer filling the shell — keeps the content from growing the
    flex row (which would push the sidebar below the grid). */
 .md-board-detail-inline-sidebar__scroll {
@@ -72269,6 +72278,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    left edge for the floating-drawer feel that matches the rest of
    the modern design language. The shared `.md-board-detail-actions-backdrop`
    (z-index 99, full-viewport position: fixed) already sits beneath. */
+/* Single source of truth for the pinned Board Collection drawer width, so the
+   panel and the layout push it reserves stay identical at every breakpoint.
+   Override this ONE variable per breakpoint (see ≤1024px below) and both track it. */
+.md-shell--board-collection {
+  --md-collection-drawer-w: 380px;
+}
 .md-board-detail-actions-menu--collection {
   position: fixed;
   top: 0;
@@ -72276,7 +72291,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   bottom: 0;
   height: 100vh;
   max-height: 100vh;
-  width: 380px;
+  width: var(--md-collection-drawer-w, 380px);
   max-width: calc(100vw - 24px);
   padding: 0;
   display: flex;
@@ -72296,7 +72311,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    stays interactive. Push the layout left by the drawer width so the whole
    grid remains visible (no overlay) while the user browses board-to-board. */
 .md-shell--board-collection.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout {
-  padding-right: 388px; /* drawer width (380) + 8px gap */
+  padding-right: var(--md-collection-drawer-w, 380px); /* == drawer width, exactly */
+}
+/* ≤1024px: narrow the pinned Board Collection drawer by 60px (380 → 320). Only the
+   variable changes — the panel width and the layout push both read it, so they stay
+   equal automatically at this (and any future) breakpoint. */
+@media (max-width: 1024px) {
+  .md-shell--board-collection {
+    --md-collection-drawer-w: 320px;
+  }
 }
 .md-board-collection {
   display: flex;
@@ -72992,6 +73015,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 0.85rem;
   font-weight: 600;
   color: rgba($la-navy, 0.65);
+}
+/* ≤1024px: hide the language field entirely — it crowds the board name at this
+   width, so drop it and let the name (.md-board-collection__item-name, flex: 1 1 auto)
+   reclaim the full width. The grid-size pill keeps a shared min-width so it still
+   reads as a tidy, consistent column. */
+@media (max-width: 1024px) {
+  .md-board-collection__item-lang {
+    display: none;
+  }
+  .md-board-collection__item-count {
+    min-width: 54px;
+    text-align: center;
+  }
 }
 /* Home-board indicator. Mirrors the Glyphicon-home pattern from
    `app/components/board-icon.hbs` so the user's home board
@@ -80352,6 +80388,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+/* 20% de-saturation on the rendered preview board buttons — applies wherever the
+   board-preview-canvas is used (the board-preview modal AND the Find Boards preview). */
+.board-preview-canvas__el {
+  filter: saturate(0.8);
 }
 /* Action buttons sit in a row DIRECTLY BELOW the preview canvas (inside the
    right-hand canvas column, to the right of the board-detail info). The row is

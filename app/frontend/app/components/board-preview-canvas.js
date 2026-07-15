@@ -8,6 +8,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
+import { color_for_type } from '../utils/parts_of_speech';
 
 // No-progress stall watchdog window (ms). This is NOT a total-load deadline — it's the
 // maximum GAP with zero image progress before the preview gives up and lifts the loading
@@ -101,7 +102,49 @@ export default Component.extend({
     var board = this.get('board');
     var level = this.get('current_level') || this.get('base_level') || 10;
     var show_links = this.get('show_links');
-    var preferred_symbols = this.get('preferred_symbols') || (this.appState && this.appState.get('referenced_user.preferences.preferred_symbols')) || 'original';
+    var preferred_symbols = this.get('preferred_symbols') || (this.appState && (this.appState.get('referenced_user.preferences.preferred_symbols') || this.appState.get('currentUser.preferences.preferred_symbols'))) || 'original';
+    // Honor the user's button FONT preference instead of always drawing Arial —
+    // resolves preferences.device.button_style → font family (same families as
+    // controllers/user/board-detail.js#button_font_style). Used for all label text
+    // below. Applies to the board-preview modal AND the Find Boards preview.
+    var _bstyle = (this.appState && (this.appState.get('referenced_user.preferences.device.button_style') || this.appState.get('currentUser.preferences.device.button_style'))) || 'default';
+    _bstyle = String(_bstyle).replace(/_(caps|small)$/, '');
+    var _font_families = {
+      comic_sans: '"Comic Sans MS", cursive',
+      open_dyslexic: 'OpenDyslexic, sans-serif',
+      architects_daughter: 'ArchitectsDaughter, cursive',
+      helvetica: 'Helvetica, "Helvetica Neue", Arial, sans-serif',
+      verdana: 'Verdana, Geneva, sans-serif'
+    };
+    var label_font = _font_families[_bstyle] || 'Arial, sans-serif';
+    // Fitzgerald / keyed-colors palette (same source board-detail speak mode uses)
+    // so buttons without an author-set color get their part-of-speech color below.
+    var fitz_colors = LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors;
+    // Adjust a BORDER color: de-saturate 20% AND lighten 15%, UNLESS its hue is
+    // yellow→green (~40–170°), which is left unchanged. Handles #rgb, #rrggbb, rgb().
+    var desat_border = function(color) {
+      if(!color || typeof color !== 'string') { return color; }
+      var r, g, b, m;
+      if((m = color.match(/^#([0-9a-fA-F]{3})$/))) { r = parseInt(m[1][0] + m[1][0], 16); g = parseInt(m[1][1] + m[1][1], 16); b = parseInt(m[1][2] + m[1][2], 16); }
+      else if((m = color.match(/^#([0-9a-fA-F]{6})$/))) { r = parseInt(m[1].slice(0, 2), 16); g = parseInt(m[1].slice(2, 4), 16); b = parseInt(m[1].slice(4, 6), 16); }
+      else if((m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/))) { r = +m[1]; g = +m[2]; b = +m[3]; }
+      else { return color; }
+      var rr = r / 255, gg = g / 255, bb = b / 255, max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb), l = (max + min) / 2, h = 0, s = 0;
+      if(max !== min) {
+        var d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        if(max === rr) { h = (gg - bb) / d + (gg < bb ? 6 : 0); } else if(max === gg) { h = (bb - rr) / d + 2; } else { h = (rr - gg) / d + 4; }
+        h *= 60;
+      }
+      if(s < 0.15 && l >= 0.7) { return color; } // LIGHT gray only — leave unchanged (dark gray still gets adjusted)
+      if(h >= 40 && h <= 170) { return color; }  // yellow through green — leave unchanged
+      s = Math.max(0, s * 0.8);      // 20% less saturated
+      l = Math.min(1, l + 0.15);     // 15% lighter
+      var hue2rgb = function(p, q, t) { if(t < 0) t += 1; if(t > 1) t -= 1; if(t < 1 / 6) return p + (q - p) * 6 * t; if(t < 1 / 2) return q; if(t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; };
+      var q2 = l < 0.5 ? l * (1 + s) : l + s - l * s, p2 = 2 * l - q2;
+      var nr = Math.round(hue2rgb(p2, q2, h / 360 + 1 / 3) * 255), ng = Math.round(hue2rgb(p2, q2, h / 360) * 255), nb = Math.round(hue2rgb(p2, q2, h / 360 - 1 / 3) * 255);
+      return 'rgb(' + nr + ', ' + ng + ', ' + nb + ')';
+    };
     /* Track image-load completion for the modal overlay. Each per-cell
        image draw increments `pending`; each onload/onerror decrements
        it. After the synchronous render loop sets `loop_done = true`,
@@ -268,11 +311,11 @@ export default Component.extend({
       missing_image_stroke: 'rgba(255,255,255,0.14)'
     } : {
       bg: null,
-      hidden_stroke: '#ddd',
-      hidden_fill: '#fff',
-      stroke: '#aaa',
-      fill: '#eee',
-      link_fallback_stroke: '#CCC',
+      hidden_stroke: 'rgba(20,40,68,0.10)',
+      hidden_fill: 'rgba(255,255,255,0.6)',
+      stroke: 'rgba(20,40,68,0.14)',
+      fill: '#fff',
+      link_fallback_stroke: 'rgba(20,40,68,0.16)',
       link_fallback_fill: '#FFF',
       label: '#000',
       badge_fill_top: 'rgba(255,255,255,0.96)',
@@ -346,7 +389,7 @@ export default Component.extend({
         button_height = cell;
         var offset_x = (width - (cell * columns)) / 2;
         var offset_y = (height - (cell * rows)) / 2;
-        var radius = button_width / 20;
+        var radius = button_width / 9;
         var border_size = pad / 2.5;
         if(this.get('size') == 'selection') {
           border_size = pad / 4;
@@ -359,7 +402,7 @@ export default Component.extend({
         text_height = Math.min(text_height, height / 20);
         var image_height = inner_height - text_height;
         var image_width = button_width - pad - pad - border_size - border_size;
-        context.font = text_height + "px Arial";
+        context.font = text_height + "px " + label_font;
         context.textAlign = 'center';
 
         /* Modern "Offline" pill drawn in the top-right corner of the
@@ -590,16 +633,17 @@ export default Component.extend({
                     context.fillStyle = palette.hidden_fill;
                     context.lineWidth = border_size / 2;
                   } else {
-                    context.strokeStyle = palette.stroke;
-                    context.fillStyle = palette.fill;
-                    if(show_links) {
-                      /* Author-set colors WIN over the palette so
-                         buttons that the board owner explicitly
-                         colored keep their hue. Only buttons WITHOUT
-                         explicit colors take the palette default. */
-                      context.strokeStyle = button.border_color || palette.link_fallback_stroke;
-                      context.fillStyle = button.background_color || palette.link_fallback_fill;
+                    /* Color priority (matches board-detail speak-mode buttons):
+                       1) author-set colors win; 2) else the Fitzgerald color for
+                       the button's part_of_speech (the same keyed-colors palette
+                       speak mode paints via CSS); 3) else the neutral palette. */
+                    var pos_fill = null, pos_border = null;
+                    if(!button.background_color && !button.border_color && button.part_of_speech && fitz_colors) {
+                      var pos_c = color_for_type(button.part_of_speech, fitz_colors);
+                      if(pos_c) { pos_fill = pos_c.fill; pos_border = pos_c.border; }
                     }
+                    context.strokeStyle = desat_border(button.border_color || pos_border || (show_links ? palette.link_fallback_stroke : palette.stroke));
+                    context.fillStyle = button.background_color || pos_fill || (show_links ? palette.link_fallback_fill : palette.fill);
                     context.lineWidth = border_size;
                   }
 
@@ -645,11 +689,11 @@ export default Component.extend({
                          "uestion"). Start at text_height and scale down to fit,
                          floored at 50% so it never becomes unreadable. */
                       var label_avail = button_width - pad - pad - border_size - border_size;
-                      context.font = text_height + "px Arial";
+                      context.font = text_height + "px " + label_font;
                       var label_w = context.measureText(button.label).width;
                       if(label_w > label_avail && label_w > 0) {
                         var fit_size = Math.max(text_height * (label_avail / label_w), text_height * 0.5);
-                        context.font = fit_size + "px Arial";
+                        context.font = fit_size + "px " + label_font;
                       }
                       context.fillText(button.label, x + (button_width / 2), y + pad + (text_height * 0.85));
                     }
