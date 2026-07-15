@@ -157,7 +157,7 @@
           </a>
         {{else if this.model.preferences.home_board.key}}
           <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
-          {{board-icon board=home_board_pref localized=true}}
+          {{board-icon board=this.home_board_pref localized=true}}
         {{else}}
           <!-- TODO: if supervisor, maybe show external-device modal insead of home search (maybe with link to search) -->
           <LinkTo @route="home-boards" class="btn big_button btn-default">

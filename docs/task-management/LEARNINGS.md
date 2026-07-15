@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
@@ -5741,6 +5742,16 @@ fresh (a benign duplicate) rather than reuse-on-faith. Single shared helper:
 `app/frontend/app/utils/board-copy.js#findExistingUserCopy` (used by board-preview-overlay +
 sidebar-editor). Don't fork two copies of this logic — divergence is how the slug-trust branch
 crept back in.
+
+## Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props
+
+After the Ember 5 upgrade, classic curly invocations still compile under strict resolution:
+a bare identifier like `home_board_pref` in `{{board-icon board=home_board_pref}}` is looked up as
+a **helper**, not a controller property. That throws
+`Attempted to resolve a helper in a strict mode template, but that value was not in scope: home_board_pref`
+and surfaces on `user.account` because that route reuses `templateName: 'user/index'`.
+Fix: `board=this.home_board_pref`. Block params from `{{#each ... as |board|}}` stay bare and
+are fine. See `docs/task-management/2026-07-14-home-board-pref-strict-mode.md`.
 
 ## Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"
 
