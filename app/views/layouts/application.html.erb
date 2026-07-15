@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html <%= "itemscope itemtype='http://schema.org/Article'" if @meta_record %>>
+<html lang="<%= I18n.locale %>" <%= "itemscope itemtype='http://schema.org/Article'" if @meta_record %>>
 <head>
   <% if @meta_record %>
     <title><%= @meta_record.title %></title>
