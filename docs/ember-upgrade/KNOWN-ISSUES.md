@@ -371,10 +371,36 @@ special-LTS + 5.x update blog posts; emberjs/data #5638 #7192 #8684 #8791.
 ### Node & core pipeline
 - **Node matrix (verified from ember-cli docs/node-support.md):** ember-cli 5.12
   declares `engines: node >= 18`; CI-tested = Node **18 + 20**. Node 22 enters the
-  matrix at ember-cli **6.2**. Node support drops on the LTS schedule WITHOUT an
-  ember-cli major (Node 16 died mid-5.x at 5.3.0). This repo's `.nvmrc` = 20 ✅.
-  (An externally-circulated map "Node 18→Ember 3.12 / 20→3.16 / 22→4.4 / 24→5.3" is
-  WRONG — discard it.)
+  matrix at ember-cli **6.2**; Node 24 at **6.7** (6.7 also drops Node 18). Node
+  support drops on the LTS schedule WITHOUT an ember-cli major (Node 16 died mid-5.x
+  at 5.3.0). This repo's `.nvmrc` = 20 ✅. (An externally-circulated map
+  "Node 18→Ember 3.12 / 20→3.16 / 22→4.4 / 24→5.3" is WRONG — discard it.)
+- **Official vs realistic Node support.** "Supported" in the matrix means *in
+  ember-cli's CI*, nothing more: the toolchain is almost entirely pure JS, the app's
+  `engines` field only warns (no `engine-strict`), and Node only touches build/test —
+  the shipped app runs in browsers/Cordova/Electron regardless. The real gates on a
+  Node major jump are (a) native modules recompiling against the new ABI and (b) the
+  npm major bundled with the new Node being stricter about peers. **Empirical
+  verification for THIS app on Node v22.22 (2026-07-16, this repo, ember-cli 5.12):**
+  `npm ci` exit 0 (2,121 packages), `sqlite3` 4.2.0 compiled from source and its
+  binding loads and runs, and `ember build --environment production` exit 0 with full
+  dist output. No testem/broccoli Node-22 breakage reports found in community searches
+  (absence-of-complaints evidence, not proof — run `ember test` once before switching
+  CI). **Node 24: NOT yet empirically tested for this app**, and official support only
+  lands at ember-cli 6.7 — treat as "probably fine, verify with the same three-step
+  test (npm ci → sqlite3 load → prod build) before adopting" `(unverified)`.
+- **This app's only ABI-sensitive dependency:** `indexeddbshim` → `websql` →
+  **`sqlite3` 4.2.0** (2020-era NAN-based native module, no prebuilts for modern ABIs —
+  compiles from source on EVERY Node major jump; ~2-min compile in CI). It survived
+  Node 22. It is the single most likely thing to break on a future Node major (NAN vs
+  new V8), so re-run the load test on every jump; if it ever fails, options are pinning
+  Node, upgrading the `indexeddbshim` chain, or dropping the websql path (it serves
+  Node-side IndexedDB shimming — check whether the frontend's dbman/SQLite path even
+  uses it in the packaged apps before investing).
+- **Where Node is pinned in this repo (update together):** `/.nvmrc` +
+  `app/frontend/.nvmrc` (20), `app/frontend/package.json` `engines: >= 20`,
+  `.github/workflows/ci.yml:75` + `:177` (`node-version: 20`), plus Render/packaging
+  images (`bin/ember-server` resolves via nvm).
 - **OpenSSL 3 md4 crash** (`error:0308010C` / `ERR_OSSL_EVP_UNSUPPORTED`): webpack 4
   remnants (ember-auto-import v1 era). `NODE_OPTIONS=--openssl-legacy-provider` in CI
   is the tell. Fix: auto-import ^2 + webpack ^5; remove the stopgap.
