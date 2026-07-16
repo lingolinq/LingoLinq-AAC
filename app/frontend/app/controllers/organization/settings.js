@@ -15,6 +15,8 @@ export default Controller.extend({
   opening: function() {
     var _this = this;
     _this.set('status', null);
+    // Clear edit cache so the textarea re-seeds from model.home_board_keys.
+    _this.set('_home_board_key_lines', undefined);
     if(_this.get('model.saml_metadata_url')) {
       _this.set('external_auth', true);
     }
@@ -60,8 +62,20 @@ export default Controller.extend({
     var id = this.get('model.supervisor_profile_id');
     return !!(id == 'none' || id == '' || !id);
   }),
-  home_board_key_lines: computed('model.home_board_keys', function() {
-    return (this.get('model.home_board_keys') || []).join('\n');
+  // Writable: the settings textarea two-way-binds @value to this property.
+  // A get-only computed crashes on every keystroke (Ember tries to set it).
+  home_board_key_lines: computed('model.home_board_keys', {
+    get() {
+      var cached = this.get('_home_board_key_lines');
+      if(cached !== undefined && cached !== null) {
+        return cached;
+      }
+      return (this.get('model.home_board_keys') || []).join('\n');
+    },
+    set(key, value) {
+      this.set('_home_board_key_lines', value);
+      return value;
+    }
   }),
   board_keys_placeholder: computed(function() {
   return htmlSafe(i18n.t('board_keys_examples', "board keys or URLS\none per line"));
@@ -119,6 +133,18 @@ export default Controller.extend({
     };
   },
 
+  // Turn pasted board-detail / board-alt URLs into owner/slug keys.
+  // Matches Organization#process home_board_keys host+route stripping.
+  normalize_home_board_key(raw) {
+    var key = (raw || '').trim();
+    if(!key) { return ''; }
+    if(key.match(/^https?:\/\/[^\/]+\//)) {
+      key = key.replace(/^https?:\/\/[^\/]+\//, '');
+    }
+    key = key.replace(/^([^/]+)\/board-detail\/([^/]+)(?:\/edit)?\/?$/, '$1/$2');
+    key = key.replace(/^([^/]+)\/board\/([^/]+)\/?$/, '$1/$2');
+    return key;
+  },
   actions: {
     modify_templates: function() {
       var _this = this;
@@ -143,7 +169,9 @@ export default Controller.extend({
       }
       var home_board_key_lines = _this.get('home_board_key_lines');
       if(home_board_key_lines && home_board_key_lines.replace(/\s/g, '').length > 0) {
-        _this.set('model.home_board_keys', home_board_key_lines.split(/\n/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; }));
+        _this.set('model.home_board_keys', home_board_key_lines.split(/\n/).map(function(s) {
+          return _this.normalize_home_board_key(s.trim());
+        }).filter(function(s) { return s.length > 0; }));
       }
       _this.set('model.support_target', null);
       if(_this.get('allow_support_target') && _this.get('support_email')) {
@@ -152,6 +180,7 @@ export default Controller.extend({
       var org = _this.get('model');
       _this.set('status', {saving: true});
       org.save().then(function() {
+        _this.set('_home_board_key_lines', undefined);
         _this.set('status', null);
         _this.router.transitionTo('organization', _this.get('model.id'));
       }, function() {

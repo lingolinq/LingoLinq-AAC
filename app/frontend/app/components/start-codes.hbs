@@ -128,7 +128,7 @@
             <div class="md-org-settings-field">
               <label class="md-org-settings-field__label">{{t "Sponsored" key="sponsored"}}</label>
               <label class="md-org-settings-toggle">
-                <Input id="premium" type="checkbox" @checked={{this.premium}} class="md-org-settings-toggle__input" />
+                <Input id="premium" @type="checkbox" @checked={{this.premium}} class="md-org-settings-toggle__input" />
                 <span class="md-org-settings-toggle__label">{{t "Sponsor any users who use this start code" key="sponsors_users_with_start_code"}}</span>
               </label>
             </div>
@@ -136,7 +136,7 @@
               <div class="md-org-settings-field">
                 <label class="md-org-settings-field__label">{{t "Premium Symbols" key="premium_symbols"}}</label>
                 <label class="md-org-settings-toggle">
-                  <Input id="premium_symbols" type="checkbox" @checked={{this.premium_symbols}} class="md-org-settings-toggle__input" />
+                  <Input id="premium_symbols" @type="checkbox" @checked={{this.premium_symbols}} class="md-org-settings-toggle__input" />
                   <span class="md-org-settings-toggle__label">{{t "Add premium symbols to users" key="add_premium_symbols_to_users"}}</span>
                 </label>
               </div>
@@ -161,7 +161,7 @@
             <Input class="md-org-settings-input" type="text" @value={{this.home_board_key}} placeholder="(optional board key to copy)" />
             {{#if this.home_board_key}}
               <label class="md-org-settings-toggle" style="margin-top: 8px;">
-                <Input id="shallow_clone" type="checkbox" @checked={{this.shallow_clone}} class="md-org-settings-toggle__input" />
+                <Input id="shallow_clone" @type="checkbox" @checked={{this.shallow_clone}} class="md-org-settings-toggle__input" />
                 <span class="md-org-settings-toggle__label">{{t "Apply shallow clones" key="apply_shallow_clones"}}</span>
               </label>
             {{/if}}

@@ -216,33 +216,39 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
-var self = this;
-this.ctrlAction = function(actionName) {
-  var bound = Array.prototype.slice.call(arguments, 1);
-  return function() {
-    var args = bound.concat(Array.prototype.slice.call(arguments));
-    var evt = args[args.length - 1];
-    if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-      if (evt.preventDefault) { evt.preventDefault(); }
-      args.pop();
-    }
-    self.send.apply(self, [actionName].concat(args));
-  };
-};
-this.ctrlActionNoBubble = function(actionName) {
-  var bound = Array.prototype.slice.call(arguments, 1);
-  return function(event) {
-    if (event && event.stopPropagation) { event.stopPropagation(); }
-    if (event && event.preventDefault) { event.preventDefault(); }
-    self.send.apply(self, [actionName].concat(bound));
-  };
-};
-this.ctrlActionEventValue = function(actionName, targetProp) {
-  return function(event) {
-    var value = event && event.target ? event.target[targetProp] : undefined;
-    self.send(actionName, value);
-  };
-};
+    var self = this;
+    // Stable handlers (same pattern as modern-select). The old ctrlAction
+    // helper called preventDefault then *dropped* the event before send(),
+    // so toggle/choose never got stopPropagation — clicks bubbled into
+    // modal-dialog / form parents and could immediately undo the open.
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          if (evt.stopPropagation) { evt.stopPropagation(); }
+          // Keep the event on the args list so actions like toggle/choose
+          // can also stopPropagation defensively.
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.ctrlActionEventValue = function(actionName, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, value);
+      };
+    };
   },
 
 });
