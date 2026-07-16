@@ -88,6 +88,14 @@ jobs:
         working-directory: app/frontend
         run: npm install
 
+      # Template lint gate: fails on any NEW ember-template-lint violation (incl.
+      # no-implicit-this bare-property refs that crash render in Ember 5.x).
+      # Pre-existing violations are grandfathered in .lint-todo (suppressed until
+      # their per-entry error date); this only blocks newly-introduced ones.
+      - name: Lint Ember templates
+        working-directory: app/frontend
+        run: npm run lint:hbs
+
       # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
       # Restoring only node_modules leaves executablePath() pointing at a missing binary.
       - name: Ensure Puppeteer Chrome is present
