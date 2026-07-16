@@ -196,7 +196,7 @@
           {{#if this.goal.video}}
             <div class="md-modal-field">
               <label class="md-modal-label">{{t "Video" key="video"}}</label>
-              <video src={{this.model.video.url}} controls class="md-modal-video"></video>
+              <video src={{this.model.video.url}} controls class="md-modal-video" aria-label={{t "Goal video" key="goal_video"}}></video>
               <a href="#" class="md-modal-link" {{on "click" (this.ctrlAction "reset_video")}}>{{t "Remove Video" key="remove_video"}}</a>
             </div>
           {{else}}

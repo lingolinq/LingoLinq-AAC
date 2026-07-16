@@ -7,7 +7,7 @@
     <div class="form-horizontal">
       <div style="text-align: center;">
         Selected sound{{#if this.sound_preview.name}} ({{this.sound_preview.name}}){{/if}}:<br>
-        <audio controls src={{this.sound_preview.url}}></audio>
+        <audio controls src={{this.sound_preview.url}} aria-label={{t "Selected sound preview" key="selected_sound_preview"}}></audio>
       </div>
       <div class="form-group">
         <label for='sound_preview_name' class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
@@ -72,7 +72,7 @@
         <div style="margin-bottom: 50px; margin-top: 50px; text-align: center;">
           {{t "Current sound:" key="current_sound_colon"}} {{this.sound.name}}<br>
           <p class='text-muted'>{{this.sound.transcription}}</p>
-          <audio controls src={{this.sound.url}}></audio>
+          <audio controls src={{this.sound.url}} aria-label={{t "Current sound" key="current_sound"}}></audio>
           <div style='text-align: center;'>
             {{#if this.pending_sound}}
               <div style='margin: 5px 20% 10px;'>

@@ -121,7 +121,7 @@
               </div>
             </div>
             {{#if this.model.badge.sound_url_with_fallback}}
-              <audio src={{this.model.badge.sound_url_with_fallback}} autoplay='true' />
+              <audio src={{this.model.badge.sound_url_with_fallback}} autoplay='true' aria-label={{t "Badge sound" key="badge_sound_label"}} />
             {{/if}}
           {{else}}
             <div>

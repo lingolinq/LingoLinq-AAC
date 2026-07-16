@@ -185,7 +185,7 @@
         {{#each this.sounds_with_license as |sound|}}
           <li>
             <strong>{{sound.filename}}</strong><br>
-            <audio controls src={{sound.url}} style="width: 100%;"></audio><br>
+            <audio controls src={{sound.url}} style="width: 100%;" aria-label={{t "Board sound: %{filename}" filename=sound.filename key="board_sound_named"}}></audio><br>
             <span style="padding-left: 20px;">
               <LicenseAttribution @license={{sound.license}} />
             </span>

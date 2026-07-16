@@ -117,7 +117,7 @@
           {{#if this.model.video}}
             <div class="md-goal-field">
               <label class="md-goal-field__label">{{t "Video" key="video"}}</label>
-              <video src={{this.model.video.url}} controls class="md-goal__video"></video>
+              <video src={{this.model.video.url}} controls class="md-goal__video" aria-label={{t "Goal video" key="goal_video"}}></video>
               <div class="md-goal-field__hint"><a href="#" {{on "click" (this.ctrlAction "reset_video")}}>{{t "Remove Video" key="remove_video"}}</a></div>
             </div>
           {{else}}
@@ -187,7 +187,7 @@
       </section>
     {{/if}}
     {{#if this.model.video}}
-      <video src={{this.model.video.url}} controls class="md-goal__video"></video>
+      <video src={{this.model.video.url}} controls class="md-goal__video" aria-label={{t "Goal video" key="goal_video"}}></video>
     {{/if}}
 
     {{#if this.model.assessment_badge}}

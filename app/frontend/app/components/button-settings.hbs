@@ -222,7 +222,7 @@
     {{#if this.webcam.error}}
       <p>{{t "There was an error loading the camera" key="error_loading_camera"}}</p>
     {{else}}
-      <video autoplay id="webcam_video" {{on "click" (this.ctrlAction "webcamToggle" true)}} class={{this.webcam_class}}></video>
+      <video autoplay id="webcam_video" {{on "click" (this.ctrlAction "webcamToggle" true)}} class={{this.webcam_class}} aria-label={{t "Camera preview" key="camera_preview"}}></video>
       <canvas id="webcam_canvas" style="display:none;" width="800" height="800"></canvas>
       {{#unless this.webcam.snapshot}}
         <br>
@@ -1063,7 +1063,7 @@
     {{/if}}
     <div style="text-align: center;">
       Selected sound{{#if this.sound_preview.name}} ({{this.sound_preview.name}}){{/if}}:<br>
-      <audio controls src={{this.sound_preview.url}}></audio>
+      <audio controls src={{this.sound_preview.url}} aria-label={{t "Selected sound preview" key="selected_sound_preview"}}></audio>
     </div>
     <div style="margin-top: 10px;">
       <div class="form-group">
@@ -1117,7 +1117,7 @@
         {{/if}}
         <div style="margin-bottom: 10px; text-align: center;">
           {{t "Played sound:" key="played_sound_colon"}} ({{this.model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{this.model.sound.name}}</div><br>
-          <audio controls src={{this.model.sound.url}}></audio>
+          <audio controls src={{this.model.sound.url}} aria-label={{t "Played sound" key="played_sound"}}></audio>
         </div>
         <PickLicense @license={{this.model.sound.license}} />
         <br>

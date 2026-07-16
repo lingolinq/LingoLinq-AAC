@@ -155,7 +155,7 @@
             {{#if button.sound}}
               <li>
                 <strong>{{button.label}}</strong><br>
-                <audio controls src={{button.sound}} style="width: 100%;"></audio><br>
+                <audio controls src={{button.sound}} style="width: 100%;" aria-label={{t "Button sound" key="button_sound"}}></audio><br>
                 <span style="padding-left: 20px;">
                   <LicenseAttribution @license={{button.sound_license}} />
                 </span>

@@ -20,7 +20,7 @@
       <div class="badge-asset">
         <span class="badge-asset__label">{{t "Badge sound" key="badge_sound_label"}}</span>
         {{#if this.badge.sound_url}}
-          <audio class="badge-asset__audio" src={{this.badge.sound_url}} controls="true"></audio>
+          <audio class="badge-asset__audio" src={{this.badge.sound_url}} controls="true" aria-label={{t "Badge sound" key="badge_sound_label"}}></audio>
         {{else}}
           <span class="badge-asset__empty">{{t "No sound selected" key="no_sound_selected"}}</span>
         {{/if}}

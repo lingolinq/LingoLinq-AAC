@@ -29,7 +29,7 @@
         {{#if this.sound_preview}}
           <div style="text-align: center; margin: 20px;">
             Selected sound{{#if this.sound_preview.name}} ({{this.sound_preview.name}}){{/if}}:<br>
-            <audio controls src={{this.sound_preview.url}}></audio>
+            <audio controls src={{this.sound_preview.url}} aria-label={{t "Selected sound preview" key="selected_sound_preview"}}></audio>
           </div>
         {{else}}
           {{#if this.sound_recording.ready}}
