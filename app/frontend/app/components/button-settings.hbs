@@ -94,7 +94,7 @@
           <div class="form-group">
             <label for="part_of_speech" class="col-sm-2 control-label">{{t "Word" key="part_of_speech"}}</label>
             <div class="col-sm-10">
-              {{bound-select select_class="form-control" select_id="part_of_speech" content=this.parts_of_speech selection=this.model.part_of_speech action=(this.ctrlAction "updateModelPartOfSpeech") }}
+              <BoundSelect @select_class="form-control" @select_id="part_of_speech" @content={{this.parts_of_speech}} @selection={{this.model.part_of_speech}} @action={{this.ctrlAction "updateModelPartOfSpeech"}} />
             </div>
           </div>
           <div class="form-group">
@@ -152,7 +152,7 @@
     {{#if this.image_libraries}}
       <div style='float: left; width: 55px; font-size: 14px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
-        {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=this.image_libraries selection=this.image_library action=(this.ctrlAction "updateImageLibrary") }}
+        <BoundSelect @select_class="form-control skip_select" @select_id="image_library" @short={{true}} @content={{this.image_libraries}} @selection={{this.image_library}} @action={{this.ctrlAction "updateImageLibrary"}} />
       </div>
     {{else}}
       <div style='float: left; width: 255px; font-size: 14px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
@@ -206,7 +206,7 @@
     {{#if this.show_library_options}}
       <div style='margin-top: 3px;'>
         <div style='width: calc(100% - 170px); float: left;'>
-          {{bound-select select_class="form-control skip_select" select_id="skin_preference" short=true content=this.skin_options selection=this.skin_preference action=(this.ctrlAction "updateSkinPreference") }}
+          <BoundSelect @select_class="form-control skip_select" @select_id="skin_preference" @short={{true}} @content={{this.skin_options}} @selection={{this.skin_preference}} @action={{this.ctrlAction "updateSkinPreference"}} />
         </div>
         <div style='width: 150px; float: left; margin-left: 5px;'>
           <div class='checkbox big_checkbox' style='margin-top: -8px; padding-top: 10px;'>
@@ -371,7 +371,7 @@
   <div class="form-group">
     <label for="action" class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
     <div class="col-sm-10">
-      {{bound-select select_class="form-control" select_id="action" content=this.buttonActions selection=this.model.buttonAction action=(this.ctrlAction "updateModelButtonAction") }}
+      <BoundSelect @select_class="form-control" @select_id="action" @content={{this.buttonActions}} @selection={{this.model.buttonAction}} @action={{this.ctrlAction "updateModelButtonAction"}} />
     </div>
   </div>
   {{#if this.model.folderAction}}
@@ -401,7 +401,7 @@
         {{#unless this.pending_board}}
           <div class="row" style="margin-top: 5px;">
             <div class="col-sm-12">
-              {{bound-select select_class="form-control" select_id="board_search_type" content=this.board_search_options selection=this.board_search_type action=(this.ctrlAction "updateBoardSearchType") }}
+              <BoundSelect @select_class="form-control" @select_id="board_search_type" @content={{this.board_search_options}} @selection={{this.board_search_type}} @action={{this.ctrlAction "updateBoardSearchType"}} />
             </div>
           </div>
           {{#if this.confirm_found_board}}
@@ -608,7 +608,7 @@
           {{#unless this.user_integrations.content.length}}
             <p class='form-control-static'>{{t "You haven't connected any tools yet. Open a web browser and visit your User Profile page to add integrations." key="no_integrations_found"}}</p>
           {{else}}
-            {{bound-select select_class="form-control" select_id="integration" content=this.user_integrations.content selection=this.integration action=(this.ctrlAction "updateIntegrationId") optionLabelPath="content.name"}}
+            <BoundSelect @select_class="form-control" @select_id="integration" @content={{this.user_integrations.content}} @selection={{this.integration}} @action={{this.ctrlAction "updateIntegrationId"}} @optionLabelPath="content.name" />
           {{/unless}}
         {{/if}}
       </div>
@@ -621,7 +621,7 @@
             {{#if this.integration.accounts}}
               <div class="row">
                 <div class="col-sm-12">
-                  {{bound-select select_class="form-control" select_id="integration_account" content=this.integration.accounts selection=this.integration_account action=(this.ctrlAction "updateIntegrationAccount") optionLabelPath="content.label"}}
+                  <BoundSelect @select_class="form-control" @select_id="integration_account" @content={{this.integration.accounts}} @selection={{this.integration_account}} @action={{this.ctrlAction "updateIntegrationAccount"}} @optionLabelPath="content.label" />
                 </div>
               </div>
             {{else}}
@@ -659,7 +659,7 @@
                     </label>
                   </div>
                 {{else if field.preferred_languages}}
-                  {{bound-select select_class="form-control" select_id="pref_langs" content=field.preferred_languages selection=field.value action=(this.ctrlAction "updateIntegrationFieldValue" field) optionValuePath="content.id" optionLabelPath="content.label"}}
+                  <BoundSelect @select_class="form-control" @select_id="pref_langs" @content={{field.preferred_languages}} @selection={{field.value}} @action={{this.ctrlAction "updateIntegrationFieldValue" field}} @optionValuePath="content.id" @optionLabelPath="content.label" />
                 {{else if field.field_type_key}}
                   {{#if field.field_type_key.is_locale}}
                     <div class="row">
@@ -667,7 +667,7 @@
                         <Input @value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}} />
                       </div>
                       <div class="col-sm-3">
-                        {{bound-select select_class="form-control" select_id="pref_langs_for_locale" content=field.locales selection=field.locale action=(this.ctrlAction "updateIntegrationFieldLocale" field) optionValuePath="content.code" optionLabelPath="content.label"}}
+                        <BoundSelect @select_class="form-control" @select_id="pref_langs_for_locale" @content={{field.locales}} @selection={{field.locale}} @action={{this.ctrlAction "updateIntegrationFieldLocale" field}} @optionValuePath="content.code" @optionLabelPath="content.label" />
                       </div>
                     </div>
                   {{/if}}
@@ -690,7 +690,7 @@
             {{#if this.integration.groups}}
               <div class="row">
                 <div class="col-sm-12">
-                  {{bound-select select_class="form-control" select_id="integration_group" content=this.integration.groups selection=this.integration_group action=(this.ctrlAction "updateIntegrationGroup") optionLabelPath="content.label"}}
+                  <BoundSelect @select_class="form-control" @select_id="integration_group" @content={{this.integration.groups}} @selection={{this.integration_group}} @action={{this.ctrlAction "updateIntegrationGroup"}} @optionLabelPath="content.label" />
                 </div>
               </div>
             {{else}}
@@ -742,13 +742,13 @@
     <div class="form-group">
       <label for="format" class="col-sm-2 control-label">{{t "Format" key="format"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="format" content=this.export_formats selection=this.model.export_format action=(this.ctrlAction "updateModelExportFormat") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="format" @content={{this.export_formats}} @selection={{this.model.export_format}} @action={{this.ctrlAction "updateModelExportFormat"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
     <div class="form-group">
       <label for="print_size" class="col-sm-2 control-label">{{t "Print Size" key="print_size"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="print_size" content=this.print_sizes selection=this.model.print_size action=(this.ctrlAction "updateModelPrintSize") }}
+        <BoundSelect @select_class="form-control" @select_id="print_size" @content={{this.print_sizes}} @selection={{this.model.print_size}} @action={{this.ctrlAction "updateModelPrintSize"}} />
         <p class='text-muted'>{{t "There may be a short delay before your export is ready" key="delay_before_export"}}</p>
       </div>
     </div>
@@ -756,7 +756,7 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Audio Delay" key="audio_delay"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="audio_delay" content=this.audio_delay_options selection=this.model.audio_delay action=(this.ctrlAction "updateModelAudioDelay") }}
+        <BoundSelect @select_class="form-control" @select_id="audio_delay" @content={{this.audio_delay_options}} @selection={{this.model.audio_delay}} @action={{this.ctrlAction "updateModelAudioDelay"}} />
         <p class='text-muted'>{{t "When enabled, audio will play without waiting for other sounds to finish." key="audio_delay_info"}}</p>
       </div>
     </div>
@@ -764,7 +764,7 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="integration_user_action" content=this.integration_user_actions selection=this.model.integration_user_action_key action=(this.ctrlAction "updateModelIntegrationUserActionKey") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="integration_user_action" @content={{this.integration_user_actions}} @selection={{this.model.integration_user_action_key}} @action={{this.ctrlAction "updateModelIntegrationUserActionKey"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
         <p class='text-muted'>{{t "Actions configure commands for the user; these are set up on the web." key="integration_user_action_info"}}</p>
       </div>
     </div>
@@ -772,7 +772,7 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Feature" key="feature"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="feature_toggle" content=this.feature_toggle_options selection=this.model.feature_toggle_key action=(this.ctrlAction "updateModelFeatureToggleKey") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="feature_toggle" @content={{this.feature_toggle_options}} @selection={{this.model.feature_toggle_key}} @action={{this.ctrlAction "updateModelFeatureToggleKey"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.volumeAction}}
@@ -801,7 +801,7 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Toggle" key="toggle"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="toggle" content=this.toggle_options selection=this.model.toggle_action action=(this.ctrlAction "updateModelToggleAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="toggle" @content={{this.toggle_options}} @selection={{this.model.toggle_action}} @action={{this.ctrlAction "updateModelToggleAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.openUrlAction}}
@@ -843,21 +843,21 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Block" key="block"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="block_toggle" content=this.block_toggle_options selection=this.model.block_action action=(this.ctrlAction "updateModelBlockAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="block_toggle" @content={{this.block_toggle_options}} @selection={{this.model.block_action}} @action={{this.ctrlAction "updateModelBlockAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.randomBoardAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Source" key="source"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="random_source" content=this.random_sources selection=this.model.random_source action=(this.ctrlAction "updateModelRandomSource") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="random_source" @content={{this.random_sources}} @selection={{this.model.random_source}} @action={{this.ctrlAction "updateModelRandomSource"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.randomAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Random" key="random"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="random_action" content=this.random_actions selection=this.model.random_action action=(this.ctrlAction "updateModelRandomAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="random_action" @content={{this.random_actions}} @selection={{this.model.random_action}} @action={{this.ctrlAction "updateModelRandomAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.talkAction}}
@@ -926,14 +926,14 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Toggle" key="toggle"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="toggle_speak_mode" content=this.toggle_speak_mode_options selection=this.model.toggle_speak_mode action=(this.ctrlAction "updateModelToggleSpeakMode") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="toggle_speak_mode" @content={{this.toggle_speak_mode_options}} @selection={{this.model.toggle_speak_mode}} @action={{this.ctrlAction "updateModelToggleSpeakMode"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.setGazeAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Gaze" key="gaze"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="gaze" content=this.gaze_options selection=this.model.gaze_action action=(this.ctrlAction "updateModelGazeAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="gaze" @content={{this.gaze_options}} @selection={{this.model.gaze_action}} @action={{this.ctrlAction "updateModelGazeAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.toggleAudioAction}}
@@ -1232,7 +1232,7 @@
     <div class="form-group">
       <label for="levels" class="col-sm-2 control-label">{{t "Levels" key="levels"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="levels" content=this.levelTypes selection=this.model.level_style action=(this.ctrlAction "updateModelLevelStyle") }}
+        <BoundSelect @select_class="form-control" @select_id="levels" @content={{this.levelTypes}} @selection={{this.model.level_style}} @action={{this.ctrlAction "updateModelLevelStyle"}} />
       </div>
     </div>
     {{#if this.basic_level_style}}
@@ -1275,7 +1275,7 @@
           {{/if}}
         </label>
         <div class='col-sm-6'>
-            {{bound-select select_class="form-control" select_id="hidden_level" content=this.board_levels selection=this.model.hidden_level action=(this.ctrlAction "updateModelHiddenLevel") }}
+            <BoundSelect @select_class="form-control" @select_id="hidden_level" @content={{this.board_levels}} @selection={{this.model.hidden_level}} @action={{this.ctrlAction "updateModelHiddenLevel"}} />
         </div>
       </div>
       {{#unless this.model.talkAction}}
@@ -1288,7 +1288,7 @@
             {{/if}}
           </label>
           <div class='col-sm-6'>
-            {{bound-select select_class="form-control" select_id="link_disabled_level" content=this.board_levels selection=this.model.link_disabled_level action=(this.ctrlAction "updateModelLinkDisabledLevel") }}
+            <BoundSelect @select_class="form-control" @select_id="link_disabled_level" @content={{this.board_levels}} @selection={{this.model.link_disabled_level}} @action={{this.ctrlAction "updateModelLinkDisabledLevel"}} />
           </div>
         </div>
       {{/unless}}

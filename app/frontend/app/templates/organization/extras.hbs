@@ -168,7 +168,7 @@
       {{/if}}
       <label>{{t "Create a Gift or Bulk Purchase" key="create_a_gift_or_bulk_purchase"}}</label>
       <div style='width: 300px;'>
-        {{bound-select select_class="form-control" select_id="license" content=this.gift_types selection=this.gift_type action=(mut this.gift_type) }}
+        <BoundSelect @select_class="form-control" @select_id="license" @content={{this.gift_types}} @selection={{this.gift_type}} @action={{mut this.gift_type}} />
       </div>
       {{#if this.current_gift_type.user_gift}}
         <div style='margin-top: 15px;'>

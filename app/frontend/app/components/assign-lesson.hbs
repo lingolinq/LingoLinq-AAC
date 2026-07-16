@@ -51,21 +51,21 @@
           <div class="form-group">
             <label class="control-label col-sm-3">{{t "Target Users" key="target_users"}}</label>
             <div class="col-sm-9">
-              {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(mut this.target_type) }}
+              <BoundSelect @select_class="form-control" @content={{this.target_types}} @selection={{this.target_type}} @action={{mut this.target_type}} />
             </div>
           </div>
         {{else if this.model.unit}}
           <div class="form-group">
             <label class="control-label col-sm-3">{{t "Target Users" key="target_users"}}</label>
             <div class="col-sm-9">
-              {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(mut this.target_type) }}
+              <BoundSelect @select_class="form-control" @content={{this.target_types}} @selection={{this.target_type}} @action={{mut this.target_type}} />
             </div>
           </div>
         {{/if}}
         <div class="form-group">
           <label class="control-label col-sm-3">{{t "Required" key="required"}}</label>
           <div class="col-sm-9">
-            {{bound-select select_class="form-control" select_id="required" content=this.required_options selection=this.required_option action=(mut this.required_option) }}
+            <BoundSelect @select_class="form-control" @select_id="required" @content={{this.required_options}} @selection={{this.required_option}} @action={{mut this.required_option}} />
           </div>
         </div>
         {{#if (is-equal this.required_option "required")}}

@@ -155,7 +155,7 @@
                     {{#if this.subscription.communicator_type}}
                       {{t "include" key="include"}}
                       <span style='display: inline-block; width: 75px;'>
-                        {{bound-select select_class="form-control" select_id="supervisors" content=this.supervisor_options selection=this.subscription.included_supporters action=(mut this.subscription.included_supporters) }}
+                        <BoundSelect @select_class="form-control" @select_id="supervisors" @content={{this.supervisor_options}} @selection={{this.subscription.included_supporters}} @action={{mut this.subscription.included_supporters}} />
                       </span>
                       {{t "supervisor credits" key="supervisor_credits"}}
                     {{else}}

@@ -198,7 +198,7 @@
         {{#if this.model.adding_users}}
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=this.organization.supervisor_options selection=this.model.supervisor_user_name action=(mut this.model.supervisor_user_name) }}
+              <BoundSelect @select_class="form-control" @content={{this.organization.supervisor_options}} @selection={{this.model.supervisor_user_name}} @action={{mut this.model.supervisor_user_name}} />
             </span>
             <div class="btn-group dropdown">
               <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
@@ -212,7 +212,7 @@
           </div>
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=this.organization.communicator_options selection=this.model.communicator_user_name action=(mut this.model.communicator_user_name) }}
+              <BoundSelect @select_class="form-control" @content={{this.organization.communicator_options}} @selection={{this.model.communicator_user_name}} @action={{mut this.model.communicator_user_name}} />
             </span>
             <button class='btn btn-default' {{on "click" (this.ctrlAction "add_unit_user" "communicator")}}>{{t "Add Communicator" key="add_communicator"}}</button>
           </div>

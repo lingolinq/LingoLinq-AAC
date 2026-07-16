@@ -28,7 +28,7 @@
               </div>
               <div class="la-contact-form__row">
                 <label for="contact_recipient" class="la-contact-form__label">{{t "Recipient" key="recipient"}}</label>
-                {{bound-select select_class="la-contact-input" select_id="contact_recipient" content=this.recipient_list selection=this.recipient action=(mut this.recipient) }}
+                <BoundSelect @select_class="la-contact-input" @select_id="contact_recipient" @content={{this.recipient_list}} @selection={{this.recipient}} @action={{mut this.recipient}} />
               </div>
               {{#if this.support_recipient}}
                 {{#unless this.app_state.no_linky}}

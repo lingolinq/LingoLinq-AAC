@@ -22,7 +22,7 @@
         <div class="form-group">
           <label for="permission_level" class="col-sm-3 control-label">{{t "Access Level" key="access_level"}}</label>
           <div class="col-sm-8">
-            {{bound-select select_class="form-control" select_id="permission_level" content=this.permission_levels selection=this.permission_level action=(this.ctrlAction "updatePermissionLevel") }}
+            <BoundSelect @select_class="form-control" @select_id="permission_level" @content={{this.permission_levels}} @selection={{this.permission_level}} @action={{this.ctrlAction "updatePermissionLevel"}} />
           </div>
         </div>
         <div class="form-group">

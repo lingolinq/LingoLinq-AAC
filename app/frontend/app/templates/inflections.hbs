@@ -25,7 +25,7 @@
           <div class="col-sm-8">
             <div style={{this.word_type_style}}>
               <div style='max-width: 400px;'>
-                {{bound-select select_class="form-control" select_id="type" content=this.word_types selection=this.word.primary_part_of_speech action=(mut this.word.primary_part_of_speech) }}
+                <BoundSelect @select_class="form-control" @select_id="type" @content={{this.word_types}} @selection={{this.word.primary_part_of_speech}} @action={{mut this.word.primary_part_of_speech}} />
               </div>
               <em class='text-muted'>{{t "If the word matches more than one type, use the most common" key="use_most_common_type"}}</em>
             </div>

@@ -15,7 +15,7 @@
       {{#if this.goal_options}}
         <div class="md-modal-field">
           <label for="goal_options" class="md-modal-label">{{t "Topic" key="topic"}}</label>
-          {{bound-select select_class="form-control md-record-note-select" select_id="goal_options" content=this.goal_options selection=this.goal_id action=(this.ctrlAction "updateGoalId")}}
+          <BoundSelect @select_class="form-control md-record-note-select" @select_id="goal_options" @content={{this.goal_options}} @selection={{this.goal_id}} @action={{this.ctrlAction "updateGoalId"}} />
         </div>
         {{#if this.goal_id}}
           <div class="md-modal-field">

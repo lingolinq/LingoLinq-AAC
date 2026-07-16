@@ -70,7 +70,7 @@
           <div class="form-group">
             <label for="highlight_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</label>
             <div class="col-sm-10">
-              {{bound-select select_class="form-control" select_id="highlight_type" content=this.highlight_types selection=this.model.button.highlight_type action=(this.ctrlAction "updateModelButtonHighlightType") }}
+              <BoundSelect @select_class="form-control" @select_id="highlight_type" @content={{this.highlight_types}} @selection={{this.model.button.highlight_type}} @action={{this.ctrlAction "updateModelButtonHighlightType"}} />
             </div>
           </div>
           {{#if this.location_setting}}
@@ -127,7 +127,7 @@
                 {{t "Places" key="places"}}
               </label>
               <div class='col-sm-7'>
-                {{bound-select select_class="form-control" select_id="place" content=this.places_list selection=this.place action=(this.ctrlAction "updatePlace") }}
+                <BoundSelect @select_class="form-control" @select_id="place" @content={{this.places_list}} @selection={{this.place}} @action={{this.ctrlAction "updatePlace"}} />
               </div>
               <div class='col-sm-2' style='margin-bottom: 5px;'>
                 <button {{on "click" (this.ctrlAction "add_place")}} class='btn btn-default'>{{t "Add" key="add"}}</button>

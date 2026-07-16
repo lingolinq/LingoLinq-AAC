@@ -29,7 +29,7 @@
     <div class="md-modal-field">
       <label class="md-modal-label" for="symbol_library">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
       <p class="md-modal-hint">{{t "Select the symbol library to display for the user's new copy:" key="symbol_library_explainer"}}</p>
-      {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(this.ctrlAction "updateSymbolLibrary") }}
+      <BoundSelect @select_class="md-modal-select" @select_id="symbol_library" @content={{this.symbol_libraries}} @selection={{this.symbol_library}} @action={{this.ctrlAction "updateSymbolLibrary"}} />
     </div>
 
     {{#if this.model.board.levels}}
@@ -37,7 +37,7 @@
         <div class="md-modal-field">
           <label class="md-modal-label" for="board_level">{{t "Communication Level" key="communication_level"}}</label>
           <p class="md-modal-hint">{{t "This board supports multiple display levels. You can set it to a starting level that makes sense for the communicator. Don't worry, it's easy to change later." key="board_level_explainer"}}</p>
-          {{bound-select select_class="md-modal-select" select_id="board_level" content=this.board_levels selection=this.board_level action=(this.ctrlAction "updateBoardLevel") }}
+          <BoundSelect @select_class="md-modal-select" @select_id="board_level" @content={{this.board_levels}} @selection={{this.board_level}} @action={{this.ctrlAction "updateBoardLevel"}} />
         </div>
       {{/if}}
     {{/if}}

@@ -43,7 +43,7 @@
               <span class="md-org-room-add-users__label">{{t "Supervisor" key="supervisor"}}</span>
               <div class="md-org-room-add-users__group-body">
                 <div class="md-org-room-add-users__select-wrap">
-                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.supervisor_options selection=unit.supervisor_user_name action=(mut unit.supervisor_user_name) }}
+                  <BoundSelect @select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" @content={{this.model.supervisor_options}} @selection={{unit.supervisor_user_name}} @action={{mut unit.supervisor_user_name}} />
                 </div>
                 <div class="md-org-room-add-users__btn-group">
                   <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_unit_user" unit "edit_supervisor")}}>
@@ -59,7 +59,7 @@
               <span class="md-org-room-add-users__label">{{t "Communicator" key="communicator"}}</span>
               <div class="md-org-room-add-users__group-body">
                 <div class="md-org-room-add-users__select-wrap">
-                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.communicator_options selection=unit.communicator_user_name action=(mut unit.communicator_user_name) }}
+                  <BoundSelect @select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" @content={{this.model.communicator_options}} @selection={{unit.communicator_user_name}} @action={{mut unit.communicator_user_name}} />
                 </div>
                 <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_unit_user" unit "communicator")}}>
                   {{t "Add Communicator" key="add_communicator"}}

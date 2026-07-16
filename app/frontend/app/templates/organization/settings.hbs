@@ -19,7 +19,7 @@
 
     <div class="md-org-settings-field">
       <label for="preferred_symbols" class="md-org-settings-field__label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
-      {{bound-select select_class="md-org-report-select" select_id="preferred_symbols" content=this.symbols_list selection=this.model.preferred_symbols action=(mut this.model.preferred_symbols) }}
+      <BoundSelect @select_class="md-org-report-select" @select_id="preferred_symbols" @content={{this.symbols_list}} @selection={{this.model.preferred_symbols}} @action={{mut this.model.preferred_symbols}} />
       {{#if this.premium_symbol_library}}
         <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">
           {{t "(will not apply for users without premium symbols enabled)" key="wont_work_without_premium_symbols"}}
@@ -29,7 +29,7 @@
 
     <div class="md-org-settings-field">
       <label for="default_locale" class="md-org-settings-field__label">{{t "Default Language" key="default_language"}}</label>
-      {{bound-select select_class="md-org-report-select" select_id="default_locale" content=this.locale_list selection=this.model.default_locale action=(mut this.model.default_locale) }}
+      <BoundSelect @select_class="md-org-report-select" @select_id="default_locale" @content={{this.locale_list}} @selection={{this.model.default_locale}} @action={{mut this.model.default_locale}} />
     </div>
 
     <div class="md-org-settings-field">

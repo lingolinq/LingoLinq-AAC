@@ -32,7 +32,7 @@
         {{#if this.appState.feature_flags.board_levels}}
           <div class="md-modal-field">
             <label class="md-modal-label" for="level">{{t "Level" key="level"}}</label>
-            {{bound-select select_class="md-modal-select" select_id="level" content=this.board_levels selection=this.model.level action=(this.ctrlAction "updateLevel") }}
+            <BoundSelect @select_class="md-modal-select" @select_id="level" @content={{this.board_levels}} @selection={{this.model.level}} @action={{this.ctrlAction "updateLevel"}} />
           </div>
         {{/if}}
       {{/if}}

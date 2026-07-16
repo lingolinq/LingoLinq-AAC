@@ -55,7 +55,7 @@
             {{#if this.appState.sessionUser.supervisors}}
               <div class="la-contact-form__row">
                 <label for="author_id" class="la-contact-form__label">{{t "Send Reply To" key="send_reply_to"}}</label>
-                {{bound-select select_class="la-contact-input" select_id="author_id" content=this.author_ids selection=this.author_id action=(this.ctrlAction "updateAuthorId") }}
+                <BoundSelect @select_class="la-contact-input" @select_id="author_id" @content={{this.author_ids}} @selection={{this.author_id}} @action={{this.ctrlAction "updateAuthorId"}} />
               </div>
             {{/if}}
           {{/if}}

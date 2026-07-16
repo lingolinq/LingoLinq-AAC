@@ -43,9 +43,9 @@
   <p class="badge-level__section-hint">{{t "Choose how progress toward this badge level is measured." key="criteria_hint"}}</p>
   <div class="badge-criteria">
     {{#if this.in_list}}
-      {{bound-select select_class="form-control badge-criteria__select" content=this.simple_types selection=this.badge.simple_type action=(mut this.badge.simple_type) }}
+      <BoundSelect @select_class="form-control badge-criteria__select" @content={{this.simple_types}} @selection={{this.badge.simple_type}} @action={{mut this.badge.simple_type}} />
     {{else}}
-      {{bound-select select_class="form-control badge-criteria__select" content=this.simple_assessment_types selection=this.badge.simple_type action=(mut this.badge.simple_type) }}
+      <BoundSelect @select_class="form-control badge-criteria__select" @content={{this.simple_assessment_types}} @selection={{this.badge.simple_type}} @action={{mut this.badge.simple_type}} />
     {{/if}}
     {{#if this.custom_badge}}
       {{#if this.in_list}}
@@ -70,7 +70,7 @@
         </p>
       </div>
       <div class='col-sm-4'>
-        {{bound-select select_class="form-control" content=this.tracking_types selection=this.badge.tracking_type action=(mut this.badge.tracking_type) }}
+        <BoundSelect @select_class="form-control" @content={{this.tracking_types}} @selection={{this.badge.tracking_type}} @action={{mut this.badge.tracking_type}} />
       </div>
     </div>
     {{#if this.badge.watchlist}}
@@ -85,11 +85,11 @@
           </p>
         </div>
         <div class={{if this.in_list "col-sm-2" "col-sm-4"}}>
-          {{bound-select select_class="form-control" content=this.watchlist_types selection=this.badge.watchlist_type action=(mut this.badge.watchlist_type) }}
+          <BoundSelect @select_class="form-control" @content={{this.watchlist_types}} @selection={{this.badge.watchlist_type}} @action={{mut this.badge.watchlist_type}} />
         </div>
         {{#if this.in_list}}
           <div class='col-sm-2'>
-            {{bound-select select_class="form-control" content=this.unit_type_list selection=this.badge.interval action=(mut this.badge.interval) }}
+            <BoundSelect @select_class="form-control" @content={{this.unit_type_list}} @selection={{this.badge.interval}} @action={{mut this.badge.interval}} />
           </div>
         {{/if}}
       </div>
@@ -169,7 +169,7 @@
             <p class='form-control-static'>{{t "different %{types} used" types=this.watchlist_type_plural key="different_types_used"}}</p>
           </div>
           <div class='col-sm-2'>
-            {{bound-select select_class="form-control" content=this.unit_type_list selection=this.badge.watch_type_interval action=(mut this.badge.watch_type_interval) }}
+            <BoundSelect @select_class="form-control" @content={{this.unit_type_list}} @selection={{this.badge.watch_type_interval}} @action={{mut this.badge.watch_type_interval}} />
           </div>
         </div>
       {{/if}}
@@ -188,11 +188,11 @@
           <input value={{this.badge.instance_count}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.instance_count")}} />
         </div>
         <div class={{if this.in_list "col-sm-3" "col-sm-4"}}>
-          {{bound-select select_class="form-control" content=this.instance_metric_list selection=this.badge.instance_metric action=(mut this.badge.instance_metric) }}
+          <BoundSelect @select_class="form-control" @content={{this.instance_metric_list}} @selection={{this.badge.instance_metric}} @action={{mut this.badge.instance_metric}} />
         </div>
         {{#if this.in_list}}
           <div class='col-sm-2'>
-            {{bound-select select_class="form-control" content=this.unit_type_list selection=this.badge.interval action=(mut this.badge.interval) }}
+            <BoundSelect @select_class="form-control" @content={{this.unit_type_list}} @selection={{this.badge.interval}} @action={{mut this.badge.interval}} />
           </div>
         {{/if}}
       </div>
@@ -204,7 +204,7 @@
             <p class='form-control-static'>{{t "The user must meet the criteria" key="must_meet_criteria"}}</p>
           </div>
           <div class='col-sm-3'>
-            {{bound-select select_class="form-control" content=this.criteria_type_list selection=this.badge.criteria_type action=(mut this.badge.criteria_type) }}
+            <BoundSelect @select_class="form-control" @content={{this.criteria_type_list}} @selection={{this.badge.criteria_type}} @action={{mut this.badge.criteria_type}} />
           </div>
           {{#if this.badge.for_consecutive_units}}
             <div class='col-sm-1'>

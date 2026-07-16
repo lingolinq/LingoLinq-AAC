@@ -23,7 +23,7 @@
     {{#unless this.save_option}}
       <div class="md-modal-field">
         <label for="default_symbols" class="md-modal-label">{{t "Prompt Symbol(s)" key="prompt_symbols"}}</label>
-        {{bound-select select_class="md-modal-select" select_id="default_symbols" content=this.symbol_libraries selection=this.settings.default_library action=(mut this.settings.default_library) }}
+        <BoundSelect @select_class="md-modal-select" @select_id="default_symbols" @content={{this.symbol_libraries}} @selection={{this.settings.default_library}} @action={{mut this.settings.default_library}} />
       </div>
 
       <div class="md-modal-field">

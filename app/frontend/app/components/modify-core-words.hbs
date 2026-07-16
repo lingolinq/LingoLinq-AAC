@@ -14,7 +14,7 @@
       </p>
       <div class="la-modify-core-row">
         <div class="la-modify-core-select-wrap">
-          {{bound-select select_class="la-modify-core-select" select_id="core_list" content=this.core_lists selection=this.core_list action=(this.ctrlAction "updateCoreList") }}
+          <BoundSelect @select_class="la-modify-core-select" @select_id="core_list" @content={{this.core_lists}} @selection={{this.core_list}} @action={{this.ctrlAction "updateCoreList"}} />
         </div>
         {{#if this.default_core_list}}
           <button type="button" class="la-modify-core-customize-btn" {{on "click" (this.ctrlAction "modify_list")}}>{{t "Customize This List" key="customize_this_list"}}</button>

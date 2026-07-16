@@ -54,7 +54,7 @@
         {{/if}}
         <div class="md-modal-field">
           <label class="md-modal-label" for="external_access_method">{{t "Access Method" key="access_method"}}</label>
-          {{bound-select select_class="md-modal-select" select_id="external_access_method" content=this.access_methods selection=this.external_access_method action=(mut this.external_access_method) }}
+          <BoundSelect @select_class="md-modal-select" @select_id="external_access_method" @content={{this.access_methods}} @selection={{this.external_access_method}} @action={{mut this.external_access_method}} />
         </div>
       {{/if}}
     </form>

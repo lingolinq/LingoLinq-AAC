@@ -61,6 +61,6 @@
     </span>
   {{/if}}
   <span style="display: inline-block; width: calc(100% - 40px);">
-    {{bound-select select_class="form-control" select_id=this.select_id content=this.users_with_extras selection=this.selection action=this.action }}
+    <BoundSelect @select_class="form-control" @select_id={{this.select_id}} @content={{this.users_with_extras}} @selection={{this.selection}} @action={{this.action}} />
   </span>
 {{/if}}

@@ -36,14 +36,14 @@
             {{t "Home Board:" key="home_board_colon"}}
           </label>
           <div class='col-sm-6'>
-            {{bound-select select_class="form-control" select_id="home_board" content=this.board_options selection=this.home_board_template action=(mut this.home_board_template) }}
+            <BoundSelect @select_class="form-control" @select_id="home_board" @content={{this.board_options}} @selection={{this.home_board_template}} @action={{mut this.home_board_template}} />
           </div>
         </div>
         {{#if this.board_will_copy}}
           <div class="form-group">
             <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
             <div class="col-sm-6">
-              {{bound-select select_class="form-control" select_id="preferred_symbols" content=this.symbols_list selection=this.preferred_symbols action=(mut this.preferred_symbols) }}
+              <BoundSelect @select_class="form-control" @select_id="preferred_symbols" @content={{this.symbols_list}} @selection={{this.preferred_symbols}} @action={{mut this.preferred_symbols}} />
               {{#if this.premium_symbol_library}}
                 {{#unless this.add_symbols}}
                   <div class='text-danger' style='margin-left: 10px;'>

@@ -164,8 +164,8 @@
             <div class="form-group">
               <label>{{t "Date of birth" key="date_of_birth"}}</label>
               <div class="register-date-row">
-                {{bound-select select_class="form-control" select_id="birth_month" content=this.birthMonths selection=this.birth_month action=(mut this.birth_month) }}
-                {{bound-select select_class="form-control" select_id="birth_year" content=this.birthYears selection=this.birth_year action=(mut this.birth_year) }}
+                <BoundSelect @select_class="form-control" @select_id="birth_month" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} />
+                <BoundSelect @select_class="form-control" @select_id="birth_year" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} />
               </div>
               {{#if this.communicatorAgeRequired}}
                 <span class="text-danger">{{t "Please choose a birth month and year." key="birthdate_required"}}</span>

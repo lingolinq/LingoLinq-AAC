@@ -66,7 +66,7 @@
           {{#unless this.consent_submitted}}
             <div class="md-add-supervisor__field">
               <label for="supervisor_type" class="md-add-supervisor__label">{{t "Access" key="access"}}</label>
-              {{bound-select select_class="md-add-supervisor__input md-add-supervisor__select" select_id="supervisor_type" content=this.supervisor_types selection=this.supervisor_permission action=(this.ctrlAction "updateSupervisorPermission") }}
+              <BoundSelect @select_class="md-add-supervisor__input md-add-supervisor__select" @select_id="supervisor_type" @content={{this.supervisor_types}} @selection={{this.supervisor_permission}} @action={{this.ctrlAction "updateSupervisorPermission"}} />
             </div>
             {{#if this.supervisor_sponsorships}}
               {{#unless this.consent_request}}

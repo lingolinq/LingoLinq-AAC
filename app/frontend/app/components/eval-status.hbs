@@ -29,12 +29,12 @@
             {{#if this.org_board_keys}}
               <div class="la-eval-status-field">
                 <label class="la-eval-status-field__label" for="home_board">{{t "New Home Board" key="new_home_board"}}</label>
-                {{bound-select select_class="la-eval-status-field__input" select_id="home_board" content=this.org_board_keys selection=this.home_board_key action=(mut this.home_board_key) }}
+                <BoundSelect @select_class="la-eval-status-field__input" @select_id="home_board" @content={{this.org_board_keys}} @selection={{this.home_board_key}} @action={{mut this.home_board_key}} />
               </div>
               {{#if this.org_board_set}}
                 <div class="la-eval-status-field">
                   <label class="la-eval-status-field__label" for="symbol_library">{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</label>
-                  {{bound-select select_class="la-eval-status-field__input" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(mut this.symbol_library) }}
+                  <BoundSelect @select_class="la-eval-status-field__input" @select_id="symbol_library" @content={{this.symbol_libraries}} @selection={{this.symbol_library}} @action={{mut this.symbol_library}} />
                 </div>
               {{/if}}
             {{/if}}
