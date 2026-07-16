@@ -35,12 +35,17 @@ error, just blank UI).
 - Detect: `grep -rnE "\.(sortBy|mapBy|filterBy|findBy|uniq|uniqBy|compact|pushObject|pushObjects|removeObject|removeObjects|addObject|addObjects|insertAt|removeAt|objectAt|toArray|without|isAny|isEvery|invoke|setEach|getEach|any\(|firstObject|lastObject)" app/frontend/app/<slice>`
 - Also templates: `{{#each foo.firstObject ...}}`, `{{get list "firstObject"}}` — in
   templates `firstObject` resolves ONLY on Ember arrays.
-- **Receiver-verification protocol (mandatory):** trace to assignment. Native ⇒ finding:
-  `[]` literal, `.split()`, `.map()/.filter()/.concat()` result, `JSON.parse`,
-  `attr('raw')` payload, `Object.keys/values`. NOT native ⇒ safe: `A(...)`, `hasMany`
-  relationship (legacy mode keeps EmberArray-ish methods in 5.3 — verify per
-  KNOWN-ISSUES.md), `store.query/findAll` results (RecordArrays keep some methods),
-  computed returning `A()`. Ambiguous provenance ⇒ `confidence: "low"` or skip.
+- **Receiver-verification protocol (mandatory):** trace to assignment.
+  | Receiver | Ember array methods? | Verdict |
+  |---|---|---|
+  | `A(...)`-wrapped / computed returning `A()` | yes | safe |
+  | `[]` literal, `.split()`, `.map()/.filter()/.concat()`, `JSON.parse`, `attr('raw')` payload, `Object.keys/values` | no | **finding** |
+  | ember-data `hasMany` (`ManyArray`), `store.peekAll/findAll/query` results | **NO** — v5.3 made these native Proxies (verified against v5.3.8 source); methods throw, `firstObject` = silent undefined; `A()`-wrapping them is also unsupported | **finding** |
+  | UNresolved async `hasMany` (`PromiseManyArray`) | only `length/links/meta/forEach/then/reload` survive; everything else | **finding** |
+  | async `belongsTo` (`PromiseBelongsTo`) | still a full ObjectProxy — chained property access works | safe (don't over-flag) |
+  Extra Class-7 trap: `store.peekAll/findAll/query` results REFUSE in-place mutation
+  (`.sort()`, `.push()` assert) — copy with `.slice()` first. Ambiguous provenance ⇒
+  `confidence: "low"` or skip.
 - Fix recipe: native equivalent (`.slice().sort(cmp)`, `.map(f)`, `[...new Set(a)]`,
   `.filter(x => x != null)`, `.push()`, `arr[0]`) preserving comparator/key semantics,
   or `A()`-wrap at the assignment site.
@@ -108,13 +113,22 @@ syntax, `component:` lookup of a route-driven controller.
   (global `LingoLinq.store` / inherit from `routes/index.js`); components mostly inject.
 
 ### Class 7 — Ember Data 5.x relationship & store semantics
-hasMany/belongsTo proxies, `.then()` on relationships, `.toArray()`, relationship-array
-mutation methods, `errors` shape, adapter/serializer legacy-compat status at 5.3.8, sync
-cache/identifier changes. LEGACY MODE NUANCE: with `@ember-data/model` legacy support,
-much 3.x-style code still works in 5.3 — verify each suspected hit against
-KNOWN-ISSUES.md §Ember-Data before flagging; prefer `confidence: "medium"` unless the
-API is confirmed-removed.
-- Detect: greps in KNOWN-ISSUES.md §Ember-Data (per-API).
+What legacy mode KEEPS at 5.3.8 (non-findings): adapters/serializers/transforms via the
+umbrella package's auto-wired LegacyNetworkHandler; Model mutation surface
+(`rollbackAttributes`, `deleteRecord`, `destroyRecord`, `changedAttributes`);
+`record.errors`; async `belongsTo` proxying. What it REMOVED (findings): promise proxies
+on `findRecord/findAll/query/save` returns (native Promises now — un-awaited results
+bound to templates render nothing); `PromiseManyArray` methods beyond
+`length/links/meta/forEach/then/reload`; ALL EmberArray methods on `ManyArray`/
+`RecordArray` (see receiver table above); `.toArray()`; `A()`-wrapping ED arrays;
+in-place mutation of `peekAll/findAll/query` results; `store.find`/`hasRecordForId`;
+`Model.reopen(Class)`; static schema access without `store.modelFor`; `snapshot.type`;
+`errorsHashToArray/ArrayToHash`; record lifecycle events/Evented (gone since 4.0);
+`Model#toJSON`; implicit `hasMany/belongsTo` without `{async, inverse}` (5.0 assertion);
+plus 5.3→6.0 deprecations (non-strict ids/types, remote-update-clearing-local-state,
+ManyArray duplicates). Watch unload-then-repush flows (`persistence.js` sync) for the
+known 4.x/5.x unload/notification regressions.
+- Detect: greps in KNOWN-ISSUES.md §Ember-Data (per-API, 32 entries).
 
 ### Class 8 — Async observers & run-loop timing
 Since 4.0 observers default to async (`default-async-observers`). An observer that

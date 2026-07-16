@@ -33,12 +33,14 @@ PreToolUse hook blocks mutating Bash. If you are tempted to fix, record a findin
 ## Hard constraints (non-negotiable)
 - **Read-only.** Never modify files, git state, or run installs/builds that write outside
   the scratchpad. Reporting only.
-- **Verify the receiver before you flag.** The #1 false-positive source: Ember-array
-  methods (`sortBy`, `mapBy`, `pushObject`, `firstObject`, …) are a bug ONLY on **native**
-  arrays. They still work on `A()`-wrapped arrays and (in legacy mode) Ember Data
-  relationship arrays. Trace each hit to its assignment site and prove the receiver is
-  native (`[]` literal, `.split()`, `.map()` result, `attr('raw')` payload, JSON parse)
-  before emitting. If provenance is ambiguous, emit at `confidence: "low"` or not at all.
+- **Verify the receiver before you flag.** Ember-array methods (`sortBy`, `mapBy`,
+  `pushObject`, `firstObject`, …) still work ONLY on `A()`-wrapped arrays. They are a bug
+  on **native** arrays (`[]` literal, `.split()`, `.map()` result, `attr('raw')` payload,
+  JSON parse) AND — verified against the ember-data v5.3.8 source — on **Ember Data
+  relationship/store arrays** (`ManyArray`/`RecordArray` are native Proxies in 5.3;
+  method calls throw, `firstObject`/`lastObject` return undefined silently). Trace each
+  hit to its assignment site; the KB's receiver table gives the per-receiver verdict.
+  If provenance is ambiguous, emit at `confidence: "low"` or not at all.
 - **Deterministic, high-confidence findings only.** The adversary verifier refutes weak
   findings; a flood of speculative ones wastes the run.
 - **No student/patient data ever.** Evidence snippets are CODE only. Also avoid snippet
