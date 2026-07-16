@@ -5,9 +5,18 @@ procedure for the **production cutover** (tracker Phase 5), built on top of the 
 steps already shipped in `scripts/gcp/PHASE4-CUTOVER-DATA-RUNBOOK.md` (S1 setval + S2 secret
 preservation).
 
-> **Status: DRAFT for review. Nothing here runs before Scot's explicit go.** Every step is
-> describable and rehearsable; the real dump/restore/seed/DNS against `lingolinq-prod` are
-> cutover actions gated on sign-off. This is a HIPAA-relevant production change.
+> **Status (2026-07-15): the GCP stack is stood up and healthy on CURRENT `main`; the
+> irreversible cutover actions remain gated on Scot's explicit go.** The clean-DB rehearsal ran
+> and passed (schema load + seed + Redis-TLS handshake, 2026-06-29; five-path smoke re-run
+> 2026-07-02/04 - see the checklist), and a fresh deploy from current `main` (image `f7e89fe2d`,
+> the Dockerfile npm-pin fix #594) redeployed `lingolinq-web` + `lingolinq-worker` and re-ran the
+> `db:migrate` Job cleanly. Verified live 2026-07-15: Cloud SQL `lingolinq-prod-pg` RUNNABLE,
+> Memorystore `lingolinq-prod-redis` READY (TLS), web serving HTTP 200 (`/api/v1/token_check`
+> hits the DB and returns 200), worker pool Ready. **What is still gated and has NOT run:** the
+> external HTTPS LB + Cloud Armor front end (step 8), the DNS cut (step 9), WAF enforce (9c), and
+> the Render decommission (9b). Those are the HIPAA-relevant, hard-to-reverse actions; nothing in
+> that set runs before sign-off, and the hard constraints (no DNS, no Cloud Armor enforce, no
+> ingress lockdown, no Render/SES changes) stay in force until explicitly lifted.
 
 ## Scope and the one rule that governs everything
 
@@ -19,8 +28,12 @@ if Render is never degraded during the cutover. Therefore:
   mutating endpoints, reads still served), combined with a **60s DNS TTL**, NOT a scale-to-0 and
   NOT a DB-level read-only toggle. Render web stays UP through the entire soak; this is the guard
   that stops offline/DNS-stale clients from writing to the abandoned Render DB after cutover
-  (decided mechanism, Scot 2026-06-23, Option 1 + 2). No such write-reject mode exists in the
-  codebase yet; it is a required pre-cutover build (step 1).
+  (decided mechanism, Scot 2026-06-23, Option 1 + 2). This write-reject mode is **BUILT** -
+  `WriteFreeze::Middleware`, ENV-gated on `WRITE_FREEZE` (`config/initializers/write_freeze.rb`,
+  PR #472, merged to staging, spec-covered by `spec/features/write_freeze_spec.rb` +
+  `spec/initializers/write_freeze_paths_spec.rb`). Default (`WRITE_FREEZE` unset) = zero behavior
+  change; the operator toggles it on at freeze start. See step 1 for coverage detail and the
+  accepted-loss set.
 - **Render decommission is NOT part of this runbook.** It is tracker Phase 6 (`6.2`), gated, and
   only after a clean soak AND Cloud SQL confirmed authoritative. See step 9b, a pointer, not an
   action.
@@ -54,9 +67,11 @@ the window, revert to it.
     authoritative Render DB) MUST be bound to the live `DATABASE_URL` secret the Job uses, not a
     hand-typed proxy. This is the one step that can cause permanent loss - treat it as THE
     irreversible gate.
-  - **0c Redis TLS live handshake (`LL-6619cc1811`)** - never exercised against live Memorystore;
-    silent-failure risk for all background jobs, and **seeding itself enqueues to Redis
-    synchronously**, so this runs BEFORE the seed. The functional go/no-go gate.
+  - **0c Redis TLS live handshake (`LL-6619cc1811`)** - **exercised green against live Memorystore
+    2026-06-29** (`lingolinq-redischeck-zsq74`, PONG over `rediss://`, CA-chain verified), so the
+    technical gate has passed; the register finding stays `open` only pending Scot's explicit
+    close/edit (see checklist). Because **seeding itself enqueues to Redis synchronously**, re-run
+    this handshake BEFORE any re-seed on a fresh DB. The functional go/no-go gate for the Redis path.
 - 0b worker-pool health; the schema-load + seed (two separate executions, NOT a combined re-runnable
   Job; seeding performs a full Moby word import - budget a long task-timeout); the five-path smoke
   test (login, board load, S3 read, SES send, Resque process); the frontend LB + Cloud Armor
