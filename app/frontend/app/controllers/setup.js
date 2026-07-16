@@ -128,10 +128,10 @@ export default Controller.extend({
     }
   ),
   text_position_label: computed('text_position', function() {
-    if(this.get('text_position.text_on_top')) { return i18n.t('text_above_pictures', 'Pictures with text above'); }
-    if(this.get('text_position.text_only')) { return i18n.t('no_pictures', 'Text only (no pictures)'); }
-    if(this.get('text_position.text_on_bottom')) { return i18n.t('text_below_pictures', 'Pictures with text below'); }
-    return i18n.t('text_above_pictures', 'Pictures with text above');
+    if(this.get('text_position.text_on_top')) { return i18n.t('text_above_pictures', "Pictures with text above"); }
+    if(this.get('text_position.text_only')) { return i18n.t('no_pictures', "Text only (no pictures)"); }
+    if(this.get('text_position.text_on_bottom')) { return i18n.t('text_below_pictures', "Pictures with text below"); }
+    return i18n.t('text_above_pictures', "Pictures with text above");
   }),
   skin: computed(
     'fake_user.preferences.skin',
@@ -349,14 +349,14 @@ export default Controller.extend({
   symbol_library_label: computed('symbols', function() {
     var labels = {
       original: i18n.t('use_original_symbols', "Default symbols"),
-      opensymbols: i18n.t('opensymbols', 'Opensymbols.org'),
-      twemoji: i18n.t('twemoji', 'Emoji icons (authored by Twitter)'),
-      noun_project: i18n.t('noun_project', 'Noun Project black outlines'),
-      arasaac: i18n.t('arasaac', 'ARASAAC free symbols'),
-      tawasol: i18n.t('tawasol_library', 'Tawasol'),
-      lessonpix: i18n.t('lessonpix_library', 'LessonPix symbol library'),
+      opensymbols: i18n.t('opensymbols', "Opensymbols.org"),
+      twemoji: i18n.t('twemoji', "Emoji icons (authored by Twitter)"),
+      noun_project: i18n.t('noun_project', "Noun Project black outlines"),
+      arasaac: i18n.t('arasaac', "ARASAAC free symbols"),
+      tawasol: i18n.t('tawasol_library', "Tawasol"),
+      lessonpix: i18n.t('lessonpix_library', "LessonPix symbol library"),
       symbolstix: i18n.t('symbolstix_images', 'SymbolStix Symbols'),
-      pcs: i18n.t('pcs', 'PCS Symbols by Tobii Dynavox')
+      pcs: i18n.t('pcs', "PCS Symbols by Tobii Dynavox")
     };
     if(this.get('symbols.original')) { return labels.original; }
     if(this.get('symbols.opensymbols')) { return labels.opensymbols; }
@@ -372,33 +372,33 @@ export default Controller.extend({
   symbol_library_options: computed('symbols', 'showing_more_symbols', 'setup_user.subscription.extras_enabled', 'setup_user', function() {
     var opts = [];
     opts.push({ value: 'original', label: i18n.t('use_original_symbols', "Default symbols") });
-    opts.push({ value: 'opensymbols', label: i18n.t('opensymbols', 'Opensymbols.org') });
+    opts.push({ value: 'opensymbols', label: i18n.t('opensymbols', "Opensymbols.org") });
     if(this.get('setup_user') && this.get('setup_user.subscription.extras_enabled')) {
-      opts.push({ value: 'lessonpix', label: i18n.t('lessonpix_library', 'LessonPix symbol library'), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
+      opts.push({ value: 'lessonpix', label: i18n.t('lessonpix_library', "LessonPix symbol library"), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
       opts.push({ value: 'symbolstix', label: i18n.t('symbolstix_images', 'SymbolStix Symbols'), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
-      opts.push({ value: 'pcs', label: i18n.t('pcs', 'PCS Symbols by Tobii Dynavox'), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
+      opts.push({ value: 'pcs', label: i18n.t('pcs', "PCS Symbols by Tobii Dynavox"), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
     }
     if(this.get('showing_more_symbols')) {
-      opts.push({ value: 'twemoji', label: i18n.t('twemoji', 'Emoji icons (authored by Twitter)') });
-      opts.push({ value: 'noun-project', label: i18n.t('noun_project', 'Noun Project black outlines') });
-      opts.push({ value: 'arasaac', label: i18n.t('arasaac', 'ARASAAC free symbols') });
-      opts.push({ value: 'tawasol', label: i18n.t('tawasol_library', 'Tawasol') });
+      opts.push({ value: 'twemoji', label: i18n.t('twemoji', "Emoji icons (authored by Twitter)") });
+      opts.push({ value: 'noun-project', label: i18n.t('noun_project', "Noun Project black outlines") });
+      opts.push({ value: 'arasaac', label: i18n.t('arasaac', "ARASAAC free symbols") });
+      opts.push({ value: 'tawasol', label: i18n.t('tawasol_library', "Tawasol") });
     } else {
-      opts.push({ expand: true, label: i18n.t('show_more_libraries', 'Show more libraries...') });
+      opts.push({ expand: true, label: i18n.t('show_more_libraries', "Show more libraries...") });
     }
     return opts;
   }),
   utterance_layout_label: computed('utterance_layout', function() {
     return this.get('utterance_layout.text_only')
-      ? i18n.t('show_words', 'Words only')
-      : i18n.t('show_symbols', 'Symbol buttons');
+      ? i18n.t('show_words', "Words only")
+      : i18n.t('show_symbols', "Symbol buttons");
   }),
   background_label: computed('background', function() {
-    if(this.get('background.clear')) { return i18n.t('clear_background', 'Color background'); }
-    if(this.get('background.white')) { return i18n.t('always_white_background', 'White background'); }
-    if(this.get('background.black')) { return i18n.t('always_black_background', 'Black background'); }
-    if(this.get('background.black_with_high_contrast')) { return i18n.t('high_contrast_black_background', 'High contrast'); }
-    return i18n.t('clear_background', 'Color background');
+    if(this.get('background.clear')) { return i18n.t('clear_background', "Color background"); }
+    if(this.get('background.white')) { return i18n.t('always_white_background', "White background"); }
+    if(this.get('background.black')) { return i18n.t('always_black_background', "Black background"); }
+    if(this.get('background.black_with_high_contrast')) { return i18n.t('high_contrast_black_background', "High contrast"); }
+    return i18n.t('clear_background', "Color background");
   }),
   skin_option_list: computed(function() {
     return [

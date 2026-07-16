@@ -83,10 +83,10 @@ export default Component.extend({
 
   libraries: computed('lessonpix_enabled', 'premium_symbols_enabled', function() {
     const res = [];
-    res.push({ id: 'opensymbols', name: i18n.t('opensymbols', 'OpenSymbols.org') });
-    res.push({ id: 'arasaac', name: i18n.t('arasaac', 'ArasAAC') });
-    res.push({ id: 'twemoji', name: i18n.t('twemoji', 'Twitter Emoji') });
-    res.push({ id: 'noun-project', name: i18n.t('noun_project', 'Noun Project') });
+    res.push({ id: 'opensymbols', name: i18n.t('opensymbols', "OpenSymbols.org") });
+    res.push({ id: 'arasaac', name: i18n.t('arasaac', "ArasAAC") });
+    res.push({ id: 'twemoji', name: i18n.t('twemoji', "Twitter Emoji") });
+    res.push({ id: 'noun-project', name: i18n.t('noun_project', "Noun Project") });
     res.push({ id: 'sclera', name: i18n.t('sclera', 'Sclera (High Contrast)') });
     res.push({ id: 'mulberry', name: i18n.t('mulberry', 'Mulberry') });
     res.push({ id: 'tawasol', name: i18n.t('tawasol', 'Tawasol (Arabic)') });
