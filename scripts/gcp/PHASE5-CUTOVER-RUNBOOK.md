@@ -12,11 +12,15 @@ preservation).
 > the Dockerfile npm-pin fix #594) redeployed `lingolinq-web` + `lingolinq-worker` and re-ran the
 > `db:migrate` Job cleanly. Verified live 2026-07-15: Cloud SQL `lingolinq-prod-pg` RUNNABLE,
 > Memorystore `lingolinq-prod-redis` READY (TLS), web serving HTTP 200 (`/api/v1/token_check`
-> hits the DB and returns 200), worker pool Ready. **What is still gated and has NOT run:** the
-> external HTTPS LB + Cloud Armor front end (step 8), the DNS cut (step 9), WAF enforce (9c), and
-> the Render decommission (9b). Those are the HIPAA-relevant, hard-to-reverse actions; nothing in
-> that set runs before sign-off, and the hard constraints (no DNS, no Cloud Armor enforce, no
-> ingress lockdown, no Render/SES changes) stay in force until explicitly lifted.
+> hits the DB and returns 200), worker pool Ready. The external HTTPS LB + Cloud Armor front end
+> **is built and provisioned in preview** (step 8): LB IP `136.68.41.122`, policy `lingolinq-armor`
+> with WAF rules 1001-1004 (`deny 403`) + rate-limit 2000 all in `preview=true` (log-only, not
+> enforcing), verified live 2026-07-15. **What is still gated and has NOT run:** pointing real DNS
+> traffic at that LB / the ingress lockdown (only after the LB path is validated against live DNS),
+> the DNS cut (step 9), the WAF **enforce** flip (9c), and the Render decommission (9b). Those are
+> the HIPAA-relevant, hard-to-reverse actions; nothing in that set runs before sign-off, and the
+> hard constraints (no DNS, no Cloud Armor enforce, no ingress lockdown, no Render/SES changes)
+> stay in force until explicitly lifted.
 
 ## Scope and the one rule that governs everything
 
@@ -177,8 +181,11 @@ Run this after the migrate Job + deploys (step 6) and before DNS (step 9).
 
 The app-side TLS capability is merged (#410/#416/#417: `rediss://` enables `:ssl` + `:ssl_params`
 in `config/initializers/resque.rb`, hostname hatch `REDIS_TLS_VERIFY_HOSTNAME=false`, CA wired
-into `BOOT_SECRETS`). It has **never been exercised against the live Memorystore instance**. This
-step is that verification.
+into `BOOT_SECRETS`). This handshake was **exercised green against the live Memorystore instance on
+2026-06-29** (`lingolinq-redischeck-zsq74`: `PONG` over `rediss://`, CA chain verified), so the
+technical gate has passed; register finding LL-6619cc1811 stays formally open only until Scot
+closes/edits it. **Re-run this handshake as a pre-flight before any re-seed on a fresh DB** - it is
+cheap and catches a broken CA/endpoint before data work.
 
 ```
 # From a Cloud Run context that has the prod REDIS_URL (rediss://) + REDIS_CA_CERT loaded
@@ -461,8 +468,12 @@ Then, BEFORE any DNS change:
 
 ### 8. Front-end decision gate  (tracker 5.3 - DECIDED 2026-06-23)
 
-The web service currently deploys with `--allow-unauthenticated` straight to the `run.app` URL.
-No HTTPS LB or Cloud Armor is built yet.
+The web service currently serves on its `--allow-unauthenticated` `run.app` URL. The Option B LB +
+Cloud Armor path below **is already built and provisioned** (LB IP `136.68.41.122`, policy
+`lingolinq-armor`, WAF rules 1001-1004 + rate-limit 2000 all in `preview=true` / log-only, verified
+live 2026-07-15). What has NOT happened: no real DNS traffic points at the LB yet, ingress is not
+locked down, and the WAF is not enforcing - those remain gated (see the DNS cut in step 9, the
+ingress lockdown, and the enforce flip in step 9c).
 
 **DECISION (Scot, 2026-06-23): Option B - external HTTPS Load Balancer + Cloud Armor in front of
 Cloud Run, gated on building and smoke-testing the full LB + Cloud Armor path in the dress
