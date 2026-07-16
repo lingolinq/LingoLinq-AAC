@@ -11,7 +11,7 @@
       {{#if this.settings.saved}}
         <strong>{{this.settings.user_name}}</strong>
       {{else if this.settings}}
-        {{user-select select_id="for_user_id" selection=this.settings.for_user.user_id action=(mut this.settings.for_user.user_id) }}
+        <UserSelect @select_id="for_user_id" @selection={{this.settings.for_user.user_id}} @action={{mut this.settings.for_user.user_id}} />
       {{/if}}
     </div>
 

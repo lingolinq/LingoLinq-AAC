@@ -82,9 +82,9 @@
   {{#if this.model.stats.sessions}}
     <div class="md-goal__charts">
       {{#if this.model.any_statuses}}
-        {{stats/goal-statuses-over-time goal=this.model}}
+        <Stats::GoalStatusesOverTime @goal={{this.model}} />
       {{/if}}
-      {{stats/goal-summary goal=this.model}}
+      <Stats::GoalSummary @goal={{this.model}} />
     </div>
   {{/if}}
 
@@ -123,7 +123,7 @@
           {{else}}
             <div class="md-goal-field md-goal-field--video">
               <label class="md-goal-field__label">{{t "Video" key="video"}}</label>
-              {{video-recorder user=this.model.user video_ready=(this.ctrlAction "video_ready") video_not_ready=(this.ctrlAction "video_not_ready")}}
+              <VideoRecorder @user={{this.model.user}} @video_ready={{this.ctrlAction "video_ready"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
             </div>
           {{/if}}
           <div class="md-goal-field">
@@ -136,7 +136,7 @@
           </div>
           {{#if this.model.assessment_badge}}
             <div class="md-goal-badge-editor">
-              {{badge-settings badge=this.model.assessment_badge assessment=true}}
+              <BadgeSettings @badge={{this.model.assessment_badge}} @assessment={{true}} />
             </div>
           {{/if}}
         </div>
@@ -161,7 +161,7 @@
           </div>
           {{#each this.model.badges as |badge index|}}
             <div class="md-goal-badge-editor">
-              {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
+              <BadgeSettings @badge={{badge}} @index={{index}} @remove_badge="remove_badge" />
             </div>
           {{/each}}
           <button type="button" class="md-goal-form__add-level" {{on "click" (this.ctrlAction "add_badge_level")}}>+ {{t "Add another badge level" key="add_another_badge_level"}}</button>

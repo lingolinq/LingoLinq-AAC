@@ -192,7 +192,7 @@
           </div>
         </div>
         {{#if this.model.assessment_badge}}
-          {{badge-settings badge=this.model.assessment_badge assessment=true}}
+          <BadgeSettings @badge={{this.model.assessment_badge}} @assessment={{true}} />
         {{/if}}
       {{/unless}}
       <div class="form-group">
@@ -214,7 +214,7 @@
           </div>
         </div>
         {{#each this.model.badges as |badge index|}}
-          {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
+          <BadgeSettings @badge={{badge}} @index={{index}} @remove_badge="remove_badge" />
         {{/each}}
         <div class="form-group">
           <div class="col-sm-5">

@@ -56,12 +56,12 @@
           <span class="md-stats-compare-filter-group__badge">{{t "Compare report periods" key="compare_report_periods"}}</span>
         {{/if}}
         <div class="row{{if this.usage_stats2 " md-stats-compare-row md-stats-compare-row--filter" ""}}" style='page-break-inside: avoid;'>
-          {{stats/data-filter usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 status=this.status app_state=this.app_state snapshots=this.snapshots compare_to=(this.ctrlAction "compare_to") clear_side=(this.ctrlAction "clear_left_side") update_filter=(this.ctrlAction "update_left_filter")}}
+          <Stats::DataFilter @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @status={{this.status}} @app_state={{this.app_state}} @snapshots={{this.snapshots}} @compare_to={{this.ctrlAction "compare_to"}} @clear_side={{this.ctrlAction "clear_left_side"}} @update_filter={{this.ctrlAction "update_left_filter"}} />
           {{#if this.usage_stats2}}
             <div class="md-stats-compare-filter-group__between" aria-hidden="true">
               <img src={{path "images/compare-reports.png"}} alt="" class="md-stats-compare-filter-group__between-img">
             </div>
-            {{stats/data-filter usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true status=this.status2 snapshots=this.snapshots right_side=true clear_side=(this.ctrlAction "clear_right_side") update_filter=(this.ctrlAction "update_right_filter")}}
+            <Stats::DataFilter @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @status={{this.status2}} @snapshots={{this.snapshots}} @right_side={{true}} @clear_side={{this.ctrlAction "clear_right_side"}} @update_filter={{this.ctrlAction "update_right_filter"}} />
           {{/if}}
         </div>
       </div>
@@ -73,9 +73,9 @@
       </div>
     {{/if}}{{/unless}}
     <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}{{unless this.usage_stats2 " md-stats-summary-row md-stats-summary-row--1" ""}}" style='page-break-inside: avoid;'>
-      {{stats/load-status status=this.status ref_status=this.status2 side_by_side=this.usage_stats2}}
+      <Stats::LoadStatus @status={{this.status}} @ref_status={{this.status2}} @side_by_side={{this.usage_stats2}} />
       {{#if this.usage_stats2}}
-        {{stats/load-status status=this.status2 ref_status=this.status side_by_side=true right_side=true}}
+        <Stats::LoadStatus @status={{this.status2}} @ref_status={{this.status}} @side_by_side={{true}} @right_side={{true}} />
       {{/if}}
       {{#if this.some_data}}
         {{#unless this.usage_stats2}}
@@ -267,18 +267,18 @@
         </div>
       {{/unless}}
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
-        {{stats/word-usage usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 show_logs="show_logs"}}
+        <Stats::WordUsage @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @show_logs="show_logs" />
         {{#if this.usage_stats2}}
-          {{stats/word-usage usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true show_logs="show_logs"}}
+          <Stats::WordUsage @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @show_logs="show_logs" />
         {{/if}}
-        {{stats/common-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(this.ctrlAction "word_cloud_left") word_data=(this.ctrlAction "word_data")}}
+        <Stats::CommonWords @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @word_cloud={{this.ctrlAction "word_cloud_left"}} @word_data={{this.ctrlAction "word_data"}} />
         {{#if this.usage_stats2}}
-          {{stats/common-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(this.ctrlAction "word_cloud_right") word_data=(this.ctrlAction "word_data")}}
+          <Stats::CommonWords @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @word_cloud={{this.ctrlAction "word_cloud_right"}} @word_data={{this.ctrlAction "word_data"}} />
         {{/if}}
         {{#if this.usage_stats2}}
           {{#if this.different_dates}}
-            {{stats/lost-or-gained-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=true word_cloud=(this.ctrlAction "word_cloud_left") word_data=(this.ctrlAction "word_data")}}
-            {{stats/lost-or-gained-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(this.ctrlAction "word_cloud_right") word_data=(this.ctrlAction "word_data")}}
+            <Stats::LostOrGainedWords @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{true}} @word_cloud={{this.ctrlAction "word_cloud_left"}} @word_data={{this.ctrlAction "word_data"}} />
+            <Stats::LostOrGainedWords @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @word_cloud={{this.ctrlAction "word_cloud_right"}} @word_data={{this.ctrlAction "word_data"}} />
           {{/if}}
         {{/if}}
       </div>
@@ -289,62 +289,62 @@
         </div>
       {{/unless}}
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
-        {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(this.ctrlAction "word_cloud_left") word_data=(this.ctrlAction "word_data") edit_permission=this.model.permissions.edit modify_core=(this.ctrlAction "modify_core")}}
+        <Stats::CoreList @core={{this.model.core_lists}} @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @word_cloud={{this.ctrlAction "word_cloud_left"}} @word_data={{this.ctrlAction "word_data"}} @edit_permission={{this.model.permissions.edit}} @modify_core={{this.ctrlAction "modify_core"}} />
         {{#if this.usage_stats2}}
-          {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(this.ctrlAction "word_cloud_right") word_data=(this.ctrlAction "word_data") edit_permission=this.model.permissions.edit modify_core=(this.ctrlAction "modify_core")}}
+          <Stats::CoreList @core={{this.model.core_lists}} @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @word_cloud={{this.ctrlAction "word_cloud_right"}} @word_data={{this.ctrlAction "word_data"}} @edit_permission={{this.model.permissions.edit}} @modify_core={{this.ctrlAction "modify_core"}} />
         {{/if}}
-        {{stats/core-fringe usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <Stats::CoreFringe @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
-          {{stats/core-fringe usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <Stats::CoreFringe @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
-        {{stats/parts-of-speech-pie usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <Stats::PartsOfSpeechPie @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
-          {{stats/parts-of-speech-pie usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <Stats::PartsOfSpeechPie @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
-        {{stats/sankey-parts-of-speech usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <Stats::SankeyPartsOfSpeech @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
-          {{stats/sankey-parts-of-speech usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <Stats::SankeyPartsOfSpeech @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
-        {{stats/sankey-word-pairs wordPairsData=this.wordPairsForSankey ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <Stats::SankeyWordPairs @wordPairsData={{this.wordPairsForSankey}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
-          {{stats/sankey-word-pairs wordPairsData=this.wordPairsForSankey2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <Stats::SankeyWordPairs @wordPairsData={{this.wordPairsForSankey2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
       </div>
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
-        {{stats/time-of-day usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <Stats::TimeOfDay @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
-          {{stats/time-of-day usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <Stats::TimeOfDay @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
-        {{stats/weighted-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(this.ctrlAction "word_cloud_left") word_data=(this.ctrlAction "word_data")}}
+        <Stats::WeightedWords @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @word_cloud={{this.ctrlAction "word_cloud_left"}} @word_data={{this.ctrlAction "word_data"}} />
         {{#if this.usage_stats2}}
-          {{stats/weighted-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(this.ctrlAction "word_cloud_right") word_data=(this.ctrlAction "word_data")}}
+          <Stats::WeightedWords @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @word_cloud={{this.ctrlAction "word_cloud_right"}} @word_data={{this.ctrlAction "word_data"}} />
         {{/if}}
       </div>
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         {{#if this.model.preferences.geo_logging }}
-          {{stats/geo-locations usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter=(this.ctrlAction "update_left_filter") snapshots=this.filter_list}}
+          <Stats::GeoLocations @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} @snapshots={{this.filter_list}} />
           {{#if this.usage_stats2}}
-            {{stats/geo-locations usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter=(this.ctrlAction "update_right_filter")}}
+            <Stats::GeoLocations @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
           {{/if}}
-          {{stats/ip-addresses usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter=(this.ctrlAction "update_left_filter")}}
+          <Stats::IpAddresses @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} />
           {{#if this.usage_stats2}}
-            {{stats/ip-addresses usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter=(this.ctrlAction "update_right_filter")}}
+            <Stats::IpAddresses @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
           {{/if}}
         {{else}}
-          {{stats/geo-disabled side_by_side=this.usage_stats2}}
+          <Stats::GeoDisabled @side_by_side={{this.usage_stats2}} />
           {{#if this.usage_stats2}}
-            {{stats/geo-disabled side_by_side=true right_side=true}}
+            <Stats::GeoDisabled @side_by_side={{true}} @right_side={{true}} />
           {{/if}}
         {{/if}}
       </div>
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
-        {{stats/heat-map usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <Stats::HeatMap @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
-          {{stats/heat-map usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <Stats::HeatMap @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
-        {{stats/user-devices usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter=(this.ctrlAction "update_left_filter")}}
+        <Stats::UserDevices @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @filter={{this.ctrlAction "update_left_filter"}} />
         {{#if this.usage_stats2}}
-          {{stats/user-devices usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter=(this.ctrlAction "update_right_filter")}}
+          <Stats::UserDevices @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @filter={{this.ctrlAction "update_right_filter"}} />
         {{/if}}
       </div>
       {{#unless this.usage_stats2}}
@@ -394,7 +394,7 @@
     {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
   </p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}
   </main>
 </div>

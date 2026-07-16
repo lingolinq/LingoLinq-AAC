@@ -12,7 +12,7 @@
       {{t "Quick Screen Details" key="quick_screen_details"}}
     {{/if}}
   </h2>
-  {{eval-saved-summary log=this.model}}
+  <EvalSavedSummary @log={{this.model}} />
 {{else if this.model.note_type}}
   <h2>{{t "Message Details" key="message_summary"}}</h2>
 {{else if this.model.assessment_type}}
@@ -120,7 +120,7 @@
       </div>
     </div>
     {{#if this.mastery_preview}}
-      {{stats/mastery-preview assessment=this.processed_assessment}}
+      <Stats::MasteryPreview @assessment={{this.processed_assessment}} />
     {{/if}}
     <div style='page-break-inside: avoid;'>
       {{#if this.processed_assessment.accommodations}}
@@ -138,7 +138,7 @@
       <h3>{{t "Grid Activations" key="activation_map"}}</h3>
       <div class='row'>
         <div class='col-xs-8'>
-          {{stats/eval-hits hits=this.processed_assessment.hit_locations}}
+          <Stats::EvalHits @hits={{this.processed_assessment.hit_locations}} />
         </div>
         <div class='col-xs-4'>
           <div style='line-height: 30px; margin-bottom: 10px;'>
@@ -161,13 +161,13 @@
             </div>
           {{/if}}
         </h3>
-        {{stats/trial-bar sizes=this.processed_assessment.button_sizes}}
+        <Stats::TrialBar @sizes={{this.processed_assessment.button_sizes}} />
       </div>
     {{/if}}
     {{#if this.processed_assessment.field_sizes}}
       <div  style='page-break-inside: avoid;'>
         <h3>{{t "Field Sizes for basic target-finding" key="field_sizes"}}</h3>
-        {{stats/trial-bar sizes=this.processed_assessment.field_sizes}}
+        <Stats::TrialBar @sizes={{this.processed_assessment.field_sizes}} />
       </div>
     {{/if}}
     {{#if this.processed_assessment.access_settings}}
@@ -238,7 +238,7 @@
             </div>
 
         </h3>
-        {{stats/trial-bar sizes=this.processed_assessment.symbol_libraries}}
+        <Stats::TrialBar @sizes={{this.processed_assessment.symbol_libraries}} />
       </div>
     {{/if}}
 
@@ -563,7 +563,7 @@
   <div class="row" style="margin-bottom: 20px;">
     {{#if this.model.geo}}
       <div class="col-sm-8">
-        {{map-with-markers action="marker_link_select"}}
+        <MapWithMarkers @action="marker_link_select" />
       </div>
     {{/if}}
     <div class="col-sm-4">

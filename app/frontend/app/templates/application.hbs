@@ -1,11 +1,11 @@
 <div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}} {{if this.app_state.edit_mode "edit-mode-active"}} {{if this.app_state.beta_program_access "beta-program-access"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
-{{app-loading-overlay}}
-{{app-toast}}
+<AppLoadingOverlay />
+<AppToast />
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
-    {{app-navbar onSupport=this.support}}
+    <AppNavbar @onSupport={{this.support}} />
   {{else}}
   {{#if (and this.app_state.speak_mode this.app_state.currentBoardState.id)}}
     <span id="speak" class="{{if this.app_state.eval_mode "md-eval-header"}}">
@@ -110,7 +110,7 @@
           {{#unless this.app_state.button_list}}
             {{#if this.app_state.embedded}}
               <div style='float: left; margin: 5px; opacity: 0.7;'>
-                {{app-logo size="xs" imgAlt="LingoLinq"}}
+                <AppLogo @size="xs" @imgAlt="LingoLinq" />
                 {{t "Powered by %app_name%" key="powered_by_app"}}
               </div>
             {{else if this.app_state.currentUser.preferences.blank_status}}
@@ -151,7 +151,7 @@
             {{/if}}
           {{/unless}}
           {{#let this.app_state.button_list as |button_list|}}
-            {{button-list buttonList=button_list}}
+            <ButtonList @buttonList={{button_list}} />
           {{/let}}
         </a>
         {{#unless this.app_state.eval_mode}}
@@ -221,9 +221,9 @@
               {{else if this.app_state.user_badge}}
                 <span class='notification'>
                   {{#if this.app_state.user_badge.earned}}
-                    {{badge-earned badge=this.app_state.user_badge inline=true}}
+                    <BadgeEarned @badge={{this.app_state.user_badge}} @inline={{true}} />
                   {{else}}
-                    {{badge-progress badge=this.app_state.user_badge inline=true}}
+                    <BadgeProgress @badge={{this.app_state.user_badge}} @inline={{true}} />
                   {{/if}}
                 </span>
               {{else if this.app_state.speak_mode_modeling_ideas.timeout}}
@@ -1473,7 +1473,7 @@
     {{/if}}
     <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}} inert={{unless this.betaFeedbackDrawerOpen true}}>
       <aside class="beta-feedback-drawer__panel">
-        {{beta-feedback-panel isDrawer=true onSubmitSuccess=this.onCloseBetaFeedbackDrawer onCancel=this.onCloseBetaFeedbackDrawer onClose=this.onCloseBetaFeedbackDrawer}}
+        <BetaFeedbackPanel @isDrawer={{true}} @onSubmitSuccess={{this.onCloseBetaFeedbackDrawer}} @onCancel={{this.onCloseBetaFeedbackDrawer}} @onClose={{this.onCloseBetaFeedbackDrawer}} />
       </aside>
     </div>
   {{/if}}
@@ -1562,20 +1562,20 @@
     {{/if}}
   </div>
 {{else}}
-  {{sidebar-tease}}
+  <SidebarTease />
 {{/if}}
 
-{{modal-container}}
+<ModalContainer />
 <HighlightOutlet />
 <HighlightOutlet @secondary={{true}} />
 {{#if this.modalService.boardPreview}}
-  {{board-preview-overlay}}
+  <BoardPreviewOverlay />
 {{/if}}
 <FlashOutlet />
 {{! Page footer: show on index/dashboard/setup and when not viewing a board (setup_footer no longer used; setup uses same page footer as other pages) }}
 {{#if this.footer}}
-  {{page-footer support=this.support language=this.language}}
+  <PageFooter @support={{this.support}} @language={{this.language}} />
 {{/if}}
 
 </div>
-{{button-tracker}}
+<ButtonTracker />

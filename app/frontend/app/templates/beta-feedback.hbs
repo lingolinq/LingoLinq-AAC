@@ -7,7 +7,7 @@
             <article class="la-about-glass-card la-support-page-card" aria-label={{t "Beta feedback form" key="beta_feedback_form_aria"}}>
               <div class="la-support-page-card__section">
                 <div class="la-support-page-card__body md-support-content">
-                  {{beta-feedback-panel onSubmitSuccess=(this.ctrlAction "onSubmitSuccess")}}
+                  <BetaFeedbackPanel @onSubmitSuccess={{this.ctrlAction "onSubmitSuccess"}} />
                 </div>
               </div>
             </article>

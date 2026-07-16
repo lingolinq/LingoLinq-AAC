@@ -224,7 +224,7 @@
       </div>
       {{#if this.prompt_2fa.uri}}
         <p>{{t "Your account requires two-factor authentication. Please scan the QR code in your authenticator app and enter the generated code to continue." key="required_code_for_2fa"}}</p>
-        {{qr-code text=this.prompt_2fa.uri size=300}}
+        <QrCode @text={{this.prompt_2fa.uri}} @size={{300}} />
       {{else}}
         <p>{{t "Please enter the confirmation code provided by your two-factor authentication app:" key="enter_2fa_code"}}</p>
       {{/if}}

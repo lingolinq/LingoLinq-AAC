@@ -59,7 +59,7 @@
             {{else if this.hierarchy.error}}
               <span class="la-delete-board-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
             {{else if this.hierarchy}}
-              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+              <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
             {{else}}
               <span>{{t "Could not load linked boards" key="error_loading_linked_boards"}}</span>
             {{/if}}

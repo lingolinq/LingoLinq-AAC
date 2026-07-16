@@ -7,7 +7,7 @@
     {{/unless}}
     <div class="subscribe-modal-header__title-wrap">
       {{#unless this.model.user.really_expired}}
-        {{app-logo size="auto" imgClass="subscribe-modal-header__logo" imgAlt=""}}
+        <AppLogo @size="auto" @imgClass="subscribe-modal-header__logo" @imgAlt="" />
       {{/unless}}
       {{#if this.model.user.really_expired}}
         <h3 class="subscribe-modal-header__title">{{t "Purchase Update" key="subscription_update"}}</h3>
@@ -44,7 +44,7 @@
     {{else if this.error}}
       <h4 class="subscribe-modal-error text-danger">{{this.error}}</h4>
     {{else}}
-      {{subscription-form user=this.model.user subscription=this.model.subscription trial_option=true subscription_skip=(this.ctrlAction "subscription_skip") subscription_error=(this.ctrlAction "subscription_error") subscription_success=(this.ctrlAction "subscription_success")}}
+      <SubscriptionForm @user={{this.model.user}} @subscription={{this.model.subscription}} @trial_option={{true}} @subscription_skip={{this.ctrlAction "subscription_skip"}} @subscription_error={{this.ctrlAction "subscription_error"}} @subscription_success={{this.ctrlAction "subscription_success"}} />
     {{/if}}
   </div>
 </ModalDialog>

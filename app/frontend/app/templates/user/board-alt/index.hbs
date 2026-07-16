@@ -10,7 +10,7 @@
       </div>
     {{/if}}
     {{#if this.model.embed_url}}
-      {{embed-frame board_style=this.board_style code=this.model.action embed_url=this.model.embed_url user_token=this.model.user_token}}
+      <EmbedFrame @board_style={{this.board_style}} @code={{this.model.action}} @embed_url={{this.model.embed_url}} @user_token={{this.model.user_token}} />
     {{else}}
       <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key="misconfigured_integration"}}</p>
     {{/if}}
@@ -157,7 +157,7 @@
                   {{/each}}
                 </div>
               {{/each}}
-              {{fast-html-grabber}}
+              <FastHtmlGrabber />
             {{/if}}
           {{/if}}
         {{else}}

@@ -68,12 +68,12 @@
             {{#if this.model.stats2}}
               <strong>{{this.model.stats.label}}</strong>
             {{/if}}
-            {{stats/word-cloud stats=this.model.stats ref_stats=this.model.stats2 zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
+            <Stats::WordCloud @stats={{this.model.stats}} @ref_stats={{this.model.stats2}} @zoom={{this.zoom}} @word_cloud_id={{this.word_cloud_id}} @shape={{this.shape}} @color={{this.color}} @gridSize={{this.gridSize}} @shuffle={{this.shuffle}} @allowDuplicates={{this.allowDuplicates}} />
           </div>
           {{#if this.model.stats2}}
             <div class="col-sm-6">
               <strong>{{this.model.stats2.label}}</strong>
-              {{stats/word-cloud stats=this.model.stats2 ref_stats=this.model.stats zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
+              <Stats::WordCloud @stats={{this.model.stats2}} @ref_stats={{this.model.stats}} @zoom={{this.zoom}} @word_cloud_id={{this.word_cloud_id}} @shape={{this.shape}} @color={{this.color}} @gridSize={{this.gridSize}} @shuffle={{this.shuffle}} @allowDuplicates={{this.allowDuplicates}} />
             </div>
           {{/if}}
         </div>

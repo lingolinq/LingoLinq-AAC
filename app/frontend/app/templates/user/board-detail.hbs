@@ -609,7 +609,7 @@
             <span class="md-board-detail-integration-header__title">{{this.model.integration_name}}</span>
           </div>
           {{#if this.model.embed_url}}
-            {{embed-frame board_style="width: 100%; height: 100%; position: relative;" code=this.model.action embed_url=this.model.embed_url user_token=this.model.user_token}}
+            <EmbedFrame @board_style="width: 100%; height: 100%; position: relative;" @code={{this.model.action}} @embed_url={{this.model.embed_url}} @user_token={{this.model.user_token}} />
           {{else}}
             <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key="misconfigured_integration"}}</p>
           {{/if}}
@@ -905,7 +905,7 @@
              is present on page load for the auto-open. --}}
         {{#unless this.edit_mode}}
           {{#if this.app_state.feature_flags.home_tour}}
-            <span class="md-board-detail-speak-tour" aria-hidden="true">{{guided-tour}}</span>
+            <span class="md-board-detail-speak-tour" aria-hidden="true"><GuidedTour /></span>
           {{/if}}
         {{/unless}}
         {{#if this.show_options_menu}}
@@ -1435,7 +1435,7 @@
                        trigger AND the runner that auto-starts it. hasTour resolves to
                        the board-detail builder only in edit mode (registry). --}}
                   {{#if this.app_state.feature_flags.home_tour}}
-                    <span class="md-board-edit-session__tour">{{guided-tour}}</span>
+                    <span class="md-board-edit-session__tour"><GuidedTour /></span>
                   {{/if}}
                 </div>
                 <div class="md-board-detail-header__edit-card" role="region" aria-label={{t "Board details" key="board_detail_info_panel"}}>

@@ -26,7 +26,7 @@
       </div>
       <div class="md-modal-field">
         <label class="md-modal-label" for="icon">{{t "Icon" key="icon"}}</label>
-        {{icon-select selection=this.model.board.image action=(this.ctrlAction "updateBoardImage") }}
+        <IconSelect @selection={{this.model.board.image}} @action={{this.ctrlAction "updateBoardImage"}} />
       </div>
       {{#if this.model.board.levels}}
         {{#if this.appState.feature_flags.board_levels}}
@@ -47,7 +47,7 @@
     {{#if this.has_supervisees}}
       <div class="md-modal-field">
         <p class="md-modal-message">{{t "For which user would you like to add <b>%{board_key}</b> as a sidebar board?" key="which_user_set_as_sidebar" board_key=this.model.board.key}}</p>
-        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(this.ctrlAction "updateCurrentlySelectedId") }}
+        <UserSelect @select_id="currently_selected_id" @buttons={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
       </div>
     {{/if}}
 

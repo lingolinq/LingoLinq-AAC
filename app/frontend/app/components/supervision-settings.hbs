@@ -65,7 +65,7 @@
         <p>{{t "None found" key="none_found"}}</p>
       {{/unless}}
     {{/if}}
-    {{#if this.appState.feature_flags.supervisor_consent_flow}}{{pending-consent-requests user=this.model}}{{/if}}
+    {{#if this.appState.feature_flags.supervisor_consent_flow}}<PendingConsentRequests @user={{this.model}} />{{/if}}
     {{#if this.model.permissions.manage_supervision}}
       {{#if this.model.permissions.delete}}
         <button type='button' class='md-btn md-btn--primary' {{on "click" (this.ctrlAction "add_supervisor")}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
@@ -267,7 +267,7 @@
       <p class="md-modal-hint">{{t "None found" key="none_found"}}</p>
     {{/if}}
 
-    {{#if this.appState.feature_flags.supervisor_consent_flow}}{{pending-consent-requests user=this.model}}{{/if}}
+    {{#if this.appState.feature_flags.supervisor_consent_flow}}<PendingConsentRequests @user={{this.model}} />{{/if}}
 
     {{#if this.model.permissions.manage_supervision}}
       <div class="md-modal-field" style="display: flex; gap: 8px; flex-wrap: wrap;">

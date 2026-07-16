@@ -16,7 +16,7 @@
     {{#if this.appState.currentUser.supervisees}}
       <div class="la-batch-recording-section">
         <label class="la-batch-recording-label">{{t "Recording For" key="recording_for"}}</label>
-        {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
+        <UserSelect @select_id="for_user_id" @selection={{this.for_user_id}} @action={{this.ctrlAction "updateForUserId"}} />
       </div>
     {{/if}}
     {{#if this.model.user}}
@@ -107,7 +107,7 @@
     {{else}}
       <div class="la-batch-recording-section">
         <p>{{t "Select the user to record audio for" key="select_recording_user"}}</p>
-        {{user-select select_id="for_user_id" buttons=true selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
+        <UserSelect @select_id="for_user_id" @buttons={{true}} @selection={{this.for_user_id}} @action={{this.ctrlAction "updateForUserId"}} />
       </div>
     {{/if}}
   </div>

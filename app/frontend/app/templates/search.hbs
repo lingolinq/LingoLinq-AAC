@@ -77,7 +77,7 @@
           {{!-- Reuse the SAME renderer as the board-preview modal (board-preview-canvas):
                self-contained canvas that draws the exact grid + button images and waits
                on image loads itself — no board-detail controller coupling. --}}
-          {{board-preview-canvas board=this.preview_board locale=this.locale show_links=true size="modal" dark_mode=false}}
+          <BoardPreviewCanvas @board={{this.preview_board}} @locale={{this.locale}} @show_links={{true}} @size="modal" @dark_mode={{false}} />
         </div>
       {{/if}}
     {{else}}

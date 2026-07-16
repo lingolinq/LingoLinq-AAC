@@ -516,7 +516,7 @@
 
                   <p class="nb-speech__hint">{{t "Click \"Next Word\" between labels to keep them separate." key="speech_hint"}}</p>
 
-                  {{speech-listener content=(this.ctrlAction "speech_content") error=(this.ctrlAction "speech_error") stop=(this.ctrlAction "speech_stop") speech=this.speech}}
+                  <SpeechListener @content={{this.ctrlAction "speech_content"}} @error={{this.ctrlAction "speech_error"}} @stop={{this.ctrlAction "speech_stop"}} @speech={{this.speech}} />
 
                   <ul class="nav nav-pills nb-speech__words">
                     {{#each this.speech.words as |word|}}
@@ -1378,7 +1378,7 @@
                 </button>
                 {{#if this.icon_picker_open}}
                   <div id="nb-icon-picker-panel" class="nb-icon-disclosure__panel">
-                    {{icon-select selection=this.model.image_url action=(mut this.model.image_url) }}
+                    <IconSelect @selection={{this.model.image_url}} @action={{mut this.model.image_url}} />
                   </div>
                 {{/if}}
               </div>

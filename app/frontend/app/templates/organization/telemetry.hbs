@@ -112,7 +112,7 @@
       </p>
 
       <section class="md-org-telemetry-card md-org-telemetry-card--wide" aria-label={{t "Activation heat map" key="heat_map"}}>
-        {{stats/heat-map usage_stats=this.heatmapStats}}
+        <Stats::HeatMap @usage_stats={{this.heatmapStats}} />
       </section>
 
       {{#if this.telemetry.recent_sessions.length}}

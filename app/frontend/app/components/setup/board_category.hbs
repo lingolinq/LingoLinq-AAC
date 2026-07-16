@@ -23,21 +23,21 @@
         </button>
         <button type="button" class="setup-board-category__new-btn" {{on "click" (this.ctrlAction "create_new_board" this.target)}}><svg class="setup-board-category__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{{t "Create a New Board" key="create_a_new_board"}}</button>
       </div>
-      {{board-picker include_mine=this.setup.advanced_mine tabbed=true}}
+      <BoardPicker @include_mine={{this.setup.advanced_mine}} @tabbed={{true}} />
     </div>
   {{else if this.setup.already_have_board}}
     <div class='col-sm-6 col-sm-offset-3' style='margin-top: 10px;'>
       <p>{{t "Next we'd be happy to help you set up a home board. It looks like you've already got one selected, so you can skip this step unless you'd like to set up a different home board" key="already_home_board"}}</p>
     </div>
     <div class='col-sm-2 col-sm-offset-5' style='margin-top: 10px;'>
-      {{board-icon noinfo=true noop=true board=this.setup.app_state.currentUser.preferences.home_board localized=true}}
+      <BoardIcon @noinfo={{true}} @noop={{true}} @board={{this.setup.app_state.currentUser.preferences.home_board}} @localized={{true}} />
     </div>
     <div class='col-sm-6 col-sm-offset-3' style='margin-top: 10px; text-align: center;'>
       <button class='btn btn-default' {{on "click" (this.ctrlAction "find_new_board" this.target)}}>{{t "Pick a Different Home Board" key="pick_a_different_home_board"}}</button>
     </div>
 
   {{else}}
-    {{board-selection-tool loadError=(fn this.setup.ctrlAction "show_advanced") mine=(fn this.setup.ctrlAction "show_mine") advanced=(fn this.setup.ctrlAction "show_advanced") onSelect=(fn this.setup.ctrlAction "select_board") update_scroll=(fn this.setup.ctrlAction "update_scroll")}}
+    <BoardSelectionTool @loadError={{fn this.setup.ctrlAction "show_advanced"}} @mine={{fn this.setup.ctrlAction "show_mine"}} @advanced={{fn this.setup.ctrlAction "show_advanced"}} @onSelect={{fn this.setup.ctrlAction "select_board"}} @update_scroll={{fn this.setup.ctrlAction "update_scroll"}} />
   {{/if}}
 {{else}}
   <div class="setup-board-category">
@@ -48,6 +48,6 @@
       </button>
       <button type="button" class="setup-board-category__new-btn" {{on "click" (this.ctrlAction "create_new_board" this.target)}}><svg class="setup-board-category__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{{t "Create a New Board" key="create_a_new_board"}}</button>
     </div>
-    {{board-picker tabbed=true}}
+    <BoardPicker @tabbed={{true}} />
   </div>
 {{/if}}

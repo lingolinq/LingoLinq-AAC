@@ -155,7 +155,7 @@
 
     <div class="md-org-settings-field">
       <label class="md-org-settings-field__label">{{t "Editing Colors" key="editing_colors"}}</label>
-      {{extra-colors colors=this.model.extra_colors}}
+      <ExtraColors @colors={{this.model.extra_colors}} />
     </div>
 
     <div class="md-org-settings-field">

@@ -75,7 +75,7 @@
           {{else if unit.weekly_stats.error}}
             <p class="md-org-error">{{t "Error loading activity data" key="error_loading_activity_data"}}</p>
           {{else}}
-            {{stats/user-weeks unit=unit user_type="total" users=unit.supervisors more_users=unit.communicators weeks=unit.supervisor_weeks more_weeks=unit.user_weeks max_session_count=this.max_session_count}}
+            <Stats::UserWeeks @unit={{unit}} @user_type="total" @users={{unit.supervisors}} @more_users={{unit.communicators}} @weeks={{unit.supervisor_weeks}} @more_weeks={{unit.user_weeks}} @max_session_count={{this.max_session_count}} />
             <button type="button" class="md-org-room-toggle" {{on "click" (this.ctrlAction "toggle_details" unit)}}>
               <svg class="md-org-room-toggle__icon {{if unit.expanded 'md-org-room-toggle__icon--open'}}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               {{#if unit.expanded}}
@@ -90,11 +90,11 @@
             <div class="md-org-room-detail">
               <div class="md-org-room-detail__section">
                 <h4 class="md-org-room-detail__heading">{{t "Supervisors" key="supervisors"}}</h4>
-                {{stats/user-weeks unit=unit user_type="supervisor" users=unit.supervisors weeks=unit.supervisor_weeks refresh="refresh" delete_user="delete_unit_user" deletable=this.model.permissions.edit}}
+                <Stats::UserWeeks @unit={{unit}} @user_type="supervisor" @users={{unit.supervisors}} @weeks={{unit.supervisor_weeks}} @refresh="refresh" @delete_user="delete_unit_user" @deletable={{this.model.permissions.edit}} />
               </div>
               <div class="md-org-room-detail__section">
                 <h4 class="md-org-room-detail__heading">{{t "Communicators" key="communicators"}}</h4>
-                {{stats/user-weeks unit=unit user_type="communicator" org=this.model users=unit.communicators weeks=unit.user_weeks refresh="refresh" room_goal_id=unit.goal_id delete_user="delete_unit_user" deletable=this.model.permissions.edit max_session_count=this.max_session_count}}
+                <Stats::UserWeeks @unit={{unit}} @user_type="communicator" @org={{this.model}} @users={{unit.communicators}} @weeks={{unit.user_weeks}} @refresh="refresh" @room_goal_id={{unit.goal_id}} @delete_user="delete_unit_user" @deletable={{this.model.permissions.edit}} @max_session_count={{this.max_session_count}} />
               </div>
             </div>
           {{else}}

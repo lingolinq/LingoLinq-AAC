@@ -74,7 +74,7 @@
       {{else}}
         <div class="md-modal-field">
           <span class="md-modal-label">{{t "Video" key="video"}}</span>
-          {{video-recorder user=this.model video_ready=(this.ctrlAction "video_ready") video_pending=(this.ctrlAction "video_pending") video_not_ready=(this.ctrlAction "video_not_ready")}}
+          <VideoRecorder @user={{this.model}} @video_ready={{this.ctrlAction "video_ready"}} @video_pending={{this.ctrlAction "video_pending"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
         </div>
         <div class="md-modal-field">
           <label for="note" class="md-modal-label">{{t "Note" key="note"}}</label>

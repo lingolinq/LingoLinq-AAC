@@ -10,7 +10,7 @@
       </div>
     {{/if}}
     {{#if this.model.embed_url}}
-      {{embed-frame board_style=this.board_style code=this.model.action embed_url=this.model.embed_url user_token=this.model.user_token}}
+      <EmbedFrame @board_style={{this.board_style}} @code={{this.model.action}} @embed_url={{this.model.embed_url}} @user_token={{this.model.user_token}} />
     {{else}}
       <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key="misconfigured_integration"}}</p>
     {{/if}}
@@ -77,7 +77,7 @@
             grid for intro steps. The board grid below is hidden via CSS
             (.board.eval_intro). The CTA/Settings reuse the existing eval
             flow actions, so the eval logic is unchanged. --}}
-      {{eval-intro text=this.eval_intro_text showSkip=this.eval_intro_show_skip isWelcome=this.eval_intro_is_welcome}}
+      <EvalIntro @text={{this.eval_intro_text}} @showSkip={{this.eval_intro_show_skip}} @isWelcome={{this.eval_intro_is_welcome}} />
     {{/if}}
     {{#if board.has_background}}
       <div style={{this.bg_style}} id='board_bg' class={{this.bg_class}}>
@@ -167,7 +167,7 @@
                   {{/each}}
                 </div>
               {{/each}}
-              {{fast-html-grabber}}
+              <FastHtmlGrabber />
             {{/if}}
           {{/if}}
         {{else}}

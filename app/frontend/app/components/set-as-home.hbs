@@ -16,7 +16,7 @@
 
     {{#if this.multiple_users}}
       <p class="md-modal-message">{{t "For which user would you like to set <b>%{board_key}</b> as the new home board?" key="which_user_set_as_home" board_key=this.model.board.key}}</p>
-      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(this.ctrlAction "updateCurrentlySelectedId") }}
+      <UserSelect @select_id="currently_selected_id" @buttons={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
     {{/if}}
     {{#if this.owned_by_user}}
       {{#unless this.multiple_users}}

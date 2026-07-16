@@ -64,7 +64,7 @@
               </span>
             {{/unless}}
             <div class="md-dashboard-supervisors-modal__settings">
-              {{supervision-settings inline=true model=this.appState.currentUser compactInline=true hideMakeSupervisorButton=true}}
+              <SupervisionSettings @inline={{true}} @model={{this.appState.currentUser}} @compactInline={{true}} @hideMakeSupervisorButton={{true}} />
             </div>
           </div>
           {{#if this.appState.currentUser.supervised_units}}

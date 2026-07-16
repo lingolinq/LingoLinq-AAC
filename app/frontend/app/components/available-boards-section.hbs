@@ -382,14 +382,7 @@
                                 </svg>
                               </span>
                             {{/if}}
-                            {{board-icon
-                              board=board
-                              onAction=this.onOpenBoardInUserView
-                              removeType=this.boardsCtrl.board_list.remove_type
-                              removeLabel=this.boardsCtrl.board_list.remove_label
-                              removeIcon=this.boardsCtrl.board_list.remove_icon
-                              removeCallback=(if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board))
-                            }}
+                            <BoardIcon @board={{board}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                             {{#if this.boardsCtrl.model.permissions.edit}}
                               {{#if board.board.id}}
                                 <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
@@ -712,14 +705,7 @@
                      it. The Preview chip (with its "N boards" count)
                      still provides the cluster-inspection
                      affordance. --}}
-                {{board-icon
-                  board=board
-                  onAction=this.onOpenBoardInUserView
-                  removeType=this.boardsCtrl.board_list.remove_type
-                  removeLabel=this.boardsCtrl.board_list.remove_label
-                  removeIcon=this.boardsCtrl.board_list.remove_icon
-                  removeCallback=(if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board))
-                }}
+                <BoardIcon @board={{board}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   {{#if board.board.id}}
                     <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
@@ -732,7 +718,7 @@
           {{else if board.orphan}}
             {{#if board.children}}
               <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                {{board-icon board=board onAction=this.onLoadChildren}}
+                <BoardIcon @board={{board}} @onAction={{this.onLoadChildren}} />
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   <button type="button" class="board_action" {{on "click" (this.ctrlAction "remove_board" "delete_orphans" board)}}>
                     <span title={{t "delete" key="delete"}}><span class="glyphicon glyphicon-trash"></span></span>

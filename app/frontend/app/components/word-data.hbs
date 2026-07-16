@@ -11,7 +11,7 @@
         {{#if this.model.button}}
           <dt>{{t "Button" key="button"}}</dt>
           <dd>
-            {{button-preview button=this.model.button}}
+            <ButtonPreview @button={{this.model.button}} />
           </dd>
         {{/if}}
         <dt>{{t "Part of speech:" key="common_part_of_speech"}}</dt>

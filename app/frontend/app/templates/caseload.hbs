@@ -336,7 +336,7 @@
                 {{#if supervisee.current_badge}}
                   {{#if supervisee.premium}}
                     <div class="md-caseload__badge-progress">
-                      {{badge-progress badge=supervisee.current_badge}}
+                      <BadgeProgress @badge={{supervisee.current_badge}} />
                     </div>
                   {{/if}}
                 {{/if}}

@@ -28,7 +28,7 @@
       <div class="md-card__head md-card__head--getting-started">
         <div class="md-card__head-left">
           <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
-            {{ub-boards-home-grid-icon}}
+            <UbBoardsHomeGridIcon />
           </div>
           <div class="md-card__titles">
             <div class="md-card__title">{{t "Choose a Home Board" key="ub_boards_choose_home_board"}}</div>
@@ -141,7 +141,7 @@
     </ul>
 
     <div class="ub-boards-page__boards-body">
-      {{available-boards-section boardsCtrl=this.boardsCtrl filterInputId="ub-boards-filter-input-dashboard"}}
+      <AvailableBoardsSection @boardsCtrl={{this.boardsCtrl}} @filterInputId="ub-boards-filter-input-dashboard" />
     </div>
   </section>
 

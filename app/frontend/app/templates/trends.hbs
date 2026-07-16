@@ -198,11 +198,11 @@
 
       <div class='col-sm-12' style='margin-bottom: 50px;'>
         <h4>{{t "Frequently-Used Core Words" key="most_common_core_words"}}</h4>
-        {{stats/word-cloud stats=this.word_cloud_stats zoom=1}}
+        <Stats::WordCloud @stats={{this.word_cloud_stats}} @zoom={{1}} />
       </div>
 
-      {{stats/core-usage trends=this.trends}}
-      {{stats/modeling-frequency trends=this.trends}}
+      <Stats::CoreUsage @trends={{this.trends}} />
+      <Stats::ModelingFrequency @trends={{this.trends}} />
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Common Home Boards" key="common_home_boards"}}</h4>

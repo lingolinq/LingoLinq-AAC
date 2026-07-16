@@ -33,7 +33,7 @@
           {{else if this.hierarchy.error}}
             <span class="la-translate-board-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
           {{else}}
-            {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+            <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
           {{/if}}
         </div>
       </div>

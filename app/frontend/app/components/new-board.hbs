@@ -81,7 +81,7 @@
             {{#if this.has_supervisees}}
               <div class="nb-field">
                 <label for="for_user_id" class="nb-field__label">{{t "For" key="for"}}</label>
-                {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "setForUserId") }}
+                <UserSelect @select_id="for_user_id" @selection={{this.for_user_id}} @action={{this.ctrlAction "setForUserId"}} />
               </div>
             {{/if}}
           </div>
@@ -220,7 +220,7 @@
                   <div style="margin-bottom: 5px;">
                     {{t "Listening..." key="listening"}}
                     <button class='btn btn-default' {{on "click" (this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
-                    {{speech-listener content=(this.ctrlAction "speech_content") error=(this.ctrlAction "speech_error") stop=(this.ctrlAction "speech_stop") speech=this.speech}}
+                    <SpeechListener @content={{this.ctrlAction "speech_content"}} @error={{this.ctrlAction "speech_error"}} @stop={{this.ctrlAction "speech_stop"}} @speech={{this.speech}} />
                   </div>
                   <ul class="nav nav-pills">
                     {{#each this.speech.words as |word|}}
@@ -303,7 +303,7 @@
             <div class="nb-section__body">
               <div class="nb-field new-board-field--icon">
                 <label for="image_url" class="nb-field__label">{{t "Icon for your Board" key="icon_for_your_board"}}</label>
-                {{icon-select selection=this.model.image_url action=(mut this.model.image_url) }}
+                <IconSelect @selection={{this.model.image_url}} @action={{mut this.model.image_url}} />
               </div>
               <div class="nb-field new-board-field--key">
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>

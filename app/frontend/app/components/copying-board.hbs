@@ -32,7 +32,7 @@
         </button>
         {{#if this.show_board_picker}}
           <div class="md-modal-expander__body">
-            {{board-hierarchy selectable=true hierarchy=this.hierarchy}}
+            <BoardHierarchy @selectable={{true}} @hierarchy={{this.hierarchy}} />
           </div>
         {{/if}}
       </div>

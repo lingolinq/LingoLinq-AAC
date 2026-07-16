@@ -34,12 +34,12 @@
          appear on board pages. --}}
     {{#if this.appState.empty_header}}
       <span class="app-navbar__home-actions">
-        {{#if this.appState.feature_flags.home_tour}}{{guided-tour}}{{/if}}
+        {{#if this.appState.feature_flags.home_tour}}<GuidedTour />{{/if}}
         {{!-- Display Style button — home page ONLY. `empty_header` is true on every
              default-mode page (boards / reports / extras / account, etc.), so it must
              be further gated to the home dashboard route so the button doesn't leak
              onto those pages. View-independent (applies in both Focused and Gentle). --}}
-        {{#if (is-equal this.appState.current_route "user.home")}}{{display-style}}{{/if}}
+        {{#if (is-equal this.appState.current_route "user.home")}}<DisplayStyle />{{/if}}
       </span>
     {{/if}}
   </span>

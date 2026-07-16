@@ -41,7 +41,7 @@
     <div class="form-group">
       <span class="col-sm-3 control-label">{{t "Login Role" key="login_is_for"}}</span>
       <div class="col-sm-5">
-        {{modern-select selectId="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=this.onRegistrationTypeChange }}
+        <ModernSelect @selectId="registration_type" @content={{this.registration_types}} @selection={{this.model.preferences.registration_type}} @action={{this.onRegistrationTypeChange}} />
       </div>
     </div>
     {{#unless this.change_password}}
@@ -76,7 +76,7 @@
           {{else if this.status_2fa.uri}}
             <p style='max-width: 300px;'>{{t "To complete two-factor authentication setup, scan the code into your authentication app and enter the generated code to confirm:" key="confirm_2fa_code"}}</p>
             <div style='width: 300px'>
-            {{qr-code text=this.status_2fa.uri size=300}}
+            <QrCode @text={{this.status_2fa.uri}} @size={{300}} />
             </div>
             <span style='display: inline-block; width: 200px;'>
               <input value={{this.code_2fa}} type="number" class="form-control" placeholder="# # # # # #" autocomplete="one-time-code" {{on "input" (set-field this "code_2fa")}} />
@@ -289,7 +289,7 @@
       <div class="form-group">
         <span class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</span>
         <div class="col-sm-6">
-          {{modern-select selectId="external_access_method" content=this.access_methods selection=this.external_access_method action=this.onExternalAccessMethodChange }}
+          <ModernSelect @selectId="external_access_method" @content={{this.access_methods}} @selection={{this.external_access_method}} @action={{this.onExternalAccessMethodChange}} />
         </div>
       </div>
     {{/if}}
@@ -578,5 +578,5 @@
 {{else if this.session.isAuthenticated}}
   <p>{{t "It appears you don't have permission to access this user's information" key="not_allowed_user_long"}}</p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

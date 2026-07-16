@@ -319,7 +319,7 @@
     <div class='form-group'>
       <label class="col-sm-3 control-label">{{t "Editing Colors" key='editing_colors'}}</label>
       <div class="col-sm-6">
-        {{extra-colors colors=this.pending_preferences.extra_colors}}
+        <ExtraColors @colors={{this.pending_preferences.extra_colors}} />
       </div>
     </div>
   </PreferenceBox>
@@ -1237,7 +1237,7 @@
     <span style='display: none;'>{{t "Device Layout" key='device_layout'}}</span>
     <div class='form-group'>
       <div class='col-sm-5 col-sm-offset-3'>
-        {{layout-preview preferences=this.pending_preferences user=this.model}}
+        <LayoutPreview @preferences={{this.pending_preferences}} @user={{this.model}} />
       </div>
     </div>
     <div class="form-group">
@@ -2068,5 +2068,5 @@
 {{else if this.session.isAuthenticated}}
   <p>{{t "It looks like you don't have permission to access this information" key='not_authorized_for_access'}}</p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

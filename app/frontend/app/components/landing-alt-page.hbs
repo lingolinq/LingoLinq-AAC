@@ -380,7 +380,7 @@
     {{!-- Bottom navbar (same as app footer), only when authenticated --}}
     {{#if this.showPageFooter}}
       <div class="la-page-footer-wrap">
-        {{page-footer support=this.applicationSupport language=this.applicationLanguage}}
+        <PageFooter @support={{this.applicationSupport}} @language={{this.applicationLanguage}} />
       </div>
     {{/if}}
 

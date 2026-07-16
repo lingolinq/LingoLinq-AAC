@@ -24,7 +24,7 @@
         </div>
       {{else if this.hierarchy}}
         <div class="md-manage-lang-boards">
-          {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+          <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
         </div>
       {{else}}
         <div class="md-manage-lang-placeholder">

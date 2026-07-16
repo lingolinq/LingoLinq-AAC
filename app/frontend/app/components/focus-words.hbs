@@ -138,7 +138,7 @@
               {{/if}}
             {{/if}}
             {{#if this.speech.ready}}
-              {{speech-listener content=(this.ctrlAction "speech_content") error=(this.ctrlAction "speech_error") stop=(this.ctrlAction "speech_stop") speech=this.speech}}
+              <SpeechListener @content={{this.ctrlAction "speech_content"}} @error={{this.ctrlAction "speech_error"}} @stop={{this.ctrlAction "speech_stop"}} @speech={{this.speech}} />
             {{else if this.speech.engine}}
               {{#unless this.search_or_browse}}
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "record")}}>

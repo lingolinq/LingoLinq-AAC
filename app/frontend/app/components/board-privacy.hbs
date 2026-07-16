@@ -21,7 +21,7 @@
         {{else if this.hierarchy.error}}
           <span class="la-board-privacy-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
         {{else if this.hierarchy}}
-          {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+          <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
         {{else}}
           <span class="la-board-privacy-loading">{{t "No linked boards" key="no_linked_boards"}}</span>
         {{/if}}

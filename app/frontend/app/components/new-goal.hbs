@@ -202,7 +202,7 @@
           {{else}}
             <div class="md-modal-field">
               <label class="md-modal-label">{{t "Video" key="video"}}</label>
-              {{video-recorder user=this.model.user video_ready=(this.ctrlAction "video_ready") video_not_ready=(this.ctrlAction "video_not_ready")}}
+              <VideoRecorder @user={{this.model.user}} @video_ready={{this.ctrlAction "video_ready"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
             </div>
           {{/if}}
           <div class="md-modal-field">
@@ -213,7 +213,7 @@
             </label>
           </div>
           {{#if this.goal.assessment_badge}}
-            {{badge-settings badge=this.goal.assessment_badge assessment=true}}
+            <BadgeSettings @badge={{this.goal.assessment_badge}} @assessment={{true}} />
           {{/if}}
 
         {{/if}}

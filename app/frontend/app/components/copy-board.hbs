@@ -54,7 +54,7 @@
           <span class="md-modal-required-label__asterisk" aria-hidden="true">*</span>
           {{t "Required Selection" key="required_selection"}}
         </p>
-        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(this.ctrlAction "updateCurrentlySelectedId") }}
+        <UserSelect @select_id="currently_selected_id" @buttons={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
       </div>
     {{/if}}
 

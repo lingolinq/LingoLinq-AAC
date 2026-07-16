@@ -123,7 +123,7 @@
           <div style="margin-top: 20px;">
             <h3>{{t "Cancel Subscription" key="cancel_subscription"}}</h3>
             <p>{{t "You'll need to log in before you can cancel your subscription" key="login_before_canceling"}}</p>
-            {{login-form left=true return=true}}
+            <LoginForm @left={{true}} @return={{true}} />
           </div>
         {{/if}}
       {{/if}}
@@ -213,7 +213,7 @@
               <h3>{{t "Cancel Subscription" key="cancel_subscription"}}</h3>
               <p>{{t "You'll need to log in before you can cancel your subscription" key="login_before_canceling"}}</p>
               <div style="margin-left: 15px;">
-                {{login-form left=true return=true}}
+                <LoginForm @left={{true}} @return={{true}} />
               </div>
             </div>
           {{/if}}
@@ -235,7 +235,7 @@
               </div>
             </div>
           {{/if}}
-          {{subscription-form user=this.model subscription=this.subscription subscription_error="subscription_error" subscription_success="subscription_success"}}
+          <SubscriptionForm @user={{this.model}} @subscription={{this.subscription}} @subscription_error="subscription_error" @subscription_success="subscription_success" />
         {{/if}}
       {{/unless}}
     {{/if}}
@@ -253,5 +253,5 @@
   {{#if this.subscription.error}}
     <p>{{t "There was an error loading billing details" key="error_loading_subscription_details"}}</p>
   {{/if}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

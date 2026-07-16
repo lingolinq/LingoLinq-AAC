@@ -146,7 +146,7 @@
           </a>
         {{else if this.model.preferences.home_board.key}}
           <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
-          {{board-icon board=this.home_board_pref localized=true}}
+          <BoardIcon @board={{this.home_board_pref}} @localized={{true}} />
         {{else}}
           <!-- TODO: if supervisor, maybe show external-device modal insead of home search (maybe with link to search) -->
           <LinkTo @route="home-boards" class="btn big_button btn-default">
@@ -465,7 +465,7 @@
     </div>
     {{/if}}
     <div class="ub-boards-page">
-      {{boards-browser boardsCtrl=this showNewBoard=false headingId="available-boards-heading" filterInputId="account-boards-filter"}}
+      <BoardsBrowser @boardsCtrl={{this}} @showNewBoard={{false}} @headingId="available-boards-heading" @filterInputId="account-boards-filter" />
     </div>
   {{#if this.model.permissions.support_actions}}
     <div class="row" style="margin-top: 30px;">
