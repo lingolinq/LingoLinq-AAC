@@ -16340,6 +16340,9 @@ form.row.subscription-form-with-cards {
 .md-speak-menu__row--2 { grid-template-columns: repeat(2, 1fr); }
 .md-speak-menu__row--3 { grid-template-columns: repeat(3, 1fr); }
 .md-speak-menu__row--5 { grid-template-columns: repeat(5, 1fr); }
+/* Full punctuation set in one row (single-tap reach, no "More" submenu). 7 across
+   only while the targets stay comfortably hittable — see the narrow-screen wrap below. */
+.md-speak-menu__row--7 { grid-template-columns: repeat(7, 1fr); }
 .md-speak-menu__row--locale {
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
 }
@@ -16521,6 +16524,11 @@ form.row.subscription-form-with-cards {
 @media (max-width: 768px) {
   .md-speak-menu__row--3 {
     grid-template-columns: repeat(2, 1fr);
+  }
+  /* 7 punctuation targets across is too small to hit reliably on a phone --
+     wrap to 4+3 so each stays a comfortable touch target (AAC motor accuracy). */
+  .md-speak-menu__row--7 {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
