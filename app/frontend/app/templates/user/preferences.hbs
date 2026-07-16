@@ -396,7 +396,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <input type="checkbox" checked={{this.pending_preferences.activation_on_start}} id="device_home" {{on "change" (set-field this "pending_preferences.activation_on_start" "checkbox")}} />
+            <input type="checkbox" checked={{this.pending_preferences.activation_on_start}} id="activation_on_start" {{on "change" (set-field this "pending_preferences.activation_on_start" "checkbox")}} />
             {{t "Select the button as soon as it is pressed" key='select_immediately'}}
           </label>
         </div>

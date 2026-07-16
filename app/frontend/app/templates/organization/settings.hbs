@@ -53,8 +53,8 @@
 
     {{#if this.model.premium}}
       <div class="md-org-settings-field">
-        <label for="logo_url" class="md-org-settings-field__label">{{t "Logo URL" key="logo_url"}}</label>
-        <input value={{this.model.image_url}} class="md-org-settings-input" id="logo_url" placeholder="URL to (circular) image, ~50px" {{on "input" (set-field this "model.image_url")}} />
+        <label for="org_image_url" class="md-org-settings-field__label">{{t "Logo URL" key="logo_url"}}</label>
+        <input value={{this.model.image_url}} class="md-org-settings-input" id="org_image_url" placeholder="URL to (circular) image, ~50px" {{on "input" (set-field this "model.image_url")}} />
       </div>
     {{/if}}
   </section>
