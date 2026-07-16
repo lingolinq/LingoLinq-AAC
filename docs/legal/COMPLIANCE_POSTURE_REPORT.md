@@ -118,12 +118,16 @@ and email staying on AWS. Two compliance-relevant items are in flight:
   org-wide (certified 2026-06-08; acceptance evidence captured 2026-06-19). On 2026-07-12 the
   Cloud Data Processing Addendum (CDPA) and the HIPAA BAA were reviewed and accepted for project
   `lingolinq-prod` specifically, and the Standard Contractual Clauses (EU GDPR, UK GDPR, Swiss
-  FDPA) were certified 2026-07-14 for EU/UK/Swiss-transfer coverage. Under the HIPAA BAA, PHI is
-  permitted on Google Cloud subject to BAA terms (HIPAA-eligible services, encryption, private
-  VPC). Evidence: Drive "Compliance Audits" / "Google Cloud Platform - Accepted Compliance
-  Agreements (captured 2026-07-14)". This is an infrastructure BAA (Cloud Run, Cloud SQL,
-  Memorystore, and Google's Vertex AI service under Google's terms); it does not extend to the
-  Anthropic model-provider egress path. Add Google as an active subprocessor in
+  FDPA) were certified 2026-07-14 for EU/UK/Swiss-transfer coverage. (This 2026-07-14 project-level
+  SCC certification supersedes this report's earlier reference to SCCs certified 2026-06-08, which
+  reflected the org-wide acceptance; if reconciling against the branded Drive mirror, confirm the
+  2026-06-08 SCC entry.) Under the HIPAA BAA, PHI is permitted on Google Cloud subject to BAA
+  terms, which are necessary but not sufficient (HIPAA-eligible services, encryption in transit and
+  at rest, access controls, minimum necessary; private VPC additionally). Recorded in-repo at
+  `docs/legal/GCP_BAA_ACCEPTED.md`; evidence in Drive "Compliance Audits" / "Google Cloud Platform
+  - Accepted Compliance Agreements (captured 2026-07-14)". This is an infrastructure BAA (Cloud
+  Run, Cloud SQL, Memorystore, and Google's Vertex AI service under Google's terms); it does not
+  extend to the Anthropic model-provider egress path. Add Google as an active subprocessor in
   `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying production data;
   until then it remains a planned subprocessor.
 

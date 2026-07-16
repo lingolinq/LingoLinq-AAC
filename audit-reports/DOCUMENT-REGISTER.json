@@ -202,7 +202,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "b08819c0b281e244ae391150c04f73a4364448aa1b264f83dec8d9138a87a513",
+      "contentHash": "ec7280763097565c1e5f48b8e6ef81fa56ee5474b6f51e59a53721aa8743e32b",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-9b299a785b"
@@ -257,7 +257,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-06-20"
       },
-      "contentHash": "06053dfff6c801cbe310a13aff5b582988a74e489a96105a90eee66edc79f603",
+      "contentHash": "b6f2efd9ea1f2a36e9eb1bb73c6d098934f4b33efe02ad10aa199e5b64524ffc",
       "bundles": [
         "school-dpa-package"
       ],
@@ -377,7 +377,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "fd72c7e0c493fc8f59157a35e5ce6c9e14f86f9bce976a23250609f72df48c65",
+      "contentHash": "5c9e7aaf08d4ff930a72d59640202107df3857d79788a9dde291b65d356da6fe",
       "bundles": [
         "school-dpa-package"
       ],
@@ -531,25 +531,33 @@
       "id": "DOC-0ef0df93d9"
     },
     {
-      "title": "Google Cloud Platform - Accepted Compliance Agreements",
-      "description": "Console acceptance record for the GCP Cloud Data Processing Addendum and HIPAA Business Associate Addendum (both accepted 2026-07-12) and the Standard Contractual Clauses (EU GDPR / UK GDPR / Swiss FDPA, certified 2026-07-14) on project lingolinq-prod, accepted by scot@lingolinq.com. Google issues no countersigned PDF for these; the console acceptance record plus source screenshots are the authoritative evidence. Infrastructure BAA (Cloud Run / Cloud SQL / Memorystore / Vertex AI under Google terms); does not cover the Anthropic AI-egress path.",
+      "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
+      "description": "In-repo acceptance record for the GCP Cloud Data Processing Addendum and HIPAA Business Associate Addendum (both accepted 2026-07-12) and the Standard Contractual Clauses (EU GDPR / UK GDPR / Swiss FDPA, certified 2026-07-14) on project lingolinq-prod, accepted by scot@lingolinq.com. Google issues no countersigned PDF; the console acceptance record is the authoritative evidence (Drive companion doc + screenshots mirrored). Infrastructure BAA (Cloud Run / Cloud SQL / Memorystore / Vertex AI under Google terms); does NOT cover the Anthropic AI-egress path, and Vertex AI is in scope of the BAA but not a live inference path (disabled 2026-07-09, PR #570).",
       "type": "evidence",
       "owner": "Scot Wahlquist",
-      "canonicalSystem": "drive",
-      "canonicalLocation": "https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit",
-      "status": "draft",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/GCP_BAA_ACCEPTED.md",
+      "status": "approved",
       "frameworks": [
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-14",
-      "nextReviewDue": "2027-07-14",
-      "attestation": {},
-      "contentHash": null,
+      "lastReviewed": "2026-07-16",
+      "nextReviewDue": "2027-07-16",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-16"
+      },
+      "contentHash": "e43557a5e3d5f46a7c853bc36090b388d3277e5c3ff0e9c2518de2557a52c061",
       "bundles": [],
-      "mirrors": [],
-      "notes": "Source screenshots filed alongside in Drive ('Google Cloud Console Agreements 07-14-2026'). Referenced by docs/legal/SUBPROCESSORS.md section 5.7, COMPLIANCE.md section 4, and docs/legal/COMPLIANCE_POSTURE_REPORT.md. Drive contentHash is operator-supplied and not yet set; freshness is a dated review obligation, not an automated guarantee. Mirrors the AWS BAA registration pattern (signed PDF + acceptance record) for the GCP infrastructure BAA, which has no downloadable countersigned artifact. Status draft pending Scot's approval + attestation.",
-      "id": "DOC-36ff3e85d6"
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit"
+        }
+      ],
+      "notes": "Parity with the AWS acceptance record (docs/legal/AWS_BAA_ACCEPTED.md). Companion Drive doc plus console screenshots ('Google Cloud Console Agreements 07-14-2026') are the source evidence, mirrored here. Referenced by docs/legal/SUBPROCESSORS.md section 5.7, COMPLIANCE.md section 4, and docs/legal/COMPLIANCE_POSTURE_REPORT.md. Approved and attested by Scot Wahlquist 2026-07-16 per explicit instruction; git contentHash is computed and CI-verified.",
+      "id": "DOC-5b14b08908"
     },
     {
       "title": "AWS BAA Acceptance Record",
