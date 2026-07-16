@@ -1054,6 +1054,15 @@ describe Organization, :type => :model do
       o.process({:home_board_key => b.key}, {updater: u})
       expect(o.settings['default_home_boards']).to eq([{'key' => b.key, 'id' => b.global_id}])
     end
+
+    it "should accept a pasted board-detail URL as a home board key" do
+      u = User.create
+      b = Board.create(user: u, public: true)
+      o = Organization.create
+      url = "https://lingolinq-staging.onrender.com/#{u.user_name}/board-detail/#{b.key.split('/', 2)[1]}"
+      o.process({:home_board_keys => [url]}, {updater: u})
+      expect(o.settings['default_home_boards']).to eq([{'key' => b.key, 'id' => b.global_id}])
+    end
     
     it "should not allow setting a private home board" do
       u = User.create

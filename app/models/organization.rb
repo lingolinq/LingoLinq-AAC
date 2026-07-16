@@ -1695,6 +1695,11 @@ class Organization < ApplicationRecord
         if key.match(/^https?:\/\/[^\/]+\//)
           key = key.sub(/^https?:\/\/[^\/]+\//, '')
         end
+        # Modern Ember routes are /:user/board-detail/:boardname (and
+        # /:user/board/:boardname). Strip those middle segments so a pasted
+        # URL becomes the board key owner/slug (e.g. lingolinq/vocal-flair-84).
+        key = key.sub(%r{\A([^/]+)/board-detail/([^/]+)(?:/edit)?/?\z}, '\1/\2')
+        key = key.sub(%r{\A([^/]+)/board/([^/]+)/?\z}, '\1/\2')
         board = Board.find_by_path(key)
         if board && board.public
           self.settings['default_home_boards'] << {
