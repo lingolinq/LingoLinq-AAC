@@ -99,6 +99,7 @@ file (see [README.md](README.md)).
 - [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 - [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
 - [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
+- [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 
 ---
 
@@ -6591,3 +6592,34 @@ Fix: add `this.` (`board=this.home_board_pref`). To find these BEFORE they ship,
 
 ### Scanning for implicit-`this` bugs: ember-template-lint is UNRELIABLE on large legacy templates — cross-check with grep
 `no-implicit-this` IS enabled in this repo (`.template-lintrc.js` extends 'recommended') but is NOT enforced by `ember serve`, so violations ship. Worse: when scanning for them, ember-template-lint SILENTLY MISSES the violation in several large legacy route templates (`templates/user/index.hbs`, `templates/user/preferences.hbs`, `templates/trends.hbs`) — it flags the exact same `arg=bare_prop` line in a small temp file but reports 0 for these files (not a cache/ignore/inline-disable issue; unexplained scope-tracking miss on big files). So do NOT trust a green ember-template-lint run as proof there are no implicit-this bugs. Cross-check with grep for the property-shaped patterns: bare `{{snake_case}}` mustaches, `arg=snake_case` values, and `{{#if/each/let snake_case}}` — then rule out block params (`{{#each x as |name|}}`, `{{#let x as |name|}}`), helper INVOCATIONS with args (`{{date_ago x}}`, `{{is_equal a b}}`), component invocations (`{{subscribe}}`, `{{masquerade}}` = real components), and i18n interpolation param names (`board_key=this....`). The 2026-07-15 sweep found 6 real bugs across 3 files (home_board_pref ×1, *_keycode_string ×4, elem_style ×1) that the linter missed entirely. (2026-07-15)
+
+## Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run
+
+**@MelissaOneil / @scot — flagged 2026-07-16.** `CLAUDE.md` says user-facing strings must use
+double quotes and that this is "CRITICAL — i18n generator depends on it". This is the concrete
+failure it prevents, and it is silent.
+
+`i18n_generator.rb`'s JS parser reads the key between single quotes, then scans **past the comma
+for a `"`** to find the default string (see `i18n_generator.rb` ~L95–140). Given
+`i18n.t('key', 'Default')` it never finds a double quote, skips the string entirely, and the key
+is therefore absent from the regenerated `en.json` — i.e. **`--generate` deletes it**, along with
+its translations in all 13 locales. The generator reports success while doing this
+(`TOTAL DUPS 0 / MISSING 0`).
+
+This had already bitten us: running `--generate` on 2026-07-16 removed **286 keys, 17 of them
+still in use** — all core AAC user-facing settings (`opensymbols`, `lessonpix_library`, `pcs`,
+`twemoji`, `noun_project`, `arasaac`, `tawasol_library`, `text_above_pictures`,
+`text_below_pictures`, `no_pictures`, `show_words`, `show_symbols`, `show_more_libraries`,
+`clear_background`, `always_white_background`, `always_black_background`,
+`high_contrast_black_background`). Fixed in `d71fe1c87` by correcting the quotes at the 31
+offending call sites (`controllers/setup.js`, `(components|controllers)/swap-images.js`); after
+the fix, `--generate` removes 269 keys and **0** of them are still referenced.
+
+**Why it survives unnoticed:** a key only disappears if *every* reference uses a single-quoted
+default. Keys referenced correctly somewhere else are still found, so the violation lies dormant.
+**~291 single-quoted defaults remain across ~69 files** — each a latent landmine with this exact
+failure mode.
+
+**Before running `ruby i18n_generator.rb --generate`, always diff the key set** (regenerate, then
+compare against every key actually referenced in source) instead of trusting its "0 missing" output.
+See §2.10 of the pre-merge checklist for the grep.
