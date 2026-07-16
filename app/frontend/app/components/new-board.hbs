@@ -1,5 +1,5 @@
-{{#grid-listener gridEvent=(this.ctrlAction "grid_event")}}
-{{#modal-dialog standalone=this.standalone action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<GridListener @gridEvent={{this.ctrlAction "grid_event"}}>
+<ModalDialog @standalone={{this.standalone}} @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="board_drop {{if this.standalone "new-board--modern" "la-new-board-modal-wrap"}}">
     {{#if this.standalone}}
     <div class="modal-header md-modal-header">
@@ -378,5 +378,5 @@
       {{/if}}
     </div>
   </div>
-{{/modal-dialog}}
-{{/grid-listener}}
+</ModalDialog>
+</GridListener>

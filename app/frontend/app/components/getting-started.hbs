@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="md-getting-started-modal">
     <div class="md-getting-started-modal__header">
       <h3 class="md-getting-started-modal__title">{{t "Getting Started" key="getting_started"}}</h3>
@@ -153,4 +153,4 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

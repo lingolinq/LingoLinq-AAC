@@ -1,4 +1,4 @@
-{{#modal-dialog opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
+<ModalDialog @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
   <div class="modal-header md-modal-header">
     <h3>{{t "Please Log Back In" key="please_log_back_in"}}</h3>
   </div>
@@ -6,4 +6,4 @@
     <h4>{{this.model.message}}</h4>
     {{login-form wide=true return=true force_logout=true}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -11,7 +11,7 @@
     <span id="speak" class="{{if this.app_state.eval_mode "md-eval-header"}}">
       <span class="speak-header__home-col">
       <span class="speak-header__home-marker">
-        {{#triple-click-listener triple_click="meta_home_click"}}
+        <TripleClickListener @triple_click="meta_home_click">
           {{#if this.app_state.eval_mode}}
             {{!-- Eval-mode home button — uses the same modern outline-house
                  icon as the board-detail sentence bar (mirrors that visual
@@ -51,7 +51,7 @@
               {{/unless}}
             </button>
           {{/if}}
-        {{/triple-click-listener}}
+        </TripleClickListener>
       </span>
         {{#if this.show_eval_pause}}
           {{!-- In-place Pause/Resume for a running eval. Its own control stacked
@@ -239,7 +239,7 @@
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>
       </button>
-      {{#triple-click-listener triple_click="toggle_modeling"}}
+      <TripleClickListener @triple_click="toggle_modeling">
         <button class="btn btn-default access" id="clear_button" type="button" {{on "click" (this.ctrlAction "clear")}} style='position: relative;'>
           <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
           {{#if this.app_state.eval_mode}}
@@ -261,7 +261,7 @@
             </div>
           {{/if}}
         </button>
-      {{/triple-click-listener}}
+      </TripleClickListener>
     </span>
   {{else}}
     <span id="nav_header" class={{this.app_state.nav_header_class}}>
@@ -1437,7 +1437,7 @@
       </ul>
       {{else}}
       {{#unless this.useAppNavbarInHeader}}
-      <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}} aria-haspopup="true">
+      <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}}>
         {{t "Sign In" key="login"}}
         <span class="caret"></span>
       </a>

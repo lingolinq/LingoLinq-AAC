@@ -1,4 +1,4 @@
-{{#grid-listener gridEvent=(this.ctrlAction "grid_event")}}
+<GridListener @gridEvent={{this.ctrlAction "grid_event"}}>
   <div class="board_drop new-board--modern md-workspace md-workspace--create-board-new">
     {{!-- Orientation overlay: at ≤768px the build canvas is cramped, so reuse
          the board-detail landscape-rotate overlay (same .md-board-detail-portrait-
@@ -1431,4 +1431,4 @@
     </div>
     {{/unless}}
   </div>
-{{/grid-listener}}
+</GridListener>

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-board-privacy-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -46,4 +46,4 @@
     <a href="#" class="la-board-privacy-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

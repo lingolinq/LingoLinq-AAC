@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-body advanced_selection modal_targets md-speak-menu" id="speak_menu" role="dialog" aria-modal="true" aria-labelledby="md-speak-menu__title">
     {{!-- Header with close button --}}
     <div class="md-speak-menu__header pass_to_btn_list">
@@ -12,7 +12,7 @@
       {{!-- Punctuation — moved to the TOP (first section of the modal). --}}
       <div class="md-speak-menu__section md-speak-menu__section--punctuation">
         <div class="md-speak-menu__section-label">{{t "Punctuation" key="punctuation"}}</div>
-        {{#button-listener buttonEvent=(this.ctrlAction "button_event")}}
+        <ButtonListener @buttonEvent={{this.ctrlAction "button_event"}}>
           <div class="md-speak-menu__row md-speak-menu__row--5">
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_period_button'>
               <span class="md-speak-menu__punctuation">.</span>
@@ -36,10 +36,10 @@
               {{/if}}
             </div>
           </div>
-        {{/button-listener}}
+        </ButtonListener>
       </div>
 
-      {{#button-listener buttonEvent=(this.ctrlAction "button_event")}}
+      <ButtonListener @buttonEvent={{this.ctrlAction "button_event"}}>
         {{#if this.repeat_menu}}
           {{!-- Repeat / Volume group --}}
           <div class="md-speak-menu__section">
@@ -156,7 +156,7 @@
             </div>
           </div>
         {{/if}}
-      {{/button-listener}}
+      </ButtonListener>
 
       {{!-- Board Languages — sits below the Punctuation section and above Speak Mode. --}}
       {{#if this.localeBoardModel}}
@@ -305,4 +305,4 @@
       {{/each}}
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

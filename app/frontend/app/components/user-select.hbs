@@ -41,7 +41,7 @@
               {{#each this.extra_users as |user|}}
                 <li class={{if user.edit_permission "" "disabled"}}><a href='#' {{on "click" (this.ctrlAction "set_extra_user" user)}}><img src={{user.avatar_url}} style='width: 20px; height: 20px; object-fit: contain;'> {{user.user_name}}</a></li>
               {{else}}
-                <li class="dropdown-empty" role="presentation" aria-disabled="true">
+                <li class="dropdown-empty" role="presentation">
                   <span class="dropdown-empty__inner">
                     <svg class="dropdown-empty__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     <span class="dropdown-empty__text">{{t "No users available" key="dropdown_no_users_available"}}</span>

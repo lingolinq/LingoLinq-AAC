@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-support-modal-wrap la-word-data-modal-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Word Data For \"%{word}\"" word=this.model.word key="word_data_for_word"}}</span>
@@ -109,4 +109,4 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

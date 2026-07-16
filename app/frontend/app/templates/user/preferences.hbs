@@ -5,7 +5,7 @@
     <h2 class="md-preferences__title">{{t "General Preferences" key='general_preferences'}}</h2>
   </div>
   <form class="form-horizontal md-preferences__form" {{on "submit" this.onSavePreferences}}>
-  {{#preference-box title="Basics" glyph='glyphicon glyphicon-cog' title_key='basics' open=true}}
+  <PreferenceBox @title="Basics" @glyph="glyphicon glyphicon-cog" @title_key="basics" @open={{true}}>
     <span style='display: none;'>{{t "Basics" key='basics'}}</span>
     <div class="form-group">
       <label for="role" class="col-sm-3 control-label">{{t "Account Type" key='role'}}</label>
@@ -189,8 +189,8 @@
         </div>
       </div>
     {{/if}}
-  {{/preference-box}}
-  {{#preference-box title="Notifications" glyph='glyphicon glyphicon-bell' title_key='notifications'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Notifications" @glyph="glyphicon glyphicon-bell" @title_key="notifications">
     <span style='display: none;'>{{t "Notifications" key='notifications'}}</span>
     <div class="form-group">
       <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
@@ -210,8 +210,8 @@
         {{bound-select select_class="form-control" select_id="share_notifications" content=this.allow_shares_options selection=this.pending_preferences.share_notifications action=(mut this.pending_preferences.share_notifications) }}
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Styling" glyph='glyphicon glyphicon-picture' title_key='styling'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Styling" @glyph="glyphicon glyphicon-picture" @title_key="styling">
     <span style='display: none;'>{{t "Styling" key='styling'}}</span>
     <div class="form-group">
       <label for="board_background" class="col-sm-3 control-label">{{t "Board Background Color" key='board_background'}}</label>
@@ -322,8 +322,8 @@
         {{extra-colors colors=this.pending_preferences.extra_colors}}
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Selection Settings" glyph='glyphicon glyphicon-hand-up' title_key='selection_settings'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Selection Settings" @glyph="glyphicon glyphicon-hand-up" @title_key="selection_settings">
     <span style='display: none;'>{{t "Selection Settings" key='selection_settings'}}</span>
     <div class="form-group">
       <label for="auto_home_return" class="col-sm-3 control-label">{{t "On Select" key='on_select'}}</label>
@@ -485,8 +485,8 @@
         </div>
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Logging and Sync" glyph='glyphicon glyphicon-refresh' title_key='logging_and_sync'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Logging and Sync" @glyph="glyphicon glyphicon-refresh" @title_key="logging_and_sync">
     <span style='display: none;'>{{t "Logging and Sync" key='logging_and_sync'}}</span>
     <div class="form-group">
       <div style="margin-left: calc(25% - 9rem); width: calc(60% + 9rem);">
@@ -697,8 +697,8 @@
         </div>
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Startup and Extras" glyph='glyphicon glyphicon-play-circle' title_key='startup_and_extras'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Startup and Extras" @glyph="glyphicon glyphicon-play-circle" @title_key="startup_and_extras">
     <span style='display: none;'>{{t "Startup and Extras" key='startup_and_extras'}}</span>
     <div class="form-group">
       <label for="speak_mode_edit" class="col-sm-3 control-label">{{t "Edit Button in Speak Mode" key='edit_button_in_speak_mode'}}</label>
@@ -935,8 +935,8 @@
         </div>
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Core, Phrases and Modeling" glyph='glyphicon glyphicon-comment' title_key='core_phrases_and_modeling'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Core, Phrases and Modeling" @glyph="glyphicon glyphicon-comment" @title_key="core_phrases_and_modeling">
     <span style='display: none;'>{{t "Core, Phrases and Modeling" key='core_phrases_and_modeling'}}</span>
     {{#if this.app_state.feature_flags.remote_modeling}}
       <div class="form-group">
@@ -1078,8 +1078,8 @@
         </div>
       </div>
     {{/unless}}
-  {{/preference-box}}
-  {{#preference-box title="Sidebar and Shortcuts" glyph='glyphicon glyphicon-link' title_key='sidebar_and_shortcuts'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Sidebar and Shortcuts" @glyph="glyphicon glyphicon-link" @title_key="sidebar_and_shortcuts">
     <span style='display: none;'>{{t "Sidebar and Shortcuts" key='sidebar_and_shortcuts'}}</span>
     <div class="form-group">
       <label for="quick_sidebar" class="col-sm-3 control-label">{{t "Quick Actions" key='quick_actions'}}</label>
@@ -1226,14 +1226,14 @@
         </div>
       </div>
     {{/if}}
-  {{/preference-box}}
+  </PreferenceBox>
 
   <!-- keyboard shortcuts for actions/phrases, abbreviations/message expansions -->
   <div class="md-preferences__header md-preferences__header--device">
     <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="#2A9D8F"/><line x1="8" y1="21" x2="16" y2="21" stroke="#46505F"/><line x1="12" y1="17" x2="12" y2="21" stroke="#46505F"/></svg>
     <h2 class="md-preferences__title">{{t "Device Preferences" key='device_preferences'}} ({{this.pending_preferences.device.name}})</h2>
   </div>
-  {{#preference-box title="Device Layout" glyph='glyphicon glyphicon-th' title_key='device_layout'}}
+  <PreferenceBox @title="Device Layout" @glyph="glyphicon glyphicon-th" @title_key="device_layout">
     <span style='display: none;'>{{t "Device Layout" key='device_layout'}}</span>
     <div class='form-group'>
       <div class='col-sm-5 col-sm-offset-3'>
@@ -1342,9 +1342,9 @@
         </div>
       </div>
     </div>
-  {{/preference-box}}
+  </PreferenceBox>
   {{#if this.advanced}}
-    {{#preference-box title="Scanning Settings" glyph='glyphicon glyphicon-menu-hamburger' title_key='scanning_settings'}}
+    <PreferenceBox @title="Scanning Settings" @glyph="glyphicon glyphicon-menu-hamburger" @title_key="scanning_settings">
       <span style='display: none;'>{{t "Scanning Settings" key='scanning_settings'}}</span>
       <div class="form-group">
         <label for="scanning" class="col-sm-3 control-label">{{t "Scanning" key='scanning'}}</label>
@@ -1565,8 +1565,8 @@
           </div>
         </div>
       {{/if}}
-    {{/preference-box}}
-    {{#preference-box title="Dwell/Eye Tracking" glyph='glyphicon glyphicon-eye-open' title_key='dwell_eye_tracking'}}
+    </PreferenceBox>
+    <PreferenceBox @title="Dwell/Eye Tracking" @glyph="glyphicon glyphicon-eye-open" @title_key="dwell_eye_tracking">
       <span style='display: none;'>{{t "Dwell/Eye Tracking" key='dwell_eye_tracking'}}</span>
       <div class="form-group">
         <label for="eyegaze" class="col-sm-3 control-label">{{t "Dwell/Eye Tracking" key='dwell_eye_tracking'}}</label>
@@ -1801,7 +1801,7 @@
           </div>
         </div>
       {{/if}}
-    {{/preference-box}}
+    </PreferenceBox>
   {{/if}}
   {{#unless this.advanced}}
     {{#if this.user_voice_list}}
@@ -1841,7 +1841,7 @@
     </div>
   {{else}}
     <div id="voice-settings-box"></div>
-    {{#preference-box title="Voice Settings" glyph='glyphicon glyphicon-volume-up' title_key='voice_settings' open=this.auto_open_voice}}
+    <PreferenceBox @title="Voice Settings" @glyph="glyphicon glyphicon-volume-up" @title_key="voice_settings" @open={{this.auto_open_voice}}>
       <span style='display: none;'>{{t "Voice Settings" key='voice_settings'}}</span>
       {{#if this.user_voice_list}}
         <div class="form-group">
@@ -2028,7 +2028,7 @@
           </div>
         {{/if}}
       {{/if}}
-    {{/preference-box}}
+    </PreferenceBox>
   {{/unless}}
   
   {{#if this.pending_preferences.device.allows_home_override}}

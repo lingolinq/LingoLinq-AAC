@@ -1,4 +1,4 @@
-{{#opening-observer done_opening=(this.ctrlAction "draw_charts")}}
+<OpeningObserver @done_opening={{this.ctrlAction "draw_charts"}}>
 <div class="md-shell md-shell--reports-view">
   <div class="md-workspace">
     <UserPillNav @active="reports" @userName={{this.model.user_name}} />
@@ -400,4 +400,4 @@
 </div>
   </div>
 </div>
-{{/opening-observer}}
+</OpeningObserver>

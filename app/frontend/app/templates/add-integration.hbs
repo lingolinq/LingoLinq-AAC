@@ -1,4 +1,4 @@
-{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
+<ModalDialog @action={{this.ctrlAction "close"}} @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
   <div class="modal-header">
       <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>
@@ -86,4 +86,4 @@
     </button>
     <button {{on "click" (this.ctrlAction "close")}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

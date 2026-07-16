@@ -254,10 +254,9 @@
     <label for="evq-slp-notes" class="evq-report__notes-label">
       {{t "SLP notes (optional)" key="report_slp_notes_label"}}
     </label>
-    <Textarea @id="evq-slp-notes" class="evq-report__notes-input" rows="3"
+    <Textarea id="evq-slp-notes" class="evq-report__notes-input" rows="3"
               placeholder={{t "Behaviors observed, follow-up plan, or anything the auto-score missed…" key="report_slp_notes_placeholder"}}
-              @value={{this.session.slpNotes}}
-              @key-up={{this.ctrlActionEventValue "notesChanged" "value"}} />
+              @value={{this.session.slpNotes}} {{on "keyup" (this.ctrlActionEventValue "notesChanged" "value")}} />
   </div>
 
   {{#if this.buildError}}

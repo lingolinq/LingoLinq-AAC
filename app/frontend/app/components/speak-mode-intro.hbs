@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-support-modal-wrap la-speak-mode-intro-modal-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Welcome to Speak Mode" key="welcome_to_speak_mode"}}</span>
@@ -21,4 +21,4 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

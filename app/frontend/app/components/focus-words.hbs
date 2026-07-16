@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-focus-words-modal-wrap">
   <div class="modal-header md-modal-header">
     <span class="la-modal-header-label">
@@ -292,4 +292,4 @@
     <a href="#" class="btn btn-default btn-lg" title={{t "Close this window without applying focus words." key='focus_words_modal_close_tooltip'}} {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

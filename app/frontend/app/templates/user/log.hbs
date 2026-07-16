@@ -1,4 +1,4 @@
-{{#opening-observer done_opening=(this.ctrlAction "draw_charts")}}
+<OpeningObserver @done_opening={{this.ctrlAction "draw_charts"}}>
 {{#if this.model.tiered_eval_type}}
   {{!-- New tiered-eval shape (Quick Screen / Targeted Eval) — render
        the saved recommendation + targeted_report block via a
@@ -639,4 +639,4 @@
     </LinkTo>
   {{/if}}
 </div>
-{{/opening-observer}}
+</OpeningObserver>
