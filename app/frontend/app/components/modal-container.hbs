@@ -258,6 +258,8 @@
     {{beta-feedback-modal}}
   {{else if (is-equal this.currentTemplate "tour-board-picker")}}
     {{tour-board-picker}}
+  {{else if (is-equal this.currentTemplate "eu-ai-parental-consent")}}
+    {{eu-ai-parental-consent}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

@@ -1,0 +1,10 @@
+<p><%= mailer_t('eu_ai_parental_consent_confirmation_mailer.greeting') %></p>
+<p><%= mailer_t('eu_ai_parental_consent_confirmation_mailer.intro', app_name: app_name) %></p>
+<p><%= mailer_t('eu_ai_parental_consent_confirmation_mailer.details', child_name: @child_name.presence || @child_username, child_username: @child_username, granted_at: long_ordinal_date(@granted_at)) %></p>
+<p><%= mailer_t('eu_ai_parental_consent_confirmation_mailer.privacy_notice') %></p>
+<p><a href="<%= @privacy_url %>"><%= @privacy_url %></a></p>
+<p><%= mailer_t('eu_ai_parental_consent_confirmation_mailer.revoke_notice') %></p>
+<p><%= mailer_t('eu_ai_parental_consent_confirmation_mailer.revoke_prompt') %></p>
+<p><a href="<%= @revoke_url %>"><%= @revoke_url %></a></p>
+<p><%= mailer_t('eu_ai_parental_consent_confirmation_mailer.footer', contact_url: @contact_url) %></p>
+<p><%= email_signature %></p>

@@ -1,10 +1,11 @@
 <p><%= mailer_t('parental_consent_confirmation_mailer.greeting') %></p>
-<p><%= mailer_t('parental_consent_confirmation_mailer.intro', app_name: app_name) %></p>
-<p><%= mailer_t('parental_consent_confirmation_mailer.details', child_name: @child_name.presence || @child_username, child_username: @child_username, granted_at: long_ordinal_date(@granted_at)) %></p>
+<p><%= mailer_t('parental_consent_confirmation_mailer.intro', app_name: app_name, child_username: @child_username, registered_at: long_ordinal_date(@registered_at)) %></p>
 <p><%= mailer_t('parental_consent_confirmation_mailer.privacy_notice') %></p>
-<p><a href="<%= @privacy_url %>"><%= @privacy_url %></a></p>
+<p><a href="<%= @privacy_url %>"><%= mailer_t('parental_consent_confirmation_mailer.privacy_link_label') %></a></p>
+<p><strong><%= mailer_t('parental_consent_confirmation_mailer.revoke_heading') %></strong></p>
 <p><%= mailer_t('parental_consent_confirmation_mailer.revoke_notice') %></p>
 <p><%= mailer_t('parental_consent_confirmation_mailer.revoke_prompt') %></p>
-<p><a href="<%= @revoke_url %>"><%= @revoke_url %></a></p>
-<p><%= mailer_t('parental_consent_confirmation_mailer.footer', contact_url: @contact_url) %></p>
+<p><a href="<%= @revoke_url %>"><%= mailer_t('parental_consent_confirmation_mailer.revoke_cta_label') %></a></p>
+<p><%= mailer_t('parental_consent_confirmation_mailer.footer') %></p>
+<p><a href="<%= @contact_url %>"><%= mailer_t('parental_consent_confirmation_mailer.contact_link_label') %></a></p>
 <p><%= email_signature %></p>

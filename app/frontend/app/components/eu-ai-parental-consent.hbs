@@ -1,0 +1,68 @@
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Parental consent needed for AI features" key="eu_ai_consent_modal_title"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <p class="md-modal-hint" style="font-weight: 600;">
+      {{t "You are under 16. Based on your registered location, we need a parent or guardian to approve optional AI features before they can be turned on." key="eu_ai_consent_modal_intro"}}
+    </p>
+    <p class="md-modal-hint">
+      {{t "Core communication tools (boards, speak mode, and other non-AI features) stay available without this consent. Choose which AI features to request, then enter a parent or guardian email. We will email them a link to approve. The features stay off until they approve — then the ones you selected turn on automatically." key="eu_ai_consent_modal_how_it_works"}}
+    </p>
+
+    <div class="md-modal-field">
+      <h4 class="md-modal-section-title">{{t "AI features to enable after approval" key="eu_ai_consent_modal_features_heading"}}</h4>
+      <label class="md-modal-checkbox-label">
+        <Input @type="checkbox" @checked={{this.requested_features.ai_board_generation}} class="md-modal-checkbox" />
+        <span>{{t "AI board generation" key="ai_board_generation_pref"}}</span>
+      </label>
+      <label class="md-modal-checkbox-label">
+        <Input @type="checkbox" @checked={{this.requested_features.ai_word_prediction}} class="md-modal-checkbox" />
+        <span>{{t "AI word prediction" key="ai_word_prediction_pref"}}</span>
+      </label>
+      <label class="md-modal-checkbox-label">
+        <Input @type="checkbox" @checked={{this.requested_features.ai_board_suggestions}} class="md-modal-checkbox" />
+        <span>{{t "AI board suggestions" key="ai_board_suggestions_pref"}}</span>
+      </label>
+      <label class="md-modal-checkbox-label">
+        <Input @type="checkbox" @checked={{this.requested_features.ai_symbol_search}} class="md-modal-checkbox" />
+        <span>{{t "AI symbol search" key="ai_symbol_search_pref"}}</span>
+      </label>
+      {{#if this.features_missing}}
+        <p class="text-danger">{{t "Select at least one AI feature." key="eu_ai_consent_modal_features_required"}}</p>
+      {{/if}}
+    </div>
+
+    <div class="md-modal-field">
+      <label for="eu_ai_consent_parent_email" class="md-modal-label">{{t "Parent or guardian email" key="eu_ai_parent_email_label"}}</label>
+      <Input @value={{this.parent_email}} class="md-modal-input form-control" id="eu_ai_consent_parent_email" placeholder={{t "Parent's email address" key="eu_ai_parent_email_placeholder"}} autocomplete="email" inputmode="email" />
+      {{#if this.email_missing}}
+        <p class="text-danger">{{t "Parent or guardian email is required." key="eu_ai_parent_email_required"}}</p>
+      {{/if}}
+      {{#if this.send_error}}
+        <p class="text-danger">{{t "Could not send the consent email. Please try again." key="eu_ai_parental_consent_send_error"}}</p>
+      {{/if}}
+    </div>
+
+    <div class="md-modal-field">
+      <p class="md-modal-hint">
+        <a href="/privacy" target="_blank" rel="noopener noreferrer">{{t "Privacy Policy" key="privacy_policy"}}</a>
+      </p>
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}} disabled={{this.sending}}>
+      {{t "Cancel" key="cancel"}}
+    </button>
+    <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "send")}} disabled={{this.sending}}>
+      {{#if this.sending}}
+        {{t "Sending…" key="sending_ellipsis"}}
+      {{else}}
+        {{t "Send consent email" key="send_eu_ai_parental_consent"}}
+      {{/if}}
+    </button>
+  </div>
+{{/modal-dialog}}

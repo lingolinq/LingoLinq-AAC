@@ -1,14 +1,22 @@
 <%= mailer_t('parental_consent_mailer.greeting') %>
 
-<%= mailer_t('parental_consent_mailer.intro', app_name: app_name) %>
+<%= mailer_t('parental_consent_mailer.intro', app_name: app_name, consent_age: @consent_age) %>
+
+<%= mailer_t('parental_consent_mailer.safety_notice') %>
+
+<%= mailer_t('parental_consent_mailer.ready_heading') %>
 
 <%= mailer_t('parental_consent_mailer.action_prompt') %>
 
+<%= mailer_t('parental_consent_mailer.cta_label') %>:
 <%= @consent_url %>
 
 <%= mailer_t('parental_consent_mailer.privacy_notice') %>
 
+<%= mailer_t('parental_consent_mailer.privacy_link_label') %>:
 <%= @privacy_url %>
+
+<%= mailer_t('parental_consent_mailer.unexpected_heading') %>
 
 <%= mailer_t('parental_consent_mailer.footer') %>
 

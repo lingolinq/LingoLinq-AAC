@@ -8,6 +8,17 @@ import i18n from '../utils/i18n';
 
 // TODO: Maybe a pretty img they can send/embed to share with users
 
+// Signup parental-consent age for account activation (COPPA). Always 13 —
+// not jurisdiction Art. 8 age 16. EU under-16 use Preferences AI parental
+// consent after the account exists (settings['eu_ai_parental_consent']).
+var SIGNUP_COPPA_CONSENT_AGE = 13;
+
+// EU-27 alpha-2 — must match LingoLinq::Jurisdiction::EU_COUNTRY_CODES.
+var EU_COUNTRY_CODES = [
+  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU',
+  'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'
+];
+
 export default Controller.extend({
   stashes: service('stashes'),
   persistence: service('persistence'),
@@ -19,6 +30,7 @@ export default Controller.extend({
   registrationStep: 'role',
   birth_month: '',
   birth_year: '',
+  registration_country: '',
   productImprovementOptIn: false,
   googleSignupProfile: null,
   googleSignupBusy: false,
@@ -28,8 +40,26 @@ export default Controller.extend({
   googleSignupTerms: false,
   googleSignupMissingLinkTerms: false,
   googleSignupProductImprovementOptIn: false,
+  // After Google OAuth redirect, driven by server link payload (country/under_16).
+  googleSignupShowProductImprovement: true,
   showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
     return !!(this.get('google_signup') && this.get('googleSignupProfile'));
+  }),
+  // Communicator + EU country + under 16 → hide product-improvement opt-in.
+  euUnder16Registration: computed(
+    'registration_country',
+    'birth_month',
+    'birth_year',
+    'model.preferences.registration_type',
+    function() {
+      var country = (this.get('registration_country') || '').toUpperCase();
+      if(EU_COUNTRY_CODES.indexOf(country) === -1) { return false; }
+      if(this.get('model.preferences.registration_type') !== 'communicator') { return false; }
+      return !!this._classifyUnder16();
+    }
+  ),
+  showProductImprovementOptIn: computed('euUnder16Registration', function() {
+    return !this.get('euUnder16Registration');
   }),
   googleSignupUserNameMissing: computed('googleSignupUserName', function() {
     return (this.get('googleSignupUserName') || '').trim().length === 0;
@@ -101,6 +131,57 @@ export default Controller.extend({
   communicatorAgeRequired: computed('triedToSave', 'birthDateComplete', 'registrationStep', function() {
     return this.get('triedToSave') && this.get('registrationStep') === 'communicator_age' && !this.get('birthDateComplete');
   }),
+  countryOptions: computed(function() {
+    return [
+      {id: '', name: i18n.t('select_country_placeholder', "Select country…")},
+      {id: 'US', name: i18n.t('country_us', "United States")},
+      {id: 'GB', name: i18n.t('country_gb', "United Kingdom")},
+      {id: 'CA', name: i18n.t('country_ca', "Canada")},
+      {id: 'AU', name: i18n.t('country_au', "Australia")},
+      {id: 'NZ', name: i18n.t('country_nz', "New Zealand")},
+      {id: 'AT', name: i18n.t('country_at', "Austria")},
+      {id: 'BE', name: i18n.t('country_be', "Belgium")},
+      {id: 'BG', name: i18n.t('country_bg', "Bulgaria")},
+      {id: 'HR', name: i18n.t('country_hr', "Croatia")},
+      {id: 'CY', name: i18n.t('country_cy', "Cyprus")},
+      {id: 'CZ', name: i18n.t('country_cz', "Czechia")},
+      {id: 'DK', name: i18n.t('country_dk', "Denmark")},
+      {id: 'EE', name: i18n.t('country_ee', "Estonia")},
+      {id: 'FI', name: i18n.t('country_fi', "Finland")},
+      {id: 'FR', name: i18n.t('country_fr', "France")},
+      {id: 'DE', name: i18n.t('country_de', "Germany")},
+      {id: 'GR', name: i18n.t('country_gr', "Greece")},
+      {id: 'HU', name: i18n.t('country_hu', "Hungary")},
+      {id: 'IE', name: i18n.t('country_ie', "Ireland")},
+      {id: 'IT', name: i18n.t('country_it', "Italy")},
+      {id: 'LV', name: i18n.t('country_lv', "Latvia")},
+      {id: 'LT', name: i18n.t('country_lt', "Lithuania")},
+      {id: 'LU', name: i18n.t('country_lu', "Luxembourg")},
+      {id: 'MT', name: i18n.t('country_mt', "Malta")},
+      {id: 'NL', name: i18n.t('country_nl', "Netherlands")},
+      {id: 'PL', name: i18n.t('country_pl', "Poland")},
+      {id: 'PT', name: i18n.t('country_pt', "Portugal")},
+      {id: 'RO', name: i18n.t('country_ro', "Romania")},
+      {id: 'SK', name: i18n.t('country_sk', "Slovakia")},
+      {id: 'SI', name: i18n.t('country_si', "Slovenia")},
+      {id: 'ES', name: i18n.t('country_es', "Spain")},
+      {id: 'SE', name: i18n.t('country_se', "Sweden")},
+      {id: 'CH', name: i18n.t('country_ch', "Switzerland")},
+      {id: 'JP', name: i18n.t('country_jp', "Japan")},
+      {id: 'MX', name: i18n.t('country_mx', "Mexico")},
+      {id: 'BR', name: i18n.t('country_br', "Brazil")},
+      {id: 'IN', name: i18n.t('country_in', "India")},
+      {id: 'ZA', name: i18n.t('country_za', "South Africa")},
+      {id: 'SG', name: i18n.t('country_sg', "Singapore")},
+      {id: 'KR', name: i18n.t('country_kr', "South Korea")},
+      {id: 'XX', name: i18n.t('country_other', "Other")}
+    ];
+  }),
+  countryMissing: computed('triedToSave', 'registration_country', 'registrationStep', function() {
+    if(!this.get('triedToSave')) { return false; }
+    if(this.get('registrationStep') === 'role') { return false; }
+    return !(this.get('registration_country') || '').trim();
+  }),
   roleIncomplete: computed('triedToSave', 'registration_role', 'model.preferences.registration_type', function() {
     if(!this.get('triedToSave')) { return false; }
     var role = this.get('registration_role');
@@ -152,18 +233,13 @@ export default Controller.extend({
     return !!(ds && ds.coppa_parental_consent);
   }),
   coppa_age_group: null,
-  // EU launch (GDPR Art. 8): the age below which registration requires
-  // verifiable parental consent. Gated by the eu_consent_age feature flag; with
-  // the flag OFF this is always 13 and the age gate is identical to today. When
-  // ON, the EU value (16) is computed server-side (LingoLinq::Jurisdiction) and
-  // delivered through domain_settings, so the single source of EU truth stays
-  // on the backend and this stays a dumb number consumer.
-  coppaConsentAge: computed('appState.feature_flags.eu_consent_age', 'appState.domain_settings.coppa_consent_age', function() {
-    var fallback = 13;
-    if(!this.get('appState.feature_flags.eu_consent_age')) { return fallback; }
-    var age = parseInt(this.get('appState.domain_settings.coppa_consent_age'), 10);
-    if(!age || age < 13 || age > 18) { return fallback; }
-    return age;
+  // Account-activation parental consent age (COPPA under-13 only).
+  // Deliberately NOT raised to 16 for EU countries — GDPR Art. 8 for optional
+  // AI enablement is handled post-signup via eu_ai_parental_consent, not by
+  // blocking account creation. Domain_settings.coppa_consent_age / eu_consent_age
+  // must not drive this signup gate.
+  coppaConsentAge: computed(function() {
+    return SIGNUP_COPPA_CONSENT_AGE;
   }),
   parent_consent_email: '',
   coppaParentEmailMissing: computed('triedToSave', 'coppa_age_group', 'parent_consent_email', function() {
@@ -290,7 +366,9 @@ export default Controller.extend({
       // When the link omitted terms, the safety-net checkbox cannot satisfy the
       // server — googleSignupMissingLinkTerms blocks submit and shows restart UI.
       _this.set('age_attested', linkTermsAgreed);
-      _this.set('googleSignupProductImprovementOptIn', !!res.product_improvement_opt_in);
+      var showPi = res.show_product_improvement_opt_in !== false;
+      _this.set('googleSignupShowProductImprovement', showPi);
+      _this.set('googleSignupProductImprovementOptIn', showPi ? !!res.product_improvement_opt_in : false);
       _this.set('googleSignupUserName', res.user_name || '');
       if(res.name && !_this.get('googleSignupUserName')) {
         _this.set('googleSignupUserName', '');
@@ -306,11 +384,8 @@ export default Controller.extend({
     var year = parseInt(this.get('birth_year'), 10);
     if(!month || !year) { return null; }
     var today = new Date();
-    // Jurisdiction-aware consent age (13 by default, 16 for EU when the
-    // eu_consent_age flag is on). The returned labels 'under_13'/'over_13' are
-    // semantic ("under/over the applicable threshold"), not literally 13, and
-    // are consumed unchanged by the rest of the flow and the backend
-    // coppa_under_13 gate.
+    // Literal COPPA under-13 for account-activation parent email
+    // (coppa_under_13). EU under-16 is classified separately via _classifyUnder16.
     var cutoffYear = today.getFullYear() - this.get('coppaConsentAge');
     var cutoffMonth = today.getMonth() + 1;
     // With month/year only, treat the cutoff month as under the threshold until
@@ -320,12 +395,35 @@ export default Controller.extend({
     }
     return 'over_13';
   },
+  // Fixed age-16 cutoff for the under_16 registration flag (EU AI prefer-gate).
+  // Server sets eu_under_16 from country + this flag. Does NOT trigger signup
+  // parent email. Same month/year ambiguity rule as _classifyCommunicatorAge.
+  _classifyUnder16: function() {
+    var month = parseInt(this.get('birth_month'), 10);
+    var year = parseInt(this.get('birth_year'), 10);
+    if(!month || !year) { return null; }
+    var today = new Date();
+    var cutoffYear = today.getFullYear() - 16;
+    var cutoffMonth = today.getMonth() + 1;
+    if(year > cutoffYear || (year === cutoffYear && month >= cutoffMonth)) {
+      return true;
+    }
+    return false;
+  },
   _setProductImprovementPrefs: function(value) {
     var enabled = !!value;
-    this.set('user.preferences.cookies', enabled);
+    // Signup model is the user record (route createRecord); do not require a
+    // separate controller.user — EU under-16 auto-opt-out runs before that
+    // alias exists and Ember set() errors if the preferences path is missing.
+    if(!this.get('model.preferences')) {
+      this.set('model.preferences', {});
+    }
     this.set('model.preferences.cookies', enabled);
     this.set('model.preferences.telemetry_opt_in', enabled);
     this.set('model.preferences.comms_log_opt_in', enabled);
+    if(this.get('user.preferences')) {
+      this.set('user.preferences.cookies', enabled);
+    }
   },
   init() {
     this._super(...arguments);
@@ -370,19 +468,32 @@ export default Controller.extend({
       }
     },
     select_supporter_type: function(type) {
+      this.set('triedToSave', true);
+      if(!(this.get('registration_country') || '').trim()) { return; }
+      this.set('triedToSave', false);
       this.set('registration_role', 'supporter');
       this.set('model.preferences.registration_type', type);
       this.set('registrationStep', 'account');
     },
     continue_communicator_age: function() {
       this.set('triedToSave', true);
+      if(!(this.get('registration_country') || '').trim()) { return; }
       var ageGroup = this._classifyCommunicatorAge();
       if(!ageGroup) { return; }
       this.set('coppa_age_group', ageGroup);
       this.set('triedToSave', false);
+      if(this.get('euUnder16Registration')) {
+        this.set('productImprovementOptIn', false);
+        this._setProductImprovementPrefs(false);
+      }
       this.set('registrationStep', ageGroup === 'under_13' ? 'under_13' : 'account');
     },
     toggle_product_improvement: function(value) {
+      if(this.get('euUnder16Registration')) {
+        this.set('productImprovementOptIn', false);
+        this._setProductImprovementPrefs(false);
+        return;
+      }
       this.set('productImprovementOptIn', !!value);
       this._setProductImprovementPrefs(value);
     },
@@ -406,17 +517,23 @@ export default Controller.extend({
       this.set('googleSignupUserName', '');
       this.set('age_attested', false);
       this.set('googleSignupProductImprovementOptIn', false);
+      this.set('googleSignupShowProductImprovement', true);
       this.set('registrationStep', 'account');
       this.router.transitionTo('register', { queryParams: { google_signup: null } });
     },
     continue_with_google: function() {
       if(!this.get('googleRegisterAllowed') || !this.persistence.get('online')) { return; }
+      var euUnder16 = !!this.get('euUnder16Registration');
+      var optIn = euUnder16 ? false : !!this.get('productImprovementOptIn');
+      var under16 = this.get('model.preferences.registration_type') === 'communicator' && !!this._classifyUnder16();
       var url = '/auth/google/start?flow=register&device_id=' + encodeURIComponent(capabilities.device_id());
       url = url + '&return_origin=' + encodeURIComponent(window.location.origin);
       url = url + '&registration_type=' + encodeURIComponent(this.get('model.preferences.registration_type') || 'communicator');
       url = url + '&user_name=' + encodeURIComponent((this.get('model.user_name') || '').trim());
       url = url + '&terms_agree=' + encodeURIComponent(this.get('model.terms_agree') ? 'true' : 'false');
-      url = url + '&product_improvement_opt_in=' + encodeURIComponent(this.get('productImprovementOptIn') ? 'true' : 'false');
+      url = url + '&product_improvement_opt_in=' + encodeURIComponent(optIn ? 'true' : 'false');
+      url = url + '&country=' + encodeURIComponent((this.get('registration_country') || '').trim().toUpperCase());
+      url = url + '&under_16=' + encodeURIComponent(under16 ? 'true' : 'false');
       if(capabilities.installed_app) {
         url = url + '&app=true&popout_id=' + encodeURIComponent((new Date()).getTime() + 'T' + Math.round(Math.random() * 999999));
         window.open(url, '_blank');
@@ -429,6 +546,7 @@ export default Controller.extend({
       if(_this.get('googleSignupSubmitDisabled')) { return; }
       _this.set('googleSignupBusy', true);
       _this.set('googleSignupError', null);
+      var optIn = _this.get('googleSignupShowProductImprovement') && _this.get('googleSignupProductImprovementOptIn');
       _this.persistence.ajax('/auth/google/signup', {
         type: 'POST',
         data: {
@@ -436,7 +554,7 @@ export default Controller.extend({
           user_name: (_this.get('googleSignupUserName') || '').trim(),
           registration_type: _this.get('googleSignupRegistrationType') || 'communicator',
           terms_agree: _this.get('googleSignupTerms') ? 'true' : 'false',
-          product_improvement_opt_in: _this.get('googleSignupProductImprovementOptIn') ? 'true' : 'false'
+          product_improvement_opt_in: optIn ? 'true' : 'false'
         }
       }).then(function(res) {
         if(_this.isDestroyed || _this.isDestroying) { return; }

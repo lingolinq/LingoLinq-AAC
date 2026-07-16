@@ -36,6 +36,9 @@ module AiWordPredictor
       # COPPA Final Rule hard-gate: block under-13 users awaiting parental consent.
       return [] if FeatureFlags.coppa_blocks_ai_for?(user)
 
+      # EU under-16 AI parental-consent hard-gate.
+      return [] if FeatureFlags.eu_under16_blocks_ai_for?(user)
+
       ctx = normalize_context(context)
       cache_key = "#{locale}:#{sentence.strip.downcase}:#{ctx[:time_of_day]}:#{ctx[:topic]}"
       cached = CACHE[cache_key]

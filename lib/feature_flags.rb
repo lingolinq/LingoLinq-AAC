@@ -85,6 +85,10 @@ module FeatureFlags
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
                    ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze
+  # Per-user preference keys that require an explicit true when the master
+  # ai_features_enabled pref is on. Other AI_FEATURES follow the master only.
+  USER_PREF_AI_FEATURES = %w[ai_board_generation ai_word_prediction
+                             ai_board_suggestions ai_symbol_search].freeze
   def self.frontend_flags_for(user)
     flags = {}
     enabled_list = SystemFeatureSettings.effective_enabled_for(user)
@@ -154,25 +158,23 @@ module FeatureFlags
     true
   end
 
-  # Check if a specific AI feature is enabled for a user (combines feature flag + org opt-out)
+  # Check if a specific AI feature is enabled for a user (combines feature flag +
+  # org opt-out + COPPA / EU under-16 parental gates + per-user AI prefs).
   def self.ai_feature_enabled_for?(feature, user)
     return false unless AI_FEATURES.include?(feature)
     return false unless ai_enabled_for?(user)
+    return false if coppa_blocks_ai_for?(user)
+    return false if eu_under16_blocks_ai_for?(user)
+    return false unless user_pref_allows_ai?(feature, user)
     feature_enabled_for?(feature, user)
   end
 
-  # EU launch (GDPR Art. 8): whether the jurisdiction-aware registration
-  # consent-age gate is globally active. Mirrors how anonymous registration
-  # reads flags (window.enabled_frontend_features = ENABLED_FRONTEND_FEATURES),
-  # since there is no user yet at signup. OFF by default (AVAILABLE-only) so the
-  # registration flow stays identical to today until deliberately enabled.
-  #
-  # DEPENDENCY: EU-16 only actually GATES when the host also has
-  # coppa_parental_consent enabled (JsonApi::Json.coppa_parental_consent_enabled?).
-  # With this flag ON but that OFF, the register UI collects a parent email but
-  # the backend does not gate -- a cosmetic prompt. Enable BOTH together on an
-  # EU host. (And note the age gate itself trusts a client boolean; server-side
-  # enforcement is a separate hardening item, see the PR/plan.)
+  # Legacy: injects domain_settings.coppa_consent_age (13 vs 16) when enabled.
+  # Registration signup parental consent is ALWAYS under-13 (COPPA account
+  # activation) and does not consume this flag. GDPR Art. 8 for EU under-16 is
+  # handled post-signup via settings['eu_ai_parental_consent'] (AI prefer-gate),
+  # not by blocking account creation. Keep OFF (AVAILABLE-only) unless a
+  # non-registration consumer needs the injected age.
   def self.eu_consent_age_enabled?
     ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
   end
@@ -191,5 +193,38 @@ module FeatureFlags
     return false unless user
     return false unless user.respond_to?(:coppa_parental_consent_blocks_access?)
     user.coppa_parental_consent_blocks_access?
+  end
+
+  # EU under-16 AI parental-consent hard-gate. Default ON.
+  # Set EU_AI_PARENTAL_HARD_GATE=false in env for emergency rollback only.
+  def self.eu_ai_parental_hard_gate_enabled?
+    ENV['EU_AI_PARENTAL_HARD_GATE'].to_s.downcase != 'false'
+  end
+
+  # True when AI must be blocked because the user is EU under-16 without active
+  # parental consent for AI enablement.
+  def self.eu_under16_blocks_ai_for?(user)
+    return false unless eu_ai_parental_hard_gate_enabled?
+    return false unless user
+    return false unless user.respond_to?(:eu_under_16?)
+    return false unless user.respond_to?(:eu_ai_parental_consent_active?)
+    user.eu_under_16? && !user.eu_ai_parental_consent_active?
+  end
+
+  # Per-user AI preference gate.
+  # - Master (ai_features_enabled) nil => grandfather allowed (legacy users).
+  # - Master false => block all AI.
+  # - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
+  #   other AI_FEATURES follow the master (allowed).
+  def self.user_pref_allows_ai?(feature, user)
+    return true unless user
+    prefs = user.settings && user.settings['preferences']
+    return true unless prefs.is_a?(Hash)
+    master = prefs['ai_features_enabled']
+    return true if master.nil?
+    return false if master == false || master.to_s == 'false'
+    return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
+    val = prefs[feature.to_s]
+    val == true || val.to_s == 'true'
   end
 end

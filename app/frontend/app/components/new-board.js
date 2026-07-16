@@ -11,6 +11,7 @@ import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import actionLock from '../utils/action-lock';
+import aiFeatureGate from '../utils/ai_feature_gate';
 
 /**
  * New Board Modal Component
@@ -139,9 +140,14 @@ export default Component.extend({
     return this.get('model.for_user_id');
   }),
 
-  ai_board_generation_enabled: computed('appState.feature_flags.ai_board_generation', function() {
-    return !!this.appState.get('feature_flags.ai_board_generation');
-  }),
+  ai_board_generation_enabled: computed(
+    'appState.feature_flags.ai_board_generation',
+    'appState.currentUser.preferences.ai_features_enabled',
+    'appState.currentUser.preferences.ai_board_generation',
+    function() {
+      return aiFeatureGate.aiFeatureEnabled(this.appState, 'ai_board_generation');
+    }
+  ),
 
   paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
     return !!this.appState.get('feature_flags.paste_html_import');
