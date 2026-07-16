@@ -17,7 +17,7 @@
       </div>
       <div class="la-edit-board-field">
         <label class="la-edit-board-label" for="decription">{{t "Description" key="description"}}</label>
-        <Textarea @value={{this.model.description}} class="la-edit-board-input la-edit-board-textarea" id="decription" placeholder="Details about this board" />
+        <textarea class="la-edit-board-input la-edit-board-textarea" id="decription" placeholder="Details about this board" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
       </div>
       <div class="la-edit-board-field">
         <label class="la-edit-board-label" for="image_url">{{t "Icon" key="icon"}}</label>

@@ -80,10 +80,10 @@
 
     <div class="md-modal-field">
       <label class="md-modal-label">{{t "Notes" key="notes"}}</label>
-      <Textarea @value={{this.settings.accommodations}} class="md-modal-input" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} />
+      <textarea class="md-modal-input" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} {{on "input" (set-field this "settings.accommodations")}}>{{this.settings.accommodations}}</textarea>
     </div>
     <div class="md-modal-field">
-      <Textarea @value={{this.settings.notes}} class="md-modal-input" placeholder="additional notes" rows={{4}} />
+      <textarea class="md-modal-input" placeholder="additional notes" rows={{4}} {{on "input" (set-field this "settings.notes")}}>{{this.settings.notes}}</textarea>
     </div>
   </div>
   <div class="modal-footer md-modal-footer">

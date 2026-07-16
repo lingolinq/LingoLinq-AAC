@@ -13,7 +13,7 @@
     </div>
     <div class="form-group">
       <label for="import_html_textarea">{{t "Board HTML" key="board_html"}}</label>
-      <Textarea @value={{this.html}} class="form-control" id="import_html_textarea" rows="12" placeholder="<div class='board'>...</div>" />
+      <textarea class="form-control" id="import_html_textarea" rows="12" placeholder="<div class='board'>...</div>" {{on "input" (set-field this "html")}}>{{this.html}}</textarea>
     </div>
     {{#if this.status.error}}
       <div class="alert alert-danger">{{this.status.error}}</div>

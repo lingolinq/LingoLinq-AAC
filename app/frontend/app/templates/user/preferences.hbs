@@ -1015,7 +1015,7 @@
               {{t "Automatically substitute common contractions" key='substitute_contractions'}}
             </label>
           </div>
-          <Textarea @value={{this.substitution_string}} class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" />
+          <textarea class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" {{on "input" (set-field this "substitution_string")}}>{{this.substitution_string}}</textarea>
         </div>
       </div>
       {{#if this.core_lists.for_user}}

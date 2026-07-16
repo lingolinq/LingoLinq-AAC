@@ -55,7 +55,7 @@
               {{t "Notes" key="notes"}}
             </label>
             <div class="col-sm-9">
-              <Textarea @value={{this.status_note}} id="notes" class="form-control" placeholder="brief note related to this status" rows={{3}} />
+              <textarea id="notes" class="form-control" placeholder="brief note related to this status" rows={{3}} {{on "input" (set-field this "status_note")}}>{{this.status_note}}</textarea>
             </div>
           </div>
         </form>

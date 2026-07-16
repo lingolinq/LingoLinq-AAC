@@ -191,7 +191,7 @@
         {{#if this.goal_type.custom}}
           <div class="md-modal-field">
             <label for="new_goal_description" class="md-modal-label">{{t "Description" key="description"}}</label>
-            <Textarea @value={{this.goal.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
+            <textarea class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" {{on "input" (set-field this "goal.description")}}>{{this.goal.description}}</textarea>
           </div>
           {{#if this.goal.video}}
             <div class="md-modal-field">

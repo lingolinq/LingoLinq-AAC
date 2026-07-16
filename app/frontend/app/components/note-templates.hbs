@@ -21,7 +21,7 @@
         </div>
         <div class="md-org-settings-field">
           <label class="md-org-settings-field__label">{{t "Template Contents" key="template_contents"}}</label>
-          <Textarea @value={{this.current_template.text}} rows={{8}} class="md-org-settings-textarea" placeholder="Template Contents" />
+          <textarea rows={{8}} class="md-org-settings-textarea" placeholder="Template Contents" {{on "input" (set-field this "current_template.text")}}>{{this.current_template.text}}</textarea>
         </div>
         <div style="text-align: right; margin-top: 8px;">
           <button type="button" class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "remove" this.current_template)}}>{{t "Remove Template" key="remove_template"}}</button>

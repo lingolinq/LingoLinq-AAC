@@ -91,14 +91,14 @@
   </div>
   <div class="la-contact-form__row {{if this.errors.details "la-contact-form__row--error"}}">
     <label for="beta_general" class="la-contact-form__label">{{t "What happened, or what would you like us to know?" key="beta_feedback_main_prompt_label"}}</label>
-    <Textarea @value={{this.general_feedback}} class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_general" placeholder={{t "Tell us what you tried, what felt confusing, or what worked well." key="beta_feedback_main_prompt_placeholder"}} rows={{5}} maxlength="20000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" this.onClearFieldErrorDetails}} />
+    <textarea class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_general" placeholder={{t "Tell us what you tried, what felt confusing, or what worked well." key="beta_feedback_main_prompt_placeholder"}} rows={{5}} maxlength="20000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" this.onClearFieldErrorDetails}}>{{this.general_feedback}}</textarea>
     {{#if this.errors.details}}
       <p class="la-contact-form__field-error" id="beta_details_error">{{t "Please add at least a few words about what happened." key="beta_feedback_validation_details_simple"}}</p>
     {{/if}}
   </div>
   <div class="la-contact-form__row">
     <label for="beta_workflow_context" class="la-contact-form__label">{{t "What were you trying to do? (optional)" key="beta_feedback_workflow_label"}}</label>
-    <Textarea @value={{this.workflow_context}} class="la-contact-input la-contact-input--textarea" id="beta_workflow_context" placeholder={{t "For example, building a board, trying Speak Mode, or reviewing a report." key="beta_feedback_workflow_placeholder"}} rows={{3}} maxlength="10000" />
+    <textarea class="la-contact-input la-contact-input--textarea" id="beta_workflow_context" placeholder={{t "For example, building a board, trying Speak Mode, or reviewing a report." key="beta_feedback_workflow_placeholder"}} rows={{3}} maxlength="10000" {{on "input" (set-field this "workflow_context")}}>{{this.workflow_context}}</textarea>
   </div>
   <div class="la-contact-form__row">
     <label for="beta_feedback_attachments" class="la-contact-form__label">{{t "Attachments (optional)" key="beta_feedback_attachments_label"}}</label>

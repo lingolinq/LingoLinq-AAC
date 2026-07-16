@@ -108,7 +108,7 @@
           </div>
           <div class="md-goal-field">
             <label class="md-goal-field__label" for="new_goal_description">{{t "Description" key="description"}}</label>
-            <Textarea @value={{this.model.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
+            <textarea class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
           </div>
         </div>
 

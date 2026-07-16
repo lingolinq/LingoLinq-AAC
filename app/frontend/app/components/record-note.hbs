@@ -63,12 +63,12 @@
       {{#if this.text_note}}
         <div class="md-modal-field">
           <label for="note" class="md-modal-label">{{t "Note" key="note"}}</label>
-          <Textarea @value={{this.note}} class="form-control md-record-note-textarea" id="note" rows={{this.note_rows}} />
+          <textarea class="form-control md-record-note-textarea" id="note" rows={{this.note_rows}} {{on "input" (set-field this "note")}}>{{this.note}}</textarea>
         </div>
         {{#if this.model.external_device}}
           <div class="md-modal-field">
             <label for="log" class="md-modal-label">{{t "Log Events" key="log_events"}}</label>
-            <Textarea @value={{this.log}} class="form-control md-record-note-textarea" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective" />
+            <textarea class="form-control md-record-note-textarea" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective" {{on "input" (set-field this "log")}}>{{this.log}}</textarea>
           </div>
         {{/if}}
       {{else}}
@@ -78,7 +78,7 @@
         </div>
         <div class="md-modal-field">
           <label for="note" class="md-modal-label">{{t "Note" key="note"}}</label>
-          <Textarea @value={{this.note}} class="form-control md-record-note-textarea" id="note" rows="1" />
+          <textarea class="form-control md-record-note-textarea" id="note" rows="1" {{on "input" (set-field this "note")}}>{{this.note}}</textarea>
         </div>
       {{/if}}
 

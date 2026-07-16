@@ -1586,16 +1586,7 @@
                        internal scroll; on focus the JS expands it to
                        its full scrollHeight, letting the page scroll
                        handle anything past the viewport. --}}
-                  <Textarea
-                    @value={{this.model.description}}
-                    class="md-board-detail-header__info-description md-board-detail-header__info-description--editable"
-                    placeholder={{t "Add a description for this board..." key="board_detail_description_placeholder"}}
-                    rows="3"
-                    aria-label={{t "Board description" key="board_detail_description_label"}}
-                    {{on "focus" (this.ctrlAction "auto_resize_description")}}
-                    {{on "input" (this.ctrlAction "auto_resize_description")}}
-                    {{on "blur" (this.ctrlAction "auto_resize_description_blur")}}
-                  />
+                  <textarea class="md-board-detail-header__info-description md-board-detail-header__info-description--editable" placeholder={{t "Add a description for this board..." key="board_detail_description_placeholder"}} rows="3" aria-label={{t "Board description" key="board_detail_description_label"}} {{on "focus" (this.ctrlAction "auto_resize_description")}} {{on "input" (this.ctrlAction "auto_resize_description")}} {{on "blur" (this.ctrlAction "auto_resize_description_blur")}}>{{this.model.description}}</textarea>
                 </div>
               {{else}}
                 <div class="md-board-detail-header__title-row">

@@ -37,7 +37,7 @@
         <div class="form-group">
           <label class="control-label col-sm-3" for="assign-lesson-instructions">{{t "Instructions" key="instructions"}}</label>
           <div class="col-sm-9">
-            <Textarea id="assign-lesson-instructions" @value={{this.lesson.description}} class="form-control" placeholder="additional instructions" rows={{2}} />
+            <textarea id="assign-lesson-instructions" class="form-control" placeholder="additional instructions" rows={{2}} {{on "input" (set-field this "lesson.description")}}>{{this.lesson.description}}</textarea>
           </div>
         </div>
         <div class="form-group">

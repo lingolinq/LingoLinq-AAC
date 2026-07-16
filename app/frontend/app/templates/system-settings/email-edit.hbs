@@ -45,10 +45,10 @@
     {{/each}}
   {{else if (is-equal this.activeFormat "html")}}
     <p class="la-system-settings__hint">{{t "Advanced template code. Leave unchanged unless you need full control over layout." key="system_settings_email_html_hint"}}</p>
-    <Textarea @value={{this.html_body}} class="form-control la-system-settings__textarea" rows="18" />
+    <textarea class="form-control la-system-settings__textarea" rows="18" {{on "input" (set-field this "html_body")}}>{{this.html_body}}</textarea>
   {{else if (is-equal this.activeFormat "text")}}
     <p class="la-system-settings__hint">{{t "Advanced plain-text template code." key="system_settings_email_text_hint"}}</p>
-    <Textarea @value={{this.text_body}} class="form-control la-system-settings__textarea" rows="18" />
+    <textarea class="form-control la-system-settings__textarea" rows="18" {{on "input" (set-field this "text_body")}}>{{this.text_body}}</textarea>
   {{else}}
     <h3 class="la-system-settings__vars-heading">{{t "Branding variables" key="system_settings_email_branding_vars"}}</h3>
     <p class="la-system-settings__hint">

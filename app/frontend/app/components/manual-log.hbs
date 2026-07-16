@@ -24,7 +24,7 @@
         <input value={{this.time}} type="time" class="form-control" {{on "input" (set-field this "time")}} />
       </div>
       <div class='col-sm-12' style='margin-top: 20px; margin-bottom: 20px;'>
-        <Textarea @value={{this.words}} class="form-control" placeholder="one word/button per line" rows={{10}} />
+        <textarea class="form-control" placeholder="one word/button per line" rows={{10}} {{on "input" (set-field this "words")}}>{{this.words}}</textarea>
       </div>
     </div>
   </div>

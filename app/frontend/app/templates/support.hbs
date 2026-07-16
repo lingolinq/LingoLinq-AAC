@@ -77,7 +77,7 @@
                   </div>
                   <div class="la-contact-form__row">
                     <label for="support_message" class="la-contact-form__label">{{t "Message" key="message"}}</label>
-                    <Textarea @value={{this.message}} class="la-contact-input la-contact-input--textarea" id="support_message" placeholder="" rows={{4}} />
+                    <textarea class="la-contact-input la-contact-input--textarea" id="support_message" placeholder="" rows={{4}} {{on "input" (set-field this "message")}}>{{this.message}}</textarea>
                   </div>
                   {{#if this.error}}
                     <p class="la-support-form-error">{{t "Submission failed, please try again" key="ticket_failed"}}</p>

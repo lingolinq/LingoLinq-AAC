@@ -45,7 +45,7 @@
 
     <div class="md-org-settings-field">
       <label for="board" class="md-org-settings-field__label">{{t "Home Boards" key="home_boards"}}</label>
-      <Textarea @value={{this.home_board_key_lines}} class="md-org-settings-textarea" id="board" placeholder={{this.board_keys_placeholder}} />
+      <textarea class="md-org-settings-textarea" id="board" placeholder={{this.board_keys_placeholder}} {{on "input" (set-field this "home_board_key_lines")}}>{{this.home_board_key_lines}}</textarea>
       <span class="md-org-settings-field__hint">
         {{t "any users you add that don't have a home board set will be set with the first board unless specified" key="default_home_board_explainer"}}
       </span>
