@@ -81,6 +81,7 @@ module EvalNarrator
   def self.ai_allowed_for?(user)
     return false unless user
     return false if FeatureFlags.coppa_blocks_ai_for?(user)
+    return false if FeatureFlags.eu_under16_blocks_ai_for?(user)
     return false unless FeatureFlags.ai_enabled_for?(user)
     true
   end

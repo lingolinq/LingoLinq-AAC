@@ -10,6 +10,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'about', 'contact', 'info', 'docs', 'purchase', 'pricing', 'careers', 
   'news', 'styleguide', 'tour', 'compare', 'guides', 'partners', 
   'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
+  'eu_ai_parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'cough_drop',
   'mylingolinq', 'inflection', 'inflections', 'saml', 'eval', 'ai_consent'
@@ -41,6 +42,8 @@ LingoLinq::Application.routes.draw do
   get '/terms' => 'boards#terms'
   get '/parental_consent/complete' => 'parental_consents#complete'
   get '/parental_consent/revoke' => 'parental_consents#revoke'
+  get '/eu_ai_parental_consent/complete' => 'eu_ai_parental_consents#complete'
+  get '/eu_ai_parental_consent/revoke' => 'eu_ai_parental_consents#revoke'
   get '/ai_consent/disclosures/:version' => 'ai_consent/disclosures#show'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'
@@ -239,6 +242,7 @@ LingoLinq::Application.routes.draw do
       post 'evals/reset' => 'users#reset_eval'
       post '2fa' => 'users#update_2fa'
       get 'external_nonce/:nonce_id' => 'users#external_nonce'
+      post 'eu_ai_parental_consent' => 'users#request_eu_ai_parental_consent'
     end
     
     resources :images do

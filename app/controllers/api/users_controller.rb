@@ -830,7 +830,36 @@ class Api::UsersController < ApplicationController
     schedule_parental_consent_request_email!(user)
     render json: {sent: true}
   end
-  
+
+  # Request (or re-request) EU AI parental consent email for an eu_under_16 user.
+  # Requires API token + edit/self. Body: parent_email.
+  def request_eu_ai_parental_consent
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'edit')
+    unless user.eu_under_16?
+      return api_error 400, {error: 'eu_under_16_required'}
+    end
+    parent_email = (
+      params['parent_email'] ||
+      (params['user'] && params['user']['parent_email']) ||
+      ''
+    ).to_s.strip
+    requested = params['requested_features'] ||
+                (params['user'] && params['user']['requested_features'])
+    begin
+      user.request_eu_ai_parental_consent!(parent_email, requested_features: requested)
+    rescue ArgumentError => e
+      return api_error 400, {error: e.message}
+    end
+    UserMailer.schedule_parent_consent_delivery(:eu_ai_parental_consent_request, user.global_id)
+    render json: {
+      pending: true,
+      eu_ai_parental_consent_pending: true,
+      requested_features: user.settings.dig('eu_ai_parental_consent', 'requested_features')
+    }
+  end
+
   def password_reset
     user = User.find_by_path(params['user_id'])
     if user && reset_token = user.reset_token_for_code(params['code'])

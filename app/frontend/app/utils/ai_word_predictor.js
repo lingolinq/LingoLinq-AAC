@@ -2,6 +2,7 @@ import RSVP from 'rsvp';
 import $ from 'jquery';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import app_state from './app_state';
+import aiFeatureGate from './ai_feature_gate';
 
 // AI-powered word prediction service.
 // Optimized for Gemini free tier (20 requests/minute).
@@ -38,8 +39,7 @@ var ai_word_predictor = {
 
   is_enabled: function(appStateService) {
     var state = appStateService || app_state;
-    if(!state || typeof state.get !== 'function') { return false; }
-    return !!state.get('feature_flags.ai_word_prediction');
+    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction');
   },
 
   predict: function(sentence, options) {

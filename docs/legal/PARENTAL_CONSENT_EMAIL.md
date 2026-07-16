@@ -27,27 +27,49 @@ The mailer method is `UserMailer#parental_consent_request` in `app/mailers/user_
 
 ## Current default strings (English)
 
+Placeholders: `%{app_name}`, `%{consent_age}`, `%{child_username}`, `%{registered_at}`, and (on revoke/confirmation details) related account fields. Admins can override many of these in System Settings.
+
 **Subject (with `%{app_name}`):**
 
 > Parental consent for a new %{app_name} account
 
 **Greeting:**
 
-> Hello,
+> Hi there!
 
-**Intro:**
+**Intro (with `%{app_name}` and `%{consent_age}`):**
 
-> A new %{app_name} account was created for a user who indicated they are under 13. U.S. regulations require verifiable parental consent before the account can be fully activated.
+> A new %{app_name} account was just created by someone in your care, and the user let us know they are under %{consent_age}.
+
+**Safety notice:**
+
+> To keep things safe and follow U.S. regulations, we need a thumbs-up from a parent or guardian before we can fully activate the account.
+
+**Ready heading:**
+
+> Ready to approve?
 
 **Action prompt:**
 
-> If you are the parent or legal guardian, please open the link below to provide consent:
+> If you are their parent or legal guardian, you can easily give your consent by clicking the link below:
 
-*(The implementation appends the one-time URL on its own line.)*
+**CTA label:** Approve Account & Get Started
+
+**Privacy notice / link:** Privacy Policy
+
+**Unexpected heading:** Didn't expect this email?
 
 **Footer:**
 
-> If you did not expect this message, you can ignore this email. The account will remain restricted until consent is given or the request expires.
+> No worries! If this wasn't you, you can simply ignore this message. The account will stay locked and restricted until a parent approves it, or the request eventually expires.
+
+*(The implementation appends the one-time URL on its own line.)*
+
+**Confirmation intro** (for `parental_consent_confirmation_mailer`, with `%{app_name}`, `%{child_username}`, `%{registered_at}`):
+
+> Just a quick heads-up to confirm that you've approved the %{app_name} account for %{child_username} (registered on %{registered_at}). We've got your consent officially locked in!
+
+Confirmation also includes Privacy Policy, revoke-anytime copy, and a revoke CTA (see en.yml `parental_consent_confirmation_mailer.*`).
 
 ## Approval link behavior
 
@@ -96,7 +118,7 @@ After a successful revoke, the parent receives `UserMailer#parental_consent_revo
 
 ## Local dev: consent link on port 8184
 
-Parent email links use `DEFAULT_HOST` (often `http://localhost:8184`). The Ember dev server must **proxy** `/parental_consent/complete` and `/parental_consent/revoke` to Rails (see `app/frontend/server/index.js`, same pattern as `/auth/*`). Without that proxy, the browser gets the Ember SPA shell and the page looks blank. Restart `ember serve` after changing that file. You can also open the link on **`http://localhost:5000/...`** directly to hit Rails.
+Parent email links use `DEFAULT_HOST` (often `http://localhost:8184`). The Ember dev server must **proxy** `/parental_consent/complete`, `/parental_consent/revoke`, `/eu_ai_parental_consent/complete`, and `/eu_ai_parental_consent/revoke` to Rails (see `app/frontend/server/index.js`, same pattern as `/auth/*`). Without that proxy, the browser gets the Ember SPA shell and the page looks blank. Restart `ember serve` after changing that file. You can also open the link on **`http://localhost:5000/...`** directly to hit Rails.
 
 This is **not** because the parent address is wrong: `UserMailer#parental_consent_request` sets **`mail(to: settings['coppa']['parent_email'])`**, which is the address submitted as `parent_consent_email` at registration.
 

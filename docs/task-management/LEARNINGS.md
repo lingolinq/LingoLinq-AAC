@@ -21,6 +21,7 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
+- [Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both](#gotcha-ai-feature-flags-are-rollout-prefs-turn-ai-on--ember-ui-must-and-both)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
@@ -5487,6 +5488,17 @@ it was never added to the `AI_FEATURES` allowlist (`:77`). Adding a feature to t
 registering it in `AI_FEATURES`. `system_feature_registry.rb:80` also derives its `ai_feature:`
 flag from this list, so registering there correctly tags it in the admin registry.
 
+## Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both
+
+`frontend_flags_for` / Ember `feature_flags` do **not** consult user AI prefs. Server egress uses
+`ai_feature_enabled_for?` (flag + org + COPPA + EU + `user_pref_allows_ai?`). If Ember only checks
+`appState.feature_flags.ai_*`, the UI offers generate/predict while the API 403s after the user
+turned prefs off. Do not bake prefs into the flags payload. Mirror pref semantics in
+`app/frontend/app/utils/ai_feature_gate.js` (`prefAllowsAi` / `aiFeatureEnabled`) and gate board-gen /
+word-prediction UI through it. Master `nil` = grandfather allow; master false = block; master true
+= per-feature must be true for `USER_PREF_AI_FEATURES`. See
+`docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-15)
+
 ## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
 
 `lib/eval_narrator.rb#draft_via_anthropic` originally used `Anthropic::Client.new(access_token:)` +
@@ -6475,3 +6487,7 @@ the cheap fallback to confirm controller/route syntax.
 ## Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise
 
 Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)
+
+## Pattern: EU AI under-16 consent is a third blob, not COPPA signup
+
+EU under-16 AI enablement (`settings['eu_ai_parental_consent']`) is separate from COPPA account activation (`settings['coppa']`) and AI VPC data-sharing (`settings['ai_consent']`). Mirror COPPA token/`with_lock`/`AuditEvent` patterns for grant/revoke, but the complete controller must NOT mint devices or welcome emails — those are account-activation side effects. Persist country via `LingoLinq::Jurisdiction.trusted_country` (ISO alpha-2 only) and always recompute `eu_under_16` server-side from country + under_16; ignore client `eu_under_16`. Prefer-gate AI through `FeatureFlags.ai_feature_enabled_for?` (COPPA + EU + prefs) and keep thin call-site eu/coppa checks for defense in depth. Store allowlisted `requested_features` on request; apply them onto `settings['preferences']` inside the same `grant_eu_ai_parental_consent!` lock that records grant; on revoke force `EU_AI_PREF_KEYS` off. Prefs UI opens a modal (not an inline form) via `gate_ai_enable` → `modal.open('eu-ai-parental-consent')`. **Do not raise signup `coppaConsentAge` to 16 for EU** — that reused COPPA account-activation parent email for Art. 8; product intent is account create without parent email, AI consent only after login. Register keeps literal under-13 for `coppa_under_13`; `_classifyUnder16` + country drive `eu_under_16`. See `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-14; registration decoupling 2026-07-15)
