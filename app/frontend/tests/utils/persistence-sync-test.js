@@ -973,20 +973,25 @@ describe("persistence-sync", function() {
         id: '303'
       });
       var ids = null;
+      var syncDone = false;
 
       persistence.sync(1340).then(function() {
+          syncDone = true;
           if (persistence.important_ids && persistence.important_ids.length >= 10) {
             ids = persistence.important_ids;
             return;
           }
           return readSettingsAfterSync('importantIds');
         }, function() {
+          syncDone = true;
           if (persistence.important_ids && persistence.important_ids.length) {
             ids = persistence.important_ids;
           }
         }).then(function(res) {
           if ((!ids || ids.length < 10) && res && res.ids) {
             ids = res.ids;
+          } else if ((!ids || ids.length < 10) && res && res.raw && res.raw.ids) {
+            ids = res.raw.ids;
           }
         }, function() {
           if (persistence.important_ids && persistence.important_ids.length) {
@@ -994,8 +999,10 @@ describe("persistence-sync", function() {
           }
         });
       waitsFor(function() {
-        return (ids && ids.length >= 10) ||
-          (persistence.important_ids && persistence.important_ids.length >= 10);
+        return waitForSyncDoneAndSettled(syncDone) && (
+          (ids && ids.length >= 10) ||
+          (persistence.important_ids && persistence.important_ids.length >= 10)
+        );
       });
       runs(function() {
         if (!ids || ids.length < 10) {
