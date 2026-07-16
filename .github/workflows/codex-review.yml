@@ -259,14 +259,8 @@ jobs:
             exit 1
           fi
 
-          VERDICT="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['review'].get('verdict', ''))")"
-          if [ "$VERDICT" = "APPROVE" ]; then
-            FINAL_STATE="success"
-            DESCRIPTION="Codex review approved"
-          else
-            FINAL_STATE="failure"
-            DESCRIPTION="Codex review requires changes"
-          fi
+          FINAL_STATE="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['state'])")"
+          DESCRIPTION="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['description'])")"
 
           # W2 owns the sticky comment; Actions owns the commit status
           # because this job already has statuses:write and n8n's comment
@@ -279,12 +273,16 @@ jobs:
 
           # Success condition (literal, per build spec section 1): do not
           # exit success unless a follow-up GET confirms deep-pass is no
-          # longer pending. codex-watchdog.yml is the independent backstop
-          # if this check itself never runs (job killed before this line).
+          # longer pending for THIS run's status entry. Another in-flight
+          # dispatch can post the same context on the same SHA, so key the
+          # verification by target_url instead of taking the newest context.
+          # codex-watchdog.yml is the independent backstop if this check
+          # itself never runs (job killed before this line).
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           for i in $(seq 1 6); do
             sleep 5
-            STATE="$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/status" --jq \
-              '.statuses[] | select(.context=="codex-review/deep-pass") | .state' | head -1)"
+            gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses" > /tmp/codex-statuses.json
+            STATE="$(python3 -c 'import json, sys; run_url = sys.argv[1]; statuses = json.load(open("/tmp/codex-statuses.json")); print(next((status["state"] for status in statuses if status.get("context") == "codex-review/deep-pass" and status.get("target_url") == run_url), ""))' "$RUN_URL")"
             if [ "$STATE" != "pending" ] && [ -n "$STATE" ]; then
               echo "codex-review/deep-pass resolved to: $STATE"
               exit 0
