@@ -1218,7 +1218,7 @@
               {{#if this.standalone}}
                 <div class="nb-create-rail__actions">
                   <span id="new-board-create-hint" class="sr-only" aria-live="polite">{{this.missing_required_summary}}</span>
-                  <button {{on "click" (this.ctrlAction "attemptSave")}}
+                  <button type="button" {{on "click" (this.ctrlAction "attemptSave")}}
                           class="btn btn-primary new-board__submit nb-create-rail__submit {{if this.createBoardDisabled 'new-board__submit--invalid'}}"
                           aria-disabled={{if this.createBoardDisabled "true" "false"}}
                           aria-describedby="new-board-create-hint">

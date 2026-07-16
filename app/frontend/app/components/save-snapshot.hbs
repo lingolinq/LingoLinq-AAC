@@ -45,7 +45,7 @@
         {{/if}}
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
             <button class='btn btn-primary' type='submit' disabled={{this.saving}}>
               {{#if this.snapshot.saving}}
                 {{t "Creating Snapshot..." key="creating_snapshot"}}

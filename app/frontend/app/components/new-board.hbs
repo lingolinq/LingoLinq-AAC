@@ -219,7 +219,7 @@
                 <div class="nb-field">
                   <div style="margin-bottom: 5px;">
                     {{t "Listening..." key="listening"}}
-                    <button class='btn btn-default' {{on "click" (this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
+                    <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
                     <SpeechListener @content={{this.ctrlAction "speech_content"}} @error={{this.ctrlAction "speech_error"}} @stop={{this.ctrlAction "speech_stop"}} @speech={{this.speech}} />
                   </div>
                   <ul class="nav nav-pills">

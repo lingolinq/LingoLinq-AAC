@@ -113,7 +113,7 @@
       </div>
       <div class='col-sm-2' style='text-align: right;'>
         {{#if this.pending_preferences.home_board.key}}
-          <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_home')}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'clear_home')}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
         {{/if}}
       </div>
       {{#unless this.pending_preferences.home_board.key}}
@@ -1051,7 +1051,7 @@
           </div>
           <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em></p>
           <div style='margin-top: 12px;'>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction 'phrases')}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'phrases')}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
           </div>
         </div>
       </div>
@@ -1121,7 +1121,7 @@
         <div class="col-sm-5">
           {{#unless this.editing_sidebar}}
             <div style='margin-bottom: 12px;'>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction 'edit_sidebar')}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'edit_sidebar')}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
             </div>
           {{else}}
             <p class="form-control-static">
@@ -1132,9 +1132,9 @@
                 <li class="list-group-item" style="height: 60px;">
                   <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                   <span style="float: right; margin-top: 5px;">
-                    <button class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "up")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "down")}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "delete")}}><span class='glyphicon glyphicon-trash'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "up")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "down")}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "delete")}}><span class='glyphicon glyphicon-trash'></span></button>
                   </span>
                   <span style="cursor: pointer; margin-top: 10px; display: inline-block; margin-left: 5px;" {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                     {{#if option.alert}}
@@ -1160,7 +1160,7 @@
                   <li class="list-group-item" style="height: 60px;">
                     <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
-                      <button class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "restore")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                      <button type="button" class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "restore")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
                     </span>
                     <span style="margin-top: 10px; display: inline-block; margin-left: 5px;">
                       {{#if option.alert}}
@@ -1187,7 +1187,7 @@
                 <input type="text" value={{this.new_sidebar_board}} class="form-control" placeholder={{t "add board key or action code" key="sidebar_add_placeholder"}} aria-label={{t "add board key or action code" key="sidebar_add_placeholder"}} {{on "input" (set-field this "new_sidebar_board")}} />
               </span>
               <span style='display: inline-block; width: 60px;'>
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "add_sidebar_board" this.new_sidebar_board)}}>{{t "Add" key='add'}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "add_sidebar_board" this.new_sidebar_board)}}>{{t "Add" key='add'}}</button>
               </span>
               <p class="form-control-static" style="margin-top: 10px; font-size: 1.05rem;">{{t "You can edit the action code before adding—for example change :timer(30s) to :timer(60s)." key="sidebar_action_picker_edit_help"}}</p>
               <p class="form-control-static" style="margin-top: 4px; font-size: 1.05rem;">{{t "Board example: lingolinq/yesno" key="sidebar_board_key_example"}}</p>
@@ -1213,9 +1213,9 @@
           </p>
           <div style='display: flex; gap: 10px; flex-wrap: wrap;'>
             {{#if this.can_record_tags}}
-              <button class='btn btn-default' {{on "click" (this.ctrlAction 'program_tag')}}>{{t "Save New Tag" key='save_new_tag'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'program_tag')}}>{{t "Save New Tag" key='save_new_tag'}}</button>
             {{/if}}
-            <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_nfc_tags')}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'clear_nfc_tags')}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
           </div>
         </div>
       </div>
@@ -1590,7 +1590,7 @@
             <BoundSelect @select_class="form-control" @select_id="scanning_mode" @content={{this.dwellList}} @selection={{this.pending_preferences.device.dwell_type}} @action={{mut this.pending_preferences.device.dwell_type}} />
           </div>
           <div class="col-sm-2">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_dwell")}} style='width: 100%;'>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_dwell")}} style='width: 100%;'>
               {{#if this.testing_dwell}}
                 {{t "Stop Tracking" key='stop_test_dwell'}}
               {{else}}
@@ -1601,7 +1601,7 @@
           {{#if this.eyegaze_type}}
             {{#if this.calibratable}}
               <div class="col-sm-2">
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "calibrate")}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "calibrate")}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
               </div>
             {{/if}}
           {{/if}}
@@ -1811,7 +1811,7 @@
           <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
         </div>
         <div class="col-sm-2 col-xs-5">
-          <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
         </div>
       </div>
       <div class="form-group" style="margin-top: -15px;">
@@ -1836,7 +1836,7 @@
         </div>
       </div>
       <div class="col-sm-2 col-xs-5">
-        <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}}>{{t "Test Voice" key='test_voice'}}</button>
+        <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}}>{{t "Test Voice" key='test_voice'}}</button>
       </div>
     </div>
   {{else}}
@@ -1851,7 +1851,7 @@
               <div style="flex: 1 1 auto; min-width: 180px;">
                 <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
               </div>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
             </div>
             {{#if this.ios_app}}
               <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some system voices may not work due to an Apple speech engine issue. Try a Premium Voice or \"System Default Voice\" if needed." key='apple_tts_bug'}}</em></p>
@@ -1867,7 +1867,7 @@
             </p>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
           </div>
         </div>
       {{/if}}
@@ -1900,7 +1900,7 @@
               <input value={{this.pending_preferences.device.voice.volume}} class="md-number-picker__input" id="voice_volume" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.voice.volume")}} />
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.volume")}}>+</button>
             </div>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
           </div>
           <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some voices may not support changing pitch or volume" key='voice_pitch_volume_note'}}</em></p>
         </div>
@@ -2013,7 +2013,7 @@
             </div>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice" "alternate")}}>{{t "Test Voice" key='test_voice'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice" "alternate")}}>{{t "Test Voice" key='test_voice'}}</button>
           </div>
         </div>
       {{#if this.audio_target_available}}

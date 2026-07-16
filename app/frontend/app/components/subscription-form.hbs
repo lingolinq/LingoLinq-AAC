@@ -11,7 +11,7 @@
         {{#if this.subscription.user.really_expired}}
         {{else}}
           <div style='margin-bottom: 10px;'>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a full-featured 2-month trial, no credit card required" key="two_month_trial_no_credit_card"}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a full-featured 2-month trial, no credit card required" key="two_month_trial_no_credit_card"}}</button>
           </div>
         {{/if}}
       {{/if}}
@@ -189,7 +189,7 @@
                     <span style="display: inline-block; width: 100px; margin-left: 5px;">
                       <input value={{this.subscription.gift_code}} type="text" class="form-control input-lg" placeholder="CODE" {{on "input" (set-field this "subscription.gift_code")}} />
                     </span>
-                    <button {{on "click" (this.ctrlAction "check_gift")}} style='display: inline-block; width: 100px; margin-top: -4px;' class='btn btn-lg btn-default'>
+                    <button type="button" {{on "click" (this.ctrlAction "check_gift")}} style='display: inline-block; width: 100px; margin-top: -4px;' class='btn btn-lg btn-default'>
                       {{#if this.subscription.gift_status.checking}}
                         {{t "..." key="ellipsis"}}
                       {{else if this.subscription.gift_status.error}}

@@ -64,7 +64,7 @@
           <div style="float: left; margin-right: 4px; width: 150px;">
           <Input @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control" placeholder="Search Boards" />
           </div>
-          <button class="btn btn-default" {{on "click" (this.ctrlAction "searchBoards")}}>{{t "Go" key="go"}}</button>
+          <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "searchBoards")}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>
         </form>
       {{/if}}

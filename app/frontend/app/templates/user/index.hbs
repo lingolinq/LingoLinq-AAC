@@ -506,7 +506,7 @@
 
               <div class="form-group">
                 <div class='col-sm-5 col-sm-offset-3'>
-                  <button class='btn btn-default' {{on "click" (this.ctrlAction "rename_user" true)}}>
+                  <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "rename_user" true)}}>
                     {{#if this.new_user_name.renaming}}
                       {{t "Changing User Name" key="changing_user_name"}}
                     {{else if this.new_user_name.error}}
@@ -515,7 +515,7 @@
                       {{t "Change User Name" key="change_user_name"}}
                     {{/if}}
                   </button>
-                  <button class='btn btn-default' {{on "click" (this.ctrlAction "rename_user" false)}}>{{t "Cancel" key="cancel"}}</button>
+                  <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "rename_user" false)}}>{{t "Cancel" key="cancel"}}</button>
                 </div>
               </div>
             </form>

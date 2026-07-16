@@ -109,7 +109,7 @@
               <input type="date" value={{this.goal.expires}} class="form-control" id="new_goal_concludes" {{on "input" (set-field this "goal.expires")}} />
             </div>
             <div class='col-sm-3'>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction "clear_expires")}}>{{t "clear" key="clear_lower"}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clear_expires")}}>{{t "clear" key="clear_lower"}}</button>
             </div>
           </div>
         {{/unless}}

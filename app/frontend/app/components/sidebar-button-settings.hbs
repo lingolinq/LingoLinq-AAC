@@ -87,7 +87,7 @@
               </div>
               <div class="col-sm-5">
                 {{#if this.appState.current_ssid}}
-                  <button class='btn btn-default' {{on "click" (this.ctrlAction "add_ssid")}}>{{t "Add %{ssid}" ssid=this.appState.current_ssid key="add_current_network"}}</button>
+                  <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "add_ssid")}}>{{t "Add %{ssid}" ssid=this.appState.current_ssid key="add_current_network"}}</button>
                 {{/if}}
               </div>
             </div>
@@ -105,7 +105,7 @@
                     <input type="time" value={{this.end}} class="form-control" placeholder="HH:MMam/pm" {{on "input" (set-field this "end")}} />
                   </span>
                   <span style='display: inline-block; width: 10%;'>
-                    <button {{on "click" (this.ctrlAction "add_time")}} class='btn btn-default'>{{t "Add" key="add"}}</button>
+                    <button type="button" {{on "click" (this.ctrlAction "add_time")}} class='btn btn-default'>{{t "Add" key="add"}}</button>
                   </span>
                 </div>
               </div>
@@ -130,7 +130,7 @@
                 <BoundSelect @select_class="form-control" @select_id="place" @content={{this.places_list}} @selection={{this.place}} @action={{this.ctrlAction "updatePlace"}} />
               </div>
               <div class='col-sm-2' style='margin-bottom: 5px;'>
-                <button {{on "click" (this.ctrlAction "add_place")}} class='btn btn-default'>{{t "Add" key="add"}}</button>
+                <button type="button" {{on "click" (this.ctrlAction "add_place")}} class='btn btn-default'>{{t "Add" key="add"}}</button>
               </div>
               <div class="col-sm-7 col-sm-offset-2">
                 <input value={{this.model.button.places}} class="form-control" id="places" placeholder="comma-separated location names" {{on "input" (set-field this "model.button.places")}} />
